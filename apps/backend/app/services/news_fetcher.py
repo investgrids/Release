@@ -240,6 +240,20 @@ async def _fetch_rss(url: str, source: str) -> list[dict]:
 # Public API
 # ---------------------------------------------------------------------------
 
+async def _fetch_finnhub_news() -> list[dict]:
+    """Pull general market news from Finnhub if API key is set."""
+    try:
+        from app.services.finnhub import get_market_news
+        articles = await get_market_news("general")
+        # Finnhub articles may lack _ts — stamp them now so sort works
+        now = time.time()
+        for a in articles:
+            a.setdefault("_ts", now)
+        return articles
+    except Exception:
+        return []
+
+
 async def get_live_news(limit: int = 20) -> list[dict]:
     """Return live news, cached for CACHE_TTL seconds. Empty list on total failure."""
     now = time.time()
@@ -248,9 +262,10 @@ async def get_live_news(limit: int = 20) -> list[dict]:
 
     loop = asyncio.get_event_loop()
 
-    # Run yfinance (sync) + all RSS feeds concurrently
+    # Run yfinance (sync) + all RSS feeds + Finnhub concurrently
     tasks = [loop.run_in_executor(None, _sync_fetch_yfinance)]
     tasks += [_fetch_rss(url, src) for url, src in RSS_FEEDS]
+    tasks += [_fetch_finnhub_news()]
 
     raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 

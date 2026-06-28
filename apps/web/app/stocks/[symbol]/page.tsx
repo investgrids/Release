@@ -33,6 +33,7 @@ interface StockDetail {
   analyst_count: number; held_institutions: string; held_insiders: string;
   quarterly_revenue: { label: string; value: number }[];
   quarterly_net_income: { label: string; value: number }[];
+  buy_count: number; hold_count: number; sell_count: number;
   events: StockEvent[]; news: any[]; peers: string[]; chart_data: any[];
 }
 interface PageProps { params: Promise<{ symbol: string }>; }
@@ -173,18 +174,10 @@ export default function StockPage({ params }: PageProps) {
 
   useEffect(() => {
     if (activeTab !== "News") return;
-    fetch(`${API}/api/news`)
+    // Use the Finnhub company-news endpoint
+    fetch(`${API}/api/stocks/${symbol}/news`)
       .then(r => r.ok ? r.json() : [])
-      .then(d => {
-        const sym = symbol.toLowerCase();
-        const all = Array.isArray(d) ? d : [];
-        const filtered = all.filter((a: any) =>
-          (a.companies || []).some((c: string) =>
-            c.toLowerCase().includes(sym) || sym.includes(c.toLowerCase().split(" ")[0])
-          )
-        );
-        setRelatedNews(filtered.length > 0 ? filtered : all.slice(0, 6));
-      })
+      .then(d => setRelatedNews(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, [activeTab, symbol]);
 
@@ -427,9 +420,34 @@ export default function StockPage({ params }: PageProps) {
                 </p>
               </div>
             </div>
+            {/* Buy / Hold / Sell breakdown */}
+            {(stock.buy_count > 0 || stock.hold_count > 0 || stock.sell_count > 0) && (() => {
+              const total = stock.buy_count + stock.hold_count + stock.sell_count || 1;
+              return (
+                <div className="mt-4 space-y-2">
+                  {[
+                    { label: "Buy",  count: stock.buy_count,  color: "bg-emerald-500" },
+                    { label: "Hold", count: stock.hold_count, color: "bg-amber-500"   },
+                    { label: "Sell", count: stock.sell_count, color: "bg-rose-500"    },
+                  ].map(r => (
+                    <div key={r.label}>
+                      <div className="mb-1 flex justify-between text-[11px]">
+                        <span className="text-slate-400">{r.label}</span>
+                        <span className="font-semibold text-white">{r.count}</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                        <div className={`h-full rounded-full ${r.color} transition-all duration-700`}
+                          style={{ width: `${Math.round((r.count / total) * 100)}%` }}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {stock.target_mean && stock.target_mean !== "—" && (
               <>
-                <p className="mb-1 text-[11px] text-slate-500">12-month price target range</p>
+                <p className="mt-5 mb-1 text-[11px] text-slate-500">12-month price target range</p>
                 <TargetBand
                   current={stock.price}
                   low={stock.target_low}

@@ -51,6 +51,9 @@ class StockDetail(BaseModel):
     target_high: str = ""
     target_low: str = ""
     analyst_count: int = 0
+    buy_count: int = 0
+    hold_count: int = 0
+    sell_count: int = 0
     held_institutions: str = ""
     held_insiders: str = ""
     quarterly_revenue: List[dict] = []

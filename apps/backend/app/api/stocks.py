@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -5,6 +7,7 @@ from app.db.session import get_db
 from app.db.crud import get_events
 from app.schemas.stock import StockDetail, StockEvent, StockNews
 from app.services.market_data import get_stock_detail, get_stock_chart
+from app.services import finnhub
 
 router = APIRouter()
 
@@ -30,8 +33,16 @@ _PEERS_MAP: dict = {
     "Real Estate":             ["DLF", "GODREJPROP", "OBEROIRLTY", "BRIGADE"],
     "Chemicals":               ["PIDILITIND", "ATUL", "ASIANPAINT", "DEEPAKNTR", "UPL"],
 }
-
 _DEFAULT_PEERS = ["TCS", "INFY", "WIPRO", "HDFCBANK", "RELIANCE"]
+
+_FMT_PRICE_RE = lambda v: f"{float(v):,.2f}" if v else "—"
+
+
+def _fmt_p(v) -> str:
+    try:
+        return f"{float(v):,.2f}" if v else "—"
+    except Exception:
+        return "—"
 
 
 @router.get("/{symbol}/chart")
@@ -39,16 +50,118 @@ async def get_chart(symbol: str, period: str = Query("6M")):
     return await get_stock_chart(symbol, period)
 
 
+@router.get("/{symbol}/news")
+async def get_stock_news(symbol: str):
+    """Company-specific news from Finnhub (last 7 days)."""
+    articles = await finnhub.get_company_news(symbol, days=7)
+    return articles
+
+
 @router.get("/{symbol}", response_model=StockDetail)
 async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
-    data = await get_stock_detail(symbol)
-
-    if data is None:
-        raise HTTPException(status_code=404, detail=f"Symbol {symbol.upper()} not found on NSE")
-
     sym_upper = symbol.upper()
 
-    # Related events from DB
+    # Run yfinance detail + Finnhub calls concurrently
+    yf_task   = get_stock_detail(symbol)
+    q_task    = finnhub.get_quote(symbol)
+    rec_task  = finnhub.get_recommendation(symbol)
+    pt_task   = finnhub.get_price_target(symbol)
+    peer_task = finnhub.get_peers(symbol)
+
+    yf_data, fh_quote, fh_rec, fh_pt, fh_peers = await asyncio.gather(
+        yf_task, q_task, rec_task, pt_task, peer_task,
+        return_exceptions=True,
+    )
+
+    # Treat exceptions as None
+    if isinstance(yf_data,  Exception): yf_data  = None
+    if isinstance(fh_quote, Exception): fh_quote = None
+    if isinstance(fh_rec,   Exception): fh_rec   = None
+    if isinstance(fh_pt,    Exception): fh_pt    = None
+    if isinstance(fh_peers, Exception): fh_peers = []
+
+    if yf_data is None and fh_quote is None:
+        raise HTTPException(status_code=404, detail=f"Symbol {sym_upper} not found on NSE")
+
+    # ── Price: prefer Finnhub real-time, fallback to yfinance ───────────────
+    if fh_quote and fh_quote.get("c"):
+        price      = float(fh_quote["c"])
+        prev_close = float(fh_quote.get("pc") or price)
+        change_abs = float(fh_quote.get("d")  or 0.0)
+        pct_change = float(fh_quote.get("dp") or 0.0)
+        sign       = "+" if change_abs >= 0 else ""
+        price_str  = _fmt_p(price)
+        change_str = f"{sign}{pct_change:.2f}%"
+        change_abs_str = f"{sign}{change_abs:.2f}"
+        day_high   = _fmt_p(fh_quote.get("h") or price)
+        day_low    = _fmt_p(fh_quote.get("l") or price)
+        open_str   = _fmt_p(fh_quote.get("o") or prev_close)
+        prev_str   = _fmt_p(prev_close)
+    else:
+        # Fall back to yfinance values
+        price_str      = (yf_data or {}).get("price", "—")
+        change_str     = (yf_data or {}).get("change", "—")
+        change_abs_str = (yf_data or {}).get("change_abs", "—")
+        pct_change     = (yf_data or {}).get("pct_change", 0.0)
+        day_high       = (yf_data or {}).get("day_high", "—")
+        day_low        = (yf_data or {}).get("day_low", "—")
+        open_str       = (yf_data or {}).get("open", "—")
+        prev_str       = (yf_data or {}).get("prev_close", "—")
+
+    # ── Analyst data: prefer Finnhub ────────────────────────────────────────
+    buy_count       = 0
+    hold_count      = 0
+    sell_count      = 0
+    strong_buy      = 0
+    strong_sell     = 0
+    analyst_count   = 0
+    recommendation  = "hold"
+    target_mean     = "—"
+    target_high     = "—"
+    target_low      = "—"
+
+    if fh_rec:
+        buy_count    = int(fh_rec.get("buy", 0) or 0)
+        hold_count   = int(fh_rec.get("hold", 0) or 0)
+        sell_count   = int(fh_rec.get("sell", 0) or 0)
+        strong_buy   = int(fh_rec.get("strongBuy", 0) or 0)
+        strong_sell  = int(fh_rec.get("strongSell", 0) or 0)
+        analyst_count = buy_count + hold_count + sell_count + strong_buy + strong_sell
+        total_bull   = strong_buy + buy_count
+        total_bear   = sell_count + strong_sell
+        if analyst_count:
+            if strong_buy > analyst_count * 0.4:
+                recommendation = "strong buy"
+            elif total_bull > analyst_count * 0.6:
+                recommendation = "buy"
+            elif total_bear > analyst_count * 0.4:
+                recommendation = "sell"
+            else:
+                recommendation = "hold"
+
+    if fh_pt:
+        target_mean = _fmt_p(fh_pt.get("targetMean"))
+        target_high = _fmt_p(fh_pt.get("targetHigh"))
+        target_low  = _fmt_p(fh_pt.get("targetLow"))
+    elif yf_data:
+        target_mean = yf_data.get("target_mean", "—")
+        target_high = yf_data.get("target_high", "—")
+        target_low  = yf_data.get("target_low",  "—")
+
+    if not analyst_count and yf_data:
+        analyst_count  = yf_data.get("analyst_count", 0)
+        recommendation = yf_data.get("recommendation", "hold")
+
+    # ── Peers: prefer Finnhub live list, fallback to industry map ───────────
+    if fh_peers:
+        peers = [p for p in fh_peers if p != sym_upper][:4]
+    else:
+        industry = (yf_data or {}).get("industry", "")
+        sector   = (yf_data or {}).get("sector", "")
+        raw = _PEERS_MAP.get(industry) or _PEERS_MAP.get(sector) or _DEFAULT_PEERS
+        peers = [p for p in raw if p != sym_upper][:4]
+
+    # ── Related events from DB ───────────────────────────────────────────────
     all_events = await get_events(db)
     related_events = [
         StockEvent(title=e.title, date=str(e.published_at.date()) if e.published_at else "")
@@ -56,61 +169,56 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
         if any(c.get("symbol", "") == sym_upper for c in (e.companies or []))
     ][:4]
 
-    # Peers by industry → sector fallback → default
-    industry = data.get("industry", "")
-    sector = data.get("sector", "")
-    raw_peers = (
-        _PEERS_MAP.get(industry)
-        or _PEERS_MAP.get(sector)
-        or _DEFAULT_PEERS
-    )
-    peers = [p for p in raw_peers if p != sym_upper][:4]
+    yf = yf_data or {}
 
     return StockDetail(
-        symbol=data["symbol"],
-        name=data.get("name", ""),
-        price=data["price"],
-        prev_close=data.get("prev_close", ""),
-        open=data.get("open", ""),
-        day_high=data.get("day_high", ""),
-        day_low=data.get("day_low", ""),
-        change=data["change"],
-        change_abs=data.get("change_abs", ""),
-        pct_change=data.get("pct_change", 0.0),
-        week52_high=data.get("week52_high", ""),
-        week52_low=data.get("week52_low", ""),
-        volume=data.get("volume", ""),
-        avg_volume=data.get("avg_volume", ""),
-        market_cap=data["market_cap"],
-        industry=data["industry"],
-        sector=data.get("sector", ""),
-        description=data.get("description", ""),
-        pe=data["pe"],
-        forward_pe=data.get("forward_pe", ""),
-        pb=data["pb"],
-        eps=data.get("eps", ""),
-        roe=data["roe"],
-        roa=data.get("roa", ""),
-        beta=data.get("beta", ""),
-        dividend_yield=data.get("dividend_yield", ""),
-        dividend_rate=data.get("dividend_rate", ""),
-        gross_margins=data.get("gross_margins", ""),
-        operating_margins=data.get("operating_margins", ""),
-        net_margins=data.get("net_margins", ""),
-        debt_to_equity=data.get("debt_to_equity", ""),
-        current_ratio=data.get("current_ratio", ""),
-        free_cashflow=data.get("free_cashflow", ""),
-        recommendation=data.get("recommendation", "hold"),
-        target_mean=data.get("target_mean", ""),
-        target_high=data.get("target_high", ""),
-        target_low=data.get("target_low", ""),
-        analyst_count=data.get("analyst_count", 0),
-        held_institutions=data.get("held_institutions", ""),
-        held_insiders=data.get("held_insiders", ""),
-        quarterly_revenue=data.get("quarterly_revenue", []),
-        quarterly_net_income=data.get("quarterly_net_income", []),
+        symbol=sym_upper,
+        name=yf.get("name", f"{sym_upper} Ltd."),
+        price=price_str,
+        prev_close=prev_str,
+        open=open_str,
+        day_high=day_high,
+        day_low=day_low,
+        change=change_str,
+        change_abs=change_abs_str,
+        pct_change=pct_change,
+        week52_high=yf.get("week52_high", "—"),
+        week52_low=yf.get("week52_low", "—"),
+        volume=yf.get("volume", "—"),
+        avg_volume=yf.get("avg_volume", "—"),
+        market_cap=yf.get("market_cap", "—"),
+        industry=yf.get("industry", "N/A"),
+        sector=yf.get("sector", "N/A"),
+        description=yf.get("description", ""),
+        pe=yf.get("pe", "—"),
+        forward_pe=yf.get("forward_pe", "—"),
+        pb=yf.get("pb", "—"),
+        eps=yf.get("eps", "—"),
+        roe=yf.get("roe", "—"),
+        roa=yf.get("roa", "—"),
+        beta=yf.get("beta", "—"),
+        dividend_yield=yf.get("dividend_yield", "—"),
+        dividend_rate=yf.get("dividend_rate", "—"),
+        gross_margins=yf.get("gross_margins", "—"),
+        operating_margins=yf.get("operating_margins", "—"),
+        net_margins=yf.get("net_margins", "—"),
+        debt_to_equity=yf.get("debt_to_equity", "—"),
+        current_ratio=yf.get("current_ratio", "—"),
+        free_cashflow=yf.get("free_cashflow", "—"),
+        recommendation=recommendation,
+        target_mean=target_mean,
+        target_high=target_high,
+        target_low=target_low,
+        analyst_count=analyst_count,
+        buy_count=buy_count + strong_buy,
+        hold_count=hold_count,
+        sell_count=sell_count + strong_sell,
+        held_institutions=yf.get("held_institutions", "—"),
+        held_insiders=yf.get("held_insiders", "—"),
+        quarterly_revenue=yf.get("quarterly_revenue", []),
+        quarterly_net_income=yf.get("quarterly_net_income", []),
         events=related_events,
         news=[],
         peers=peers,
-        chart_data=[],  # fetched separately via /chart
+        chart_data=[],
     )
