@@ -1,0 +1,261 @@
+"""
+Populate the database with initial content data.
+Only inserts rows that don't already exist (idempotent).
+"""
+from app.db import models
+
+
+EVENTS = [
+    models.Event(
+        id="evt-rbi-june-2026",
+        title="RBI holds repo rate at 6.5% for seventh consecutive meeting",
+        summary="The Monetary Policy Committee unanimously kept the repo rate unchanged, citing stable inflation near the 4% target and continued support for growth. Governor flagged external risks from global commodity prices.",
+        impact_score=8.7,
+        confidence=0.93,
+        sectors=["Financials", "Consumer Staples", "Real Estate"],
+        companies=[
+            {"symbol": "HDFCBANK", "name": "HDFC Bank", "impact": "Positive"},
+            {"symbol": "ICICIBANK", "name": "ICICI Bank", "impact": "Positive"},
+            {"symbol": "SBIN", "name": "SBI", "impact": "Neutral"},
+        ],
+        category="Macro",
+    ),
+    models.Event(
+        id="evt-defence-budget-2026",
+        title="Defence capital expenditure raised by ₹45,000 Cr in revised estimates",
+        summary="The revised budget allocation boosts indigenous defence procurement, benefiting domestic manufacturers under the Make-in-India initiative. Order books at BEL, HAL and Bharat Forge are expected to expand significantly.",
+        impact_score=9.1,
+        confidence=0.89,
+        sectors=["Defence", "Aerospace", "Manufacturing"],
+        companies=[
+            {"symbol": "BEL", "name": "Bharat Electronics", "impact": "Positive"},
+            {"symbol": "HAL", "name": "Hindustan Aeronautics", "impact": "Positive"},
+            {"symbol": "BHARATFORG", "name": "Bharat Forge", "impact": "Positive"},
+        ],
+        category="Government",
+    ),
+    models.Event(
+        id="evt-solar-capacity-2026",
+        title="India surpasses 100 GW solar capacity milestone",
+        summary="India crossed 100 GW of installed solar capacity, triggered accelerated renewable procurement targets for utilities. Analysts expect large-scale order inflows for module manufacturers and project developers.",
+        impact_score=8.3,
+        confidence=0.85,
+        sectors=["Energy", "Utilities", "Manufacturing"],
+        companies=[
+            {"symbol": "ADANIGREEN", "name": "Adani Green Energy", "impact": "Positive"},
+            {"symbol": "TATAPOWER", "name": "Tata Power", "impact": "Positive"},
+            {"symbol": "SUZLON", "name": "Suzlon Energy", "impact": "Positive"},
+        ],
+        category="Policy",
+    ),
+    models.Event(
+        id="evt-it-deal-slowdown-2026",
+        title="US enterprise IT spending contracts for second consecutive quarter",
+        summary="CIO surveys and enterprise software vendors report discretionary IT budget freezes. Indian IT majors with high US revenue exposure face near-term demand headwinds, though management guidance remains cautious.",
+        impact_score=7.4,
+        confidence=0.80,
+        sectors=["IT", "Technology"],
+        companies=[
+            {"symbol": "TCS", "name": "Tata Consultancy Services", "impact": "Negative"},
+            {"symbol": "INFY", "name": "Infosys", "impact": "Negative"},
+            {"symbol": "WIPRO", "name": "Wipro", "impact": "Negative"},
+        ],
+        category="Global",
+    ),
+    models.Event(
+        id="evt-semiconductor-plc-2026",
+        title="India Semiconductor Mission approves ₹76,000 Cr fab incentive",
+        summary="The government approved production-linked incentives for three semiconductor fabrication units. The scheme covers 50% capital subsidy for advanced nodes, signalling long-term domestic chip manufacturing ambitions.",
+        impact_score=9.4,
+        confidence=0.91,
+        sectors=["Technology", "Electronics", "Manufacturing"],
+        companies=[
+            {"symbol": "DIXON", "name": "Dixon Technologies", "impact": "Positive"},
+            {"symbol": "KAYNES", "name": "Kaynes Technology", "impact": "Positive"},
+        ],
+        category="Policy",
+    ),
+]
+
+NEWS = [
+    models.NewsArticle(
+        id="news-defence-2026",
+        headline="Defence supplier sees demand surge after revised budget allocation",
+        summary="BEL and HAL order books expand sharply after the defence capital expenditure revision. Analysts upgrade target prices, citing multi-year revenue visibility from domestic procurement mandates.",
+        source="Economic Times",
+        published_at="2h ago",
+        companies=["Bharat Electronics", "HAL", "Bharat Forge"],
+        impact_score=8.6,
+    ),
+    models.NewsArticle(
+        id="news-solar-2026",
+        headline="Solar project approvals accelerate renewable capital flows",
+        summary="New MNRE approvals for 15 GW of utility-scale solar projects point to expanded capacity additions through 2028. Utility developers and module suppliers rally on the news.",
+        source="Business Standard",
+        published_at="4h ago",
+        companies=["Adani Green", "Tata Power", "Waaree Energies"],
+        impact_score=7.9,
+    ),
+    models.NewsArticle(
+        id="news-rbi-2026",
+        headline="RBI rate hold boosts banking sector outlook; NIMs to stay stable",
+        summary="Net interest margins for major private banks are expected to remain stable after the RBI's hold decision. The benign rate environment supports loan growth without margin compression pressure.",
+        source="Mint",
+        published_at="6h ago",
+        companies=["HDFC Bank", "ICICI Bank", "Axis Bank"],
+        impact_score=7.5,
+    ),
+    models.NewsArticle(
+        id="news-it-2026",
+        headline="IT sector faces headwinds as US spending tightens further",
+        summary="CIO surveys show a second consecutive quarter of discretionary IT budget freezes. Revenue growth guidance from Indian IT majors is expected to be conservative in upcoming earnings.",
+        source="Financial Times",
+        published_at="1d ago",
+        companies=["TCS", "Infosys", "Wipro"],
+        impact_score=6.8,
+    ),
+]
+
+CALENDAR = [
+    models.CalendarEvent(
+        id="cal-rbi-aug-2026",
+        category="RBI",
+        title="Monetary Policy Committee Meeting",
+        date="Jul 31, 2026",
+        description="Key repo rate decision and forward guidance on growth-inflation balance.",
+    ),
+    models.CalendarEvent(
+        id="cal-q1-results-2026",
+        category="Results",
+        title="Q1 FY27 Earnings Season Begins",
+        date="Aug 08, 2026",
+        description="Major banks, IT majors and FMCG companies start reporting Q1 FY27 earnings.",
+    ),
+    models.CalendarEvent(
+        id="cal-cpi-jul-2026",
+        category="Macro",
+        title="June CPI Inflation Data Release",
+        date="Jul 12, 2026",
+        description="Consumer Price Index reading — critical for RBI's inflation trajectory.",
+    ),
+    models.CalendarEvent(
+        id="cal-iip-jun-2026",
+        category="Macro",
+        title="May Industrial Production (IIP)",
+        date="Jul 11, 2026",
+        description="Industrial output data reflects manufacturing momentum ahead of earnings.",
+    ),
+    models.CalendarEvent(
+        id="cal-budget-session-2026",
+        category="Government",
+        title="Parliament Budget Session Resumes",
+        date="Jul 21, 2026",
+        description="Key policy bills and supplementary demands for grants to be tabled.",
+    ),
+]
+
+RADAR = [
+    models.RadarOpportunity(
+        id="radar-defence-2026",
+        theme="India Defence Ecosystem",
+        score=95,
+        reason="Budget capex up ₹45,000 Cr. Multi-year order pipelines at BEL, HAL and MFSL. Indigenous procurement mandates reduce import dependency.",
+        confidence=0.91,
+        beneficiaries=["Bharat Electronics", "HAL", "Bharat Forge", "MFSL"],
+    ),
+    models.RadarOpportunity(
+        id="radar-green-energy-2026",
+        theme="Green Energy Transition",
+        score=92,
+        reason="100 GW solar milestone crossed. MNRE accelerating new approvals. Capex cycle and earnings revisions strongly positive for developers and equipment makers.",
+        confidence=0.88,
+        beneficiaries=["Adani Green", "Tata Power", "Suzlon", "Waaree Energies"],
+    ),
+    models.RadarOpportunity(
+        id="radar-semiconductor-2026",
+        theme="India Semiconductor & Electronics",
+        score=89,
+        reason="PLI incentives for fab units approved. Rising domestic chip demand from EVs and consumer electronics. 10-year structural theme.",
+        confidence=0.84,
+        beneficiaries=["Dixon Technologies", "Kaynes Technology", "Syrma SGS"],
+    ),
+    models.RadarOpportunity(
+        id="radar-digital-infra-2026",
+        theme="Digital Infrastructure",
+        score=85,
+        reason="5G rollout driving data consumption. AI inference demand boosting data center capex. Fibre-to-home expansion accelerating.",
+        confidence=0.82,
+        beneficiaries=["Bharti Airtel", "Tata Communications", "HFCL"],
+    ),
+    models.RadarOpportunity(
+        id="radar-banking-2026",
+        theme="Private Banking & Credit Growth",
+        score=78,
+        reason="Credit growth 13-15% YoY. Rate hold preserves NIMs. Asset quality stable. Valuations attractive vs. historic averages.",
+        confidence=0.79,
+        beneficiaries=["HDFC Bank", "ICICI Bank", "Axis Bank", "Kotak Bank"],
+    ),
+]
+
+STORIES = [
+    models.Story(
+        id="story-defence-2026",
+        title="India's Defence Boom",
+        description="How a decade of policy shifts, rising capex, and 'Make in India' mandates are building a world-class indigenous defence ecosystem — and which companies are at the center of it.",
+        theme="Macro + Government",
+        image="https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=1200&q=80",
+    ),
+    models.Story(
+        id="story-ai-infra-2026",
+        title="AI Infrastructure Rush",
+        description="The data center and networking companies positioning themselves to power India's enterprise AI wave — from hyperscale cloud to private inference clusters.",
+        theme="Technology",
+        image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
+    ),
+    models.Story(
+        id="story-green-energy-2026",
+        title="The Solar Superpower Story",
+        description="India's race to 500 GW of renewable energy by 2030 is creating a multi-decade investment cycle. Here's who benefits most across the entire value chain.",
+        theme="Energy + Policy",
+        image="https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=1200&q=80",
+    ),
+    models.Story(
+        id="story-semiconductor-2026",
+        title="Chips on the Table",
+        description="India's semiconductor ambitions just got ₹76,000 Cr of backing. What it means for the electronics manufacturing ecosystem and the companies that stand to gain.",
+        theme="Technology + Policy",
+        image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
+    ),
+]
+
+SECTORS = [
+    models.SectorData(id="it",        name="IT",           value="-0.9%", positive=False),
+    models.SectorData(id="banking",   name="Banking",      value="+1.2%", positive=True),
+    models.SectorData(id="pharma",    name="Pharma",       value="+0.6%", positive=True),
+    models.SectorData(id="auto",      name="Auto",         value="+1.8%", positive=True),
+    models.SectorData(id="energy",    name="Energy",       value="+2.4%", positive=True),
+    models.SectorData(id="fmcg",      name="FMCG",         value="-0.3%", positive=False),
+    models.SectorData(id="infra",     name="Infra",        value="+3.1%", positive=True),
+    models.SectorData(id="metal",     name="Metal",        value="+0.7%", positive=True),
+    models.SectorData(id="realty",    name="Realty",       value="+1.5%", positive=True),
+    models.SectorData(id="psu-bank",  name="PSU Bank",     value="+0.4%", positive=True),
+    models.SectorData(id="pvt-bank",  name="Pvt Bank",     value="+1.1%", positive=True),
+    models.SectorData(id="media",     name="Media",        value="-1.2%", positive=False),
+]
+
+
+async def seed(db):
+    """Insert initial rows into all tables if they're empty."""
+    from app.db.crud import count_rows, bulk_insert
+
+    for model_cls, records in [
+        (models.Event, EVENTS),
+        (models.NewsArticle, NEWS),
+        (models.CalendarEvent, CALENDAR),
+        (models.RadarOpportunity, RADAR),
+        (models.Story, STORIES),
+        (models.SectorData, SECTORS),
+    ]:
+        count = await count_rows(db, model_cls)
+        if count == 0:
+            await bulk_insert(db, records)

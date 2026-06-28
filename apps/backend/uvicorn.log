@@ -1,0 +1,105 @@
+INFO:     127.0.0.1:57816 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57816 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57816 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57818 - "GET /api/dashboard HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57818 - "GET /api/dashboard/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54834 - "GET /api/dashboard HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:54836 - "GET /api/dashboard/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54834 - "GET /api/calendar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:58789 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:58790 - "GET /api/sectors HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:54834 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54836 - "GET /api/calendar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58789 - "GET /api/sectors/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63662 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:63664 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63662 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:63664 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63921 - "GET /api/dashboard HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:63923 - "GET /api/dashboard/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63921 - "GET /api/calendar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:58493 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:58494 - "GET /api/sectors HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:63923 - "GET /api/calendar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63921 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58493 - "GET /api/sectors/ HTTP/1.1" 200 OK
+ INFO:     127.0.0.1:56351 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:56353 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56351 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:56353 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55829 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:55831 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50884 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:50886 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58428 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:58430 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57808 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50905 - "GET /api/stories HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:50907 - "GET /api/stories/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63126 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:63128 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63130 - "GET /api/radar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:63132 - "GET /api/radar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60304 - "GET /api/radar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:60306 - "GET /api/radar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52298 - "GET /api/calendar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:52300 - "GET /api/calendar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60178 - "GET /api/dashboard HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:59520 - "GET /api/dashboard/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60178 - "GET /api/calendar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:52758 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:52759 - "GET /api/sectors HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:59520 - "GET /api/calendar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52758 - "GET /api/sectors/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60178 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60178 - "GET /api/dashboard HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:59520 - "GET /api/dashboard/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60178 - "GET /api/calendar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:52758 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:52759 - "GET /api/sectors HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:59520 - "GET /api/calendar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60178 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52758 - "GET /api/sectors/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58960 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:58962 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58960 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:58962 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65233 - "GET /api/dashboard HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:65235 - "GET /api/dashboard/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65233 - "GET /api/calendar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:65238 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:65239 - "GET /api/sectors HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:65233 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65235 - "GET /api/calendar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65238 - "GET /api/sectors/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65241 - "GET /api/events HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:65243 - "GET /api/events/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65241 - "GET /api/stories HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:65243 - "GET /api/stories/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65241 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:65243 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65241 - "GET /api/radar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:65243 - "GET /api/radar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64989 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:64991 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54613 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:54615 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54175 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:54177 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62131 - "GET /api/dashboard HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:62133 - "GET /api/dashboard/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62131 - "GET /api/calendar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:62142 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:62143 - "GET /api/sectors HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:62133 - "GET /api/calendar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62131 - "GET /api/news/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62142 - "GET /api/sectors/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59015 - "GET /api/dashboard HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:59018 - "GET /api/dashboard/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59015 - "GET /api/calendar HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51193 - "GET /api/sectors HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:51192 - "GET /api/news HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:59018 - "GET /api/calendar/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59015 - "GET /api/sectors/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51193 - "GET /api/news/ HTTP/1.1" 200 OK

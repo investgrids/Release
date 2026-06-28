@@ -1,0 +1,22 @@
+[project]
+name = "ig-backend"
+version = "0.1.0"
+description = "FastAPI backend for IG Market Intelligence"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.103.0",
+  "uvicorn[standard]>=0.23.0",
+  "pydantic>=2.6.0",
+  "pydantic-settings>=2.0.0",
+  "sqlalchemy>=2.0.32",
+  "asyncpg>=0.28.0",
+  "aioredis>=2.0.0",
+  "httpx>=0.26.0",
+  "yfinance>=0.2.40",
+  "alembic>=1.13.0",
+  "tenacity>=8.2.0"
+]
+
+[build-system]
+requires = ["setuptools>=67.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
