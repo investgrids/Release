@@ -205,10 +205,10 @@ export default function RadarPage() {
                     <p className="mb-1.5 text-[9px] uppercase tracking-widest text-slate-600">Top Beneficiaries</p>
                     <div className="flex items-center gap-1">
                       {beneficiaries.slice(0, 5).map((b, bi) => (
-                        <div key={bi} title={b}
-                          className={`flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-[9px] font-bold ${CHIP_COLORS[bi % CHIP_COLORS.length]}`}>
+                        <Link key={bi} href={`/stocks/${b.replace(/[&\s]/g, "")}`} title={b}
+                          className={`flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-[9px] font-bold hover:scale-110 transition ${CHIP_COLORS[bi % CHIP_COLORS.length]}`}>
                           {b.slice(0, 2).toUpperCase()}
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </div>

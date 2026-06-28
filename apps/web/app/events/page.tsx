@@ -230,12 +230,15 @@ export default function EventsPage() {
                     {companies.length > 0 && (
                       <div className="mt-3 flex items-center gap-1">
                         <span className="mr-1.5 text-[10px] text-slate-600">Affected Companies</span>
-                        {companies.slice(0, 7).map((c, ci) => (
-                          <div key={ci} title={companyLabel(c)}
-                            className={`flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-[9px] font-bold ${CHIP_COLORS[ci % CHIP_COLORS.length]}`}>
-                            {companyInitials(c)}
-                          </div>
-                        ))}
+                        {companies.slice(0, 7).map((c, ci) => {
+                          const sym = typeof c === "string" ? c : (c as any).symbol;
+                          return (
+                            <Link key={ci} href={`/stocks/${sym}`} title={companyLabel(c)}
+                              className={`flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-[9px] font-bold hover:scale-110 transition ${CHIP_COLORS[ci % CHIP_COLORS.length]}`}>
+                              {companyInitials(c)}
+                            </Link>
+                          );
+                        })}
                         {companies.length > 7 && (
                           <span className="ml-1 text-[10px] text-slate-600">+{companies.length - 7}</span>
                         )}

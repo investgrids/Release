@@ -16,6 +16,18 @@ interface NewsArticle {
   url?: string;
 }
 
+const COMPANY_TO_SYMBOL: Record<string, string> = {
+  "Reliance Industries": "RELIANCE", "TCS": "TCS", "Tata Consultancy": "TCS",
+  "HDFC Bank": "HDFCBANK", "Infosys": "INFY", "Wipro": "WIPRO",
+  "ICICI Bank": "ICICIBANK", "Axis Bank": "AXISBANK", "Kotak Mahindra Bank": "KOTAKBANK",
+  "SBI": "SBIN", "State Bank": "SBIN", "Tata Motors": "TATAMOTORS",
+  "Tata Steel": "TATASTEEL", "Adani Group": "ADANI", "Adani Green": "ADANIGREEN",
+  "Adani Ports": "ADANIPORTS", "Bharti Airtel": "AIRTEL", "Bharat Electronics": "BEL",
+  "HAL": "HAL", "NTPC": "NTPC", "ONGC": "ONGC", "ITC": "ITC",
+  "Bajaj Finance": "BAJFINANCE", "Bajaj Auto": "BAJAJ-AUTO", "Maruti Suzuki": "MARUTI",
+  "Zomato": "ZOMATO", "Sun Pharma": "SUNPHARMA", "UltraTech Cement": "ULTRACEMCO",
+};
+
 const SOURCE_BG: Record<string, string> = {
   "Economic Times":    "bg-amber-500/20 text-amber-300",
   "Business Standard": "bg-sky-500/20 text-sky-300",
@@ -203,9 +215,12 @@ export default function NewsPage() {
                       </h3>
                       {a.companies?.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1">
-                          {a.companies.slice(0, 4).map(c => (
-                            <span key={c} className="rounded-full border border-white/8 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-slate-500">{c}</span>
-                          ))}
+                          {a.companies.slice(0, 4).map((c: string) => {
+                            const sym = COMPANY_TO_SYMBOL[c];
+                            return sym
+                              ? <Link key={c} href={`/stocks/${sym}`} className="rounded-full border border-white/8 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-sky-400 hover:text-sky-300 transition">{c}</Link>
+                              : <span key={c} className="rounded-full border border-white/8 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-slate-500">{c}</span>;
+                          })}
                         </div>
                       )}
                     </div>

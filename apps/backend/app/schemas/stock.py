@@ -1,24 +1,61 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
+
 
 class StockEvent(BaseModel):
     title: str
     date: str
 
+
 class StockNews(BaseModel):
     headline: str
     published_at: str
 
+
 class StockDetail(BaseModel):
     symbol: str
+    name: str = ""
     price: str
+    prev_close: str = ""
+    open: str = ""
+    day_high: str = ""
+    day_low: str = ""
     change: str
-    industry: str
+    change_abs: str = ""
+    pct_change: float = 0.0
+    week52_high: str = ""
+    week52_low: str = ""
+    volume: str = ""
+    avg_volume: str = ""
     market_cap: str
+    industry: str
+    sector: str = ""
+    description: str = ""
     pe: str
+    forward_pe: str = ""
     pb: str
+    eps: str = ""
     roe: str
-    events: List[StockEvent]
-    news: List[StockNews]
-    peers: List[str]
-    chart_data: List[dict]
+    roa: str = ""
+    beta: str = ""
+    dividend_yield: str = ""
+    dividend_rate: str = ""
+    gross_margins: str = ""
+    operating_margins: str = ""
+    net_margins: str = ""
+    debt_to_equity: str = ""
+    current_ratio: str = ""
+    free_cashflow: str = ""
+    recommendation: str = "hold"
+    target_mean: str = ""
+    target_high: str = ""
+    target_low: str = ""
+    analyst_count: int = 0
+    held_institutions: str = ""
+    held_insiders: str = ""
+    quarterly_revenue: List[dict] = []
+    quarterly_net_income: List[dict] = []
+    events: List[StockEvent] = []
+    news: List[StockNews] = []
+    peers: List[str] = []
+    chart_data: List[dict] = []

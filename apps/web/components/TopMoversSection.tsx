@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 interface TopMoverItem {
@@ -43,9 +44,10 @@ export function TopMoverCard({ title, items, icon }: TopMoverCardProps) {
       </div>
       <div className="space-y-2.5">
         {items.map((item) => (
-          <div
+          <Link
             key={item.ticker}
-            className="flex items-center justify-between gap-3 rounded-[16px] border border-white/5 bg-slate-950/60 px-3 py-2.5 transition hover:bg-slate-900/60"
+            href={`/stocks/${item.ticker}`}
+            className="flex items-center justify-between gap-3 rounded-[16px] border border-white/5 bg-slate-950/60 px-3 py-2.5 transition hover:bg-slate-900/60 hover:border-white/10"
           >
             <div className="flex items-center gap-3 min-w-0">
               <TickerAvatar ticker={item.ticker} />
@@ -62,7 +64,7 @@ export function TopMoverCard({ title, items, icon }: TopMoverCardProps) {
               </p>
               <p className="text-[11px] text-slate-500">{item.subtitle}</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </motion.section>
