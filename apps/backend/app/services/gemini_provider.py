@@ -1,18 +1,21 @@
-from typing import Any, Dict
-from app.services.ai_provider import AIProvider
+"""
+GeminiProvider — Google Gemini API.
+Uses Gemini's OpenAI-compatibility endpoint (v1beta/openai).
+"""
+from __future__ import annotations
 
-class GeminiProvider(AIProvider):
-    def __init__(self, api_key: str):
-        self.api_key = api_key
+from app.services.deepseek_provider import DeepSeekProvider
 
-    async def classify_event(self, text: str) -> Dict[str, Any]:
-        return {"category": "policy", "confidence": 0.75}
 
-    async def summarize_news(self, text: str) -> str:
-        return "Gemini-style concise summary with event-aware framing."
+class GeminiProvider(DeepSeekProvider):
+    """
+    Google Gemini provider via its OpenAI-compatible endpoint.
+    Requires GEMINI_API_KEY in env.
+    """
 
-    async def generate_story(self, context: Dict[str, Any]) -> str:
-        return "Gemini-driven narrative for market themes."
-
-    async def generate_radar(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        return {"theme": "Policy Pulse", "score": 80}
+    def __init__(self, api_key: str) -> None:
+        super().__init__(
+            api_key=api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+            model="gemini-2.0-flash",
+        )

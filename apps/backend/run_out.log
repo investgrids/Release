@@ -1,0 +1,1 @@
+INFO:     127.0.0.1:64335 - "GET /api/stocks/TATAPOWER/chart?period=1Y HTTP/1.1" 500 Internal Server Error

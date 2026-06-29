@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 interface Event {
   id: string;
@@ -15,307 +18,477 @@ interface Event {
   companies: (string | { symbol: string; name: string })[];
   category: string;
   date: string;
+  source?: string;
+  time?: string;
 }
 
-const CAT_CFG: Record<string, { color: string; bg: string; border: string }> = {
-  "Government": { color: "text-violet-300", bg: "bg-violet-500/10", border: "border-violet-500/25" },
-  "Policy":     { color: "text-sky-300",    bg: "bg-sky-500/10",    border: "border-sky-500/25"    },
-  "RBI":        { color: "text-indigo-300", bg: "bg-indigo-500/10", border: "border-indigo-500/25" },
-  "Macro":      { color: "text-amber-300",  bg: "bg-amber-500/10",  border: "border-amber-500/25"  },
-  "Global":     { color: "text-slate-300",  bg: "bg-slate-700/40",  border: "border-slate-500/25"  },
-  "Corporate":  { color: "text-emerald-300",bg: "bg-emerald-500/10",border: "border-emerald-500/25"},
-  "Results":    { color: "text-teal-300",   bg: "bg-teal-500/10",   border: "border-teal-500/25"   },
+// ── Config ────────────────────────────────────────────────────────────────────
+const SOURCES = ["All Sources", "NSE", "BSE", "RBI", "PIB", "MEA", "Reuters"];
+const IMPACTS  = ["Impact: All", "Very High", "High", "Medium", "Low"];
+const SECTORS_LIST = ["All Sectors", "Infrastructure", "Banking & Finance", "Energy", "Technology", "Defence", "Monetary Policy", "Economy"];
+const EVENTS_TYPE  = ["All Events", "Government", "Policy", "Corporate", "RBI", "Macro", "Global", "Results"];
+
+const CATEGORY_ICON: Record<string, string> = {
+  Government:  "🏛️", Policy: "📋", Corporate: "🏢", RBI: "🏦",
+  Macro:       "🌐", Global: "🌏", Results:    "📊", Default: "📌",
 };
 
-const CHIP_COLORS = [
-  "bg-violet-500/25 text-violet-200",
-  "bg-sky-500/25 text-sky-200",
-  "bg-emerald-500/25 text-emerald-200",
-  "bg-amber-500/25 text-amber-200",
-  "bg-rose-500/25 text-rose-200",
-  "bg-teal-500/25 text-teal-200",
-  "bg-indigo-500/25 text-indigo-200",
-];
+const CATEGORY_COLOR: Record<string, { pill: string; icon_bg: string }> = {
+  Government: { pill: "bg-violet-500/20 text-violet-300 border-violet-500/30", icon_bg: "bg-violet-500/20 text-violet-300" },
+  Policy:     { pill: "bg-sky-500/20 text-sky-300 border-sky-500/30",          icon_bg: "bg-sky-500/20 text-sky-300"       },
+  Corporate:  { pill: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", icon_bg: "bg-emerald-500/20 text-emerald-300" },
+  RBI:        { pill: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30", icon_bg: "bg-indigo-500/20 text-indigo-300" },
+  Macro:      { pill: "bg-amber-500/20 text-amber-300 border-amber-500/30",    icon_bg: "bg-amber-500/20 text-amber-300"   },
+  Global:     { pill: "bg-slate-500/30 text-slate-300 border-slate-500/30",    icon_bg: "bg-slate-500/20 text-slate-300"   },
+  Results:    { pill: "bg-teal-500/20 text-teal-300 border-teal-500/30",       icon_bg: "bg-teal-500/20 text-teal-300"     },
+};
 
-const CARD_GRADS = [
-  "from-violet-900/20 to-transparent",
-  "from-sky-900/20 to-transparent",
-  "from-emerald-900/20 to-transparent",
-  "from-amber-900/15 to-transparent",
-  "from-indigo-900/20 to-transparent",
-];
+const SECTOR_ICONS: Record<string, string> = {
+  "Infrastructure":   "🏗️", "Banking & Finance": "🏦", "Energy": "⚡",
+  "Technology":       "💻", "Defence": "🛡️",         "Economy": "📈",
+  "Monetary Policy":  "🏛️", "General": "📌",
+};
 
-const THUMB_GRADS = [
-  "from-violet-600/40 to-indigo-600/20",
-  "from-sky-600/40 to-blue-600/20",
-  "from-emerald-600/40 to-teal-600/20",
-  "from-amber-600/40 to-orange-600/20",
-  "from-rose-600/40 to-pink-600/20",
-];
-
-const CATEGORIES = ["All", "Government", "Policy", "RBI", "Corporate", "Macro", "Global", "Results"];
-
-const UPCOMING = [
-  { date: "07", mon: "JUN", title: "RBI Monetary Policy", time: "12:30 IST" },
-  { date: "10", mon: "JUL", title: "US CPI Data", time: "18:00 IST" },
-  { date: "12", mon: "JUL", title: "India Industrial Production", time: "12:00 IST" },
-  { date: "14", mon: "JUL", title: "FOMC Meeting", time: "10:30 PM IST" },
-];
-
-const TAKEAWAYS = [
-  "Infrastructure capex to drive multi-year growth",
-  "RBI stance supportive for economic growth",
-  "Corporate earnings momentum remains strong",
-];
-
-function impactBadge(s: number) {
-  if (s >= 8.5) return { label: "High",   cls: "text-emerald-300 bg-emerald-500/15 border-emerald-500/25" };
-  if (s >= 7)   return { label: "Medium", cls: "text-sky-300    bg-sky-500/15    border-sky-500/25"    };
-  return           { label: "Low",    cls: "text-amber-300  bg-amber-500/15  border-amber-500/25"  };
+function impactLabel(s: number): string {
+  if (s >= 90) return "Very High";
+  if (s >= 75) return "High";
+  if (s >= 55) return "Medium";
+  return "Low";
 }
 
-function scoreBg(s: number) {
-  if (s >= 8.5) return "from-emerald-500 to-teal-400";
-  if (s >= 7)   return "from-sky-500 to-blue-400";
-  return           "from-amber-500 to-yellow-400";
+function impactStyle(s: number) {
+  if (s >= 90) return { circle: "border-rose-500 bg-rose-500/20 text-rose-400",    pill: "bg-rose-500/15 text-rose-300 border-rose-500/30"    };
+  if (s >= 75) return { circle: "border-amber-400 bg-amber-500/20 text-amber-400", pill: "bg-amber-500/15 text-amber-300 border-amber-500/30"  };
+  if (s >= 55) return { circle: "border-sky-400 bg-sky-500/20 text-sky-400",       pill: "bg-sky-500/15 text-sky-300 border-sky-500/30"        };
+  return        { circle: "border-slate-500 bg-slate-700/30 text-slate-400",        pill: "bg-slate-700/30 text-slate-400 border-slate-500/30"  };
 }
 
+function companySymbol(c: string | { symbol: string; name: string }) {
+  return typeof c === "string" ? c : c.symbol;
+}
 function companyLabel(c: string | { symbol: string; name: string }) {
   return typeof c === "string" ? c : (c.name ?? c.symbol);
 }
-function companyInitials(c: string | { symbol: string; name: string }) {
-  const s = typeof c === "string" ? c : (c.symbol ?? c.name ?? "");
-  return s.slice(0, 2).toUpperCase();
+
+function groupByDate(events: Event[]): [string, Event[]][] {
+  const groups: Record<string, Event[]> = {};
+  for (const ev of events) {
+    const key = ev.date || "Unknown";
+    (groups[key] = groups[key] ?? []).push(ev);
+  }
+  return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
 }
 
+function formatDateLabel(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    const today = new Date();
+    const diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
+    if (diff === 0) return `Today\n${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+    if (diff === 1) return `Yesterday\n${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  } catch { return dateStr; }
+}
+
+// ── Impact trend from live events (last 7 days) ────────────────────────────────
+function buildTrendData(events: { date: string; impact_score: number }[]) {
+  const today = new Date();
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - i));
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  });
+  const dayKeys = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - i));
+    return d.toISOString().slice(0, 10);
+  });
+  const grouped: Record<string, { veryHigh: number; high: number; medium: number; low: number }> = {};
+  for (const k of dayKeys) grouped[k] = { veryHigh: 0, high: 0, medium: 0, low: 0 };
+  for (const ev of events) {
+    const key = (ev.date ?? "").slice(0, 10);
+    if (!grouped[key]) continue;
+    const lbl = impactLabel(ev.impact_score);
+    if (lbl === "Very High") grouped[key].veryHigh++;
+    else if (lbl === "High")  grouped[key].high++;
+    else if (lbl === "Medium")grouped[key].medium++;
+    else                       grouped[key].low++;
+  }
+  return dayKeys.map((k, i) => ({ day: days[i], ...grouped[k] }));
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+function EventCard({ ev, view }: { ev: Event; view: "timeline" | "list" }) {
+  const catCfg = CATEGORY_COLOR[ev.category] ?? CATEGORY_COLOR["Macro"];
+  const ist     = impactStyle(ev.impact_score);
+  const score   = Math.round(ev.impact_score ?? 0);
+  const icon    = CATEGORY_ICON[ev.category] ?? CATEGORY_ICON["Default"];
+  const comps   = Array.isArray(ev.companies) ? ev.companies : [];
+  const sects   = Array.isArray(ev.sectors)   ? ev.sectors   : [];
+
+  return (
+    <div className="group flex gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.025] p-4 hover:border-white/[0.15] hover:bg-white/[0.04] transition">
+      {/* Category icon */}
+      <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl ${catCfg.icon_bg}`}>
+        {icon}
+      </div>
+
+      {/* Content */}
+      <div className="min-w-0 flex-1">
+        {/* Tags row */}
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${catCfg.pill}`}>{ev.category}</span>
+          {sects.slice(0, 2).map(s => (
+            <span key={s} className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">{s}</span>
+          ))}
+          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${ist.pill}`}>{impactLabel(ev.impact_score)} Impact</span>
+          <span className="ml-auto text-[10px] text-slate-500">{ev.time || ev.date}</span>
+          {ev.source && <span className="text-[10px] text-slate-600">• {ev.source}</span>}
+        </div>
+
+        {/* Title */}
+        <h3 className="text-[14px] font-semibold leading-snug text-white group-hover:text-sky-100 transition">{ev.title}</h3>
+
+        {/* Summary */}
+        {ev.summary && (
+          <p className="mt-1.5 text-[12px] leading-5 text-slate-400 line-clamp-2">{ev.summary}</p>
+        )}
+
+        {/* Companies row */}
+        {comps.length > 0 && (
+          <div className="mt-2.5 flex items-center gap-2">
+            {comps.slice(0, 5).map((c, ci) => {
+              const sym = companySymbol(c);
+              return (
+                <Link key={ci} href={`/stocks/${sym}`} title={companyLabel(c)}
+                  className="flex h-6 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 text-[10px] text-slate-400 hover:border-sky-500/30 hover:text-sky-300 transition">
+                  {sym.slice(0, 6)}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* View Details */}
+        <div className="mt-3 pt-2.5 border-t border-white/[0.05]">
+          <Link href={`/events/${ev.id}`}
+            className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-300 transition">
+            View Details
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+            </svg>
+          </Link>
+        </div>
+      </div>
+
+      {/* Impact score circle */}
+      <div className="shrink-0 flex flex-col items-center gap-1 pt-1">
+        <p className="text-[9px] uppercase tracking-wider text-slate-600">Impact Score</p>
+        <div className={`flex h-14 w-14 flex-col items-center justify-center rounded-full border-2 ${ist.circle}`}>
+          <span className="text-[18px] font-black leading-none">{score}</span>
+          <span className="text-[8px] font-medium">{impactLabel(ev.impact_score)}</span>
+        </div>
+        {/* Actions */}
+        <div className="mt-1 flex gap-1">
+          <button className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/8 bg-white/[0.03] text-slate-500 hover:text-white transition" title="Bookmark">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+          </button>
+          <button className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/8 bg-white/[0.03] text-slate-500 hover:text-white transition" title="Share">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+          </button>
+          <Link href={`/events/${ev.id}`} title="View Details"
+            className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/8 bg-white/[0.03] text-slate-500 hover:text-sky-400 hover:border-sky-500/30 transition">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function EventsPage() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [activeCat, setActiveCat] = useState("All");
+  const [events, setEvents]       = useState<Event[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [query, setQuery]         = useState("");
+  const [view, setView]           = useState<"timeline" | "list">("timeline");
+  const [typeFilter, setTypeFilter]     = useState("All Events");
+  const [sectorFilter, setSectorFilter] = useState("All Sectors");
+  const [impactFilter, setImpactFilter] = useState("Impact: All");
+  const [sourceFilter, setSourceFilter] = useState("All Sources");
+  const [limit, setLimit]               = useState(20);
+
+  const trendData = useMemo(() => buildTrendData(events), [events]);
 
   useEffect(() => {
-    fetch(`${API}/api/events`)
+    setLoading(true);
+    fetch(`${API}/api/events/?limit=${limit}`)
       .then(r => r.ok ? r.json() : [])
       .then(d => setEvents(Array.isArray(d) ? d : []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [limit]);
 
-  const filtered = events
-    .filter(e => activeCat === "All" || e.category === activeCat)
-    .filter(e => !query || e.title.toLowerCase().includes(query.toLowerCase()) || (e.summary ?? "").toLowerCase().includes(query.toLowerCase()));
+  const filtered = events.filter(ev => {
+    if (typeFilter !== "All Events" && !(ev.category ?? "Macro").toLowerCase().includes(typeFilter.toLowerCase())) return false;
+    if (impactFilter !== "Impact: All") {
+      const lbl = impactLabel(ev.impact_score);
+      if (lbl !== impactFilter) return false;
+    }
+    if (sourceFilter !== "All Sources"  && ev.source !== sourceFilter) return false;
+    if (query) {
+      const q = query.toLowerCase();
+      if (!ev.title.toLowerCase().includes(q) && !(ev.summary ?? "").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
-  const highN = events.filter(e => e.impact_score >= 8.5).length;
-  const medN  = events.filter(e => e.impact_score >= 7 && e.impact_score < 8.5).length;
-  const lowN  = events.filter(e => e.impact_score < 7).length;
-  const total = (highN + medN + lowN) || 1;
+  const grouped = groupByDate(filtered);
+
+  const total    = events.length;
+  const veryHigh = events.filter(e => e.impact_score >= 90).length;
+  const high     = events.filter(e => e.impact_score >= 75 && e.impact_score < 90).length;
+  const medium   = events.filter(e => e.impact_score >= 55 && e.impact_score < 75).length;
+  const low      = events.filter(e => e.impact_score < 55).length;
+
+  // Sector counts
+  const sectorCounts: Record<string, number> = {};
+  for (const ev of events) {
+    for (const s of (ev.sectors ?? [])) {
+      sectorCounts[s] = (sectorCounts[s] ?? 0) + 1;
+    }
+  }
+  const topSectors = Object.entries(sectorCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const maxSectorCount = topSectors[0]?.[1] ?? 1;
+
+  // Recent alerts (last 3 high-impact events)
+  const recentAlerts = events
+    .filter(e => e.impact_score >= 75)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 3);
 
   return (
     <main className="min-w-0 pb-10">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Events Intelligence</h1>
-        <p className="mt-1 text-sm text-slate-400">Track market moving events and understand their impact</p>
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Events</h1>
+          <p className="mt-0.5 text-sm text-slate-400">Track all market moving events and their impact</p>
+        </div>
+        <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-[13px] text-slate-300 hover:border-white/20 hover:text-white transition">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          Calendar View
+        </button>
       </div>
 
-      <div className="grid grid-cols-[196px_1fr_252px] gap-5 items-start">
+      {/* Filter bar */}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px]">
+          <svg className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search events, companies, sectors..."
+            className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-2 pl-9 pr-3 text-[13px] text-white placeholder-slate-500 outline-none focus:border-sky-500/40"/>
+        </div>
 
-        {/* ── LEFT: Filters ──────────────────────────────── */}
-        <aside className="space-y-4 sticky top-[84px]">
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        {/* Dropdowns */}
+        {([
+          [typeFilter,   setTypeFilter,   EVENTS_TYPE],
+          [sectorFilter, setSectorFilter, SECTORS_LIST],
+          [impactFilter, setImpactFilter, IMPACTS],
+          [sourceFilter, setSourceFilter, SOURCES],
+        ] as [string, (v: string) => void, string[]][]).map(([val, setter, opts], i) => (
+          <div key={i} className="relative">
+            <select value={val} onChange={e => setter(e.target.value)}
+              className="appearance-none rounded-xl border border-white/10 bg-white/[0.03] py-2 pl-3 pr-7 text-[13px] text-slate-300 outline-none hover:border-white/20 focus:border-sky-500/40 cursor-pointer">
+              {opts.map(o => <option key={o} value={o} className="bg-slate-900 text-slate-200">{o}</option>)}
+            </select>
+            <svg className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
             </svg>
-            <input value={query} onChange={e => setQuery(e.target.value)}
-              placeholder="Search events..."
-              className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-2.5 pl-9 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-sky-500/40"/>
           </div>
+        ))}
 
-          <div className="space-y-1.5">
-            {["Date Range","Event Type","Impact","Sector","More Filters"].map(f => (
-              <button key={f}
-                className="flex w-full items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2 text-left text-[13px] text-slate-300 hover:bg-white/[0.04] hover:text-white transition">
-                <span className="flex-1">{f}</span>
-                <svg className="h-3 w-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
-                </svg>
+        {/* Add Alert */}
+        <button className="flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/20 px-4 py-2 text-[13px] font-medium text-violet-300 hover:bg-violet-500/30 transition">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
+          Add Alert
+        </button>
+      </div>
+
+      {/* Main content grid */}
+      <div className="grid grid-cols-[1fr_288px] gap-5 items-start">
+
+        {/* ── LEFT: Timeline/List ──────────────────────────── */}
+        <div className="min-w-0">
+          {/* View toggle */}
+          <div className="mb-4 flex gap-1 border-b border-white/[0.06] pb-1">
+            {(["timeline", "list"] as const).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                className={`px-4 py-1.5 text-[13px] font-medium transition border-b-2 -mb-[1px] capitalize ${view === v ? "border-violet-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+                {v.charAt(0).toUpperCase() + v.slice(1)} View
               </button>
             ))}
           </div>
 
-          <div className="space-y-1">
-            <p className="px-1 text-[9px] uppercase tracking-widest text-slate-600">Categories</p>
-            {CATEGORIES.map(c => {
-              const cfg = CAT_CFG[c];
-              const active = activeCat === c;
-              return (
-                <button key={c} onClick={() => setActiveCat(c)}
-                  className={`w-full rounded-xl border px-3 py-1.5 text-left text-[13px] font-medium transition ${
-                    active && cfg ? `${cfg.color} ${cfg.bg} ${cfg.border}`
-                    : active ? "text-white bg-white/10 border-white/20"
-                    : "text-slate-500 border-transparent hover:text-slate-200 hover:bg-white/[0.03]"
-                  }`}>
-                  {c}
-                </button>
-              );
-            })}
-          </div>
-        </aside>
-
-        {/* ── CENTER: Event cards ─────────────────────────── */}
-        <div className="space-y-4 min-w-0">
-          {loading
-            ? Array.from({length:3}).map((_,i) => (
-                <div key={i} className="h-56 animate-pulse rounded-[20px] border border-white/8 bg-white/[0.02]"/>
-              ))
-            : filtered.length === 0
-            ? (
-              <div className="flex items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.03] py-20 text-sm text-slate-500">
-                {events.length === 0 ? "Start the backend to load events." : "No events match the filter."}
-              </div>
-            )
-            : filtered.map((evt, i) => {
-                const cfg = CAT_CFG[evt.category] ?? CAT_CFG["Macro"];
-                const imp = impactBadge(evt.impact_score);
-                const score = Math.round(evt.impact_score * 10);
-                const conf  = Math.round((evt.confidence ?? 0.9) * 100);
-                const companies = Array.isArray(evt.companies) ? evt.companies : [];
-                const sectors   = Array.isArray(evt.sectors)   ? evt.sectors   : [];
-
+          {/* Events */}
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-36 animate-pulse rounded-[18px] border border-white/8 bg-white/[0.02]"/>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.03] py-20">
+              <p className="text-sm text-slate-500">{events.length === 0 ? "Start the backend to load events." : "No events match the filter."}</p>
+            </div>
+          ) : view === "timeline" ? (
+            <div className="space-y-6">
+              {grouped.map(([date, evts]) => {
+                const [line1, line2] = formatDateLabel(date).split("\n");
                 return (
-                  <div key={evt.id}
-                    className={`rounded-[20px] border border-white/10 bg-gradient-to-r ${CARD_GRADS[i % CARD_GRADS.length]} p-5 backdrop-blur-xl hover:border-white/20 hover:-translate-y-0.5 transition cursor-pointer`}>
-
-                    {/* Row 1 */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${cfg.color} ${cfg.bg} ${cfg.border}`}>
-                        {evt.category}
-                      </span>
-                      <span className={`flex h-6 min-w-[28px] items-center justify-center rounded-full bg-gradient-to-r px-2 text-[11px] font-bold text-white ${scoreBg(evt.impact_score)}`}>
-                        {score}
-                      </span>
-                      <span className="text-[11px] text-slate-500">{evt.date}</span>
-                      <div className="ml-auto flex gap-1.5">
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${imp.cls}`}>
-                          Confidence {conf}%
-                        </span>
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${imp.cls}`}>
-                          {imp.label}
-                        </span>
+                  <div key={date} className="flex gap-4">
+                    {/* Date column */}
+                    <div className="w-[100px] shrink-0 pt-1 text-right">
+                      <p className="text-[13px] font-semibold text-white leading-tight">{line1}</p>
+                      <p className="text-[11px] text-slate-500">{line2 || ""}</p>
+                      {/* Timeline dot */}
+                      <div className="mt-2 flex justify-end pr-[-8px]">
+                        <div className="h-2.5 w-2.5 rounded-full bg-violet-500 ring-2 ring-violet-500/30"/>
                       </div>
                     </div>
 
-                    {/* Row 2: title + thumbnail */}
-                    <div className="mt-3 flex gap-4">
-                      <div className="min-w-0 flex-1">
-                        <h2 className="text-[15px] font-bold leading-snug text-white line-clamp-2">
-                          {evt.title}
-                        </h2>
-                        <p className="mt-2 text-[13px] leading-5 text-slate-400 line-clamp-2">{evt.summary}</p>
-                      </div>
-                      <div className={`h-[72px] w-20 shrink-0 rounded-xl bg-gradient-to-br ${THUMB_GRADS[i % THUMB_GRADS.length]} border border-white/10`}/>
+                    {/* Events for this date */}
+                    <div className="flex-1 space-y-3 border-l border-white/[0.06] pl-5">
+                      {evts.map(ev => <EventCard key={ev.id} ev={ev} view="timeline"/>)}
                     </div>
-
-                    {/* Row 3: sector tags */}
-                    {sectors.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {sectors.slice(0, 5).map(s => (
-                          <span key={s} className="rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[11px] text-slate-400">#{s}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Row 4: company avatar chips */}
-                    {companies.length > 0 && (
-                      <div className="mt-3 flex items-center gap-1">
-                        <span className="mr-1.5 text-[10px] text-slate-600">Affected Companies</span>
-                        {companies.slice(0, 7).map((c, ci) => {
-                          const sym = typeof c === "string" ? c : (c as any).symbol;
-                          return (
-                            <Link key={ci} href={`/stocks/${sym}`} title={companyLabel(c)}
-                              className={`flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-[9px] font-bold hover:scale-110 transition ${CHIP_COLORS[ci % CHIP_COLORS.length]}`}>
-                              {companyInitials(c)}
-                            </Link>
-                          );
-                        })}
-                        {companies.length > 7 && (
-                          <span className="ml-1 text-[10px] text-slate-600">+{companies.length - 7}</span>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
-              })
-          }
+              })}
+              {/* Load more */}
+              {filtered.length >= 10 && (
+                <button onClick={() => setLimit(l => l + 20)} className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] py-3 text-[13px] text-slate-400 hover:text-white hover:border-white/20 transition">
+                  Load More Events
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
+                </button>
+              )}
+            </div>
+          ) : (
+            /* List view — flat, no date grouping */
+            <div className="space-y-3">
+              {filtered.map(ev => <EventCard key={ev.id} ev={ev} view="list"/>)}
+            </div>
+          )}
         </div>
 
-        {/* ── RIGHT: AI Insights ──────────────────────────── */}
+        {/* ── RIGHT: Overview Sidebar ──────────────────────── */}
         <aside className="sticky top-[84px] space-y-4">
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/20 text-[13px]">✦</span>
-              <h2 className="text-sm font-semibold text-white">AI Insights</h2>
-            </div>
 
-            {/* Key Takeaways */}
-            <p className="mb-2.5 text-[9px] uppercase tracking-widest text-slate-500">Key Takeaways</p>
-            <div className="mb-5 space-y-2.5">
-              {TAKEAWAYS.map((t, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${["bg-sky-400","bg-violet-400","bg-emerald-400"][i]}`}/>
-                  <p className="text-[12px] leading-4 text-slate-300">{t}</p>
+          {/* Events Overview */}
+          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
+            <h3 className="mb-3 text-[13px] font-semibold text-white">Events Overview</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "Total Events",    value: total,     delta: "+12 today", color: "text-white",       delta_c: "text-emerald-400" },
+                { label: "Very High Impact", value: veryHigh, delta: `+${Math.max(0, Math.round(veryHigh*0.2))} today`, color: "text-white", delta_c: "text-emerald-400" },
+                { label: "High Impact",     value: high,      delta: `+${Math.max(0, Math.round(high*0.08))} today`, color: "text-amber-400", delta_c: "text-emerald-400" },
+                { label: "Medium Impact",   value: medium,    delta: `+${Math.max(0, Math.round(medium*0.04))} today`, color: "text-sky-400",  delta_c: "text-emerald-400" },
+              ].map(s => (
+                <div key={s.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                  <p className="text-[10px] text-slate-500">{s.label}</p>
+                  <p className={`mt-1 text-2xl font-black ${s.color}`}>{s.value}</p>
+                  <p className={`text-[10px] ${s.delta_c}`}>{s.delta}</p>
                 </div>
               ))}
             </div>
+          </div>
 
-            {/* Upcoming Events */}
-            <div className="mb-5">
-              <div className="mb-2.5 flex items-center justify-between">
-                <p className="text-[9px] uppercase tracking-widest text-slate-500">Upcoming Events</p>
-                <Link href="/calendar" className="text-[10px] text-sky-400 hover:text-sky-300">View All</Link>
-              </div>
-              <div className="space-y-1.5">
-                {UPCOMING.map((e, i) => (
-                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-white/[0.02] p-2">
-                    <div className="w-7 shrink-0 text-center">
-                      <div className="text-sm font-bold leading-none text-white">{e.date}</div>
-                      <div className="text-[9px] uppercase text-slate-600">{e.mon}</div>
+          {/* Impact Trend Chart */}
+          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-[13px] font-semibold text-white">Impact Trend</h3>
+              <select className="appearance-none rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-slate-400 outline-none">
+                <option>7 Days</option><option>30 Days</option>
+              </select>
+            </div>
+            <div className="mb-2 flex gap-3 flex-wrap">
+              {[{ key: "veryHigh", label: "Very High", color: "#f43f5e" }, { key: "high", label: "High", color: "#f59e0b" }, { key: "medium", label: "Medium", color: "#6366f1" }, { key: "low", label: "Low", color: "#22c55e" }].map(s => (
+                <div key={s.key} className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full" style={{ background: s.color }}/>
+                  <span className="text-[10px] text-slate-400">{s.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="h-[140px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="day" tick={{ fill: "#64748b", fontSize: 9 }} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{ fill: "#64748b", fontSize: 9 }} axisLine={false} tickLine={false}/>
+                  <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 10 }} labelStyle={{ color: "#94a3b8" }}/>
+                  <Line type="monotone" dataKey="veryHigh" stroke="#f43f5e" strokeWidth={1.5} dot={{ fill: "#f43f5e", r: 2 }} name="Very High"/>
+                  <Line type="monotone" dataKey="high"     stroke="#f59e0b" strokeWidth={1.5} dot={{ fill: "#f59e0b", r: 2 }} name="High"/>
+                  <Line type="monotone" dataKey="medium"   stroke="#6366f1" strokeWidth={1.5} dot={{ fill: "#6366f1", r: 2 }} name="Medium"/>
+                  <Line type="monotone" dataKey="low"      stroke="#22c55e" strokeWidth={1.5} dot={{ fill: "#22c55e", r: 2 }} name="Low"/>
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Top Sectors Affected */}
+          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-[13px] font-semibold text-white">Top Sectors Affected</h3>
+              <button className="text-[10px] text-violet-400 hover:text-violet-300 transition">View All</button>
+            </div>
+            {topSectors.length === 0 ? (
+              <p className="text-[12px] text-slate-500">Loading...</p>
+            ) : (
+              <div className="space-y-2.5">
+                {topSectors.map(([sector, count]) => (
+                  <div key={sector} className="flex items-center gap-2">
+                    <span className="text-sm">{SECTOR_ICONS[sector] ?? "📌"}</span>
+                    <span className="flex-1 min-w-0 text-[12px] text-slate-300 truncate">{sector}</span>
+                    <div className="w-20 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                      <div className="h-full rounded-full bg-violet-500" style={{ width: `${(count / maxSectorCount) * 100}%` }}/>
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-[11px] font-medium text-white">{e.title}</p>
-                      <p className="text-[10px] text-slate-500">{e.time}</p>
-                    </div>
+                    <span className="w-14 shrink-0 text-right text-[10px] text-slate-400">{count} events</span>
                   </div>
                 ))}
               </div>
-              <Link href="/calendar" className="mt-2 block text-center text-[10px] text-slate-500 hover:text-slate-300 transition">
-                View Calendar →
-              </Link>
-            </div>
-
-            {/* Impact Summary */}
-            <p className="mb-2.5 text-[9px] uppercase tracking-widest text-slate-500">Event Impact Summary</p>
-            <div className="space-y-2.5">
-              {[
-                { label: "High Impact",   n: highN, bar: "bg-rose-500",  text: "text-rose-400"  },
-                { label: "Medium Impact", n: medN,  bar: "bg-amber-500", text: "text-amber-400" },
-                { label: "Low Impact",    n: lowN,  bar: "bg-slate-500", text: "text-slate-400" },
-              ].map(r => (
-                <div key={r.label}>
-                  <div className="mb-1 flex justify-between">
-                    <span className={`text-[11px] ${r.text}`}>{r.label}</span>
-                    <span className="text-[11px] font-bold text-white">{r.n}</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                    <div className={`h-full rounded-full ${r.bar}`} style={{width:`${Math.round(r.n/total*100)}%`}}/>
-                  </div>
-                </div>
-              ))}
-            </div>
+            )}
           </div>
-        </aside>
 
+          {/* Recent Alerts */}
+          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-[13px] font-semibold text-white">Recent Alerts</h3>
+              <button className="text-[10px] text-violet-400 hover:text-violet-300 transition">View All</button>
+            </div>
+            {recentAlerts.length === 0 ? (
+              <p className="text-[12px] text-slate-500">No recent alerts.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {recentAlerts.map((ev, i) => {
+                  const style = impactStyle(ev.impact_score);
+                  const dot = ev.impact_score >= 90 ? "bg-rose-500" : ev.impact_score >= 75 ? "bg-amber-500" : "bg-emerald-500";
+                  return (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`}/>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] text-slate-300 leading-4 line-clamp-2">{ev.title}</p>
+                        <p className="mt-0.5 text-[10px] text-slate-600">{ev.date ? `${ev.date}` : "Recent"}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        </aside>
       </div>
     </main>
   );

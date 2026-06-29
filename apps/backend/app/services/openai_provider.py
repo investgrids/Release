@@ -1,18 +1,24 @@
-from typing import Any, Dict
-from app.services.ai_provider import AIProvider
+"""
+OpenAIProvider — uses the OpenAI API (GPT-4o).
+Shares the same request format as DeepSeek (OpenAI-compatible).
+"""
+from __future__ import annotations
 
-class OpenAIProvider(AIProvider):
-    def __init__(self, api_key: str):
-        self.api_key = api_key
+from typing import Any, Dict, List
 
-    async def classify_event(self, text: str) -> Dict[str, Any]:
-        return {"category": "earnings", "confidence": 0.82}
+from app.services.deepseek_provider import DeepSeekProvider
 
-    async def summarize_news(self, text: str) -> str:
-        return "AI summary generated with OpenAI abstraction."
 
-    async def generate_story(self, context: Dict[str, Any]) -> str:
-        return "OpenAI-powered story narrative."
+class OpenAIProvider(DeepSeekProvider):
+    """
+    OpenAI GPT-4o provider.
+    Inherits all DeepSeek logic since they share the same API contract.
+    Only the base_url, model, and api_key differ.
+    """
 
-    async def generate_radar(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        return {"theme": "Earnings Momentum", "score": 78}
+    def __init__(self, api_key: str) -> None:
+        super().__init__(
+            api_key=api_key,
+            base_url="https://api.openai.com/v1",
+            model="gpt-4o-mini",
+        )

@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 interface RadarItem {
-  id: string;
+  id: string | number;
   theme: string;
   score: number;
   reason: string;
@@ -96,14 +96,36 @@ export default function RadarPage() {
   const [minScore, setMinScore]         = useState(0);
 
   useEffect(() => {
-    fetch(`${API}/api/radar`)
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setItems(Array.isArray(d) && d.length > 0 ? d : STATIC_RADAR))
+    fetch(`${API}/api/radar/?page=1&page_size=20`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const raw = Array.isArray(d) ? d : (d?.items ?? []);
+        if (raw.length === 0) { setItems(STATIC_RADAR); return; }
+        const mapped: RadarItem[] = raw.map((o: any) => ({
+          id:           o.id,
+          theme:        o.title,
+          score:        Math.round(o.opportunity_score ?? o.score ?? 0),
+          reason:       o.summary ?? o.reason ?? "",
+          confidence:   typeof o.confidence === "number" ? (o.confidence > 1 ? o.confidence / 100 : o.confidence) : 0.85,
+          beneficiaries: (o.companies ?? []).map((c: any) => typeof c === "string" ? c : c.symbol),
+          sectors:      o.sectors ?? [],
+        }));
+        setItems(mapped);
+      })
       .catch(() => setItems(STATIC_RADAR))
       .finally(() => setLoading(false));
   }, []);
 
-  const displayed = (loading ? STATIC_RADAR : items).filter(i => i.score >= minScore);
+  const displayed = items.filter(i => {
+    if (i.score < minScore) return false;
+    if (sectorFilter !== "All Sectors" && !(i.sectors ?? []).some(s =>
+      s.toLowerCase().includes(sectorFilter.toLowerCase())
+    )) return false;
+    if (themeFilter !== "All Themes" && !i.theme.toLowerCase().includes(
+      themeFilter.toLowerCase().replace("ai & automation", "ai").replace("green energy", "energy")
+    )) return false;
+    return true;
+  });
 
   return (
     <main className="min-w-0 pb-10">
@@ -154,79 +176,148 @@ export default function RadarPage() {
       <div className="grid grid-cols-[1fr_220px] gap-5 items-start">
 
         {/* ── LEFT: Radar cards ─────────────────────────── */}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {displayed.map((item, i) => {
-            const conf = item.confidence ?? 0.9;
-            const cc   = confidenceColor(conf);
-            const beneficiaries = Array.isArray(item.beneficiaries) ? item.beneficiaries : [];
-            const sectors = Array.isArray(item.sectors) ? item.sectors : [];
-
-            return (
-              <div key={item.id}
-                className="flex flex-col rounded-[20px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl hover:border-white/20 hover:-translate-y-0.5 transition">
-
-                {/* Score + theme */}
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <ScoreBadge score={item.score}/>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-[13px] font-bold leading-snug text-white">{item.theme}</h3>
-                    {sectors.length > 0 && (
-                      <p className="mt-0.5 text-[11px] text-slate-500">{sectors.join(" • ")}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Confidence meter */}
-                <div className="mb-3 flex items-center gap-3">
-                  <ConfidenceCircle value={conf} size={52}/>
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-slate-500">Confidence</p>
-                    <p className={`text-base font-bold ${cc.text}`}>{Math.round(conf * 100)}%</p>
-                  </div>
-                  <div className="flex-1">
-                    <div className="mb-1 flex justify-between">
-                      <span className="text-[10px] text-slate-500">Signal</span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                      <div className={`h-full rounded-full ${cc.ring.replace("ring-","bg-").replace("/40","")}`}
-                        style={{ width: `${Math.round(conf * 100)}%` }}/>
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({length: 6}).map((_, i) => (
+              <div key={i} className="h-64 animate-pulse rounded-[20px] border border-white/10 bg-white/[0.02]"/>
+            ))}
+          </div>
+        ) : displayed.length === 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {STATIC_RADAR.map((item, i) => {
+              const conf = item.confidence ?? 0.9;
+              const cc   = confidenceColor(conf);
+              const beneficiaries = Array.isArray(item.beneficiaries) ? item.beneficiaries : [];
+              const sectors = Array.isArray(item.sectors) ? item.sectors : [];
+              return (
+                <div key={item.id}
+                  className="flex flex-col rounded-[20px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl hover:border-white/20 hover:-translate-y-0.5 transition">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div><ScoreBadge score={item.score}/></div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-[13px] font-bold leading-snug text-white">{item.theme}</h3>
+                      {sectors.length > 0 && (
+                        <p className="mt-0.5 text-[11px] text-slate-500">{sectors.join(" • ")}</p>
+                      )}
                     </div>
                   </div>
-                </div>
-
-                {/* Reason */}
-                <p className="mb-3 text-[12px] leading-4 text-slate-400 line-clamp-2">{item.reason}</p>
-
-                {/* Beneficiaries */}
-                {beneficiaries.length > 0 && (
-                  <div className="mb-3">
-                    <p className="mb-1.5 text-[9px] uppercase tracking-widest text-slate-600">Top Beneficiaries</p>
-                    <div className="flex items-center gap-1">
-                      {beneficiaries.slice(0, 5).map((b, bi) => (
-                        <Link key={bi} href={`/stocks/${b.replace(/[&\s]/g, "")}`} title={b}
-                          className={`flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-[9px] font-bold hover:scale-110 transition ${CHIP_COLORS[bi % CHIP_COLORS.length]}`}>
-                          {b.slice(0, 2).toUpperCase()}
-                        </Link>
-                      ))}
+                  <div className="mb-3 flex items-center gap-3">
+                    <ConfidenceCircle value={conf} size={52}/>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-slate-500">Confidence</p>
+                      <p className={`text-base font-bold ${cc.text}`}>{Math.round(conf * 100)}%</p>
+                    </div>
+                    <div className="flex-1">
+                      <div className="mb-1 flex justify-between">
+                        <span className="text-[10px] text-slate-500">Signal</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                        <div className={`h-full rounded-full ${cc.ring.replace("ring-","bg-").replace("/40","")}`}
+                          style={{ width: `${Math.round(conf * 100)}%` }}/>
+                      </div>
                     </div>
                   </div>
-                )}
-
-                {/* CTA */}
-                <div className="mt-auto pt-2 border-t border-white/5">
-                  <button className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-300 transition">
-                    View Details
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-                    </svg>
-                  </button>
+                  <p className="mb-3 text-[12px] leading-4 text-slate-400 line-clamp-2">{item.reason}</p>
+                  {beneficiaries.length > 0 && (
+                    <div className="mb-3">
+                      <p className="mb-1.5 text-[9px] uppercase tracking-widest text-slate-600">Top Beneficiaries</p>
+                      <div className="flex items-center gap-1">
+                        {beneficiaries.slice(0, 5).map((b, bi) => (
+                          <Link key={bi} href={`/stocks/${b.replace(/[&\s]/g, "")}`} title={b}
+                            className={`flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-[9px] font-bold hover:scale-110 transition ${CHIP_COLORS[bi % CHIP_COLORS.length]}`}>
+                            {b.slice(0, 2).toUpperCase()}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="mt-auto pt-2 border-t border-white/5">
+                    <span className="flex items-center gap-1 text-[12px] font-medium text-sky-400">
+                      View Details
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                      </svg>
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {displayed.map((item, i) => {
+              const conf = item.confidence ?? 0.9;
+              const cc   = confidenceColor(conf);
+              const beneficiaries = Array.isArray(item.beneficiaries) ? item.beneficiaries : [];
+              const sectors = Array.isArray(item.sectors) ? item.sectors : [];
+
+              return (
+                <div key={item.id}
+                  className="flex flex-col rounded-[20px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl hover:border-white/20 hover:-translate-y-0.5 transition">
+
+                  {/* Score + theme */}
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <ScoreBadge score={item.score}/>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-[13px] font-bold leading-snug text-white">{item.theme}</h3>
+                      {sectors.length > 0 && (
+                        <p className="mt-0.5 text-[11px] text-slate-500">{sectors.join(" • ")}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Confidence meter */}
+                  <div className="mb-3 flex items-center gap-3">
+                    <ConfidenceCircle value={conf} size={52}/>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-slate-500">Confidence</p>
+                      <p className={`text-base font-bold ${cc.text}`}>{Math.round(conf * 100)}%</p>
+                    </div>
+                    <div className="flex-1">
+                      <div className="mb-1 flex justify-between">
+                        <span className="text-[10px] text-slate-500">Signal</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                        <div className={`h-full rounded-full ${cc.ring.replace("ring-","bg-").replace("/40","")}`}
+                          style={{ width: `${Math.round(conf * 100)}%` }}/>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reason */}
+                  <p className="mb-3 text-[12px] leading-4 text-slate-400 line-clamp-2">{item.reason}</p>
+
+                  {/* Beneficiaries */}
+                  {beneficiaries.length > 0 && (
+                    <div className="mb-3">
+                      <p className="mb-1.5 text-[9px] uppercase tracking-widest text-slate-600">Top Beneficiaries</p>
+                      <div className="flex items-center gap-1">
+                        {beneficiaries.slice(0, 5).map((b, bi) => (
+                          <Link key={bi} href={`/stocks/${b.replace(/[&\s]/g, "")}`} title={b}
+                            className={`flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-[9px] font-bold hover:scale-110 transition ${CHIP_COLORS[bi % CHIP_COLORS.length]}`}>
+                            {b.slice(0, 2).toUpperCase()}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CTA */}
+                  <div className="mt-auto pt-2 border-t border-white/5">
+                    <Link href={`/radar/${item.id}`} className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-300 transition">
+                      View Details
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── RIGHT: Top Sectors sidebar ────────────────── */}
         <aside className="sticky top-[84px] rounded-[20px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl">

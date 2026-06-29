@@ -10,6 +10,8 @@ from alembic import context
 # Import all models so Alembic can detect them
 from app.db.base import Base
 import app.db.models  # noqa: F401
+import app.db.models.opportunity  # noqa: F401
+import app.db.models.event  # noqa: F401
 
 from app.core.config import settings
 

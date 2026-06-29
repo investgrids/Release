@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.db.crud import get_events
 from app.schemas.stock import StockDetail, StockEvent, StockNews
-from app.services.market_data import get_stock_detail, get_stock_chart
+from app.services.market_data import get_stock_detail, get_stock_chart, get_top_movers
 from app.services import finnhub
 
 router = APIRouter()
@@ -45,6 +45,12 @@ def _fmt_p(v) -> str:
         return "—"
 
 
+@router.get("/movers")
+async def get_movers():
+    """Top gainers, losers, and most active NSE stocks."""
+    return await get_top_movers()
+
+
 @router.get("/{symbol}/chart")
 async def get_chart(symbol: str, period: str = Query("6M")):
     return await get_stock_chart(symbol, period)
@@ -62,23 +68,25 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
     sym_upper = symbol.upper()
 
     # Run yfinance detail + Finnhub calls concurrently
-    yf_task   = get_stock_detail(symbol)
-    q_task    = finnhub.get_quote(symbol)
-    rec_task  = finnhub.get_recommendation(symbol)
-    pt_task   = finnhub.get_price_target(symbol)
-    peer_task = finnhub.get_peers(symbol)
+    yf_task    = get_stock_detail(symbol)
+    q_task     = finnhub.get_quote(symbol)
+    rec_task   = finnhub.get_recommendation(symbol)
+    pt_task    = finnhub.get_price_target(symbol)
+    peer_task  = finnhub.get_peers(symbol)
+    news_task  = finnhub.get_company_news(symbol, days=7)
 
-    yf_data, fh_quote, fh_rec, fh_pt, fh_peers = await asyncio.gather(
-        yf_task, q_task, rec_task, pt_task, peer_task,
+    yf_data, fh_quote, fh_rec, fh_pt, fh_peers, fh_news = await asyncio.gather(
+        yf_task, q_task, rec_task, pt_task, peer_task, news_task,
         return_exceptions=True,
     )
 
-    # Treat exceptions as None
+    # Treat exceptions as None/empty
     if isinstance(yf_data,  Exception): yf_data  = None
     if isinstance(fh_quote, Exception): fh_quote = None
     if isinstance(fh_rec,   Exception): fh_rec   = None
     if isinstance(fh_pt,    Exception): fh_pt    = None
     if isinstance(fh_peers, Exception): fh_peers = []
+    if isinstance(fh_news,  Exception): fh_news  = []
 
     if yf_data is None and fh_quote is None:
         raise HTTPException(status_code=404, detail=f"Symbol {sym_upper} not found on NSE")
@@ -121,11 +129,12 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
     target_low      = "—"
 
     if fh_rec:
-        buy_count    = int(fh_rec.get("buy", 0) or 0)
-        hold_count   = int(fh_rec.get("hold", 0) or 0)
-        sell_count   = int(fh_rec.get("sell", 0) or 0)
-        strong_buy   = int(fh_rec.get("strongBuy", 0) or 0)
-        strong_sell  = int(fh_rec.get("strongSell", 0) or 0)
+        rec_data = fh_rec[0] if isinstance(fh_rec, list) and fh_rec else (fh_rec if isinstance(fh_rec, dict) else {})
+        buy_count    = int(rec_data.get("buy", 0) or 0)
+        hold_count   = int(rec_data.get("hold", 0) or 0)
+        sell_count   = int(rec_data.get("sell", 0) or 0)
+        strong_buy   = int(rec_data.get("strongBuy", 0) or 0)
+        strong_sell  = int(rec_data.get("strongSell", 0) or 0)
         analyst_count = buy_count + hold_count + sell_count + strong_buy + strong_sell
         total_bull   = strong_buy + buy_count
         total_bear   = sell_count + strong_sell
@@ -150,7 +159,7 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
 
     if not analyst_count and yf_data:
         analyst_count  = yf_data.get("analyst_count", 0)
-        recommendation = yf_data.get("recommendation", "hold")
+        recommendation = (yf_data.get("recommendation") or "hold").replace("_", " ")
 
     # ── Peers: prefer Finnhub live list, fallback to industry map ───────────
     if fh_peers:
@@ -163,10 +172,17 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
 
     # ── Related events from DB ───────────────────────────────────────────────
     all_events = await get_events(db)
+    def _matches(e) -> bool:
+        for c in (e.companies or []):
+            if isinstance(c, dict) and c.get("symbol", "") == sym_upper:
+                return True
+            if isinstance(c, str) and c.strip().upper() == sym_upper:
+                return True
+        return False
+
     related_events = [
         StockEvent(title=e.title, date=str(e.published_at.date()) if e.published_at else "")
-        for e in all_events
-        if any(c.get("symbol", "") == sym_upper for c in (e.companies or []))
+        for e in all_events if _matches(e)
     ][:4]
 
     yf = yf_data or {}
@@ -217,8 +233,23 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
         held_insiders=yf.get("held_insiders", "—"),
         quarterly_revenue=yf.get("quarterly_revenue", []),
         quarterly_net_income=yf.get("quarterly_net_income", []),
+        enterprise_value=yf.get("enterprise_value", ""),
+        roce=yf.get("roce", ""),
+        annual_financials=yf.get("annual_financials", []),
+        dna_scores=yf.get("dna_scores", {}),
+        gov_score=yf.get("gov_score", 0),
+        gov_level=yf.get("gov_level", ""),
+        gov_breakdown=yf.get("gov_breakdown", []),
+        gov_support_areas=yf.get("gov_support_areas", []),
         events=related_events,
-        news=[],
+        news=[
+            StockNews(
+                headline=a.get("headline", ""),
+                published_at=a.get("published_at", ""),
+            )
+            for a in (fh_news or [])[:8]
+            if a.get("headline")
+        ],
         peers=peers,
         chart_data=[],
     )

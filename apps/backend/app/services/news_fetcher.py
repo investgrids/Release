@@ -18,8 +18,14 @@ import yfinance as yf
 # ---------------------------------------------------------------------------
 
 _YF_SYMBOLS = [
+    # Indices
     "^NSEI", "^BSESN", "^NSEBANK",
+    # Large-cap NSE stocks across sectors
     "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "LT.NS",
+    "ICICIBANK.NS", "SBIN.NS", "KOTAKBANK.NS", "AXISBANK.NS",
+    "HINDUNILVR.NS", "ITC.NS", "MARUTI.NS", "TATAMOTORS.NS",
+    "WIPRO.NS", "HCLTECH.NS", "ONGC.NS", "NTPC.NS", "ADANIENT.NS",
+    "BAJFINANCE.NS", "SUNPHARMA.NS",
 ]
 
 RSS_FEEDS = [
@@ -34,6 +40,18 @@ RSS_FEEDS = [
     (
         "https://news.google.com/rss/search?q=RBI+SEBI+india+economy+budget&hl=en-IN&gl=IN&ceid=IN:en",
         "Google News",
+    ),
+    (
+        "https://news.google.com/rss/search?q=india+corporate+earnings+results+NSE&hl=en-IN&gl=IN&ceid=IN:en",
+        "Google News",
+    ),
+    (
+        "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+        "Economic Times",
+    ),
+    (
+        "https://www.moneycontrol.com/rss/business.xml",
+        "Moneycontrol",
     ),
 ]
 
@@ -95,6 +113,19 @@ _HEADERS = {
 CACHE_TTL = 900  # 15 minutes
 _cache: dict = {"ts": 0.0, "data": []}
 
+# Article must contain at least one of these to be shown
+_INDIA_KEYWORDS = [
+    "india", "indian", "nse", "bse", "nifty", "sensex", "sebi", "rbi",
+    "rupee", "₹", "crore", "lakh", "mumbai", "bengaluru", "hyderabad",
+    "reliance", "tata ", "infosys", "wipro", "hdfc", "icici", "sbin", "sbi",
+    "adani", "airtel", "bajaj", "maruti", "ongc", "ntpc", "itc ", "itc's",
+    "hul ", "hindustan unilever", "kotak", "axis bank", "larsen", "l&t",
+    "sun pharma", "cipla", "dr reddy", "zomato", "paytm", "swiggy",
+    "nifty 50", "sensex", "dalal street", "fii", "dii", "sebi", "rbi policy",
+    "repo rate", "india gdp", "india cpi", "india budget", "make in india",
+    "psu ", "disinvestment", "ipo ", "ofss", "techm", "hcltech",
+]
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -124,6 +155,11 @@ def _impact_score(headline: str) -> float:
         if any(kw in h for kw in keywords):
             return score
     return 7.0
+
+
+def _is_india_relevant(headline: str, summary: str = "") -> bool:
+    text = (headline + " " + summary).lower()
+    return any(kw in text for kw in _INDIA_KEYWORDS)
 
 
 def _extract_companies(headline: str) -> list[str]:
@@ -240,20 +276,6 @@ async def _fetch_rss(url: str, source: str) -> list[dict]:
 # Public API
 # ---------------------------------------------------------------------------
 
-async def _fetch_finnhub_news() -> list[dict]:
-    """Pull general market news from Finnhub if API key is set."""
-    try:
-        from app.services.finnhub import get_market_news
-        articles = await get_market_news("general")
-        # Finnhub articles may lack _ts — stamp them now so sort works
-        now = time.time()
-        for a in articles:
-            a.setdefault("_ts", now)
-        return articles
-    except Exception:
-        return []
-
-
 async def get_live_news(limit: int = 20) -> list[dict]:
     """Return live news, cached for CACHE_TTL seconds. Empty list on total failure."""
     now = time.time()
@@ -262,10 +284,9 @@ async def get_live_news(limit: int = 20) -> list[dict]:
 
     loop = asyncio.get_event_loop()
 
-    # Run yfinance (sync) + all RSS feeds + Finnhub concurrently
+    # yfinance (NSE symbols, sync) + India-focused RSS feeds, all concurrent
     tasks = [loop.run_in_executor(None, _sync_fetch_yfinance)]
     tasks += [_fetch_rss(url, src) for url, src in RSS_FEEDS]
-    tasks += [_fetch_finnhub_news()]
 
     raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -277,15 +298,17 @@ async def get_live_news(limit: int = 20) -> list[dict]:
             continue
         for article in batch:
             aid = article["id"]
-            if aid not in seen_ids:
+            if aid not in seen_ids and _is_india_relevant(
+                article.get("headline", ""), article.get("summary", "")
+            ):
                 seen_ids.add(aid)
                 merged.append(article)
 
     # Sort newest first
     merged.sort(key=lambda x: x.get("_ts", 0), reverse=True)
 
-    # Strip internal _ts field before caching
-    clean = [{k: v for k, v in a.items() if k != "_ts"} for a in merged[:limit]]
+    # Strip internal _ts field before caching (store up to 60 so tab filters have enough)
+    clean = [{k: v for k, v in a.items() if k != "_ts"} for a in merged[:60]]
 
     _cache["ts"] = now
     _cache["data"] = clean

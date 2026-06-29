@@ -58,6 +58,14 @@ class StockDetail(BaseModel):
     held_insiders: str = ""
     quarterly_revenue: List[dict] = []
     quarterly_net_income: List[dict] = []
+    enterprise_value: str = ""
+    roce: str = ""
+    annual_financials: List[dict] = []
+    dna_scores: dict = {}
+    gov_score: int = 0
+    gov_level: str = ""
+    gov_breakdown: List[dict] = []
+    gov_support_areas: List[str] = []
     events: List[StockEvent] = []
     news: List[StockNews] = []
     peers: List[str] = []

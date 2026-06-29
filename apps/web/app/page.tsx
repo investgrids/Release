@@ -3,7 +3,7 @@ import { DashboardHero } from "@/components/DashboardHero";
 import { EconomicCalendar } from "@/components/EconomicCalendar";
 import { FloatingAISearch } from "@/components/FloatingAISearch";
 import { LatestNews } from "@/components/LatestNews";
-import { MarketOverviewCard } from "@/components/MarketOverviewCards";
+import { MarketIndexCard } from "@/components/MarketOverviewCards";
 import { OpportunityRadar } from "@/components/OpportunityRadar";
 import { SectorHeatmap } from "@/components/SectorHeatmap";
 import { TrendingEvents } from "@/components/TrendingEvents";
@@ -13,14 +13,14 @@ import { calendarData, newsData, sectorHeatmapData, opportunityRadarData } from 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 async function getDashboard() {
-  const res = await fetch(`${API}/api/dashboard`, { cache: "no-store" });
+  const res = await fetch(`${API}/api/dashboard/`, { cache: "no-store" });
   if (!res.ok) throw new Error("dashboard fetch failed");
   return res.json();
 }
 
 async function getCalendar() {
   try {
-    const res = await fetch(`${API}/api/calendar`, { cache: "no-store" });
+    const res = await fetch(`${API}/api/calendar/`, { cache: "no-store" });
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -30,7 +30,7 @@ async function getCalendar() {
 
 async function getNews() {
   try {
-    const res = await fetch(`${API}/api/news`, { cache: "no-store" });
+    const res = await fetch(`${API}/api/news/`, { cache: "no-store" });
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -40,7 +40,7 @@ async function getNews() {
 
 async function getSectors() {
   try {
-    const res = await fetch(`${API}/api/sectors`, { cache: "no-store" });
+    const res = await fetch(`${API}/api/sectors/`, { cache: "no-store" });
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -48,26 +48,34 @@ async function getSectors() {
   }
 }
 
-// Static top-movers data — replace with a real top-movers endpoint when available
-const gainers = [
-  { company: "Bharat Electronics",  ticker: "BEL",      value: "+6.32%", subtitle: "₹282.75",   positive: true  },
-  { company: "Ircon International", ticker: "IRCON",    value: "+5.87%", subtitle: "₹201.45",   positive: true  },
-  { company: "Rail Vikas Nigam",    ticker: "RVNL",     value: "+5.21%", subtitle: "₹475.80",   positive: true  },
-  { company: "Larsen & Toubro",     ticker: "L&T",      value: "+4.18%", subtitle: "₹3,512.20", positive: true  }
-];
+async function getRadar() {
+  try {
+    const res = await fetch(`${API}/api/radar/?page=1&page_size=4`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
 
-const losers = [
+// Static fallback top-movers (used only when API is unavailable)
+const _FALLBACK_GAINERS = [
+  { company: "Bharat Electronics",  ticker: "BEL",      value: "+6.32%", subtitle: "₹282.75",   positive: true  },
+  { company: "Rail Vikas Nigam",    ticker: "RVNL",     value: "+5.21%", subtitle: "₹475.80",   positive: true  },
+  { company: "Larsen & Toubro",     ticker: "L&T",      value: "+4.18%", subtitle: "₹3,512.20", positive: true  },
+  { company: "NTPC Ltd",            ticker: "NTPC",     value: "+3.56%", subtitle: "₹345.60",   positive: true  },
+];
+const _FALLBACK_LOSERS = [
   { company: "Tech Mahindra",    ticker: "TECHM",   value: "-2.35%", subtitle: "₹1,342.80", positive: false },
   { company: "Wipro Limited",    ticker: "WIPRO",   value: "-2.01%", subtitle: "₹465.75",   positive: false },
   { company: "Tata Consultancy", ticker: "TCS",     value: "-1.78%", subtitle: "₹3,721.90", positive: false },
-  { company: "HCL Technologies", ticker: "HCLTECH", value: "-1.32%", subtitle: "₹1,294.50", positive: false }
+  { company: "HCL Technologies", ticker: "HCLTECH", value: "-1.32%", subtitle: "₹1,294.50", positive: false },
 ];
-
-const active = [
+const _FALLBACK_ACTIVE = [
   { company: "Reliance Industries", ticker: "RELIANCE",  value: "₹8,932 Cr", subtitle: "Vol.", positive: true, isVolume: true },
   { company: "HDFC Bank",           ticker: "HDFCBANK",  value: "₹6,812 Cr", subtitle: "Vol.", positive: true, isVolume: true },
   { company: "Tata Steel",          ticker: "TATASTEEL", value: "₹5,421 Cr", subtitle: "Vol.", positive: true, isVolume: true },
-  { company: "Infosys Limited",     ticker: "INFY",      value: "₹4,876 Cr", subtitle: "Vol.", positive: true, isVolume: true }
+  { company: "Infosys Limited",     ticker: "INFY",      value: "₹4,876 Cr", subtitle: "Vol.", positive: true, isVolume: true },
 ];
 
 export default async function HomePage() {
@@ -75,10 +83,11 @@ export default async function HomePage() {
   let dashboard: any = null;
   try { dashboard = await getDashboard(); } catch { dashboard = null; }
 
-  const [calendarRows, newsRows, sectorRows] = await Promise.all([
+  const [calendarRows, newsRows, sectorRows, radarRows] = await Promise.all([
     getCalendar(),
     getNews(),
     getSectors(),
+    getRadar(),
   ]);
 
   // ── Index cards ───────────────────────────────────────────────────────────
@@ -115,7 +124,7 @@ export default async function HomePage() {
   // ── Trending events ───────────────────────────────────────────────────────
   const trendingEvents = (dashboard?.trending_events ?? []).map((e: any) => ({
     id:    e.id,
-    score: Math.round(e.impact_score * 10),
+    score: Math.round(e.impact_score ?? 0),   // already 0-100, no * 10
     title: e.title,
     tags:  [e.category ?? "Macro", ...(e.sectors ?? []).slice(0, 1)],
     time:  e.category ?? "Macro",
@@ -128,9 +137,32 @@ export default async function HomePage() {
   // ── Sidebar data ──────────────────────────────────────────────────────────
   const calEvents = calendarRows ?? calendarData;
   const newsItems = newsRows
-    ? newsRows.map((n: any) => ({ id: n.id, headline: n.headline, source: n.source, published_at: n.published_at, score: Math.round(n.impact_score * 10) }))
+    ? newsRows.map((n: any) => ({ id: n.id, headline: n.headline, source: n.source, published_at: n.published_at, score: Math.round(n.impact_score ?? 0) }))
     : newsData;
   const sectors = sectorRows ?? sectorHeatmapData;
+
+  // ── Opportunity radar ─────────────────────────────────────────────────────
+  const radarItems = (radarRows?.items ?? []).slice(0, 4).map((r: any) => ({
+    id:       String(r.slug ?? r.id),
+    score:    Math.round(r.opportunity_score ?? 0),
+    theme:    r.title ?? "Opportunity",
+    reason:   r.summary ?? "",
+    category: (r.sectors ?? [])[0] ?? r.risk_level ?? "General",
+  }));
+
+  // ── Hero: live date + NSE market hours (IST = UTC+5:30) ─────────────────
+  const nowUtc  = new Date();
+  const istMs   = nowUtc.getTime() + (5 * 60 + 30) * 60_000;
+  const ist     = new Date(istMs);
+  const heroDate = ist.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const hour    = ist.getUTCHours();
+  const minute  = ist.getUTCMinutes();
+  const dow     = ist.getUTCDay(); // 0=Sun,6=Sat
+  const istMins = hour * 60 + minute;
+  const isWeekday    = dow >= 1 && dow <= 5;
+  const isMarketTime = istMins >= 9 * 60 + 15 && istMins < 15 * 60 + 30;
+  const marketStatus = (isWeekday && isMarketTime ? "Market Open" : "Market Closed") as "Market Open" | "Market Closed";
+  const greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
 
   // ── Ticker bar values ─────────────────────────────────────────────────────
   const tickerIndices = indexCards.length
@@ -151,24 +183,26 @@ export default async function HomePage() {
       <div className="min-w-0 space-y-6 pb-36">
 
         {/* Hero */}
-        <DashboardHero date="20 May 2024" status="Market Open" />
+        <DashboardHero date={heroDate} status={marketStatus} greeting={greeting} />
 
-        {/* Row 1 — AI Market Wrap + 3 index cards */}
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-6 items-stretch">
+        {/* Row 1 — AI Market Wrap + combined index card */}
+        <div className="grid grid-cols-2 gap-6 items-stretch">
           <AIMarketWrapCard title="AI Market Intelligence" description={aiSummary} />
-          {indexCards.map((card: any) => (
-            <MarketOverviewCard key={card.title} card={card} />
-          ))}
+          <MarketIndexCard indices={indexCards} />
         </div>
 
         {/* Row 2 — Top movers */}
-        <TopMoversGrid gainers={gainers} losers={losers} active={active} />
+        <TopMoversGrid
+          gainers={dashboard?.top_movers?.gainers?.length ? dashboard.top_movers.gainers : _FALLBACK_GAINERS}
+          losers={dashboard?.top_movers?.losers?.length  ? dashboard.top_movers.losers  : _FALLBACK_LOSERS}
+          active={dashboard?.top_movers?.active?.length  ? dashboard.top_movers.active  : _FALLBACK_ACTIVE}
+        />
 
         {/* Row 3 — Trending Events / Sector Heatmap / Opportunity Radar */}
         <div className="grid grid-cols-3 gap-6 items-stretch">
           <TrendingEvents events={trendingEvents} />
           <SectorHeatmap sectors={sectors} />
-          <OpportunityRadar items={opportunityRadarData} />
+          <OpportunityRadar items={radarItems.length ? radarItems : opportunityRadarData} />
         </div>
 
       </div>

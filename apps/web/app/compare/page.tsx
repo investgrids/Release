@@ -1,47 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const ALL_COMPANIES = [
-  { symbol: "INFY",      name: "Infosys",                   revenue: "18.5B", profit: "3.2B", roe: 28, debtEquity: 0.15, pe: 24.8, pb: 7.1,  sector: "IT"        },
-  { symbol: "TCS",       name: "Tata Consultancy Services", revenue: "27.1B", profit: "5.0B", roe: 35, debtEquity: 0.02, pe: 29.4, pb: 10.5, sector: "IT"        },
-  { symbol: "HDFCBANK",  name: "HDFC Bank",                 revenue: "24.6B", profit: "6.1B", roe: 16, debtEquity: 7.20, pe: 18.2, pb: 2.8,  sector: "Banking"   },
-  { symbol: "RELIANCE",  name: "Reliance Industries",       revenue: "88.3B", profit: "8.9B", roe: 11, debtEquity: 0.38, pe: 28.1, pb: 2.4,  sector: "Energy"    },
-  { symbol: "BEL",       name: "Bharat Electronics",        revenue: "2.9B",  profit: "0.6B", roe: 22, debtEquity: 0.05, pe: 44.1, pb: 9.2,  sector: "Defence"   },
-  { symbol: "WIPRO",     name: "Wipro",                     revenue: "10.8B", profit: "1.3B", roe: 15, debtEquity: 0.08, pe: 21.5, pb: 3.2,  sector: "IT"        },
+const API = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+const ALL_SYMBOLS = [
+  { symbol: "INFY",      name: "Infosys",                   sector: "IT"       },
+  { symbol: "TCS",       name: "Tata Consultancy Services", sector: "IT"       },
+  { symbol: "HDFCBANK",  name: "HDFC Bank",                 sector: "Banking"  },
+  { symbol: "RELIANCE",  name: "Reliance Industries",       sector: "Energy"   },
+  { symbol: "BEL",       name: "Bharat Electronics",        sector: "Defence"  },
+  { symbol: "WIPRO",     name: "Wipro",                     sector: "IT"       },
 ];
 
-const METRICS = ["Revenue", "Profit", "ROE %", "D/E Ratio", "P/E", "P/B"];
-
-function metricValue(c: typeof ALL_COMPANIES[0], m: string) {
-  switch (m) {
-    case "Revenue":  return c.revenue;
-    case "Profit":   return c.profit;
-    case "ROE %":    return `${c.roe}%`;
-    case "D/E Ratio":return c.debtEquity.toFixed(2);
-    case "P/E":      return c.pe.toFixed(1);
-    case "P/B":      return c.pb.toFixed(1);
-    default:         return "—";
-  }
+interface CompanyData {
+  symbol: string;
+  name: string;
+  sector: string;
+  price: string;
+  revenue: string;
+  profit: string;
+  roe: number;
+  debtEquity: number;
+  pe: number;
+  pb: number;
+  loading?: boolean;
 }
 
-function barWidth(c: typeof ALL_COMPANIES[0], m: string, all: typeof ALL_COMPANIES) {
-  const val = (company: typeof c) => {
-    switch (m) {
-      case "Revenue":  return parseFloat(company.revenue);
-      case "Profit":   return parseFloat(company.profit);
-      case "ROE %":    return company.roe;
-      case "D/E Ratio":return company.debtEquity;
-      case "P/E":      return company.pe;
-      case "P/B":      return company.pb;
-      default:         return 0;
-    }
-  };
-  const vals = all.map(val);
-  const max = Math.max(...vals);
-  return max > 0 ? (val(c) / max) * 100 : 0;
-}
+const METRICS = ["Price", "Revenue", "Profit", "ROE %", "D/E Ratio", "P/E", "P/B"];
 
 const SECTOR_COLORS: Record<string, string> = {
   IT:      "border-sky-500/20 bg-sky-500/10 text-sky-300",
@@ -50,19 +37,103 @@ const SECTOR_COLORS: Record<string, string> = {
   Defence: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
 };
 
+function parseNumStr(s: string): number {
+  if (!s || s === "—") return 0;
+  const clean = s.replace(/[₹,%×x\s]/g, "");
+  const m = clean.match(/^([\d.]+)([BMKbmk]?)$/);
+  if (!m) return parseFloat(clean) || 0;
+  const n = parseFloat(m[1]);
+  const sfx = m[2]?.toUpperCase();
+  if (sfx === "B") return n;
+  if (sfx === "M") return n / 1000;
+  if (sfx === "K") return n / 1_000_000;
+  return n;
+}
+
+function metricValue(c: CompanyData, m: string): string {
+  switch (m) {
+    case "Price":    return c.price || "—";
+    case "Revenue":  return c.revenue;
+    case "Profit":   return c.profit;
+    case "ROE %":    return c.roe ? `${c.roe.toFixed(1)}%` : "—";
+    case "D/E Ratio":return c.debtEquity ? c.debtEquity.toFixed(2) : "—";
+    case "P/E":      return c.pe ? c.pe.toFixed(1) : "—";
+    case "P/B":      return c.pb ? c.pb.toFixed(1) : "—";
+    default:         return "—";
+  }
+}
+
+function barWidth(c: CompanyData, m: string, all: CompanyData[]): number {
+  const val = (x: CompanyData) => {
+    switch (m) {
+      case "Price":    return parseNumStr(x.price);
+      case "Revenue":  return parseNumStr(x.revenue);
+      case "Profit":   return parseNumStr(x.profit);
+      case "ROE %":    return x.roe;
+      case "D/E Ratio":return x.debtEquity;
+      case "P/E":      return x.pe;
+      case "P/B":      return x.pb;
+      default:         return 0;
+    }
+  };
+  const vals = all.map(val);
+  const max = Math.max(...vals);
+  return max > 0 ? (val(c) / max) * 100 : 0;
+}
+
 export default function ComparePage() {
   const [selected, setSelected] = useState<string[]>(["INFY", "TCS"]);
   const [hoveredMetric, setHoveredMetric] = useState<string | null>(null);
+  const [liveData, setLiveData] = useState<Record<string, CompanyData>>({});
 
-  const companies = ALL_COMPANIES.filter((c) => selected.includes(c.symbol));
+  useEffect(() => {
+    selected.forEach(sym => {
+      if (liveData[sym]?.price) return; // already fetched
+      setLiveData(prev => ({ ...prev, [sym]: { ...buildFallback(sym), loading: true } }));
+      fetch(`${API}/api/stocks/${sym}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data) return;
+          const base = ALL_SYMBOLS.find(s => s.symbol === sym)!;
+          setLiveData(prev => ({
+            ...prev,
+            [sym]: {
+              symbol: sym,
+              name: data.name || base.name,
+              sector: data.sector || base.sector,
+              price: data.price || "—",
+              revenue: data.revenue || "—",
+              profit: data.profit || "—",
+              roe: parseNumStr(data.roe),
+              debtEquity: parseNumStr(data.debt_to_equity),
+              pe: parseNumStr(data.pe_ratio),
+              pb: parseNumStr(data.pb_ratio),
+              loading: false,
+            }
+          }));
+        })
+        .catch(() => {
+          setLiveData(prev => ({ ...prev, [sym]: { ...buildFallback(sym), loading: false } }));
+        });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
+  function buildFallback(sym: string): CompanyData {
+    const meta = ALL_SYMBOLS.find(s => s.symbol === sym) ?? { symbol: sym, name: sym, sector: "General" };
+    return { symbol: sym, name: meta.name, sector: meta.sector, price: "—", revenue: "—", profit: "—", roe: 0, debtEquity: 0, pe: 0, pb: 0 };
+  }
 
   function toggle(sym: string) {
-    setSelected((prev) =>
+    setSelected(prev =>
       prev.includes(sym)
-        ? prev.filter((s) => s !== sym)
+        ? prev.filter(s => s !== sym)
         : prev.length < 4 ? [...prev, sym] : prev
     );
   }
+
+  const companies = selected.map(sym => liveData[sym] ?? buildFallback(sym));
+  const hasLive = companies.some(c => c.price !== "—");
 
   return (
     <main className="min-w-0 space-y-6 pb-10">
@@ -76,8 +147,9 @@ export default function ComparePage() {
       <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl">
         <p className="mb-3 text-[10px] uppercase tracking-widest text-slate-500">Select companies (max 4)</p>
         <div className="flex flex-wrap gap-2">
-          {ALL_COMPANIES.map((c) => {
+          {ALL_SYMBOLS.map((c) => {
             const active = selected.includes(c.symbol);
+            const isLoading = liveData[c.symbol]?.loading;
             return (
               <button key={c.symbol} onClick={() => toggle(c.symbol)}
                 className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
@@ -86,7 +158,7 @@ export default function ComparePage() {
                     : "border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:text-white"
                 }`}>
                 {c.symbol}
-                {active && <span className="ml-1.5">✓</span>}
+                {active && (isLoading ? <span className="ml-1.5 opacity-60">...</span> : <span className="ml-1.5">✓</span>)}
               </button>
             );
           })}
@@ -97,7 +169,7 @@ export default function ComparePage() {
       {companies.length > 0 ? (
         <div className="rounded-[24px] border border-white/10 bg-white/[0.03] shadow-glow backdrop-blur-xl overflow-hidden">
           {/* Header row */}
-          <div className={`grid border-b border-white/10 bg-white/[0.02]`}
+          <div className="grid border-b border-white/10 bg-white/[0.02]"
             style={{ gridTemplateColumns: `180px repeat(${companies.length}, 1fr)` }}>
             <div className="p-4" />
             {companies.map((c) => (
@@ -138,11 +210,15 @@ export default function ComparePage() {
                 const w = barWidth(c, metric, companies);
                 return (
                   <div key={c.symbol} className="flex flex-col justify-center px-4 py-3">
-                    <span className="text-sm font-semibold text-white">{metricValue(c, metric)}</span>
-                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/5">
-                      <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-violet-500 transition-all duration-500"
-                        style={{ width: `${w}%` }} />
-                    </div>
+                    <span className="text-sm font-semibold text-white">
+                      {c.loading ? <span className="opacity-40">…</span> : metricValue(c, metric)}
+                    </span>
+                    {w > 0 && (
+                      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/5">
+                        <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-violet-500 transition-all duration-500"
+                          style={{ width: `${w}%` }} />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -155,13 +231,13 @@ export default function ComparePage() {
         </div>
       )}
 
-      <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/[0.04] p-4">
-        <p className="text-xs text-amber-300">
-          📊 <strong>Live financial data</strong> requires <strong>Screener.in API</strong>,{" "}
-          <strong>NSE Financial Results API</strong>, or <strong>Alpha Vantage Fundamentals API</strong>.
-          Values shown are illustrative.
-        </p>
-      </div>
+      {!hasLive && (
+        <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/[0.04] p-4">
+          <p className="text-xs text-amber-300">
+            Fetching live data from market… Values will update shortly.
+          </p>
+        </div>
+      )}
     </main>
   );
 }

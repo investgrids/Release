@@ -1,0 +1,30 @@
+INFO:     Will watch for changes in these directories: ['D:\\IG\\apps\\backend']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [23812] using WatchFiles
+INFO:     Started server process [7164]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app\api\events.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [7164]
+INFO:     Started server process [21800]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app\services\market_data.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21800]
+WARNING:  WatchFiles detected changes in 'app\services\market_data.py', 'app\schemas\stock.py', 'app\api\stocks.py'. Reloading...
+INFO:     Started server process [25388]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [25388]
+INFO:     Started server process [13476]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.

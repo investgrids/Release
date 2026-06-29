@@ -1,6 +1,6 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+﻿from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from app.db import models
+from app.db import models_legacy as models
 
 
 async def get_events(db: AsyncSession, limit: int = 20):

@@ -16,3 +16,6 @@ class EventSummary(BaseModel):
     sectors: List[str]
     companies: List[CompanyImpact]
     date: datetime
+    category: str = "Macro"
+    event_type: str = ""
+    source: str = ""

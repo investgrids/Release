@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+﻿from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -9,6 +9,11 @@ from app.services.news_fetcher import get_live_news, get_cached_article
 router = APIRouter()
 
 
+def _norm(v) -> float:
+    """Normalise news impact_score from 0-10 → 0-100."""
+    return round(float(v or 0) * 10, 1)
+
+
 def _row_to_schema(r) -> NewsArticle:
     return NewsArticle(
         id=r.id,
@@ -17,7 +22,7 @@ def _row_to_schema(r) -> NewsArticle:
         source=r.source,
         published_at=r.published_at,
         companies=r.companies or [],
-        impact_score=r.impact_score,
+        impact_score=_norm(r.impact_score),
         url=None,
     )
 
@@ -30,7 +35,7 @@ def _dict_to_schema(a: dict) -> NewsArticle:
         source=a["source"],
         published_at=a["published_at"],
         companies=a.get("companies", []),
-        impact_score=a.get("impact_score", 7.0),
+        impact_score=_norm(a.get("impact_score", 7.0)),
         url=a.get("url") or None,
     )
 
@@ -59,7 +64,7 @@ async def get_news_article(article_id: str, db: AsyncSession = Depends(get_db)):
 
     # Fall back to DB
     from sqlalchemy import select
-    from app.db.models import NewsArticle as NewsArticleModel
+    from app.db.models_legacy import NewsArticle as NewsArticleModel
     result = await db.execute(
         select(NewsArticleModel).where(NewsArticleModel.id == article_id)
     )

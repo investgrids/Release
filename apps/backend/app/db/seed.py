@@ -1,8 +1,8 @@
-"""
+﻿"""
 Populate the database with initial content data.
 Only inserts rows that don't already exist (idempotent).
 """
-from app.db import models
+from app.db import models_legacy as models
 
 
 EVENTS = [
@@ -22,7 +22,7 @@ EVENTS = [
     ),
     models.Event(
         id="evt-defence-budget-2026",
-        title="Defence capital expenditure raised by ₹45,000 Cr in revised estimates",
+        title="Defence capital expenditure raised by â‚¹45,000 Cr in revised estimates",
         summary="The revised budget allocation boosts indigenous defence procurement, benefiting domestic manufacturers under the Make-in-India initiative. Order books at BEL, HAL and Bharat Forge are expected to expand significantly.",
         impact_score=9.1,
         confidence=0.89,
@@ -64,7 +64,7 @@ EVENTS = [
     ),
     models.Event(
         id="evt-semiconductor-plc-2026",
-        title="India Semiconductor Mission approves ₹76,000 Cr fab incentive",
+        title="India Semiconductor Mission approves â‚¹76,000 Cr fab incentive",
         summary="The government approved production-linked incentives for three semiconductor fabrication units. The scheme covers 50% capital subsidy for advanced nodes, signalling long-term domestic chip manufacturing ambitions.",
         impact_score=9.4,
         confidence=0.91,
@@ -136,7 +136,7 @@ CALENDAR = [
         category="Macro",
         title="June CPI Inflation Data Release",
         date="Jul 12, 2026",
-        description="Consumer Price Index reading — critical for RBI's inflation trajectory.",
+        description="Consumer Price Index reading â€” critical for RBI's inflation trajectory.",
     ),
     models.CalendarEvent(
         id="cal-iip-jun-2026",
@@ -159,7 +159,7 @@ RADAR = [
         id="radar-defence-2026",
         theme="India Defence Ecosystem",
         score=95,
-        reason="Budget capex up ₹45,000 Cr. Multi-year order pipelines at BEL, HAL and MFSL. Indigenous procurement mandates reduce import dependency.",
+        reason="Budget capex up â‚¹45,000 Cr. Multi-year order pipelines at BEL, HAL and MFSL. Indigenous procurement mandates reduce import dependency.",
         confidence=0.91,
         beneficiaries=["Bharat Electronics", "HAL", "Bharat Forge", "MFSL"],
     ),
@@ -201,14 +201,14 @@ STORIES = [
     models.Story(
         id="story-defence-2026",
         title="India's Defence Boom",
-        description="How a decade of policy shifts, rising capex, and 'Make in India' mandates are building a world-class indigenous defence ecosystem — and which companies are at the center of it.",
+        description="How a decade of policy shifts, rising capex, and 'Make in India' mandates are building a world-class indigenous defence ecosystem â€” and which companies are at the center of it.",
         theme="Macro + Government",
         image="https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=1200&q=80",
     ),
     models.Story(
         id="story-ai-infra-2026",
         title="AI Infrastructure Rush",
-        description="The data center and networking companies positioning themselves to power India's enterprise AI wave — from hyperscale cloud to private inference clusters.",
+        description="The data center and networking companies positioning themselves to power India's enterprise AI wave â€” from hyperscale cloud to private inference clusters.",
         theme="Technology",
         image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
     ),
@@ -222,7 +222,7 @@ STORIES = [
     models.Story(
         id="story-semiconductor-2026",
         title="Chips on the Table",
-        description="India's semiconductor ambitions just got ₹76,000 Cr of backing. What it means for the electronics manufacturing ecosystem and the companies that stand to gain.",
+        description="India's semiconductor ambitions just got â‚¹76,000 Cr of backing. What it means for the electronics manufacturing ecosystem and the companies that stand to gain.",
         theme="Technology + Policy",
         image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
     ),
