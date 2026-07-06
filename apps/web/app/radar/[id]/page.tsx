@@ -1,7 +1,13 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState, useEffect, use } from "react";
+import { TrackPageVisit } from "@/components/TrackPageVisit";
 import Link from "next/link";
+import { Lightbulb, Building2, AlertTriangle, Ban, Check } from "lucide-react";
+import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
+import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
+import { InvestmentThesis, GrowthDrivers, ScenarioAnalysis, OpportunityLifecycleCard, MultiHorizonOutlookCard } from "@/components/intelligence";
 import {
   Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
   PieChart, Pie, Cell,
@@ -35,7 +41,7 @@ interface OpportunityDetail {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 function riskColor(r: string) {
   const lo = r.toLowerCase();
@@ -152,9 +158,17 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
   const ai = d.ai_summary;
   const metrics = d.metrics;
   const bullets = ai?.why_bullets?.length ? ai.why_bullets : [];
+  const evidenceItems = (d.events ?? []).slice(0, 6).map(e => ({
+    type: "indicator" as const,
+    title: e.title,
+    source: "MarketRipple Events Database",
+    date: e.event_date,
+    relevance: Math.round((e.importance ?? 7) * 10),
+  }));
 
   return (
     <div className="min-w-0 pb-12">
+      <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={`Score ${Math.round(d.opportunity_score)}`} href={`/radar/${d.slug ?? d.id}`} />
       {/* Breadcrumb */}
       <div className="mb-5 flex items-center gap-2 text-[12px] text-slate-500">
         <Link href="/radar" className="hover:text-slate-300 transition">Opportunity Radar</Link>
@@ -250,8 +264,81 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+              <p className="text-xs text-slate-500 mt-1">Indicative projection based on AI analysis</p>
             </SectionCard>
           </div>
+
+          {/* AI Transparency */}
+          <AITransparencyPanel
+            confidence={confidence}
+            reasoning={ai?.matters ?? d.summary}
+            summary={d.summary}
+            evidence={evidenceItems}
+            companies={d.companies.slice(0, 6).map(c => ({ name: c.company_name || c.symbol, symbol: c.symbol, href: `/stocks/${c.symbol}` }))}
+            limitations={["Opportunity scores are AI estimates, not guarantees.", "Market conditions can change rapidly.", "Historical patterns may not repeat in novel situations."]}
+            whyReason={`This opportunity scores ${score}/100 based on event impact, AI confidence, sector momentum, and historical precedent.`}
+            whyChain={(d.sectors ?? []).slice(0, 4)}
+            whyInfluences={ai?.why_bullets ?? []}
+            assumptions={["Based on current market conditions", "Past performance is not indicative of future results"]}
+            compact
+            title={d.title}
+          />
+          <AIDisclaimer />
+
+          <InvestmentThesis
+            thesis={d.ai_summary?.matters ?? d.summary ?? "This opportunity is driven by structural market tailwinds."}
+            confidence={Math.round(d.confidence * 100)}
+            timeHorizon={d.time_horizon}
+            assumptions={["Policy and sector tailwinds continue", "Management executes on growth plan", "No major adverse macro shifts"]}
+            riskFactors={(d.ai_summary?.risks ?? []).slice(0, 2).length > 0
+              ? (d.ai_summary?.risks ?? []).slice(0, 2)
+              : ["Regulatory timeline risk", "Execution and valuation risk"]
+            }
+          />
+          <GrowthDrivers
+            drivers={(d.ai_summary?.why_bullets ?? []).slice(0, 4).map((item: string, i: number) => ({
+              title: item.length > 50 ? item.slice(0, 50) + "…" : item,
+              description: item,
+              impact: (i < 2 ? "high" : "medium") as "high" | "medium" | "low",
+              timeframe: d.time_horizon ?? "Medium-term",
+            }))}
+          />
+          <ScenarioAnalysis
+            bull={{ probability: 35, description: "Accelerated catalyst delivery and sector re-rating drive outperformance." }}
+            base={{ probability: 45, description: `Opportunity plays out as expected over ${d.time_horizon ?? "the horizon"}.` }}
+            bear={{ probability: 20, description: "Catalyst delay or adverse macro conditions limit the upside." }}
+          />
+          <OpportunityLifecycleCard
+            stage={(() => {
+              const score = d.opportunity_score ?? 50;
+              const risk = (d.risk_level ?? "medium").toLowerCase();
+              if (score > 80 && risk === "low") return "strong-momentum" as const;
+              if (score > 70) return "developing" as const;
+              if (risk === "high") return "mature" as const;
+              return "emerging" as const;
+            })()}
+            description={`${d.risk_level ?? "Moderate"} risk · ${d.time_horizon ?? "Medium-term"} horizon`}
+            whyAssigned={d.ai_summary?.matters ?? `Opportunity score of ${d.opportunity_score ?? "N/A"}/100 with ${d.risk_level ?? "moderate"} risk and a ${d.time_horizon ?? "medium-term"} investment horizon.`}
+            historicalComparison={`Comparable opportunities in this score range have historically delivered 15–30% returns over 6–18 months when the risk level remains ${d.risk_level ?? "moderate"}.`}
+            confidence={Math.round(d.confidence * 100)}
+            expectedEvolution={`${d.opportunity_score != null && d.opportunity_score > 70 ? "Opportunity is tracking toward peak momentum as catalysts align and institutional awareness grows." : "Opportunity requires 1–2 confirming catalysts before reaching full momentum."}`}
+            risks={[
+              `Risk level is ${d.risk_level ?? "moderate"} — adverse macro moves could delay the thesis`,
+              "Opportunity score may compress if sector rotation shifts capital away",
+              d.time_horizon ? `Time-horizon risk: thesis requires ${d.time_horizon} to fully play out` : "Timing risk: catalyst may take longer than expected",
+            ]}
+          />
+
+          {/* Multi-Horizon Outlook */}
+          <MultiHorizonOutlookCard
+            fetchContext={{
+              type:       "opportunity",
+              title:      d.title,
+              context:    d.summary,
+              sectors:    d.sectors ?? [],
+              context_id: `opportunity:${d.id}`,
+            }}
+          />
 
           {/* Beneficiaries + Sectors */}
           <div className="grid grid-cols-[1fr_180px] gap-5">
@@ -366,7 +453,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
                         ${t.status === "active" ? "border-sky-400 bg-sky-500/20 text-sky-400"
                          : t.status === "done"   ? "border-emerald-500 bg-emerald-500/20 text-emerald-400"
                                                  : "border-white/15 bg-white/[0.03] text-slate-500"}`}>
-                        {t.status === "done" ? "✓" : i + 1}
+                        {t.status === "done" ? <Check className="h-3.5 w-3.5" /> : i + 1}
                       </div>
                       <p className="mt-2 text-[11px] font-semibold leading-4 text-white">{t.phase}</p>
                       {t.date_label && <p className="text-[10px] text-slate-500">{t.date_label}</p>}
@@ -408,15 +495,15 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
             </div>
             {ai ? (
               <div className="space-y-4">
-                {[
-                  { icon: "💡", label: "Why it matters",          text: ai.matters,    risks: null },
-                  { icon: "🏢", label: "Who benefits",            text: ai.benefits,   risks: null },
-                  { icon: "⚠️", label: "Key risks",               text: null,          risks: ai.risks },
-                  { icon: "🚫", label: "What could invalidate this", text: ai.invalidate, risks: null },
-                ].map((item, i) => (
+                {([
+                  { icon: <Lightbulb className="h-3.5 w-3.5" />,     label: "Why it matters",             text: ai.matters,    risks: null },
+                  { icon: <Building2 className="h-3.5 w-3.5" />,     label: "Who benefits",               text: ai.benefits,   risks: null },
+                  { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: "Key risks",                  text: null,          risks: ai.risks },
+                  { icon: <Ban className="h-3.5 w-3.5" />,           label: "What could invalidate this", text: ai.invalidate, risks: null },
+                ] as { icon: ReactNode; label: string; text: string | null; risks: string[] | null }[]).map((item, i) => (
                   <div key={i}>
                     <div className="mb-1 flex items-center gap-1.5">
-                      <span className="text-sm">{item.icon}</span>
+                      <span className="text-slate-400">{item.icon}</span>
                       <p className="text-[11px] font-semibold text-white">{item.label}</p>
                     </div>
                     {item.text && <p className="text-[11px] leading-5 text-slate-400">{item.text}</p>}

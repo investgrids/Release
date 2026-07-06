@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { TrendingUp, TrendingDown, Zap } from "lucide-react";
+import type { ReactNode } from "react";
 
 interface TopMoverItem {
   company: string;
@@ -15,7 +17,7 @@ interface TopMoverItem {
 interface TopMoverCardProps {
   title: string;
   items: TopMoverItem[];
-  icon?: string;
+  icon?: ReactNode;
 }
 
 function TickerAvatar({ ticker }: { ticker: string }) {
@@ -33,11 +35,11 @@ export function TopMoverCard({ title, items, icon }: TopMoverCardProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45 }}
-      className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl h-full"
+      className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5 shadow-glow h-full"
     >
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {icon && <span className="text-base">{icon}</span>}
+          {icon && <span className="text-slate-400">{icon}</span>}
           <h3 className="text-sm font-semibold text-white">{title}</h3>
         </div>
         <button className="text-xs text-slate-500 transition hover:text-white">View All</button>
@@ -46,7 +48,7 @@ export function TopMoverCard({ title, items, icon }: TopMoverCardProps) {
         {items.map((item) => (
           <Link
             key={item.ticker}
-            href={`/stocks/${item.ticker}`}
+            href={`/companies/${item.ticker}`}
             className="flex items-center justify-between gap-3 rounded-[16px] border border-white/5 bg-slate-950/60 px-3 py-2.5 transition hover:bg-slate-900/60 hover:border-white/10"
           >
             <div className="flex items-center gap-3 min-w-0">
@@ -80,9 +82,9 @@ interface TopMoversGridProps {
 export function TopMoversGrid({ gainers, losers, active }: TopMoversGridProps) {
   return (
     <div className="grid gap-6 xl:grid-cols-3 items-stretch">
-      <TopMoverCard title="Top Gainers" icon="📈" items={gainers} />
-      <TopMoverCard title="Top Losers" icon="📉" items={losers} />
-      <TopMoverCard title="Most Active" icon="⚡" items={active} />
+      <TopMoverCard title="Top Gainers" icon={<TrendingUp className="h-4 w-4 text-emerald-400" />} items={gainers} />
+      <TopMoverCard title="Top Losers"  icon={<TrendingDown className="h-4 w-4 text-rose-400" />} items={losers} />
+      <TopMoverCard title="Most Active" icon={<Zap className="h-4 w-4 text-amber-400" />} items={active} />
     </div>
   );
 }

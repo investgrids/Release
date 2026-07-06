@@ -29,6 +29,7 @@ _YF_SYMBOLS = [
 ]
 
 RSS_FEEDS = [
+    # ── Google News (topic-targeted) ──────────────────────────────────────────
     (
         "https://news.google.com/rss/search?q=india+stock+market+nifty+sensex&hl=en-IN&gl=IN&ceid=IN:en",
         "Google News",
@@ -45,6 +46,7 @@ RSS_FEEDS = [
         "https://news.google.com/rss/search?q=india+corporate+earnings+results+NSE&hl=en-IN&gl=IN&ceid=IN:en",
         "Google News",
     ),
+    # ── Direct publisher RSS feeds ────────────────────────────────────────────
     (
         "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
         "Economic Times",
@@ -52,6 +54,22 @@ RSS_FEEDS = [
     (
         "https://www.moneycontrol.com/rss/business.xml",
         "Moneycontrol",
+    ),
+    (
+        "https://www.moneycontrol.com/rss/latestnews.xml",
+        "Moneycontrol",
+    ),
+    (
+        "https://www.business-standard.com/rss/markets-106.rss",
+        "Business Standard",
+    ),
+    (
+        "https://www.livemint.com/rss/markets",
+        "Livemint",
+    ),
+    (
+        "https://feeds.feedburner.com/ndtvprofit-latest",
+        "NDTV Profit",
     ),
 ]
 
@@ -78,9 +96,12 @@ _COMPANY_KEYWORDS: list[tuple[str, str]] = [
     ("tata motors", "Tata Motors"),
     ("tata steel", "Tata Steel"),
     ("adani green", "Adani Green"),
+    ("adani enterprises", "Adani Enterprises"),
     ("adani ports", "Adani Ports"),
-    ("adani", "Adani Group"),
+    ("vizhinjam", "Adani Ports"),   # Vizhinjam port is operated by Adani Ports
+    ("adani", "Adani Ports"),       # generic "adani" mention → Adani Ports (most traded)
     ("airtel", "Bharti Airtel"),
+    ("bharti", "Bharti Airtel"),
     ("bel ", "Bharat Electronics"),
     ("bharat electronics", "Bharat Electronics"),
     ("hal ", "HAL"),
@@ -99,6 +120,13 @@ _COMPANY_KEYWORDS: list[tuple[str, str]] = [
     ("sbi", "SBI"),
     ("state bank", "SBI"),
     ("coal india", "Coal India"),
+    ("hcltech", "HCL Technologies"),
+    ("hcl tech", "HCL Technologies"),
+    ("tech mahindra", "Tech Mahindra"),
+    ("tata power", "Tata Power"),
+    ("power grid", "Power Grid"),
+    ("l&t", "Larsen & Toubro"),
+    ("larsen", "Larsen & Toubro"),
 ]
 
 _HEADERS = {
@@ -162,11 +190,12 @@ def _is_india_relevant(headline: str, summary: str = "") -> bool:
     return any(kw in text for kw in _INDIA_KEYWORDS)
 
 
-def _extract_companies(headline: str) -> list[str]:
-    h = " " + headline.lower() + " "
+def _extract_companies(headline: str, summary: str = "") -> list[str]:
+    # Search headline + first 300 chars of summary to catch company mentions not in title
+    text = " " + (headline + " " + summary[:300]).lower() + " "
     found: list[str] = []
     for kw, name in _COMPANY_KEYWORDS:
-        if kw in h and name not in found:
+        if kw in text and name not in found:
             found.append(name)
         if len(found) >= 4:
             break
@@ -186,7 +215,7 @@ def _normalize(headline: str, summary: str, source: str, ts: float, url: str = "
         "published_at": _time_ago(ts),
         "url": url,
         "_ts": ts,
-        "companies": _extract_companies(headline),
+        "companies": _extract_companies(headline, summary),
         "impact_score": _impact_score(headline),
     }
 

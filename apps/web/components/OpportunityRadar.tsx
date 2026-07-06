@@ -20,13 +20,13 @@ function scoreBg(score: number) {
 
 export function OpportunityRadar({ items }: OpportunityRadarProps) {
   return (
-    <section className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl h-full">
+    <section className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5 shadow-glow h-full">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-base">✦</span>
+          <span className="text-violet-400"><svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg></span>
           <h2 className="text-sm font-semibold text-white">Opportunity Radar</h2>
         </div>
-        <Link href="/radar" className="text-xs text-slate-500 transition hover:text-white">
+        <Link href="/opportunity-radar" className="text-xs text-slate-500 transition hover:text-white">
           View All
         </Link>
       </div>
@@ -38,7 +38,7 @@ export function OpportunityRadar({ items }: OpportunityRadarProps) {
         {items.map((item) => (
           <Link
             key={item.id}
-            href={`/radar/${item.id}`}
+            href={`/opportunity-radar/${item.id}`}
             className="flex items-center gap-3 rounded-[16px] border border-white/5 bg-slate-950/60 p-3 hover:border-white/10 hover:bg-white/[0.03] transition"
           >
             <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-br text-lg font-bold ${scoreBg(item.score)}`}>

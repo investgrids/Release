@@ -10,7 +10,7 @@ interface GovernmentTrackerProps {
 
 export function GovernmentTracker({ items }: GovernmentTrackerProps) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-glow backdrop-blur-xl">
+    <section className="rounded-[28px] border border-white/10 bg-white/5 p-5 shadow-glow">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.28em] text-slate-400">Government Tracker</p>

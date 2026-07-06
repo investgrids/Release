@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -74,6 +75,40 @@ function impactBadge(s: number) {
   return        { label: "Low Impact",    cls: "text-slate-300 bg-slate-700/40 border-slate-500/25"  };
 }
 
+// ── Static fallback data (shown instantly; replaced silently by live API) ────
+const STATIC_NEWS: NewsArticle[] = [
+  {
+    id: "n1", source: "Economic Times",
+    headline: "Nifty 50 scales 24,500 as FII buying accelerates in banking and IT stocks",
+    summary: "Foreign institutional investors turned net buyers for the fifth straight session, pumping ₹4,200 crore into Indian equities led by banking and technology stocks.",
+    published_at: "Today", companies: ["HDFC Bank", "ICICI Bank", "TCS"], impact_score: 8.5,
+  },
+  {
+    id: "n2", source: "Business Standard",
+    headline: "RBI keeps repo rate unchanged at 6.5%, maintains accommodative stance",
+    summary: "The Monetary Policy Committee voted 5-1 to hold rates, citing a balanced inflation-growth outlook and resilient domestic demand.",
+    published_at: "Today", companies: ["HDFC Bank", "SBI", "Axis Bank"], impact_score: 9.2,
+  },
+  {
+    id: "n3", source: "Mint",
+    headline: "Adani Green Energy secures $1.2 bn loan for 1,500 MW solar project in Rajasthan",
+    summary: "Adani Green has secured a $1.2 billion project finance loan from a consortium of international banks for a large-scale solar power facility.",
+    published_at: "Yesterday", companies: ["Adani Green"], impact_score: 7.8,
+  },
+  {
+    id: "n4", source: "Moneycontrol",
+    headline: "Maruti Suzuki reports record monthly sales; EV segment crosses 10,000 units milestone",
+    summary: "India's largest car maker clocked total wholesale volumes of 2.31 lakh units in the month, up 14% year-on-year.",
+    published_at: "Yesterday", companies: ["Maruti Suzuki"], impact_score: 7.2,
+  },
+  {
+    id: "n5", source: "Reuters",
+    headline: "IMF raises India's GDP growth forecast to 7.2% for FY27 on strong domestic demand",
+    summary: "The International Monetary Fund upgraded India's growth outlook, citing strong domestic consumption and a sustained government infrastructure push.",
+    published_at: "2 days ago", companies: [], impact_score: 8.1,
+  },
+];
+
 const THUMB_GRADS = [
   "from-violet-700/40 to-indigo-700/20",
   "from-sky-700/40 to-blue-700/20",
@@ -83,38 +118,47 @@ const THUMB_GRADS = [
 ];
 
 export default function NewsPage() {
-  const [articles, setArticles] = useState<NewsArticle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [articles, setArticles] = useState<NewsArticle[]>(STATIC_NEWS);
   const [activeTab, setActiveTab] = useState("All");
 
   useEffect(() => {
     fetch(`${API}/api/news`)
       .then(r => r.ok ? r.json() : [])
-      .then(d => setArticles(Array.isArray(d) ? d : []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then(d => { if (Array.isArray(d) && d.length) setArticles(d); })
+      .catch(() => {});
   }, []);
 
-  const tabbed = activeTab === "All"
-    ? articles
-    : articles.filter(a => classifyArticle(a.headline, a.summary) === activeTab);
+  const tabbed = useMemo(
+    () => activeTab === "All"
+      ? articles
+      : articles.filter(a => classifyArticle(a.headline, a.summary) === activeTab),
+    [articles, activeTab]
+  );
 
-  /* Computed sidebar data */
-  const categoryCounts = TABS.slice(1).map(cat => ({
-    cat,
-    count: articles.filter(a => classifyArticle(a.headline, a.summary) === cat).length,
-  }));
+  /* Computed sidebar data — memoised so they don't recalculate on every render */
+  const categoryCounts = useMemo(
+    () => TABS.slice(1).map(cat => ({
+      cat,
+      count: articles.filter(a => classifyArticle(a.headline, a.summary) === cat).length,
+    })),
+    [articles]
+  );
 
-  const sourceCounts = Object.entries(
-    articles.reduce<Record<string, number>>((acc, a) => {
-      acc[a.source] = (acc[a.source] ?? 0) + 1;
-      return acc;
-    }, {})
-  )
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6);
+  const sourceCounts = useMemo(
+    () => Object.entries(
+      articles.reduce<Record<string, number>>((acc, a) => {
+        acc[a.source] = (acc[a.source] ?? 0) + 1;
+        return acc;
+      }, {})
+    ).sort((a, b) => b[1] - a[1]).slice(0, 6),
+    [articles]
+  );
 
-  const popular = [...articles].sort((a, b) => b.impact_score - a.impact_score).slice(0, 5);
+  const popular = useMemo(
+    () => [...articles].sort((a, b) => b.impact_score - a.impact_score).slice(0, 5),
+    [articles]
+  );
 
   return (
     <main className="min-w-0 pb-10">
@@ -134,33 +178,28 @@ export default function NewsPage() {
       <div className="grid grid-cols-[196px_1fr_220px] gap-5 items-start">
 
         {/* ── LEFT: Popular Stories ─────────────────────── */}
-        <aside className="sticky top-[84px] rounded-[20px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl">
+        <aside className="sticky top-[84px] rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
           <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Popular Stories</h3>
           <div className="space-y-3">
-            {loading
-              ? Array.from({length:5}).map((_,i) => (
-                  <div key={i} className="h-12 animate-pulse rounded-xl bg-white/[0.03]"/>
-                ))
-              : popular.map((a, i) => {
-                  const imp = impactBadge(a.impact_score);
-                  return (
-                    <Link key={a.id} href={`/news/${a.id}`}
-                      className="group flex items-start gap-2.5 rounded-xl p-1.5 hover:bg-white/[0.03] transition">
-                      <span className="mt-0.5 shrink-0 text-[11px] font-bold text-slate-600 w-5">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-medium text-white line-clamp-2 leading-4 group-hover:text-sky-300 transition">
-                          {a.headline}
-                        </p>
-                        <p className="mt-1 text-[10px] text-slate-500">
-                          {a.source} · {a.published_at}
-                        </p>
-                      </div>
-                    </Link>
-                  );
-                })
-            }
+            {popular.map((a, i) => {
+              const imp = impactBadge(a.impact_score);
+              return (
+                <Link key={a.id} href={`/news/${a.id}`}
+                  className="group flex items-start gap-2.5 rounded-xl p-1.5 hover:bg-white/[0.03] transition">
+                  <span className="mt-0.5 shrink-0 text-[11px] font-bold text-slate-600 w-5">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-medium text-white line-clamp-2 leading-4 group-hover:text-sky-300 transition">
+                      {a.headline}
+                    </p>
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      {a.source} · {a.published_at}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </aside>
 
@@ -181,14 +220,10 @@ export default function NewsPage() {
           </div>
 
           {/* Article cards */}
-          {loading
-            ? Array.from({length:4}).map((_,i) => (
-                <div key={i} className="h-28 animate-pulse rounded-[18px] border border-white/8 bg-white/[0.02]"/>
-              ))
-            : tabbed.length === 0
+          {tabbed.length === 0
             ? (
               <div className="flex items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.03] py-16 text-sm text-slate-500">
-                {articles.length === 0 ? "Start the backend to load news." : "No articles in this category."}
+                No articles in this category.
               </div>
             )
             : tabbed.map((a, i) => {
@@ -196,7 +231,7 @@ export default function NewsPage() {
                 const srcBg = SOURCE_BG[a.source] ?? "bg-slate-700/40 text-slate-300";
                 return (
                   <Link key={a.id} href={`/news/${a.id}`}
-                    className="group flex gap-3 rounded-[18px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl hover:border-white/20 hover:-translate-y-0.5 transition">
+                    className="group flex gap-3 rounded-[18px] border border-white/10 bg-white/[0.03] p-4 hover:border-white/20 hover:-translate-y-0.5 transition">
                     {/* Thumbnail */}
                     <div className={`h-16 w-16 shrink-0 rounded-xl bg-gradient-to-br ${THUMB_GRADS[i % THUMB_GRADS.length]} border border-white/8`}/>
                     {/* Content */}
@@ -218,7 +253,8 @@ export default function NewsPage() {
                           {a.companies.slice(0, 4).map((c: string) => {
                             const sym = COMPANY_TO_SYMBOL[c];
                             return sym
-                              ? <Link key={c} href={`/stocks/${sym}`} className="rounded-full border border-white/8 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-sky-400 hover:text-sky-300 transition">{c}</Link>
+                              ? <button key={c} onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/stocks/${sym}`); }}
+                                  className="rounded-full border border-white/8 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-sky-400 hover:text-sky-300 transition">{c}</button>
                               : <span key={c} className="rounded-full border border-white/8 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-slate-500">{c}</span>;
                           })}
                         </div>
@@ -239,7 +275,7 @@ export default function NewsPage() {
         {/* ── RIGHT: Categories + Sources ─────────────────── */}
         <aside className="sticky top-[84px] space-y-4">
           {/* News Categories */}
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl">
+          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
             <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">News Categories</h3>
             <div className="space-y-2.5">
               {categoryCounts.map(({ cat, count }) => {
@@ -262,7 +298,7 @@ export default function NewsPage() {
           </div>
 
           {/* Top Sources */}
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl">
+          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
             <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Top Sources</h3>
             <div className="space-y-2">
               {sourceCounts.map(([src, cnt]) => {

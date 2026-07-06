@@ -40,6 +40,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_daily_precompute,
         job_daily_opportunities,
         job_seed_opportunities,
+        job_warm_premarket,
     )
 
     # ── High-frequency ingest ─────────────────────────────────────────────────
@@ -95,6 +96,17 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_daily_opportunities,
         CronTrigger(hour=7, minute=30, timezone=_IST),
         id="daily_opportunities",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
+    )
+
+    # ── Pre-market cache warm — 8:00 AM IST ──────────────────────────────────
+    # Fetches Asian/US/commodity data so it's ready when dashboard loads at 9 AM
+    scheduler.add_job(
+        job_warm_premarket,
+        CronTrigger(hour=8, minute=0, timezone=_IST),
+        id="warm_premarket",
         max_instances=1,
         coalesce=True,
         misfire_grace_time=1800,

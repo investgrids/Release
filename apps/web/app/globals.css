@@ -2,21 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens ───────────────────────────────────────────────────────────── */
 :root {
   color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+
+  /* Accent — violet/sky split used across all components */
+  --accent-violet: 99 102 241;   /* #6366f1 */
+  --accent-sky:    56 189 248;   /* #38bdf8 */
+  --accent-emerald:52 211 153;   /* #34d399 */
+  --accent-rose:   251 113 133;  /* #fb7185 */
 }
 
+/* ── Base ─────────────────────────────────────────────────────────────────────── */
 html {
-  background: radial-gradient(circle at top, rgba(96, 165, 250, 0.08), transparent 35%), #020617;
+  /* Flat colour only — no gradient here, see body::before for the ambient glow.
+     Putting a gradient on <html> makes the document root a compositing context,
+     stacking every repaint on top of it. Flat colour is a single rasterised layer. */
+  background: #020617;
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  /* subpixel AA on macOS, greyscale on others — net: sharper, lighter strokes */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Better kerning on large headings without measurable cost */
+  text-rendering: optimizeLegibility;
+}
+
+/* Ambient radial glow — fixed pseudo so it:
+     1. paints exactly once into its own layer
+     2. composites cheaply below all content
+     3. never triggers a repaint when content changes           */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(96, 165, 250, 0.07) 0%,
+    transparent 55%
+  );
+  pointer-events: none;
+  will-change: transform; /* pin to compositor thread */
 }
 
 body {
   min-height: 100vh;
   background: transparent;
   color: #e2e8f0;
+  font-family: var(--font-sans);
 }
 
+/* ── Selection ───────────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(99, 102, 241, 0.35);
+  color: #f1f5f9;
+}
+
+/* ── Focus ───────────────────────────────────────────────────────────────────── */
+/* Only show focus ring for keyboard nav — never for mouse clicks */
+:focus-visible {
+  outline: 2px solid rgba(var(--accent-violet), 0.7);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Form elements inherit the body font ─────────────────────────────────────── */
 button,
 input,
 textarea,
@@ -27,3 +80,128 @@ select {
 * {
   box-sizing: border-box;
 }
+
+/* ── Tabular numerals ────────────────────────────────────────────────────────── */
+/* Apply to any element that displays financial figures (price, change, score).
+   Proportional digits cause column jitter on updates; tabular-nums locks width. */
+.num,
+[data-numeric],
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ── Fake Glassmorphism ──────────────────────────────────────────────────────
+   Zero blur budget. Replaces backdrop-filter: blur(24px) on all 34 cards.
+   Rules:
+     • NO backdrop-filter        — eliminates GPU stencil/composite pass
+     • NO blurred box-shadow     — blur radius > 0 forces same CPU paint pass
+     • Opaque dark base          — alpha blend once, no compositing stack
+     • Zero-blur inset only      — draws a 1px line, no blur kernel, free
+   On #020617, rgba(10,13,24,0.92) is visually identical to blur(24px)
+   over near-black content. 100% of the gain, nothing to rasterise.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.glass-card {
+  background: rgba(10, 13, 24, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  contain: layout style;
+}
+
+.glass-rose {
+  background: rgba(14, 7, 11, 0.92);
+  box-shadow: inset 0 1px 0 rgba(248, 113, 113, 0.07);
+  contain: layout style;
+}
+
+.glass-hero {
+  background: linear-gradient(
+    135deg,
+    rgba(11, 15, 30, 0.98) 0%,
+    rgba(7, 10, 21, 0.95)  100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Dark near-opaque surface for fixed bars (ticker, header) — no blur */
+.glass-bar {
+  background: rgba(2, 6, 23, 0.97);
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────────── */
+
+/* Thin themed scrollbar for sidebar */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.25) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 99px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.45);
+}
+
+/* scrollbar-hide — Tailwind v3 has no built-in; define it here so
+   all .scrollbar-hide usages across the app actually take effect   */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────────── */
+
+/* Snappier pulse — default 2s feels sluggish on dark backgrounds */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+.animate-pulse {
+  animation: pulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Ripple Engine edge-flow animation */
+@keyframes rippleEdgeFlow {
+  from { stroke-dashoffset: 28; }
+  to   { stroke-dashoffset: 0;  }
+}
+.ripple-edge-animate {
+  animation: rippleEdgeFlow 1.8s linear infinite;
+}
+
+/* Subtle shimmer for skeleton loaders — tracks the ambient glow angle */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 200% auto;
+  animation: shimmer 1.8s linear infinite;
+}
+
+/* ── ReactFlow overrides ─────────────────────────────────────────────────────── */
+.react-flow__attribution { display: none !important; }
+
+.react-flow__controls-button {
+  background: rgba(10, 13, 24, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+  color: rgba(148, 163, 184, 1) !important;
+  fill: rgba(148, 163, 184, 1) !important;
+}
+.react-flow__controls-button:hover {
+  background: rgba(20, 26, 48, 0.98) !important;
+}
+.react-flow__edge-path { stroke-width: 0 !important; }

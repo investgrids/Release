@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
 
 interface AIMarketWrapCardProps {
   title: string;
@@ -25,7 +26,7 @@ export function AIMarketWrapCard({ title, description }: AIMarketWrapCardProps) 
         {/* Left content */}
         <div className="flex flex-col gap-4 flex-1 min-w-0">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-300">
-            <span>✨</span> AI Market Wrap
+            <Sparkles className="h-3.5 w-3.5" /> AI Market Wrap
           </div>
           <div className="space-y-3 flex-1">
             <h2 className="text-xl font-semibold leading-snug text-white line-clamp-3">{title}</h2>

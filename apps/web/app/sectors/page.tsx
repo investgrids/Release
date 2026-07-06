@@ -68,7 +68,7 @@ export default async function SectorsPage() {
 
           return (
             <div key={s.id}
-              className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-white/20">
+              className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow transition hover:-translate-y-0.5 hover:border-white/20">
               {/* Header */}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-white">{s.name}</p>

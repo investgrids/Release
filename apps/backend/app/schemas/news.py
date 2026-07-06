@@ -10,3 +10,4 @@ class NewsArticle(BaseModel):
     companies: List[str]
     impact_score: float
     url: Optional[str] = None
+    sectors: List[str] = []

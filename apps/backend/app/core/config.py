@@ -24,29 +24,41 @@ class Settings(BaseSettings):
     redis_ttl_market: int = 60            # 1 min for live prices
     redis_ttl_news: int = 600             # 10 min
 
-    # ── AI Provider ───────────────────────────────────────────────────────────
-    ai_provider: str = "openrouter"
+    # ── AI Providers (multi-provider fallback chain) ──────────────────────────
+    # OmniRoute — self-hosted local router, routes to free providers automatically
+    # Set to http://omniroute:20128/v1 when running via docker-compose
+    omniroute_url: str = ""
 
-    # DeepSeek
-    deepseek_api_key: str = ""
-    deepseek_base_url: str = "https://api.deepseek.com/v1"
-    deepseek_model: str = "deepseek-chat"
+    # Groq — free tier: 14,400 req/day for fast 8B models (console.groq.com)
+    groq_api_key: str = ""
 
-    # OpenAI
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
+    # Cerebras — free tier: 10,000 req/day, fastest inference (cloud.cerebras.ai)
+    cerebras_api_key: str = ""
 
-    # Gemini
+    # Gemini — free tier: 1,500 req/day, 4M tokens/day (aistudio.google.com)
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
 
-    # OpenRouter (default — free tier)
+    # OpenRouter — free tier fallback (openrouter.ai)
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    openrouter_model: str = "deepseek/deepseek-chat-v3-0324:free"
+    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+
+    # Legacy providers (kept for future use)
+    deepseek_api_key: str = ""
+    openai_api_key: str = ""
 
     # ── Finnhub ───────────────────────────────────────────────────────────────
     finnhub_api_key: str = ""
+
+    # ── Fyers (primary market data provider) ──────────────────────────────────
+    # Get credentials at https://myapi.fyers.in/dashboard
+    # app_id format: "XXXXXXXXXX-100" (your client_id)
+    # Generate access_token once per day via /api/data/auth/fyers flow
+    fyers_client_id:    str = ""   # e.g. "XXXXXXXXXX-100"
+    fyers_secret_key:   str = ""   # app secret from Fyers dashboard
+    fyers_access_token: str = ""   # daily access token (inject via env or /auth flow)
+    fyers_redirect_uri: str = "https://127.0.0.1:8000/api/data/auth/callback"
 
     # ── Scheduler ─────────────────────────────────────────────────────────────
     # Ingest intervals (seconds)
@@ -66,6 +78,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # silently skip any unrecognised env vars
 
 
 settings = Settings()

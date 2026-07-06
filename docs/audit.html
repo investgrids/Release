@@ -1,0 +1,1556 @@
+
+<title>EventIQ — Project Audit & Software Specification</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #090c15;
+    --surface:   #0d1120;
+    --raised:    #141928;
+    --border:    #1e2a40;
+    --border2:   #263050;
+    --text:      #e1e7f5;
+    --muted:     #8892a4;
+    --faint:     #4a5470;
+    --accent:    #6366f1;
+    --accent2:   #818cf8;
+    --green:     #10b981;
+    --amber:     #f59e0b;
+    --rose:      #f43f5e;
+    --violet:    #a78bfa;
+    --sky:       #38bdf8;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .shell {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  .top-bar {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 28px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  .top-bar h1 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .top-bar .meta {
+    font-size: 11px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .top-bar .badge-version {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(99,102,241,0.15);
+    border: 1px solid rgba(99,102,241,0.3);
+    color: var(--accent2);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* ── TOC Sidebar ── */
+  .toc {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    padding: 20px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .toc-group { margin-bottom: 20px; }
+
+  .toc-label {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding: 0 16px 6px;
+  }
+
+  .toc a {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 4px 16px;
+    text-decoration: none;
+    transition: color 0.15s, background 0.15s;
+    border-left: 2px solid transparent;
+  }
+
+  .toc a:hover {
+    color: var(--text);
+    background: rgba(99,102,241,0.06);
+    border-left-color: var(--accent);
+  }
+
+  /* ── Main content ── */
+  .content {
+    padding: 32px 40px 80px;
+    min-width: 0;
+  }
+
+  /* ── Section ── */
+  .section { margin-bottom: 52px; }
+
+  .section-eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .section > h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    text-wrap: balance;
+  }
+
+  h3.sub {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 28px 0 10px;
+    letter-spacing: -0.01em;
+  }
+
+  h3.sub::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 2px;
+    margin-right: 8px;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+  }
+
+  h4.subsub {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 16px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  p { color: var(--muted); margin-bottom: 10px; max-width: 72ch; }
+  p strong { color: var(--text); font-weight: 600; }
+
+  /* ── Tables ── */
+  .tbl-wrap { overflow-x: auto; margin-bottom: 20px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  thead th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding: 8px 12px;
+    background: var(--raised);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody tr:nth-child(even) td { background: rgba(255,255,255,0.012); }
+
+  td {
+    padding: 8px 12px;
+    color: var(--muted);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  td:first-child { color: var(--text); font-weight: 500; }
+
+  /* ── Code/Route spans ── */
+  code {
+    font-family: ui-monospace, 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 11.5px;
+    background: rgba(99,102,241,0.08);
+    border: 1px solid rgba(99,102,241,0.15);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--accent2);
+    white-space: nowrap;
+  }
+
+  /* ── Status badges ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    letter-spacing: 0.03em;
+  }
+  .badge-ok   { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); color: #34d399; }
+  .badge-warn { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); color: #fbbf24; }
+  .badge-err  { background: rgba(244,63,94,0.12);  border: 1px solid rgba(244,63,94,0.25);  color: #fb7185; }
+  .badge-info { background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); color: #a5b4fc; }
+  .badge-vio  { background: rgba(167,139,250,0.12);border: 1px solid rgba(167,139,250,0.25);color: #c4b5fd; }
+
+  /* ── Page cards ── */
+  .page-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+
+  .page-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .page-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .page-card-route {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    margin-top: 2px;
+  }
+
+  .page-card-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .page-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .page-card-field label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--faint);
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .page-card-field p {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0;
+    max-width: none;
+  }
+
+  .page-card-field.full { grid-column: 1 / -1; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+  .chip {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--raised);
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* ── Schema table ── */
+  .schema-table td:nth-child(2) {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--sky);
+  }
+  .schema-table td:nth-child(3) { color: var(--faint); font-size: 11px; }
+
+  /* ── API table ── */
+  .api-method {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .method-get  { background: rgba(16,185,129,0.15); color: #34d399; }
+  .method-post { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: rgba(99,102,241,0.05);
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 16px;
+  }
+  .callout.warn { border-left-color: var(--amber); background: rgba(245,158,11,0.05); }
+  .callout.err  { border-left-color: var(--rose);  background: rgba(244,63,94,0.05);  }
+
+  .callout p { color: var(--muted); margin: 0; max-width: none; }
+  .callout strong { color: var(--text); }
+
+  /* ── Journey ── */
+  .journey-step {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+  .journey-num {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(99,102,241,0.15);
+    border: 1px solid rgba(99,102,241,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--accent2);
+    margin-top: 2px;
+  }
+  .journey-step p { margin: 0; font-size: 12.5px; }
+
+  /* ── Misc ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+  ul.plain { list-style: none; }
+  ul.plain li { font-size: 12.5px; color: var(--muted); padding: 2px 0; }
+  ul.plain li::before { content: '–'; margin-right: 8px; color: var(--faint); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .toc { display: none; }
+    .content { padding: 20px; }
+    .page-card-grid { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="shell">
+
+  <!-- Top bar -->
+  <header class="top-bar">
+    <h1>EventIQ — Project Audit &amp; Software Specification</h1>
+    <span class="badge-version badge">v0.2.0</span>
+    <span class="meta">Generated 2026-07-03 · Next.js 15 + FastAPI · Indian Market Intelligence</span>
+  </header>
+
+  <!-- TOC -->
+  <nav class="toc" aria-label="Table of contents">
+    <div class="toc-group">
+      <span class="toc-label">Overview</span>
+      <a href="#exec-summary">Executive Summary</a>
+      <a href="#tech-stack">Tech Stack</a>
+      <a href="#architecture">Site Architecture</a>
+      <a href="#nav-tree">Navigation Tree</a>
+    </div>
+    <div class="toc-group">
+      <span class="toc-label">Pages</span>
+      <a href="#pg-dashboard">Dashboard</a>
+      <a href="#pg-events">Events</a>
+      <a href="#pg-event-detail">Event Detail</a>
+      <a href="#pg-news">News</a>
+      <a href="#pg-news-detail">News Detail</a>
+      <a href="#pg-stocks">Companies</a>
+      <a href="#pg-stock-detail">Stock Detail</a>
+      <a href="#pg-ripple-hub">Ripple Hub</a>
+      <a href="#pg-ripple-graph">Ripple Graph</a>
+      <a href="#pg-radar">Opportunity Radar</a>
+      <a href="#pg-radar-detail">Radar Detail</a>
+      <a href="#pg-market-intel">Market Intelligence</a>
+      <a href="#pg-indices">Market Indices</a>
+      <a href="#pg-sectors">Sectors</a>
+      <a href="#pg-heatmap">Heatmap</a>
+      <a href="#pg-breadth">Market Breadth</a>
+      <a href="#pg-compare">Compare</a>
+      <a href="#pg-calendar">Economic Calendar</a>
+      <a href="#pg-ai-search">AI Search</a>
+      <a href="#pg-stories">Stories</a>
+      <a href="#pg-themes">Themes</a>
+      <a href="#pg-ipo">IPO Hub</a>
+      <a href="#pg-signals">Market Signals</a>
+      <a href="#pg-ai-wrap">AI Market Wrap</a>
+      <a href="#pg-policies">Gov. Policies</a>
+    </div>
+    <div class="toc-group">
+      <span class="toc-label">Backend</span>
+      <a href="#db-schema">Database Schema</a>
+      <a href="#api-list">API Inventory</a>
+      <a href="#ai-features">AI Features</a>
+      <a href="#integrations">Integrations</a>
+    </div>
+    <div class="toc-group">
+      <span class="toc-label">Assessment</span>
+      <a href="#feature-inventory">Feature Inventory</a>
+      <a href="#user-journeys">User Journeys</a>
+      <a href="#duplicates">Duplicate Features</a>
+      <a href="#limitations">Limitations</a>
+      <a href="#missing">Missing Features</a>
+      <a href="#roadmap">Roadmap</a>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="content">
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="exec-summary">
+      <div class="section-eyebrow">Overview</div>
+      <h2>Executive Summary</h2>
+
+      <p><strong>EventIQ</strong> is an Indian stock-market intelligence platform that surfaces market-moving events and traces their cascading effects across sectors, companies, and macroeconomic indicators. It targets retail investors, research analysts, and market observers who need event-driven context — not just price data.</p>
+
+      <p>The project consists of a <strong>Next.js 15 SSR/CSR frontend</strong> and a <strong>FastAPI backend</strong> backed by SQLite (dev) or PostgreSQL (prod). The flagship differentiator is the <strong>Ripple Engine</strong> — an AI-generated force-directed dependency graph that shows how one event cascades through 4 depth levels. All AI calls use free-tier models only (OpenRouter, Groq, Cerebras, Gemini).</p>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Frontend pages</td><td>~25 routes</td></tr>
+            <tr><td>Backend API routers</td><td>16 routers, ~45 endpoints</td></tr>
+            <tr><td>Database tables</td><td>25 tables</td></tr>
+            <tr><td>AI integrations</td><td>6 (Ripple, Summary, Search, Signals, Wrap, Opportunities)</td></tr>
+            <tr><td>External data sources</td><td>yfinance, RSS feeds (ET, BS, Mint, Reuters), NSE (attempted)</td></tr>
+            <tr><td>Caching layers</td><td>In-memory TTL + Redis + SQLite persist</td></tr>
+            <tr><td>Scheduling</td><td>APScheduler (daily ingest + dashboard pre-warm at 7 AM IST)</td></tr>
+            <tr><td>AI constraint</td><td><strong>Free-tier models only — permanent, applies to all features</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="tech-stack">
+      <div class="section-eyebrow">Infrastructure</div>
+      <h2>Tech Stack</h2>
+
+      <div class="two-col">
+        <div>
+          <h3 class="sub">Frontend</h3>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+              <tbody>
+                <tr><td>Framework</td><td>Next.js 15 (App Router)</td></tr>
+                <tr><td>Language</td><td>TypeScript</td></tr>
+                <tr><td>Styling</td><td>Tailwind CSS v3</td></tr>
+                <tr><td>Graph canvas</td><td>ReactFlow v11</td></tr>
+                <tr><td>Charts</td><td>Recharts</td></tr>
+                <tr><td>Animation</td><td>Framer Motion</td></tr>
+                <tr><td>State</td><td>React hooks (no global store)</td></tr>
+                <tr><td>Monorepo root</td><td><code>d:/IG/node_modules/</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3 class="sub">Backend</h3>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+              <tbody>
+                <tr><td>Framework</td><td>FastAPI + Pydantic v2</td></tr>
+                <tr><td>Language</td><td>Python 3.11+</td></tr>
+                <tr><td>ORM</td><td>SQLAlchemy 2.0 async</td></tr>
+                <tr><td>Database (dev)</td><td>SQLite + aiosqlite</td></tr>
+                <tr><td>Database (prod)</td><td>PostgreSQL + asyncpg</td></tr>
+                <tr><td>Cache</td><td>Redis (optional; in-memory fallback)</td></tr>
+                <tr><td>Scheduling</td><td>APScheduler 3.x</td></tr>
+                <tr><td>Market data</td><td>yfinance</td></tr>
+                <tr><td>News ingest</td><td>feedparser + BeautifulSoup4</td></tr>
+                <tr><td>HTTP client</td><td>httpx (async)</td></tr>
+                <tr><td>Logging</td><td>structlog</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="sub">Design System</h3>
+      <p>The project uses a self-described <strong>"Data-First Dark Minimalism"</strong> visual language: <code>bg-[#0a0d16]</code> / <code>bg-[#080c14]</code> backgrounds, <code>rounded-xl</code> cards, <code>border border-white/[0.07]</code> hairline borders, no backdrop-filter blur on data cards, and indigo (<code>#6366f1</code>) as the primary accent. The layout root is <code>xl:grid-cols-[240px_1fr_260px]</code> with a 1600px max-width.</p>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="architecture">
+      <div class="section-eyebrow">Structure</div>
+      <h2>Site Architecture</h2>
+
+      <div class="callout">
+        <p><strong>Monorepo layout:</strong> <code>d:/IG/apps/web</code> (Next.js) and <code>d:/IG/apps/backend</code> (FastAPI). Node modules sit at the root <code>d:/IG/node_modules/</code>.</p>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Concern</th><th>Approach</th></tr></thead>
+          <tbody>
+            <tr><td>Rendering</td><td>Mixed SSR + CSR. Dashboard and Ripple Hub use SSR (<code>force-dynamic</code>); event list, news, stocks, radar are <code>"use client"</code> with static fallback data that loads instantly then silently swaps for live API data.</td></tr>
+            <tr><td>Data fetching</td><td>Frontend fetches <code>NEXT_PUBLIC_API_BASE_URL</code> (default <code>http://localhost:8000</code>). SSR pages use Node <code>fetch</code> with 7 s timeout; CSR pages use browser <code>fetch</code> in <code>useEffect</code>.</td></tr>
+            <tr><td>Caching</td><td>3-tier: (1) in-process dict TTL cache in market.py, (2) Redis (30 min dashboard TTL; 1 h ripple TTL), (3) SQLite persist for ripple graphs.</td></tr>
+            <tr><td>Scheduling</td><td>APScheduler jobs: news ingest (every 15 min), dashboard pre-warm (7 AM IST daily), opportunity seeding (daily).</td></tr>
+            <tr><td>Error handling</td><td>Every CSR page ships a <code>STATIC_*</code> fallback array rendered on mount; replaced silently if API responds. SSR pages use <code>try/catch</code> with <code>Suspense</code> per section.</td></tr>
+            <tr><td>Auth</td><td>None — fully public, no login system.</td></tr>
+            <tr><td>Alerts</td><td><code>AlertProvider</code> context wraps the whole app; <code>BreakingNewsAlert</code> component polls <code>/api/alerts</code> for high-impact breaking events.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="nav-tree">
+      <div class="section-eyebrow">Navigation</div>
+      <h2>Navigation Tree</h2>
+
+      <div class="two-col">
+        <div>
+          <h3 class="sub">Sidebar (Sidebar.tsx)</h3>
+          <h4 class="subsub">Primary</h4>
+          <ul class="plain">
+            <li>Dashboard — <code>/</code></li>
+            <li>Market Intelligence — <code>/market-intelligence</code></li>
+            <li>Events — <code>/events</code></li>
+            <li>Ripple Engine — <code>/ripple</code></li>
+            <li>Stories — <code>/stories</code></li>
+            <li>News — <code>/news</code></li>
+            <li>Opportunity Radar — <code>/radar</code></li>
+            <li>Companies — <code>/stocks</code></li>
+            <li>Compare Companies — <code>/compare</code></li>
+            <li>Economic Calendar — <code>/calendar</code></li>
+            <li>IPO Hub — <code>/ipo-hub</code></li>
+          </ul>
+          <h4 class="subsub">Market Overview</h4>
+          <ul class="plain">
+            <li>Market Indices — <code>/market-indices</code></li>
+            <li>Sectors — <code>/sectors</code></li>
+            <li>Heatmap — <code>/heatmap</code></li>
+            <li>Market Breadth — <code>/market-breadth</code></li>
+            <li>Commodities &amp; Energy — <code>/markets</code></li>
+          </ul>
+          <h4 class="subsub">Intelligence</h4>
+          <ul class="plain">
+            <li>AI Search — <code>/ai-search</code></li>
+            <li>Market Signals — <code>/market-signals</code></li>
+            <li>AI Market Wrap — <code>/ai-wrap</code></li>
+            <li>Top Themes — <code>/themes</code></li>
+            <li>Government Policies — <code>/policies</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="sub">Site Header (SiteHeader.tsx)</h3>
+          <p>Sticky top bar with logo "EventIQ", a search form routing to <code>/ai-search?q=</code>, 8 nav tabs (subset of sidebar), bell icon with alert badge count, and user avatar "ML".</p>
+          <h4 class="subsub">Header nav items (8)</h4>
+          <ul class="plain">
+            <li>Dashboard — <code>/</code></li>
+            <li>Events — <code>/events</code></li>
+            <li>Stories — <code>/stories</code></li>
+            <li>News — <code>/news</code></li>
+            <li>Radar — <code>/radar</code></li>
+            <li>Explorer — <code>/stocks</code></li>
+            <li>Compare — <code>/compare</code></li>
+            <li>Calendar — <code>/calendar</code></li>
+          </ul>
+
+          <h3 class="sub">Duplicate Nav Items</h3>
+          <div class="callout warn">
+            <p>The header nav (8 items) is a subset of the sidebar (21 items). <strong>Ripple Engine, IPO Hub, Market Intelligence, Sectors, Heatmap, AI Search, Themes, Policies, Market Signals</strong> appear in the sidebar but are absent from the header nav. This inconsistency can confuse first-time users.</p>
+          </div>
+
+          <h3 class="sub">Fixed Bottom Ticker</h3>
+          <p>The dashboard layout renders a fixed-bottom bar with live NIFTY 50, SENSEX, BANK NIFTY, NIFTY IT, and INDIA VIX prices fetched on the server at page load.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="pages">
+      <div class="section-eyebrow">Pages</div>
+      <h2>Page-by-Page Report</h2>
+
+      <!-- Dashboard -->
+      <div class="page-card" id="pg-dashboard">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Dashboard</div>
+            <div class="page-card-route">GET /</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-ok">SSR</span>
+            <span class="badge badge-ok">Implemented</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>Components</label>
+            <p>SmartHero, PreMarketPanel, MarketOverviewSection, SectorPerformanceCard, TopEventsSection, AIOpportunitySection, TopMoversGrid, DashboardBottomRow, DashboardRightSidebar, EconomicCalendar, LatestNews, FloatingAISearch</p>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/dashboard/</code> (aggregate), <code>GET /api/premarket/</code>, <code>GET /api/sectors/changes</code>, <code>GET /api/events/?limit=5</code>, <code>GET /api/radar/?limit=3</code></p>
+          </div>
+          <div class="page-card-field">
+            <label>AI Integration</label>
+            <p>AI market summary via <code>get_market_summary()</code> using free-tier LLM. Summarises index quotes + top event titles into 2–3 sentence market narrative.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Caching</label>
+            <p>Full payload cached in Redis at <code>DASHBOARD_KEY</code> with 30-min TTL. Pre-warmed at startup + 7 AM IST daily job.</p>
+          </div>
+          <div class="page-card-field full">
+            <label>Missing / Technical Debt</label>
+            <p>Fixed bottom ticker uses server-rendered prices (stale within seconds). No client-side refresh of ticker. "Calendar View" button in Events page header is a non-functional stub. Dashboard right sidebar components are loaded but unknown if all fully wired. FloatingAISearch is a global overlay component — its state is not persisted across pages.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events -->
+      <div class="page-card" id="pg-events">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Events</div>
+            <div class="page-card-route">GET /events</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-info">CSR</span>
+            <span class="badge badge-ok">Implemented</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>Features</label>
+            <p>Timeline view (grouped by date with purple dot timeline) + List view toggle. Search bar. 4 filter dropdowns: Event Type, Sector, Impact Level, Source. "Load More" pagination (increments by 20). Static fallback (5 events) shown instantly, replaced by live data.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Right Sidebar</label>
+            <p>Events Overview counters (total / very high / high / medium). 7-day Impact Trend line chart (Recharts). Top Sectors Affected bar chart. Recent Alerts list (top 3 high-impact events).</p>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/events/?limit=N</code> — returns EventSummary list. Impact scores are 0–100 scale on frontend but 0–10 on backend (not normalised consistently).</p>
+          </div>
+          <div class="page-card-field">
+            <label>Missing Features</label>
+            <p>"Add Alert" button is a visual stub (no action). "Calendar View" button is a stub. Sector filter uses substring match, not DB-driven sector list. The sector-specific filter panel ("All Sectors") hardcodes 8 sectors — not derived from actual data.</p>
+          </div>
+          <div class="page-card-field full">
+            <label>Technical Debt</label>
+            <p>Impact score comparison is inconsistent: DB stores 0–10, frontend impactLabel() checks against 90/75/55 thresholds (treating the value as 0–100). This means events with score 8.5 display as "Low" because 8.5 &lt; 55. This is a <strong>critical bug</strong> affecting all event impact display.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event Detail -->
+      <div class="page-card" id="pg-event-detail">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Event Detail</div>
+            <div class="page-card-route">GET /events/[id]</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-ok">SSR + CSR</span>
+            <span class="badge badge-ok">Implemented</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>Features</label>
+            <p>Full event detail with AI summary, sector impact breakdown, company impact list, related news articles, event timeline, similar events, knowledge graph, market data, and market chart. Tabbed navigation for different sections.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/events/{id}</code> — EventDetailResponse schema. <code>GET /api/events/{id}/market-data</code> — live market status + sector indices. <code>GET /api/events/{id}/market-chart</code> — sector-relevant index chart data.</p>
+          </div>
+          <div class="page-card-field">
+            <label>DB Tables</label>
+            <p>events, event_companies, event_sectors, event_timeline, event_news, event_graph_nodes, event_graph_edges, event_similar, government_policies, event_policies</p>
+          </div>
+          <div class="page-card-field">
+            <label>Missing Features</label>
+            <p>"View Ripple Analysis" CTA from event detail should link to <code>/ripple/{id}</code> — unclear if wired. Social share buttons are non-functional stubs. Bookmark button is a stub.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- News -->
+      <div class="page-card" id="pg-news">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Market News</div>
+            <div class="page-card-route">GET /news</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-info">CSR</span>
+            <span class="badge badge-ok">Implemented</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>Features</label>
+            <p>3-column layout: Popular Stories sidebar (left), tabbed article feed (center), Categories + Sources sidebar (right). 6 tabs: All / Market / Economy / Corporate / Policy / Global. Client-side category classification via keyword matching. Gradient thumbnail placeholders (no real images). "Live · refreshes every 15 min" badge (does not auto-refresh — cosmetic only).</p>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/news</code> — returns NewsArticle list. Articles include headline, summary, source, published_at, companies[], impact_score, optional url.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Missing Features</label>
+            <p>No actual auto-refresh (15 min badge is cosmetic). No search within news. Company chip linking uses a hardcoded COMPANY_TO_SYMBOL lookup — will fail for companies not in the 30-entry map. No pagination. No date filtering. No source filtering.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Technical Debt</label>
+            <p>Category classification is pure keyword matching on the frontend — same article can appear in multiple tabs if its text matches multiple keyword lists. Tabs are not mutually exclusive by design, but appear so.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- News Detail -->
+      <div class="page-card" id="pg-news-detail">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">News Article Detail</div>
+            <div class="page-card-route">GET /news/[id]</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-info">CSR</span>
+            <span class="badge badge-warn">Partial</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field full">
+            <label>Status</label>
+            <p>Route exists (layout.tsx present). Full content unknown from inspection but likely shows article headline, summary, source metadata, related companies, and back-link to news feed. No full article body — only the summary stored in DB.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Companies / Stocks -->
+      <div class="page-card" id="pg-stocks">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Companies (Stock Explorer)</div>
+            <div class="page-card-route">GET /stocks</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-info">CSR</span>
+            <span class="badge badge-ok">Implemented</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>Features</label>
+            <p>Search bar (live filter + submit navigates to <code>/stocks/[symbol]</code>). Trending symbol chips (10 stocks). Grid of 18 popular NSE stocks with live price/% change fetched in parallel. Sector color-coded badges. Loading skeletons per card.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/stocks/{symbol}</code> — called in parallel for all 18 stocks on mount. Returns price, pct_change, change_abs.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Missing Features</label>
+            <p>List is hardcoded to 18 stocks. No NSE universe browse / pagination. No sector filter on the list page (sector is shown per card but not filterable). No market cap sort. No watchlist functionality.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Technical Debt</label>
+            <p>18 parallel API calls on mount is expensive and races. Should batch into a single <code>/api/stocks/batch?symbols=...</code> endpoint. Also, <code>POPULAR_META</code> and <code>TRENDING</code> are hardcoded arrays — no way to update without a deploy.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stock Detail -->
+      <div class="page-card" id="pg-stock-detail">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Stock Detail</div>
+            <div class="page-card-route">GET /stocks/[symbol]</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-info">CSR</span>
+            <span class="badge badge-ok">Implemented</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>12 Tabs</label>
+            <div class="chips">
+              <span class="chip">Overview</span><span class="chip">Financials</span><span class="chip">Valuation</span><span class="chip">Performance</span><span class="chip">Profitability</span><span class="chip">Cash Flow</span><span class="chip">Balance Sheet</span><span class="chip">Growth</span><span class="chip">Dividends</span><span class="chip">Peers</span><span class="chip">Events</span><span class="chip">AI Analysis</span>
+            </div>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/stocks/{symbol}</code> — full StockData with all financial metrics via yfinance. <code>GET /api/stocks/{symbol}/chart?period=1D</code> for price chart.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Data Richness</label>
+            <p>Price, PE, PB, forward PE, EPS, ROE, ROA, ROCE, Beta, dividend yield, gross/operating/net margins, debt-to-equity, current ratio, free cash flow, revenue, profit, enterprise value, analyst consensus, quarterly financials, annual financials, peers list, recent events.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Period selector</label>
+            <p>1D / 1M / 3M / 6M / 1Y / 3Y / 5Y / Max — all backed by yfinance historical data.</p>
+          </div>
+          <div class="page-card-field full">
+            <label>Missing Features</label>
+            <p>AI Analysis tab content unknown (may be stub). No real-time tick — data is yfinance delayed (~15 min). Peers tab likely shows symbols but no comparison chart inline. The Events tab pulls from the events table but cross-reference may be partial (depends on whether EventCompany is populated).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ripple Hub -->
+      <div class="page-card" id="pg-ripple-hub">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Ripple Engine Hub</div>
+            <div class="page-card-route">GET /ripple</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-ok">SSR</span>
+            <span class="badge badge-ok">Implemented</span>
+            <span class="badge badge-vio">Flagship</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>Features</label>
+            <p>Marketing hero with concentric rings static diagram. "How it works" 4-step grid. Event grid (9 real events from DB, fallback to 6 static examples). Stat strip (7 node types, 4 depth levels, 7 edge types, per-edge confidence scoring).</p>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/ripple/featured?limit=9</code> — returns top impact-score events for the grid. Falls back to 6 static example objects (IDs 1–6) that will 404 on detail click if DB is empty.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Mobile</label>
+            <p>Responsive: <code>grid-cols-1 sm:grid-cols-2 lg:grid-cols-3</code> on event grid. How-it-works: <code>grid-cols-2 sm:grid-cols-4</code>. Stat strip: <code>grid-cols-2 sm:grid-cols-4</code>.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Missing Features</label>
+            <p>No "What-if Scenario" entry point on the hub page (mentioned in hero copy but no input field). No company or theme entry points (exist as API endpoints but no hub UI to access them).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ripple Graph -->
+      <div class="page-card" id="pg-ripple-graph">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Ripple Engine Graph</div>
+            <div class="page-card-route">GET /ripple/[id]</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-info">CSR + AI</span>
+            <span class="badge badge-ok">Implemented</span>
+            <span class="badge badge-vio">Flagship</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>Graph Canvas</label>
+            <p>ReactFlow v11 force-directed graph. Custom node types: event-center, sector, company, commodity, currency, policy, indicator. Animated bezier edges colour-coded by impact (positive=emerald, negative=rose, mixed=amber). MiniMap with impact-coloured nodes. Controls (zoom/fit). Background dot grid.</p>
+          </div>
+          <div class="page-card-field">
+            <label>4 Tabs</label>
+            <p>Graph View (ReactFlow canvas), Insights Panel (AI summary + beneficiaries + losers + policy watch + market implications), Node Legend, Edge Types table.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/ripple/event/{event_id}</code> — 3-tier cache: memory (1 h) → DB (ripple_graphs table) → AI generate → fallback template. Returns 17 nodes / 18 edges typical. <code>POST /api/ripple/scenario</code> for what-if.</p>
+          </div>
+          <div class="page-card-field">
+            <label>AI Generation</label>
+            <p>Multi-provider chain: OmniRoute → Groq → Cerebras → Gemini → OpenRouter free models. 5 fallback templates keyed by event type (geopolitical, energy, monetary, fiscal, generic). Prompt instructs AI to return strict JSON with nodes[] and edges[].</p>
+          </div>
+          <div class="page-card-field">
+            <label>Mobile Responsive</label>
+            <p>Graph height: <code>min(640px, 70vw)</code>. Touch events: <code>touchAction: none</code>. Tab bar: <code>overflow-x-auto</code>. Layout: <code>flex-col lg:flex-row</code>. Sidebar: <code>w-full lg:w-[300px]</code>.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Missing Features</label>
+            <p>What-if scenario input field accessible from graph page but no hub-level entry point. No ability to save/share graph permalinks. No export (PNG/SVG). Node click should show detail panel — unclear if implemented.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Opportunity Radar -->
+      <div class="page-card" id="pg-radar">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Opportunity Radar</div>
+            <div class="page-card-route">GET /radar</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-info">CSR</span>
+            <span class="badge badge-ok">Implemented</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>Features</label>
+            <p>Filter dropdowns (Sector, Theme, Time Horizon, Min Score). Cards with gradient score badge, SVG confidence circle, confidence bar, reason text, beneficiary symbol avatars. Static fallback (6 items). Top Sectors sidebar with gradient bars. AI Signal Strength meter (hardcoded 72/18/10%).</p>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/radar/?page=1&page_size=20</code> — maps to Opportunity model (full schema) OR RadarOpportunity (legacy simple). Frontend handles both shapes.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Technical Debt</label>
+            <p>There are TWO opportunity models: legacy <code>radar_opportunities</code> table (simple: theme, score, reason, confidence, beneficiaries) and new <code>opportunities</code> table (25 fields + 8 related tables). The frontend normalises both. API likely serves from one but this is unclear.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Missing Features</label>
+            <p>"More Filters" button is a stub. AI Signal Strength (72% Bullish etc.) is hardcoded. Top Sectors sidebar is hardcoded — not derived from live opportunity data. Detail cards link to <code>/radar/{id}</code> only when id is a number — static fallback items (string IDs) show "Sample data" label instead.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Radar Detail -->
+      <div class="page-card" id="pg-radar-detail">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Opportunity Detail</div>
+            <div class="page-card-route">GET /radar/[id]</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-info">CSR</span>
+            <span class="badge badge-ok">Implemented</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field full">
+            <label>Features</label>
+            <p>Full opportunity detail page with AI summary (matters/benefits/risks/invalidate), linked events, company impact table, news feed, sector distribution donut, investment timeline, financial metrics (revenue potential, CAGR, EPS growth), and knowledge graph. Route exists with layout.tsx wrapper.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Market Intelligence -->
+      <div class="page-card" id="pg-market-intel">
+        <div class="page-card-header">
+          <div>
+            <div class="page-card-title">Market Intelligence</div>
+            <div class="page-card-route">GET /market-intelligence</div>
+          </div>
+          <div class="page-card-badges">
+            <span class="badge badge-info">CSR</span>
+            <span class="badge badge-ok">Implemented</span>
+          </div>
+        </div>
+        <div class="page-card-grid">
+          <div class="page-card-field">
+            <label>Tab Structure</label>
+            <p>Heavily tabbed page (MarketClient.tsx). Tabs include: Pre-Market Overview, Market Movers, Sector Performance, Global Markets, Commodities, Currencies, Futures, Economic Indicators, Market Breadth, and potentially more.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Pre-Market Tab</label>
+            <p>Gift Nifty hero (Nifty futures), India VIX, US Futures (S&P/Nasdaq/Dow), Asian Markets (Nikkei/Hang Seng/Shanghai/KOSPI), European Markets (FTSE/DAX/CAC 40), Currencies (USD/EUR/GBP vs INR), Commodities (Brent/Gold/DXY), Stocks to Watch, AI Opening Prediction (bull%/bear%/neutral%), Pre-Market Movers (top 45 stocks).</p>
+          </div>
+          <div class="page-card-field">
+            <label>Backend APIs</label>
+            <p><code>GET /api/market/premarket</code>, <code>GET /api/market/movers</code>, <code>GET /api/market/sectors</code>, <code>GET /api/market/global</code>, <code>GET /api/market/overview</code>, <code>GET /api/market/futures</code>, <code>GET /api/market/economic-indicators</code> — 13 total endpoints in market.py.</p>
+          </div>
+          <div class="page-card-field">
+            <label>Missing Features</label>
+            <p>FII/DII net flow (hardcoded or absent). Bank Nifty futures card (planned in roadmap plan). Put-Call Ratio (absent). Market breadth is hardcoded values (1124/387/89). Silver commodity absent. Indian ADRs absent. Opening countdown timer absent.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remaining pages summary -->
+      <h3 class="sub" style="margin-top:32px">Remaining Pages (Brief)</h3>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Page</th><th>Route</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Market Indices</td>
+              <td><code>/market-indices</code></td>
+              <td><span class="badge badge-ok">Implemented</span></td>
+              <td>Hero spotlight (NIFTY 50 with area chart), 12 index cards with mini area charts. <code>GET /api/indices</code>. All from yfinance.</td>
+            </tr>
+            <tr>
+              <td>Sectors</td>
+              <td><code>/sectors</code></td>
+              <td><span class="badge badge-ok">Implemented</span></td>
+              <td>Sector performance cards with % changes. <code>GET /api/sectors</code>. Backed by yfinance sector ETFs.</td>
+            </tr>
+            <tr>
+              <td>Heatmap</td>
+              <td><code>/heatmap</code></td>
+              <td><span class="badge badge-warn">Partial</span></td>
+              <td>Treemap-style heatmap of sector/stock performance. Uses color-coding (green=up, red=down). Data source unclear from inspection alone.</td>
+            </tr>
+            <tr>
+              <td>Market Breadth</td>
+              <td><code>/market-breadth</code></td>
+              <td><span class="badge badge-warn">Partial</span></td>
+              <td>Advance/Decline stats. Values appear hardcoded (1124/387/89). No live A/D data source identified.</td>
+            </tr>
+            <tr>
+              <td>Compare Companies</td>
+              <td><code>/compare</code></td>
+              <td><span class="badge badge-ok">Implemented</span></td>
+              <td>Multi-stock comparison (up to 4 stocks). 12 tabs (Overview, Financials, Valuation…). Uses Framer Motion. Stock selector from 30-company registry. <code>GET /api/stocks/{symbol}</code> per stock.</td>
+            </tr>
+            <tr>
+              <td>Economic Calendar</td>
+              <td><code>/calendar</code></td>
+              <td><span class="badge badge-ok">Implemented</span></td>
+              <td>Calendar event list with dates, categories, descriptions. <code>GET /api/calendar/</code>. Seeded from DB. No live calendar data feed integrated.</td>
+            </tr>
+            <tr>
+              <td>AI Search</td>
+              <td><code>/ai-search</code></td>
+              <td><span class="badge badge-ok">Implemented</span></td>
+              <td>Natural-language search over events, news, opportunities. <code>POST /api/ai/search</code>. Free-tier LLM reranks results. Query pre-populated from header search form via <code>?q=</code>.</td>
+            </tr>
+            <tr>
+              <td>Stories</td>
+              <td><code>/stories</code></td>
+              <td><span class="badge badge-ok">Implemented</span></td>
+              <td>Editorial-style story cards with theme, image, description. <code>GET /api/stories/</code>. Backed by <code>stories</code> table. Links to story detail pages.</td>
+            </tr>
+            <tr>
+              <td>Themes</td>
+              <td><code>/themes</code></td>
+              <td><span class="badge badge-warn">Partial</span></td>
+              <td>Top investment themes (Defence, EV, AI, Green Energy…). Overlaps with Stories page and Radar top sectors. May be a variant of the Radar page filtered by theme.</td>
+            </tr>
+            <tr>
+              <td>IPO Hub</td>
+              <td><code>/ipo-hub</code></td>
+              <td><span class="badge badge-warn">Partial</span></td>
+              <td><code>GET /api/ipo/</code>. IPO listing data. Data source unclear — likely seeded or scraped. No live NSE IPO API confirmed.</td>
+            </tr>
+            <tr>
+              <td>Market Signals</td>
+              <td><code>/market-signals</code></td>
+              <td><span class="badge badge-warn">Partial</span></td>
+              <td>AI-derived market signals/indicators. Likely consumes derived data from dashboard or market API. Content depth unverified.</td>
+            </tr>
+            <tr>
+              <td>AI Market Wrap</td>
+              <td><code>/ai-wrap</code></td>
+              <td><span class="badge badge-warn">Partial</span></td>
+              <td>End-of-day AI market summary. Calls free-tier LLM with index data. Likely a longer-form version of the dashboard AI summary.</td>
+            </tr>
+            <tr>
+              <td>Government Policies</td>
+              <td><code>/policies</code></td>
+              <td><span class="badge badge-warn">Partial</span></td>
+              <td>PIB/ministry policy announcements. Backed by <code>government_policies</code> table and <code>event_policies</code> junction. Data seeded from PIB RSS feed or manual entry.</td>
+            </tr>
+            <tr>
+              <td>Markets (Commodities)</td>
+              <td><code>/markets</code></td>
+              <td><span class="badge badge-ok">Implemented</span></td>
+              <td>Commodities and energy prices. <code>GET /api/commodities/</code>. Covers Brent, Gold, DXY, USD/INR via yfinance. Missing Silver.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="db-schema">
+      <div class="section-eyebrow">Data Layer</div>
+      <h2>Database Schema</h2>
+
+      <p>SQLite in development, PostgreSQL in production. All tables created via <code>Base.metadata.create_all</code> on startup. No Alembic migrations currently used — schema changes require dropping and recreating tables.</p>
+
+      <h3 class="sub">Events Domain (models/event.py)</h3>
+      <div class="tbl-wrap">
+        <table class="schema-table">
+          <thead><tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>events</td><td>id String PK, title, summary, description, source, event_type, event_date, impact_score Float, confidence Float, sectors JSON, companies JSON, category, enrichment_status</td><td>Canonical. String PK (e.g. "evt-rbi-june-2026"). Dual storage: flat JSON columns + junction tables.</td></tr>
+            <tr><td>event_companies</td><td>id Int PK, event_id FK, symbol, name, impact_type, impact_score, reason</td><td>Junction. impact_type: beneficiary | loser | neutral.</td></tr>
+            <tr><td>event_sectors</td><td>id Int PK, event_id FK, sector, impact, impact_score</td><td>Junction. impact: positive | negative | neutral.</td></tr>
+            <tr><td>event_timeline</td><td>id Int PK, event_id FK, date, title, description, order</td><td>Chronological timeline entries per event.</td></tr>
+            <tr><td>event_news</td><td>id Int PK, event_id FK, news_id FK, relevance_score</td><td>Junction linking events to news_articles.</td></tr>
+            <tr><td>event_graph_nodes</td><td>id Int PK, event_id FK, node_id, label, node_type, node_metadata JSON</td><td>Knowledge graph nodes for event detail page.</td></tr>
+            <tr><td>event_graph_edges</td><td>id Int PK, event_id FK, source, target, edge_relationship</td><td>Knowledge graph edges.</td></tr>
+            <tr><td>event_similar</td><td>id Int PK, event_id FK, similar_event_id FK, similarity_score, reason</td><td>Similar events for "See also" section.</td></tr>
+            <tr><td>government_policies</td><td>id Int PK, external_id unique, title, ministry, announcement_date, summary, url</td><td>PIB/ministry policy records.</td></tr>
+            <tr><td>event_policies</td><td>id Int PK, event_id FK, policy_id FK, relevance</td><td>Junction: event ↔ policy.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="sub">Legacy Tables (models_legacy.py)</h3>
+      <div class="tbl-wrap">
+        <table class="schema-table">
+          <thead><tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>news_articles</td><td>id String PK, headline, summary, source, published_at, companies JSON, impact_score</td><td>Ingested via RSS. impact_score is 0–10 scale.</td></tr>
+            <tr><td>calendar_events</td><td>id String PK, category, title, date, description</td><td>Economic calendar entries. Seeded manually or from scraping.</td></tr>
+            <tr><td>radar_opportunities</td><td>id String PK, theme, score Int, reason, confidence, beneficiaries JSON</td><td>Legacy simple model. Superseded by opportunities table.</td></tr>
+            <tr><td>stories</td><td>id String PK, title, description, theme, image</td><td>Editorial market stories.</td></tr>
+            <tr><td>sector_data</td><td>id String PK, name, value, positive Bool, updated_at</td><td>Sector performance cache. Updated by scheduler.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="sub">Opportunity Domain (models/opportunity.py)</h3>
+      <div class="tbl-wrap">
+        <table class="schema-table">
+          <thead><tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>opportunities</td><td>id Int PK, slug unique, title, summary, opportunity_score, confidence, trend, risk_level, time_horizon, sectors JSON, ai_summary JSON</td><td>Full model with 8 related tables. Integer PK.</td></tr>
+            <tr><td>opportunity_events</td><td>opportunity_id FK, event_id String, importance, title, event_date, tag, description</td><td>Denormalised event references (avoids joins on read).</td></tr>
+            <tr><td>opportunity_companies</td><td>opportunity_id FK, company_id, impact_score, confidence, reason, company_name, impact_label, trend</td><td>Denormalised company data.</td></tr>
+            <tr><td>opportunity_news</td><td>opportunity_id FK, news_id, headline, source, published_at, url</td><td>Denormalised news references.</td></tr>
+            <tr><td>opportunity_timeline</td><td>opportunity_id FK, order, phase, date_label, title, description, status</td><td>status: done | active | pending.</td></tr>
+            <tr><td>opportunity_metrics</td><td>opportunity_id PK FK, revenue_potential, expected_cagr, eps_growth, investment_cycle, market_size</td><td>One-to-one with Opportunity.</td></tr>
+            <tr><td>opportunity_sector_distribution</td><td>opportunity_id FK, sector, percentage, color</td><td>Pie chart data for sector split.</td></tr>
+            <tr><td>opportunity_graph_nodes</td><td>opportunity_id FK, node_id, label, node_type, node_metadata JSON</td><td>Knowledge graph for opportunity detail.</td></tr>
+            <tr><td>opportunity_graph_edges</td><td>opportunity_id FK, source, target, edge_relationship</td><td>Knowledge graph edges.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="sub">Ripple Engine (models/ripple.py)</h3>
+      <div class="tbl-wrap">
+        <table class="schema-table">
+          <thead><tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>ripple_graphs</td><td>id Int PK, event_id String(256), scenario_type, scenario_input, event_title, event_summary, event_impact, graph_data JSON, insights JSON, generated_at</td><td>scenario_type: event | scenario | company | theme. DB-level cache for AI-generated graphs. Created fresh on first server startup.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <p><strong>Schema dual-storage issue:</strong> The <code>events</code> table stores sectors and companies in both flat JSON columns (<code>sectors JSON</code>, <code>companies JSON</code>) AND normalised junction tables (<code>event_sectors</code>, <code>event_companies</code>). Code checks junction tables first, falls back to JSON columns. This dual-write means data can be inconsistent, and queries must handle both shapes.</p>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="api-list">
+      <div class="section-eyebrow">Backend</div>
+      <h2>API Inventory</h2>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Cache</th></tr></thead>
+          <tbody>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/health</code></td><td>Redis + DB connectivity check</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/dashboard/</code></td><td>Aggregate: index quotes, trending events, top movers, AI summary</td><td>Redis 30 min</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/events/</code></td><td>Event list (limit param, default 20)</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/events/{id}</code></td><td>Full event detail with all related data</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/events/{id}/market-data</code></td><td>Real-time market status + sector index quotes</td><td>Never cached</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/events/{id}/market-chart</code></td><td>Sector-relevant index chart (period param)</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/news</code></td><td>News articles list</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/news/{id}</code></td><td>Single news article detail</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/stories/</code></td><td>Story cards list</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/stories/{id}</code></td><td>Single story detail</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/radar/</code></td><td>Opportunity list (page + page_size params)</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/radar/{id}</code></td><td>Full opportunity detail</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/calendar/</code></td><td>Economic calendar events</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/stocks/{symbol}</code></td><td>Stock quote + financials via yfinance</td><td>In-mem 15 min</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/stocks/{symbol}/chart</code></td><td>Historical price chart (period param)</td><td>In-mem</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/sectors/changes</code></td><td>Sector % changes for current session</td><td>In-mem 5 min</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/sectors/performance</code></td><td>Extended sector performance table</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/indices</code></td><td>12 NSE/BSE index quotes with mini charts</td><td>In-mem</td></tr>
+            <tr><td><span class="api-method method-post">POST</span></td><td><code>/api/ai/search</code></td><td>NL search over events/news/opportunities</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/premarket/</code></td><td>Pre-market data (legacy endpoint)</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/market/premarket</code></td><td>Full pre-market data (13-endpoint suite)</td><td>In-mem 5 min</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/market/movers</code></td><td>Top gainers/losers from 45-stock Nifty500 sample</td><td>In-mem 15 min</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/market/overview</code></td><td>Global market overview + sentiment score</td><td>In-mem</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/market/global</code></td><td>Global indices (Asia + Europe + US)</td><td>In-mem</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/market/futures</code></td><td>Nifty + SGX futures</td><td>In-mem</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/market/sectors</code></td><td>Sector heatmap data</td><td>In-mem</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/market/economic-indicators</code></td><td>GDP / Inflation / rates data</td><td>In-mem</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/commodities/</code></td><td>Brent, Gold, DXY, USD/INR prices</td><td>In-mem</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/ipo/</code></td><td>IPO listings</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/alerts</code></td><td>Active breaking news alerts (polled by BreakingNewsAlert)</td><td>—</td></tr>
+            <tr><td><span class="api-method method-post">POST</span></td><td><code>/api/alerts</code></td><td>Create new alert</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/ripple/event/{event_id}</code></td><td>Get/generate ripple graph for an event</td><td>Memory 1h → DB → AI</td></tr>
+            <tr><td><span class="api-method method-post">POST</span></td><td><code>/api/ripple/scenario</code></td><td>Generate what-if scenario ripple graph</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/ripple/company/{ticker}</code></td><td>Ripple graph centred on a company/ticker</td><td>Via event cache</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/ripple/story/{story_id}</code></td><td>Ripple graph for a market story</td><td>—</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/ripple/theme/{theme_slug}</code></td><td>Ripple graph for an investment theme</td><td>Via event cache</td></tr>
+            <tr><td><span class="api-method method-get">GET</span></td><td><code>/api/ripple/featured</code></td><td>Top high-impact events for Ripple Hub grid</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <p><strong>Duplicate premarket endpoints:</strong> Both <code>/api/premarket/</code> and <code>/api/market/premarket</code> exist. The legacy <code>/api/premarket/</code> is retained alongside the newer, richer <code>/api/market/premarket</code>. Frontend components may consume either; this should be consolidated.</p>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="ai-features">
+      <div class="section-eyebrow">Intelligence</div>
+      <h2>AI Features &amp; Constraints</h2>
+
+      <div class="callout err">
+        <p><strong>Permanent constraint:</strong> All AI calls must use free-tier models only. This applies to every feature, every endpoint, forever. Paid model IDs must never be used.</p>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Feature</th><th>Trigger</th><th>Model chain</th><th>Output</th></tr></thead>
+          <tbody>
+            <tr><td>Ripple Engine Graph</td><td><code>GET /api/ripple/event/{id}</code> cache miss</td><td>OmniRoute → Groq → Cerebras → Gemini → OpenRouter free → 5 fallback templates</td><td>JSON: {nodes[], edges[], insights{}}</td></tr>
+            <tr><td>Scenario Analysis</td><td><code>POST /api/ripple/scenario</code></td><td>Same chain as Ripple</td><td>JSON: {nodes[], edges[], insights{}}</td></tr>
+            <tr><td>Dashboard AI Summary</td><td>Dashboard cache miss</td><td>Free-tier LLM via <code>get_market_summary()</code></td><td>2–3 sentence market narrative string</td></tr>
+            <tr><td>AI Search</td><td><code>POST /api/ai/search</code></td><td>Free-tier LLM for reranking/synthesis</td><td>Ranked results + synthesised answer</td></tr>
+            <tr><td>AI Opening Prediction</td><td>Pre-market tab load</td><td>Derived from yfinance data (no LLM call?)</td><td>Bull% / Bear% / Neutral% + reason bullets</td></tr>
+            <tr><td>AI Market Wrap</td><td><code>/ai-wrap</code> page load</td><td>Free-tier LLM with index + event data</td><td>End-of-day narrative summary</td></tr>
+            <tr><td>Opportunity Generation</td><td>Daily APScheduler job</td><td>Free-tier LLM</td><td>Opportunity records seeded into DB</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="sub">Ripple AI Fallback Templates</h3>
+      <p>When all LLM providers fail, ripple_service.py selects one of 5 keyword-detected templates based on event title/summary:</p>
+      <div class="chips">
+        <span class="chip">geopolitical — defence/conflict keywords</span>
+        <span class="chip">energy — crude/oil/opec keywords</span>
+        <span class="chip">monetary — rbi/rate/repo keywords</span>
+        <span class="chip">fiscal — budget/capex/government keywords</span>
+        <span class="chip">generic — all other events</span>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="integrations">
+      <div class="section-eyebrow">External Dependencies</div>
+      <h2>Integrations</h2>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Integration</th><th>Purpose</th><th>Reliability</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>yfinance</td><td>All market data: indices, stocks, commodities, currencies, futures, sector ETFs, VIX</td><td><span class="badge badge-warn">Delayed ~15 min</span></td><td>No subscription required. Rate limits can cause failures. Not suitable for real-time tick data.</td></tr>
+            <tr><td>RSS feeds</td><td>News ingest: Economic Times, Business Standard, LiveMint, Reuters, Moneycontrol, Yahoo Finance</td><td><span class="badge badge-ok">Live</span></td><td>15-min ingest scheduler. feedparser + BeautifulSoup4. Feed URLs may break without notice.</td></tr>
+            <tr><td>Redis</td><td>Dashboard cache, Ripple Engine cache warm storage</td><td><span class="badge badge-warn">Optional</span></td><td>Falls back to in-memory dict cache if Redis unavailable. Cache TTLs: dashboard 30 min, ripple 1 h.</td></tr>
+            <tr><td>APScheduler</td><td>Background: news ingest (15 min), dashboard warm (7 AM IST), opportunity generation (daily)</td><td><span class="badge badge-ok">In-process</span></td><td>Runs in same uvicorn process. No external worker queue.</td></tr>
+            <tr><td>NSE India API</td><td>FII/DII data, PCR, option chain (planned)</td><td><span class="badge badge-err">Not implemented</span></td><td>NSE requires session cookies + browser headers. Blocked by CORS in server-side fetch without session management.</td></tr>
+            <tr><td>OpenRouter (free)</td><td>Primary LLM gateway for Ripple + AI features</td><td><span class="badge badge-warn">Rate limited</span></td><td>Free tier models only. Chain: OmniRoute → Groq → Cerebras → Gemini → OpenRouter fallbacks.</td></tr>
+            <tr><td>Groq</td><td>Fast inference fallback for Ripple AI</td><td><span class="badge badge-ok">Free tier</span></td><td>Llama-based models. Very fast. Limited free daily tokens.</td></tr>
+            <tr><td>Cerebras</td><td>Second fallback for Ripple AI</td><td><span class="badge badge-ok">Free tier</span></td><td>Ultra-fast inference. Free tier available.</td></tr>
+            <tr><td>Google Gemini</td><td>Third fallback for Ripple AI</td><td><span class="badge badge-ok">Free tier</span></td><td>1M context. Generous free tier.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="feature-inventory">
+      <div class="section-eyebrow">Assessment</div>
+      <h2>Feature Inventory</h2>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Feature</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Event list with timeline/list view</td><td><span class="badge badge-ok">Built</span></td><td>Works with live + static fallback</td></tr>
+            <tr><td>Event detail page (all tabs)</td><td><span class="badge badge-ok">Built</span></td><td>Requires enrichment pipeline to populate all sections</td></tr>
+            <tr><td>Event search + filtering</td><td><span class="badge badge-warn">Partial</span></td><td>Client-side filter only; no server-side search</td></tr>
+            <tr><td>Event alert creation</td><td><span class="badge badge-err">Stub</span></td><td>"Add Alert" button renders but has no action</td></tr>
+            <tr><td>Event bookmarking</td><td><span class="badge badge-err">Stub</span></td><td>Bookmark icon renders; no backend, no state</td></tr>
+            <tr><td>Ripple Engine graph (events)</td><td><span class="badge badge-ok">Built</span></td><td>Full: generation, caching, fallback templates, MiniMap</td></tr>
+            <tr><td>Ripple what-if scenarios</td><td><span class="badge badge-ok">Built</span></td><td>POST endpoint wired; accessible from graph page</td></tr>
+            <tr><td>Ripple for companies</td><td><span class="badge badge-ok">Built</span></td><td>API built; no UI entry point on hub page</td></tr>
+            <tr><td>Ripple for stories/themes</td><td><span class="badge badge-ok">Built</span></td><td>API built; no UI entry point on hub page</td></tr>
+            <tr><td>News feed with tabs</td><td><span class="badge badge-ok">Built</span></td><td>6 tabs, client-side keyword classification</td></tr>
+            <tr><td>News detail article</td><td><span class="badge badge-warn">Partial</span></td><td>Shows summary only; no full article body</td></tr>
+            <tr><td>News auto-refresh</td><td><span class="badge badge-err">Cosmetic</span></td><td>"Refreshes every 15 min" badge is not functional</td></tr>
+            <tr><td>Stock list (18 companies)</td><td><span class="badge badge-ok">Built</span></td><td>Live prices, hardcoded company list</td></tr>
+            <tr><td>Stock detail (12 tabs)</td><td><span class="badge badge-ok">Built</span></td><td>Full financial data from yfinance</td></tr>
+            <tr><td>Stock search → navigate</td><td><span class="badge badge-ok">Built</span></td><td>Works for any NSE symbol</td></tr>
+            <tr><td>Compare companies (4 stocks)</td><td><span class="badge badge-ok">Built</span></td><td>Full 12-tab comparison with Framer Motion</td></tr>
+            <tr><td>Market Indices (12)</td><td><span class="badge badge-ok">Built</span></td><td>Live with area sparklines</td></tr>
+            <tr><td>Sector performance</td><td><span class="badge badge-ok">Built</span></td><td>From yfinance sector ETFs</td></tr>
+            <tr><td>Heatmap</td><td><span class="badge badge-warn">Partial</span></td><td>Visual exists; data currency uncertain</td></tr>
+            <tr><td>Market Breadth (A/D)</td><td><span class="badge badge-err">Hardcoded</span></td><td>Static values 1124/387/89</td></tr>
+            <tr><td>Pre-Market Intelligence</td><td><span class="badge badge-ok">Built</span></td><td>Extensive: Gift Nifty, VIX, US futures, Asia, Europe, currencies, commodities, movers, AI prediction</td></tr>
+            <tr><td>FII/DII Net Flow</td><td><span class="badge badge-err">Missing</span></td><td>Not implemented (NSE API blocked)</td></tr>
+            <tr><td>Bank Nifty Futures</td><td><span class="badge badge-err">Missing</span></td><td>Planned; not yet built</td></tr>
+            <tr><td>Put-Call Ratio</td><td><span class="badge badge-err">Missing</span></td><td>Planned; not yet built</td></tr>
+            <tr><td>Silver commodity</td><td><span class="badge badge-err">Missing</span></td><td>Add SI=F to _COMMODITIES dict</td></tr>
+            <tr><td>Indian ADRs</td><td><span class="badge badge-err">Missing</span></td><td>Planned; not yet built</td></tr>
+            <tr><td>Market open countdown</td><td><span class="badge badge-err">Missing</span></td><td>Frontend-only; not yet built</td></tr>
+            <tr><td>Opportunity Radar list</td><td><span class="badge badge-ok">Built</span></td><td>AI-generated; both legacy + full model</td></tr>
+            <tr><td>Opportunity detail</td><td><span class="badge badge-ok">Built</span></td><td>Full schema with 9 related tables</td></tr>
+            <tr><td>Economic Calendar</td><td><span class="badge badge-warn">Partial</span></td><td>Seeded data only; no live calendar feed</td></tr>
+            <tr><td>AI Search</td><td><span class="badge badge-ok">Built</span></td><td>NL query → LLM synthesis over DB content</td></tr>
+            <tr><td>AI Market Wrap</td><td><span class="badge badge-warn">Partial</span></td><td>Page exists; LLM-generated content</td></tr>
+            <tr><td>Market Signals</td><td><span class="badge badge-warn">Partial</span></td><td>Page exists; content depth unverified</td></tr>
+            <tr><td>Stories</td><td><span class="badge badge-ok">Built</span></td><td>Editorial cards from stories table</td></tr>
+            <tr><td>Themes</td><td><span class="badge badge-warn">Partial</span></td><td>May overlap with Stories; content unclear</td></tr>
+            <tr><td>Government Policies</td><td><span class="badge badge-warn">Partial</span></td><td>Table exists; ingest pipeline status unclear</td></tr>
+            <tr><td>IPO Hub</td><td><span class="badge badge-warn">Partial</span></td><td>API exists; live IPO data source unclear</td></tr>
+            <tr><td>Breaking News Alert</td><td><span class="badge badge-ok">Built</span></td><td>Global overlay polling /api/alerts</td></tr>
+            <tr><td>User authentication</td><td><span class="badge badge-err">None</span></td><td>No login, no user accounts, fully public</td></tr>
+            <tr><td>Watchlist / Portfolio</td><td><span class="badge badge-err">None</span></td><td>Not planned in current scope</td></tr>
+            <tr><td>Push notifications</td><td><span class="badge badge-err">None</span></td><td>Not implemented</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="user-journeys">
+      <div class="section-eyebrow">UX</div>
+      <h2>User Journeys</h2>
+
+      <div class="two-col">
+        <div>
+          <h3 class="sub">New User — First Visit</h3>
+          <div class="journey-step"><div class="journey-num">1</div><p>Lands on <code>/</code> Dashboard. Sees AI market summary, top events, index quotes ticker bar. Static data renders instantly if server is cold.</p></div>
+          <div class="journey-step"><div class="journey-num">2</div><p>Notices "Ripple Engine" in sidebar — unfamiliar term. No onboarding tooltip or explainer on dashboard. Clicks it.</p></div>
+          <div class="journey-step"><div class="journey-num">3</div><p>Arrives at <code>/ripple</code> hub. "How it works" 4-step grid explains the concept. Clicks an event card.</p></div>
+          <div class="journey-step"><div class="journey-num">4</div><p>Graph loads. If backend is running and event has a cached graph, renders in &lt;1s. Otherwise AI generation takes 5–15s with no loading indicator beyond spinner.</p></div>
+          <div class="journey-step"><div class="journey-num">5</div><p>Explores graph nodes, reads Insights tab. No clear "next step" CTA after exploring graph.</p></div>
+
+          <h3 class="sub">Returning Analyst — Research Flow</h3>
+          <div class="journey-step"><div class="journey-num">1</div><p>Uses header search form → <code>/ai-search?q=rbi+rate+cut</code>. Gets synthesised answer + ranked events/news.</p></div>
+          <div class="journey-step"><div class="journey-num">2</div><p>Clicks an event from results → Event Detail page. Reviews sector impact, company list, timeline.</p></div>
+          <div class="journey-step"><div class="journey-num">3</div><p>Clicks "View Ripple Analysis" (if wired) → Ripple graph for that event. Explores cascade effects.</p></div>
+          <div class="journey-step"><div class="journey-num">4</div><p>Navigates to <code>/stocks/HDFCBANK</code> from a company mention. Reviews financials in 12 tabs.</p></div>
+          <div class="journey-step"><div class="journey-num">5</div><p>Goes to <code>/compare</code> to compare HDFCBANK vs ICICIBANK vs SBIN. Views 12-tab comparison.</p></div>
+        </div>
+        <div>
+          <h3 class="sub">Investor — Pre-Market Morning Routine</h3>
+          <div class="journey-step"><div class="journey-num">1</div><p>Opens app before 9:15 AM IST. Navigates to <code>/market-intelligence</code> → Pre-Market tab.</p></div>
+          <div class="journey-step"><div class="journey-num">2</div><p>Checks Gift Nifty premium vs spot. Checks India VIX level. Reviews US futures (S&P, Nasdaq, Dow).</p></div>
+          <div class="journey-step"><div class="journey-num">3</div><p>Scans Asian + European markets. Checks USD/INR, Brent crude.</p></div>
+          <div class="journey-step"><div class="journey-num">4</div><p>Reads AI Opening Prediction card (bull%/bear%/neutral%). This is a key differentiator vs competitors.</p></div>
+          <div class="journey-step"><div class="journey-num">5</div><p>Notices no FII/DII flow, no Bank Nifty futures, no countdown timer — missing vs Moneycontrol.</p></div>
+          <div class="journey-step"><div class="journey-num">6</div><p>Goes to <code>/events</code> to check today's scheduled events. Finds no date filter for "today only".</p></div>
+
+          <h3 class="sub">Research Analyst — Theme Discovery</h3>
+          <div class="journey-step"><div class="journey-num">1</div><p>Visits <code>/radar</code>. Sees AI-scored opportunities ranked by score (0–100). Filters by "Defence" sector.</p></div>
+          <div class="journey-step"><div class="journey-num">2</div><p>Clicks a Defence opportunity card → full detail page with AI summary, companies (HAL, BEL), events timeline, sector distribution.</p></div>
+          <div class="journey-step"><div class="journey-num">3</div><p>Wants to see ripple from a defence budget announcement. Goes to <code>/ripple</code>, finds event, views cascade.</p></div>
+          <div class="journey-step"><div class="journey-num">4</div><p>Tries "What-if" scenario: types "India increases defence budget by 30%". Gets AI graph in ~10s.</p></div>
+          <div class="journey-step"><div class="journey-num">5</div><p>No way to save or export findings. Must manually screenshot or copy data.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="duplicates">
+      <div class="section-eyebrow">Redundancy</div>
+      <h2>Duplicate Features</h2>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Duplicate</th><th>Instances</th><th>Recommendation</th></tr></thead>
+          <tbody>
+            <tr><td>Premarket API endpoints</td><td><code>/api/premarket/</code> (legacy) and <code>/api/market/premarket</code> (new, richer)</td><td>Remove <code>/api/premarket/</code>; migrate any consumers to <code>/api/market/premarket</code></td></tr>
+            <tr><td>Opportunity models</td><td><code>radar_opportunities</code> table (simple) and <code>opportunities</code> table (25 fields + 8 tables)</td><td>Migrate all data to <code>opportunities</code>; drop <code>radar_opportunities</code></td></tr>
+            <tr><td>Stories vs Themes</td><td><code>/stories</code> (editorial narrative cards) and <code>/themes</code> (investment themes) serve overlapping content</td><td>Differentiate clearly: Stories = curated narratives, Themes = data-driven screener. Or merge.</td></tr>
+            <tr><td>Sector data stores</td><td><code>sector_data</code> table AND <code>/api/sectors/changes</code> live yfinance call</td><td>Use live yfinance as source of truth; drop scheduled DB writes to sector_data</td></tr>
+            <tr><td>Event flat JSON + junction tables</td><td>events.sectors JSON and events.companies JSON duplicate event_sectors and event_companies</td><td>Write to junction tables only; remove flat JSON columns after migration</td></tr>
+            <tr><td>Market data entry points</td><td><code>/markets</code> (Commodities &amp; Energy sidebar item) overlaps with Commodities tab in Market Intelligence</td><td>Keep Market Intelligence as the hub; make <code>/markets</code> a redirect or detailed drill-down</td></tr>
+            <tr><td>Header nav vs Sidebar nav</td><td>Header has 8 items, sidebar has 21. Dashboard and core features appear in both; several pages only in sidebar</td><td>Align or acknowledge the difference: header = quick-access top 8, sidebar = full nav</td></tr>
+            <tr><td>Impact score threshold mismatch</td><td>Backend: 0–10 scale. Frontend impactLabel(): thresholds 90/75/55 (assumes 0–100)</td><td>Normalise to one scale. Either multiply backend score×10, or fix frontend thresholds to 9/7.5/5.5</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="limitations">
+      <div class="section-eyebrow">Current State</div>
+      <h2>Known Limitations</h2>
+
+      <ul class="plain">
+        <li><strong>Data delay:</strong> All market data via yfinance is delayed ~15 min. No real-time tick data source. NSE Live / Upstox / Zerodha Kite APIs are not integrated.</li>
+        <li><strong>No authentication:</strong> Zero access control. All data and AI features are publicly accessible. No rate limiting on AI endpoints.</li>
+        <li><strong>AI latency:</strong> Ripple graph generation takes 5–15s on a cold cache. No streaming progress indicator during generation.</li>
+        <li><strong>SQLite in dev:</strong> SQLite does not support <code>JSONB</code> operators, full-text search, or concurrent writes at scale. JSON columns use cast() workaround for LIKE queries.</li>
+        <li><strong>No Alembic migrations:</strong> Schema changes require dropping and recreating tables, losing all data. Not viable in production.</li>
+        <li><strong>In-process scheduler:</strong> APScheduler runs inside the uvicorn process. A crash restarts the scheduler but loses job state. Not suitable for high-availability production.</li>
+        <li><strong>Hardcoded company lists:</strong> Stock Explorer (18 companies), Trending (10 chips), Compare (30 companies) are all hardcoded arrays. Adding a new stock requires a code change and deploy.</li>
+        <li><strong>NSE API blocked:</strong> NSE India's APIs require browser session cookies + anti-bot headers. Server-side fetch without a session manager fails. FII/DII and PCR data unavailable as a result.</li>
+        <li><strong>Impact score bug:</strong> Backend stores 0–10 float; frontend compares against 90/75/55 thresholds. Events with impact_score=8.5 appear as "Low Impact" — effectively all real data shows as Low.</li>
+        <li><strong>No watchlist / persistence:</strong> No user state. Bookmarks, watchlists, and alert preferences are non-functional stubs with no backend storage.</li>
+        <li><strong>RSS news only:</strong> No structured news data with sentiment, full article text, or NLP tagging. Articles are headline + summary only.</li>
+        <li><strong>Free-tier LLM limits:</strong> Free model rate limits can cause AI feature failures during high-traffic periods. The fallback chain reduces (but does not eliminate) this risk.</li>
+        <li><strong>Calendar data is seeded:</strong> No live economic calendar feed. Events must be manually entered or scraped.</li>
+      </ul>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="missing">
+      <div class="section-eyebrow">Gaps</div>
+      <h2>Missing Features</h2>
+
+      <div class="two-col">
+        <div>
+          <h3 class="sub">P0 — Critical Gaps</h3>
+          <ul class="plain">
+            <li><strong>Impact score normalisation fix</strong> — events.impact_score (0–10) vs frontend thresholds (0–100). All event impact displays are wrong today.</li>
+            <li><strong>User authentication</strong> — no login means no personalisation, no saved state, no alert subscriptions.</li>
+            <li><strong>Alembic migrations</strong> — schema changes will destroy production data without a migration path.</li>
+            <li><strong>Real-time data</strong> — yfinance 15-min delay is not acceptable for intraday trading intelligence. NSE direct / Upstox / Zerodha Kite WebSocket needed.</li>
+            <li><strong>FII/DII net flow</strong> — #1 indicator Indian traders check; absent from pre-market section.</li>
+          </ul>
+
+          <h3 class="sub">P1 — High Value</h3>
+          <ul class="plain">
+            <li>Bank Nifty futures card in pre-market</li>
+            <li>Put-Call Ratio in pre-market</li>
+            <li>Market open countdown timer</li>
+            <li>AI Opening Range prediction (derived from Gift Nifty data)</li>
+            <li>Batch stock price API (<code>/api/stocks/batch</code>) to replace 18 parallel calls</li>
+            <li>Server-side event search (current filtering is client-only)</li>
+            <li>Event → Ripple "View Ripple Analysis" CTA (may not be wired)</li>
+            <li>Company + Theme entry points on Ripple Hub page</li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="sub">P2 — Good Additions</h3>
+          <ul class="plain">
+            <li>Silver commodity (<code>SI=F</code>) — one-line change to market_data.py</li>
+            <li>Indian ADRs (INFY, HDB, WIT, IBN) with NSE premium/discount</li>
+            <li>Real market breadth (from movers sample, extrapolated)</li>
+            <li>Live economic calendar feed (NSE/BSE earnings calendar)</li>
+            <li>News auto-refresh (the badge claims it but doesn't do it)</li>
+            <li>Today's events on pre-market page (from existing calendar API)</li>
+            <li>Ripple graph export (PNG/SVG button)</li>
+            <li>Ripple graph permalink / share URL</li>
+            <li>Alert subscription (email/push) on "Add Alert" button</li>
+            <li>Bookmark functionality with local/server persistence</li>
+          </ul>
+
+          <h3 class="sub">P3 — Nice to Have</h3>
+          <ul class="plain">
+            <li>Dynamic company list (DB-driven, not hardcoded 18)</li>
+            <li>Sector filter driven by actual DB sectors, not hardcoded 8</li>
+            <li>Global Sentiment Score in pre-market header</li>
+            <li>Rate limiting on AI endpoints (prevent free tier exhaustion)</li>
+            <li>Ripple graph node click → detail drawer</li>
+            <li>Stories/Themes differentiation (currently overlapping)</li>
+            <li>AI Market Wrap scheduled at EOD automatically</li>
+            <li>Opportunity seeding from actual event data (not just LLM generation)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <section class="section" id="roadmap">
+      <div class="section-eyebrow">Future</div>
+      <h2>Recommended Roadmap</h2>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Sprint</th><th>Focus</th><th>Key Items</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Sprint 1</td>
+              <td>Fix critical bugs</td>
+              <td>Impact score normalisation (0–10 vs 0–100). Alembic migration setup. Consolidate premarket endpoints. Remove dual-storage in events table.</td>
+            </tr>
+            <tr>
+              <td>Sprint 2</td>
+              <td>Pre-market completion</td>
+              <td>Bank Nifty futures, FII/DII card (NSE scrape with session), PCR from option chain, Silver commodity, countdown timer, opening range prediction, real market breadth.</td>
+            </tr>
+            <tr>
+              <td>Sprint 3</td>
+              <td>Ripple Engine UX</td>
+              <td>Hub entry points for company/theme ripple. Scenario input on hub page. Node click drawer. Graph export. Share permalink. Streaming progress during AI generation.</td>
+            </tr>
+            <tr>
+              <td>Sprint 4</td>
+              <td>Data quality</td>
+              <td>Batch stock API. Dynamic company list from DB. Server-side event search. Calendar live feed. News auto-refresh. Alert subscription backend.</td>
+            </tr>
+            <tr>
+              <td>Sprint 5</td>
+              <td>Real-time data</td>
+              <td>WebSocket price feed (Upstox/Zerodha Kite). Replace yfinance for intraday. Live ticker bar. True market breadth from NSE tick.</td>
+            </tr>
+            <tr>
+              <td>Sprint 6</td>
+              <td>Auth + personalisation</td>
+              <td>User accounts. Watchlist. Alert subscriptions. Saved Ripple graphs. Personalised dashboard.</td>
+            </tr>
+            <tr>
+              <td>Future</td>
+              <td>Platform</td>
+              <td>Mobile app. Pro tier (real-time data). API access for institutional users. Custom Ripple templates. Portfolio tracking. Backtesting event impact on stocks.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr>
+      <p style="font-size:11px; color: var(--faint); text-align:center; margin-top:16px;">
+        EventIQ Project Audit · Inspected 2026-07-03 · Source: d:/IG · v0.2.0
+      </p>
+    </section>
+
+  </main>
+</div>

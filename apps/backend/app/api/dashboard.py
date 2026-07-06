@@ -49,14 +49,22 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
     # ── 2. Cache miss — compute from DB + external data ───────────────────────
     log.info("dashboard.cache_miss")
 
-    events_task      = get_trending_events(db, limit=5)
-    index_task       = get_index_quotes()
-    movers_task      = get_top_movers()
+    events_task  = get_trending_events(db, limit=5)
+    index_task   = get_index_quotes()
+    movers_task  = get_top_movers()
 
-    events, index_quotes, movers = await asyncio.gather(
-        events_task, index_task, movers_task,
-        return_exceptions=True,
-    )
+    # Wrap the entire external-data gather in a 30-second timeout so cold
+    # starts never stall the HTTP connection past that point.
+    try:
+        gathered = await asyncio.wait_for(
+            asyncio.gather(events_task, index_task, movers_task, return_exceptions=True),
+            timeout=30.0,
+        )
+        events, index_quotes, movers = gathered
+    except asyncio.TimeoutError:
+        log.warning("dashboard.gather_timeout")
+        events = index_quotes = movers = Exception("timeout")
+
     if isinstance(events,       Exception): events       = []
     if isinstance(index_quotes, Exception): index_quotes = []
     if isinstance(movers,       Exception): movers       = {}
@@ -77,25 +85,51 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
     ]
 
     event_dicts = [{"title": e.title, "impact_score": e.impact_score} for e in (events or [])]
-    ai_summary  = await get_market_summary(index_quotes or [], event_dicts)
+
+    # Fetch AI summary + index chart data in parallel with 15s each timeout
+    from app.services.market_data import _fetch_history
+    index_tickers = {"NIFTY 50": "^NSEI", "SENSEX": "^BSESN", "BANKNIFTY": "^NSEBANK"}
+    loop = asyncio.get_running_loop()
+
+    async def _safe_summary():
+        try:
+            return await asyncio.wait_for(get_market_summary(index_quotes or [], event_dicts), timeout=15.0)
+        except Exception:
+            return "Markets tracking mixed global cues. Domestic macro data stable."
+
+    async def _safe_chart(ticker: str):
+        try:
+            return await asyncio.wait_for(
+                loop.run_in_executor(None, _fetch_history, ticker, "5d", "1d"),
+                timeout=10.0,
+            )
+        except Exception:
+            return []
+
+    # Gather AI summary + all 3 index charts concurrently (not sequentially)
+    titles = list(index_tickers.keys())
+    tickers_list = list(index_tickers.values())
+    all_gathered = await asyncio.gather(
+        _safe_summary(),
+        *[_safe_chart(t) for t in tickers_list],
+        return_exceptions=True,
+    )
+    ai_summary = all_gathered[0] if not isinstance(all_gathered[0], Exception) \
+        else "Markets tracking mixed global cues. Domestic macro data stable."
+    chart_results = {
+        titles[i]: (all_gathered[i + 1] if not isinstance(all_gathered[i + 1], Exception) else [])
+        for i in range(len(titles))
+    }
+
+    if isinstance(index_quotes, list):
+        for q in index_quotes:
+            hist = chart_results.get(q.get("title", ""), [])
+            q["chartData"] = [{"label": h["label"], "value": h["value"]} for h in (hist or [])]
 
     market_snapshot = {
         q["title"].lower().replace(" ", "_"): q["value"]
         for q in (index_quotes or [])
     }
-
-    # Add 5-day chart data to each index quote
-    index_tickers = {"NIFTY 50": "^NSEI", "SENSEX": "^BSESN", "BANKNIFTY": "^NSEBANK"}
-    loop = asyncio.get_event_loop()
-    if isinstance(index_quotes, list):
-        for q in index_quotes:
-            try:
-                ticker = index_tickers.get(q.get("title", ""), "^NSEI")
-                from app.services.market_data import _fetch_history
-                hist = await loop.run_in_executor(None, _fetch_history, ticker, "5d", "1d")
-                q["chartData"] = [{"label": h["label"], "value": h["value"]} for h in hist]
-            except Exception:
-                q["chartData"] = []
 
     payload = {
         "market_snapshot":  market_snapshot,

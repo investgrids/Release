@@ -59,7 +59,7 @@ export default function SearchPage() {
 
       {/* Search bar */}
       <div className="relative">
-        <div className="flex items-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-glow backdrop-blur-xl transition focus-within:border-sky-500/40 focus-within:bg-sky-500/[0.02]">
+        <div className="flex items-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-glow transition focus-within:border-sky-500/40 focus-within:bg-sky-500/[0.02]">
           <span className="pl-5 text-slate-500">🔍</span>
           <input
             type="text"
@@ -100,7 +100,7 @@ export default function SearchPage() {
           <div className="space-y-3">
             {filteredEvents.map((e) => (
               <article key={e.id}
-                className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4 shadow-glow backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-white/20">
+                className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4 shadow-glow transition hover:-translate-y-0.5 hover:border-white/20">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${CAT_COLORS[e.category] ?? "border-white/10 bg-white/5 text-slate-300"}`}>
                     {e.category}
@@ -136,8 +136,8 @@ export default function SearchPage() {
           </p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {filteredStocks.map((symbol) => (
-              <Link key={symbol} href={`/stocks/${symbol}`}
-                className="group flex items-center gap-3 rounded-[18px] border border-white/10 bg-white/[0.03] p-4 shadow-glow backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-white/20">
+              <Link key={symbol} href={`/companies/${symbol}`}
+                className="group flex items-center gap-3 rounded-[18px] border border-white/10 bg-white/[0.03] p-4 shadow-glow transition hover:-translate-y-0.5 hover:border-white/20">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 to-violet-500/10 text-xs font-bold text-slate-300">
                   {symbol.slice(0, 2)}
                 </div>

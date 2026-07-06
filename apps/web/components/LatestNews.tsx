@@ -28,7 +28,7 @@ function thumbGrad(score: number) {
 
 export function LatestNews({ items }: LatestNewsProps) {
   return (
-    <section className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-glow backdrop-blur-xl">
+    <section className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-glow">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-white">Latest News</h2>
         <Link href="/news" className="text-xs text-slate-500 transition hover:text-white">View All</Link>

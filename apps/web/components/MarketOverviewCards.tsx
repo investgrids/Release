@@ -84,7 +84,7 @@ export function MarketIndexCard({ indices }: { indices: IndexData[] }) {
   const tickInterval = Math.max(1, Math.floor(tickCount / 5));
 
   return (
-    <div className="rounded-[24px] border border-white/10 bg-slate-950/80 p-5 shadow-glow backdrop-blur-xl h-full flex flex-col">
+    <div className="rounded-[24px] border border-white/10 bg-slate-950/80 p-5 shadow-glow h-full flex flex-col">
 
       {/* Index selector */}
       <div className="flex items-center justify-between mb-3">

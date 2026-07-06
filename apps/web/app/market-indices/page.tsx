@@ -49,14 +49,12 @@ function MiniArea({ data, positive }: { data: { label: string; value: number }[]
 
 export default function MarketIndicesPage() {
   const [indices, setIndices] = useState<IndexQuote[]>(FALLBACK);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch(`${API}/api/indices`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d?.length) setIndices(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
 
   const hero = indices[0];
@@ -71,7 +69,7 @@ export default function MarketIndicesPage() {
 
       {/* Hero spotlight */}
       {hero && (
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-6 shadow-glow backdrop-blur-xl">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-6 shadow-glow">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
               <p className="text-xs uppercase tracking-widest text-slate-500">Benchmark</p>
@@ -120,7 +118,7 @@ export default function MarketIndicesPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {indices.map((idx) => (
           <div key={idx.name}
-            className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-white/20">
+            className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow transition hover:-translate-y-0.5 hover:border-white/20">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">{idx.ticker}</p>

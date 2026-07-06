@@ -113,7 +113,7 @@ export default function HeatmapPage() {
       </div>
 
       {/* Heatmap grid */}
-      <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-glow backdrop-blur-xl">
+      <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-glow">
         <div className="grid grid-cols-6 gap-1.5 auto-rows-[60px]">
           {filtered.map((stock) => (
             <button key={stock.symbol} onClick={() => setSelected(selected === stock.symbol ? null : stock.symbol)}
@@ -129,7 +129,7 @@ export default function HeatmapPage() {
       {selected && (() => {
         const s = NIFTY50.find((x) => x.symbol === selected)!;
         return (
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl">
+          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs text-slate-500">{s.sector}</p>

@@ -14,7 +14,7 @@ interface EconomicCalendarProps {
 
 export function EconomicCalendar({ events }: EconomicCalendarProps) {
   return (
-    <section className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl">
+    <section className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5 shadow-glow">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-white">Economic Calendar</h2>
         <button className="text-xs text-slate-500 transition hover:text-white">View All</button>

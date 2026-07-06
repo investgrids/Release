@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +8,10 @@ from app.db.session import get_db
 from app.db.crud import get_sectors
 
 router = APIRouter()
+
+# Simple in-memory TTL cache for sector stock data (yfinance calls are slow)
+_sector_stock_cache: dict[str, tuple[float, list]] = {}
+_SECTOR_STOCK_TTL = 300  # 5 minutes
 
 _SECTOR_STOCKS: dict[str, list[str]] = {
     "banking":      ["HDFCBANK", "ICICIBANK", "AXISBANK", "KOTAKBANK", "SBIN", "INDUSINDBK", "BANDHANBNK"],
@@ -90,6 +95,14 @@ async def sector_stocks(sector_id: str):
                 result.append({"symbol": sym, "name": sym, "price": "—", "change": "—", "positive": True})
         return result
 
+    # Return cached result if still fresh
+    cached_entry = _sector_stock_cache.get(key)
+    if cached_entry and time.time() - cached_entry[0] < _SECTOR_STOCK_TTL:
+        return {"sector": sector_id, "stocks": cached_entry[1]}
+
     loop = asyncio.get_event_loop()
     stocks = await loop.run_in_executor(None, _fetch)
+
+    # Store in cache
+    _sector_stock_cache[key] = (time.time(), stocks)
     return {"sector": sector_id, "stocks": stocks}

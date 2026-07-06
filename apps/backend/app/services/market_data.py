@@ -4,9 +4,14 @@ NSE symbols use the .NS suffix; BSE uses .BO.
 Index tickers: ^NSEI (Nifty50), ^BSESN (Sensex), ^NSEBANK (Bank Nifty).
 """
 import asyncio
+import logging
 from functools import lru_cache
 from typing import Optional
 import yfinance as yf
+
+# Suppress yfinance/peewee loggers that conflict with structlog's processor chain
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
+logging.getLogger("peewee").setLevel(logging.CRITICAL)
 
 
 _INDEX_TICKERS = {
@@ -502,15 +507,24 @@ async def get_stock_chart(symbol: str, period: str = "6M") -> list:
     return await loop.run_in_executor(None, _fetch)
 
 
+_indices_cache: dict = {"ts": 0.0, "data": None}
+_INDICES_TTL = 300  # 5 minutes
+
+
 async def get_extended_indices() -> list[dict]:
-    """Return quotes for all tracked indices including sectoral ones."""
+    """Return quotes for all tracked indices — parallel fetch with 5-min TTL cache."""
+    import time
+    now = time.time()
+    if _indices_cache["data"] and now - _indices_cache["ts"] < _INDICES_TTL:
+        return _indices_cache["data"]
+
     loop = asyncio.get_event_loop()
-    results = []
-    for name, ticker in _EXTENDED_INDICES.items():
+
+    async def _one(name: str, ticker: str) -> dict:
         quote = await loop.run_in_executor(None, _fetch_quote, ticker)
         if quote:
             hist = await loop.run_in_executor(None, _fetch_history, ticker)
-            results.append({
+            return {
                 "name": name,
                 "ticker": ticker,
                 "value": _fmt_price(quote["price"]),
@@ -520,20 +534,17 @@ async def get_extended_indices() -> list[dict]:
                 "high": _fmt_price(quote["price"] * 1.005),
                 "low": _fmt_price(quote["price"] * 0.995),
                 "chart": hist[-5:] if hist else [],
-            })
-        else:
-            results.append({
-                "name": name,
-                "ticker": ticker,
-                "value": "—",
-                "change": "—",
-                "pct": 0.0,
-                "positive": True,
-                "high": "—",
-                "low": "—",
-                "chart": [],
-            })
-    return results
+            }
+        return {
+            "name": name, "ticker": ticker, "value": "—",
+            "change": "—", "pct": 0.0, "positive": True,
+            "high": "—", "low": "—", "chart": [],
+        }
+
+    result = list(await asyncio.gather(*[_one(n, t) for n, t in _EXTENDED_INDICES.items()]))
+    _indices_cache["ts"]   = now
+    _indices_cache["data"] = result
+    return result
 
 
 # ── Market status (no external calls) ────────────────────────────────────────
@@ -543,33 +554,33 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 
 # Sector keyword → (display_name, yfinance_ticker)
 _SECTOR_INDEX_MAP: dict[str, tuple[str, str]] = {
-    "infrastructure": ("Nifty Infrastructure", "NIFTYINFRA.NS"),
-    "capital goods":  ("Nifty Infrastructure", "NIFTYINFRA.NS"),
-    "construction":   ("Nifty Infrastructure", "NIFTYINFRA.NS"),
-    "defence":        ("Nifty Infrastructure", "NIFTYINFRA.NS"),
-    "logistics":      ("Nifty Infrastructure", "NIFTYINFRA.NS"),
-    "banking":        ("Bank Nifty",           "^NSEBANK"),
-    "financials":     ("Bank Nifty",           "^NSEBANK"),
-    "finance":        ("Bank Nifty",           "^NSEBANK"),
-    "nbfc":           ("Bank Nifty",           "^NSEBANK"),
-    "it":             ("Nifty IT",             "^CNXIT"),
-    "technology":     ("Nifty IT",             "^CNXIT"),
-    "software":       ("Nifty IT",             "^CNXIT"),
-    "pharma":         ("Nifty Pharma",         "NIFTYPHARMA.NS"),
-    "healthcare":     ("Nifty Pharma",         "NIFTYPHARMA.NS"),
-    "auto":           ("Nifty Auto",           "NIFTYAUTO.NS"),
-    "automobile":     ("Nifty Auto",           "NIFTYAUTO.NS"),
-    "energy":         ("Nifty Energy",         "NIFTYENERGY.NS"),
-    "oil":            ("Nifty Energy",         "NIFTYENERGY.NS"),
-    "gas":            ("Nifty Energy",         "NIFTYENERGY.NS"),
-    "power":          ("Nifty Energy",         "NIFTYENERGY.NS"),
-    "fmcg":           ("Nifty FMCG",           "NIFTYFMCG.NS"),
-    "consumer":       ("Nifty FMCG",           "NIFTYFMCG.NS"),
-    "metal":          ("Nifty Metal",          "NIFTYMETAL.NS"),
-    "steel":          ("Nifty Metal",          "NIFTYMETAL.NS"),
-    "mining":         ("Nifty Metal",          "NIFTYMETAL.NS"),
-    "realty":         ("Nifty Realty",         "NIFTYREALTY.NS"),
-    "real estate":    ("Nifty Realty",         "NIFTYREALTY.NS"),
+    "infrastructure": ("Nifty 50",     "^NSEI"),
+    "capital goods":  ("Nifty 50",     "^NSEI"),
+    "construction":   ("Nifty 50",     "^NSEI"),
+    "defence":        ("Nifty 50",     "^NSEI"),
+    "logistics":      ("Nifty 50",     "^NSEI"),
+    "banking":        ("Bank Nifty",   "^NSEBANK"),
+    "financials":     ("Bank Nifty",   "^NSEBANK"),
+    "finance":        ("Bank Nifty",   "^NSEBANK"),
+    "nbfc":           ("Bank Nifty",   "^NSEBANK"),
+    "it":             ("Nifty IT",     "^CNXIT"),
+    "technology":     ("Nifty IT",     "^CNXIT"),
+    "software":       ("Nifty IT",     "^CNXIT"),
+    "pharma":         ("Nifty Pharma", "^CNXPHARMA"),
+    "healthcare":     ("Nifty Pharma", "^CNXPHARMA"),
+    "auto":           ("Nifty Auto",   "^CNXAUTO"),
+    "automobile":     ("Nifty Auto",   "^CNXAUTO"),
+    "energy":         ("Nifty Energy", "^CNXENERGY"),
+    "oil":            ("Nifty Energy", "^CNXENERGY"),
+    "gas":            ("Nifty Energy", "^CNXENERGY"),
+    "power":          ("Nifty Energy", "^CNXENERGY"),
+    "fmcg":           ("Nifty FMCG",  "^CNXFMCG"),
+    "consumer":       ("Nifty FMCG",  "^CNXFMCG"),
+    "metal":          ("Nifty Metal",  "^CNXMETAL"),
+    "steel":          ("Nifty Metal",  "^CNXMETAL"),
+    "mining":         ("Nifty Metal",  "^CNXMETAL"),
+    "realty":         ("Nifty Realty", "^CNXREALTY"),
+    "real estate":    ("Nifty Realty", "^CNXREALTY"),
 }
 
 _CHART_PERIOD_MAP: dict[str, tuple[str, str]] = {
@@ -772,18 +783,104 @@ async def get_ticker_chart(ticker: str, period: str = "1D") -> list[dict]:
     return await loop.run_in_executor(None, _fetch)
 
 
+_sectors_cache: dict = {"ts": 0.0, "data": None}
+_SECTORS_TTL = 300  # 5 minutes
+
+
 async def get_sector_changes() -> list[dict]:
-    """Fetch 1-day % change for each sector ETF."""
+    """Fetch 1-day % change for each sector ETF — parallel fetch with 5-min TTL cache."""
+    import time
+    now = time.time()
+    if _sectors_cache["data"] and now - _sectors_cache["ts"] < _SECTORS_TTL:
+        return _sectors_cache["data"]
+
     loop = asyncio.get_event_loop()
-    results = []
-    for name, ticker in _SECTOR_ETFS.items():
+
+    async def _one(name: str, ticker: str):
         quote = await loop.run_in_executor(None, _fetch_quote, ticker)
         if quote:
             sign = "+" if quote["positive"] else ""
-            results.append({
+            return {
                 "id": name.lower().replace(" ", "-"),
                 "name": name,
                 "value": f"{sign}{quote['pct']:.1f}%",
                 "positive": quote["positive"],
-            })
-    return results
+            }
+        return None
+
+    raw = await asyncio.gather(*[_one(n, t) for n, t in _SECTOR_ETFS.items()])
+    result = [r for r in raw if r is not None]
+    _sectors_cache["ts"]   = now
+    _sectors_cache["data"] = result
+    return result
+
+
+# ── Pre-market data (Asian + US + commodities) ────────────────────────────────
+_ASIAN_MARKETS = {
+    "Nikkei 225": "^N225",
+    "Hang Seng":  "^HSI",
+    "Shanghai":   "000001.SS",
+    "KOSPI":      "^KS11",
+}
+
+_US_INDICES = {
+    "S&P 500":   "^GSPC",
+    "NASDAQ":    "^IXIC",
+    "Dow Jones": "^DJI",
+    "VIX":       "^VIX",
+}
+
+_COMMODITIES = {
+    "Brent Crude": "BZ=F",
+    "Gold":        "GC=F",
+    "Silver":      "SI=F",
+    "DXY":         "DX-Y.NYB",
+    "USD/INR":     "USDINR=X",
+}
+
+_premarket_cache: dict = {"ts": 0.0, "data": None}
+_PREMARKET_TTL = 900  # 15 minutes
+
+
+def _fetch_premarket() -> dict:
+    import time as _time
+    now = _time.time()
+    if now - _premarket_cache["ts"] < _PREMARKET_TTL and _premarket_cache["data"]:
+        return _premarket_cache["data"]
+
+    def _quote_group(tickers: dict) -> list[dict]:
+        result = []
+        for name, ticker in tickers.items():
+            q = _fetch_quote(ticker)
+            if q:
+                sign = "+" if q["positive"] else ""
+                result.append({
+                    "name": name,
+                    "ticker": ticker,
+                    "value": _fmt_price(q["price"]),
+                    "pct": round(q["pct"], 2),
+                    "change_str": f"{sign}{q['pct']:.2f}%",
+                    "positive": q["positive"],
+                })
+            else:
+                result.append({
+                    "name": name, "ticker": ticker,
+                    "value": "—", "pct": 0.0,
+                    "change_str": "—", "positive": True,
+                })
+        return result
+
+    data = {
+        "asian":       _quote_group(_ASIAN_MARKETS),
+        "us":          _quote_group(_US_INDICES),
+        "commodities": _quote_group(_COMMODITIES),
+    }
+    _premarket_cache["ts"] = now
+    _premarket_cache["data"] = data
+    return data
+
+
+async def get_premarket_data() -> dict:
+    """Fetch Asian, US, and commodity quotes for pre-market display (cached 15 min)."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _fetch_premarket)

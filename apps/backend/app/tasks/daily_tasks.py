@@ -217,6 +217,21 @@ async def job_daily_opportunities() -> None:
     log.info("job.daily_opportunities.done", generated=generated, elapsed_ms=elapsed)
 
 
+# ── Pre-market cache warmup — 8:00 AM IST ────────────────────────────────────
+
+async def job_warm_premarket() -> None:
+    """Pre-fetch Asian/US/commodity data at 8 AM so it's cached before 9 AM open."""
+    from app.services.market_data import get_premarket_data
+    log.info("job.warm_premarket.start")
+    try:
+        data = await get_premarket_data()
+        asian_count = len(data.get("asian", []))
+        us_count = len(data.get("us", []))
+        log.info("job.warm_premarket.done", asian=asian_count, us=us_count)
+    except Exception as exc:
+        log.error("job.warm_premarket.error", exc=str(exc))
+
+
 # ── Startup once — seed opportunities if table is empty ─────────────────────
 
 async def job_seed_opportunities() -> None:

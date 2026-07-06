@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import { fetchAPI } from "@/lib/api";
+import { Sparkles, BarChart2, Landmark, Globe, TrendingUp, ClipboardList } from "lucide-react";
 
 interface Event {
   id: string; title: string; summary: string;
@@ -17,11 +19,16 @@ function scoreColor(s: number) {
   return "text-amber-300 bg-amber-500/10 border-amber-500/20";
 }
 
-function categoryIcon(cat: string) {
-  const m: Record<string, string> = {
-    Macro: "📊", Government: "🏛", Policy: "📋", Global: "🌐", RBI: "🏦", Results: "📈",
+function categoryIcon(cat: string): ReactNode {
+  const m: Record<string, ReactNode> = {
+    Macro:      <BarChart2 className="h-4 w-4" />,
+    Government: <Landmark className="h-4 w-4" />,
+    Policy:     <ClipboardList className="h-4 w-4" />,
+    Global:     <Globe className="h-4 w-4" />,
+    RBI:        <Landmark className="h-4 w-4" />,
+    Results:    <TrendingUp className="h-4 w-4" />,
   };
-  return m[cat] ?? "✦";
+  return m[cat] ?? <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>;
 }
 
 export default async function AIWrapPage() {
@@ -46,9 +53,9 @@ export default async function AIWrapPage() {
       </div>
 
       {/* Today's banner */}
-      <div className="rounded-[24px] border border-sky-500/20 bg-sky-500/[0.04] p-6 shadow-glow backdrop-blur-xl">
+      <div className="rounded-[24px] border border-sky-500/20 bg-sky-500/[0.04] p-6 shadow-glow">
         <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 text-xl">✨</div>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300"><Sparkles className="h-5 w-5" /></div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-0.5 text-xs font-medium text-sky-300">AI Generated</span>
@@ -81,9 +88,9 @@ export default async function AIWrapPage() {
               <div className="space-y-4">
                 {evts.map((e) => (
                   <article key={e.id}
-                    className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-white/20">
+                    className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow transition hover:-translate-y-0.5 hover:border-white/20">
                     <div className="flex flex-wrap items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-lg">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-slate-400">
                         {categoryIcon(e.category)}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -114,18 +121,11 @@ export default async function AIWrapPage() {
           ))}
         </div>
       ) : (
-        <div className="flex items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.03] py-20 shadow-glow backdrop-blur-xl">
+        <div className="flex items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.03] py-20 shadow-glow">
           <p className="text-slate-500">No wrap events available. Start the backend to load data.</p>
         </div>
       )}
 
-      <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/[0.04] p-4">
-        <p className="text-xs text-amber-300">
-          ✨ <strong>AI Generation:</strong> Full wrap narratives require the{" "}
-          <strong>DeepSeek / OpenAI API</strong> key configured in <code className="text-amber-200">apps/backend/.env</code>.
-          Set <code className="text-amber-200">DEEPSEEK_API_KEY=sk-...</code> to enable automatic daily wrap generation.
-        </p>
-      </div>
     </main>
   );
 }

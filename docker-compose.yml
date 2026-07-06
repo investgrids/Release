@@ -1,0 +1,54 @@
+services:
+  omniroute:
+    image: diegosouzapw/omniroute:latest
+    ports:
+      - "20128:20128"
+    volumes:
+      - omniroute-data:/app/data
+    environment:
+      PORT: 20128
+      DATA_DIR: /app/data
+    restart: unless-stopped
+
+  backend:
+    build: ./apps/backend
+    env_file: ./apps/backend/.env
+    ports:
+      - "8000:8000"
+    environment:
+      OMNIROUTE_URL: http://omniroute:20128/v1
+    depends_on:
+      omniroute:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: investgrids
+      POSTGRES_USER: ig
+      POSTGRES_PASSWORD: changeme
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ig -d investgrids"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  omniroute-data:

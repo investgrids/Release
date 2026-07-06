@@ -66,7 +66,7 @@ export default function MarketBreadthPage() {
 
       {/* A/D stacked bar + ratio line */}
       <div className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl">
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow">
           <p className="mb-4 text-sm font-semibold text-white">Advance / Decline — 5 Day</p>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={AD_LINE} barGap={4}>
@@ -81,7 +81,7 @@ export default function MarketBreadthPage() {
           </ResponsiveContainer>
         </div>
 
-        <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl">
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow">
           <p className="mb-4 text-sm font-semibold text-white">A/D Ratio — 5 Day</p>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={AD_LINE}>
@@ -102,7 +102,7 @@ export default function MarketBreadthPage() {
       </div>
 
       {/* Sector breadth */}
-      <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl">
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow">
         <p className="mb-5 text-sm font-semibold text-white">Breadth by Sector</p>
         <div className="space-y-3">
           {SECTOR_BREADTH.map((s) => {
@@ -127,7 +127,7 @@ export default function MarketBreadthPage() {
       </div>
 
       {/* FII / DII flow */}
-      <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow backdrop-blur-xl">
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 shadow-glow">
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm font-semibold text-white">FII / DII Net Flow (₹ Cr)</p>
           <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-[10px] text-amber-300">
