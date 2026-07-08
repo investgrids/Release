@@ -133,33 +133,36 @@ export function DashboardHero({ date, status, greeting, timeIST, stats }: Dashbo
       </div>
 
       <div className="relative p-6 pb-5">
-        {/* Top row */}
-        <div className="mb-5 flex items-start justify-between">
-          <div>
-            <motion.h1
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="flex items-center gap-2 text-[26px] font-black text-white tracking-tight">
-              {greeting}, Investor
-              <span className="text-slate-400">{open ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}</span>
-            </motion.h1>
-            <p className="mt-1 text-[13px] text-slate-400">Stay ahead with AI-powered market intelligence</p>
+        {/* Hero headline */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className={`flex h-2 w-2 rounded-full ${open ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`}/>
+            <span className={`text-[11px] font-medium ${open ? "text-emerald-400" : "text-slate-500"}`}>{status}</span>
+            <span className="text-slate-700">·</span>
+            <span className="text-[11px] text-slate-500">{date} · {timeIST} IST</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] text-slate-400">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3 w-3">
-                <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-              </svg>
-              Updated: {date} {timeIST} IST
-              <button className="ml-1 text-slate-600 hover:text-white transition">↻</button>
-            </div>
-            <button className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/[0.08] transition">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3 w-3">
-                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
-              Customize
-            </button>
+          <motion.h1
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="text-[28px] font-black text-white tracking-tight leading-tight max-w-2xl">
+            Not just what happened —{" "}
+            <span className="bg-gradient-to-r from-sky-400 to-violet-400 bg-clip-text text-transparent">
+              what it means for your investments
+            </span>
+          </motion.h1>
+          <p className="mt-2 text-[14px] text-slate-400 max-w-xl leading-relaxed">
+            MarketRipple explains why markets move, which companies are affected, and where opportunities may emerge — with full AI transparency.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <Link href="/events"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-violet-500 px-5 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-violet-500/25 hover:opacity-90 transition">
+              Explore Today&apos;s Market
+            </Link>
+            <Link href="/ai-search"
+              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-5 py-2.5 text-[13px] font-medium text-white hover:bg-white/[0.09] transition">
+              Ask Market AI →
+            </Link>
           </div>
         </div>
 

@@ -2,19 +2,47 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavLoading } from "@/components/NavLoadingProvider";
 import { useAlerts } from "@/components/AlertProvider";
-import { Bell, User } from "lucide-react";
+import { Bell, Sun, Moon } from "lucide-react";
 
 const navItems = [
-  { label: "Market",    href: "/"          },
-  { label: "Events",    href: "/events"    },
-  { label: "Companies", href: "/companies" },
-  { label: "Stories",   href: "/stories"   },
-  { label: "Radar",     href: "/radar"     },
-  { label: "Ripple",    href: "/ripple"    },
-  { label: "AI Search", href: "/ai-search" },
+  {
+    label: "Market",
+    href: "/",
+    subtitle: "Live indices, sectors & market overview",
+  },
+  {
+    label: "Events",
+    href: "/events",
+    subtitle: "Policy decisions, earnings & economic events",
+  },
+  {
+    label: "Company Insights",
+    href: "/companies",
+    subtitle: "Understand businesses beyond stock prices",
+  },
+  {
+    label: "Market Stories",
+    href: "/stories",
+    subtitle: "Deep dives into the themes shaping markets",
+  },
+  {
+    label: "Best Opportunities",
+    href: "/radar",
+    subtitle: "AI-scored sectors and companies worth watching",
+  },
+  {
+    label: "Market Impact",
+    href: "/ripple",
+    subtitle: "See how events ripple across sectors and companies",
+  },
+  {
+    label: "Ask Market AI",
+    href: "/ai-search",
+    subtitle: "Get reasoned answers to any investment question",
+  },
 ];
 
 export function SiteHeader() {
@@ -22,6 +50,20 @@ export function SiteHeader() {
   const [query, setQuery] = useState("");
   const { start } = useNavLoading();
   const { alerts } = useAlerts();
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [tooltip, setTooltip] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("mr_theme") as "dark" | "light" | null;
+      if (saved) setTheme(saved);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("mr_theme", theme); } catch {}
+  }, [theme]);
 
   function isActive(href: string) {
     if (!pathname) return false;
@@ -37,7 +79,7 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 shadow-[0_25px_80px_rgba(2,7,10,0.35)]">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 shadow-[0_25px_80px_rgba(2,7,10,0.35)] dark-header light-header">
       <div className="mx-auto flex h-[68px] max-w-[1600px] items-center gap-4 px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 shrink-0">
@@ -57,37 +99,59 @@ export function SiteHeader() {
             </svg>
             <input
               type="text"
+              name="q"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search events, stocks, sectors…"
+              placeholder="Ask any market question…"
               className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500 min-w-0"
             />
-            <kbd className="hidden sm:inline-flex items-center gap-1 rounded-md border border-white/10 bg-slate-800/80 px-1.5 py-0.5 text-[10px] text-slate-400">
-              <span>⌘</span><span>K</span>
-            </kbd>
           </div>
         </form>
 
         {/* Nav links */}
         <nav className="hidden xl:flex items-center gap-0.5 text-sm text-slate-400 ml-2">
           {navItems.map((item) => (
-            <Link
+            <div
               key={item.label}
-              href={item.href as any}
-              onClick={() => { if (!isActive(item.href)) start(); }}
-              className={`rounded-full px-3 py-1.5 transition text-sm ${
-                isActive(item.href)
-                  ? "bg-white/10 text-white font-medium"
-                  : "hover:bg-white/5 hover:text-white"
-              }`}
+              className="relative"
+              onMouseEnter={() => setTooltip(item.label)}
+              onMouseLeave={() => setTooltip(null)}
             >
-              {item.label}
-            </Link>
+              <Link
+                href={item.href as any}
+                onClick={() => { if (!isActive(item.href)) start(); }}
+                className={`rounded-full px-3 py-1.5 transition text-sm whitespace-nowrap ${
+                  isActive(item.href)
+                    ? "bg-white/10 text-white font-medium"
+                    : "hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                {item.label}
+              </Link>
+              {/* Tooltip */}
+              {tooltip === item.label && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 pointer-events-none">
+                  <div className="rounded-xl border border-white/10 bg-slate-900/95 px-3 py-2 shadow-xl backdrop-blur-sm whitespace-nowrap">
+                    <p className="text-[11px] text-slate-300">{item.subtitle}</p>
+                  </div>
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 h-2 w-2 rotate-45 border-l border-t border-white/10 bg-slate-900/95" />
+                </div>
+              )}
+            </div>
           ))}
         </nav>
 
         {/* Right actions */}
         <div className="ml-auto flex items-center gap-2 shrink-0">
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-slate-900/80 text-slate-400 transition hover:bg-white/5 hover:text-white"
+            title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+
           <div className="relative hidden xl:inline-flex">
             <button className="h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-slate-900/80 text-slate-400 transition hover:bg-white/5 hover:text-white flex">
               <Bell className="h-4 w-4" />
@@ -98,9 +162,6 @@ export function SiteHeader() {
               </span>
             )}
           </div>
-          <button className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-slate-900/80 text-slate-400 transition hover:text-white">
-            <User className="h-4 w-4" />
-          </button>
         </div>
       </div>
     </header>

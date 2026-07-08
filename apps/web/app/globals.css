@@ -13,6 +13,27 @@
   --accent-sky:    56 189 248;   /* #38bdf8 */
   --accent-emerald:52 211 153;   /* #34d399 */
   --accent-rose:   251 113 133;  /* #fb7185 */
+
+  /* Surface tokens (dark default) */
+  --surface-bg:        #020617;
+  --surface-header:    rgba(2, 6, 23, 0.92);
+  --surface-card:      rgba(10, 13, 24, 0.92);
+  --surface-border:    rgba(255, 255, 255, 0.08);
+  --text-primary:      #f1f5f9;
+  --text-secondary:    #94a3b8;
+  --text-muted:        #475569;
+}
+
+/* Light theme overrides — applied when the theme toggle stamps data-theme="light" */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --surface-bg:        #f1f5f9;
+  --surface-header:    rgba(248, 250, 252, 0.95);
+  --surface-card:      rgba(255, 255, 255, 0.95);
+  --surface-border:    rgba(0, 0, 0, 0.09);
+  --text-primary:      #0f172a;
+  --text-secondary:    #475569;
+  --text-muted:        #94a3b8;
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────────── */
@@ -127,6 +148,43 @@ select {
 .glass-bar {
   background: rgba(2, 6, 23, 0.97);
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ── Theme-aware header surfaces ─────────────────────────────────────────────── */
+/* The SiteHeader uses both classes so we can override per data-theme */
+.dark-header {
+  background: rgba(2, 6, 23, 0.90);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="light"] .light-header {
+  background: rgba(248, 250, 252, 0.96) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05), 0 4px 24px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Light theme: re-colour nav text and inputs in the header */
+:root[data-theme="light"] .light-header a,
+:root[data-theme="light"] .light-header nav,
+:root[data-theme="light"] .light-header span {
+  color: #334155;
+}
+:root[data-theme="light"] .light-header input::placeholder {
+  color: #94a3b8;
+}
+:root[data-theme="light"] .light-header input {
+  color: #0f172a;
+}
+:root[data-theme="light"] .light-header form > div {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(0, 0, 0, 0.10);
+}
+
+/* Light theme: page background */
+:root[data-theme="light"] html,
+:root[data-theme="light"] body {
+  background: var(--surface-bg) !important;
+  color: var(--text-primary) !important;
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────────────────────── */

@@ -8,7 +8,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Newspaper, Bot, BarChart2, CheckCircle2, FileText, Scale, Bell, MessageCircle, Landmark, Sparkles } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
-import { InvestmentThesisCard, OpportunityLifecycleCard, MultiHorizonOutlookCard } from "@/components/intelligence";
+import { DecisionIntelligencePanel, IntentBadge, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
+import { InvestmentThesisCard, OpportunityLifecycleCard, MultiHorizonOutlookCard, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard } from "@/components/intelligence";
+import { ShareInsightCard } from "@/components/ShareInsightCard";
+import { SmartCTA } from "@/components/SmartCTA";
+import { RelatedContent } from "@/components/RelatedContent";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Legend, ReferenceLine,
@@ -46,6 +50,7 @@ interface SearchResult {
   investment_verdict: InvestmentVerdict; market_chart: MarketChart;
   graph: { nodes: GraphNode[]; edges: GraphEdge[] };
   citations: string[];
+  decision_intelligence: DecisionIntelligence | null;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -58,10 +63,12 @@ const LOADING_STEPS: { icon: ReactNode; label: string }[] = [
 ];
 
 const EXAMPLES = [
-  "AI impact on Indian IT companies",
-  "RBI rate cut impact on banks",
-  "Solar energy policy impact",
-  "Upcoming IPOs in 2025",
+  "I hold Manappuram Finance. Should I switch to Natco Pharma?",
+  "Should I continue holding BEL or switch to HAL?",
+  "I own Tata Motors. Should I buy Mahindra instead?",
+  "Should I move from Gold to Silver?",
+  "Which is better for 6 months: HAL or BEL?",
+  "Should I rotate from Banking to Pharma?",
 ];
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -216,14 +223,6 @@ function LoadingState({ query }: { query: string }) {
 
 // ── Empty state ────────────────────────────────────────────────────────────────
 function EmptyState({ onSearch }: { onSearch: (q: string) => void }) {
-  const trending = [
-    "What railway stocks benefit from the latest budget?",
-    "RBI rate cut impact on banking sector",
-    "Defence sector growth outlook 2025",
-    "Solar energy policy impact on companies",
-    "Impact of AI on Indian IT industry",
-    "Infrastructure push — which PSUs benefit?",
-  ];
   return (
     <div className="flex flex-col items-center py-16 text-center space-y-8">
       <div className="relative">
@@ -233,13 +232,13 @@ function EmptyState({ onSearch }: { onSearch: (q: string) => void }) {
         <div className="absolute -inset-4 rounded-full bg-violet-500/5 blur-xl"/>
       </div>
       <div>
-        <h2 className="text-xl font-semibold text-white mb-2">Market Intelligence Research Engine</h2>
-        <p className="text-sm text-slate-400 max-w-md">Ask anything about Indian markets, companies, government policies, sectors, or economic events.</p>
+        <h2 className="text-xl font-semibold text-white mb-2">AI Decision Intelligence Engine</h2>
+        <p className="text-sm text-slate-400 max-w-md">Ask any investment decision question — hold, switch, compare, or analyse. Get explainable AI reasoning, trade-offs, and evidence. Never direct advice.</p>
       </div>
       <div className="w-full max-w-lg space-y-3">
         <p className="text-[10px] uppercase tracking-widest text-slate-500">Try these searches</p>
         <div className="grid grid-cols-1 gap-2">
-          {trending.map(q => (
+          {EXAMPLES.map(q => (
             <button key={q} onClick={() => onSearch(q)}
               className="group flex items-center gap-3 rounded-[16px] border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-left text-[13px] text-slate-300 transition hover:border-violet-500/30 hover:bg-violet-500/[0.04] hover:text-white">
               <Search className="h-4 w-4 text-violet-400 shrink-0" />
@@ -270,10 +269,12 @@ function ChartTooltip({ active, payload, label }: any) {
 
 // ── Search results ─────────────────────────────────────────────────────────────
 function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowUp: (q: string) => void }) {
-  const [chartRange, setChartRange] = useState("1D");
   const companiesRef = useRef<HTMLDivElement>(null);
   const { answer, insights, companies, sectors, related_events, news, policies,
-          investment_verdict, market_chart, similar_events, timeline, follow_up_questions } = result;
+          investment_verdict, market_chart, similar_events, timeline, follow_up_questions,
+          decision_intelligence } = result;
+
+  const isDecision = !!decision_intelligence?.intent && decision_intelligence.intent !== "general";
 
   const chartData = (market_chart?.labels || []).map((label, i) => {
     const row: Record<string, any> = { label };
@@ -294,20 +295,53 @@ function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowU
   return (
     <div className="space-y-5 pb-32">
 
+      {/* ── Decision Intelligence Panel (decision-type queries only) ──────── */}
+      {isDecision && decision_intelligence && (
+        <DecisionIntelligencePanel
+          di={decision_intelligence}
+          query={result.query}
+          onRefine={onFollowUp}
+        />
+      )}
+
       {/* ── AI Answer ──────────────────────────────────────────────────────── */}
       <Card className="overflow-hidden">
         {/* Header */}
         <div className="border-b border-white/[0.06] px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/20 text-violet-400"><Sparkles className="h-4 w-4" /></div>
-            <p className="text-[14px] font-semibold text-white">AI Answer</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[14px] font-semibold text-white">AI Answer</p>
+              {isDecision && decision_intelligence && (
+                <IntentBadge intent={decision_intelligence.intent} />
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/[0.08] transition">
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/ai-search?q=${encodeURIComponent(result.query)}`;
+                if (navigator.share) {
+                  navigator.share({ title: "InvestGrids AI Analysis", text: result.query, url }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(url).catch(() => {});
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/[0.08] transition">
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
               Share
             </button>
-            <button className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/[0.08] transition">
+            <button
+              onClick={() => {
+                try {
+                  const SAVED_KEY = "ig_saved_searches";
+                  const existing = JSON.parse(localStorage.getItem(SAVED_KEY) ?? "[]");
+                  const entry = { id: `sv-${Date.now()}`, query: result.query, summary: answer?.summary?.slice(0, 120), timestamp: Date.now() };
+                  const deduped = existing.filter((e: { query: string }) => e.query !== result.query);
+                  localStorage.setItem(SAVED_KEY, JSON.stringify([entry, ...deduped].slice(0, 50)));
+                } catch { /* localStorage unavailable */ }
+              }}
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/[0.08] transition">
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
               Save
             </button>
@@ -321,7 +355,7 @@ function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowU
 
         {/* 4-column insight cards */}
         {insights?.length > 0 && (
-          <div className="grid grid-cols-4 gap-3 px-5 pb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 pb-5">
             {insights.slice(0, 4).map((ins, i) => (
               <div key={i} className="rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-3">
                 <div className="flex items-center gap-2 mb-1.5">
@@ -383,12 +417,14 @@ function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowU
 
                     {/* Price + change */}
                     <div className="flex items-baseline gap-2">
-                      <p className="text-[14px] font-bold text-white">
-                        {co.price === "—" ? "—" : `₹${co.price}`}
-                      </p>
-                      <p className={`text-[12px] font-semibold ${co.positive ? "text-emerald-400" : "text-rose-400"}`}>
-                        {co.change}
-                      </p>
+                      {co.price && co.price !== "—" ? (
+                        <>
+                          <p className="text-[14px] font-bold text-white">₹{co.price}</p>
+                          <p className={`text-[12px] font-semibold ${co.positive ? "text-emerald-400" : "text-rose-400"}`}>{co.change}</p>
+                        </>
+                      ) : (
+                        <p className="text-[11px] text-slate-500 italic">Price unavailable</p>
+                      )}
                     </div>
 
                     {/* Sparkline */}
@@ -424,14 +460,7 @@ function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowU
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[14px] font-semibold text-white">Market Impact Overview</p>
-            <div className="flex gap-1">
-              {["1D","1W","1M","3M","6M","1Y"].map(r => (
-                <button key={r} onClick={() => setChartRange(r)}
-                  className={`rounded-lg px-2 py-0.5 text-[10px] font-medium transition ${chartRange === r ? "bg-violet-500/20 text-violet-300" : "text-slate-500 hover:text-slate-300"}`}>
-                  {r}
-                </button>
-              ))}
-            </div>
+            <span className="rounded-lg px-2 py-0.5 text-[10px] font-medium bg-violet-500/20 text-violet-300">1D</span>
           </div>
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={160}>
@@ -448,7 +477,7 @@ function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowU
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-[160px] items-center justify-center text-[12px] text-slate-500">Chart data loading…</div>
+            <div className="flex h-[160px] items-center justify-center text-[12px] text-slate-500">No chart data available</div>
           )}
         </div>
 
@@ -603,9 +632,13 @@ function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowU
         </Card>
       )}
 
-      {/* ── Investment Thesis ─────────────────────────────────────────────── */}
-      {(investment_verdict?.rating || answer?.why_it_happened) && (
+      {/* ── Investment Thesis (hidden for decision queries — shown in DecisionPanel) */}
+      {!isDecision && (investment_verdict?.rating || answer?.why_it_happened) && (
         <InvestmentThesisCard
+          entityType="search"
+          entityId={result.query.slice(0, 120)}
+          entityTitle={result.query}
+          entityDescription={answer.summary}
           thesis={investment_verdict?.rating ? `${investment_verdict.rating} — ${answer.summary}` : answer.summary}
           whyItMatters={answer.why_it_happened}
           businessImpact={answer.immediate_impact}
@@ -614,6 +647,59 @@ function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowU
           confidence={investment_verdict?.confidence}
           timeHorizon={investment_verdict?.horizon ? `${investment_verdict.horizon} horizon` : undefined}
         />
+      )}
+
+      {/* ── Scenario Analysis ─────────────────────────────────────────────── */}
+      {answer?.summary && (
+        <ScenarioAnalysis
+          entityType="search"
+          entityId={result.query.slice(0, 120)}
+          entityTitle={result.query}
+          entityDescription={answer.summary}
+        />
+      )}
+
+      {/* ── Monitoring Checklist ──────────────────────────────────────────── */}
+      {answer?.summary && (
+        <MonitoringChecklist
+          entityType="search"
+          entityId={result.query.slice(0, 120)}
+          entityTitle={result.query}
+          entityDescription={answer.summary}
+        />
+      )}
+
+      {/* ── Pattern Intelligence ──────────────────────────────────────────── */}
+      {answer?.summary && (
+        <PatternIntelligenceCard
+          entityType="search"
+          entityId={result.query.slice(0, 120)}
+          entityTitle={result.query}
+          entityDescription={answer.summary}
+        />
+      )}
+
+      {/* ── Related Intelligence ──────────────────────────────────────────── */}
+      {answer?.summary && (
+        <RelatedContent
+          entityType="search"
+          entityId={result.query.slice(0, 120)}
+          title={result.query}
+        />
+      )}
+
+      {/* ── Share + Smart CTAs ───────────────────────────────────────────── */}
+      {answer?.summary && (
+        <div className="flex flex-wrap gap-2">
+          <ShareInsightCard
+            entityType="search"
+            entityId={encodeURIComponent(result.query.slice(0, 80))}
+            title={result.query}
+            summary={answer.summary}
+          />
+          <SmartCTA variant="view-event" href="/events" />
+          <SmartCTA variant="explore-opportunity" href="/radar" />
+        </div>
       )}
 
       {/* ── Investment Verdict ────────────────────────────────────────────── */}
@@ -722,6 +808,71 @@ function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowU
           </div>
         </div>
       )}
+
+      {/* ── AI Conclusion ─────────────────────────────────────────────────── */}
+      <Card className="p-5 !border-sky-500/20 !bg-gradient-to-br from-sky-500/[0.05] via-transparent to-violet-500/[0.03]">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <p className="text-[14px] font-semibold text-white">AI Conclusion</p>
+          <span className="ml-auto rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-400">Summary</span>
+        </div>
+        <div className="space-y-3.5">
+          {/* Current Assessment */}
+          <div className="flex gap-4">
+            <span className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500 pt-0.5">Current Assessment</span>
+            <p className="text-[13px] leading-[1.65] text-slate-200">{answer.summary}</p>
+          </div>
+
+          {/* Investment Horizon */}
+          {investment_verdict?.horizon && (
+            <div className="flex items-center gap-4">
+              <span className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Suitable Horizon</span>
+              <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-0.5 text-[12px] font-semibold text-violet-300">
+                {investment_verdict.horizon}
+              </span>
+            </div>
+          )}
+
+          {/* Key Things to Monitor */}
+          {((investment_verdict?.catalysts?.length ?? 0) > 0 || (investment_verdict?.risks?.length ?? 0) > 0) && (
+            <div className="flex gap-4">
+              <span className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500 pt-0.5">Key Monitors</span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  ...(investment_verdict?.catalysts ?? []).slice(0, 2),
+                  ...(investment_verdict?.risks ?? []).slice(0, 2),
+                ].map((item, i) => (
+                  <span key={i} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] text-slate-300">{item}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Confidence bar */}
+          <div className="flex items-center gap-4">
+            <span className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Confidence</span>
+            <div className="flex flex-1 items-center gap-2">
+              <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-violet-400"
+                  style={{ width: `${investment_verdict?.confidence ?? answer.confidence ?? 70}%`, transition: "width 0.8s ease" }}/>
+              </div>
+              <span className="text-[12px] font-bold text-sky-300 shrink-0">{investment_verdict?.confidence ?? answer.confidence ?? 70}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Transparency footer */}
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.05] p-3">
+          <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
+          </svg>
+          <p className="text-[11px] leading-[1.6] text-amber-200/60">
+            AI Transparency: This conclusion is generated by AI using market events, news, and financial data. It is for informational purposes only and does not constitute investment advice. Always consult a qualified financial advisor before making investment decisions.
+          </p>
+        </div>
+      </Card>
     </div>
   );
 }
@@ -790,7 +941,11 @@ function RightSidebar({ result }: { result: SearchResult | null }) {
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[13px] font-semibold text-white">Sources</p>
-            <button className="text-[11px] text-violet-400 hover:text-violet-300 transition">View All →</button>
+            {allSources.length > 4 && (
+              <button onClick={() => setShowAllSources(v => !v)} className="text-[11px] text-violet-400 hover:text-violet-300 transition">
+                {showAllSources ? "Show less" : "View All →"}
+              </button>
+            )}
           </div>
           <div className="space-y-2">
             {visibleSources.map(n => (
@@ -861,7 +1016,7 @@ function RightSidebar({ result }: { result: SearchResult | null }) {
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[13px] font-semibold text-white">Related Policies</p>
-            <Link href="/policies" className="text-[11px] text-violet-400 hover:text-violet-300 transition">View All →</Link>
+            <Link href="/events" className="text-[11px] text-violet-400 hover:text-violet-300 transition">View All →</Link>
           </div>
           <div className="space-y-2.5">
             {result.policies.slice(0, 3).map(p => (
@@ -953,7 +1108,7 @@ export default function AISearchPage() {
     try {
       const SEARCH_KEY = "recent_ai_searches";
       const existing = JSON.parse(localStorage.getItem(SEARCH_KEY) ?? "[]");
-      const entry = { id: `s-${trimmed.slice(0, 40)}`, title: trimmed, href: `/ai-search?q=${encodeURIComponent(trimmed)}`, type: "search", timestamp: Date.now() };
+      const entry = { id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, title: trimmed, href: `/ai-search?q=${encodeURIComponent(trimmed)}`, type: "search", timestamp: Date.now() };
       const deduped = existing.filter((e: { title: string }) => e.title !== trimmed);
       localStorage.setItem(SEARCH_KEY, JSON.stringify([entry, ...deduped].slice(0, 20)));
     } catch { /* localStorage not available */ }
@@ -1015,10 +1170,10 @@ export default function AISearchPage() {
         {/* Page header */}
         <div>
           <div className="flex items-center gap-2.5 mb-0.5">
-            <h1 className="text-2xl font-bold tracking-tight text-white">AI Search</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-white">AI Decision Intelligence</h1>
             <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-semibold text-violet-300 border border-violet-500/30">Beta</span>
           </div>
-          <p className="text-sm text-slate-400">Ask anything about markets, companies, events, policies or the economy.</p>
+          <p className="text-sm text-slate-400">Ask any market question or decision — hold, switch, compare, buy, sell. Get explainable AI reasoning, not direct advice.</p>
         </div>
 
         {/* Search box — textarea for multi-line */}
@@ -1067,6 +1222,22 @@ export default function AISearchPage() {
           )}
         </form>
 
+        {/* Intent indicator — shown after a result with a detected intent */}
+        {result?.decision_intelligence?.intent && result.decision_intelligence.intent !== "general" && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] text-slate-500">Detected:</span>
+            <IntentBadge intent={result.decision_intelligence.intent} />
+            {result.decision_intelligence.detected_holding && (
+              <span className="text-[11px] text-slate-400">
+                {result.decision_intelligence.detected_holding}
+                {result.decision_intelligence.detected_target && (
+                  <> → <span className="text-violet-300">{result.decision_intelligence.detected_target}</span></>
+                )}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Error state */}
         <AnimatePresence>
           {error && (
@@ -1108,7 +1279,7 @@ export default function AISearchPage() {
       {/* ── Fixed bottom follow-up bar ───────────────────────────────────────── */}
       {(result || loading) && (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-slate-950/95 px-6 py-3">
-          <div className="mx-auto max-w-[1600px]" style={{ paddingLeft: "240px" }}>
+          <div className="mx-auto max-w-[1600px]">
             <form onSubmit={handleFollowUpSubmit}
               className="flex items-center gap-3 rounded-[18px] border border-white/[0.08] bg-[#0d1117] px-4 py-2.5">
               <input type="text" value={followUp} onChange={e => setFollowUp(e.target.value)}

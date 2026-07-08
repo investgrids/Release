@@ -6,6 +6,7 @@ import { AITransparencyPanel }  from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer }         from "@/components/ai/AIDisclaimer";
 import { InvestmentThesisCard } from "@/components/intelligence";
 import { SmartHero }            from "@/components/dashboard/SmartHero";
+import { TodaysMarketRipple }  from "@/components/dashboard/TodaysMarketRipple";
 import { DashboardMarketTabs }  from "@/components/DashboardMarketTabs";
 import { MarketOverviewSection } from "@/components/MarketOverviewSection";
 import { SectorPerformanceCard } from "@/components/SectorPerformanceCard";
@@ -287,6 +288,96 @@ async function DashboardMainContent() {
   );
 }
 
+function HowItWorksSection() {
+  const steps = [
+    {
+      num: "01", title: "Event Happens",
+      desc: "RBI decisions, earnings, policy changes — we track every market-moving event in real time.",
+      border: "border-sky-500/20", glow: "from-sky-500/10 to-transparent",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-sky-400">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+        </svg>
+      ),
+    },
+    {
+      num: "02", title: "AI Analyzes Impact",
+      desc: "Our AI explains what happened, why it matters, and how markets are likely to react.",
+      border: "border-violet-500/20", glow: "from-violet-500/10 to-transparent",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-violet-400">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        </svg>
+      ),
+    },
+    {
+      num: "03", title: "Companies Identified",
+      desc: "We pinpoint exactly which companies gain or lose — scored by confidence and impact level.",
+      border: "border-emerald-500/20", glow: "from-emerald-500/10 to-transparent",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-emerald-400">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      ),
+    },
+    {
+      num: "04", title: "Opportunities Scored",
+      desc: "The Opportunity Radar ranks the best investments that emerge from each market event.",
+      border: "border-amber-500/20", glow: "from-amber-500/10 to-transparent",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-amber-400">
+          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+        </svg>
+      ),
+    },
+    {
+      num: "05", title: "Better Decisions",
+      desc: "Ask Market AI any question — get reasoned answers with full AI transparency, not guesswork.",
+      border: "border-teal-500/20", glow: "from-teal-500/10 to-transparent",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-teal-400">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="py-1">
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <h2 className="text-[15px] font-bold text-white">How MarketRipple Works</h2>
+          <p className="text-[11px] text-slate-500 mt-0.5">From market event to investment decision — in 5 steps</p>
+        </div>
+        <Link href="/ai-search" className="text-[11px] font-medium text-sky-400 hover:text-sky-300 transition">
+          Try it now →
+        </Link>
+      </div>
+      <div className="grid grid-cols-5 gap-3">
+        {steps.map((step, i) => (
+          <div key={i} className="relative flex flex-col">
+            {/* Arrow connector */}
+            {i < steps.length - 1 && (
+              <div className="pointer-events-none absolute -right-2 top-[22px] z-10 text-slate-700">›</div>
+            )}
+            <div className={`flex-1 rounded-[18px] border ${step.border} bg-gradient-to-br ${step.glow} p-4`}>
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-[10px] font-black tracking-widest text-slate-600">{step.num}</span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.05]">
+                  {step.icon}
+                </div>
+              </div>
+              <p className="text-[12px] font-bold text-white mb-1.5">{step.title}</p>
+              <p className="text-[10px] leading-[1.55] text-slate-500">{step.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TopThemesSection() {
   return (
     <div>
@@ -458,6 +549,25 @@ async function TickerBarSection() {
   );
 }
 
+// ── Today's Market Ripple hero — streams in from dashboard + radar ────────────
+async function TodaysMarketRippleSection() {
+  const [dashboard, radarData] = await Promise.all([getDashboard(), getRadar()]);
+  const { heroDate, marketStatus } = getTimeData();
+  return (
+    <TodaysMarketRipple
+      aiSummary={
+        dashboard?.aiSummary
+          ?? "Indian markets navigating global macro cues with domestic fundamentals remaining robust. Institutional flows and sector rotation are the key themes driving today's session."
+      }
+      trendingEvents={dashboard?.trending_events ?? []}
+      topMovers={dashboard?.top_movers ?? {}}
+      radarItems={radarData?.items ?? []}
+      heroDate={heroDate}
+      marketStatus={marketStatus}
+    />
+  );
+}
+
 // ── Page shell (synchronous — renders immediately) ────────────────────────────
 export default function HomePage() {
   const { timeIST, heroDate, marketStatus, greeting } = getTimeData();
@@ -467,6 +577,13 @@ export default function HomePage() {
       {/* ── MAIN CONTENT ───────────────────────────────────────────────────── */}
       <div className="min-w-0 space-y-5 pb-36">
 
+        {/* Today's Market Ripple — streams in alongside dashboard + radar */}
+        <Suspense fallback={
+          <div className="h-[480px] animate-pulse rounded-[28px] border border-indigo-500/10 bg-indigo-500/[0.03]" />
+        }>
+          <TodaysMarketRippleSection />
+        </Suspense>
+
         {/* Hero — SmartHero detects first vs returning visit via localStorage */}
         <SmartHero
           greeting={greeting}
@@ -475,6 +592,9 @@ export default function HomePage() {
           timeIST={timeIST}
           stats={FALLBACK_HERO_STATS}
         />
+
+        {/* How MarketRipple Works — shown to help first-time visitors understand the product */}
+        <HowItWorksSection />
 
         {/* Market Session Tabs — client component, fetches own data */}
         <DashboardMarketTabs />
