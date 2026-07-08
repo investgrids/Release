@@ -5,7 +5,10 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
-import { InvestmentThesis, ScenarioAnalysis, MonitoringChecklist, OpportunityLifecycleCard } from "@/components/intelligence";
+import { InvestmentThesis, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, OpportunityLifecycleCard } from "@/components/intelligence";
+import { ShareInsightCard } from "@/components/ShareInsightCard";
+import { SmartCTA } from "@/components/SmartCTA";
+import { RelatedContent } from "@/components/RelatedContent";
 import {
   Star, Check, Sparkles, TrendingUp, IndianRupee, Target, Zap,
   BarChart2, ClipboardList, CheckCircle2, Rocket, Globe2, FlaskConical,
@@ -231,7 +234,7 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted }: {
       className={`${CARD} p-6`}>
       {/* Breadcrumb */}
       <div className="mb-4 flex items-center gap-2 text-[11px] text-slate-600">
-        <Link href="/stocks" className="hover:text-slate-400 transition">Companies</Link>
+        <Link href="/companies" className="hover:text-slate-400 transition">Companies</Link>
         <span>›</span>
         <span className="text-slate-400">{stock.name}</span>
       </div>
@@ -1631,7 +1634,7 @@ export default function StockPage({ params }: PageProps) {
       <TrendingDown className="h-16 w-16 text-slate-500" />
       <h1 className="text-2xl font-semibold text-white">{symbol.toUpperCase()} not found</h1>
       <p className="text-slate-400">Not listed on NSE or backend offline.</p>
-      <Link href="/stocks" className="mt-2 rounded-full bg-sky-500/15 px-5 py-2 text-sm text-sky-300 hover:bg-sky-500/25 transition">← Back to Companies</Link>
+      <Link href="/companies" className="mt-2 rounded-full bg-sky-500/15 px-5 py-2 text-sm text-sky-300 hover:bg-sky-500/25 transition">← Back to Companies</Link>
     </main>
   );
 
@@ -1665,6 +1668,11 @@ export default function StockPage({ params }: PageProps) {
                 </div>
 
                 <InvestmentThesis
+                  entityType="company"
+                  entityId={stock.symbol}
+                  entityTitle={stock.name}
+                  entityDescription={stock.description}
+                  entitySector={stock.sector}
                   thesis={stock.description ? stock.description.slice(0, 280) : `${stock.name} operates in the ${stock.sector} with analyst consensus at ${stock.recommendation}.`}
                   confidence={stock.buy_count != null && stock.analyst_count
                     ? Math.round((stock.buy_count / Math.max(stock.analyst_count, 1)) * 100)
@@ -1685,6 +1693,11 @@ export default function StockPage({ params }: PageProps) {
                 />
 
                 <ScenarioAnalysis
+                  entityType="company"
+                  entityId={stock.symbol}
+                  entityTitle={stock.name}
+                  entityDescription={stock.description}
+                  entitySector={stock.sector}
                   bull={{ probability: 30, description: "Strong earnings growth and sector re-rating drive outperformance.", target: stock.target_high || undefined }}
                   base={{ probability: 50, description: "Company delivers in line with consensus estimates.", target: stock.target_mean || undefined }}
                   bear={{ probability: 20, description: "Earnings miss or macro headwinds compress valuation multiples.", target: stock.target_low || undefined }}
@@ -1714,14 +1727,38 @@ export default function StockPage({ params }: PageProps) {
                 />
 
                 <MonitoringChecklist
-                  items={[
-                    { label: "Quarterly earnings vs consensus estimates", priority: "critical" as const },
-                    { label: `${stock.sector || "Sector"} index and policy changes`, priority: "high" as const },
-                    { label: "FII/DII holding changes (quarterly filing)", priority: "high" as const },
-                    { label: "Promoter holding changes", priority: "medium" as const },
-                    { label: "Revenue growth trajectory", priority: "medium" as const },
-                  ]}
+                  entityType="company"
+                  entityId={stock.symbol}
+                  entityTitle={stock.name}
+                  entityDescription={stock.description}
+                  entitySector={stock.sector}
                 />
+                <PatternIntelligenceCard
+                  entityType="company"
+                  entityId={stock.symbol}
+                  entityTitle={stock.name}
+                  entityDescription={stock.description}
+                  entitySector={stock.sector}
+                />
+
+                <RelatedContent
+                  entityType="company"
+                  entityId={stock.symbol}
+                  title={stock.name}
+                  sector={stock.sector}
+                />
+              </div>
+
+              {/* Smart CTAs */}
+              <div className="flex flex-wrap gap-2">
+                <ShareInsightCard
+                  entityType="company"
+                  entityId={stock.symbol}
+                  title={`${stock.name} (${stock.symbol})`}
+                  summary={stock.description?.slice(0, 120)}
+                />
+                <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(`${stock.name} stock analysis`)}`} />
+                <SmartCTA variant="view-ripple" href="/ripple" />
               </div>
 
               <StockDNA stock={stock}/>
