@@ -577,13 +577,6 @@ export default function HomePage() {
       {/* ── MAIN CONTENT ───────────────────────────────────────────────────── */}
       <div className="min-w-0 space-y-5 pb-36">
 
-        {/* Today's Market Ripple — streams in alongside dashboard + radar */}
-        <Suspense fallback={
-          <div className="h-[480px] animate-pulse rounded-[28px] border border-indigo-500/10 bg-indigo-500/[0.03]" />
-        }>
-          <TodaysMarketRippleSection />
-        </Suspense>
-
         {/* Hero — SmartHero detects first vs returning visit via localStorage */}
         <SmartHero
           greeting={greeting}
@@ -592,6 +585,13 @@ export default function HomePage() {
           timeIST={timeIST}
           stats={FALLBACK_HERO_STATS}
         />
+
+        {/* Today's Market Ripple — streams in alongside dashboard + radar */}
+        <Suspense fallback={
+          <div className="h-[480px] animate-pulse rounded-[28px] border border-indigo-500/10 bg-indigo-500/[0.03]" />
+        }>
+          <TodaysMarketRippleSection />
+        </Suspense>
 
         {/* How MarketRipple Works — shown to help first-time visitors understand the product */}
         <HowItWorksSection />
