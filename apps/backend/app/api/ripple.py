@@ -13,6 +13,16 @@ from app.services.ripple_service import get_or_generate_ripple, generate_scenari
 
 router = APIRouter()
 
+# Static demo ripples — shown on the list page when the DB has no high-impact events
+_DEMO_RIPPLES: dict[str, dict] = {
+    "1": {"title": "India-Pakistan Military Tensions",   "event_type": "geopolitical", "impact": 9.2},
+    "2": {"title": "RBI Emergency Rate Cut — 50 bps",   "event_type": "monetary",     "impact": 8.7},
+    "3": {"title": "Union Budget 2026 — Capex Surge",   "event_type": "fiscal",       "impact": 8.1},
+    "4": {"title": "OPEC+ Cuts Production by 2M bbl/d", "event_type": "commodity",    "impact": 8.5},
+    "5": {"title": "FII Record Inflows — ₹45,000Cr",    "event_type": "macro",        "impact": 7.8},
+    "6": {"title": "India GDP Growth Hits 8.4% Q2",     "event_type": "macro",        "impact": 7.3},
+}
+
 
 # ── GET /api/ripple/event/{event_id} ─────────────────────────────────────────
 
@@ -26,6 +36,13 @@ async def get_event_ripple(
     ev_res = await db.execute(select(Event).where(Event.id == event_id))
     event  = ev_res.scalar_one_or_none()
     if not event:
+        # Handle demo IDs from the static fallback list page
+        if event_id in _DEMO_RIPPLES:
+            demo = _DEMO_RIPPLES[event_id]
+            return await generate_scenario_ripple(
+                f"{demo['title']}: market ripple analysis — cascading effects across sectors, commodities, and companies",
+                db,
+            )
         raise HTTPException(status_code=404, detail="Event not found")
 
     # Load junction-table companies/sectors

@@ -58,6 +58,7 @@ export function EconomicCalendarTab({ initialEvents }: { initialEvents?: any[] }
     fetch(`${API}/api/market/calendar`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.events) setEvents(d.events); })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 

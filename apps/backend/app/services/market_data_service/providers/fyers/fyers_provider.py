@@ -86,7 +86,7 @@ class FyersProvider(MarketDataProvider):
 
         # Fallback to yfinance if Fyers returns nothing
         if result is None:
-            log.debug("fyers_provider.quote_fallback", symbol=symbol)
+            log.debug("fyers_provider.quote_fallback symbol=%s", symbol)
             result = await self._yf.get_quote(symbol)
 
         return result
@@ -131,7 +131,7 @@ class FyersProvider(MarketDataProvider):
         candles = await loop.run_in_executor(_executor, _fetch)
 
         if not candles:
-            log.debug("fyers_provider.history_fallback", symbol=symbol)
+            log.debug("fyers_provider.history_fallback symbol=%s", symbol)
             candles = await self._yf.get_historical_candles(symbol, period, interval)
 
         return candles
@@ -196,4 +196,4 @@ class FyersProvider(MarketDataProvider):
                 except asyncio.QueueFull:
                     pass
         except Exception as exc:
-            log.warning("fyers_provider.tick_error", error=str(exc))
+            log.warning("fyers_provider.tick_error error=%s", str(exc))

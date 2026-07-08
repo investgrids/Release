@@ -54,7 +54,7 @@ class PIBProvider(BaseProvider):
         async with httpx.AsyncClient(headers=_HEADERS, timeout=12, follow_redirects=True) as c:
             r = await c.get(_URL)
             r.raise_for_status()
-        return _parse_xml(r.text)
+        return _parse_xml(r.content)
 
     async def fetch_by_date(self, target: date) -> list[dict]:
         items = await self.fetch_latest()
@@ -79,9 +79,9 @@ class PIBProvider(BaseProvider):
         )
 
 
-def _parse_xml(text: str) -> list[dict]:
+def _parse_xml(data: bytes) -> list[dict]:
     try:
-        root = ET.fromstring(text)
+        root = ET.fromstring(data)
     except ET.ParseError:
         return []
     results = []

@@ -96,7 +96,7 @@ class FyersRestClient:
             log.warning("fyers_rest.sdk_missing — fyers-apiv3 not installed")
             self._client = None
         except Exception as exc:
-            log.error("fyers_rest.build_error", error=str(exc))
+            log.error("fyers_rest.build_error error=%s", str(exc))
             self._client = None
 
     def is_ready(self) -> bool:
@@ -124,7 +124,7 @@ class FyersRestClient:
                 result[plain_sym] = item
             return result
         except Exception as exc:
-            log.error("fyers_rest.quotes_error", error=str(exc))
+            log.error("fyers_rest.quotes_error error=%s", str(exc))
             return {}
 
     # ── Historical candles ────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ class FyersRestClient:
                 return []
             return resp.get("candles", [])
         except Exception as exc:
-            log.error("fyers_rest.history_error", error=str(exc))
+            log.error("fyers_rest.history_error error=%s", str(exc))
             return []
 
     # ── Company profile ───────────────────────────────────────────────────────
@@ -175,5 +175,5 @@ class FyersRestClient:
                 return None
             return resp.get("d", {}).get(fyers_sym)
         except Exception as exc:
-            log.error("fyers_rest.depth_error", error=str(exc))
+            log.error("fyers_rest.depth_error error=%s", str(exc))
             return None

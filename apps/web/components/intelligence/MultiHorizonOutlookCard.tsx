@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronRight, Zap, RefreshCw } from "lucide-react";
+import type { ComponentType } from "react";
+import { ChevronDown, ChevronRight, Zap, RefreshCw, TrendingUp, TrendingDown, ArrowUp, ArrowDown, ArrowUpRight, Minus, Clock, Target, BarChart2, Globe } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,14 +46,31 @@ export interface MultiHorizonOutlookCardProps {
 // ── Visual config ─────────────────────────────────────────────────────────────
 
 const LEVEL_CONFIG: Record<OutlookLevel, {
-  dot: string; badge: string; label: string; indicator: string;
+  dot: string; badge: string; label: string;
 }> = {
-  5: { dot: "bg-emerald-400", badge: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10", label: "text-emerald-400", indicator: "🟢" },
-  4: { dot: "bg-emerald-400", badge: "text-emerald-300 border-emerald-500/25 bg-emerald-500/8",  label: "text-emerald-300", indicator: "🟢" },
-  3: { dot: "bg-sky-400",     badge: "text-sky-400 border-sky-500/30 bg-sky-500/10",             label: "text-sky-400",     indicator: "🟢" },
-  2: { dot: "bg-amber-400",   badge: "text-amber-400 border-amber-500/30 bg-amber-500/10",       label: "text-amber-400",   indicator: "🟡" },
-  1: { dot: "bg-orange-400",  badge: "text-orange-400 border-orange-500/30 bg-orange-500/10",    label: "text-orange-400",  indicator: "🟠" },
-  0: { dot: "bg-rose-400",    badge: "text-rose-400 border-rose-500/30 bg-rose-500/10",          label: "text-rose-400",    indicator: "🔴" },
+  5: { dot: "bg-emerald-400", badge: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10", label: "text-emerald-400" },
+  4: { dot: "bg-emerald-400", badge: "text-emerald-300 border-emerald-500/25 bg-emerald-500/8",  label: "text-emerald-300" },
+  3: { dot: "bg-sky-400",     badge: "text-sky-400 border-sky-500/30 bg-sky-500/10",             label: "text-sky-400"     },
+  2: { dot: "bg-amber-400",   badge: "text-amber-400 border-amber-500/30 bg-amber-500/10",       label: "text-amber-400"   },
+  1: { dot: "bg-orange-400",  badge: "text-orange-400 border-orange-500/30 bg-orange-500/10",    label: "text-orange-400"  },
+  0: { dot: "bg-rose-400",    badge: "text-rose-400 border-rose-500/30 bg-rose-500/10",          label: "text-rose-400"    },
+};
+
+const LEVEL_ICON: Record<OutlookLevel, ComponentType<{ className?: string }>> = {
+  5: TrendingUp,
+  4: ArrowUp,
+  3: ArrowUpRight,
+  2: Minus,
+  1: ArrowDown,
+  0: TrendingDown,
+};
+
+const HORIZON_ICON: Record<string, ComponentType<{ className?: string }>> = {
+  immediate:   Zap,
+  short_term:  Clock,
+  medium_term: Target,
+  long_term:   BarChart2,
+  structural:  Globe,
 };
 
 function outlookLevel(level: number): OutlookLevel {
@@ -98,7 +116,7 @@ function HorizonRow({
       {/* ── Timeline spine ─────────────────────────────────────────────────── */}
       <div className="flex flex-col items-center">
         <div className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-slate-900 flex items-center justify-center shadow-sm ${cfg.dot}`}>
-          <span className="text-[8px] font-black text-slate-900">{cfg.indicator === "🟢" ? "↑" : cfg.indicator === "🟡" ? "—" : cfg.indicator === "🟠" ? "!" : "↓"}</span>
+          {(() => { const LvlIcon = LEVEL_ICON[level]; return <LvlIcon className="h-2.5 w-2.5 text-slate-900" />; })()}
         </div>
         {!isLast && (
           <div className="mt-1 w-px flex-1 min-h-[28px] bg-white/[0.07]" />
@@ -110,15 +128,16 @@ function HorizonRow({
         {/* Header row */}
         <div className="flex items-start justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-base leading-none">{horizon.icon}</span>
+            {(() => { const HIcon = HORIZON_ICON[horizon.id] ?? Zap; return <HIcon className="h-4 w-4 text-slate-400" />; })()}
             <div>
               <span className="text-[12px] font-bold text-white">{horizon.label}</span>
               <span className="ml-1.5 text-[10px] text-slate-500">{horizon.range}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${cfg.badge}`}>
-              {cfg.indicator} {horizon.outlook}
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${cfg.badge}`}>
+              <span className={`h-1.5 w-1.5 rounded-full flex-none ${cfg.dot}`} />
+              {horizon.outlook}
             </span>
             {!compact && hasDetails && (
               <button
@@ -316,8 +335,16 @@ export function MultiHorizonOutlookCard({
       {/* ── Legend ─────────────────────────────────────────────────────────── */}
       {!loading && !error && visible.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-white/[0.04] pt-3">
-          {(["🟢 Positive", "🟡 Neutral", "🟠 Cautious", "🔴 Negative"] as const).map(l => (
-            <span key={l} className="text-[10px] text-slate-600">{l}</span>
+          {([
+            { color: "bg-emerald-400", label: "Positive" },
+            { color: "bg-amber-400",   label: "Neutral"  },
+            { color: "bg-orange-400",  label: "Cautious" },
+            { color: "bg-rose-400",    label: "Negative" },
+          ] as const).map(l => (
+            <span key={l.label} className="flex items-center gap-1 text-[10px] text-slate-600">
+              <span className={`h-1.5 w-1.5 rounded-full ${l.color}`} />
+              {l.label}
+            </span>
           ))}
           {!compact && (
             <span className="ml-auto text-[10px] text-slate-700">Click any row to expand catalysts &amp; risks</span>

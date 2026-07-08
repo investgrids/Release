@@ -220,7 +220,7 @@ Return:
             }
             trend = parsed.get("trend", "Positive")
             risk = parsed.get("risk_level", "Medium")
-            horizon = parsed.get("time_horizon", "3 â€“ 5 Years")
+            horizon = parsed.get(“time_horizon”, “3-5 Years”)
 
     # Heuristic fallbacks
     if not title:

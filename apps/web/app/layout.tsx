@@ -21,16 +21,37 @@ const inter = Inter({
   preload: true,
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.com";
+
 export const metadata: Metadata = {
-  title: "MarketRipple — AI-Powered Market Intelligence",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default:  "MarketRipple — AI-Powered Market Intelligence for India",
+    template: "%s | MarketRipple",
+  },
   description:
-    "Understand market events, ripple effects, and investment opportunities with AI-powered analysis. MarketRipple connects events to companies to stories.",
+    "Understand Indian market events, ripple effects, and investment opportunities with AI-powered analysis. MarketRipple traces how events ripple through sectors, companies, and portfolios.",
+  keywords: ["Indian stock market", "market intelligence", "investment analysis", "Nifty", "BSE", "NSE", "AI finance", "ripple effect", "market events"],
+  authors: [{ name: "MarketRipple" }],
+  creator: "MarketRipple",
+  publisher: "MarketRipple",
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   openGraph: {
     type:        "website",
     siteName:    "MarketRipple",
-    title:       "MarketRipple — AI-Powered Market Intelligence",
-    description: "Understand market events, ripple effects, and investment opportunities with AI-powered analysis.",
+    title:       "MarketRipple — AI-Powered Market Intelligence for India",
+    description: "Understand Indian market events, ripple effects, and investment opportunities with AI-powered analysis.",
+    url:         SITE_URL,
+    locale:      "en_IN",
   },
+  twitter: {
+    card:        "summary_large_image",
+    site:        "@marketripple",
+    creator:     "@marketripple",
+    title:       "MarketRipple — AI-Powered Market Intelligence for India",
+    description: "Understand Indian market events, ripple effects, and investment opportunities with AI-powered analysis.",
+  },
+  alternates: { canonical: SITE_URL },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +61,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // causing a harmless but noisy hydration mismatch warning.
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="min-h-screen bg-slate-950 text-slate-100 font-[family-name:var(--font-inter)]">
+        <script
+          type="application/ld+json"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static JSON-LD
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "MarketRipple",
+            url: SITE_URL,
+            description: "AI-powered market intelligence platform for Indian equity markets.",
+            sameAs: [],
+          }) }}
+        />
         <NavigationProgress />
         <AlertProvider>
           <NavLoadingProvider>

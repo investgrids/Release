@@ -9,21 +9,19 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const url = `${SITE}/events/${id}`;
+  const url = `${SITE}/ripple/${id}`;
   try {
-    const res = await fetch(`${API}/api/events/${id}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${API}/api/ripple/${id}`, { next: { revalidate: 3600 } });
     if (res.ok) {
-      const data = await res.json();
-      const event = data.event ?? data;
-      const title = event.title ?? "Market Event";
-      const desc  = (data.summary?.text ?? event.description ?? "").slice(0, 160) || "Market event analysis on MarketRipple.";
+      const data  = await res.json();
+      const title = data.event_title ?? data.title ?? "Ripple Intelligence";
+      const desc  = (data.insights?.summary ?? data.summary ?? "").slice(0, 160) || "Trace how a market event ripples through sectors and companies on MarketRipple.";
       return {
-        title,
+        title: `${title} — Ripple Intelligence`,
         description: desc,
         openGraph: {
-          type: "article", title, description: desc, url,
+          type: "article", title: `${title} — Ripple Intelligence`, description: desc, url,
           siteName: "MarketRipple",
-          publishedTime: event.event_date,
         },
         twitter: { card: "summary_large_image", title, description: desc },
         alternates: { canonical: url },
@@ -31,8 +29,8 @@ export async function generateMetadata({
     }
   } catch {}
   return {
-    title: "Market Event",
-    description: "Event-driven market intelligence from MarketRipple.",
+    title: "Ripple Intelligence",
+    description: "Trace how market events ripple through sectors and companies on MarketRipple.",
     alternates: { canonical: url },
   };
 }

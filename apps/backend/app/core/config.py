@@ -1,16 +1,35 @@
 from __future__ import annotations
 
+import os
 from typing import List
 from pydantic_settings import BaseSettings
 
 
+def _default_cors() -> List[str]:
+    origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    # Allow any Vercel preview/production deployment automatically
+    vercel_url = os.environ.get("VERCEL_URL", "")
+    frontend_url = os.environ.get("FRONTEND_URL", "")
+    if vercel_url:
+        origins.append(f"https://{vercel_url}")
+    if frontend_url:
+        origins.append(frontend_url)
+    return origins
+
+
 class Settings(BaseSettings):
     app_name: str = "IG Market Intelligence"
-    backend_cors_origins: List[str] = ["http://localhost:3000"]
+    backend_cors_origins: List[str] = []
+    frontend_url: str = ""    # set on Railway: https://web-khaki-seven-98.vercel.app
     log_level: str = "INFO"
     json_logs: bool = False          # True in production for structured JSON
 
     # ── Database ──────────────────────────────────────────────────────────────
+    # On Railway: set DATABASE_URL to sqlite+aiosqlite:////data/ig.db
+    # (note 4 slashes = absolute path /data/ig.db on the mounted volume)
     database_url: str = "sqlite+aiosqlite:///./ig_dev.db"
     db_pool_size: int = 10
     db_max_overflow: int = 20

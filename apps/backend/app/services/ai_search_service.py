@@ -40,9 +40,9 @@ def _ck(query: str) -> str:
     return hashlib.md5(query.lower().strip().encode()).hexdigest()
 
 
-def _cget(key: str) -> Any | None:
+def _cget(key: str, ttl: int = _TTL) -> Any | None:
     e = _CACHE.get(key)
-    return e[1] if e and time.time() - e[0] < _TTL else None
+    return e[1] if e and time.time() - e[0] < ttl else None
 
 
 def _cset(key: str, val: Any) -> None:
@@ -77,7 +77,7 @@ def _extract_entities(query: str) -> dict:
 
 # ── DB search helpers ─────────────────────────────────────────────────────────
 def _words(query: str) -> list[str]:
-    return [w for w in re.findall(r"\w+", query.lower()) if len(w) > 3][:6]
+    return [w for w in re.findall(r"\w+", query.lower()) if len(w) >= 2][:8]
 
 
 async def _search_events(db: AsyncSession, query: str, limit: int = 10) -> list[dict]:
@@ -166,6 +166,201 @@ async def _search_policies(db: AsyncSession, query: str, limit: int = 5) -> list
     ]
 
 
+# ── Intent detection ──────────────────────────────────────────────────────────
+_DECISION_INTENTS = {
+    "switch":           [r"\bswitch(?:ing)?\b", r"\brotate?\b", r"\binstead of\b", r"\bsell.{1,30}buy\b", r"\bmove from\b", r"\breplace\b"],
+    "hold":             [r"\bshould i hold\b", r"\bkeep holding\b", r"\bcontinue holding\b", r"\bstill hold\b", r"\bhold or sell\b"],
+    "compare":          [r"\bcompare\b", r"\bvs\.?\b", r"\bversus\b", r"\bbetter than\b", r"\bwhich is better\b", r"\bwhich (?:one|company|stock)\b"],
+    "sell":             [r"\bshould i sell\b", r"\bwhen to sell\b", r"\bexit\b", r"\bbook (?:profit|loss)\b"],
+    "list_picks":       [r"\bgive me \d+\b", r"\btop \d+ stocks?\b", r"\bbest \d+ stocks?\b", r"\brecommend \d+\b", r"\b\d+ best (?:stocks?|picks?)\b", r"\bwhich \d+ stocks?\b"],
+    "news_reaction":    [r"\bjust (?:announced|reported|won|got|received|published)\b", r"\bafter.*q[1-4].*results?\b", r"\bq[1-4].*results?.*\bwhat\b", r"\bbreaking.*market\b", r"\breaction to\b", r"\bwhat (?:should i do|does this mean|now)\b.*\b(?:won|lost|beat|missed|announced)\b"],
+    "earnings_preview": [r"\bbefore (?:earnings|results|q[1-4])\b", r"\bpre.?(?:earnings|results?)\b", r"\bahead of (?:earnings|results?)\b", r"\bearnings (?:this|next) (?:week|month)\b"],
+    "entry_timing":     [r"\bgood time to enter\b", r"\bright time to (?:buy|invest)\b", r"\bentry (?:point|level|price)\b", r"\bwhen (?:to|should i) enter\b"],
+    "portfolio_review": [r"\bmy portfolio\b", r"\bconcentration risk\b", r"\basset allocation\b", r"\brebalance\b", r"\bportfolio (?:is|has|with)\b", r"\bi (?:own|hold|have) .+,"],
+    "buy":              [r"\bshould i buy\b", r"\bgood time to buy\b", r"\bworth buying\b", r"\bcan i buy\b"],
+    "decision":         [r"\bshould i\b", r"\bworth it\b", r"\bgood investment\b", r"\bsafe to invest\b"],
+}
+
+_HOLDING_RE = re.compile(
+    r"(?:i (?:hold|own|have|bought|invested in|am holding|currently hold|am in)|"
+    r"my (?:investment|portfolio|position|holding) (?:in|of)|"
+    r"i already (?:have|own|hold)|"
+    r"i (?:am planning to sell|want to sell))\s+([A-Za-z0-9 &.]+?)(?:\.|,|$|\?| and | should)",
+    re.IGNORECASE,
+)
+_TARGET_RE = re.compile(
+    r"(?:(?:buy|switch to|move to|invest in|purchase|rotate to|into)\s+([A-Za-z0-9 &.]+?)(?:\.|,|$|\?| instead| rather| now)|"
+    r"(?:and buy|to buy|or buy)\s+([A-Za-z0-9 &.]+?)(?:\.|,|$|\?))",
+    re.IGNORECASE,
+)
+_HORIZON_RE = re.compile(
+    r"\b(\d+[-\s](?:month|year|week)s?|short.?term|medium.?term|long.?term|"
+    r"1\s*month|3\s*months?|6\s*months?|1\s*year|3.5\s*years?)\b",
+    re.IGNORECASE,
+)
+_RISK_RE = re.compile(
+    r"\b(conservative|moderate|aggressive|low risk|high risk|safe)\b", re.IGNORECASE
+)
+_COMPARE_RE = re.compile(
+    r"(?:is\s+)?([A-Za-z][A-Za-z0-9 &.]{2,30}?)\s+"
+    r"(?:vs\.?|versus|better than|or)\s+"
+    r"([A-Za-z][A-Za-z0-9 &.]{2,30}?)(?:\s+for|\s+in|[?.,]|$)",
+    re.IGNORECASE,
+)
+_COMPARE_RE_3 = re.compile(
+    r"([A-Za-z][A-Za-z0-9 &.]{2,30}?)\s+(?:vs\.?|versus|or)\s+"
+    r"([A-Za-z][A-Za-z0-9 &.]{2,30}?)\s+(?:vs\.?|versus|or)\s+"
+    r"([A-Za-z][A-Za-z0-9 &.]{2,30}?)(?:\s+for|\s+in|[?.,]|$)",
+    re.IGNORECASE,
+)
+_BUDGET_RE = re.compile(
+    r"₹\s*([\d,]+)\s*(lakh|crore|thousand|k)?|(\d+)\s*(lakh|crore|thousand)\b",
+    re.IGNORECASE,
+)
+_SECTOR_NAMES = {
+    "banking", "it", "technology", "defence", "energy", "pharma", "auto",
+    "fmcg", "metals", "realty", "telecom", "power", "finance", "logistics",
+    "infrastructure", "railway", "railways", "healthcare", "consumption",
+    "manufacturing", "chemicals", "fertilizers", "insurance",
+}
+_COMMODITY_NAMES = {
+    "gold", "silver", "oil", "crude", "crude oil", "brent", "copper", "zinc",
+    "aluminium", "nickel", "platinum", "palladium", "natural gas",
+    "nifty", "sensex", "bank nifty", "nifty 50", "nifty50",
+    "bitcoin", "btc", "ethereum", "eth", "crypto", "cryptocurrency",
+    "real estate", "property", "land",
+    "usd", "dollar", "euro", "yen", "pound", "rupee",
+    "fd", "fixed deposit", "ppf", "bonds", "debt", "nps",
+    "mutual fund", "index fund", "etf",
+    "sgb", "sovereign gold bond",
+}
+# Commodity ETF tickers for common assets — used in prompt hints
+_COMMODITY_TICKERS = {
+    "gold": "GOLDBEES", "silver": "SILVERETF", "nifty": "NIFTYBEES",
+    "oil": "OILCOUNTRY", "crude": "OILCOUNTRY",
+}
+_VALUATION_TRIGGERS = re.compile(
+    r"\b(?:overvalued|undervalued|p[/\-]?e|pe ratio|price[- ]to[- ]earnings?|book value|"
+    r"fundamentals?|valuation|fair value|intrinsic value|expensive|cheap)\b",
+    re.IGNORECASE,
+)
+_VIX_TRIGGER = re.compile(r"\b(?:vix|volatility index|india vix)\b", re.IGNORECASE)
+
+
+def _detect_decision_intent(query: str) -> dict:
+    q = query.lower()
+    detected_intent = "general"
+    for intent, patterns in _DECISION_INTENTS.items():
+        if any(re.search(p, q) for p in patterns):
+            detected_intent = intent
+            break
+
+    is_decision = detected_intent != "general"
+
+    holding = None
+    m = _HOLDING_RE.search(query)
+    if m:
+        holding = m.group(1).strip()
+
+    target = None
+    m2 = _TARGET_RE.search(query)
+    if m2:
+        target = (m2.group(1) or m2.group(2) or "").strip()
+
+    # Compare: try 3-way first, then 2-way
+    third_entity = None
+    if detected_intent == "compare":
+        mc3 = _COMPARE_RE_3.search(query)
+        if mc3:
+            holding = mc3.group(1).strip()
+            target  = mc3.group(2).strip()
+            third_entity = mc3.group(3).strip()
+        elif not holding and not target:
+            mc = _COMPARE_RE.search(query)
+            if mc:
+                holding = mc.group(1).strip()
+                target  = mc.group(2).strip()
+    elif detected_intent in ("switch", "hold", "sell", "buy", "decision") and not holding and not target:
+        # Fallback: try compare regex for "X vs Y" phrasing in non-compare intents
+        mc = _COMPARE_RE.search(query)
+        if mc:
+            holding = mc.group(1).strip()
+            target  = mc.group(2).strip()
+
+    horizon = None
+    m3 = _HORIZON_RE.search(query)
+    if m3:
+        horizon = m3.group(1)
+
+    risk = None
+    m4 = _RISK_RE.search(query)
+    if m4:
+        risk = m4.group(1)
+
+    # Budget/amount extraction
+    budget = None
+    mb = _BUDGET_RE.search(query)
+    if mb:
+        amt_str = ((mb.group(1) or mb.group(3)) or "").replace(",", "")
+        unit    = ((mb.group(2) or mb.group(4)) or "").lower()
+        if amt_str:
+            try:
+                amt = float(amt_str)
+                if unit in ("lakh",):
+                    budget = f"₹{amt:.0f} lakh"
+                elif unit in ("crore",):
+                    budget = f"₹{amt:.0f} crore"
+                elif unit in ("thousand", "k"):
+                    budget = f"₹{amt * 1000:.0f}"
+                else:
+                    budget = f"₹{amt_str}"
+            except ValueError:
+                pass
+
+    # Count for list_picks
+    pick_count = 3
+    if detected_intent == "list_picks":
+        cm = re.search(r"\b(\d+)\b", query)
+        if cm:
+            pick_count = min(int(cm.group(1)), 10)
+
+    # Sector entity detection — flag when holding/target is a sector, not a company
+    holding_is_sector    = bool(holding and holding.lower().strip() in _SECTOR_NAMES)
+    target_is_sector     = bool(target  and target.lower().strip()  in _SECTOR_NAMES)
+    # Commodity/asset class detection — Gold, Silver, Nifty, crypto, bonds, etc.
+    holding_is_commodity = bool(holding and holding.lower().strip() in _COMMODITY_NAMES)
+    target_is_commodity  = bool(target  and target.lower().strip()  in _COMMODITY_NAMES)
+
+    # Portfolio extraction for multi-stock queries
+    portfolio: list[str] = []
+    if detected_intent == "portfolio_review":
+        pm = re.search(
+            r"(?:i (?:own|hold|have)|portfolio (?:is|has|includes?))[^\w]+"
+            r"((?:[A-Za-z][A-Za-z0-9 &.]+(?:,\s*|\s+and\s+)){1,5}[A-Za-z][A-Za-z0-9 &.]+)",
+            query, re.IGNORECASE,
+        )
+        if pm:
+            raw = pm.group(1)
+            portfolio = [p.strip() for p in re.split(r",\s*|\s+and\s+", raw) if p.strip()][:6]
+
+    return {
+        "is_decision":       is_decision,
+        "intent":            detected_intent,
+        "holding":           holding,
+        "target":            target,
+        "third_entity":      third_entity,
+        "horizon":           horizon,
+        "risk":              risk,
+        "budget":            budget,
+        "pick_count":        pick_count,
+        "holding_is_sector":    holding_is_sector,
+        "target_is_sector":     target_is_sector,
+        "holding_is_commodity": holding_is_commodity,
+        "target_is_commodity":  target_is_commodity,
+        "portfolio":            portfolio,
+    }
+
+
 # ── AI prompt ─────────────────────────────────────────────────────────────────
 _SYSTEM = (
     "You are a senior Indian equity market analyst at an institutional fund. "
@@ -174,9 +369,185 @@ _SYSTEM = (
 )
 
 
-def _build_prompt(query: str, events: list, news: list, policies: list) -> str:
-    evs = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in events[:5]) or "None"
-    nws = "\n".join(f"- {a['headline']}" for a in news[:5]) or "None"
+def _build_decision_prompt(
+    query: str,
+    intent_data: dict,
+    events: list,
+    news: list,
+    policies: list,
+) -> str:
+    holding = intent_data.get("holding") or "Asset A"
+    target  = intent_data.get("target")  or "Asset B"
+    horizon = intent_data.get("horizon") or "medium-term"
+    risk    = intent_data.get("risk")    or "moderate"
+    intent  = intent_data.get("intent",  "decision")
+
+    holding_is_commodity = intent_data.get("holding_is_commodity", False)
+    target_is_commodity  = intent_data.get("target_is_commodity",  False)
+    holding_is_sector    = intent_data.get("holding_is_sector",    False)
+    target_is_sector     = intent_data.get("target_is_sector",     False)
+
+    # Determine entity label and symbol instructions per entity type
+    def entity_label(name: str, is_commodity: bool, is_sector: bool) -> str:
+        if is_commodity: return f"{name} (commodity/asset class)"
+        if is_sector:    return f"{name} (market sector)"
+        return name
+
+    def symbol_hint(name: str, is_commodity: bool, is_sector: bool) -> str:
+        if is_commodity:
+            tick = _COMMODITY_TICKERS.get(name.lower(), "null")
+            return f'Set "symbol" to "{tick}" (ETF proxy) or null. Do NOT use equity tickers.'
+        if is_sector:
+            return f'Set "symbol" to null. This is a sector, not a single stock.'
+        return f'Set "symbol" to the real NSE ticker (e.g. TATAMOTORS, RELIANCE, HDFCBANK).'
+
+    a_label = entity_label(holding, holding_is_commodity, holding_is_sector)
+    b_label = entity_label(target,  target_is_commodity,  target_is_sector)
+
+    evs = "\n".join(f"- {e['title']}" for e in events[:4]) or "None"
+    nws = "\n".join(f"- {a['headline']}" for a in news[:4]) or "None"
+
+    # Comparison dimensions differ for commodity vs equity queries
+    if holding_is_commodity or target_is_commodity:
+        comp_dims = [
+            "Inflation Hedge", "Liquidity", "Volatility", "Store of Value",
+            "Growth Potential", "Correlation to Equity"
+        ]
+    elif holding_is_sector or target_is_sector:
+        comp_dims = [
+            "Sector Outlook", "Policy Tailwinds", "Valuation", "Earnings Growth",
+            "Risk Profile", "FII Interest"
+        ]
+    else:
+        comp_dims = [
+            "Business Model", "Sector Outlook", "Growth Drivers",
+            "Risk Profile", "Market Position", "Valuation"
+        ]
+    comp_rows = "\n".join(
+        f'      {{"dimension": "{d}", "holding": "", "target": "", "advantage": "neutral"}},'
+        for d in comp_dims
+    ).rstrip(",")
+
+    return f"""You are a senior Indian market analyst. Analyse this investor query and return a single JSON object.
+
+QUERY: "{query}"
+ENTITY A (holding/first): {a_label}
+ENTITY B (target/second): {b_label}
+HORIZON: {horizon} | RISK TOLERANCE: {risk}
+MARKET NEWS: {nws}
+RELATED EVENTS: {evs}
+
+INSTRUCTIONS:
+- Fill every string field with real, specific analysis about {holding} and {target}.
+- All strings must be your original analytical content — never copy field descriptions.
+- Do not say Buy/Sell/Strong Buy. Explain trade-offs only. No direct financial advice.
+- Entity A symbol hint: {symbol_hint(holding, holding_is_commodity, holding_is_sector)}
+- Entity B symbol hint: {symbol_hint(target, target_is_commodity, target_is_sector)}
+- Use the entity name exactly as given in "entity" field (e.g. "{holding}", "{target}").
+- "advantage" in comparison rows must be "holding", "target", or "neutral".
+- "near_term_outlook" must be "positive", "cautious", "neutral", or "negative".
+- "sentiment" must be "bullish", "bearish", or "neutral".
+- Return valid JSON only. No markdown. No commentary outside the JSON.
+
+JSON to fill and return:
+{{
+  "summary": "",
+  "what_happened": "",
+  "why_it_happened": "",
+  "immediate_impact": "",
+  "medium_term": "",
+  "long_term": "",
+  "risks": ["", "", ""],
+  "opportunities": ["", "", ""],
+  "confidence": 70,
+  "sentiment": "neutral",
+  "companies": [
+    {{"symbol": "", "name": "{holding}", "impact_type": "neutral", "impact_score": 70, "confidence": 68, "reason": ""}},
+    {{"symbol": "", "name": "{target}",  "impact_type": "neutral", "impact_score": 70, "confidence": 68, "reason": ""}}
+  ],
+  "sectors": [
+    {{"name": "", "score": 65, "confidence": 62, "outlook": "Moderate", "positive": true}},
+    {{"name": "", "score": 70, "confidence": 65, "outlook": "Moderate", "positive": true}}
+  ],
+  "investment_verdict": {{
+    "rating": "Evaluate Carefully",
+    "direction": "neutral",
+    "confidence": 68,
+    "horizon": "{horizon}",
+    "top_picks": [],
+    "risks": ["", ""],
+    "catalysts": ["", ""],
+    "opportunity_score": 65
+  }},
+  "similar_events": [],
+  "follow_up_questions": [
+    "What is your investment horizon for this decision?",
+    "What is your risk tolerance - conservative, moderate, or aggressive?",
+    "Are you seeking capital appreciation or dividend income?",
+    "Have you considered the tax implications of switching?"
+  ],
+  "timeline": [
+    {{"date": "Near-term", "title": "", "description": ""}},
+    {{"date": "3-6 months", "title": "", "description": ""}},
+    {{"date": "12 months", "title": "", "description": ""}}
+  ],
+  "decision_intelligence": {{
+    "intent": "{intent}",
+    "context_complete": true,
+    "missing_context": [],
+    "decision_summary": "",
+    "holding_analysis": {{
+      "entity": "{holding}",
+      "symbol": "",
+      "sector": "",
+      "thesis": "",
+      "strengths": ["", "", ""],
+      "risks": ["", "", ""],
+      "catalysts": ["", ""],
+      "near_term_outlook": "neutral",
+      "confidence": 65
+    }},
+    "target_analysis": {{
+      "entity": "{target}",
+      "symbol": "",
+      "sector": "",
+      "thesis": "",
+      "strengths": ["", "", ""],
+      "risks": ["", "", ""],
+      "catalysts": ["", ""],
+      "near_term_outlook": "neutral",
+      "confidence": 65
+    }},
+    "comparison": [
+{comp_rows}
+    ],
+    "tradeoff": {{
+      "reasons_to_switch": ["", "", ""],
+      "reasons_to_hold":   ["", "", ""],
+      "risks_of_switching": ["", ""],
+      "risks_of_holding":   ["", ""],
+      "when_to_wait": ""
+    }},
+    "decision_framework": {{
+      "supports_switch": ["", "", ""],
+      "argues_against":  ["", ""],
+      "key_unknowns":    ["", ""],
+      "ai_stance": ""
+    }}
+  }}
+}}"""
+
+
+def _build_prompt(
+    query: str,
+    events: list,
+    news: list,
+    policies: list,
+    intent_data: dict | None = None,
+    extra_context: str = "",
+) -> str:
+    evs  = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in events[:5]) or "None"
+    nws  = "\n".join(f"- {a['headline']}" for a in news[:5]) or "None"
     pols = "\n".join(f"- {p['title']} [{p['ministry']}]" for p in policies[:3]) or "None"
 
     return f"""Query: "{query}"
@@ -190,9 +561,9 @@ Return ONLY this JSON (no fences, no extra keys):
   "summary": "2-3 sentence executive summary specific to the query",
   "what_happened": "1 factual sentence about what actually happened",
   "why_it_happened": "1 contextual sentence explaining the cause",
-  "immediate_impact": "1 sentence — near-term market effect",
-  "medium_term": "1 sentence — 3-12 month outlook",
-  "long_term": "1 sentence — structural implications",
+  "immediate_impact": "1 sentence on near-term market effect",
+  "medium_term": "1 sentence on 3-12 month outlook",
+  "long_term": "1 sentence on structural implications",
   "risks": ["specific risk 1", "specific risk 2", "specific risk 3"],
   "opportunities": ["specific opportunity 1", "specific opportunity 2", "specific opportunity 3"],
   "confidence": 78,
@@ -239,7 +610,83 @@ Return ONLY this JSON (no fences, no extra keys):
   ]
 }}
 
-CRITICAL: The "insights" titles must be SPECIFIC to the query "{query}" — choose angles that make sense for this exact topic. Use real NSE symbols, actual rupee amounts, and genuine Indian market context throughout."""
+CRITICAL: The "insights" titles must be SPECIFIC to the query "{query}" - choose angles that make sense for this exact topic. Use real NSE symbols, actual rupee amounts, and genuine Indian market context throughout.{_intent_overlay(intent_data, extra_context)}"""
+
+
+def _intent_overlay(intent_data: dict | None, extra_context: str = "") -> str:
+    """Return an intent-specific instruction block appended to the main prompt."""
+    if not intent_data:
+        return f"\n\nADDITIONAL CONTEXT:\n{extra_context}" if extra_context else ""
+
+    intent     = intent_data.get("intent", "general")
+    budget     = intent_data.get("budget") or ""
+    pick_count = intent_data.get("pick_count") or 3
+    portfolio  = intent_data.get("portfolio") or []
+    horizon    = intent_data.get("horizon") or "medium-term"
+    budget_note = f"\n- User has {budget} to invest — calibrate sizing accordingly." if budget else ""
+    portfolio_note = f"\n- Portfolio holdings: {', '.join(portfolio)}" if portfolio else ""
+
+    overlays: dict[str, str] = {
+        "list_picks": f"""
+
+INTENT: LIST PICKS — User wants a ranked stock list, not an essay.
+- Return exactly {pick_count} companies in "companies" array, ranked by conviction (highest first).
+- "investment_verdict.rating" must be "Top {pick_count} Picks Identified".
+- "investment_verdict.top_picks" must contain the top 3 NSE symbols.
+- Each company "reason" must be a specific 1-sentence thesis (not generic).
+- "follow_up_questions" must address: position sizing, entry triggers, stop-loss, time horizon.{budget_note}""",
+
+        "news_reaction": f"""
+
+INTENT: NEWS REACTION — A recent event just happened; user wants immediate guidance.
+- "summary" must be exactly what this news means for investors RIGHT NOW (2 sentences).
+- "immediate_impact" must name specific sectors/stocks and expected directional move.
+- "medium_term" must describe the thesis window (days/weeks, not months).
+- "follow_up_questions" must include: price level where thesis breaks, add/reduce decision, key upcoming catalyst.
+- Prioritize recency — today's news beats older context.{budget_note}""",
+
+        "earnings_preview": f"""
+
+INTENT: EARNINGS PREVIEW — User is positioning ahead of results.
+- "summary" must cover: consensus expectations, key metrics to watch, beat vs miss thresholds.
+- "risks" must list miss scenarios with expected stock reactions (e.g. "-5% if revenue misses by 2%").
+- "opportunities" must list beat scenarios with upside estimates.
+- "similar_events" must include the company's last 2 earnings reactions (historical pattern).
+- "follow_up_questions" must address: historical move range, key metric focus, risk/reward ratio.
+- "timeline" must show: results date, pre-result window, post-result action.{budget_note}""",
+
+        "entry_timing": f"""
+
+INTENT: ENTRY TIMING — User wants to know if now is a good entry point.
+- "summary" must assess: current price vs historical range, risk/reward at today's level.
+- "immediate_impact" must state the current technical setup (near 52W high/low, recent trend).
+- "opportunities" must list: entry triggers and what confirms the setup.
+- "risks" must list: why this level could be a trap (overhead resistance, near-term catalysts).
+- "follow_up_questions" must include: stop-loss level, scale-in strategy, what invalidates the thesis.
+- HORIZON: {horizon}.{budget_note}""",
+
+        "portfolio_review": f"""
+
+INTENT: PORTFOLIO REVIEW — User wants portfolio-level analysis.
+- "summary" must cover: sector concentration, single-factor exposure, missing diversifiers.
+- "sectors" must list all sectors covered AND key missing ones (label missing ones "Underweight").
+- "risks" must include portfolio-level risks: concentration, correlation, liquidity.
+- "opportunities" must include: diversification adds, rebalancing actions.
+- "follow_up_questions" must address: rebalancing triggers, missing asset classes, hedging options, tax implications.{portfolio_note}{budget_note}""",
+
+        "sell": f"""
+
+INTENT: SELL / EXIT ANALYSIS — User is evaluating whether to exit a position.
+- "summary" must weigh: exit thesis strength vs opportunity cost of remaining.
+- "investment_verdict.direction" should be "bearish" if exit is recommended, "neutral" otherwise.
+- "risks" must include: what happens if the bearish thesis is wrong (false exit risk).
+- "opportunities" must include: where to redeploy capital after exiting.
+- "follow_up_questions" must include: tax implications, redeployment options, what would reverse the sell thesis.{budget_note}""",
+    }
+
+    overlay = overlays.get(intent, "")
+    ctx_block = f"\n\nADDITIONAL CONTEXT:\n{extra_context}" if extra_context else ""
+    return overlay + ctx_block
 
 
 # ── Insight card generation (separate focused call) ───────────────────────────
@@ -322,32 +769,102 @@ def _enrich_sync(companies: list[dict]) -> list[dict]:
     return enriched
 
 
-# ── Market chart ──────────────────────────────────────────────────────────────
-def _fetch_chart_sync(_: list) -> dict:
-    """Fetch 1D intraday chart for 3 indices (runs in executor)."""
-    from app.services.market_data import _fetch_history
+# ── Valuation data fetch ──────────────────────────────────────────────────────
+def _fetch_valuation_sync(symbols: list[str]) -> dict:
+    """Fetch P/E, P/B, 52W range from yfinance for valuation-sensitive queries."""
+    import yfinance as yf
+    result: dict = {}
+    for sym in symbols[:3]:
+        try:
+            info = yf.Ticker(f"{sym}.NS").info or {}
+            pe  = info.get("trailingPE") or info.get("forwardPE")
+            pb  = info.get("priceToBook")
+            hi  = info.get("fiftyTwoWeekHigh")
+            lo  = info.get("fiftyTwoWeekLow")
+            result[sym] = {
+                k: v for k, v in {
+                    "pe": round(float(pe), 1) if pe else None,
+                    "pb": round(float(pb), 2) if pb else None,
+                    "52w_high": round(float(hi), 1) if hi else None,
+                    "52w_low":  round(float(lo), 1) if lo else None,
+                }.items() if v is not None
+            }
+        except Exception:
+            pass
+    return result
 
-    def _norm(hist: list[dict]) -> list[float]:
-        if not hist:
-            return []
-        base = hist[0]["value"] or 1
-        return [round((h["value"] / base - 1) * 100, 3) for h in hist]
 
+def _fetch_vix_sync() -> float | None:
+    """Fetch current India VIX level."""
+    import yfinance as yf
     try:
-        n  = _fetch_history("^NSEI",   "1d", "60m") or []
-        b  = _fetch_history("^NSEBANK","1d", "60m") or []
-        it = _fetch_history("^CNXIT",  "1d", "60m") or []
-        labels = [h["label"] for h in n]
-        return {
-            "labels": labels,
-            "series": [
-                {"name": "Nifty 50",    "data": _norm(n),  "color": "#818cf8"},
-                {"name": "Bank Nifty",  "data": _norm(b),  "color": "#34d399"},
-                {"name": "Nifty IT",    "data": _norm(it), "color": "#fb923c"},
-            ],
-        }
+        hist = yf.download("^INDIAVIX", period="1d", interval="1d", progress=False, auto_adjust=True)
+        if not hist.empty:
+            close = hist["Close"].iloc[-1]
+            v = float(close.iloc[0] if hasattr(close, "iloc") else close)
+            return round(v, 2)
     except Exception:
-        return {"labels": [], "series": []}
+        pass
+    return None
+
+
+# ── Market chart ──────────────────────────────────────────────────────────────
+def _fetch_chart_sync(tickers: list) -> dict:
+    """Fetch 1D intraday chart. Uses company tickers when provided, else indices."""
+    import yfinance as yf
+    import math
+
+    def _series(ticker: str):
+        try:
+            hist = yf.download(ticker, period="1d", interval="60m",
+                               progress=False, auto_adjust=True)
+            if hist.empty:
+                return [], []
+            labels, vals = [], []
+            for idx, row in hist.iterrows():
+                try:
+                    close = row["Close"]
+                    v = float(close.iloc[0] if hasattr(close, "iloc") else close)
+                    if math.isnan(v) or math.isinf(v):
+                        continue
+                    labels.append(idx.strftime("%H:%M"))
+                    vals.append(v)
+                except Exception:
+                    continue
+            return labels, vals
+        except Exception:
+            return [], []
+
+    def _norm(vals: list) -> list:
+        if not vals:
+            return []
+        base = vals[0] or 1
+        return [round((v / base - 1) * 100, 3) for v in vals]
+
+    # Company-specific chart when companies were identified in the query
+    if tickers:
+        series, labels = [], []
+        for name, ticker, color in tickers[:4]:
+            lbls, vals = _series(ticker)
+            if vals:
+                if len(lbls) > len(labels):
+                    labels = lbls
+                series.append({"name": name, "data": _norm(vals), "color": color})
+        if series:
+            return {"labels": labels, "series": series}
+
+    # Fallback: generic market indices
+    n_l, n_v = _series("^NSEI")
+    _, b_v   = _series("^NSEBANK")
+    _, it_v  = _series("^CNXIT")
+    return {
+        "labels": n_l,
+        "series": [
+            {"name": "Nifty 50",   "data": _norm(n_v),  "color": "#818cf8"},
+            {"name": "Bank Nifty", "data": _norm(b_v),  "color": "#34d399"},
+            {"name": "Nifty IT",   "data": _norm(it_v), "color": "#fb923c"},
+        ],
+    }
 
 
 # ── Network graph ─────────────────────────────────────────────────────────────
@@ -376,31 +893,71 @@ def _build_graph(query: str, sectors: list[dict], companies: list[dict]) -> dict
 async def run_ai_search(query: str, db: AsyncSession) -> dict:
     """Full AI search pipeline. Returns complete research report dict."""
     ck = _ck(query)
-    cached = _cget(ck)
+
+    # Detect intent first — needed to compute the right cache TTL
+    intent_data = _detect_decision_intent(query)
+    intent      = intent_data.get("intent", "general")
+    ttl         = 300 if intent == "news_reaction" else _TTL
+
+    cached = _cget(ck, ttl=ttl)
     if cached:
         log.info("ai_search.cache_hit", query=query[:50])
         return cached
 
     log.info("ai_search.start", query=query[:50])
     entities = _extract_entities(query)
-    loop = asyncio.get_running_loop()
+    loop     = asyncio.get_running_loop()
 
-    # Parallel: DB search + market chart
-    events, news, policies, chart = await asyncio.gather(
+    log.info("ai_search.intent", intent=intent, is_decision=intent_data["is_decision"])
+
+    # Parallel: DB search (chart is built after enrichment so it uses the right companies)
+    events, news, policies = await asyncio.gather(
         _search_events(db, query),
         _search_news(db, query),
         _search_policies(db, query),
-        loop.run_in_executor(None, _fetch_chart_sync, []),
         return_exceptions=True,
     )
     if isinstance(events,   Exception): events   = []
     if isinstance(news,     Exception): news     = []
     if isinstance(policies, Exception): policies = []
-    if isinstance(chart,    Exception): chart    = {"labels": [], "series": []}
 
-    # AI generation — tries fastest free model first, falls back in order
-    prompt = _build_prompt(query, events, news, policies)
-    raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=3000)
+    # Optional: fetch valuation data for valuation-focused queries
+    extra_context_lines: list[str] = []
+    if _VALUATION_TRIGGERS.search(query):
+        co_syms = [c.upper() for c in entities.get("companies", [])[:2]]
+        if co_syms:
+            try:
+                val = await loop.run_in_executor(None, _fetch_valuation_sync, co_syms)
+                for sym, v in val.items():
+                    parts = []
+                    if v.get("pe"):   parts.append(f"P/E {v['pe']}")
+                    if v.get("pb"):   parts.append(f"P/B {v['pb']}")
+                    if v.get("52w_high") and v.get("52w_low"):
+                        parts.append(f"52W {v['52w_low']}-{v['52w_high']}")
+                    if parts:
+                        extra_context_lines.append(f"{sym}: {', '.join(parts)}")
+            except Exception:
+                pass
+
+    # Optional: fetch India VIX for volatility queries
+    if _VIX_TRIGGER.search(query):
+        try:
+            vix = await loop.run_in_executor(None, _fetch_vix_sync)
+            if vix:
+                extra_context_lines.append(f"India VIX current level: {vix}")
+        except Exception:
+            pass
+
+    extra_context = "\n".join(extra_context_lines)
+
+    # AI generation — decision/portfolio/list queries get specialized prompt
+    if intent_data["is_decision"] and intent not in ("list_picks", "portfolio_review", "news_reaction", "earnings_preview", "entry_timing"):
+        prompt  = _build_decision_prompt(query, intent_data, events, news, policies)
+        max_tok = 4000
+    else:
+        prompt  = _build_prompt(query, events, news, policies, intent_data=intent_data, extra_context=extra_context)
+        max_tok = 3500
+    raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=max_tok)
     log.info("ai_search.raw_len", chars=len(raw) if raw else 0, starts=raw[:60] if raw else "")
 
     ai: dict = {}
@@ -460,6 +1017,19 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         log.warning("ai_search.enrich_fail", exc=str(_e)[:80])
         companies_enriched = []
 
+    # Build context-aware chart: use the query's companies when available, else indices
+    _CHART_COLORS = ["#818cf8", "#34d399", "#fb923c", "#f472b6"]
+    chart_tickers = []
+    for _i, _c in enumerate(companies_enriched[:4]):
+        _sym = re.sub(r"\.(NS|BO|BSE|NSE)$", "", _c.get("symbol", "").strip().upper())
+        if _sym:
+            _name = (_c.get("name") or _sym)[:22]
+            chart_tickers.append((_name, f"{_sym}.NS", _CHART_COLORS[_i % 4]))
+    try:
+        chart = await loop.run_in_executor(None, _fetch_chart_sync, chart_tickers)
+    except Exception:
+        chart = {"labels": [], "series": []}
+
     # Generate dynamic insights (sequential, after main call)
     try:
         insights = await _generate_insights(query, ai_summary)
@@ -468,6 +1038,45 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         insights = []
 
     graph = _build_graph(query, ai.get("sectors", []), companies_enriched)
+
+    # Extract decision_intelligence block when present (decision queries)
+    raw_di = ai.get("decision_intelligence")
+    decision_intelligence: dict | None = None
+    if intent_data["is_decision"] and isinstance(raw_di, dict):
+        decision_intelligence = raw_di
+        decision_intelligence.setdefault("intent",            intent_data["intent"])
+        decision_intelligence.setdefault("detected_holding",  intent_data.get("holding"))
+        decision_intelligence.setdefault("detected_target",   intent_data.get("target"))
+        decision_intelligence.setdefault("detected_horizon",  intent_data.get("horizon"))
+        decision_intelligence.setdefault("detected_risk",     intent_data.get("risk"))
+        decision_intelligence.setdefault("detected_budget",   intent_data.get("budget"))
+        decision_intelligence.setdefault("detected_third",    intent_data.get("third_entity"))
+        # Tag entity_type so the frontend renders sectors/commodities vs companies differently
+        type_map = {
+            "holding_analysis": ("holding_is_commodity", "holding_is_sector"),
+            "target_analysis":  ("target_is_commodity",  "target_is_sector"),
+        }
+        for side, (comm_flag, sec_flag) in type_map.items():
+            block = decision_intelligence.get(side)
+            if isinstance(block, dict):
+                if intent_data.get(comm_flag):
+                    block["entity_type"] = "commodity"
+                elif intent_data.get(sec_flag):
+                    block["entity_type"] = "sector"
+                else:
+                    block["entity_type"] = "company"
+    elif intent_data["is_decision"]:
+        decision_intelligence = {
+            "intent":           intent_data["intent"],
+            "detected_holding": intent_data.get("holding"),
+            "detected_target":  intent_data.get("target"),
+            "detected_horizon": intent_data.get("horizon"),
+            "detected_risk":    intent_data.get("risk"),
+            "detected_budget":  intent_data.get("budget"),
+            "context_complete": True,
+            "missing_context":  [],
+            "decision_summary": ai.get("summary", ""),
+        }
 
     result = {
         "query": query,
@@ -498,8 +1107,9 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         "market_chart":         chart,
         "graph":                graph,
         "citations":            list({a.get("source", "") for a in news if a.get("source")}),
+        "decision_intelligence": decision_intelligence,
     }
 
-    _cset(ck, result)
-    log.info("ai_search.done", query=query[:50], cos=len(companies_enriched), events=len(events))
+    _CACHE[ck] = (time.time(), result)  # store with current timestamp; TTL applied on read
+    log.info("ai_search.done", query=query[:50], cos=len(companies_enriched), events=len(events), intent=intent)
     return result

@@ -2,7 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  output: "standalone",
   compress: true,
   experimental: {
     // Tree-shake large packages so only used exports are bundled

@@ -2,12 +2,16 @@
 
 import type { ReactNode } from "react";
 import { useState, useEffect, use } from "react";
+import { fixMojibake } from "@/lib/text";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import Link from "next/link";
 import { Lightbulb, Building2, AlertTriangle, Ban, Check } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
-import { InvestmentThesis, GrowthDrivers, ScenarioAnalysis, OpportunityLifecycleCard, MultiHorizonOutlookCard } from "@/components/intelligence";
+import { InvestmentThesis, GrowthDrivers, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, OpportunityLifecycleCard, MultiHorizonOutlookCard } from "@/components/intelligence";
+import { ShareInsightCard } from "@/components/ShareInsightCard";
+import { SmartCTA } from "@/components/SmartCTA";
+import { RelatedContent } from "@/components/RelatedContent";
 import {
   Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
   PieChart, Pie, Cell,
@@ -169,11 +173,26 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="min-w-0 pb-12">
       <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={`Score ${Math.round(d.opportunity_score)}`} href={`/radar/${d.slug ?? d.id}`} />
-      {/* Breadcrumb */}
-      <div className="mb-5 flex items-center gap-2 text-[12px] text-slate-500">
-        <Link href="/radar" className="hover:text-slate-300 transition">Opportunity Radar</Link>
-        <span>›</span>
-        <span className="text-slate-300">{d.title}</span>
+      {/* Breadcrumb + share */}
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-[12px] text-slate-500">
+          <Link href="/radar" className="hover:text-slate-300 transition">Opportunity Radar</Link>
+          <span>›</span>
+          <span className="text-slate-300">{d.title}</span>
+        </div>
+        <ShareInsightCard
+          entityType="opportunity"
+          entityId={String(d.id)}
+          title={d.title}
+          summary={d.summary}
+        />
+      </div>
+
+      {/* Smart CTAs */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(d.title.slice(0, 100))}`} />
+        <SmartCTA variant="read-story" href="/stories" />
+        <SmartCTA variant="view-ripple" href="/ripple" />
       </div>
 
       <div className="grid grid-cols-[1fr_280px] gap-6 items-start">
@@ -217,7 +236,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
 
             <div className="mt-5 grid grid-cols-4 gap-3">
               <StatCard label="Confidence Score" value={`${confidence}%`} sub="Confidence" valueClass="text-sky-400"/>
-              <StatCard label="Time Horizon"     value={d.time_horizon}/>
+              <StatCard label="Time Horizon"     value={fixMojibake(d.time_horizon)}/>
               <StatCard label="Risk Level"       value={d.risk_level}   valueClass={riskColor(d.risk_level)}/>
               <StatCard label="Trend"            value={d.trend}        valueClass={trendColor(d.trend)}/>
             </div>
@@ -286,12 +305,18 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
           <AIDisclaimer />
 
           <InvestmentThesis
+            entityType="opportunity"
+            entityId={String(d.id)}
+            entityTitle={d.title}
+            entityDescription={d.summary}
+            entitySector={d.sectors?.[0]}
             thesis={d.ai_summary?.matters ?? d.summary ?? "This opportunity is driven by structural market tailwinds."}
+            whyItMatters={d.ai_summary?.benefits}
             confidence={Math.round(d.confidence * 100)}
             timeHorizon={d.time_horizon}
             assumptions={["Policy and sector tailwinds continue", "Management executes on growth plan", "No major adverse macro shifts"]}
-            riskFactors={(d.ai_summary?.risks ?? []).slice(0, 2).length > 0
-              ? (d.ai_summary?.risks ?? []).slice(0, 2)
+            riskFactors={(d.ai_summary?.risks ?? []).slice(0, 3).length > 0
+              ? (d.ai_summary?.risks ?? []).slice(0, 3)
               : ["Regulatory timeline risk", "Execution and valuation risk"]
             }
           />
@@ -304,10 +329,37 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
             }))}
           />
           <ScenarioAnalysis
+            entityType="opportunity"
+            entityId={String(d.id)}
+            entityTitle={d.title}
+            entityDescription={d.summary}
+            entitySector={d.sectors?.[0]}
             bull={{ probability: 35, description: "Accelerated catalyst delivery and sector re-rating drive outperformance." }}
             base={{ probability: 45, description: `Opportunity plays out as expected over ${d.time_horizon ?? "the horizon"}.` }}
             bear={{ probability: 20, description: "Catalyst delay or adverse macro conditions limit the upside." }}
           />
+          <MonitoringChecklist
+            entityType="opportunity"
+            entityId={String(d.id)}
+            entityTitle={d.title}
+            entityDescription={d.summary}
+            entitySector={d.sectors?.[0]}
+          />
+          <PatternIntelligenceCard
+            entityType="opportunity"
+            entityId={String(d.id)}
+            entityTitle={d.title}
+            entityDescription={d.summary}
+            entitySector={d.sectors?.[0]}
+          />
+
+          <RelatedContent
+            entityType="opportunity"
+            entityId={String(d.id)}
+            title={d.title}
+            sector={d.sectors?.[0]}
+          />
+
           <OpportunityLifecycleCard
             stage={(() => {
               const score = d.opportunity_score ?? 50;

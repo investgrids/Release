@@ -22,7 +22,7 @@ EVENTS = [
     ),
     models.Event(
         id="evt-defence-budget-2026",
-        title="Defence capital expenditure raised by â‚¹45,000 Cr in revised estimates",
+        title="Defence capital expenditure raised by ₹45,000 Cr in revised estimates",
         summary="The revised budget allocation boosts indigenous defence procurement, benefiting domestic manufacturers under the Make-in-India initiative. Order books at BEL, HAL and Bharat Forge are expected to expand significantly.",
         impact_score=9.1,
         confidence=0.89,
@@ -64,7 +64,7 @@ EVENTS = [
     ),
     models.Event(
         id="evt-semiconductor-plc-2026",
-        title="India Semiconductor Mission approves â‚¹76,000 Cr fab incentive",
+        title="India Semiconductor Mission approves ₹76,000 Cr fab incentive",
         summary="The government approved production-linked incentives for three semiconductor fabrication units. The scheme covers 50% capital subsidy for advanced nodes, signalling long-term domestic chip manufacturing ambitions.",
         impact_score=9.4,
         confidence=0.91,
@@ -159,7 +159,7 @@ RADAR = [
         id="radar-defence-2026",
         theme="India Defence Ecosystem",
         score=95,
-        reason="Budget capex up â‚¹45,000 Cr. Multi-year order pipelines at BEL, HAL and MFSL. Indigenous procurement mandates reduce import dependency.",
+        reason="Budget capex up ₹45,000 Cr. Multi-year order pipelines at BEL, HAL and MFSL. Indigenous procurement mandates reduce import dependency.",
         confidence=0.91,
         beneficiaries=["Bharat Electronics", "HAL", "Bharat Forge", "MFSL"],
     ),
@@ -222,9 +222,23 @@ STORIES = [
     models.Story(
         id="story-semiconductor-2026",
         title="Chips on the Table",
-        description="India's semiconductor ambitions just got â‚¹76,000 Cr of backing. What it means for the electronics manufacturing ecosystem and the companies that stand to gain.",
+        description="India's semiconductor ambitions just got Rs 76,000 Cr of backing. What it means for the electronics manufacturing ecosystem and the companies that stand to gain.",
         theme="Technology + Policy",
         image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
+    ),
+    models.Story(
+        id="story-railway-2026",
+        title="Railway Modernization Wave",
+        description="India's railways are undergoing a generational transformation - record capex, Vande Bharat expansion, dedicated freight corridors, and Kavach safety rollout. Which companies are positioned to build tomorrow's rail network.",
+        theme="Infrastructure + Government",
+        image="https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=1200&q=80",
+    ),
+    models.Story(
+        id="story-ev-2026",
+        title="Electric Vehicles Ecosystem",
+        description="India's EV transition is accelerating with the PM e-Drive scheme, falling battery costs, and surging two-wheeler adoption. The entire value chain - from OEMs to battery makers to charging infra - is in play.",
+        theme="Auto + Technology",
+        image="https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&w=1200&q=80",
     ),
 ]
 
@@ -259,3 +273,19 @@ async def seed(db):
         count = await count_rows(db, model_cls)
         if count == 0:
             await bulk_insert(db, records)
+
+
+async def seed_missing_stories(db):
+    """Upsert any STORIES entries that are missing — safe to run on an already-seeded DB."""
+    from sqlalchemy import select
+    for story in STORIES:
+        existing = (await db.execute(select(models.Story).where(models.Story.id == story.id))).scalar_one_or_none()
+        if not existing:
+            db.add(models.Story(
+                id=story.id,
+                title=story.title,
+                description=story.description,
+                theme=story.theme,
+                image=story.image,
+            ))
+    await db.commit()

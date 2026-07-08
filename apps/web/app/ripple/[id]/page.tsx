@@ -7,7 +7,10 @@ import dynamic from "next/dynamic";
 import { Zap, Network, BarChart2, Clock, Telescope, X } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
-import { InvestmentThesisCard, OpportunityLifecycleCard, MonitoringChecklist, MultiHorizonOutlookCard } from "@/components/intelligence";
+import { InvestmentThesisCard, OpportunityLifecycleCard, MonitoringChecklist, ScenarioAnalysis, PatternIntelligenceCard, MultiHorizonOutlookCard } from "@/components/intelligence";
+import { ShareInsightCard } from "@/components/ShareInsightCard";
+import { SmartCTA } from "@/components/SmartCTA";
+import { RelatedContent } from "@/components/RelatedContent";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -115,7 +118,7 @@ export default function RipplePage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    fetch(`${API}/api/ripple/${id}`)
+    fetch(`${API}/api/ripple/event/${id}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(d => { setData(d); setOriginalData(d); })
       .catch(e => setError(e === 404 ? "Event not found" : "Failed to load ripple analysis"))
@@ -180,11 +183,26 @@ export default function RipplePage() {
   return (
     <div className="space-y-4 pb-12">
 
-      {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 text-[11px] text-slate-600">
-        <Link href="/ripple" className="hover:text-slate-400 transition">Ripple Engine</Link>
-        <span>/</span>
-        <span className="text-slate-400 truncate max-w-xs">{eventTitle}</span>
+      {/* ── Breadcrumb + share ──────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-[11px] text-slate-600">
+          <Link href="/ripple" className="hover:text-slate-400 transition">Ripple Engine</Link>
+          <span>/</span>
+          <span className="text-slate-400 truncate max-w-xs">{eventTitle}</span>
+        </div>
+        <ShareInsightCard
+          entityType="ripple"
+          entityId={id}
+          title={eventTitle}
+          summary={insights?.summary}
+        />
+      </div>
+
+      {/* Smart CTAs */}
+      <div className="flex flex-wrap gap-2">
+        <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(eventTitle.slice(0, 100))}`} />
+        <SmartCTA variant="view-event" href="/events" />
+        <SmartCTA variant="explore-opportunity" href="/radar" />
       </div>
 
       {/* ── Event Header ────────────────────────────────────────────────── */}
@@ -467,11 +485,17 @@ export default function RipplePage() {
               </div>
 
               <InvestmentThesisCard
+                entityType="ripple"
+                entityId={id}
+                entityTitle={data?.event_title}
+                entityDescription={data?.insights?.summary}
+                entitySector={data?.insights?.impacted_sectors?.[0]?.name}
                 thesis={data?.insights?.summary}
+                businessImpact={data?.insights?.growth_impact}
                 keyDrivers={(data?.insights?.key_drivers ?? []).slice(0, 4)}
                 riskFactors={[
                   `Market volatility: ${data?.insights?.market_volatility ?? "Moderate"}`,
-                  "Indirect sector contagion beyond initial impact",
+                  data?.insights?.inflation_risk ? `Inflation risk: ${data.insights.inflation_risk}` : "Indirect sector contagion beyond initial impact",
                   "Policy response timing uncertainty",
                 ]}
                 timeHorizon={data?.insights?.ripple_timeline?.[0]?.period ?? "Short-term (1–3 months)"}
@@ -498,17 +522,35 @@ export default function RipplePage() {
                 ]}
               />
 
+              <ScenarioAnalysis
+                entityType="ripple"
+                entityId={id}
+                entityTitle={data?.event_title}
+                entityDescription={data?.insights?.summary}
+                entitySector={data?.insights?.impacted_sectors?.[0]?.name}
+              />
+
               {/* What to monitor as ripple effects play out */}
               <MonitoringChecklist
-                items={[
-                  ...(insights?.key_drivers ?? []).slice(0, 2).map((d: string) => ({
-                    label: d.length > 70 ? d.slice(0, 70) + "…" : d,
-                    priority: "high" as const,
-                  })),
-                  { label: "Sector index moves in days following the event", priority: "critical" as const },
-                  { label: "FII/DII flows in directly-impacted sectors", priority: "high" as const },
-                  { label: "Corporate guidance changes from beneficiary companies", priority: "medium" as const },
-                ]}
+                entityType="ripple"
+                entityId={id}
+                entityTitle={data?.event_title}
+                entityDescription={data?.insights?.summary}
+                entitySector={data?.insights?.impacted_sectors?.[0]?.name}
+              />
+              <PatternIntelligenceCard
+                entityType="ripple"
+                entityId={id}
+                entityTitle={data?.event_title}
+                entityDescription={data?.insights?.summary}
+                entitySector={data?.insights?.impacted_sectors?.[0]?.name}
+              />
+
+              <RelatedContent
+                entityType="ripple"
+                entityId={id}
+                title={data?.event_title}
+                sector={data?.insights?.impacted_sectors?.[0]?.name}
               />
 
               <MultiHorizonOutlookCard

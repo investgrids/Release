@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API  = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.com";
 
 export async function generateMetadata({
   params,
@@ -8,21 +9,30 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
+  const url = `${SITE}/news/${id}`;
   try {
-    const res = await fetch(`${API}/api/news/${id}`, {
-      next: { revalidate: 3600 },
-    });
+    const res = await fetch(`${API}/api/news/${id}`, { next: { revalidate: 3600 } });
     if (res.ok) {
       const article = await res.json();
+      const title = article.headline ?? "Market News";
+      const desc  = (article.summary ?? "").slice(0, 160) || "Market news and financial intelligence from MarketRipple.";
       return {
-        title: `${article.headline} | InvestGrids`,
-        description: article.summary?.slice(0, 160) ?? "Market news from InvestGrids.",
+        title,
+        description: desc,
+        openGraph: {
+          type: "article", title, description: desc, url,
+          siteName: "MarketRipple",
+          publishedTime: article.published_at,
+        },
+        twitter: { card: "summary_large_image", title, description: desc },
+        alternates: { canonical: url },
       };
     }
   } catch {}
   return {
-    title: "Market News | InvestGrids",
-    description: "Real-time Indian market news and financial intelligence.",
+    title: "Market News",
+    description: "Real-time Indian market news and financial intelligence from MarketRipple.",
+    alternates: { canonical: url },
   };
 }
 

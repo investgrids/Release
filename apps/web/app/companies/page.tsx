@@ -1,397 +1,367 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { Download, BarChart2, Star } from "lucide-react";
 import { CompanySearchInput } from "./_components/SearchInput";
+import { FilterSidebar } from "./_components/FilterSidebar";
+
+export const metadata: Metadata = {
+  title: "Company Universe — NSE Listed Companies | MarketRipple",
+  description:
+    "Explore all NSE-listed companies with live prices, sector filters, and market intelligence.",
+};
+export const dynamic = "force-dynamic";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface Company {
-  symbol: string;
-  name: string;
-  sector: string;
-  industry: string;
-  cap: "large" | "mid" | "small";
-  price?: string | null;
-  pct?: number | null;
-  positive?: boolean | null;
+// ── Sector → colored dot ──────────────────────────────────────────────────────
+const SECTOR_DOT: Record<string, string> = {
+  Technology:      "bg-sky-400",
+  Banking:         "bg-indigo-400",
+  Finance:         "bg-cyan-400",
+  Energy:          "bg-amber-400",
+  Power:           "bg-yellow-400",
+  Infrastructure:  "bg-orange-400",
+  Defence:         "bg-rose-400",
+  Pharmaceuticals: "bg-emerald-400",
+  Healthcare:      "bg-green-400",
+  FMCG:            "bg-lime-400",
+  Consumer:        "bg-teal-400",
+  Automotive:      "bg-blue-400",
+  Metals:          "bg-slate-400",
+  Chemicals:       "bg-purple-400",
+  Cement:          "bg-stone-400",
+  "Real Estate":   "bg-pink-400",
+  Telecom:         "bg-violet-400",
+};
+
+// ── Deterministic avatar colors ────────────────────────────────────────────────
+const AVATAR_COLORS = [
+  "bg-blue-700",   "bg-violet-700", "bg-emerald-700", "bg-amber-700",
+  "bg-rose-700",   "bg-sky-700",    "bg-indigo-700",  "bg-teal-700",
+  "bg-orange-700", "bg-pink-700",   "bg-cyan-700",    "bg-green-700",
+];
+
+function avatarColor(symbol: string) {
+  const idx = [...symbol].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[idx];
 }
 
-interface CompaniesResponse {
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-  companies: Company[];
-}
-
-// ── Data fetching ─────────────────────────────────────────────────────────────
-async function fetchCompanies(params: {
-  q: string; sector: string; cap: string; sort: string; page: number;
-}): Promise<CompaniesResponse> {
-  const qs = new URLSearchParams({
-    q:         params.q,
-    sector:    params.sector,
-    cap:       params.cap,
-    sort:      params.sort,
-    page:      String(params.page),
-    page_size: "24",
-  });
-  try {
-    const res = await fetch(`${API}/api/companies/?${qs}`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) throw new Error(String(res.status));
-    return res.json();
-  } catch {
-    return { total: 0, page: 1, page_size: 24, total_pages: 1, companies: [] };
+// ── Sparkline SVG ──────────────────────────────────────────────────────────────
+function Sparkline({ positive }: { positive?: boolean }) {
+  if (positive === undefined || positive === null) {
+    return <div className="h-6 w-[72px]" />;
   }
+  const pts = positive
+    ? "2,18 15,14 28,15 41,10 54,12 67,8 80,9 93,5 106,3"
+    : "2,3 15,5 28,4 41,9 54,6 67,12 80,10 93,15 106,19";
+  const color = positive ? "#10b981" : "#f43f5e";
+  return (
+    <svg width="72" height="24" viewBox="0 0 108 22">
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
-async function fetchSectors(): Promise<string[]> {
-  try {
-    const res = await fetch(`${API}/api/companies/sectors`, { next: { revalidate: 3600 } });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return json.sectors ?? [];
-  } catch {
-    return [];
-  }
+// ── Cap label ──────────────────────────────────────────────────────────────────
+function capBadge(cap: string) {
+  if (cap === "large") return { label: "Large Cap", cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" };
+  if (cap === "mid")   return { label: "Mid Cap",   cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" };
+  if (cap === "small") return { label: "Small Cap", cls: "text-sky-400 bg-sky-500/10 border-sky-500/20" };
+  return { label: "—", cls: "text-slate-500" };
 }
 
-// ── Design helpers ────────────────────────────────────────────────────────────
-const SECTOR_STYLE: Record<string, string> = {
-  Technology:      "border-sky-500/20 bg-sky-500/10 text-sky-300",
-  Banking:         "border-indigo-500/20 bg-indigo-500/10 text-indigo-300",
-  Finance:         "border-cyan-500/20 bg-cyan-500/10 text-cyan-300",
-  Energy:          "border-amber-500/20 bg-amber-500/10 text-amber-300",
-  Power:           "border-yellow-500/20 bg-yellow-500/10 text-yellow-300",
-  Infrastructure:  "border-violet-500/20 bg-violet-500/10 text-violet-300",
-  Defence:         "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
-  Pharmaceuticals: "border-teal-500/20 bg-teal-500/10 text-teal-300",
-  Healthcare:      "border-green-500/20 bg-green-500/10 text-green-300",
-  FMCG:            "border-orange-500/20 bg-orange-500/10 text-orange-300",
-  Consumer:        "border-rose-500/20 bg-rose-500/10 text-rose-300",
-  Automotive:      "border-red-500/20 bg-red-500/10 text-red-300",
-  Metals:          "border-zinc-500/20 bg-zinc-500/10 text-zinc-300",
-  Chemicals:       "border-purple-500/20 bg-purple-500/10 text-purple-300",
-  Cement:          "border-stone-500/20 bg-stone-500/10 text-stone-300",
-  "Real Estate":   "border-lime-500/20 bg-lime-500/10 text-lime-300",
-  Telecom:         "border-blue-500/20 bg-blue-500/10 text-blue-300",
-};
-
-const CAP_STYLE: Record<string, string> = {
-  large: "border-sky-500/15 bg-sky-500/8 text-sky-400",
-  mid:   "border-violet-500/15 bg-violet-500/8 text-violet-400",
-  small: "border-slate-500/15 bg-slate-500/8 text-slate-400",
-};
-const CAP_LABEL: Record<string, string> = {
-  large: "Large Cap",
-  mid:   "Mid Cap",
-  small: "Small Cap",
-};
-
-// Build a URL for filter links — preserves existing active filters
-function filterUrl(
-  base: Record<string, string>,
-  key: string,
-  val: string,
-): string {
-  const sp = new URLSearchParams({ ...base });
-  if (sp.get(key) === val) sp.delete(key); // toggle off
-  else sp.set(key, val);
-  sp.set("page", "1");
-  // Clean empty keys
-  for (const [k, v] of [...sp.entries()]) if (!v) sp.delete(k);
-  const qs = sp.toString();
-  return `/companies${qs ? `?${qs}` : ""}`;
+// ── Pagination helpers ─────────────────────────────────────────────────────────
+function buildPageList(page: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "…")[] = [1];
+  if (page > 3) pages.push("…");
+  for (let p = Math.max(2, page - 1); p <= Math.min(total - 1, page + 1); p++) pages.push(p);
+  if (page < total - 2) pages.push("…");
+  pages.push(total);
+  return pages;
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+function pageHref(base: URLSearchParams, p: number) {
+  const sp = new URLSearchParams(base);
+  sp.set("page", String(p));
+  return `/companies?${sp.toString()}`;
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────────
 export default async function CompaniesPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const sp   = await searchParams;
-  const q       = typeof sp.q      === "string" ? sp.q      : "";
-  const sector  = typeof sp.sector === "string" ? sp.sector : "";
-  const cap     = typeof sp.cap    === "string" ? sp.cap    : "";
-  const sort    = typeof sp.sort   === "string" ? sp.sort   : "name";
-  const page    = Math.max(1, Number(sp.page ?? 1));
+  const params = await searchParams;
+  const q      = typeof params.q      === "string" ? params.q      : "";
+  const sector = typeof params.sector === "string" ? params.sector : "";
+  const cap    = typeof params.cap    === "string" ? params.cap    : "";
+  const sort   = typeof params.sort   === "string" ? params.sort   : "name";
+  const page   = typeof params.page   === "string" ? Math.max(1, parseInt(params.page, 10) || 1) : 1;
 
-  // Active filter map for building href strings
-  const active = Object.fromEntries(
-    [["q", q], ["sector", sector], ["cap", cap], ["sort", sort]].filter(([, v]) => v)
-  );
-
-  const [data, sectors] = await Promise.all([
-    fetchCompanies({ q, sector, cap, sort, page }),
-    fetchSectors(),
+  const [companiesRes, sectorsRes] = await Promise.all([
+    fetch(
+      `${API}/api/companies/?q=${encodeURIComponent(q)}&sector=${encodeURIComponent(sector)}&cap=${cap}&sort=${sort}&page=${page}&page_size=20`,
+      { cache: "no-store" },
+    ),
+    fetch(`${API}/api/companies/sectors`, { cache: "no-store" }),
   ]);
 
-  const { companies, total, total_pages } = data;
+  const cData = companiesRes.ok ? await companiesRes.json() : { companies: [], total: 0, total_pages: 1, page: 1 };
+  const sectors: string[] = sectorsRes.ok ? ((await sectorsRes.json()).sectors ?? []) : [];
 
-  // ── Pagination links ──────────────────────────────────────────────────────
-  function pageUrl(p: number) {
-    const s = new URLSearchParams({ ...active });
-    s.set("page", String(p));
-    for (const [k, v] of [...s.entries()]) if (!v) s.delete(k);
-    return `/companies?${s}`;
-  }
+  const companies: any[]  = cData.companies   ?? [];
+  const total: number     = cData.total       ?? 0;
+  const totalPages: number = cData.total_pages ?? 1;
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // Pagination base (without page param)
+  const baseParams = new URLSearchParams();
+  if (q)                    baseParams.set("q", q);
+  if (sector)               baseParams.set("sector", sector);
+  if (cap)                  baseParams.set("cap", cap);
+  if (sort && sort !== "name") baseParams.set("sort", sort);
+
+  const from = total > 0 ? (page - 1) * 20 + 1 : 0;
+  const to   = Math.min(page * 20, total);
+  const pageList = buildPageList(page, totalPages);
+
+  // ── Column grid definition ──
+  // Company(3fr) Ticker(1fr) Sector(1.5fr) MarketCap(1.2fr) Price(1.2fr) Chg(1fr) Chart(80px) Star(44px)
+  const colGrid = "grid-cols-[3fr_1fr_1.5fr_1.2fr_1.2fr_1fr_80px_44px]";
+
   return (
-    <main className="min-w-0 space-y-6 pb-12">
+    <div className="min-h-screen space-y-5 pb-16">
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div>
-        <p className="text-sm uppercase tracking-[0.24em] text-sky-300">Research</p>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">Companies</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Browse {total > 0 ? total.toLocaleString() : "250+"} NSE-listed companies — live prices, events, and AI analysis.
-        </p>
-      </div>
-
-      {/* ── Search ──────────────────────────────────────────────────────── */}
-      <CompanySearchInput
-        defaultValue={q}
-        sector={sector}
-        cap={cap}
-        sort={sort}
-      />
-
-      {/* ── Filters ─────────────────────────────────────────────────────── */}
-      <div className="space-y-3">
-        {/* Sector chips */}
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">Sector</p>
-          <div className="flex flex-wrap gap-1.5">
-            {sectors.map(s => {
-              const active_sector = sector === s;
-              return (
+          <div className="mb-1 flex items-center gap-3">
+            <h1 className="text-[26px] font-black text-white">Company Universe</h1>
+            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] text-slate-400">
+              🇮🇳 Indian Markets
+            </span>
+          </div>
+          <p className="text-[13px] text-slate-500">Explore all listed companies across NSE and BSE</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[12px] text-slate-400 transition hover:text-white">
+            <Download className="h-3.5 w-3.5" /> Export
+          </button>
+          <button className="flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-[12px] font-semibold text-indigo-400 transition hover:bg-indigo-500/20">
+            <BarChart2 className="h-3.5 w-3.5" /> View Analytics
+          </button>
+        </div>
+      </div>
+
+      {/* ── Stats strip ───────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {[
+          { label: "Total Companies",       value: total > 0 ? total.toLocaleString() : "260+",           sub: "NSE Listed" },
+          { label: "Market Cap Coverage",   value: "98.7%",                                                sub: "of Indian Equities" },
+          { label: "Total Market Cap",      value: "₹ 409 Lakh Cr",                                       sub: "Live Coverage" },
+          { label: "Sectors Covered",       value: sectors.length > 0 ? String(sectors.length) : "17",    sub: "Across All Industries" },
+          { label: "Last Updated",          value: "Live",                                                 sub: "Real-time Prices" },
+        ].map(s => (
+          <div key={s.label} className="rounded-xl border border-white/[0.06] bg-[#0a0d16] p-4">
+            <p className="mb-1 text-[11px] text-slate-500">{s.label}</p>
+            <p className="text-[20px] font-black leading-none text-white">{s.value}</p>
+            <p className="mt-1 text-[10px] text-slate-600">{s.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Main layout ───────────────────────────────────────────────────── */}
+      <div className="flex items-start gap-5">
+
+        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+        <FilterSidebar
+          sectors={sectors}
+          initialSector={sector}
+          initialCap={cap}
+          initialSort={sort}
+          initialQ={q}
+        />
+
+        {/* ── Table area ──────────────────────────────────────────────────── */}
+        <div className="min-w-0 flex-1 space-y-3">
+
+          {/* Search bar */}
+          <CompanySearchInput
+            defaultValue={q}
+            sector={sector}
+            cap={cap}
+            sort={sort}
+          />
+
+          {/* Table */}
+          <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#0a0d16]">
+            {/* Header row */}
+            <div className={`grid ${colGrid} border-b border-white/[0.06] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}>
+              <span>Company</span>
+              <span>Ticker</span>
+              <span>Sector</span>
+              <span>Market Cap</span>
+              <span>Price</span>
+              <span>Change %</span>
+              <span>1D Chart</span>
+              <span />
+            </div>
+
+            {/* Body */}
+            {companies.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-[14px] text-slate-500">No companies found</p>
+                <p className="mt-1 text-[12px] text-slate-600">Try adjusting your search or filters</p>
                 <Link
-                  key={s}
-                  href={filterUrl({ ...active }, "sector", s)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition
-                    ${active_sector
-                      ? (SECTOR_STYLE[s] ?? "border-white/20 bg-white/10 text-white")
-                      : "border-white/8 bg-white/[0.03] text-slate-400 hover:border-white/15 hover:text-slate-200"
-                    }`}
+                  href="/companies"
+                  className="mt-3 text-[12px] text-sky-400 transition hover:text-sky-300"
                 >
-                  {s}
-                  {active_sector && " ×"}
+                  Clear all filters
                 </Link>
-              );
-            })}
+              </div>
+            ) : (
+              <div>
+                {companies.map((co: any, i: number) => {
+                  const pct      = co.pct as number | null | undefined;
+                  const positive = co.positive as boolean | null | undefined;
+                  const pctStr   = pct != null
+                    ? `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`
+                    : "—";
+                  const dotColor  = SECTOR_DOT[co.sector] ?? "bg-slate-400";
+                  const cap_badge = capBadge(co.cap);
+
+                  return (
+                    <Link
+                      key={co.symbol}
+                      href={`/companies/${co.symbol}`}
+                      className={`grid ${colGrid} items-center border-b border-white/[0.04] px-4 py-3 transition last:border-0 hover:bg-white/[0.025] ${i % 2 !== 0 ? "bg-white/[0.01]" : ""}`}
+                    >
+                      {/* Company */}
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[9px] font-bold uppercase text-white ${avatarColor(co.symbol)}`}
+                        >
+                          {co.symbol.slice(0, 2)}
+                        </div>
+                        <span className="truncate text-[12px] font-semibold text-white">
+                          {co.name}
+                        </span>
+                      </div>
+
+                      {/* Ticker */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[11px] font-bold text-slate-300">
+                          {co.symbol}
+                        </span>
+                        <span className="rounded border border-indigo-500/20 bg-indigo-500/10 px-1 py-0.5 text-[8px] font-bold text-indigo-400">
+                          NSE
+                        </span>
+                      </div>
+
+                      {/* Sector */}
+                      <div className="flex items-center gap-1.5">
+                        <div className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} />
+                        <span className="truncate text-[11px] text-slate-400">{co.sector}</span>
+                      </div>
+
+                      {/* Market Cap */}
+                      <span className={`rounded border px-2 py-0.5 text-[10px] font-semibold w-fit ${cap_badge.cls}`}>
+                        {cap_badge.label}
+                      </span>
+
+                      {/* Price */}
+                      <span className="font-mono text-[12px] font-semibold tabular-nums text-white">
+                        {co.price ? `₹${co.price}` : "—"}
+                      </span>
+
+                      {/* Change % */}
+                      <span
+                        className={`text-[12px] font-bold tabular-nums ${
+                          positive === true  ? "text-emerald-400" :
+                          positive === false ? "text-rose-400"    : "text-slate-500"
+                        }`}
+                      >
+                        {pctStr}
+                      </span>
+
+                      {/* Sparkline */}
+                      <div className="flex items-center">
+                        <Sparkline positive={positive ?? undefined} />
+                      </div>
+
+                      {/* Star */}
+                      <div className="flex justify-center" onClick={e => e.preventDefault()}>
+                        <Star className="h-4 w-4 cursor-pointer text-slate-600 transition hover:text-amber-400" />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
 
-        {/* Cap + Sort row */}
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Cap filters */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] uppercase tracking-widest text-slate-500 mr-1">Cap</span>
-            {(["large", "mid", "small"] as const).map(c => (
-              <Link
-                key={c}
-                href={filterUrl({ ...active }, "cap", c)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition
-                  ${cap === c
-                    ? (CAP_STYLE[c] ?? "border-white/20 bg-white/10 text-white")
-                    : "border-white/8 bg-white/[0.03] text-slate-400 hover:border-white/15 hover:text-slate-200"
-                  }`}
-              >
-                {CAP_LABEL[c]}
-                {cap === c && " ×"}
-              </Link>
-            ))}
-          </div>
+          {/* Pagination */}
+          {(totalPages > 1 || total > 0) && (
+            <div className="flex flex-wrap items-center justify-between gap-3 py-1">
+              <span className="text-[12px] text-slate-500">
+                {total > 0
+                  ? `Showing ${from.toLocaleString()} to ${to.toLocaleString()} of ${total.toLocaleString()} companies`
+                  : "No companies found"}
+              </span>
 
-          {/* Sort */}
-          <div className="flex items-center gap-1.5 ml-auto">
-            <span className="text-[10px] uppercase tracking-widest text-slate-500 mr-1">Sort</span>
-            {[
-              { val: "name", label: "A–Z" },
-              { val: "cap",  label: "Market Cap" },
-              { val: "sector", label: "Sector" },
-            ].map(({ val, label }) => (
-              <Link
-                key={val}
-                href={filterUrl({ ...active }, "sort", val)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition
-                  ${sort === val
-                    ? "border-sky-500/30 bg-sky-500/15 text-sky-300"
-                    : "border-white/8 bg-white/[0.03] text-slate-400 hover:border-white/15 hover:text-slate-200"
-                  }`}
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Results header ───────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] text-slate-500">
-          {total > 0
-            ? `${total.toLocaleString()} compan${total !== 1 ? "ies" : "y"}${q ? ` matching "${q}"` : ""}${sector ? ` · ${sector}` : ""}${cap ? ` · ${CAP_LABEL[cap]}` : ""}`
-            : q || sector || cap ? "No matching companies" : "All companies"
-          }
-          {total > 0 && total_pages > 1 && ` · Page ${page} of ${total_pages}`}
-        </p>
-        {(q || sector || cap) && (
-          <Link href="/companies" className="text-[11px] text-sky-400 hover:text-sky-300 transition">
-            Clear filters ×
-          </Link>
-        )}
-      </div>
-
-      {/* ── Company grid ─────────────────────────────────────────────────── */}
-      {companies.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {companies.map(co => {
-            const sectorCls = SECTOR_STYLE[co.sector] ?? "border-white/8 bg-white/5 text-slate-400";
-            const capCls    = CAP_STYLE[co.cap]       ?? "border-white/8 bg-white/5 text-slate-500";
-            const pctPos    = co.pct !== null && co.pct !== undefined ? co.pct >= 0 : null;
-
-            return (
-              <Link
-                key={co.symbol}
-                href={`/companies/${co.symbol}`}
-                className="group rounded-[18px] border border-white/10 bg-white/[0.03] p-4 transition hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35)]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  {/* Avatar + name */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 to-violet-500/10 text-xs font-bold text-slate-300">
-                      {co.symbol.slice(0, 2)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white group-hover:text-sky-300 transition">
-                        {co.symbol}
-                      </p>
-                      <p className="truncate text-[11px] text-slate-500">{co.name}</p>
-                    </div>
-                  </div>
-
-                  {/* Price */}
-                  <div className="shrink-0 text-right">
-                    {co.price ? (
-                      <>
-                        <p className="text-sm font-semibold text-white tabular-nums">₹{co.price}</p>
-                        {co.pct !== null && co.pct !== undefined && (
-                          <p className={`text-xs font-medium tabular-nums ${pctPos ? "text-emerald-400" : "text-rose-400"}`}>
-                            {pctPos ? "+" : ""}{co.pct.toFixed(2)}%
-                          </p>
-                        )}
-                      </>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  {page > 1 && (
+                    <Link
+                      href={pageHref(baseParams, page - 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-[#0a0d16] text-[13px] text-slate-500 transition hover:border-indigo-500/30 hover:text-white"
+                    >
+                      ‹
+                    </Link>
+                  )}
+                  {pageList.map((p, i) =>
+                    p === "…" ? (
+                      <span key={`e${i}`} className="px-1 text-[12px] text-slate-600">
+                        …
+                      </span>
                     ) : (
-                      <span className="text-xs text-slate-600">—</span>
-                    )}
-                  </div>
+                      <Link
+                        key={p}
+                        href={pageHref(baseParams, p as number)}
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg text-[12px] transition ${
+                          p === page
+                            ? "bg-indigo-600 font-bold text-white"
+                            : "border border-white/[0.07] bg-[#0a0d16] text-slate-400 hover:border-indigo-500/30 hover:text-white"
+                        }`}
+                      >
+                        {p}
+                      </Link>
+                    ),
+                  )}
+                  {page < totalPages && (
+                    <Link
+                      href={pageHref(baseParams, page + 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-[#0a0d16] text-[13px] text-slate-500 transition hover:border-indigo-500/30 hover:text-white"
+                    >
+                      ›
+                    </Link>
+                  )}
                 </div>
+              )}
 
-                {/* Footer: badges + arrow */}
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`inline-block shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${sectorCls}`}>
-                      {co.sector}
-                    </span>
-                    <span className={`inline-block shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${capCls}`}>
-                      {CAP_LABEL[co.cap] ?? co.cap}
-                    </span>
-                  </div>
-                  <span className="shrink-0 text-[11px] text-slate-600 group-hover:text-slate-400 transition">
-                    View →
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      ) : (
-        /* ── Empty state ────────────────────────────────────────────────── */
-        <div className="flex flex-col items-center gap-5 rounded-[20px] border border-white/8 bg-white/[0.02] py-16 text-center">
-          <span className="text-4xl">🔍</span>
-          <div>
-            <p className="text-base font-medium text-white">No matching company found</p>
-            <p className="mt-1 text-sm text-slate-400">
-              {q ? `"${q}" didn't match any of our supported companies.` : "No companies match the selected filters."}
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-3">
-            {q && (
-              <Link
-                href={`/companies/${q.trim().toUpperCase().replace(/\s+/g, "")}`}
-                className="rounded-xl border border-sky-500/25 bg-sky-500/10 px-5 py-2 text-sm font-medium text-sky-300 hover:bg-sky-500/18 transition"
-              >
-                Try {q.trim().toUpperCase()} on NSE →
-              </Link>
-            )}
-            <Link
-              href="/ai-search"
-              className="rounded-xl border border-white/10 bg-white/[0.05] px-5 py-2 text-sm font-medium text-slate-300 hover:bg-white/[0.09] transition"
-            >
-              Ask Market AI
-            </Link>
-            <Link
-              href="/companies"
-              className="rounded-xl border border-white/8 bg-white/[0.03] px-5 py-2 text-sm font-medium text-slate-400 hover:text-slate-300 transition"
-            >
-              Browse all companies
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* ── Pagination ───────────────────────────────────────────────────── */}
-      {total_pages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          {page > 1 && (
-            <Link
-              href={pageUrl(page - 1)}
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.08] hover:text-white transition"
-            >
-              ← Previous
-            </Link>
-          )}
-
-          {/* Page number pills — show window around current page */}
-          {Array.from({ length: total_pages }, (_, i) => i + 1)
-            .filter(p => p === 1 || p === total_pages || Math.abs(p - page) <= 2)
-            .reduce<(number | "...")[]>((acc, p, i, arr) => {
-              if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("...");
-              acc.push(p);
-              return acc;
-            }, [])
-            .map((p, i) =>
-              p === "..." ? (
-                <span key={`ellipsis-${i}`} className="px-2 text-slate-600">…</span>
-              ) : (
-                <Link
-                  key={p}
-                  href={pageUrl(p as number)}
-                  className={`rounded-xl border px-4 py-2 text-sm transition
-                    ${p === page
-                      ? "border-sky-500/40 bg-sky-500/15 text-sky-300 font-semibold"
-                      : "border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-white"
-                    }`}
-                >
-                  {p}
-                </Link>
-              ),
-            )}
-
-          {page < total_pages && (
-            <Link
-              href={pageUrl(page + 1)}
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.08] hover:text-white transition"
-            >
-              Next →
-            </Link>
+              <span className="text-[12px] text-slate-600">Rows per page: 20</span>
+            </div>
           )}
         </div>
-      )}
-    </main>
+      </div>
+    </div>
   );
 }

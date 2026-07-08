@@ -271,13 +271,14 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
   useEffect(() => {
     // Fetch events/opps/news (fast DB queries) — always fresh
     // Only fetch /live if we don't have initialData from overview
+    const safe = (p: Promise<any>) => p.catch(() => null);
     const fetches: Promise<any>[] = [
-      fetch(`${API}/api/market/events?limit=5`).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/api/market/opportunities?limit=4`).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/api/market/news?limit=5`).then(r => r.ok ? r.json() : null),
+      safe(fetch(`${API}/api/market/events?limit=5`).then(r => r.ok ? r.json() : null)),
+      safe(fetch(`${API}/api/market/opportunities?limit=4`).then(r => r.ok ? r.json() : null)),
+      safe(fetch(`${API}/api/market/news?limit=5`).then(r => r.ok ? r.json() : null)),
     ];
     if (!initialData) {
-      fetches.unshift(fetch(`${API}/api/market/live`).then(r => r.ok ? r.json() : null));
+      fetches.unshift(safe(fetch(`${API}/api/market/live`).then(r => r.ok ? r.json() : null)));
     }
     Promise.all(fetches).then((results) => {
       if (!initialData) {

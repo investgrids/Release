@@ -53,39 +53,43 @@ class FyersAuthManager:
             log.warning("fyers_auth.sdk_missing — install fyers-apiv3")
             return ""
         except Exception as exc:
-            log.error("fyers_auth.url_error", error=str(exc))
+            log.error("fyers_auth.url_error error=%s", str(exc))
             return ""
 
-    def exchange_code(self, auth_code: str) -> Optional[str]:
+    def exchange_code(self, auth_code: str) -> str:
         """
         Exchange an auth_code for an access_token.
-        Stores the token in memory and optionally in Redis.
-        Returns the access_token string or None on failure.
+        Raises RuntimeError with Fyers error details on failure.
+        Returns the access_token string on success.
         """
         try:
             from fyers_apiv3 import fyersModel
-            session = fyersModel.SessionModel(
-                client_id    = self._client_id,
-                secret_key   = self._secret_key,
-                redirect_uri = self._redirect_uri,
-                response_type= "code",
-                grant_type   = "authorization_code",
-            )
-            session.set_token(auth_code)
-            resp = session.generate_token()
-            if not isinstance(resp, dict):
-                log.error("fyers_auth.exchange_bad_response", resp=resp)
-                return None
-            token = resp.get("access_token")
-            if token:
-                self._set_token(token)
-            return token
         except ImportError:
-            log.warning("fyers_auth.sdk_missing")
-            return None
-        except Exception as exc:
-            log.error("fyers_auth.exchange_error", error=str(exc))
-            return None
+            raise RuntimeError("fyers-apiv3 package not installed on server")
+
+        session = fyersModel.SessionModel(
+            client_id    = self._client_id,
+            secret_key   = self._secret_key,
+            redirect_uri = self._redirect_uri,
+            response_type= "code",
+            grant_type   = "authorization_code",
+        )
+        session.set_token(auth_code)
+        resp = session.generate_token()
+        log.info("fyers_auth.exchange_response: %s", resp)
+
+        if not isinstance(resp, dict):
+            raise RuntimeError(f"Unexpected response type from Fyers: {resp!r}")
+
+        token = resp.get("access_token")
+        if not token:
+            # Surface the actual Fyers error code + message
+            code = resp.get("code", "?")
+            msg  = resp.get("message") or resp.get("msg") or resp.get("error_message") or str(resp)
+            raise RuntimeError(f"Fyers error {code}: {msg}")
+
+        self._set_token(token)
+        return token
 
     def set_token_direct(self, token: str) -> None:
         """Inject a pre-generated access token (e.g. from env var or cron)."""

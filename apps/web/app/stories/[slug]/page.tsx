@@ -7,7 +7,10 @@ import {
 } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
-import { InvestmentThesis, GrowthDrivers, OpportunityLifecycleCard } from "@/components/intelligence";
+import { InvestmentThesis, GrowthDrivers, OpportunityLifecycleCard, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard } from "@/components/intelligence";
+import { ShareInsightCard } from "@/components/ShareInsightCard";
+import { SmartCTA } from "@/components/SmartCTA";
+import { RelatedContent } from "@/components/RelatedContent";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -71,9 +74,10 @@ async function getStory(slug: string): Promise<StoryDetail | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const story = await getStory(params.slug);
+  const { slug } = await params;
+  const story = await getStory(slug);
   return {
     title: story
       ? `${story.title} — MarketRipple Stories`
@@ -88,9 +92,10 @@ export async function generateMetadata({
 export default async function StoryPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const story = await getStory(params.slug);
+  const { slug } = await params;
+  const story = await getStory(slug);
 
   if (!story) notFound();
 
@@ -110,8 +115,8 @@ export default async function StoryPage({
 
   return (
     <main className="min-w-0 pb-16">
-      {/* Back nav */}
-      <div className="mb-6">
+      {/* Back nav + share */}
+      <div className="mb-6 flex items-center justify-between gap-4">
         <Link
           href="/stories"
           className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition"
@@ -119,6 +124,19 @@ export default async function StoryPage({
           <ArrowLeft className="h-4 w-4" />
           Back to Stories
         </Link>
+        <ShareInsightCard
+          entityType="story"
+          entityId={String(story.id)}
+          title={story.title}
+          summary={story.description ?? story.summary}
+        />
+      </div>
+
+      {/* Smart CTAs */}
+      <div className="mb-5 flex flex-wrap gap-2">
+        <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(story.title.slice(0, 100))}`} />
+        <SmartCTA variant="explore-opportunity" href="/radar" />
+        <SmartCTA variant="see-companies" href="/companies" />
       </div>
 
       {/* Header */}
@@ -242,20 +260,24 @@ export default async function StoryPage({
 
           {/* Intelligence Layer */}
           <InvestmentThesis
+            entityType="story"
+            entityId={String(story.id)}
+            entityTitle={story.title}
+            entityDescription={story.description ?? story.summary}
+            entitySector={story.sectors?.[0]}
             thesis={story.summary ?? story.description ?? "This investment theme represents a structural opportunity in Indian markets."}
+            whyItMatters={story.ai_summary?.matters}
             confidence={typeof story.confidence === "number"
               ? Math.round(story.confidence <= 1 ? story.confidence * 100 : story.confidence)
               : 70
             }
             timeHorizon={story.time_horizon ?? "12–18 months"}
-            assumptions={(story.key_drivers ?? []).slice(0, 3).length > 0
-              ? (story.key_drivers ?? []).slice(0, 3)
-              : ["Policy support continues", "Sector earnings beat estimates", "No adverse macro disruption"]
-            }
+            keyDrivers={(story.key_drivers ?? []).slice(0, 4)}
             riskFactors={[
+              ...(story.ai_summary?.risks ?? []).slice(0, 2),
               story.risk_level === "High" ? "High risk — significant execution uncertainty" : "Regulatory and execution risk",
               "Valuation risk — entry timing matters",
-            ]}
+            ].filter(Boolean)}
           />
 
           <GrowthDrivers
@@ -286,6 +308,28 @@ export default async function StoryPage({
               `${story.risk_level === "high" ? "High risk of adverse policy or macro reversal" : "Execution risk if key catalysts are delayed"}`,
               "Sector rotation could redirect institutional attention",
             ]}
+          />
+
+          <ScenarioAnalysis
+            entityType="story"
+            entityId={String(story.id)}
+            entityTitle={story.title}
+            entityDescription={story.description ?? story.summary}
+            entitySector={story.sectors?.[0]}
+          />
+          <MonitoringChecklist
+            entityType="story"
+            entityId={String(story.id)}
+            entityTitle={story.title}
+            entityDescription={story.description ?? story.summary}
+            entitySector={story.sectors?.[0]}
+          />
+          <PatternIntelligenceCard
+            entityType="story"
+            entityId={String(story.id)}
+            entityTitle={story.title}
+            entityDescription={story.description ?? story.summary}
+            entitySector={story.sectors?.[0]}
           />
 
           {/* Companies */}
@@ -441,6 +485,16 @@ export default async function StoryPage({
             compact
           />
         </div>
+      </div>
+
+      {/* Related Intelligence */}
+      <div className="mt-6">
+        <RelatedContent
+          entityType="story"
+          entityId={String(story.id)}
+          title={story.title}
+          sector={story.sectors?.[0]}
+        />
       </div>
 
       {/* AI Disclaimer */}

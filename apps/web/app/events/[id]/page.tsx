@@ -9,7 +9,10 @@ import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { Target, Building2, BarChart2, Sparkles, MailX } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
-import { InvestmentThesisCard, OpportunityLifecycleCard, ScenarioAnalysis, MonitoringChecklist, MultiHorizonOutlookCard } from "@/components/intelligence";
+import { InvestmentThesisCard, OpportunityLifecycleCard, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, MultiHorizonOutlookCard } from "@/components/intelligence";
+import { ShareInsightCard } from "@/components/ShareInsightCard";
+import { SmartCTA } from "@/components/SmartCTA";
+import { RelatedContent } from "@/components/RelatedContent";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTip,
   ResponsiveContainer, PieChart, Pie, Cell,
@@ -246,6 +249,11 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
       <AIDisclaimer />
 
       <InvestmentThesisCard
+        entityType="event"
+        entityId={data.event.id}
+        entityTitle={data.event.title}
+        entityDescription={data.event.description}
+        entitySector={data.affectedSectors?.[0]?.sector}
         thesis={data.summary.text}
         whyItMatters={data.summary.why_it_matters}
         businessImpact={data.summary.immediate_impact}
@@ -273,17 +281,32 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
       />
 
       <ScenarioAnalysis
-        bull={{ probability: 30, description: `${data.event.event_type ?? "Policy"} decision sparks sector rally and positive re-rating.` }}
-        base={{ probability: 50, description: `Markets absorb the event with measured, sector-specific reaction.` }}
-        bear={{ probability: 20, description: "Execution delays or hawkish follow-through trigger a sell-off in sensitive sectors." }}
+        entityType="event"
+        entityId={String(data.event.id)}
+        entityTitle={data.event.title}
+        entityDescription={data.event.description}
+        entitySector={data.affectedSectors?.[0]?.sector}
       />
       <MonitoringChecklist
-        items={[
-          { label: "Sector index performance post-announcement", priority: "critical" as const },
-          { label: "FII/DII flow direction in affected sectors", priority: "high" as const },
-          { label: "Follow-on policy or corporate announcements", priority: "high" as const },
-          { label: "Company guidance revisions in the sector", priority: "medium" as const },
-        ]}
+        entityType="event"
+        entityId={String(data.event.id)}
+        entityTitle={data.event.title}
+        entityDescription={data.event.description}
+        entitySector={data.affectedSectors?.[0]?.sector}
+      />
+      <PatternIntelligenceCard
+        entityType="event"
+        entityId={String(data.event.id)}
+        entityTitle={data.event.title}
+        entityDescription={data.event.description}
+        entitySector={data.affectedSectors?.[0]?.sector}
+      />
+
+      <RelatedContent
+        entityType="event"
+        entityId={data.event.id}
+        title={data.event.title}
+        sector={data.affectedSectors?.[0]?.sector}
       />
 
       <MultiHorizonOutlookCard
@@ -928,12 +951,12 @@ export default function EventExplorerPage() {
           <span className="text-slate-400 truncate max-w-[320px]">{ev.title}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12px] text-slate-300 hover:bg-white/[0.08] transition">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
-            </svg>
-            Share
-          </button>
+          <ShareInsightCard
+            entityType="event"
+            entityId={ev.id}
+            title={ev.title}
+            summary={data.summary?.text}
+          />
           <button className="flex items-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[12px] text-violet-300 hover:bg-violet-500/20 transition">
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
@@ -941,6 +964,13 @@ export default function EventExplorerPage() {
             Watchlist
           </button>
         </div>
+      </div>
+
+      {/* ── Smart CTAs ────────────────────────────────────────────────── */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(ev.title.slice(0, 100))}`} />
+        <SmartCTA variant="see-companies" href="/companies" />
+        <SmartCTA variant="explore-opportunity" href="/radar" />
       </div>
 
       {/* ── Page title + event header ──────────────────────────────────── */}

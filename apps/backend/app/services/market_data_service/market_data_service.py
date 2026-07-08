@@ -61,7 +61,7 @@ def _build_provider() -> MarketDataProvider:
                 log.info("market_data.provider=Fyers")
                 return provider
             except Exception as exc:
-                log.warning("market_data.fyers_init_failed", error=str(exc))
+                log.warning("market_data.fyers_init_failed error=%s", str(exc))
     except Exception:
         pass
 
@@ -206,8 +206,7 @@ class MarketDataService:
         """Hot-swap provider at runtime (e.g. after Fyers token refresh)."""
         old = self._provider
         self._provider = new_provider
-        log.info("market_data.provider_swapped",
-                 from_provider=old.name, to_provider=new_provider.name)
+        log.info("market_data.provider_swapped from=%s to=%s", old.name, new_provider.name)
 
 
 # ── Singleton (imported by the rest of the application) ───────────────────────

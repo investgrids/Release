@@ -16,22 +16,22 @@ export async function generateMetadata({
     if (res.ok) {
       const stock = await res.json();
       const name  = stock.name ?? upper;
-      const desc  = `${name} (${upper}) — live price, AI market analysis, ripple chain, investment thesis, and event-driven intelligence on MarketRipple.`;
+      const desc  = `${name} (${upper}) — AI-powered market analysis, investment thesis, ripple chain impact, and event-driven intelligence on MarketRipple.`;
       return {
         title: `${name} (${upper}) — AI Analysis`,
         description: desc.slice(0, 160),
         openGraph: {
-          type: "article", title: `${name} (${upper})`, description: desc.slice(0, 160), url,
+          type: "article", title: `${name} (${upper}) — MarketRipple`, description: desc.slice(0, 160), url,
           siteName: "MarketRipple",
         },
-        twitter: { card: "summary_large_image", title: `${name} (${upper}) — MarketRipple`, description: desc.slice(0, 160) },
+        twitter: { card: "summary_large_image", title: `${name} (${upper})`, description: desc.slice(0, 160) },
         alternates: { canonical: url },
       };
     }
   } catch {}
   return {
     title: `${upper} — AI Analysis`,
-    description: `Live price, charts, and AI market intelligence for ${upper} on MarketRipple.`,
+    description: `AI-powered market intelligence for ${upper} on MarketRipple.`,
     alternates: { canonical: url },
   };
 }

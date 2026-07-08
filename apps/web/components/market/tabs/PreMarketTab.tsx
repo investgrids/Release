@@ -612,9 +612,10 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
   useEffect(() => {
     const load = async () => {
       try {
+        const safe = (p: Promise<any>) => p.catch(() => null);
         const [pmRes, mvRes] = await Promise.all([
-          fetch(`${API}/api/market/premarket`).then(r => r.ok ? r.json() : null),
-          fetch(`${API}/api/market/top-movers`).then(r => r.ok ? r.json() : null),
+          safe(fetch(`${API}/api/market/premarket`).then(r => r.ok ? r.json() : null)),
+          safe(fetch(`${API}/api/market/top-movers`).then(r => r.ok ? r.json() : null)),
         ]);
         if (pmRes) setData(pmRes);
         if (mvRes) setMovers(mvRes);

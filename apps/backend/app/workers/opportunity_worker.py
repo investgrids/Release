@@ -80,7 +80,7 @@ async def _seed_static_opportunities(db) -> None:
             "theme": "AI Infrastructure Boom",
             "sectors": ["Infrastructure", "Technology"],
             "events": [
-                {"id": "seed-ai-1", "title": "India AI Mission â‚¹10,372 Cr approved",         "summary": "Government of India approved the India AI Mission with â‚¹10,372 crore allocation to build AI data centers and compute infrastructure across the country.", "published_at": "2024-05-22", "category": "Government"},
+                {"id": "seed-ai-1", "title": "India AI Mission ₹10,372 Cr approved",         "summary": "Government of India approved the India AI Mission with ₹10,372 crore allocation to build AI data centers and compute infrastructure across the country.", "published_at": "2024-05-22", "category": "Government"},
                 {"id": "seed-ai-2", "title": "Data center capacity to triple by 2027",         "summary": "India's data center capacity is expected to grow 3X by 2027, driven by hyperscaler investments from AWS, Google, and Microsoft expanding India footprint.", "published_at": "2024-05-15", "category": "Corporate"},
                 {"id": "seed-ai-3", "title": "PLI scheme for IT hardware servers approved",    "summary": "PLI incentives announced for servers, storage, and networking hardware manufacturing in India, aimed at reducing import dependence.", "published_at": "2024-05-01", "category": "Policy"},
                 {"id": "seed-ai-4", "title": "NTPC Power capacity for data centers",           "summary": "NTPC announces new power projects specifically to support growing data center demand in India.", "published_at": "2024-04-25", "category": "Infrastructure"},
@@ -90,27 +90,27 @@ async def _seed_static_opportunities(db) -> None:
             "theme": "Railway Modernization",
             "sectors": ["Railways", "Infrastructure"],
             "events": [
-                {"id": "seed-rail-1", "title": "Railway capex hits record â‚¹2.65 lakh crore FY25", "summary": "Union Budget allocated record â‚¹2.65 lakh crore for railways, focused on new lines, electrification, Kavach signaling, and station redevelopment.", "published_at": "2024-05-20", "category": "Government"},
-                {"id": "seed-rail-2", "title": "BEML bags â‚¹18,000 Cr Vande Bharat coach order",   "summary": "BEML wins massive order to manufacture Vande Bharat train coaches, as the government targets 400 trains by 2026.", "published_at": "2024-05-12", "category": "Corporate"},
+                {"id": "seed-rail-1", "title": "Railway capex hits record ₹2.65 lakh crore FY25", "summary": "Union Budget allocated record ₹2.65 lakh crore for railways, focused on new lines, electrification, Kavach signaling, and station redevelopment.", "published_at": "2024-05-20", "category": "Government"},
+                {"id": "seed-rail-2", "title": "BEML bags ₹18,000 Cr Vande Bharat coach order",   "summary": "BEML wins massive order to manufacture Vande Bharat train coaches, as the government targets 400 trains by 2026.", "published_at": "2024-05-12", "category": "Corporate"},
                 {"id": "seed-rail-3", "title": "Kavach safety rollout to 10,000 km tracks",        "summary": "Phase 3 of Kavach anti-collision system rollout announced covering 10,000 km of railway tracks for enhanced safety.", "published_at": "2024-05-08", "category": "Government"},
-                {"id": "seed-rail-4", "title": "L&T wins â‚¹6,200 Cr DFC Phase-2 contract",          "summary": "Larsen and Toubro wins major Dedicated Freight Corridor Phase-2 contract worth â‚¹6,200 crore.", "published_at": "2024-05-05", "category": "Corporate"},
+                {"id": "seed-rail-4", "title": "L&T wins ₹6,200 Cr DFC Phase-2 contract",          "summary": "Larsen and Toubro wins major Dedicated Freight Corridor Phase-2 contract worth ₹6,200 crore.", "published_at": "2024-05-05", "category": "Corporate"},
             ],
         },
         {
             "theme": "Green Energy Transition",
             "sectors": ["Energy", "Infrastructure"],
             "events": [
-                {"id": "seed-green-1", "title": "India targets 500 GW renewable energy by 2030",   "summary": "Government reaffirms 500 GW renewable energy target with â‚¹19,100 Cr green energy corridor investment.", "published_at": "2024-05-18", "category": "Government"},
+                {"id": "seed-green-1", "title": "India targets 500 GW renewable energy by 2030",   "summary": "Government reaffirms 500 GW renewable energy target with ₹19,100 Cr green energy corridor investment.", "published_at": "2024-05-18", "category": "Government"},
                 {"id": "seed-green-2", "title": "NTPC Green Energy IPO plans announced",            "summary": "NTPC Green Energy, the renewable arm, files for IPO to raise funds for solar and wind capacity expansion.", "published_at": "2024-05-10", "category": "Corporate"},
-                {"id": "seed-green-3", "title": "Green hydrogen mission â‚¹19,744 Cr allocation",     "summary": "National Green Hydrogen Mission receives â‚¹19,744 crore to build India's green hydrogen ecosystem.", "published_at": "2024-04-28", "category": "Policy"},
+                {"id": "seed-green-3", "title": "Green hydrogen mission ₹19,744 Cr allocation",     "summary": "National Green Hydrogen Mission receives ₹19,744 crore to build India's green hydrogen ecosystem.", "published_at": "2024-04-28", "category": "Policy"},
             ],
         },
         {
             "theme": "Defence Manufacturing Indigenisation",
             "sectors": ["Defence", "Manufacturing"],
             "events": [
-                {"id": "seed-def-1", "title": "India defence export target $5 billion by 2025",    "summary": "India sets ambitious â‚¹40,000 Cr defence export target for 2025 with HAL, BEL as primary export vehicles.", "published_at": "2024-05-16", "category": "Government"},
-                {"id": "seed-def-2", "title": "HAL LCA Tejas Mk2 order for 97 aircraft",           "summary": "HAL receives 97-aircraft Tejas Mk2 order worth â‚¹67,000 Cr from Indian Air Force, largest ever domestic defence order.", "published_at": "2024-05-09", "category": "Corporate"},
+                {"id": "seed-def-1", "title": "India defence export target $5 billion by 2025",    "summary": "India sets ambitious ₹40,000 Cr defence export target for 2025 with HAL, BEL as primary export vehicles.", "published_at": "2024-05-16", "category": "Government"},
+                {"id": "seed-def-2", "title": "HAL LCA Tejas Mk2 order for 97 aircraft",           "summary": "HAL receives 97-aircraft Tejas Mk2 order worth ₹67,000 Cr from Indian Air Force, largest ever domestic defence order.", "published_at": "2024-05-09", "category": "Corporate"},
                 {"id": "seed-def-3", "title": "Defence indigenisation list blocks 4,000+ imports",  "summary": "Ministry of Defence expands positive indigenisation list to block imports of 4,000+ items, benefiting domestic manufacturers.", "published_at": "2024-04-22", "category": "Policy"},
             ],
         },
@@ -128,8 +128,8 @@ async def _seed_static_opportunities(db) -> None:
             "sectors": ["Automotive", "Manufacturing"],
             "events": [
                 {"id": "seed-ev-1", "title": "India EV sales cross 1.5 million units FY24",      "summary": "Electric vehicle sales surged past 1.5 million units in FY24, driven by 2-wheelers and commercial vehicles.", "published_at": "2024-05-11", "category": "Corporate"},
-                {"id": "seed-ev-2", "title": "FAME III scheme â‚¹25,000 Cr EV subsidy approved",   "summary": "Cabinet approves FAME III scheme with â‚¹25,000 crore EV subsidies to accelerate EV adoption across segments.", "published_at": "2024-05-03", "category": "Government"},
-                {"id": "seed-ev-3", "title": "Tata Motors EV plant â‚¹15,000 Cr investment",       "summary": "Tata Motors announces â‚¹15,000 crore dedicated EV manufacturing facility targeting 2 lakh EVs annually by 2026.", "published_at": "2024-04-18", "category": "Corporate"},
+                {"id": "seed-ev-2", "title": "FAME III scheme ₹25,000 Cr EV subsidy approved",   "summary": "Cabinet approves FAME III scheme with ₹25,000 crore EV subsidies to accelerate EV adoption across segments.", "published_at": "2024-05-03", "category": "Government"},
+                {"id": "seed-ev-3", "title": "Tata Motors EV plant ₹15,000 Cr investment",       "summary": "Tata Motors announces ₹15,000 crore dedicated EV manufacturing facility targeting 2 lakh EVs annually by 2026.", "published_at": "2024-04-18", "category": "Corporate"},
             ],
         },
     ]

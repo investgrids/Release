@@ -60,7 +60,7 @@ class RSSProvider(BaseProvider):
                     r = await c.get(url)
                     if r.status_code != 200:
                         continue
-                    items = _parse_rss_xml(r.text, source, score)
+                    items = _parse_rss_xml(r.content, source, score)
                     results.extend(items)
                 except Exception:
                     continue
@@ -89,12 +89,12 @@ class RSSProvider(BaseProvider):
         )
 
 
-def _parse_rss_xml(text: str, source: str, score: float) -> list[dict]:
+def _parse_rss_xml(data: bytes, source: str, score: float) -> list[dict]:
     """Parse RSS XML without feedparser (stdlib only)."""
     from xml.etree import ElementTree as ET
     results: list[dict] = []
     try:
-        root = ET.fromstring(text)
+        root = ET.fromstring(data)
     except ET.ParseError:
         return []
     for item in root.iter("item"):

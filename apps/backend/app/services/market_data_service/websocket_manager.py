@@ -44,12 +44,12 @@ class ServerWSHub:
         await ws.accept()
         cid = id(ws)
         self._clients[cid] = (ws, set(s.upper() for s in symbols))
-        log.info("ws_hub.client_connected", cid=cid, symbols=symbols)
+        log.info("ws_hub.client_connected cid=%s symbols=%s", cid, symbols)
 
     def disconnect(self, ws: WebSocket) -> None:
         cid = id(ws)
         self._clients.pop(cid, None)
-        log.info("ws_hub.client_disconnected", cid=cid)
+        log.info("ws_hub.client_disconnected cid=%s", cid)
 
     async def broadcast_quote(self, quote) -> None:
         """Push a Quote to all clients that subscribed to its symbol."""

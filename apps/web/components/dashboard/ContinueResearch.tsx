@@ -68,7 +68,13 @@ export function ContinueResearch({ items, searches }: ContinueResearchProps) {
   if (items.length === 0 && searches.length === 0) return null;
 
   const displayItems = items.slice(0, 4);
-  const displaySearches = searches.slice(0, 4);
+  // Deduplicate by id to handle stale localStorage entries with colliding keys
+  const seenIds = new Set<string>();
+  const displaySearches = searches.filter(s => {
+    if (seenIds.has(s.id)) return false;
+    seenIds.add(s.id);
+    return true;
+  }).slice(0, 4);
 
   return (
     <div className="rounded-[20px] border border-white/8 bg-white/[0.02] p-4">

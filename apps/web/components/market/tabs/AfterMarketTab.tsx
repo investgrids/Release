@@ -57,6 +57,7 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
     fetch(`${API}/api/market/after-market`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setData(d); })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 

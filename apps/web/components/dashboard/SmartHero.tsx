@@ -59,13 +59,13 @@ export function SmartHero(props: SmartHeroProps) {
     return <WelcomeBackHero {...props} />;
   }
 
-  // first-time user: welcome banner above the normal dashboard hero
+  // first-time user: welcome banner as top-right overlay, hero renders normally
   return (
-    <div className="space-y-4">
+    <>
       <AnimatePresence>
         <FirstVisitBanner onDismiss={handleDismiss} />
       </AnimatePresence>
       <DashboardHero {...props} />
-    </div>
+    </>
   );
 }

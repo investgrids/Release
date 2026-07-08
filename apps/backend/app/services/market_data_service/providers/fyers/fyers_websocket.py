@@ -73,7 +73,7 @@ class FyersWebSocketManager:
             try:
                 self._socket.subscribe(symbols=new_syms, data_type=_DATA_TYPE_QUOTE)
             except Exception as exc:
-                log.warning("fyers_ws.subscribe_error", error=str(exc))
+                log.warning("fyers_ws.subscribe_error error=%s", str(exc))
 
     def unsubscribe(self, symbols: list[str]) -> None:
         fyers_syms = [self._to_fyers_sym(s) for s in symbols]
@@ -122,10 +122,10 @@ class FyersWebSocketManager:
             try:
                 self._start_socket()
             except Exception as exc:
-                log.error("fyers_ws.run_error", error=str(exc))
+                log.error("fyers_ws.run_error error=%s", str(exc))
             if not self._connected:
                 break  # disconnect() was called
-            log.info("fyers_ws.reconnecting", delay=self._reconnect_delay)
+            log.info("fyers_ws.reconnecting delay=%s", self._reconnect_delay)
             time.sleep(self._reconnect_delay)
             self._reconnect_delay = min(self._reconnect_delay * 2, _RECONNECT_MAX_DELAY)
 
@@ -154,7 +154,7 @@ class FyersWebSocketManager:
             log.warning("fyers_ws.sdk_missing — install fyers-apiv3")
             self._connected = False
         except Exception as exc:
-            log.error("fyers_ws.start_error", error=str(exc))
+            log.error("fyers_ws.start_error error=%s", str(exc))
             self._connected = False
 
     def _on_connect(self) -> None:
@@ -168,7 +168,7 @@ class FyersWebSocketManager:
         log.info("fyers_ws.closed")
 
     def _on_error(self, message: str) -> None:
-        log.error("fyers_ws.error", message=message)
+        log.error("fyers_ws.error message=%s", message)
 
     def _on_message(self, message: dict) -> None:
         self._last_tick = time.time()
@@ -178,4 +178,4 @@ class FyersWebSocketManager:
             try:
                 cb(message)
             except Exception as exc:
-                log.warning("fyers_ws.callback_error", error=str(exc))
+                log.warning("fyers_ws.callback_error error=%s", str(exc))

@@ -37,6 +37,7 @@ export function GlobalMarketsTab() {
     fetch(`${API}/api/market/global`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.indices) setIndices(d.indices); })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 

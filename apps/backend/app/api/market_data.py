@@ -24,8 +24,8 @@ from __future__ import annotations
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Query, WebSocket, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Query, Request, WebSocket, HTTPException
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.services.market_data_service import (
     market_data_service,
@@ -152,6 +152,97 @@ async def get_sectors():
 
 
 # ── Fyers auth flow ───────────────────────────────────────────────────────────
+
+@router.get("/auth/fyers/status")
+async def fyers_auth_status():
+    """Return current Fyers connection status and provider info."""
+    from app.core.config import settings
+    from app.services.market_data_service.providers.fyers.fyers_auth import FyersAuthManager
+
+    client_id  = getattr(settings, "fyers_client_id",    "")
+    secret_key = getattr(settings, "fyers_secret_key",   "")
+    redirect_uri = getattr(settings, "fyers_redirect_uri", "")
+
+    is_configured = bool(client_id)
+    is_active     = market_data_service.provider_name == "Fyers"
+    is_authed     = False
+
+    if is_configured:
+        try:
+            auth = FyersAuthManager(
+                client_id=client_id, secret_key=secret_key, redirect_uri=redirect_uri
+            )
+            is_authed = auth.is_authenticated()
+        except Exception:
+            pass
+
+    return {
+        "provider":       market_data_service.provider_name,
+        "is_configured":  is_configured,
+        "is_authenticated": is_authed,
+        "is_active":      is_active,
+        "supports_websocket": market_data_service.supports_websocket,
+        "app_id":         client_id or None,
+    }
+
+
+@router.get("/auth/fyers/callback")
+async def fyers_browser_callback(request: "Request"):
+    """
+    Browser GET redirect handler — Fyers sends the user here after login.
+    Accepts any query parameters Fyers sends, extracts the auth code, exchanges it.
+    """
+    from fastapi.responses import HTMLResponse
+    from app.core.config import settings
+    from app.services.market_data_service.providers.fyers.fyers_auth import FyersAuthManager
+    from app.services.market_data_service.providers.fyers import FyersProvider
+
+    params = dict(request.query_params)
+    client_id    = getattr(settings, "fyers_client_id",    "")
+    secret_key   = getattr(settings, "fyers_secret_key",   "")
+    redirect_uri = getattr(settings, "fyers_redirect_uri", "")
+
+    def _html(ok: bool, message: str) -> HTMLResponse:
+        color  = "#22c55e" if ok else "#ef4444"
+        icon   = "✓" if ok else "✗"
+        title  = "Fyers Connected" if ok else "Fyers Auth Failed"
+        return HTMLResponse(f"""<!doctype html><html><head><title>{title}</title>
+<style>body{{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;
+height:100vh;margin:0;background:#0f172a;color:#f8fafc}}
+.card{{text-align:center;padding:48px;border-radius:16px;background:#1e293b;max-width:600px;width:90%}}
+.icon{{font-size:64px;color:{color}}}h1{{margin:16px 0 8px;font-size:24px}}
+p{{color:#94a3b8;margin:8px 0;word-break:break-all;font-size:13px}}</style></head>
+<body><div class="card"><div class="icon">{icon}</div>
+<h1>{title}</h1><p>{message}</p></div></body></html>""")
+
+    # Fyers v3 sends auth_code; v2 sent code. Also grab s= status.
+    actual_code = params.get("auth_code") or params.get("code")
+    fyers_status = params.get("s", "")
+
+    if not actual_code:
+        # Show all params so we can diagnose exactly what Fyers sent
+        params_display = " | ".join(f"{k}={v}" for k, v in params.items()) or "(none)"
+        return _html(False, f"No auth code in callback. Fyers sent: {params_display}")
+
+    if fyers_status and fyers_status != "ok":
+        return _html(False, f"Fyers returned status={fyers_status}. Params: {params}")
+
+    if not client_id:
+        return _html(False, "FYERS_CLIENT_ID not configured on the server.")
+
+    try:
+        auth  = FyersAuthManager(client_id=client_id, secret_key=secret_key, redirect_uri=redirect_uri)
+        token = auth.exchange_code(actual_code)
+
+        new_provider = FyersProvider(
+            client_id=client_id, access_token=token,
+            secret_key=secret_key, redirect_uri=redirect_uri,
+        )
+        market_data_service.swap_provider(new_provider)
+        return _html(True, "MarketRipple is now using live Fyers data. You can close this tab.")
+    except Exception as exc:
+        return _html(False, f"Error: {str(exc)[:200]}")
+
 
 @router.get("/auth/fyers")
 async def fyers_auth_url():

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import type { ReactNode } from "react";
+import { fixMojibake } from "@/lib/text";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import Link from "next/link";
 import { Lightbulb, Building2, AlertTriangle, Ban, Check } from "lucide-react";
@@ -207,7 +208,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
 
             <div className="mt-5 grid grid-cols-4 gap-3">
               <StatCard label="Confidence Score" value={`${confidence}%`} sub="Confidence" valueClass="text-sky-400"/>
-              <StatCard label="Time Horizon"     value={d.time_horizon}/>
+              <StatCard label="Time Horizon"     value={fixMojibake(d.time_horizon)}/>
               <StatCard label="Risk Level"       value={d.risk_level}   valueClass={riskColor(d.risk_level)}/>
               <StatCard label="Trend"            value={d.trend}        valueClass={trendColor(d.trend)}/>
             </div>

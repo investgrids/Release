@@ -6,24 +6,22 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.com";
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const url = `${SITE}/events/${id}`;
+  const { slug } = await params;
+  const url = `${SITE}/stories/${slug}`;
   try {
-    const res = await fetch(`${API}/api/events/${id}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${API}/api/stories/${slug}`, { next: { revalidate: 3600 } });
     if (res.ok) {
-      const data = await res.json();
-      const event = data.event ?? data;
-      const title = event.title ?? "Market Event";
-      const desc  = (data.summary?.text ?? event.description ?? "").slice(0, 160) || "Market event analysis on MarketRipple.";
+      const story = await res.json();
+      const title = story.title ?? "Investment Story";
+      const desc  = (story.description ?? story.summary ?? "").slice(0, 160) || "AI-synthesized investment theme on MarketRipple.";
       return {
-        title,
+        title: `${title} — Investment Story`,
         description: desc,
         openGraph: {
-          type: "article", title, description: desc, url,
+          type: "article", title: `${title} — MarketRipple Stories`, description: desc, url,
           siteName: "MarketRipple",
-          publishedTime: event.event_date,
         },
         twitter: { card: "summary_large_image", title, description: desc },
         alternates: { canonical: url },
@@ -31,8 +29,8 @@ export async function generateMetadata({
     }
   } catch {}
   return {
-    title: "Market Event",
-    description: "Event-driven market intelligence from MarketRipple.",
+    title: "Investment Story",
+    description: "AI-synthesized investment themes and market intelligence on MarketRipple.",
     alternates: { canonical: url },
   };
 }

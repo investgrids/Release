@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { fixMojibake } from "@/lib/text";
 import Link from "next/link";
 import {
   LineChart, Line, AreaChart, Area,
@@ -70,7 +71,7 @@ const mkScore = (end: number) =>
 
 const THEMES: Theme[] = [
   {
-    id: 1, title: "AI Infrastructure Boom", slug: "ai-infrastructure", badge: "Hot",
+    id: 1, title: "AI Infrastructure Boom", slug: "story-ai-infra-2026", badge: "Hot",
     description: "Surging investments in AI data centers, cloud infrastructure and associated power demand.",
     opportunity_score: 94, vs_yesterday: 8, ai_confidence: 91, market_impact: "Very High", trend: "Strong Uptrend",
     companies: 12, events: 8, news: 34, sectors: ["Technology","Power","Infrastructure"],
@@ -83,7 +84,7 @@ const THEMES: Theme[] = [
     ai_insight: "The AI infrastructure theme is expected to remain strong with sustained investments and policy tailwinds.",
   },
   {
-    id: 2, title: "Defence Manufacturing Push", slug: "defence-manufacturing", badge: "Hot",
+    id: 2, title: "Defence Manufacturing Push", slug: "story-defence-2026", badge: "Hot",
     description: "Record defence budget, local manufacturing push and export opportunities.",
     opportunity_score: 92, vs_yesterday: 6, ai_confidence: 90, market_impact: "Very High", trend: "Strong Uptrend",
     companies: 18, events: 11, news: 27, sectors: ["Defence","Aerospace","Engineering"],
@@ -96,7 +97,7 @@ const THEMES: Theme[] = [
     ai_insight: "Defence manufacturing has strong multi-year tailwinds. HAL and BEL remain the primary beneficiaries.",
   },
   {
-    id: 3, title: "Railway Modernization", slug: "railway-modernization", badge: "High",
+    id: 3, title: "Railway Modernization", slug: "story-railway-2026", badge: "High",
     description: "Higher capex, new projects, station redevelopment and freight corridor expansion.",
     opportunity_score: 88, vs_yesterday: 5, ai_confidence: 85, market_impact: "High", trend: "Uptrend",
     companies: 14, events: 9, news: 19, sectors: ["Infrastructure","Engineering","Logistics"],
@@ -109,7 +110,7 @@ const THEMES: Theme[] = [
     ai_insight: "Railway modernisation offers a multi-year growth runway. RVNL and IRCON are best positioned.",
   },
   {
-    id: 4, title: "Renewable Energy Acceleration", slug: "renewable-energy", badge: "High",
+    id: 4, title: "Renewable Energy Acceleration", slug: "story-green-energy-2026", badge: "High",
     description: "Green energy transition, solar & wind capacity additions and storage solutions.",
     opportunity_score: 86, vs_yesterday: 4, ai_confidence: 84, market_impact: "High", trend: "Uptrend",
     companies: 16, events: 10, news: 23, sectors: ["Energy","Utilities","Manufacturing"],
@@ -122,7 +123,7 @@ const THEMES: Theme[] = [
     ai_insight: "India's renewable push is accelerating with policy support and global capital interest.",
   },
   {
-    id: 5, title: "Semiconductor Mission", slug: "semiconductor-mission", badge: "Medium",
+    id: 5, title: "Semiconductor Mission", slug: "story-semiconductor-2026", badge: "Medium",
     description: "Government incentives, new fabs, OSAT units and component manufacturing.",
     opportunity_score: 76, vs_yesterday: 2, ai_confidence: 76, market_impact: "Medium", trend: "Uptrend",
     companies: 11, events: 6, news: 15, sectors: ["Technology","Electronics","Manufacturing"],
@@ -135,7 +136,7 @@ const THEMES: Theme[] = [
     ai_insight: "India's semiconductor ambitions are early-stage but gaining credibility with Micron and Tata commitments.",
   },
   {
-    id: 6, title: "Electric Vehicles Ecosystem", slug: "electric-vehicles", badge: "High",
+    id: 6, title: "Electric Vehicles Ecosystem", slug: "story-ev-2026", badge: "High",
     description: "EV adoption, battery manufacturing, charging infrastructure and policy support.",
     opportunity_score: 82, vs_yesterday: 3, ai_confidence: 80, market_impact: "High", trend: "Uptrend",
     companies: 20, events: 13, news: 31, sectors: ["Auto","Manufacturing","Technology"],
@@ -597,9 +598,9 @@ function StoriesTab() {
               <p className="text-[12px] leading-5 text-slate-300">{detail?.ai_summary?.matters || selected.summary || selected.description || ""}</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "Companies", value: detail ? detail.companies.length : (selected.company_count ?? 0) },
-                  { label: "Events", value: detail ? detail.events.length : (selected.event_count ?? 0) },
-                  { label: "Time Horizon", value: selected.time_horizon || "3-5 Years" },
+                  { label: "Companies", value: detail ? (detail.companies?.length ?? 0) : (selected.company_count ?? 0) },
+                  { label: "Events", value: detail ? (detail.events?.length ?? 0) : (selected.event_count ?? 0) },
+                  { label: "Time Horizon", value: fixMojibake(selected.time_horizon) || "3-5 Years" },
                   { label: "Risk Level", value: selected.risk_level || "Medium" },
                   { label: "AI Confidence", value: selected.confidence != null ? `${Math.round(selected.confidence <= 1 ? selected.confidence * 100 : selected.confidence)}%` : "—" },
                 ].map(stat => (
@@ -609,7 +610,7 @@ function StoriesTab() {
                   </div>
                 ))}
               </div>
-              {detail && detail.companies.length > 0 && (
+              {detail && (detail.companies?.length ?? 0) > 0 && (
                 <div>
                   <p className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">Key Beneficiaries</p>
                   <div className="flex flex-wrap gap-1.5">
