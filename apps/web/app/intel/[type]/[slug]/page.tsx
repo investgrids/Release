@@ -29,13 +29,14 @@ async function fetchIntelligence(type: IntelType, slug: string) {
 // ── Metadata generation ───────────────────────────────────────────────────────
 
 export async function generateMetadata(
-  { params }: { params: { type: string; slug: string } }
+  { params }: { params: Promise<{ type: string; slug: string }> }
 ): Promise<Metadata> {
-  const type = params.type as IntelType;
+  const { type: rawType, slug: rawSlug } = await params;
+  const type = rawType as IntelType;
   if (!VALID_TYPES.includes(type)) return { title: "Not Found" };
 
-  const intel = await fetchIntelligence(type, params.slug);
-  const slug = params.slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  const intel = await fetchIntelligence(type, rawSlug);
+  const slug = rawSlug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   const typeLabel = { company: "Company", event: "Market Event", theme: "Theme", news: "News" }[type];
 
   const title = intel?.market_story
@@ -60,7 +61,7 @@ export async function generateMetadata(
       description,
     },
     alternates: {
-      canonical: `/intel/${type}/${params.slug}`,
+      canonical: `/intel/${type}/${rawSlug}`,
     },
   };
 }
@@ -75,16 +76,17 @@ const TYPE_META: Record<IntelType, { label: string; color: string; href: (slug: 
 };
 
 export default async function IntelPage(
-  { params }: { params: { type: string; slug: string } }
+  { params }: { params: Promise<{ type: string; slug: string }> }
 ) {
-  const type = params.type as IntelType;
+  const { type: rawType, slug: rawSlug } = await params;
+  const type = rawType as IntelType;
   if (!VALID_TYPES.includes(type)) notFound();
 
-  const intel = await fetchIntelligence(type, params.slug);
+  const intel = await fetchIntelligence(type, rawSlug);
   if (!intel || !intel.market_story) notFound();
 
   const meta = TYPE_META[type];
-  const humanSlug = params.slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  const humanSlug = rawSlug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
   const conf = intel.confidence ?? {};
   const confScore: number = conf.score ?? 0;
@@ -365,7 +367,7 @@ export default async function IntelPage(
               className="rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-[12px] font-semibold text-violet-300 hover:bg-violet-500/15 transition">
               Ask AI →
             </Link>
-            <Link href={meta.href(params.slug)}
+            <Link href={meta.href(rawSlug)}
               className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-medium text-slate-300 hover:text-white transition">
               <ArrowLeft className="inline h-3 w-3 mr-1" /> Back to {type}
             </Link>
