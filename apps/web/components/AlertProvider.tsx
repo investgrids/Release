@@ -4,8 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const DISMISSED_KEY = "ig_dismissed_alerts";
-const POLL_MS = 45_000;
-const FRESH_MS = 30 * 60 * 1000; // only show alerts from last 30 minutes
+const FRESH_MS = 30 * 60 * 1000;
 
 export interface StockImpact {
   symbol: string; name: string;
@@ -22,12 +21,29 @@ export interface BreakingAlert {
   source: string; created_at: string; query: string;
 }
 
+/** Lightweight intelligence event from the SSE stream. */
+export interface IntelligenceEvent {
+  id: string;
+  headline: string;
+  urgency: number;
+  sentiment: string;
+  direction: string;
+  one_liner: string;
+  themes: string[];
+  sectors: string[];
+  tickers: string[];
+  refresh_homepage: boolean;
+  source: string;
+  ts: string;
+}
+
 interface AlertCtx {
   alerts: BreakingAlert[];
+  intelligenceEvents: IntelligenceEvent[];
   dismiss: (id: string) => void;
 }
 
-const Ctx = createContext<AlertCtx>({ alerts: [], dismiss: () => {} });
+const Ctx = createContext<AlertCtx>({ alerts: [], intelligenceEvents: [], dismiss: () => {} });
 export const useAlerts = () => useContext(Ctx);
 
 function getDismissed(): string[] {
@@ -37,13 +53,16 @@ function getDismissed(): string[] {
 
 export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [alerts, setAlerts] = useState<BreakingAlert[]>([]);
-  const dismissedRef  = useRef<string[]>([]);
-  const seenOnLoadRef = useRef<Set<string> | null>(null); // IDs present at page-load (not shown)
+  const [intelligenceEvents, setIntelligenceEvents] = useState<IntelligenceEvent[]>([]);
+  const dismissedRef = useRef<string[]>([]);
+  const seenOnLoadRef = useRef<Set<string> | null>(null);
+  const esRef = useRef<EventSource | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load dismissed list once on mount
   useEffect(() => { dismissedRef.current = getDismissed(); }, []);
 
-  const check = useCallback(async () => {
+  // ── Initial poll for existing breaking alerts ─────────────────────────────
+  const pollAlerts = useCallback(async () => {
     try {
       const res = await fetch(`${API}/api/alerts/breaking`);
       if (!res.ok) return;
@@ -51,31 +70,92 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       const now = Date.now();
 
       const incoming = (data.alerts as BreakingAlert[]).filter(a => {
-        // Already dismissed by user
         if (dismissedRef.current.includes(a.id)) return false;
-        // Older than 30 minutes — stale, skip
         const age = now - new Date(a.created_at).getTime();
-        if (age > FRESH_MS) return false;
-        return true;
+        return age <= FRESH_MS;
       });
 
-      // First poll: record existing IDs so we don't pop them up immediately
       if (seenOnLoadRef.current === null) {
         seenOnLoadRef.current = new Set(incoming.map(a => a.id));
-        return; // don't show anything on first load
+        return;
       }
 
-      // Only surface alerts that weren't there when the page loaded
       const brandNew = incoming.filter(a => !seenOnLoadRef.current!.has(a.id));
-      setAlerts(brandNew);
-    } catch { /* backend offline — silently skip */ }
+      if (brandNew.length > 0) setAlerts(brandNew);
+    } catch { /* backend offline */ }
+  }, []);
+
+  // ── SSE connection for live intelligence events ───────────────────────────
+  const connectSSE = useCallback(() => {
+    if (esRef.current) {
+      esRef.current.close();
+    }
+
+    const es = new EventSource(`${API}/api/stream/events`);
+    esRef.current = es;
+
+    es.addEventListener("alert", (e: MessageEvent) => {
+      try {
+        const evt: IntelligenceEvent = JSON.parse(e.data);
+        setIntelligenceEvents(prev => {
+          const next = [evt, ...prev.filter(x => x.id !== evt.id)].slice(0, 30);
+          return next;
+        });
+        // If urgency >= 8, also surface as a breaking-alert-style notification
+        if (evt.urgency >= 8) {
+          const synth: BreakingAlert = {
+            id: `intel-${evt.id}`,
+            headline: evt.headline,
+            summary: evt.one_liner || evt.headline,
+            urgency: evt.urgency >= 9 ? "critical" : "high",
+            sentiment: evt.sentiment === "bullish" ? "bullish" : evt.sentiment === "bearish" ? "bearish" : "mixed",
+            stocks: evt.tickers.slice(0, 3).map(sym => ({
+              symbol: sym, name: sym,
+              direction: evt.direction === "up" ? "up" : "down",
+              reason: evt.one_liner || "",
+              magnitude: evt.urgency >= 8 ? "high" : "medium",
+            })),
+            sectors: evt.sectors,
+            source: evt.source,
+            created_at: evt.ts,
+            query: evt.headline,
+          };
+          setAlerts(prev => {
+            if (dismissedRef.current.includes(synth.id)) return prev;
+            return [synth, ...prev.filter(a => a.id !== synth.id)];
+          });
+        }
+      } catch { /* parse error */ }
+    });
+
+    es.addEventListener("update", (e: MessageEvent) => {
+      try {
+        const evt: IntelligenceEvent = JSON.parse(e.data);
+        setIntelligenceEvents(prev => [evt, ...prev.filter(x => x.id !== evt.id)].slice(0, 30));
+      } catch { /* parse error */ }
+    });
+
+    es.onerror = () => {
+      es.close();
+      esRef.current = null;
+      // Reconnect after 10s
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = setTimeout(connectSSE, 10_000);
+    };
   }, []);
 
   useEffect(() => {
-    check();
-    const id = setInterval(check, POLL_MS);
-    return () => clearInterval(id);
-  }, [check]);
+    pollAlerts();
+    connectSSE();
+
+    return () => {
+      if (esRef.current) {
+        esRef.current.close();
+        esRef.current = null;
+      }
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+    };
+  }, [pollAlerts, connectSSE]);
 
   const dismiss = useCallback((id: string) => {
     dismissedRef.current = [...dismissedRef.current, id];
@@ -85,5 +165,9 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     setAlerts(prev => prev.filter(a => a.id !== id));
   }, []);
 
-  return <Ctx.Provider value={{ alerts, dismiss }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ alerts, intelligenceEvents, dismiss }}>
+      {children}
+    </Ctx.Provider>
+  );
 }

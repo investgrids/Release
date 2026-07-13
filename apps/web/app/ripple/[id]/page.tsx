@@ -8,6 +8,8 @@ import { Zap, Network, BarChart2, Clock, Telescope, X } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { InvestmentThesisCard, OpportunityLifecycleCard, MonitoringChecklist, ScenarioAnalysis, PatternIntelligenceCard, MultiHorizonOutlookCard } from "@/components/intelligence";
+import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
+import { useIntelligence } from "@/hooks/useIntelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent } from "@/components/RelatedContent";
@@ -150,6 +152,8 @@ export default function RipplePage() {
   const graphData = useMemo(() => data?.graph_data || { nodes: [], edges: [] }, [data]);
   const insights: RippleInsights | null = data?.insights as RippleInsights ?? null;
 
+  const { data: intelligence } = useIntelligence("event", id || undefined);
+
   // ── Loading state ───────────────────────────────────────────────────────
   if (loading) return (
     <div className="flex items-center justify-center h-[60vh]">
@@ -204,6 +208,11 @@ export default function RipplePage() {
         <SmartCTA variant="view-event" href="/events" />
         <SmartCTA variant="explore-opportunity" href="/radar" />
       </div>
+
+      {/* ── Intelligence Block ──────────────────────────────────────────── */}
+      {intelligence && (
+        <IntelligenceBlock data={intelligence} label="Ripple Intelligence" compact={true} />
+      )}
 
       {/* ── Event Header ────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-white/[0.07] bg-[#080c14] p-6">

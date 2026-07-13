@@ -5,9 +5,11 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
-import { InvestmentThesis, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, OpportunityLifecycleCard } from "@/components/intelligence";
+import { InvestmentThesis, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, OpportunityLifecycleCard, IntelligenceBlock } from "@/components/intelligence";
+import { useIntelligence } from "@/hooks/useIntelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
+import { NextSteps } from "@/components/NextSteps";
 import { RelatedContent } from "@/components/RelatedContent";
 import {
   Star, Check, Sparkles, TrendingUp, IndianRupee, Target, Zap,
@@ -1586,6 +1588,9 @@ export default function StockPage({ params }: PageProps) {
   const [period,       setPeriod]       = useState("1Y");
   const [watchlisted,  setWatchlisted]  = useState(false);
   const [relatedNews,  setRelatedNews]  = useState<any[]>([]);
+  const [intelOpen,    setIntelOpen]    = useState(false);
+
+  const { data: intelligence } = useIntelligence("company", symbol?.toUpperCase());
   // Progressive section rendering: 0=nothing, 1=above-fold, 2=mid, 3=all
   const [renderGroup,  setRenderGroup]  = useState(0);
 
@@ -1660,106 +1665,155 @@ export default function StockPage({ params }: PageProps) {
                 period={period} setPeriod={p => { setPeriod(p); fetchChart(p); }} stock={stock}/>
               <AISummary stock={stock}/>
 
-              {/* ── Investment Intelligence ───────────────────────────────────── */}
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-[16px] font-bold text-white">Investment Intelligence</h2>
-                  <p className="text-[11px] text-slate-500 mt-0.5">AI-derived insights and scenario framework</p>
-                </div>
+              {/* ── Investment Intelligence — collapsed by default ──────────── */}
+              <div className="overflow-hidden rounded-[20px] border border-white/[0.06] bg-white/[0.01]">
+                <button
+                  onClick={() => setIntelOpen(o => !o)}
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03]"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-bold text-white">Investment Intelligence</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">Thesis · Scenarios · Opportunity stage · Monitoring · Patterns</p>
+                  </div>
+                  <svg className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${intelOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
 
-                <InvestmentThesis
-                  entityType="company"
-                  entityId={stock.symbol}
-                  entityTitle={stock.name}
-                  entityDescription={stock.description}
-                  entitySector={stock.sector}
-                  thesis={stock.description ? stock.description.slice(0, 280) : `${stock.name} operates in the ${stock.sector} with analyst consensus at ${stock.recommendation}.`}
-                  confidence={stock.buy_count != null && stock.analyst_count
-                    ? Math.round((stock.buy_count / Math.max(stock.analyst_count, 1)) * 100)
-                    : 60
-                  }
-                  timeHorizon={
-                    (stock.recommendation === "Buy" || stock.recommendation === "Strong Buy") ? "12–18 months" : "6–12 months"
-                  }
-                  assumptions={[
-                    `Sector tailwinds in ${stock.sector || "the sector"} continue`,
-                    "Management executes on guidance",
-                    "No material adverse regulatory changes",
-                  ]}
-                  riskFactors={[
-                    parseFloat(stock.beta || "0") > 1.2 ? "High beta — elevated market correlation risk" : "Market volatility risk",
-                    parseFloat(stock.debt_to_equity || "0") > 1 ? "Elevated leverage may constrain growth" : "Execution risk on growth plan",
-                  ]}
-                />
+                {intelOpen && (
+                  <div className="space-y-4 border-t border-white/[0.06] p-4">
+                    {intelligence && (
+                      <IntelligenceBlock data={intelligence} label={`${stock.name} Intelligence`} compact={false} />
+                    )}
+                    <InvestmentThesis
+                      entityType="company"
+                      entityId={stock.symbol}
+                      entityTitle={stock.name}
+                      entityDescription={stock.description}
+                      entitySector={stock.sector}
+                      thesis={stock.description ? stock.description.slice(0, 280) : `${stock.name} operates in the ${stock.sector} with analyst consensus at ${stock.recommendation}.`}
+                      confidence={stock.buy_count != null && stock.analyst_count
+                        ? Math.round((stock.buy_count / Math.max(stock.analyst_count, 1)) * 100)
+                        : 60
+                      }
+                      timeHorizon={
+                        (stock.recommendation === "Buy" || stock.recommendation === "Strong Buy") ? "12–18 months" : "6–12 months"
+                      }
+                      assumptions={[
+                        `Sector tailwinds in ${stock.sector || "the sector"} continue`,
+                        "Management executes on guidance",
+                        "No material adverse regulatory changes",
+                      ]}
+                      riskFactors={[
+                        parseFloat(stock.beta || "0") > 1.2 ? "High beta — elevated market correlation risk" : "Market volatility risk",
+                        parseFloat(stock.debt_to_equity || "0") > 1 ? "Elevated leverage may constrain growth" : "Execution risk on growth plan",
+                      ]}
+                    />
 
-                <ScenarioAnalysis
-                  entityType="company"
-                  entityId={stock.symbol}
-                  entityTitle={stock.name}
-                  entityDescription={stock.description}
-                  entitySector={stock.sector}
-                  bull={{ probability: 30, description: "Strong earnings growth and sector re-rating drive outperformance.", target: stock.target_high || undefined }}
-                  base={{ probability: 50, description: "Company delivers in line with consensus estimates.", target: stock.target_mean || undefined }}
-                  bear={{ probability: 20, description: "Earnings miss or macro headwinds compress valuation multiples.", target: stock.target_low || undefined }}
-                />
+                    <ScenarioAnalysis
+                      entityType="company"
+                      entityId={stock.symbol}
+                      entityTitle={stock.name}
+                      entityDescription={stock.description}
+                      entitySector={stock.sector}
+                      bull={{ probability: 30, description: "Strong earnings growth and sector re-rating drive outperformance.", target: stock.target_high || undefined }}
+                      base={{ probability: 50, description: "Company delivers in line with consensus estimates.", target: stock.target_mean || undefined }}
+                      bear={{ probability: 20, description: "Earnings miss or macro headwinds compress valuation multiples.", target: stock.target_low || undefined }}
+                    />
 
-                <OpportunityLifecycleCard
-                  stage={(() => {
-                    const buyPct = stock.buy_count != null && stock.analyst_count
-                      ? stock.buy_count / Math.max(stock.analyst_count, 1)
-                      : 0.5;
-                    const pe = parseFloat(stock.pe || "0");
-                    if (buyPct > 0.7) return "strong-momentum" as const;
-                    if (buyPct > 0.5) return "developing" as const;
-                    if (pe > 40) return "mature" as const;
-                    return "emerging" as const;
-                  })()}
-                  description={`Analyst consensus: ${stock.recommendation ?? "Hold"} · PE: ${stock.pe ?? "N/A"}`}
-                  whyAssigned={`${stock.buy_count ?? 0} of ${stock.analyst_count ?? 0} analysts rate this a Buy. ${stock.pe ? `Current PE of ${stock.pe} reflects ` + (parseFloat(stock.pe) > 30 ? "premium valuation" : "reasonable valuation") + "." : ""}`}
-                  historicalComparison={`Companies with similar analyst buy ratios in the ${stock.sector ?? "sector"} have historically delivered above-market returns over 12–18 months.`}
-                  confidence={stock.analyst_count ? Math.round(Math.min(90, 50 + (stock.buy_count ?? 0) / Math.max(stock.analyst_count, 1) * 40)) : 55}
-                  expectedEvolution={`If earnings trajectory holds, the opportunity is expected to ${stock.buy_count != null && stock.analyst_count && stock.buy_count / Math.max(stock.analyst_count, 1) > 0.6 ? "strengthen toward peak momentum" : "consolidate before the next catalyst"}.`}
-                  risks={[
-                    `Valuation re-rating risk if PE exceeds ${stock.pe ? Math.round(parseFloat(stock.pe) * 1.3) : 40}x`,
-                    "Sector rotation out of growth into defensive positions",
-                    "Earnings miss relative to elevated analyst expectations",
-                  ]}
-                />
+                    <OpportunityLifecycleCard
+                      stage={(() => {
+                        const buyPct = stock.buy_count != null && stock.analyst_count
+                          ? stock.buy_count / Math.max(stock.analyst_count, 1)
+                          : 0.5;
+                        const pe = parseFloat(stock.pe || "0");
+                        if (buyPct > 0.7) return "strong-momentum" as const;
+                        if (buyPct > 0.5) return "developing" as const;
+                        if (pe > 40) return "mature" as const;
+                        return "emerging" as const;
+                      })()}
+                      description={`Analyst consensus: ${stock.recommendation ?? "Hold"} · PE: ${stock.pe ?? "N/A"}`}
+                      whyAssigned={`${stock.buy_count ?? 0} of ${stock.analyst_count ?? 0} analysts rate this a Buy. ${stock.pe ? `Current PE of ${stock.pe} reflects ` + (parseFloat(stock.pe) > 30 ? "premium valuation" : "reasonable valuation") + "." : ""}`}
+                      historicalComparison={`Companies with similar analyst buy ratios in the ${stock.sector ?? "sector"} have historically delivered above-market returns over 12–18 months.`}
+                      confidence={stock.analyst_count ? Math.round(Math.min(90, 50 + (stock.buy_count ?? 0) / Math.max(stock.analyst_count, 1) * 40)) : 55}
+                      expectedEvolution={`If earnings trajectory holds, the opportunity is expected to ${stock.buy_count != null && stock.analyst_count && stock.buy_count / Math.max(stock.analyst_count, 1) > 0.6 ? "strengthen toward peak momentum" : "consolidate before the next catalyst"}.`}
+                      risks={[
+                        `Valuation re-rating risk if PE exceeds ${stock.pe ? Math.round(parseFloat(stock.pe) * 1.3) : 40}x`,
+                        "Sector rotation out of growth into defensive positions",
+                        "Earnings miss relative to elevated analyst expectations",
+                      ]}
+                    />
 
-                <MonitoringChecklist
-                  entityType="company"
-                  entityId={stock.symbol}
-                  entityTitle={stock.name}
-                  entityDescription={stock.description}
-                  entitySector={stock.sector}
-                />
-                <PatternIntelligenceCard
-                  entityType="company"
-                  entityId={stock.symbol}
-                  entityTitle={stock.name}
-                  entityDescription={stock.description}
-                  entitySector={stock.sector}
-                />
+                    <MonitoringChecklist
+                      entityType="company"
+                      entityId={stock.symbol}
+                      entityTitle={stock.name}
+                      entityDescription={stock.description}
+                      entitySector={stock.sector}
+                    />
+                    <PatternIntelligenceCard
+                      entityType="company"
+                      entityId={stock.symbol}
+                      entityTitle={stock.name}
+                      entityDescription={stock.description}
+                      entitySector={stock.sector}
+                    />
 
-                <RelatedContent
-                  entityType="company"
-                  entityId={stock.symbol}
-                  title={stock.name}
-                  sector={stock.sector}
-                />
+                    <RelatedContent
+                      entityType="company"
+                      entityId={stock.symbol}
+                      title={stock.name}
+                      sector={stock.sector}
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Smart CTAs */}
-              <div className="flex flex-wrap gap-2">
-                <ShareInsightCard
-                  entityType="company"
-                  entityId={stock.symbol}
-                  title={`${stock.name} (${stock.symbol})`}
-                  summary={stock.description?.slice(0, 120)}
-                />
-                <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(`${stock.name} stock analysis`)}`} />
-                <SmartCTA variant="view-ripple" href="/ripple" />
-              </div>
+              {/* Share */}
+              <ShareInsightCard
+                entityType="company"
+                entityId={stock.symbol}
+                title={`${stock.name} (${stock.symbol})`}
+                summary={stock.description?.slice(0, 120)}
+              />
+
+              {/* Intelligent guidance — derived from company data */}
+              <NextSteps config={{
+                takeaway: `${stock.name} is rated ${stock.recommendation ?? "—"} with a P/E of ${stock.pe ?? "N/A"}x — understand the valuation context before sizing a position.`,
+                primary: {
+                  label: `Ask AI: Is ${stock.name} fairly valued right now?`,
+                  why:   `Because a P/E of ${stock.pe ?? "N/A"}x needs to be compared against sector peers and growth expectations to be meaningful.`,
+                  href:  `/ai-search?q=${encodeURIComponent(`Is ${stock.name} (${stock.symbol}) fairly valued at its current price? How does its PE of ${stock.pe ?? "N/A"} compare to ${stock.sector ?? "sector"} peers and justify the current valuation?`)}`,
+                },
+                groups: [
+                  {
+                    label: "Compare",
+                    actions: [
+                      {
+                        label: `Find ${stock.sector ?? "sector"} competitors`,
+                        why:   `Because valuation only makes sense relative to alternatives — comparing peers reveals whether any premium or discount is justified.`,
+                        href:  `/ai-search?q=${encodeURIComponent(`Compare ${stock.name} with the top 3 competitors in ${stock.sector ?? "its sector"} — valuation, growth rate, and risk`)}`,
+                      },
+                    ],
+                  },
+                  {
+                    label: "Continue Research",
+                    actions: [
+                      {
+                        label: `View events affecting ${stock.name}`,
+                        why:   `Because the investment case must account for macro and company-specific developments — events reveal the 'why' behind price moves.`,
+                        href:  `/events`,
+                      },
+                      {
+                        label: "Trace sector ripple effects",
+                        why:   `Because ${stock.sector ?? "sector"} moves create upstream and downstream implications that affect the entire thesis.`,
+                        href:  `/ripple`,
+                      },
+                    ],
+                  },
+                ],
+                path: [stock.sector ?? "Sector", stock.name, "Valuation", "Investment Thesis"],
+              }} />
 
               <StockDNA stock={stock}/>
               <FinancialHighlights stock={stock}/>

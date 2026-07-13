@@ -72,12 +72,18 @@ class Settings(BaseSettings):
 
     # ── Fyers (primary market data provider) ──────────────────────────────────
     # Get credentials at https://myapi.fyers.in/dashboard
-    # app_id format: "XXXXXXXXXX-100" (your client_id)
-    # Generate access_token once per day via /api/data/auth/fyers flow
+    # App-level connection — no per-user auth needed.
+    # Token is auto-refreshed daily via TOTP if login_id/pin/totp_key are set.
     fyers_client_id:    str = ""   # e.g. "XXXXXXXXXX-100"
     fyers_secret_key:   str = ""   # app secret from Fyers dashboard
-    fyers_access_token: str = ""   # daily access token (inject via env or /auth flow)
+    fyers_access_token: str = ""   # optional: inject pre-generated token
     fyers_redirect_uri: str = "https://127.0.0.1:8000/api/data/auth/callback"
+
+    # TOTP-based automated daily login (no browser / user interaction needed)
+    # Set these on Railway to enable fully automated token refresh at 5:30 AM IST
+    fyers_login_id:  str = ""   # your Fyers account login ID (e.g. "XY12345")
+    fyers_pin:       str = ""   # your Fyers 4/6-digit PIN
+    fyers_totp_key:  str = ""   # TOTP secret from Fyers security settings
 
     # ── Scheduler ─────────────────────────────────────────────────────────────
     # Ingest intervals (seconds)

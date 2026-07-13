@@ -5,18 +5,11 @@ import type { ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Newspaper, Bot, BarChart2, CheckCircle2, FileText, Scale, Bell, MessageCircle, Landmark, Sparkles } from "lucide-react";
+import { Search, Newspaper, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
-import { DecisionIntelligencePanel, IntentBadge, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
-import { InvestmentThesisCard, OpportunityLifecycleCard, MultiHorizonOutlookCard, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard } from "@/components/intelligence";
-import { ShareInsightCard } from "@/components/ShareInsightCard";
-import { SmartCTA } from "@/components/SmartCTA";
-import { RelatedContent } from "@/components/RelatedContent";
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  Legend, ReferenceLine,
-} from "recharts";
+import { DecisionIntelligencePanel, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -25,7 +18,8 @@ interface AnswerSection {
   summary: string; what_happened: string; why_it_happened: string;
   immediate_impact: string; medium_term: string; long_term: string;
   risks: string[]; opportunities: string[];
-  confidence: number; sentiment: "bullish" | "bearish" | "neutral";
+  confidence: number; confidence_level?: string;
+  sentiment: "bullish" | "bearish" | "neutral";
   sources_count: number;
 }
 interface Insight      { icon: string; title: string; summary: string; }
@@ -51,6 +45,7 @@ interface SearchResult {
   graph: { nodes: GraphNode[]; edges: GraphEdge[] };
   citations: string[];
   decision_intelligence: DecisionIntelligence | null;
+  confidence_data?: unknown;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -63,95 +58,101 @@ const LOADING_STEPS: { icon: ReactNode; label: string }[] = [
 ];
 
 const EXAMPLES = [
+  "Should I invest in defence stocks after the latest budget?",
   "I hold Manappuram Finance. Should I switch to Natco Pharma?",
   "Should I continue holding BEL or switch to HAL?",
-  "I own Tata Motors. Should I buy Mahindra instead?",
-  "Should I move from Gold to Silver?",
+  "What is the impact of RBI rate cut on banking stocks?",
   "Which is better for 6 months: HAL or BEL?",
-  "Should I rotate from Banking to Pharma?",
+  "Should I rotate from Banking to Pharma right now?",
 ];
 
 const CATEGORY_COLOR: Record<string, string> = {
-  Government:       "bg-violet-500/20 text-violet-300 border-violet-500/30",
+  Government:          "bg-violet-500/20 text-violet-300 border-violet-500/30",
   "Government Policy": "bg-violet-500/20 text-violet-300 border-violet-500/30",
-  Policy:           "bg-sky-500/20 text-sky-300 border-sky-500/30",
-  Corporate:        "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  "Economic Event": "bg-teal-500/20 text-teal-300 border-teal-500/30",
-  "Industry Update":"bg-amber-500/20 text-amber-300 border-amber-500/30",
-  RBI:              "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
-  Macro:            "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  Market:           "bg-teal-500/20 text-teal-300 border-teal-500/30",
+  Policy:              "bg-sky-500/20 text-sky-300 border-sky-500/30",
+  Corporate:           "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  "Economic Event":    "bg-teal-500/20 text-teal-300 border-teal-500/30",
+  "Industry Update":   "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  RBI:                 "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+  Macro:               "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  Market:              "bg-teal-500/20 text-teal-300 border-teal-500/30",
 };
 
-// Source logo color palette
-const SOURCE_COLORS: Record<string, string> = {
-  "Economic Times": "bg-orange-500",
-  "Business Standard": "bg-red-600",
-  "Mint": "bg-emerald-600",
-  "PIB India": "bg-blue-600",
-  "Google News": "bg-sky-500",
-  "Moneycontrol": "bg-blue-700",
-  "NDTV Profit": "bg-red-500",
-  "Livemint": "bg-teal-600",
+const EVENT_STATUS_COLORS: Record<string, { dot: string; label: string; bg: string }> = {
+  Completed: { dot: "bg-emerald-400", label: "Completed", bg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  Ongoing:   { dot: "bg-amber-400 animate-pulse", label: "Ongoing",   bg: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  Upcoming:  { dot: "bg-sky-400",    label: "Upcoming",  bg: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
 };
-function sourceColor(name: string) {
-  return SOURCE_COLORS[name] || "bg-slate-600";
-}
-function sourceAbbr(name: string) {
-  return name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-}
-
-// Impact level label
-function impactLevel(score: number): string {
-  if (score >= 85) return "Very High";
-  if (score >= 70) return "High";
-  if (score >= 50) return "Medium";
-  return "Low";
-}
 
 // ── Micro-components ──────────────────────────────────────────────────────────
-function ScoreRing({ score, size = 44 }: { score: number; size?: number }) {
-  const r = (size - 8) / 2;
+
+/** Large circular gauge SVG — used in right sidebar Investment Verdict */
+function BigGauge({ score, size = 120 }: { score: number; size?: number }) {
+  const r = size * 0.38;
+  const cx = size / 2, cy = size / 2;
   const circ = 2 * Math.PI * r;
   const dash = (score / 100) * circ;
-  const color = score >= 80 ? "#34d399" : score >= 60 ? "#60a5fa" : "#f59e0b";
+  const color = score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
   return (
-    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4"/>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="4"
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8"/>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="8"
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        style={{ transition: "stroke-dasharray 0.8s ease" }}/>
-      <text x={size/2} y={size/2+5} textAnchor="middle" fill="white"
-        fontSize={size > 44 ? "13" : "11"} fontWeight="700"
-        style={{ transform: `rotate(90deg) translate(0px, -${size}px)` }}>
+        transform={`rotate(-90 ${cx} ${cy})`}
+        style={{ transition: "stroke-dasharray 1s ease" }}/>
+      <text x={cx} y={cy + 6} textAnchor="middle" fill="white"
+        fontSize={size * 0.22} fontWeight="800" fontFamily="inherit">
+        {score}%
+      </text>
+    </svg>
+  );
+}
+
+/** Small ring used in company cards */
+function SmallRing({ score, size = 36 }: { score: number; size?: number }) {
+  const r = (size - 6) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (score / 100) * circ;
+  const color = score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="3"
+        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`}/>
+      <text x={size/2} y={size/2 + 4} textAnchor="middle" fill={color}
+        fontSize={size * 0.25} fontWeight="700" fontFamily="inherit">
         {score}
       </text>
     </svg>
   );
 }
 
-function SentimentBadge({ sentiment }: { sentiment: string }) {
-  const cfg = sentiment === "bullish"
-    ? { label: "Bullish", icon: "↑", cls: "text-emerald-300 bg-emerald-500/10 border-emerald-500/25" }
-    : sentiment === "bearish"
-    ? { label: "Bearish", icon: "↓", cls: "text-rose-300 bg-rose-500/10 border-rose-500/25" }
-    : { label: "Neutral", icon: "→", cls: "text-amber-300 bg-amber-500/10 border-amber-500/25" };
+/** Star rating component */
+function Stars({ score }: { score: number }) {
+  const filled = score >= 85 ? 5 : score >= 70 ? 4 : score >= 50 ? 3 : score >= 35 ? 2 : 1;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${cfg.cls}`}>
-      {cfg.icon} {cfg.label}
-    </span>
+    <div className="flex gap-0.5">
+      {[1,2,3,4,5].map(i => (
+        <svg key={i} className={`h-3 w-3 ${i <= filled ? "text-amber-400" : "text-slate-700"}`}
+          viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      ))}
+    </div>
   );
 }
 
-function MiniSparkline({ data, positive, width = 80, height = 32 }: { data: number[]; positive: boolean; width?: number; height?: number }) {
-  if (!data?.length) return <div style={{ width, height }} className="rounded bg-white/[0.04]"/>;
+/** Mini sparkline for company chart */
+function MiniSparkline({ data, positive, width = 72, height = 28 }: { data: number[]; positive: boolean; width?: number; height?: number }) {
+  if (!data?.length) return <div style={{ width, height }} className="rounded bg-white/[0.03]"/>;
   const min = Math.min(...data), max = Math.max(...data), range = max - min || 1;
   const pts = data.map((v, i) => {
     const x = (i / Math.max(data.length - 1, 1)) * width;
     const y = height - ((v - min) / range) * (height - 4) - 2;
     return `${x},${y}`;
   }).join(" ");
-  const color = positive ? "#34d399" : "#f43f5e";
+  const color = positive ? "#22c55e" : "#f43f5e";
   return (
     <svg width={width} height={height} className="overflow-visible">
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -159,22 +160,65 @@ function MiniSparkline({ data, positive, width = 80, height = 32 }: { data: numb
   );
 }
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+/** Risk severity badge */
+function RiskSeverity({ text }: { text: string }) {
+  const t = text.toLowerCase();
+  const isHigh = /crash|collapse|severe|major|significant/.test(t);
+  const isLow  = /minor|slight|small|low|unlikely/.test(t);
+  const level  = isHigh ? "High" : isLow ? "Low" : "Medium";
+  const cls    = isHigh
+    ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+    : isLow
+    ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+    : "bg-amber-500/10 text-amber-400 border-amber-500/20";
+  return <span className={`rounded border px-1.5 py-0.5 text-[9px] font-semibold ${cls}`}>{level}</span>;
+}
+
+/** Direction icon for the AI Decision card */
+function DirectionIcon({ direction, size = 56 }: { direction: string; size?: number }) {
+  const isBull = direction === "bullish";
+  const isBear = direction === "bearish";
+  const color  = isBull ? "#22c55e" : isBear ? "#f43f5e" : "#f59e0b";
+  const bg     = isBull ? "rgba(34,197,94,0.12)" : isBear ? "rgba(244,63,94,0.12)" : "rgba(245,158,11,0.12)";
   return (
-    <div className={`rounded-[20px] border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm ${className}`}>
-      {children}
+    <div style={{ width: size, height: size, background: bg, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {isBull ? <TrendingUp style={{ color, width: size * 0.5, height: size * 0.5 }} strokeWidth={2.5}/>
+              : isBear ? <TrendingDown style={{ color, width: size * 0.5, height: size * 0.5 }} strokeWidth={2.5}/>
+              : <Minus style={{ color, width: size * 0.5, height: size * 0.5 }} strokeWidth={2.5}/>}
     </div>
   );
 }
 
-// Refresh icon SVG
-function RefreshIcon({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="23 4 23 10 17 10"/>
-      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-    </svg>
-  );
+/** Derive risk level from confidence */
+function riskLevel(confidence: number): { label: string; color: string } {
+  if (confidence >= 85) return { label: "Low", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" };
+  if (confidence >= 65) return { label: "Medium", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" };
+  return { label: "High", color: "text-rose-400 bg-rose-500/10 border-rose-500/20" };
+}
+
+/** Suitable for label from horizon */
+function suitableFor(horizon: string): string {
+  if (!horizon) return "All investors";
+  const h = horizon.toLowerCase();
+  if (h.includes("long") || h.includes("year")) return "Long-term investors";
+  if (h.includes("medium") || h.includes("month")) return "Medium-term investors";
+  return "Short-term traders";
+}
+
+/** Infer event status from date string */
+function inferStatus(dateStr: string): "Completed" | "Ongoing" | "Upcoming" {
+  if (!dateStr) return "Upcoming";
+  const d = dateStr.toLowerCase();
+  if (d.includes("ongoing") || d.includes("current")) return "Ongoing";
+  if (d.includes("upcoming") || d.includes("next") || d.includes("future")) return "Upcoming";
+  try {
+    const parsed = new Date(dateStr);
+    if (!isNaN(parsed.getTime())) {
+      if (parsed < new Date()) return "Completed";
+      return "Upcoming";
+    }
+  } catch { /**/ }
+  return "Completed";
 }
 
 // ── Loading state ──────────────────────────────────────────────────────────────
@@ -185,8 +229,8 @@ function LoadingState({ query }: { query: string }) {
     return () => clearInterval(t);
   }, []);
   return (
-    <div className="space-y-6 pb-10">
-      <Card className="p-6">
+    <div className="space-y-4 pb-10">
+      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-6">
         <div className="flex items-start gap-4 mb-6">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
             <Sparkles className="h-5 w-5" />
@@ -213,9 +257,9 @@ function LoadingState({ query }: { query: string }) {
             </motion.div>
           ))}
         </div>
-      </Card>
-      {[1, 2, 3].map(i => (
-        <div key={i} className="h-32 animate-pulse rounded-[20px] bg-white/[0.03]"/>
+      </div>
+      {[1, 2].map(i => (
+        <div key={i} className="h-40 animate-pulse rounded-[20px] bg-white/[0.03]"/>
       ))}
     </div>
   );
@@ -224,29 +268,27 @@ function LoadingState({ query }: { query: string }) {
 // ── Empty state ────────────────────────────────────────────────────────────────
 function EmptyState({ onSearch }: { onSearch: (q: string) => void }) {
   return (
-    <div className="flex flex-col items-center py-16 text-center space-y-8">
+    <div className="flex flex-col items-center py-14 text-center space-y-8">
       <div className="relative">
-        <div className="h-24 w-24 rounded-full bg-gradient-to-br from-violet-500/20 to-sky-500/10 flex items-center justify-center border border-violet-500/20">
-          <Sparkles className="h-10 w-10 text-violet-400" />
+        <div className="h-20 w-20 rounded-full bg-gradient-to-br from-violet-500/20 to-sky-500/10 flex items-center justify-center border border-violet-500/20">
+          <Sparkles className="h-9 w-9 text-violet-400" />
         </div>
         <div className="absolute -inset-4 rounded-full bg-violet-500/5 blur-xl"/>
       </div>
       <div>
         <h2 className="text-xl font-semibold text-white mb-2">AI Decision Intelligence Engine</h2>
-        <p className="text-sm text-slate-400 max-w-md">Ask any investment decision question — hold, switch, compare, or analyse. Get explainable AI reasoning, trade-offs, and evidence. Never direct advice.</p>
+        <p className="text-sm text-slate-400 max-w-md leading-relaxed">Ask any investment decision question — hold, switch, compare, or analyse. Get explainable AI reasoning, evidence, and trade-offs.</p>
       </div>
-      <div className="w-full max-w-lg space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500">Try these searches</p>
-        <div className="grid grid-cols-1 gap-2">
-          {EXAMPLES.map(q => (
-            <button key={q} onClick={() => onSearch(q)}
-              className="group flex items-center gap-3 rounded-[16px] border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-left text-[13px] text-slate-300 transition hover:border-violet-500/30 hover:bg-violet-500/[0.04] hover:text-white">
-              <Search className="h-4 w-4 text-violet-400 shrink-0" />
-              {q}
-              <span className="ml-auto text-slate-600 group-hover:text-violet-400 transition">→</span>
-            </button>
-          ))}
-        </div>
+      <div className="w-full max-w-xl space-y-2">
+        <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-3">Try these searches</p>
+        {EXAMPLES.map(q => (
+          <button key={q} onClick={() => onSearch(q)}
+            className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-left text-[13px] text-slate-300 transition hover:border-violet-500/30 hover:bg-violet-500/[0.04] hover:text-white">
+            <Search className="h-4 w-4 text-violet-400 shrink-0" />
+            {q}
+            <span className="ml-auto text-slate-600 group-hover:text-violet-400 transition text-sm">→</span>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -267,822 +309,703 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-// ── Search results ─────────────────────────────────────────────────────────────
-function SearchResults({ result, onFollowUp }: { result: SearchResult; onFollowUp: (q: string) => void }) {
-  const companiesRef = useRef<HTMLDivElement>(null);
-  const { answer, insights, companies, sectors, related_events, news, policies,
-          investment_verdict, market_chart, similar_events, timeline, follow_up_questions,
-          decision_intelligence } = result;
+// ── Search Results ─────────────────────────────────────────────────────────────
+function SearchResults({ result, onFollowUp, resultTime }: {
+  result: SearchResult;
+  onFollowUp: (q: string) => void;
+  resultTime: Date;
+}) {
+  const [showMore, setShowMore] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const { answer, companies, sectors, related_events, news,
+          investment_verdict, market_chart, similar_events,
+          follow_up_questions, decision_intelligence } = result;
 
   const isDecision = !!decision_intelligence?.intent && decision_intelligence.intent !== "general";
 
+  // Relative time
+  const minAgo = Math.max(1, Math.round((Date.now() - resultTime.getTime()) / 60000));
+
+  // Verdict direction label
+  const dir = answer?.sentiment ?? investment_verdict?.direction ?? "neutral";
+  const isBull = dir === "bullish";
+  const isBear = dir === "bearish";
+  const verdictColor = isBull ? "text-emerald-400" : isBear ? "text-rose-400" : "text-amber-400";
+  const risk = riskLevel(investment_verdict?.confidence ?? answer?.confidence ?? 70);
+
+  // Chart data
   const chartData = (market_chart?.labels || []).map((label, i) => {
     const row: Record<string, any> = { label };
     (market_chart?.series || []).forEach(s => { row[s.name] = s.data[i] ?? 0; });
     return row;
   });
 
-  // Latest values for index panel (last data point)
-  const indexValues = (market_chart?.series || []).map(s => ({
-    name: s.name, color: s.color,
-    pct: s.data[s.data.length - 1] ?? 0,
-  }));
+  // Similar event for historical section
+  const simEv = similar_events?.[0];
 
-  function scrollCompanies(dir: number) {
-    if (companiesRef.current) companiesRef.current.scrollLeft += dir * 220;
+  // Continue Your Research CTAs
+  const topCo  = companies?.[0];
+  const topEv  = related_events?.[0];
+  const topFU  = follow_up_questions?.[0];
+  const topSec = sectors?.[0];
+
+  function handleSave() {
+    try {
+      const key = "ig_saved_searches";
+      const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
+      const entry = { id: `sv-${Date.now()}`, query: result.query, summary: answer?.summary?.slice(0, 120), timestamp: Date.now() };
+      const deduped = existing.filter((e: { query: string }) => e.query !== result.query);
+      localStorage.setItem(key, JSON.stringify([entry, ...deduped].slice(0, 50)));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch { /**/ }
+  }
+
+  function handleShare() {
+    const url = `${window.location.origin}/ai-search?q=${encodeURIComponent(result.query)}`;
+    if (navigator.share) {
+      navigator.share({ title: "MarketRipple AI Analysis", text: result.query, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).catch(() => {});
+    }
   }
 
   return (
-    <div className="space-y-5 pb-32">
+    <div className="space-y-4 pb-36">
 
-      {/* ── Decision Intelligence Panel (decision-type queries only) ──────── */}
+      {/* ── Query Header ─────────────────────────────────────────────────────── */}
+      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] px-5 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5">Search Answer</p>
+            <h1 className="text-[18px] font-bold text-white leading-snug">{result.query}</h1>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Generated {minAgo} min ago
+              <span className="mx-1.5 text-slate-700">·</span>
+              AI Model: MarketRipple Intelligence (v2.7)
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 mt-0.5">
+            <button onClick={() => onFollowUp("")}
+              className="flex items-center gap-1.5 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12px] font-medium text-slate-300 hover:bg-white/[0.08] transition">
+              <Plus className="h-3.5 w-3.5"/>
+              New Search
+            </button>
+            <button onClick={handleSave}
+              className={`flex h-8 w-8 items-center justify-center rounded-[10px] border transition ${saved ? "border-violet-500/40 bg-violet-500/20 text-violet-300" : "border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/[0.08]"}`}>
+              <Bookmark className="h-4 w-4"/>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Decision Intelligence Panel ───────────────────────────────────────── */}
       {isDecision && decision_intelligence && (
-        <DecisionIntelligencePanel
-          di={decision_intelligence}
-          query={result.query}
-          onRefine={onFollowUp}
-        />
+        <DecisionIntelligencePanel di={decision_intelligence} query={result.query} onRefine={onFollowUp}/>
       )}
 
-      {/* ── AI Answer ──────────────────────────────────────────────────────── */}
-      <Card className="overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-white/[0.06] px-5 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/20 text-violet-400"><Sparkles className="h-4 w-4" /></div>
-            <div className="flex items-center gap-2">
-              <p className="text-[14px] font-semibold text-white">AI Answer</p>
-              {isDecision && decision_intelligence && (
-                <IntentBadge intent={decision_intelligence.intent} />
-              )}
+      {/* ── Row 1: AI Decision + Key Evidence ────────────────────────────────── */}
+      <div className="grid grid-cols-[1fr_auto] gap-4 min-h-0">
+
+        {/* AI Decision */}
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-0.5 text-[10px] font-bold text-violet-300 uppercase tracking-wider">AI Decision</span>
+            <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5 text-[10px] font-medium text-slate-400">Bottom Line Up Front</span>
+          </div>
+
+          <div className="flex items-start gap-4 mb-4">
+            <DirectionIcon direction={dir} size={64}/>
+            <div>
+              <p className={`text-[26px] font-extrabold leading-tight ${verdictColor}`}>
+                {investment_verdict?.rating || (isBull ? "Moderately Bullish" : isBear ? "Moderately Bearish" : "Neutral")}
+              </p>
+              <p className="text-[12px] text-slate-400 mt-1 leading-relaxed max-w-sm">
+                {answer?.summary?.length > 180 ? answer.summary.slice(0, 177) + "…" : answer?.summary}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                const url = `${window.location.origin}/ai-search?q=${encodeURIComponent(result.query)}`;
-                if (navigator.share) {
-                  navigator.share({ title: "InvestGrids AI Analysis", text: result.query, url }).catch(() => {});
-                } else {
-                  navigator.clipboard.writeText(url).catch(() => {});
-                }
-              }}
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/[0.08] transition">
-              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-              Share
-            </button>
-            <button
-              onClick={() => {
-                try {
-                  const SAVED_KEY = "ig_saved_searches";
-                  const existing = JSON.parse(localStorage.getItem(SAVED_KEY) ?? "[]");
-                  const entry = { id: `sv-${Date.now()}`, query: result.query, summary: answer?.summary?.slice(0, 120), timestamp: Date.now() };
-                  const deduped = existing.filter((e: { query: string }) => e.query !== result.query);
-                  localStorage.setItem(SAVED_KEY, JSON.stringify([entry, ...deduped].slice(0, 50)));
-                } catch { /* localStorage unavailable */ }
-              }}
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/[0.08] transition">
-              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-              Save
-            </button>
-          </div>
-        </div>
 
-        {/* Summary */}
-        <div className="px-5 pt-4 pb-2">
-          <p className="text-[14px] leading-7 text-slate-200">{answer.summary}</p>
-        </div>
-
-        {/* 4-column insight cards */}
-        {insights?.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 pb-5">
-            {insights.slice(0, 4).map((ins, i) => (
-              <div key={i} className="rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <p className="text-[12px] font-semibold text-white leading-tight">{ins.title}</p>
-                </div>
-                <p className="text-[11px] leading-[1.55] text-slate-400">{ins.summary}</p>
+          {/* Stats row */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { label: "Confidence", value: `${answer?.confidence ?? investment_verdict?.confidence ?? 0}%`, color: "text-emerald-400" },
+              { label: "Time Horizon", value: investment_verdict?.horizon || "6–18 Months", color: "text-slate-200" },
+              { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0] },
+              { label: "Suitable For", value: suitableFor(investment_verdict?.horizon || ""), color: "text-slate-200" },
+            ].map(s => (
+              <div key={s.label} className="rounded-[12px] border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">{s.label}</p>
+                <p className={`text-[12px] font-semibold ${s.color}`}>{s.value}</p>
               </div>
             ))}
           </div>
-        )}
-      </Card>
+        </div>
 
-      {/* ── AI Transparency ──────────────────────────────────────────────── */}
+        {/* Key Evidence */}
+        <div className="w-72 rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[13px] font-semibold text-white">Why? (Key Evidence)</p>
+          </div>
+          <div className="space-y-2.5">
+            {((answer?.opportunities?.length ? answer.opportunities : []).slice(0, 5)).map((op, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+                  <svg className="h-2.5 w-2.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-medium text-white leading-tight">{op.split(":")[0] || op.slice(0, 40)}</p>
+                  {op.includes(":") && <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">{op.split(":").slice(1).join(":").trim()}</p>}
+                </div>
+              </div>
+            ))}
+            {/* Fallback if no opportunities */}
+            {!answer?.opportunities?.length && (answer?.risks || []).slice(0, 3).map((r, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-slate-700/50">
+                  <svg className="h-2.5 w-2.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <p className="text-[12px] text-slate-300 leading-tight line-clamp-2">{r}</p>
+              </div>
+            ))}
+          </div>
+          <Link href="/events" className="mt-4 flex items-center gap-1 text-[11px] font-medium text-violet-400 hover:text-violet-300 transition">
+            View All Evidence <span>→</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Row 2: Companies That Matter ─────────────────────────────────────── */}
+      {companies?.length > 0 && (
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[15px] font-semibold text-white">Companies That Matter</p>
+            <Link href="/companies" className="text-[12px] text-violet-400 hover:text-violet-300 transition">
+              View All Companies →
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {companies.slice(0, 6).map((co, idx) => {
+              const avatarColors = ["bg-red-700", "bg-blue-700", "bg-orange-700", "bg-teal-700", "bg-violet-700", "bg-indigo-700"];
+              const av = avatarColors[idx % avatarColors.length];
+              return (
+                <div key={co.symbol} className="rounded-[16px] border border-white/[0.07] bg-white/[0.02] p-4">
+                  {/* Header */}
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${av} text-[11px] font-bold text-white`}>
+                      {co.symbol.slice(0, 2)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-white truncate">{co.symbol}</p>
+                      {co.price && co.price !== "—" ? (
+                        <p className="text-[11px] tabular-nums">
+                          <span className="text-slate-300">₹{co.price}</span>
+                          <span className={`ml-1 font-semibold ${co.positive ? "text-emerald-400" : "text-rose-400"}`}>{co.change}</span>
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-slate-600">—</p>
+                      )}
+                    </div>
+                    <div className="ml-auto shrink-0">
+                      <MiniSparkline data={co.chart} positive={co.positive}/>
+                    </div>
+                  </div>
+
+                  {/* Why it matters */}
+                  <div className="mb-3">
+                    <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Why it matters</p>
+                    <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-2">{co.reason || "Directly impacted by this event"}</p>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <SmallRing score={Math.round(co.confidence ?? co.impact_score)} size={32}/>
+                      <p className="text-[10px] text-slate-500">Confidence</p>
+                    </div>
+                    <Link href={`/companies/${co.symbol}`}
+                      className="text-[11px] font-medium text-violet-400 hover:text-violet-300 transition">
+                      Open Analysis →
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Row 3: Sector Impact + Related Events Timeline ───────────────────── */}
+      <div className="grid grid-cols-[1fr_1.4fr] gap-4">
+
+        {/* Sector Impact */}
+        {sectors?.length > 0 && (
+          <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+            <p className="text-[14px] font-semibold text-white mb-4">Sector Impact</p>
+            <div className="w-full">
+              <div className="grid grid-cols-3 gap-x-2 mb-2">
+                {["Sector", "Impact", "Outlook"].map(h => (
+                  <p key={h} className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">{h}</p>
+                ))}
+              </div>
+              <div className="space-y-2.5">
+                {sectors.slice(0, 5).map(s => {
+                  const outlookColor = s.score >= 70 ? "text-emerald-400" : s.score >= 50 ? "text-amber-400" : "text-rose-400";
+                  const outlookLabel = s.outlook || (s.score >= 85 ? "Very Positive" : s.score >= 70 ? "Positive" : s.score >= 50 ? "Neutral to Positive" : s.score >= 35 ? "Neutral" : "Neutral to Negative");
+                  return (
+                    <div key={s.name} className="grid grid-cols-3 gap-x-2 items-center">
+                      <p className="text-[12px] font-medium text-slate-200 truncate">{s.name}</p>
+                      <Stars score={s.score}/>
+                      <p className={`text-[11px] font-medium ${outlookColor}`}>{outlookLabel}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Related Events Timeline */}
+        {related_events?.length > 0 && (
+          <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px]">⏰</span>
+                <p className="text-[14px] font-semibold text-white">Related Events Timeline</p>
+              </div>
+              <Link href="/events" className="text-[11px] text-violet-400 hover:text-violet-300 transition">View All Events →</Link>
+            </div>
+            <div className="relative overflow-x-auto">
+              {/* Horizontal timeline */}
+              <div className="flex items-start gap-0 min-w-max">
+                {related_events.slice(0, 5).map((ev, i) => {
+                  const status = inferStatus(ev.date);
+                  const sc = EVENT_STATUS_COLORS[status];
+                  const isLast = i === related_events.slice(0, 5).length - 1;
+                  return (
+                    <div key={ev.id} className="flex items-start">
+                      <div className="flex flex-col items-center w-32">
+                        {/* Dot + line */}
+                        <div className="flex items-center w-full">
+                          {i > 0 && <div className="flex-1 h-px bg-white/[0.08]"/>}
+                          <div className={`h-3 w-3 shrink-0 rounded-full border-2 border-[#0d1117] ${sc.dot}`}/>
+                          {!isLast && <div className="flex-1 h-px bg-white/[0.08]"/>}
+                        </div>
+                        {/* Content below dot */}
+                        <div className="mt-2 px-1 text-center">
+                          <Link href={`/events/${ev.id}`}
+                            className="block text-[11px] font-medium text-slate-200 hover:text-white transition line-clamp-2 leading-tight text-center">
+                            {ev.title.length > 35 ? ev.title.slice(0, 32) + "…" : ev.title}
+                          </Link>
+                          <p className="text-[9px] text-slate-600 mt-1">{ev.date?.split(",")[0] || ev.date}</p>
+                          <span className={`mt-1 inline-block rounded border px-1.5 py-0.5 text-[9px] font-medium ${sc.bg}`}>
+                            {sc.label}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Row 4: Historical + Risks + Monitor + Follow-ups ─────────────────── */}
+      <div className="grid grid-cols-4 gap-4">
+
+        {/* Historical Similar Events */}
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[13px] font-semibold text-white">Historical Similar Events</p>
+          </div>
+          {simEv ? (
+            <>
+              <p className="text-[11px] font-medium text-violet-300 mb-1">{simEv.title}</p>
+              <p className="text-[9px] text-slate-500 mb-3">
+                {simEv.date} · <span className="text-violet-400">{Math.round(simEv.similarity * 100)}% match</span>
+              </p>
+              {/* Mini chart placeholder */}
+              {chartData.length > 0 && (
+                <div className="mb-3 h-[60px]">
+                  <ResponsiveContainer width="100%" height={60}>
+                    <LineChart data={chartData.slice(0, 12)} margin={{ top: 2, right: 2, bottom: 0, left: -30 }}>
+                      <YAxis tick={false} axisLine={false} tickLine={false}/>
+                      {(market_chart?.series || []).slice(0, 2).map(s => (
+                        <Line key={s.name} type="monotone" dataKey={s.name} stroke={s.color}
+                          strokeWidth={1.5} dot={false}/>
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              {/* Winners */}
+              {simEv.winners?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {simEv.winners.slice(0, 4).map(w => (
+                    <span key={w} className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">{w}</span>
+                  ))}
+                </div>
+              )}
+              <p className="mt-2 text-[10px] text-slate-500 leading-relaxed line-clamp-2">{simEv.outcome}</p>
+            </>
+          ) : (
+            <p className="text-[12px] text-slate-500 text-center py-4">No similar historical events found</p>
+          )}
+        </div>
+
+        {/* Risks & Counter Arguments */}
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[13px] font-semibold text-white">Risks & Counter Arguments</p>
+            {(answer?.risks?.length ?? 0) > 4 && (
+              <button onClick={() => setShowMore(v => !v)} className="text-[10px] text-violet-400">View All →</button>
+            )}
+          </div>
+          <div className="space-y-2.5">
+            {((answer?.risks?.length ? answer.risks : investment_verdict?.risks || []).slice(0, 4)).map((r, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-rose-500/70 mt-1.5"/>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-2">{r}</p>
+                </div>
+                <RiskSeverity text={r}/>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* What To Monitor */}
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-white mb-3">What To Monitor</p>
+          <div className="space-y-2.5">
+            {(investment_verdict?.catalysts?.length
+              ? investment_verdict.catalysts
+              : answer?.opportunities?.slice(0, 5) || []
+            ).slice(0, 5).map((c, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+                  <svg className="h-2.5 w-2.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-2">{c}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Follow-up Questions */}
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[13px] font-semibold text-white">Follow-up Questions</p>
+          </div>
+          <div className="space-y-2">
+            {(follow_up_questions || []).slice(0, 4).map((q, i) => (
+              <button key={i} onClick={() => onFollowUp(q)}
+                className="group flex w-full items-start gap-2 text-left transition hover:text-violet-300">
+                <span className="mt-0.5 text-slate-600 group-hover:text-violet-400 transition text-xs">›</span>
+                <p className="text-[11px] text-slate-400 group-hover:text-violet-300 transition leading-relaxed line-clamp-2">{q}</p>
+              </button>
+            ))}
+          </div>
+          {(follow_up_questions?.length ?? 0) > 4 && (
+            <button onClick={() => onFollowUp(follow_up_questions![4])}
+              className="mt-3 text-[11px] text-violet-400 hover:text-violet-300 transition">
+              View More →
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Continue Your Research ────────────────────────────────────────────── */}
+      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-3">Continue Your Research</p>
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            topCo ? {
+              icon: "🏢",
+              label: `Open ${topCo.name} Analysis`,
+              sub: "Deep dive into company",
+              href: `/companies/${topCo.symbol}`,
+            } : null,
+            topEv ? {
+              icon: "📅",
+              label: `Read ${topEv.title.length > 28 ? topEv.title.slice(0, 25) + "…" : topEv.title}`,
+              sub: "Understand the event",
+              href: `/events/${topEv.id}`,
+            } : null,
+            topSec ? {
+              icon: "🔍",
+              label: `Explore ${topSec.name} Sector`,
+              sub: "Sector & theme analysis",
+              href: `/sectors`,
+            } : null,
+            topFU ? {
+              icon: "💬",
+              label: "Ask Another Question",
+              sub: "Continue AI research",
+              action: () => onFollowUp(topFU),
+            } : null,
+          ].filter(Boolean).map((cta, i) => (
+            cta!.action ? (
+              <button key={i} onClick={cta!.action}
+                className="group flex items-center gap-3 rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-left transition hover:border-violet-500/30 hover:bg-violet-500/[0.04]">
+                <span className="text-base">{cta!.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-medium text-white line-clamp-1">{cta!.label}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{cta!.sub}</p>
+                </div>
+                <span className="text-slate-600 group-hover:text-violet-400 transition text-sm">→</span>
+              </button>
+            ) : (
+              <Link key={i} href={(cta as any).href as any}
+                className="group flex items-center gap-3 rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-violet-500/30 hover:bg-violet-500/[0.04]">
+                <span className="text-base">{cta!.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-medium text-white line-clamp-1">{cta!.label}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{cta!.sub}</p>
+                </div>
+                <span className="text-slate-600 group-hover:text-violet-400 transition text-sm">→</span>
+              </Link>
+            )
+          ))}
+        </div>
+      </div>
+
+      {/* ── Market Performance Chart (collapsed by default) ───────────────────── */}
+      {chartData.length > 0 && (
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[14px] font-semibold text-white">Market Impact Overview</p>
+            <span className="rounded-lg px-2 py-0.5 text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30">1D</span>
+          </div>
+          <ResponsiveContainer width="100%" height={140}>
+            <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
+              <YAxis tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} tickFormatter={v => `${v > 0 ? "+" : ""}${v}%`}/>
+              <ReferenceLine y={0} stroke="rgba(255,255,255,0.07)" strokeDasharray="3 3"/>
+              <Tooltip content={<ChartTooltip/>}/>
+              {(market_chart?.series || []).map(s => (
+                <Line key={s.name} type="monotone" dataKey={s.name} stroke={s.color}
+                  strokeWidth={1.5} dot={false} activeDot={{ r: 3, fill: s.color }}/>
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* ── AI Transparency ───────────────────────────────────────────────────── */}
       <AITransparencyPanel
         confidence={result.answer?.confidence ?? 70}
         reasoning={result.answer?.summary ?? "AI-generated analysis based on your query and current market data."}
         events={(result.related_events ?? []).slice(0, 5).map((e) => ({ title: e.title, href: `/events/${e.id}` }))}
-        companies={(result.companies ?? []).slice(0, 5).map((c) => ({ name: c.name, symbol: c.symbol, href: `/stocks/${c.symbol}` }))}
+        companies={(result.companies ?? []).slice(0, 5).map((c) => ({ name: c.name, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
       />
       <AIDisclaimer />
-
-      {/* ── Key Impact on Companies ──────────────────────────────────────── */}
-      {companies?.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[15px] font-semibold text-white">Key Impact on Companies</p>
-            <Link href="/stocks" className="text-[12px] text-violet-400 hover:text-violet-300 transition">
-              View All Companies →
-            </Link>
-          </div>
-
-          <div className="relative">
-            {/* Left arrow */}
-            <button onClick={() => scrollCompanies(-1)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-slate-900/90 text-slate-300 shadow-lg hover:bg-slate-800 transition">
-              ‹
-            </button>
-
-            <div ref={companiesRef} className="flex gap-3 overflow-x-auto pb-1 scroll-smooth" style={{ scrollbarWidth: "none" }}>
-              {companies.map((co, idx) => {
-                const level = impactLevel(co.impact_score);
-                const levelColor = co.impact_score >= 85 ? "text-emerald-400" : co.impact_score >= 70 ? "text-sky-400" : "text-amber-400";
-                // Symbol avatar colors
-                const avatarColors = ["bg-red-600", "bg-blue-700", "bg-red-700", "bg-teal-600", "bg-orange-600", "bg-violet-600", "bg-emerald-700", "bg-indigo-600"];
-                const av = avatarColors[idx % avatarColors.length];
-                return (
-                  <Link key={co.symbol} href={`/companies/${co.symbol}`}
-                    className="shrink-0 w-[196px] rounded-[18px] border border-white/[0.07] bg-white/[0.03] p-4 transition hover:border-white/[0.14] hover:bg-white/[0.06] flex flex-col gap-2">
-                    {/* Company identity */}
-                    <div className="flex items-start gap-2.5">
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${av} text-[11px] font-bold text-white`}>
-                        {co.symbol.slice(0, 2)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-bold text-white leading-tight">{co.symbol}</p>
-                        <p className="text-[10px] text-slate-500 truncate">{co.name}</p>
-                      </div>
-                    </div>
-
-                    {/* Price + change */}
-                    <div className="flex items-baseline gap-2">
-                      {co.price && co.price !== "—" ? (
-                        <>
-                          <p className="text-[14px] font-bold text-white">₹{co.price}</p>
-                          <p className={`text-[12px] font-semibold ${co.positive ? "text-emerald-400" : "text-rose-400"}`}>{co.change}</p>
-                        </>
-                      ) : (
-                        <p className="text-[11px] text-slate-500 italic">Price unavailable</p>
-                      )}
-                    </div>
-
-                    {/* Sparkline */}
-                    <div className="h-8">
-                      <MiniSparkline data={co.chart} positive={co.positive} width={160} height={32}/>
-                    </div>
-
-                    {/* Impact score + level */}
-                    <div className="flex items-center justify-between mt-1">
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-0.5">Impact Score</p>
-                        <p className={`text-[11px] font-semibold ${levelColor}`}>{level}</p>
-                      </div>
-                      <ScoreRing score={co.impact_score} size={40}/>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* Right arrow */}
-            <button onClick={() => scrollCompanies(1)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-slate-900/90 text-slate-300 shadow-lg hover:bg-slate-800 transition">
-              ›
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Market Impact + Sector Impact side by side ────────────────────── */}
-      <div className="grid grid-cols-[1fr_auto] gap-0 overflow-hidden rounded-[20px] border border-white/[0.07] bg-white/[0.03]">
-        {/* Chart section */}
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[14px] font-semibold text-white">Market Impact Overview</p>
-            <span className="rounded-lg px-2 py-0.5 text-[10px] font-medium bg-violet-500/20 text-violet-300">1D</span>
-          </div>
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={160}>
-              <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -22 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
-                <YAxis tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} tickFormatter={v => `${v > 0 ? "+" : ""}${v}%`}/>
-                <ReferenceLine y={0} stroke="rgba(255,255,255,0.07)" strokeDasharray="3 3"/>
-                <Tooltip content={<ChartTooltip/>}/>
-                <Legend iconType="circle" iconSize={6} wrapperStyle={{ fontSize: 10, paddingTop: 6 }}/>
-                {(market_chart?.series || []).map(s => (
-                  <Line key={s.name} type="monotone" dataKey={s.name} stroke={s.color}
-                    strokeWidth={1.5} dot={false} activeDot={{ r: 3, fill: s.color }}/>
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-[160px] items-center justify-center text-[12px] text-slate-500">No chart data available</div>
-          )}
-        </div>
-
-        {/* Live index values panel */}
-        <div className="w-[200px] shrink-0 border-l border-white/[0.06] p-4 flex flex-col justify-center gap-4">
-          {indexValues.map(idx => (
-            <div key={idx.name}>
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: idx.color }}/>
-                <p className="text-[10px] text-slate-500">{idx.name}</p>
-              </div>
-              <p className={`text-[13px] font-bold ${idx.pct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {idx.pct > 0 ? "+" : ""}{idx.pct.toFixed(2)}%
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Sector Impact ─────────────────────────────────────────────────── */}
-      {sectors?.length > 0 && (
-        <Card className="p-4">
-          <p className="text-[14px] font-semibold text-white mb-3">Sector Impact</p>
-          <div className="space-y-2.5">
-            {sectors.map(s => {
-              const barColor = s.score >= 70
-                ? "bg-gradient-to-r from-emerald-500 to-teal-400"
-                : s.score >= 50
-                ? "bg-gradient-to-r from-amber-500 to-orange-400"
-                : "bg-gradient-to-r from-rose-500 to-rose-400";
-              const scoreColor = s.score >= 70 ? "text-emerald-400" : s.score >= 50 ? "text-amber-400" : "text-rose-400";
-              const label = s.score >= 70 ? "" : s.score >= 50 ? "Medium" : "Low";
-              return (
-                <div key={s.name} className="flex items-center gap-3">
-                  <span className="w-32 shrink-0 text-[12px] text-slate-300 truncate">{s.name}</span>
-                  <div className="flex-1 h-2 overflow-hidden rounded-full bg-white/[0.06] relative">
-                    <div className={`h-full rounded-full ${barColor} flex items-center`}
-                      style={{ width: `${Math.min(100, s.score)}%`, transition: "width 0.8s ease" }}>
-                      {label && (
-                        <span className="text-[8px] font-semibold text-white ml-1.5 whitespace-nowrap">{label}</span>
-                      )}
-                    </div>
-                  </div>
-                  <span className={`w-8 text-right text-[12px] font-bold shrink-0 ${scoreColor}`}>{s.score}</span>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      {/* ── Timeline ──────────────────────────────────────────────────────── */}
-      {timeline?.length > 0 && (
-        <Card className="p-4">
-          <p className="text-[14px] font-semibold text-white mb-4">Development Timeline</p>
-          <div className="space-y-0">
-            {timeline.map((t, i) => (
-              <div key={i} className="flex gap-4 pb-5">
-                <div className="flex flex-col items-center">
-                  <div className="h-2.5 w-2.5 rounded-full bg-violet-500 shrink-0 mt-1"/>
-                  {i < timeline.length - 1 && <div className="w-px flex-1 bg-white/[0.06] mt-1"/>}
-                </div>
-                <div className="pb-1">
-                  <p className="text-[10px] text-violet-400 font-semibold">{t.date}</p>
-                  <p className="text-[13px] font-medium text-white">{t.title}</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{t.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* ── Related Events ────────────────────────────────────────────────── */}
-      {related_events?.length > 0 && (
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[14px] font-semibold text-white">Related Events</p>
-            <Link href="/events" className="text-[11px] text-violet-400 hover:text-violet-300">View All →</Link>
-          </div>
-          <div className="space-y-2">
-            {related_events.slice(0, 5).map(ev => {
-              const catCls = CATEGORY_COLOR[ev.category] || CATEGORY_COLOR.Market;
-              const dateParts = (ev.date || "").split(" ");
-              return (
-                <Link key={ev.id} href={`/events/${ev.id}`}
-                  className="flex items-center gap-3 rounded-[14px] border border-white/[0.05] bg-white/[0.02] px-3 py-2.5 transition hover:border-white/10 hover:bg-white/[0.04]">
-                  {dateParts.length >= 2 && (
-                    <div className="shrink-0 text-center w-8">
-                      <p className="text-[9px] text-violet-400 font-semibold uppercase">{dateParts[0]}</p>
-                      <p className="text-[14px] font-bold text-white leading-tight">{dateParts[1]}</p>
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-medium text-slate-200 line-clamp-1">{ev.title}</p>
-                    <span className={`mt-0.5 inline-block rounded border px-1.5 py-0.5 text-[9px] font-medium ${catCls}`}>{ev.category}</span>
-                  </div>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-[11px] font-bold text-violet-300">
-                    {Math.round(ev.impact_score)}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      {/* ── Historical Similar Events ──────────────────────────────────────── */}
-      {similar_events?.length > 0 && (
-        <div>
-          <p className="text-[14px] font-semibold text-white mb-3">Historical Similar Events</p>
-          <div className="grid grid-cols-2 gap-3">
-            {similar_events.map((se, i) => (
-              <Card key={i} className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <p className="text-[13px] font-semibold text-white line-clamp-2">{se.title}</p>
-                  <span className="shrink-0 rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-bold text-violet-300">
-                    {Math.round(se.similarity * 100)}% match
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-500 mb-2">{se.date}</p>
-                <p className="text-[12px] text-slate-300 mb-3">{se.outcome}</p>
-                <div className="flex gap-3">
-                  <div>
-                    <p className="text-[9px] uppercase tracking-widest text-emerald-500 mb-1">Winners</p>
-                    <div className="flex flex-wrap gap-1">
-                      {(se.winners||[]).map(w => (
-                        <span key={w} className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400">{w}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-widest text-rose-500 mb-1">Losers</p>
-                    <div className="flex flex-wrap gap-1">
-                      {(se.losers||[]).map(l => (
-                        <span key={l} className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] text-rose-400">{l}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Network Graph ─────────────────────────────────────────────────── */}
-      {(result.graph?.nodes?.length ?? 0) > 0 && (
-        <Card className="p-4">
-          <p className="text-[14px] font-semibold text-white mb-3">Impact Network</p>
-          <NetworkGraph nodes={result.graph.nodes} edges={result.graph.edges}/>
-        </Card>
-      )}
-
-      {/* ── Investment Thesis (hidden for decision queries — shown in DecisionPanel) */}
-      {!isDecision && (investment_verdict?.rating || answer?.why_it_happened) && (
-        <InvestmentThesisCard
-          entityType="search"
-          entityId={result.query.slice(0, 120)}
-          entityTitle={result.query}
-          entityDescription={answer.summary}
-          thesis={investment_verdict?.rating ? `${investment_verdict.rating} — ${answer.summary}` : answer.summary}
-          whyItMatters={answer.why_it_happened}
-          businessImpact={answer.immediate_impact}
-          keyDrivers={(investment_verdict?.catalysts ?? []).slice(0, 4)}
-          riskFactors={(investment_verdict?.risks ?? []).slice(0, 3)}
-          confidence={investment_verdict?.confidence}
-          timeHorizon={investment_verdict?.horizon ? `${investment_verdict.horizon} horizon` : undefined}
-        />
-      )}
-
-      {/* ── Scenario Analysis ─────────────────────────────────────────────── */}
-      {answer?.summary && (
-        <ScenarioAnalysis
-          entityType="search"
-          entityId={result.query.slice(0, 120)}
-          entityTitle={result.query}
-          entityDescription={answer.summary}
-        />
-      )}
-
-      {/* ── Monitoring Checklist ──────────────────────────────────────────── */}
-      {answer?.summary && (
-        <MonitoringChecklist
-          entityType="search"
-          entityId={result.query.slice(0, 120)}
-          entityTitle={result.query}
-          entityDescription={answer.summary}
-        />
-      )}
-
-      {/* ── Pattern Intelligence ──────────────────────────────────────────── */}
-      {answer?.summary && (
-        <PatternIntelligenceCard
-          entityType="search"
-          entityId={result.query.slice(0, 120)}
-          entityTitle={result.query}
-          entityDescription={answer.summary}
-        />
-      )}
-
-      {/* ── Related Intelligence ──────────────────────────────────────────── */}
-      {answer?.summary && (
-        <RelatedContent
-          entityType="search"
-          entityId={result.query.slice(0, 120)}
-          title={result.query}
-        />
-      )}
-
-      {/* ── Share + Smart CTAs ───────────────────────────────────────────── */}
-      {answer?.summary && (
-        <div className="flex flex-wrap gap-2">
-          <ShareInsightCard
-            entityType="search"
-            entityId={encodeURIComponent(result.query.slice(0, 80))}
-            title={result.query}
-            summary={answer.summary}
-          />
-          <SmartCTA variant="view-event" href="/events" />
-          <SmartCTA variant="explore-opportunity" href="/radar" />
-        </div>
-      )}
-
-      {/* ── Investment Verdict ────────────────────────────────────────────── */}
-      {investment_verdict?.rating && (
-        <Card className="p-4 !border-violet-500/20 !bg-gradient-to-br from-violet-500/[0.06] to-sky-500/[0.03]">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-violet-400 mb-1">AI Investment Verdict</p>
-              <p className="text-xl font-bold text-white">{investment_verdict.rating}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <SentimentBadge sentiment={investment_verdict.direction}/>
-                <span className="text-[11px] text-slate-400">{investment_verdict.horizon} horizon</span>
-              </div>
-            </div>
-            <div className="text-center">
-              <ScoreRing score={investment_verdict.opportunity_score} size={56}/>
-              <p className="text-[9px] text-slate-500 mt-1">Opportunity</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div>
-              <p className="text-[10px] text-slate-500 mb-1.5">Top Picks</p>
-              <div className="flex flex-wrap gap-1">
-                {(investment_verdict.top_picks||[]).map(p => (
-                  <Link key={p} href={`/companies/${p}`}
-                    className="rounded-lg bg-violet-500/20 px-2 py-0.5 text-[11px] font-semibold text-violet-300 hover:bg-violet-500/30 transition">{p}</Link>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] text-rose-400 mb-1.5">Key Risks</p>
-              <ul className="space-y-0.5">
-                {(investment_verdict.risks||[]).slice(0, 3).map((r, i) => (
-                  <li key={i} className="text-[11px] text-slate-400 flex gap-1"><span className="text-rose-500">•</span>{r}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="text-[10px] text-emerald-400 mb-1.5">Catalysts</p>
-              <ul className="space-y-0.5">
-                {(investment_verdict.catalysts||[]).slice(0, 3).map((c, i) => (
-                  <li key={i} className="text-[11px] text-slate-400 flex gap-1"><span className="text-emerald-500">•</span>{c}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="flex items-center justify-between text-[11px] border-t border-white/[0.05] pt-3">
-            <span className="text-slate-500">Confidence</span>
-            <div className="flex-1 mx-3 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-              <div className="h-full bg-gradient-to-r from-violet-500 to-sky-400 rounded-full"
-                style={{ width: `${investment_verdict.confidence}%`, transition: "width 0.8s" }}/>
-            </div>
-            <span className="text-violet-300 font-semibold">{investment_verdict.confidence}%</span>
-          </div>
-        </Card>
-      )}
-
-      {/* ── Opportunity Lifecycle ─────────────────────────────────────────── */}
-      {(investment_verdict?.rating || answer?.sentiment) && (
-        <OpportunityLifecycleCard
-          stage={(() => {
-            const sentiment = answer?.sentiment;
-            const confidence = investment_verdict?.confidence ?? 0;
-            const oppScore = investment_verdict?.opportunity_score ?? 50;
-            if (sentiment === "bullish" && oppScore > 75) return "strong-momentum" as const;
-            if (sentiment === "bullish" && oppScore > 55) return "developing" as const;
-            if (sentiment === "bearish" && confidence > 70) return "mature" as const;
-            return "emerging" as const;
-          })()}
-          description={answer?.medium_term || answer?.summary}
-          whyAssigned={`AI verdict: ${investment_verdict?.rating ?? answer?.sentiment ?? "Neutral"} with ${investment_verdict?.confidence ?? 0}% confidence. Opportunity score: ${investment_verdict?.opportunity_score ?? "N/A"}/100.`}
-          historicalComparison={`Queries with similar sentiment patterns have historically been associated with 10–25% sector-level moves over the ${investment_verdict?.horizon ?? "medium-term"} horizon.`}
-          confidence={investment_verdict?.confidence}
-          expectedEvolution={answer?.long_term}
-          risks={(investment_verdict?.risks ?? []).slice(0, 3)}
-        />
-      )}
-
-      {/* ── Multi-Horizon Investment Outlook ──────────────────────────────── */}
-      <MultiHorizonOutlookCard
-        fetchContext={{
-          type:    "query",
-          title:   result.query,
-          context: answer.summary,
-          sectors: (sectors ?? []).slice(0, 3).map(s => s.name),
-          context_id: `query:${result.query}`,
-        }}
-      />
-
-      {/* ── Related News ──────────────────────────────────────────────────── */}
-      {news?.length > 0 && (
-        <div>
-          <p className="text-[14px] font-semibold text-white mb-3">Related News</p>
-          <div className="grid grid-cols-2 gap-3">
-            {news.slice(0, 4).map(n => (
-              <Link key={n.id} href={`/news/${n.id}`}
-                className="group rounded-[18px] border border-white/[0.06] bg-white/[0.02] p-3.5 transition hover:border-white/10 hover:bg-white/[0.04]">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-slate-400">{n.source}</span>
-                  <span className="text-[9px] text-slate-600">{n.published_at}</span>
-                </div>
-                <p className="text-[12px] font-medium text-slate-200 leading-5 line-clamp-2 group-hover:text-white transition">{n.headline}</p>
-                {n.summary && <p className="mt-1 text-[10px] text-slate-500 line-clamp-2">{n.summary}</p>}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── AI Conclusion ─────────────────────────────────────────────────── */}
-      <Card className="p-5 !border-sky-500/20 !bg-gradient-to-br from-sky-500/[0.05] via-transparent to-violet-500/[0.03]">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
-            <Sparkles className="h-4 w-4" />
-          </div>
-          <p className="text-[14px] font-semibold text-white">AI Conclusion</p>
-          <span className="ml-auto rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-400">Summary</span>
-        </div>
-        <div className="space-y-3.5">
-          {/* Current Assessment */}
-          <div className="flex gap-4">
-            <span className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500 pt-0.5">Current Assessment</span>
-            <p className="text-[13px] leading-[1.65] text-slate-200">{answer.summary}</p>
-          </div>
-
-          {/* Investment Horizon */}
-          {investment_verdict?.horizon && (
-            <div className="flex items-center gap-4">
-              <span className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Suitable Horizon</span>
-              <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-0.5 text-[12px] font-semibold text-violet-300">
-                {investment_verdict.horizon}
-              </span>
-            </div>
-          )}
-
-          {/* Key Things to Monitor */}
-          {((investment_verdict?.catalysts?.length ?? 0) > 0 || (investment_verdict?.risks?.length ?? 0) > 0) && (
-            <div className="flex gap-4">
-              <span className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500 pt-0.5">Key Monitors</span>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  ...(investment_verdict?.catalysts ?? []).slice(0, 2),
-                  ...(investment_verdict?.risks ?? []).slice(0, 2),
-                ].map((item, i) => (
-                  <span key={i} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] text-slate-300">{item}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Confidence bar */}
-          <div className="flex items-center gap-4">
-            <span className="w-32 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Confidence</span>
-            <div className="flex flex-1 items-center gap-2">
-              <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-violet-400"
-                  style={{ width: `${investment_verdict?.confidence ?? answer.confidence ?? 70}%`, transition: "width 0.8s ease" }}/>
-              </div>
-              <span className="text-[12px] font-bold text-sky-300 shrink-0">{investment_verdict?.confidence ?? answer.confidence ?? 70}%</span>
-            </div>
-          </div>
-        </div>
-
-        {/* AI Transparency footer */}
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.05] p-3">
-          <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
-          </svg>
-          <p className="text-[11px] leading-[1.6] text-amber-200/60">
-            AI Transparency: This conclusion is generated by AI using market events, news, and financial data. It is for informational purposes only and does not constitute investment advice. Always consult a qualified financial advisor before making investment decisions.
-          </p>
-        </div>
-      </Card>
     </div>
   );
 }
 
-// ── Network graph (SVG) ────────────────────────────────────────────────────────
-function NetworkGraph({ nodes, edges }: { nodes: GraphNode[]; edges: GraphEdge[] }) {
-  const NODE_COLORS: Record<string, { bg: string; border: string }> = {
-    query:   { bg: "#4f46e5", border: "#6366f1" },
-    sector:  { bg: "#0f766e", border: "#14b8a6" },
-    company: { bg: "#1d4ed8", border: "#3b82f6" },
-  };
-  const W = 860, H = 300;
-  return (
-    <div className="overflow-x-auto">
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="min-w-[500px]">
-        {edges.map(e => {
-          const src = nodes.find(n => n.id === e.source);
-          const tgt = nodes.find(n => n.id === e.target);
-          if (!src || !tgt) return null;
-          const sx = (src.x / 900) * W + 40, sy = src.y + 16;
-          const tx = (tgt.x / 900) * W + 40, ty = tgt.y + 16;
-          return (
-            <g key={e.id}>
-              <line x1={sx} y1={sy} x2={tx} y2={ty} stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" strokeDasharray="4 4"/>
-              <text x={(sx+tx)/2} y={(sy+ty)/2 - 4} textAnchor="middle" fontSize="8" fill="#475569">{e.label}</text>
-            </g>
-          );
-        })}
-        {nodes.map(n => {
-          const c = NODE_COLORS[n.type] || NODE_COLORS.company;
-          const x = (n.x / 900) * W + 40, y = n.y;
-          const label = n.label.length > 16 ? n.label.slice(0, 15)+"…" : n.label;
-          const w = Math.max(80, label.length * 7.5 + 24);
-          return (
-            <g key={n.id}>
-              <rect x={x-w/2} y={y} width={w} height={32} rx="10"
-                fill={c.bg} stroke={c.border} strokeWidth="1" opacity="0.9"/>
-              <text x={x} y={y+20} textAnchor="middle" fontSize="11" fontWeight="600" fill="#fff">{label}</text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
+// ── Right Sidebar ──────────────────────────────────────────────────────────────
+function RightSidebar({ result, onAction }: {
+  result: SearchResult | null;
+  onAction: (type: string) => void;
+}) {
+  const [copied, setCopied] = useState(false);
 
-// ── Right sidebar ──────────────────────────────────────────────────────────────
-function RightSidebar({ result }: { result: SearchResult | null }) {
-  const [showAllSources, setShowAllSources] = useState(false);
+  const v = result?.investment_verdict;
+  const score = v?.opportunity_score ?? v?.confidence ?? result?.answer?.confidence ?? 0;
+  const dir   = v?.direction ?? result?.answer?.sentiment ?? "neutral";
+  const isBull = dir === "bullish";
+  const isBear = dir === "bearish";
+  const verdictLabel = isBull ? "Bullish" : isBear ? "Bearish" : "Neutral";
+  const verdictColor = isBull ? "text-emerald-400" : isBear ? "text-rose-400" : "text-amber-400";
+  const riskInfo = result ? riskLevel(v?.confidence ?? result.answer?.confidence ?? 70) : { label: "—", color: "text-slate-400" };
 
-  const AI_TOOLS: { icon: ReactNode; title: string; sub: string; href?: string }[] = [
-    { icon: <FileText className="h-4 w-4" />,       title: "Generate Detailed Report", sub: "Get a comprehensive AI report" },
-    { icon: <Scale className="h-4 w-4" />,          title: "Compare Companies",        sub: "Compare key companies side by side", href: "/compare" },
-    { icon: <Bell className="h-4 w-4" />,           title: "Track This Theme",          sub: "Get real-time updates and alerts" },
-    { icon: <MessageCircle className="h-4 w-4" />,  title: "Ask AI Assistant",          sub: "Chat with AI about this topic" },
+  const QUICK_ACTIONS = [
+    { icon: <Bot className="h-4 w-4"/>,      label: "Ask Follow-up Question", action: "followup" },
+    { icon: <Bookmark className="h-4 w-4"/>,  label: "Save This Answer",       action: "save" },
+    { icon: <Download className="h-4 w-4"/>,  label: "Download as PDF",        action: "pdf" },
+    { icon: <Share2 className="h-4 w-4"/>,    label: "Share Answer",           action: "share" },
+    { icon: <Copy className="h-4 w-4"/>,      label: copied ? "Copied!" : "Copy Link", action: "copy" },
   ];
 
-  const allSources = result?.news || [];
-  const visibleSources = showAllSources ? allSources : allSources.slice(0, 4);
-  const hiddenCount = allSources.length - 4;
+  function handleCopy() {
+    const url = `${window.location.origin}/ai-search?q=${encodeURIComponent(result?.query || "")}`;
+    navigator.clipboard.writeText(url).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleAction(a: string) {
+    if (a === "copy") { handleCopy(); return; }
+    if (a === "share") {
+      const url = `${window.location.origin}/ai-search?q=${encodeURIComponent(result?.query || "")}`;
+      if (navigator.share) navigator.share({ url }).catch(() => {});
+      else navigator.clipboard.writeText(url).catch(() => {});
+      return;
+    }
+    onAction(a);
+  }
 
   return (
-    <aside className="hidden xl:block sticky top-[92px] self-start max-h-[calc(100vh-92px)] overflow-y-auto space-y-4 pr-1">
-      {/* Sources */}
-      {result && allSources.length > 0 && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-semibold text-white">Sources</p>
-            {allSources.length > 4 && (
-              <button onClick={() => setShowAllSources(v => !v)} className="text-[11px] text-violet-400 hover:text-violet-300 transition">
-                {showAllSources ? "Show less" : "View All →"}
-              </button>
-            )}
-          </div>
-          <div className="space-y-2">
-            {visibleSources.map(n => (
-              <Link key={n.id} href={`/news/${n.id}`}
-                className="flex items-start gap-2.5 rounded-[12px] p-2 transition hover:bg-white/[0.04]">
-                {/* Source logo circle */}
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${sourceColor(n.source)} text-[10px] font-bold text-white`}>
-                  {sourceAbbr(n.source)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold text-slate-200 leading-tight">{n.source}</p>
-                  <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{n.headline}</p>
-                  <p className="text-[9px] text-slate-600 mt-0.5">{n.published_at}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-          {hiddenCount > 0 && (
-            <button onClick={() => setShowAllSources(v => !v)}
-              className="mt-2 w-full flex items-center justify-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 transition py-1">
-              <span>{showAllSources ? `Hide` : `Show ${hiddenCount} more sources`}</span>
-              <svg className={`h-3 w-3 transition-transform ${showAllSources ? "rotate-180" : ""}`}
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-          )}
-        </div>
-      )}
+    <aside className="hidden xl:block sticky top-[92px] self-start max-h-[calc(100vh-92px)] overflow-y-auto space-y-3 pr-1" style={{ scrollbarWidth: "none" }}>
 
-      {/* Related Events */}
-      {result && result.related_events?.length > 0 && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-semibold text-white">Related Events</p>
-            <Link href="/events" className="text-[11px] text-violet-400 hover:text-violet-300 transition">View All →</Link>
-          </div>
-          <div className="space-y-2">
-            {result.related_events.slice(0, 3).map(ev => {
-              const dateParts = (ev.date || "").split(" ");
-              return (
-                <Link key={ev.id} href={`/events/${ev.id}`}
-                  className="flex items-start gap-2.5 rounded-[12px] p-2 transition hover:bg-white/[0.04]">
-                  {dateParts.length >= 2 && (
-                    <div className="shrink-0 text-center w-8">
-                      <p className="text-[9px] text-violet-400 font-semibold uppercase leading-tight">{dateParts[0]}</p>
-                      <p className="text-[14px] font-bold text-white leading-tight">{dateParts[1]}</p>
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium text-slate-300 line-clamp-2 leading-tight">{ev.title}</p>
-                    <span className={`mt-1 inline-block rounded border px-1.5 py-0.5 text-[9px] font-medium ${CATEGORY_COLOR[ev.category] || CATEGORY_COLOR.Market}`}>
-                      {ev.category}
-                    </span>
-                  </div>
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-[10px] font-bold text-violet-300">
-                    {Math.round(ev.impact_score)}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+      {/* Investment Verdict */}
+      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-[13px]">🎯</span>
+          <p className="text-[13px] font-semibold text-white">Investment Verdict</p>
         </div>
-      )}
 
-      {/* Related Policies */}
-      {result && result.policies?.length > 0 && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-semibold text-white">Related Policies</p>
-            <Link href="/events" className="text-[11px] text-violet-400 hover:text-violet-300 transition">View All →</Link>
-          </div>
-          <div className="space-y-2.5">
-            {result.policies.slice(0, 3).map(p => (
-              <div key={p.id} className="flex items-start gap-2.5 rounded-[12px] p-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400"><Landmark className="h-4 w-4" /></div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium text-slate-300 line-clamp-2 leading-tight">{p.title}</p>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium text-emerald-400 border border-emerald-500/20">
-                      {p.status}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-500/20 text-[10px] font-bold text-sky-300">
-                  {p.impact_score}
-                </div>
+        {result ? (
+          <>
+            {/* Top row: Overall View + Risk */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Overall View</p>
+                <p className={`text-[15px] font-bold ${verdictColor}`}>{verdictLabel}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <div>
+                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Risk</p>
+                <p className={`text-[15px] font-bold ${riskInfo.color.split(" ")[0]}`}>{riskInfo.label}</p>
+              </div>
+            </div>
 
-      {/* AI Tools */}
+            {/* Big gauge */}
+            <div className="flex justify-center my-2">
+              <BigGauge score={Math.round(score)} size={120}/>
+            </div>
+
+            {/* Bottom row: Time Horizon + Best For */}
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div>
+                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Time Horizon</p>
+                <p className="text-[12px] font-semibold text-white">{v?.horizon || "6–18 Months"}</p>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Best For</p>
+                <p className="text-[12px] font-semibold text-white">{suitableFor(v?.horizon || "")}</p>
+              </div>
+            </div>
+
+            {/* Data point count */}
+            <p className="mt-3 text-center text-[10px] text-slate-500">
+              AI evaluated {(result.related_events?.length ?? 0) + (result.companies?.length ?? 0) + (result.news?.length ?? 0)} data points
+            </p>
+          </>
+        ) : (
+          <div className="flex justify-center my-6">
+            <BigGauge score={0} size={120}/>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
-        <p className="text-[13px] font-semibold text-white mb-3">AI Tools</p>
+        <p className="text-[12px] font-semibold text-slate-300 mb-3">Quick Actions</p>
         <div className="space-y-1">
-          {AI_TOOLS.map(t => (
-            <Link key={t.title} href={(t as any).href ?? "#" as any}
-              className="flex items-center gap-3 rounded-[14px] p-2.5 transition hover:bg-white/[0.04]">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-slate-400">{t.icon}</div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium text-slate-300">{t.title}</p>
-                <p className="text-[10px] text-slate-500">{t.sub}</p>
+          {QUICK_ACTIONS.map(a => (
+            <button key={a.action} onClick={() => handleAction(a.action)}
+              className={`flex w-full items-center gap-3 rounded-[12px] p-2.5 text-left transition hover:bg-white/[0.05] ${!result && a.action !== "copy" ? "opacity-40 pointer-events-none" : ""}`}>
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.05] text-slate-400">
+                {a.icon}
               </div>
-              <svg className="h-4 w-4 text-slate-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </Link>
+              <p className="text-[12px] text-slate-300">{a.label}</p>
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Empty state hint */}
+      {/* Sources & Confidence */}
+      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
+        <p className="text-[12px] font-semibold text-slate-300 mb-3">Sources & Confidence</p>
+        <div className="space-y-2.5">
+          {[
+            { label: "Data Sources",       value: result?.news?.length ?? 0 },
+            { label: "Events Analyzed",    value: result?.related_events?.length ?? 0 },
+            { label: "Companies Analyzed", value: result?.companies?.length ?? 0 },
+          ].map(s => (
+            <div key={s.label} className="flex items-center justify-between">
+              <p className="text-[11px] text-slate-400">{s.label}</p>
+              <p className="text-[12px] font-bold text-white tabular-nums">{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {result && (
+          <>
+            <div className="mt-3 pt-3 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[11px] text-slate-400">Confidence Score</p>
+                <p className="text-[12px] font-bold text-violet-300 tabular-nums">
+                  {result.answer?.confidence ?? v?.confidence ?? 0}%
+                </p>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400"
+                  style={{ width: `${result.answer?.confidence ?? v?.confidence ?? 0}%`, transition: "width 0.8s" }}/>
+              </div>
+            </div>
+            <div className="mt-2.5 flex items-center justify-between">
+              <p className="text-[10px] text-slate-500">Last Updated</p>
+              <p className="text-[10px] text-slate-400">just now</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Related news (compact) */}
+      {result?.news?.length ? (
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[12px] font-semibold text-slate-300">Sources</p>
+            <Link href="/news" className="text-[10px] text-violet-400 hover:text-violet-300 transition">View All →</Link>
+          </div>
+          <div className="space-y-2">
+            {result.news.slice(0, 4).map(n => (
+              <Link key={n.id} href={`/news/${n.id}`}
+                className="flex items-start gap-2.5 rounded-[10px] p-1.5 transition hover:bg-white/[0.04]">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-[9px] font-bold text-white">
+                  {n.source.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium text-slate-300 line-clamp-1">{n.source}</p>
+                  <p className="text-[9px] text-slate-600 line-clamp-1">{n.headline}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Empty hint */}
       {!result && (
         <div className="rounded-[20px] border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.06] to-sky-500/[0.02] p-4 text-center">
-          <Search className="h-6 w-6 text-violet-400 mb-2" />
-          <p className="text-[12px] font-semibold text-white mb-1">Research Engine</p>
-          <p className="text-[11px] text-slate-400 leading-5">Search to see real-time sources, events, and AI analysis</p>
+          <Search className="h-5 w-5 text-violet-400 mb-2 mx-auto" />
+          <p className="text-[11px] font-semibold text-white mb-1">Research Engine</p>
+          <p className="text-[10px] text-slate-400 leading-5">Search to see AI verdict, evidence, and confidence score</p>
         </div>
       )}
     </aside>
   );
 }
 
-// ── Main page ──────────────────────────────────────────────────────────────────
-export default function AISearchPage() {
-  const [query, setQuery]     = useState("");
-  const [input, setInput]     = useState("");
-  const [result, setResult]   = useState<SearchResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
-  const [history, setHistory] = useState<string[]>([]);
-  const [followUp, setFollowUp] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+// ── Main Page ──────────────────────────────────────────────────────────────────
+function AISearchInner() {
+  const [query, setQuery]         = useState("");
+  const [input, setInput]         = useState("");
+  const [result, setResult]       = useState<SearchResult | null>(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [history, setHistory]     = useState<string[]>([]);
+  const [followUp, setFollowUp]   = useState("");
+  const [resultTime, setResultTime] = useState(new Date());
+  const textareaRef  = useRef<HTMLTextAreaElement>(null);
   const didAutoSearch = useRef(false);
-  const searchParams = useSearchParams();
+  const searchParams  = useSearchParams();
 
-  // Ctrl+K focus
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
@@ -1104,14 +1027,13 @@ export default function AISearchPage() {
     setError(null);
     setResult(null);
     setHistory(prev => [trimmed, ...prev.filter(h => h !== trimmed)].slice(0, 10));
-    // Persist to localStorage for "Continue Research" across sessions
     try {
-      const SEARCH_KEY = "recent_ai_searches";
-      const existing = JSON.parse(localStorage.getItem(SEARCH_KEY) ?? "[]");
-      const entry = { id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, title: trimmed, href: `/ai-search?q=${encodeURIComponent(trimmed)}`, type: "search", timestamp: Date.now() };
+      const key = "recent_ai_searches";
+      const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
+      const entry = { id: `s-${Date.now()}`, title: trimmed, href: `/ai-search?q=${encodeURIComponent(trimmed)}`, timestamp: Date.now() };
       const deduped = existing.filter((e: { title: string }) => e.title !== trimmed);
-      localStorage.setItem(SEARCH_KEY, JSON.stringify([entry, ...deduped].slice(0, 20)));
-    } catch { /* localStorage not available */ }
+      localStorage.setItem(key, JSON.stringify([entry, ...deduped].slice(0, 20)));
+    } catch { /**/ }
     try {
       const res = await fetch(`${API}/api/ai/search`, {
         method: "POST",
@@ -1124,6 +1046,7 @@ export default function AISearchPage() {
       }
       const data = await res.json();
       setResult(data.result);
+      setResultTime(new Date());
     } catch (e: any) {
       setError(e.message || "Something went wrong. Please try again.");
     } finally {
@@ -1131,7 +1054,6 @@ export default function AISearchPage() {
     }
   }, [loading, history]);
 
-  // Auto-trigger search from ?q= URL param (e.g. navigated from FloatingAISearch)
   useEffect(() => {
     const q = searchParams.get("q");
     if (q && !didAutoSearch.current) {
@@ -1141,42 +1063,21 @@ export default function AISearchPage() {
     }
   }, [searchParams, runSearch]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    runSearch(input);
-  }
-
-  function handleFollowUpSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (followUp.trim()) runSearch(followUp);
-  }
-
+  function handleSubmit(e: React.FormEvent) { e.preventDefault(); runSearch(input); }
+  function handleFollowUpSubmit(e: React.FormEvent) { e.preventDefault(); if (followUp.trim()) runSearch(followUp); }
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      runSearch(input);
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); runSearch(input); }
   }
-
-  function refreshExamples() {
-    const randomExample = EXAMPLES[Math.floor(Math.random() * EXAMPLES.length)];
-    setInput(randomExample);
+  function handleSidebarAction(type: string) {
+    if (type === "followup") textareaRef.current?.focus();
   }
 
   return (
     <>
-      {/* ── Main content column ─────────────────────────────────────────────── */}
-      <main className="min-w-0 space-y-4 pb-10">
-        {/* Page header */}
-        <div>
-          <div className="flex items-center gap-2.5 mb-0.5">
-            <h1 className="text-2xl font-bold tracking-tight text-white">AI Decision Intelligence</h1>
-            <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-semibold text-violet-300 border border-violet-500/30">Beta</span>
-          </div>
-          <p className="text-sm text-slate-400">Ask any market question or decision — hold, switch, compare, buy, sell. Get explainable AI reasoning, not direct advice.</p>
-        </div>
-
-        {/* Search box — textarea for multi-line */}
+      <div className="mx-auto flex max-w-[1600px] items-start gap-6 px-6 py-6">
+      {/* ── Main content column ──────────────────────────────────────────────── */}
+      <div className="min-w-0 flex-1 space-y-4 pb-6">
+        {/* Search bar */}
         <form onSubmit={handleSubmit}>
           <div className="group flex items-end overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#0d1117] shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition focus-within:border-violet-500/50 focus-within:shadow-[0_0_0_4px_rgba(139,92,246,0.08)]">
             <textarea
@@ -1184,12 +1085,18 @@ export default function AISearchPage() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="What is the impact of the Indian government's ₹1.2 Lakh Cr railway infrastructure plan on key companies and the economy?"
+              placeholder="Ask any market question — hold, switch, compare, or analyse…"
               disabled={loading}
               rows={2}
               className="flex-1 resize-none bg-transparent px-4 py-4 text-[14px] text-white outline-none placeholder:text-slate-600 disabled:opacity-50 leading-relaxed"
             />
             <div className="flex items-center gap-2 p-3">
+              {query && (
+                <button type="button" onClick={() => { setQuery(""); setResult(null); setInput(""); }}
+                  className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-slate-200 transition">
+                  <RotateCcw className="h-3.5 w-3.5"/>
+                </button>
+              )}
               <button type="submit" disabled={!input.trim() || loading}
                 className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-violet-600 text-white transition hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg">
                 {loading ? (
@@ -1207,36 +1114,16 @@ export default function AISearchPage() {
           {/* Example chips */}
           {!query && (
             <div className="flex items-center gap-2 mt-3 flex-wrap">
-              <span className="text-[11px] text-slate-500">Try these examples</span>
-              {EXAMPLES.map(ex => (
+              <span className="text-[11px] text-slate-600">Try:</span>
+              {EXAMPLES.slice(0, 4).map(ex => (
                 <button key={ex} type="button" onClick={() => runSearch(ex)}
-                  className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[12px] text-slate-400 transition hover:border-violet-500/30 hover:text-violet-300">
-                  {ex}
+                  className="rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1.5 text-[11px] text-slate-500 transition hover:border-violet-500/30 hover:text-violet-300">
+                  {ex.length > 52 ? ex.slice(0, 49) + "…" : ex}
                 </button>
               ))}
-              <button type="button" onClick={refreshExamples}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-slate-500 hover:text-slate-300 transition">
-                <RefreshIcon className="h-3.5 w-3.5"/>
-              </button>
             </div>
           )}
         </form>
-
-        {/* Intent indicator — shown after a result with a detected intent */}
-        {result?.decision_intelligence?.intent && result.decision_intelligence.intent !== "general" && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] text-slate-500">Detected:</span>
-            <IntentBadge intent={result.decision_intelligence.intent} />
-            {result.decision_intelligence.detected_holding && (
-              <span className="text-[11px] text-slate-400">
-                {result.decision_intelligence.detected_holding}
-                {result.decision_intelligence.detected_target && (
-                  <> → <span className="text-violet-300">{result.decision_intelligence.detected_target}</span></>
-                )}
-              </span>
-            )}
-          </div>
-        )}
 
         {/* Error state */}
         <AnimatePresence>
@@ -1248,7 +1135,8 @@ export default function AISearchPage() {
                 <p className="text-[13px] font-medium text-rose-300">Search failed</p>
                 <p className="text-[11px] text-rose-400/70">{error}</p>
               </div>
-              <button onClick={() => runSearch(query)} className="ml-auto rounded-xl bg-rose-500/20 px-3 py-1.5 text-[11px] text-rose-300 hover:bg-rose-500/30 transition">
+              <button onClick={() => runSearch(query)}
+                className="ml-auto rounded-xl bg-rose-500/20 px-3 py-1.5 text-[11px] text-rose-300 hover:bg-rose-500/30 transition">
                 Retry
               </button>
             </motion.div>
@@ -1262,8 +1150,8 @@ export default function AISearchPage() {
               <LoadingState query={query}/>
             </motion.div>
           ) : result ? (
-            <motion.div key="result" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-              <SearchResults result={result} onFollowUp={runSearch}/>
+            <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+              <SearchResults result={result} onFollowUp={runSearch} resultTime={resultTime}/>
             </motion.div>
           ) : (
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -1271,17 +1159,18 @@ export default function AISearchPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </main>
+      </div>
 
-      {/* ── Right sidebar column ─────────────────────────────────────────────── */}
-      <RightSidebar result={result}/>
+      {/* ── Right sidebar ────────────────────────────────────────────────────── */}
+      <RightSidebar result={result} onAction={handleSidebarAction}/>
+      </div>{/* end flex container */}
 
       {/* ── Fixed bottom follow-up bar ───────────────────────────────────────── */}
       {(result || loading) && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-slate-950/95 px-6 py-3">
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-slate-950/97 backdrop-blur-xl px-6 py-3">
           <div className="mx-auto max-w-[1600px]">
             <form onSubmit={handleFollowUpSubmit}
-              className="flex items-center gap-3 rounded-[18px] border border-white/[0.08] bg-[#0d1117] px-4 py-2.5">
+              className="flex items-center gap-3 rounded-[18px] border border-white/[0.08] bg-[#0d1117] px-4 py-2.5 focus-within:border-violet-500/40 transition">
               <input type="text" value={followUp} onChange={e => setFollowUp(e.target.value)}
                 placeholder="Ask a follow-up question…"
                 className="flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-slate-600"/>
@@ -1290,25 +1179,31 @@ export default function AISearchPage() {
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
               </button>
             </form>
-
-            {/* Follow-up suggestion chips */}
             {result?.follow_up_questions?.length && (
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {result.follow_up_questions.slice(0, 4).map(q => (
                   <button key={q} onClick={() => { setFollowUp(q); runSearch(q); }}
-                    className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[11px] text-slate-400 transition hover:border-violet-500/30 hover:text-violet-300">
-                    {q}
+                    className="rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1 text-[11px] text-slate-500 transition hover:border-violet-500/30 hover:text-violet-300">
+                    {q.length > 55 ? q.slice(0, 52) + "…" : q}
                   </button>
                 ))}
-                <button onClick={() => {}}
-                  className="flex h-6 w-6 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-slate-500 hover:text-slate-300 transition">
-                  <RefreshIcon className="h-3 w-3"/>
-                </button>
               </div>
             )}
           </div>
         </div>
       )}
     </>
+  );
+}
+
+export default function AISearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-32 items-center justify-center">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-violet-500 border-t-transparent"/>
+      </div>
+    }>
+      <AISearchInner/>
+    </Suspense>
   );
 }

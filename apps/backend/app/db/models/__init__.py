@@ -9,6 +9,17 @@ from app.db.models.opportunity import (
     OpportunityGraphNode,
     OpportunityGraphEdge,
 )
+from app.db.models.intelligence import (
+    EventTriage,
+    MarketSnapshot,
+    MarketStory,
+    ThemeState,
+)
+from app.db.models.historical_memory import HistoricalMarketEvent
+from app.db.models.intelligence_graph import IGNode, IGEdge
+from app.db.models.predictions import PredictionRecord, PredictionEvaluation, CalibrationStat
+from app.db.models.company_announcements import CompanyAnnouncement
+from app.db.models.intelligence_article import IntelligenceArticle
 
 __all__ = [
     "Opportunity",
@@ -20,4 +31,16 @@ __all__ = [
     "OpportunitySectorDistribution",
     "OpportunityGraphNode",
     "OpportunityGraphEdge",
+    "EventTriage",
+    "MarketSnapshot",
+    "MarketStory",
+    "ThemeState",
+    "HistoricalMarketEvent",
+    "IGNode",
+    "IGEdge",
+    "PredictionRecord",
+    "PredictionEvaluation",
+    "CalibrationStat",
+    "CompanyAnnouncement",
+    "IntelligenceArticle",
 ]

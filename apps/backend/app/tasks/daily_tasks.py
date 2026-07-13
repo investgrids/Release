@@ -15,6 +15,25 @@ import structlog
 log = structlog.get_logger(__name__)
 
 
+# ── 5:30 AM — Refresh Fyers access token ─────────────────────────────────────
+
+async def job_refresh_fyers_token() -> None:
+    """
+    Regenerate the Fyers access token every morning before market open.
+
+    Uses TOTP-based automated login — no user interaction needed.
+    Runs at 5:30 AM IST so the token is ready well before 9:15 AM open.
+    No-op (silent) if TOTP credentials are not configured in env.
+    """
+    log.info("job.fyers_token_refresh.start")
+    try:
+        from app.services.market_data_service import upgrade_to_fyers
+        success = await upgrade_to_fyers()
+        log.info("job.fyers_token_refresh.done", success=success)
+    except Exception as exc:
+        log.error("job.fyers_token_refresh.error", error=str(exc))
+
+
 # ── 6:00 AM — Generate market intelligence objects ───────────────────────────
 
 async def job_daily_generate() -> None:
@@ -230,6 +249,26 @@ async def job_warm_premarket() -> None:
         log.info("job.warm_premarket.done", asian=asian_count, us=us_count)
     except Exception as exc:
         log.error("job.warm_premarket.error", exc=str(exc))
+
+
+# ── 4:00 PM IST — Evaluate predictions against market outcomes ───────────────
+
+async def job_evaluate_predictions() -> None:
+    """
+    Compare stored predictions against actual market data.
+    Runs after market close (4:00 PM IST) so day-1 predictions have a full session.
+    Also recomputes calibration stats after evaluation.
+    """
+    import time as _time
+    t0 = _time.perf_counter()
+    log.info("job.evaluate_predictions.start")
+    try:
+        from app.services.prediction_evaluator import run_evaluation_cycle
+        stats = await run_evaluation_cycle()
+        elapsed = round((_time.perf_counter() - t0) * 1000)
+        log.info("job.evaluate_predictions.done", elapsed_ms=elapsed, **stats)
+    except Exception as exc:
+        log.error("job.evaluate_predictions.error", error=str(exc))
 
 
 # ── Startup once — seed opportunities if table is empty ─────────────────────

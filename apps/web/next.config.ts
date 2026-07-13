@@ -9,13 +9,16 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      { source: "/stocks",                  destination: "/companies",         permanent: true },
-      { source: "/stocks/:symbol",          destination: "/companies/:symbol", permanent: true },
-      { source: "/opportunity-radar",       destination: "/radar",             permanent: true },
-      { source: "/opportunity-radar/:path*",destination: "/radar/:path*",      permanent: true },
-      { source: "/themes",                  destination: "/stories",           permanent: true },
-      { source: "/ipo-hub",                 destination: "/radar",             permanent: true },
-      // /market-intelligence kept as-is — it's the full tabbed market view; View All links point there
+      // /stocks → /companies (canonical)
+      { source: "/stocks",             destination: "/companies",               permanent: true },
+      { source: "/stocks/:symbol",     destination: "/companies/:symbol",       permanent: true },
+      // /radar → /opportunity-radar (canonical)
+      { source: "/radar",              destination: "/opportunity-radar",       permanent: true },
+      { source: "/radar/:path*",       destination: "/opportunity-radar/:path*",permanent: true },
+      // Old article IDs → stories list (slug format changed)
+      { source: "/insights/:id*",      destination: "/stories",                permanent: true },
+      // Admin redirect
+      { source: "/admin/insights",     destination: "/operations/intelligence", permanent: true },
     ];
   },
   async headers() {

@@ -26,6 +26,8 @@ dependencies = [
   # Market data
   "yfinance>=0.2.40",
   "fyers-apiv3>=3.0.0",  # Fyers primary market data (optional: works without it)
+  "pyotp>=2.9.0",        # TOTP for automated daily Fyers re-authentication
+  "requests>=2.31.0",    # sync HTTP for Fyers programmatic login flow
 
   # Scheduling
   "apscheduler>=3.10.4",

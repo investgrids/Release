@@ -375,6 +375,7 @@ def _build_decision_prompt(
     events: list,
     news: list,
     policies: list,
+    extra_context: str = "",
 ) -> str:
     holding = intent_data.get("holding") or "Asset A"
     target  = intent_data.get("target")  or "Asset B"
@@ -428,8 +429,9 @@ def _build_decision_prompt(
         for d in comp_dims
     ).rstrip(",")
 
+    ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
     return f"""You are a senior Indian market analyst. Analyse this investor query and return a single JSON object.
-
+{ctx_block}
 QUERY: "{query}"
 ENTITY A (holding/first): {a_label}
 ENTITY B (target/second): {b_label}
@@ -460,6 +462,7 @@ JSON to fill and return:
   "risks": ["", "", ""],
   "opportunities": ["", "", ""],
   "confidence": 70,
+  "confidence_self_rating": 7,
   "sentiment": "neutral",
   "companies": [
     {{"symbol": "", "name": "{holding}", "impact_type": "neutral", "impact_score": 70, "confidence": 68, "reason": ""}},
@@ -567,6 +570,7 @@ Return ONLY this JSON (no fences, no extra keys):
   "risks": ["specific risk 1", "specific risk 2", "specific risk 3"],
   "opportunities": ["specific opportunity 1", "specific opportunity 2", "specific opportunity 3"],
   "confidence": 78,
+  "confidence_self_rating": 7,
   "sentiment": "bullish",
   "companies": [
     {{"symbol": "SYMBOL1", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 90, "confidence": 85, "reason": "specific 1-line reason tied to the query"}},
@@ -939,20 +943,128 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             except Exception:
                 pass
 
-    # Optional: fetch India VIX for volatility queries
-    if _VIX_TRIGGER.search(query):
-        try:
-            vix = await loop.run_in_executor(None, _fetch_vix_sync)
-            if vix:
-                extra_context_lines.append(f"India VIX current level: {vix}")
-        except Exception:
-            pass
+    # Fetch India VIX — always (used for confidence scoring; injected into context for VIX queries)
+    _vix_level: float | None = None
+    try:
+        _vix_level = await loop.run_in_executor(None, _fetch_vix_sync)
+        if _vix_level and _VIX_TRIGGER.search(query):
+            extra_context_lines.append(f"India VIX current level: {_vix_level}")
+    except Exception:
+        pass
 
     extra_context = "\n".join(extra_context_lines)
+    mie_state: dict = {}  # captured for confidence signals
+    similar:   list = []  # captured for confidence signals
+
+    # Inject intelligence from the MIE — single source of truth for all AI context
+    try:
+        from app.services.intelligence.engine import get_intelligence_state
+        mie = await get_intelligence_state()
+        mie_state = mie  # capture for confidence signals
+
+        intel_lines: list[str] = []
+
+        # Market mood and direction from signals
+        signals = mie.get("signals", {})
+        if signals.get("mood") and signals.get("direction"):
+            intel_lines.append(
+                f"[MARKET MOOD] {signals['mood']} · {signals['direction'].upper()} · "
+                f"Risk: {signals.get('risk_level', 'MODERATE')} · "
+                f"AI confidence: {signals.get('confidence', 0)}%"
+            )
+
+        # Top theme
+        if signals.get("top_theme"):
+            intel_lines.append(f"[TOP THEME] {signals['top_theme']} (score {signals.get('top_theme_score', 0):.0f})")
+
+        # High-urgency events (≥ 5) from MIE top_events (already ranked, last 8h)
+        top_evts = [e for e in mie.get("top_events", []) if e.get("urgency", 0) >= 5][:6]
+        for e in top_evts:
+            intel_lines.append(
+                f"[LIVE URGENCY {e['urgency']}/10] {e.get('one_liner') or e.get('headline', '')[:120]}"
+            )
+
+        if intel_lines:
+            mie_block = "LIVE MARKET INTELLIGENCE (MIE):\n" + "\n".join(intel_lines)
+            extra_context = (extra_context + "\n\n" + mie_block) if extra_context else mie_block
+    except Exception:
+        pass
+
+    # Inject Historical Market Memory — verified past events to replace hallucinated comparisons
+    try:
+        from app.services.historical_memory_service import find_similar_events, format_for_ai_prompt
+
+        # Derive search attributes from the query's events and intent
+        hist_sectors: list[str] = []
+        hist_category: str | None = None
+        for ev in (events or [])[:3]:
+            hist_sectors.extend(ev.get("affected_sectors", ev.get("sectors", [])) or [])
+            if not hist_category:
+                hist_category = ev.get("event_type") or ev.get("category")
+
+        hist_query = {
+            "category":  hist_category,
+            "sectors":   list(dict.fromkeys(hist_sectors))[:4],
+            "sentiment": intent_data.get("sentiment"),
+        }
+
+        if hist_query.get("category") or hist_query.get("sectors"):
+            similar = await find_similar_events(hist_query, limit=5, min_similarity=25.0)
+            if similar:  # noqa: SIM102 — also captures outer `similar` for confidence
+                hist_block = format_for_ai_prompt(similar, max_events=5)
+                extra_context = (extra_context + "\n\n" + hist_block) if extra_context else hist_block
+    except Exception:
+        pass
+
+    # Fetch calibration data (memory-cached, does not block significantly)
+    _cal_data: dict = {}
+    try:
+        from app.services.prediction_service import get_calibration_data
+        _cal_data = await get_calibration_data()
+    except Exception:
+        pass
+
+    # Compute pre-AI evidence-based confidence estimate from observable signals
+    _pre_factors = None
+    _conf_result = None
+    try:
+        from app.services.confidence_service import ConfidenceFactors, calculate_confidence as _calc_conf
+        _mie_sig  = mie_state.get("signals", {})
+        _mie_dir  = _mie_sig.get("direction", "")
+        _i_sent   = intent_data.get("sentiment", "")
+        _macro_ok = (
+            (_mie_dir == "up"   and _i_sent == "bullish") or
+            (_mie_dir == "down" and _i_sent == "bearish")
+        )
+        _vix_val  = float(_vix_level or 0)
+        _vix_rgm  = (
+            "very_high" if _vix_val > 25 else
+            "high"      if _vix_val > 18 else
+            "low"       if 0 < _vix_val < 12 else
+            "normal"
+        )
+        _hist_acc = (
+            sum(s.get("confidence", 80) for s in similar) / (100.0 * len(similar))
+            if similar else 0.0
+        )
+        _pre_factors = ConfidenceFactors(
+            source_count=len(events) + len(news),
+            historical_count=len(similar),
+            historical_accuracy=_hist_acc,
+            macro_aligned=_macro_ok,
+            macro_reason=_mie_sig.get("top_theme", "") if _macro_ok else "",
+            vix_level=_vix_val,
+            volatility_regime=_vix_rgm,
+            ai_certainty=5,
+        )
+        _pre_conf    = _calc_conf(_pre_factors)
+        extra_context = (extra_context + "\n\n" + _pre_conf.explanation) if extra_context else _pre_conf.explanation
+    except Exception:
+        pass
 
     # AI generation — decision/portfolio/list queries get specialized prompt
     if intent_data["is_decision"] and intent not in ("list_picks", "portfolio_review", "news_reaction", "earnings_preview", "entry_timing"):
-        prompt  = _build_decision_prompt(query, intent_data, events, news, policies)
+        prompt  = _build_decision_prompt(query, intent_data, events, news, policies, extra_context=extra_context)
         max_tok = 4000
     else:
         prompt  = _build_prompt(query, events, news, policies, intent_data=intent_data, extra_context=extra_context)
@@ -1007,6 +1119,30 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
                 "opportunity_score": 60,
             },
         }
+
+    # Finalize evidence-based confidence with AI self-rating + calibration adjustment
+    if _pre_factors is not None:
+        try:
+            from app.services.confidence_service import calculate_confidence as _calc_conf, _THRESHOLDS
+            _pre_factors.ai_certainty = min(10, max(1, int(ai.get("confidence_self_rating") or 5)))
+            _conf_result = _calc_conf(_pre_factors)
+
+            # Apply historical calibration (only when ≥ 10 verified predictions for this level)
+            if _cal_data:
+                _lvl_cal = _cal_data.get(_conf_result.level, {})
+                _cal_f   = float(_lvl_cal.get("calibration_factor", 1.0))
+                _cal_n   = int(_lvl_cal.get("total", 0))
+                if _cal_n >= 10 and 0.4 <= _cal_f <= 1.8:
+                    _new_score = min(100.0, max(0.0, round(_conf_result.total_score * _cal_f, 1)))
+                    _new_level = next(lbl for thr, lbl in _THRESHOLDS if _new_score >= thr)
+                    _acc_pct   = round(_lvl_cal.get("accuracy_rate", 0.5) * 100)
+                    _conf_result.total_score = _new_score
+                    _conf_result.level       = _new_level
+                    _conf_result.reasons.append(
+                        f"Calibrated from {_cal_n} verified predictions ({_acc_pct}% historical accuracy)"
+                    )
+        except Exception:
+            pass
 
     # Enrich companies with live prices (in thread executor)
     raw_cos = ai.get("companies", [])
@@ -1090,7 +1226,8 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             "long_term":        ai.get("long_term", ""),
             "risks":            ai.get("risks", []),
             "opportunities":    ai.get("opportunities", []),
-            "confidence":       ai.get("confidence", 65),
+            "confidence":       round(_conf_result.total_score) if _conf_result else ai.get("confidence", 65),
+            "confidence_level": _conf_result.level if _conf_result else "Medium",
             "sentiment":        ai.get("sentiment", "neutral"),
             "sources_count":    len(news) + len(events),
         },
@@ -1108,8 +1245,108 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         "graph":                graph,
         "citations":            list({a.get("source", "") for a in news if a.get("source")}),
         "decision_intelligence": decision_intelligence,
+        "confidence_data": {
+            "level":     _conf_result.level if _conf_result else "Medium",
+            "score":     round(_conf_result.total_score) if _conf_result else ai.get("confidence", 65),
+            "reasons":   list(_conf_result.reasons) if _conf_result else [],
+            "breakdown": dict(_conf_result.breakdown) if _conf_result else {},
+        },
     }
 
     _CACHE[ck] = (time.time(), result)  # store with current timestamp; TTL applied on read
+
+    # Asynchronously persist predictions for the learning engine (non-blocking)
+    asyncio.create_task(
+        _store_search_predictions(result, _conf_result),
+        name="prediction-store",
+    )
+
     log.info("ai_search.done", query=query[:50], cos=len(companies_enriched), events=len(events), intent=intent)
     return result
+
+
+def _map_horizon(horizon_str: str) -> int:
+    """Map investment_verdict.horizon text to calendar days."""
+    h = (horizon_str or "").lower()
+    if "intraday" in h or ("1" in h and "day" in h):    return 1
+    if "week" in h or "3" in h and "day" in h:          return 3
+    if "1 month" in h or "short" in h and "term" in h:  return 7
+    return 30  # default: 30-day horizon for longer-term predictions
+
+
+async def _store_search_predictions(result: dict, conf_result: Any) -> None:
+    """Extract and persist predictions from an AI search result."""
+    try:
+        from app.services.prediction_service import store_prediction
+
+        query    = result.get("query", "")
+        verdict  = result.get("investment_verdict") or {}
+        answer   = result.get("answer") or {}
+        companies_list = result.get("companies") or []
+
+        direction = (verdict.get("direction") or answer.get("sentiment") or "sideways").lower()
+        if direction == "bullish":  direction = "up"
+        if direction == "bearish":  direction = "down"
+        if direction not in ("up", "down"): direction = "sideways"
+
+        horizon   = _map_horizon(verdict.get("horizon", ""))
+        conf_score = float((conf_result.total_score if conf_result else None) or verdict.get("confidence", 60) or 60)
+        conf_level = (conf_result.level if conf_result else None) or "Medium"
+        conf_break = dict(conf_result.breakdown) if conf_result else {}
+
+        # 1) Overall market direction prediction (top company as primary entity)
+        top_cos = [c for c in companies_list[:2] if c.get("symbol")]
+        if top_cos or verdict.get("direction"):
+            entities = [
+                {
+                    "type":   "company",
+                    "symbol": c.get("symbol", ""),
+                    "name":   c.get("name", ""),
+                    "ticker": c.get("symbol", ""),
+                }
+                for c in top_cos[:2]
+            ]
+            pred_text = (
+                f"{direction.upper()} on {', '.join(c.get('symbol','') for c in top_cos) or 'market'} "
+                f"— {answer.get('immediate_impact', '')[:120]}"
+            )
+            await store_prediction(
+                source="ai_search",
+                prediction_text=pred_text,
+                direction=direction,
+                prediction_type="overall",
+                target_entities=entities,
+                confidence_score=conf_score,
+                confidence_level=conf_level,
+                confidence_factors=conf_break,
+                horizon_days=horizon,
+                query=query[:400],
+            )
+
+        # 2) Individual company predictions (beneficiary = up, at_risk = down)
+        for company in companies_list[:3]:
+            sym = company.get("symbol", "").strip()
+            if not sym:
+                continue
+            impact = (company.get("impact_type") or "neutral").lower()
+            co_dir = "up" if impact == "beneficiary" else "down" if impact == "at_risk" else "sideways"
+            co_conf = min(100, max(0, float(company.get("confidence", conf_score) or conf_score)))
+            await store_prediction(
+                source="ai_search",
+                prediction_text=f"{co_dir.upper()} on {sym}: {company.get('reason', '')[:120]}",
+                direction=co_dir,
+                prediction_type="company",
+                target_entities=[{
+                    "type":   "company",
+                    "symbol": sym,
+                    "name":   company.get("name", sym),
+                    "ticker": sym,
+                }],
+                confidence_score=co_conf,
+                confidence_level=conf_level,
+                confidence_factors=conf_break,
+                horizon_days=horizon,
+                query=query[:400],
+            )
+    except Exception as exc:
+        log.debug("prediction.store_search_fail", error=str(exc)[:80])

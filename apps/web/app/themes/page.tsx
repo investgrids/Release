@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bot, Shield, Train, Leaf, Zap, FlaskConical, Flame, BarChart2 } from "lucide-react";
+import { useIntelligence } from "@/hooks/useIntelligence";
+import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
 import {
   LineChart, Line, AreaChart, Area,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -586,6 +588,8 @@ export default function ThemesPage() {
   const [themes, setThemes] = useState<Theme[]>(THEMES);
   const [selected, setSelected] = useState<Theme>(THEMES[0]);
 
+  const { data: intelligence } = useIntelligence("theme", selected?.slug);
+
   useEffect(() => {
     fetch(`${API}/api/radar/`)
       .then(r => r.ok ? r.json() : null)
@@ -642,7 +646,10 @@ export default function ThemesPage() {
         </div>
 
         {/* Right: detail */}
-        <div className="hidden xl:block">
+        <div className="hidden xl:block space-y-4">
+          {intelligence && (
+            <IntelligenceBlock data={intelligence} label={`${selected.title} Intelligence`} compact={false} />
+          )}
           <ThemeDetail key={selected.id} t={selected} onBack={() => {}} />
         </div>
       </div>

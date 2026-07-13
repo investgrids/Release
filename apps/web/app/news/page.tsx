@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { MarketContextStrip } from "@/components/MarketContextStrip";
+import { NextSteps } from "@/components/NextSteps";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -109,13 +111,6 @@ const STATIC_NEWS: NewsArticle[] = [
   },
 ];
 
-const THUMB_GRADS = [
-  "from-violet-700/40 to-indigo-700/20",
-  "from-sky-700/40 to-blue-700/20",
-  "from-emerald-700/40 to-teal-700/20",
-  "from-amber-700/40 to-orange-700/20",
-  "from-rose-700/40 to-pink-700/20",
-];
 
 export default function NewsPage() {
   const router = useRouter();
@@ -162,11 +157,15 @@ export default function NewsPage() {
 
   return (
     <main className="min-w-0 pb-10">
+      <MarketContextStrip />
+
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Market News</h1>
-          <p className="mt-1 text-sm text-slate-400">Real-time news and market updates</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Sorted by market impact. High-impact stories appear first — these are the ones that can move your portfolio.
+          </p>
         </div>
         <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] px-3 py-2">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"/>
@@ -226,14 +225,15 @@ export default function NewsPage() {
                 No articles in this category.
               </div>
             )
-            : tabbed.map((a, i) => {
+            : tabbed.map((a) => {
                 const imp = impactBadge(a.impact_score);
                 const srcBg = SOURCE_BG[a.source] ?? "bg-slate-700/40 text-slate-300";
+                const whyLine = a.summary
+                  ? a.summary.split(/(?<=[.!?])\s+/)[0]?.trim() ?? ""
+                  : "";
                 return (
                   <Link key={a.id} href={`/news/${a.id}`}
                     className="group flex gap-3 rounded-[18px] border border-white/10 bg-white/[0.03] p-4 hover:border-white/20 hover:-translate-y-0.5 transition">
-                    {/* Thumbnail */}
-                    <div className={`h-16 w-16 shrink-0 rounded-xl bg-gradient-to-br ${THUMB_GRADS[i % THUMB_GRADS.length]} border border-white/8`}/>
                     {/* Content */}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
@@ -248,6 +248,11 @@ export default function NewsPage() {
                       <h3 className="text-[13px] font-semibold leading-snug text-white line-clamp-2 group-hover:text-sky-200 transition">
                         {a.headline}
                       </h3>
+                      {whyLine && (
+                        <p className="mt-1.5 text-[11px] leading-4 text-slate-500 line-clamp-2">
+                          <span className="font-semibold text-slate-400">Why this matters: </span>{whyLine}
+                        </p>
+                      )}
                       {a.companies?.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {a.companies.slice(0, 4).map((c: string) => {
@@ -259,11 +264,15 @@ export default function NewsPage() {
                           })}
                         </div>
                       )}
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/ai-search?q=${encodeURIComponent(a.headline)}`); }}
+                        className="mt-1.5 text-[10px] font-medium text-violet-400 hover:text-violet-300 transition">
+                        Ask AI →
+                      </button>
                     </div>
-                    {/* Score */}
+                    {/* Impact indicator */}
                     <div className="shrink-0 text-right">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-[11px] font-bold text-white">
-                        {Math.round(a.impact_score * 10)}
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-[9px] font-black border ${imp.cls}`}>
+                        {a.impact_score >= 9 ? "HI" : a.impact_score >= 7 ? "MID" : "LO"}
                       </div>
                     </div>
                   </Link>
@@ -318,6 +327,64 @@ export default function NewsPage() {
           </div>
         </aside>
 
+      </div>
+
+      {/* Intelligent guidance — derived from top article */}
+      <div className="mt-6">
+      {(() => {
+        const top     = popular[0];
+        if (!top) return null;
+        const topComp = top?.companies?.[0];
+        const topSym  = topComp ? COMPANY_TO_SYMBOL[topComp] : null;
+        const q       = (s: string) => encodeURIComponent(s);
+        const whyLine = top.summary?.split(/(?<=[.!?])\s+/)[0] || top.headline;
+        return (
+          <NextSteps config={{
+            takeaway: whyLine.length > 130 ? whyLine.slice(0, 127) + "…" : whyLine,
+            primary: topSym && topComp ? {
+              label: `Research ${topComp}`,
+              why:   `Because they're the most mentioned company in today's top stories — this news changes the near-term investment narrative around them.`,
+              href:  `/companies/${topSym}`,
+            } : {
+              label: `Ask AI: What do today's top stories mean for investors?`,
+              why:   `Because news alone doesn't tell you if the market has already priced this in — AI can contextualize the real impact.`,
+              href:  `/ai-search?q=${q(`What do today's top market news stories mean for Indian equity investors? Which sectors and companies are most affected?`)}`,
+            },
+            groups: [
+              {
+                label: "Understand More",
+                actions: [
+                  topComp ? {
+                    label: `Ask AI: Does this news change ${topComp}'s investment outlook?`,
+                    why:   `Because market reactions to news are often temporary — you need to know if the fundamentals actually changed.`,
+                    href:  `/ai-search?q=${q(`Does "${top.headline}" change the investment thesis for ${topComp}? Is the market reaction justified or an overreaction?`)}`,
+                  } : {
+                    label: "Ask AI: Is the market reaction to this news justified?",
+                    why:   "Because news creates noise — AI helps separate genuine signal from short-term overreaction.",
+                    href:  `/ai-search?q=${q(`Is the market reaction to "${top.headline}" justified or is it an overreaction?`)}`,
+                  },
+                  {
+                    label: "View the related market event",
+                    why:   "Because news is often a symptom of a deeper market event — the event page shows the full timeline and affected companies.",
+                    href:  `/events`,
+                  },
+                ],
+              },
+              {
+                label: "Explore Further",
+                actions: [
+                  {
+                    label: "Trace how this story ripples through the market",
+                    why:   "Because a news story that moves one company often triggers second-order effects across suppliers, competitors, and the sector.",
+                    href:  `/ripple`,
+                  },
+                ],
+              },
+            ],
+            path: ["News", topComp || "Market", "Events", "Investment Impact"],
+          }} />
+        );
+      })()}
       </div>
     </main>
   );

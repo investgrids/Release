@@ -133,6 +133,92 @@ class FyersAuthManager:
             pass
         return None
 
+    def auto_authenticate(self, login_id: str, pin: str, totp_key: str) -> Optional[str]:
+        """
+        Fully automated Fyers login using TOTP — no browser required.
+
+        Uses Fyers' programmatic login API:
+          1. send_login_otp   → get request_key
+          2. verify_otp       → verify TOTP, get new request_key
+          3. verify_pin       → verify PIN hash, get user session token
+          4. /api/v3/token    → exchange for auth_code
+          5. generate_token() → exchange auth_code for 24h access_token
+
+        Returns the access_token string on success, None on any failure.
+        """
+        try:
+            import hashlib, base64
+            import requests as _req
+            import pyotp
+        except ImportError as e:
+            log.error("fyers_auth.auto_login_missing_deps deps=%s", str(e))
+            return None
+
+        try:
+            app_id = self._client_id.split("-")[0]
+            s      = _req.Session()
+            s.headers.update({
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Content-Type": "application/json",
+                "Origin": "https://app.fyers.in",
+                "Referer": "https://app.fyers.in/",
+            })
+
+            # Step 1 — fy_id is plain string (not base64)
+            r1 = s.post(
+                "https://api-t2.fyers.in/vagator/v2/send_login_otp",
+                json={"fy_id": login_id, "app_id": "2"},
+                timeout=10,
+            )
+            d1 = r1.json()
+            if d1.get("s") != "ok":
+                log.error("fyers_auth.auto_step1_failed response=%s", d1)
+                return None
+            request_key = d1["request_key"]
+
+            # Step 2 — Verify TOTP
+            totp = pyotp.TOTP(totp_key).now()
+            r2 = s.post(
+                "https://api-t2.fyers.in/vagator/v2/verify_otp",
+                json={"request_key": request_key, "otp": totp},
+                timeout=10,
+            )
+            d2 = r2.json()
+            if d2.get("s") != "ok":
+                log.error("fyers_auth.auto_step2_failed response=%s", d2)
+                return None
+            request_key = d2["request_key"]
+
+            # Step 3 — Verify PIN (plain text; Fyers changed API — no longer SHA256)
+            # Response now returns access_token directly in data (not a session token for OAuth)
+            r3 = s.post(
+                "https://api-t2.fyers.in/vagator/v2/verify_pin",
+                json={"request_key": request_key, "identity_type": "pin", "identifier": pin},
+                timeout=10,
+            )
+            d3 = r3.json()
+            if d3.get("s") != "ok":
+                log.error("fyers_auth.auto_step3_failed response=%s", d3)
+                return None
+
+            # Fyers v3 vagator returns the full access_token directly from verify_pin
+            raw_token = d3["data"].get("access_token") or d3["data"].get("token")
+            if not raw_token:
+                log.error("fyers_auth.auto_no_token_in_verify_pin data=%s", d3["data"])
+                return None
+
+            # FyersProvider expects token in "{client_id}:{jwt}" format
+            token = f"{self._client_id}:{raw_token}"
+            self._set_token(token)
+            log.info("fyers_auth.auto_login_success token_prefix=%s", token[:12])
+            return token
+
+        except Exception as exc:
+            log.error("fyers_auth.auto_login_error error=%s", str(exc))
+            return None
+
     def is_authenticated(self) -> bool:
         return bool(self.get_token())
 

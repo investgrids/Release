@@ -18,3 +18,6 @@ export type { OpportunityLifecycleCardProps, LifecycleStage } from "./Opportunit
 
 export { MultiHorizonOutlookCard } from "./MultiHorizonOutlookCard";
 export type { HorizonData, HorizonFetchContext, MultiHorizonOutlookCardProps } from "./MultiHorizonOutlookCard";
+
+export { IntelligenceBlock } from "./IntelligenceBlock";
+export type { IntelligenceObject, IntelligenceOpportunity, IntelligenceRisk, IntelligenceCompany, IntelligenceSector, IntelligenceTheme } from "./IntelligenceBlock";

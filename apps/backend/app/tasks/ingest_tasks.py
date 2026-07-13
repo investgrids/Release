@@ -23,6 +23,30 @@ from app.repositories.government_policy_repository import GovernmentPolicyReposi
 log = structlog.get_logger(__name__)
 
 
+# ── Intelligence bus helper ───────────────────────────────────────────────────
+
+async def _push_to_triage_bus(items: list[RawItem], new_ids: set[str], source: str) -> None:
+    """Push newly-ingested items onto the EventIngestionBus for AI triage."""
+    try:
+        from app.services.intelligence.event_bus import get_event_bus, RawEvent
+        bus = get_event_bus()
+        for item in items:
+            if item.id not in new_ids:
+                continue
+            await bus.push(RawEvent(
+                id=item.id,
+                headline=item.headline,
+                summary=item.summary,
+                source=source,
+                source_url=item.url or "",
+                sectors=[],
+                companies=item.companies or [],
+                raw_impact=float(item.impact_score or 5.0),
+            ))
+    except Exception as exc:
+        log.warning("ingest.bus_push_failed", source=source, error=str(exc))
+
+
 # ── Shared DB helpers ─────────────────────────────────────────────────────────
 
 async def _existing_ids(db, model, ids: list[str]) -> set[str]:
@@ -138,6 +162,10 @@ async def job_ingest_news() -> None:
         elapsed_ms=elapsed,
     )
 
+    # Push new articles to the intelligence bus for AI triage
+    if new_ids:
+        await _push_to_triage_bus(all_items, set(new_ids), "news")
+
     # Invalidate news cache so next request gets fresh data
     from app.cache import delete_pattern
     await delete_pattern("dashboard:*")
@@ -170,6 +198,10 @@ async def job_ingest_policy() -> None:
         new_events=events_created,
         elapsed_ms=elapsed,
     )
+
+    # Push policy items to the intelligence bus for triage
+    if new_ids:
+        await _push_to_triage_bus(all_items, set(new_ids), "policy")
 
 
 # ── Job: AI event enrichment — every 5 min ────────────────────────────────────

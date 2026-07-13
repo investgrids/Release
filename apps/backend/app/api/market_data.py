@@ -153,6 +153,107 @@ async def get_sectors():
 
 # ── Fyers auth flow ───────────────────────────────────────────────────────────
 
+@router.post("/auth/fyers/refresh")
+async def fyers_manual_refresh():
+    """Manually trigger TOTP-based Fyers re-authentication and return verbose result."""
+    import asyncio, concurrent.futures, hashlib, base64, time
+    try:
+        from app.core.config import settings
+        client_id    = getattr(settings, "fyers_client_id",    "")
+        secret_key   = getattr(settings, "fyers_secret_key",   "")
+        redirect_uri = getattr(settings, "fyers_redirect_uri", "")
+        login_id     = getattr(settings, "fyers_login_id",     "")
+        pin          = getattr(settings, "fyers_pin",          "")
+        totp_key     = getattr(settings, "fyers_totp_key",     "")
+
+        if not (client_id and login_id and pin and totp_key):
+            return {"ok": False, "error": "TOTP credentials not fully configured",
+                    "missing": [k for k, v in {"client_id": client_id, "login_id": login_id, "pin": pin, "totp_key": totp_key}.items() if not v]}
+
+        import requests as _req, pyotp
+        app_id      = client_id.split("-")[0]
+        app_id_hash = hashlib.sha256(f"{app_id}:{secret_key}".encode()).hexdigest()
+        s           = _req.Session()
+        s.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Content-Type": "application/json",
+            "Origin": "https://app.fyers.in",
+            "Referer": "https://app.fyers.in/",
+        })
+        steps       = []
+
+        # Step 1 — try multiple formats to diagnose
+        fy_id_b64        = base64.b64encode(login_id.encode()).decode()
+        fy_id_urlsafe    = base64.urlsafe_b64encode(login_id.encode()).decode()
+        step1_attempts   = []
+        request_key      = None
+        for attempt_cfg in [
+            {"url": "https://api-t2.fyers.in/vagator/v2/send_login_otp", "body": {"fy_id": login_id, "app_id": "2"}},
+        ]:
+            try:
+                r1 = s.post(attempt_cfg["url"], json=attempt_cfg["body"], timeout=10)
+                d1 = r1.json()
+                a = {"url": attempt_cfg["url"], "body": attempt_cfg["body"], "ok": d1.get("s") == "ok", "response": d1}
+                step1_attempts.append(a)
+                if d1.get("s") == "ok":
+                    request_key = d1["request_key"]
+                    break
+            except Exception as e:
+                step1_attempts.append({"url": attempt_cfg["url"], "error": str(e)})
+        steps.append({"step": 1, "attempts": step1_attempts, "ok": request_key is not None})
+        if not request_key:
+            return {"ok": False, "failed_at": 1, "steps": steps}
+
+        # Step 2
+        try:
+            totp = pyotp.TOTP(totp_key).now()
+            r2 = s.post("https://api-t2.fyers.in/vagator/v2/verify_otp",
+                        json={"request_key": request_key, "otp": totp}, timeout=10)
+            d2 = r2.json()
+            steps.append({"step": 2, "ok": d2.get("s") == "ok", "totp_used": totp, "response": d2})
+            if d2.get("s") != "ok":
+                return {"ok": False, "failed_at": 2, "steps": steps}
+            request_key = d2["request_key"]
+        except Exception as e:
+            return {"ok": False, "failed_at": 2, "error": str(e), "steps": steps}
+
+        # Step 3 — plain text PIN (Fyers no longer uses SHA256)
+        # verify_pin now returns the full access_token directly
+        try:
+            r3 = s.post("https://api-t2.fyers.in/vagator/v2/verify_pin",
+                        json={"request_key": request_key, "identity_type": "pin", "identifier": pin}, timeout=10)
+            d3 = r3.json()
+            if d3.get("s") != "ok":
+                steps.append({"step": 3, "ok": False, "response": d3})
+                return {"ok": False, "failed_at": 3, "steps": steps}
+            raw_token = d3["data"].get("access_token") or d3["data"].get("token")
+            if not raw_token:
+                steps.append({"step": 3, "ok": False, "error": "no token in data", "keys": list(d3["data"].keys())})
+                return {"ok": False, "failed_at": 3, "steps": steps}
+            steps.append({"step": 3, "ok": True, "token_prefix": raw_token[:12]})
+        except Exception as e:
+            return {"ok": False, "failed_at": 3, "error": str(e), "steps": steps}
+
+        # Step 4 — format token and activate FyersProvider
+        try:
+            from app.services.market_data_service.providers.fyers import FyersAuthManager, FyersProvider
+            token = f"{client_id}:{raw_token}"
+            auth_mgr = FyersAuthManager(client_id, secret_key, redirect_uri)
+            auth_mgr._set_token(token)
+            new_provider = FyersProvider(client_id=client_id, access_token=token, secret_key=secret_key, redirect_uri=redirect_uri)
+            market_data_service.swap_provider(new_provider)
+            steps.append({"step": 4, "ok": True, "provider": "Fyers", "token_prefix": token[:20]})
+            return {"ok": True, "provider": "Fyers", "steps": steps}
+        except Exception as e:
+            steps.append({"step": 4, "ok": False, "error": str(e)})
+            return {"ok": False, "failed_at": 4, "steps": steps}
+
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
 @router.get("/auth/fyers/status")
 async def fyers_auth_status():
     """Return current Fyers connection status and provider info."""

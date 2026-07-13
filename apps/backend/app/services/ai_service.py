@@ -1,14 +1,17 @@
 """
 AI service — multi-provider free-tier AI with automatic fallback.
 
-Provider chain (fastest/freest first):
-  1. OmniRoute local  — pol/gpt-5, pol/claude-sonnet, if/deepseek-r1 (no key, unlimited)
-  2. Groq             — llama-3.1-8b-instant, 14,400 req/day free
-  3. Cerebras         — llama3.1-8b, 10,000 req/day free, ultra-fast
-  4. Gemini           — gemini-2.0-flash, 1,500 req/day / 4M tokens free
-  5. OpenRouter       — free models as last-resort fallback
+Provider chain (highest quality first, auto-skips exhausted providers):
+  1. OpenRouter large  — 550B, 405B, 120B, 70B free models (~50 req/day each)
+  2. Gemini            — gemini-2.0-flash, 1,500 req/day / 4M tokens free
+  3. Groq high-quality — gpt-oss-120b, llama-3.3-70b, 1,000 req/day each
+  4. Groq fast         — llama-3.1-8b-instant, 14,400 req/day (high-volume workhorse)
+  5. Cerebras          — llama3.1-70b/8b, 10,000 req/day, ultra-fast
+  6. OpenRouter small  — remaining free models as final fallback
 
-At 50 users the first two providers alone cover >100x the needed capacity.
+Each model that returns HTTP 429 (rate-limited) is remembered in _EXHAUSTED
+for the lifetime of the process and skipped on all future calls — no wasted
+round-trips. Resets when Railway restarts (typically daily).
 """
 import httpx
 import structlog
@@ -23,69 +26,64 @@ _GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 _CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions"
 _GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
-# OmniRoute free providers — no API key required, unlimited via Pollinations/Qoder
-_OMNIROUTE_MODELS = [
-    "pol/gpt-5",              # GPT-5 via Pollinations — free, no key
-    "if/deepseek-r1",         # DeepSeek R1 via Qoder — unlimited
-    "pol/claude-sonnet-4-5",  # Claude Sonnet 4.5 via Pollinations — free
-    "if/qwen3-coder-plus",    # Qwen3 Coder via Qoder — unlimited
-    "pol/gemini",             # Gemini via Pollinations — free
+# Models that have returned 429 (rate exhausted) — skipped until process restart
+_EXHAUSTED: set[str] = set()
+
+# ── Tier 1: OpenRouter HIGH-QUALITY large free models (best reasoning, tried first)
+_OR_HIGH_QUALITY = [
+    "nvidia/nemotron-3-ultra-550b-a55b:free",       # 550B — largest free model
+    "nousresearch/hermes-3-llama-3.1-405b:free",    # 405B — excellent instruction following
+    "openai/gpt-oss-120b:free",                     # 120B — GPT-class quality
+    "nvidia/nemotron-3-super-120b-a12b:free",        # 120B — NVIDIA quality
+    "meta-llama/llama-3.3-70b-instruct:free",       # 70B  — reliable 70B
+    "qwen/qwen3-next-80b-a3b-instruct:free",        # 80B  — Qwen large
+    "google/gemma-4-31b-it:free",                   # 31B  — Google quality
+    "openai/gpt-oss-20b:free",                      # 20B  — GPT OSS mid
+    "qwen/qwen3-coder:free",                        # large coder — good JSON
 ]
 
-# Groq: verified live 2026-06-30 — 9 text models, ~13.2M tokens/day combined
-_GROQ_MODELS = [
-    "llama-3.1-8b-instant",                      # 14,400 req/day, 6K TPM  — primary workhorse
-    "qwen/qwen3-32b",                            # 1,000 req/day, 6K TPM
-    "qwen/qwen3.6-27b",                          # 1,000 req/day, 8K TPM
-    "meta-llama/llama-4-scout-17b-16e-instruct", # 1,000 req/day, 30K TPM  — highest TPM
-    "llama-3.3-70b-versatile",                   # 1,000 req/day, 12K TPM
-    "openai/gpt-oss-20b",                        # 1,000 req/day, 8K TPM
-    "openai/gpt-oss-120b",                       # 1,000 req/day, 8K TPM   — highest quality
-    "groq/compound-mini",                        # 250 req/day,  70K TPM
-    "groq/compound",                             # 250 req/day,  70K TPM
-]
-
-# Cerebras: 10,000 req/day free — fastest inference in the market
-_CEREBRAS_MODELS = [
-    "llama3.1-8b",
-    "llama3.1-70b",
-]
-
-# Gemini: 1,500 req/day, 1M–4M tokens/day free
+# ── Tier 2: Gemini (1,500 req/day — high quality, very reliable)
 _GEMINI_MODELS = [
     "gemini-2.0-flash",
     "gemini-1.5-flash",
 ]
 
-# OpenRouter free models — verified live 2026-06-30 via /api/v1/models
-# 22 active models × ~50 req/day = ~1,100 req/day = ~770K tokens/day
-_OR_FREE_MODELS = [
-    # High-quality large models first
-    "openai/gpt-oss-120b:free",                              # GPT OSS 120B
-    "nvidia/nemotron-3-ultra-550b-a55b:free",                # NVIDIA 550B, 1M ctx
-    "nvidia/nemotron-3-super-120b-a12b:free",                # NVIDIA 120B, 1M ctx
-    "qwen/qwen3-coder:free",                                 # Qwen3 Coder, 1M ctx
-    "meta-llama/llama-3.3-70b-instruct:free",               # Llama 70B
-    "qwen/qwen3-next-80b-a3b-instruct:free",                # Qwen3 80B
-    "nousresearch/hermes-3-llama-3.1-405b:free",            # Hermes 405B
-    "openai/gpt-oss-20b:free",                              # GPT OSS 20B
-    # Google Gemma
-    "google/gemma-4-31b-it:free",                           # Gemma 4 31B, 262K ctx
-    "google/gemma-4-26b-a4b-it:free",                       # Gemma 4 26B
-    # Poolside
-    "poolside/laguna-m.1:free",                             # Laguna M.1, 262K ctx
-    "poolside/laguna-xs.2:free",                            # Laguna XS.2
-    # NVIDIA smaller
-    "nvidia/nemotron-3-nano-30b-a3b:free",                  # Nemotron 30B
-    "nvidia/nemotron-nano-12b-v2-vl:free",                  # Nemotron 12B
-    "nvidia/nemotron-nano-9b-v2:free",                      # Nemotron 9B
-    # Smaller / fast
-    "meta-llama/llama-3.2-3b-instruct:free",               # Llama 3B fast
-    "cohere/north-mini-code:free",                          # Cohere North Mini
+# ── Tier 3: Groq HIGH-QUALITY (best Groq models, 1,000 req/day each)
+_GROQ_HIGH = [
+    "openai/gpt-oss-120b",                       # 1,000 req/day — highest quality on Groq
+    "llama-3.3-70b-versatile",                   # 1,000 req/day — strong 70B
+    "openai/gpt-oss-20b",                        # 1,000 req/day — solid mid-tier
+    "qwen/qwen3-32b",                            # 1,000 req/day — good reasoning
+    "meta-llama/llama-4-scout-17b-16e-instruct", # 1,000 req/day — highest TPM on Groq
+]
+
+# ── Tier 4: Groq FAST (14,400 req/day — high volume workhorse when quality tiers exhaust)
+_GROQ_FAST = [
+    "llama-3.1-8b-instant",   # 14,400 req/day — the volume backstop
+    "qwen/qwen3.6-27b",       # 1,000 req/day  — mid quality
+    "groq/compound-mini",     # 250 req/day    — Groq native
+    "groq/compound",          # 250 req/day    — Groq native larger
+]
+
+# ── Tier 5: Cerebras (10,000 req/day — ultra-fast inference)
+_CEREBRAS_MODELS = [
+    "llama3.1-70b",
+    "llama3.1-8b",
+]
+
+# ── Tier 6: OpenRouter smaller free models (final fallback)
+_OR_SMALL = [
+    "nvidia/nemotron-3-nano-30b-a3b:free",
+    "nvidia/nemotron-nano-12b-v2-vl:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+    "poolside/laguna-m.1:free",
+    "poolside/laguna-xs.2:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "cohere/north-mini-code:free",
     "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-    "liquid/lfm-2.5-1.2b-thinking:free",                   # Liquid thinking
-    "liquid/lfm-2.5-1.2b-instruct:free",                   # Liquid instruct
-    "nvidia/nemotron-3.5-content-safety:free",
+    "liquid/lfm-2.5-1.2b-thinking:free",
+    "liquid/lfm-2.5-1.2b-instruct:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
 
@@ -106,7 +104,11 @@ async def _call_provider(
     max_tokens: int = 200,
     extra_headers: dict | None = None,
 ) -> str:
-    """Generic OpenAI-compatible call. Returns '' on any failure or rate-limit."""
+    """Generic OpenAI-compatible call. Returns '' on any failure or rate-limit.
+    Marks the model as exhausted in _EXHAUSTED on HTTP 429 so future calls skip it."""
+    if model in _EXHAUSTED:
+        return ""
+
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -125,7 +127,11 @@ async def _call_provider(
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(base_url, json=payload, headers=headers)
-            if r.status_code in (429, 402, 503, 529):
+            if r.status_code == 429:
+                _EXHAUSTED.add(model)
+                log.warning("ai.exhausted", model=model, status=429)
+                return ""
+            if r.status_code in (402, 503, 529):
                 log.warning("ai.rate_limited", model=model, status=r.status_code)
                 return ""
             r.raise_for_status()
@@ -146,56 +152,83 @@ async def _call_with_fallback(
     max_tokens: int = 200,
 ) -> str:
     """
-    Try providers in order until one returns a non-empty response.
-    Providers with no URL/key configured are skipped silently.
+    Try providers in quality order until one returns a non-empty response.
+    Models that have already returned 429 today are in _EXHAUSTED and skipped instantly.
+
+    Chain:
+      1. OpenRouter large free models  — 550B, 405B, 120B, 70B (best quality, ~50/day each)
+      2. Gemini 2.0-flash              — 1,500 req/day, high quality, very reliable
+      3. Groq high-quality models      — 120B, 70B, 32B (1,000 req/day each)
+      4. Groq fast models              — 8B (14,400 req/day, high-volume workhorse)
+      5. Cerebras                      — 10,000 req/day, ultra-fast
+      6. OpenRouter smaller models     — final fallback
     """
-    # 1. OmniRoute local — free providers, no key, effectively unlimited
-    if settings.omniroute_url:
-        chat_url = f"{settings.omniroute_url.rstrip('/')}/chat/completions"
-        for model in _OMNIROUTE_MODELS:
-            result = await _call_provider(chat_url, "", model, prompt, system, max_tokens)
+    or_headers = {
+        "HTTP-Referer": "https://investgrids.com",
+        "X-Title": "InvestGrids Market Intelligence",
+    }
+
+    # ── Tier 1: OpenRouter large high-quality models ──────────────────────────
+    if settings.openrouter_api_key:
+        for model in _OR_HIGH_QUALITY:
+            if model in _EXHAUSTED:
+                continue
+            result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers)
             if result:
-                log.info("ai.success", provider="omniroute", model=model)
+                log.info("ai.success", provider="openrouter-hq", model=model)
                 return result
 
-    # 2. Groq — fastest direct inference, 14,400 req/day free
-    if settings.groq_api_key:
-        for model in _GROQ_MODELS:
-            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens)
-            if result:
-                log.info("ai.success", provider="groq", model=model)
-                return result
-
-    # 3. Cerebras — ultra-fast, 10K req/day free
-    if settings.cerebras_api_key:
-        for model in _CEREBRAS_MODELS:
-            result = await _call_provider(_CEREBRAS_URL, settings.cerebras_api_key, model, prompt, system, max_tokens)
-            if result:
-                log.info("ai.success", provider="cerebras", model=model)
-                return result
-
-    # 4. Gemini — 1M–4M tokens/day free
+    # ── Tier 2: Gemini — reliable, 1,500 req/day ─────────────────────────────
     if settings.gemini_api_key:
         for model in _GEMINI_MODELS:
+            if model in _EXHAUSTED:
+                continue
             result = await _call_provider(_GEMINI_URL, settings.gemini_api_key, model, prompt, system, max_tokens)
             if result:
                 log.info("ai.success", provider="gemini", model=model)
                 return result
 
-    # 5. OpenRouter free models — aggregate fallback
+    # ── Tier 3: Groq high-quality (70B+, 1,000 req/day each) ─────────────────
+    if settings.groq_api_key:
+        for model in _GROQ_HIGH:
+            if model in _EXHAUSTED:
+                continue
+            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens)
+            if result:
+                log.info("ai.success", provider="groq-hq", model=model)
+                return result
+
+    # ── Tier 4: Groq fast (8B, 14,400 req/day — high-volume backstop) ────────
+    if settings.groq_api_key:
+        for model in _GROQ_FAST:
+            if model in _EXHAUSTED:
+                continue
+            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens)
+            if result:
+                log.info("ai.success", provider="groq-fast", model=model)
+                return result
+
+    # ── Tier 5: Cerebras — ultra-fast, 10,000 req/day ────────────────────────
+    if settings.cerebras_api_key:
+        for model in _CEREBRAS_MODELS:
+            if model in _EXHAUSTED:
+                continue
+            result = await _call_provider(_CEREBRAS_URL, settings.cerebras_api_key, model, prompt, system, max_tokens)
+            if result:
+                log.info("ai.success", provider="cerebras", model=model)
+                return result
+
+    # ── Tier 6: OpenRouter smaller free models — final fallback ──────────────
     if settings.openrouter_api_key:
-        or_headers = {
-            "HTTP-Referer": "https://investgrids.com",
-            "X-Title": "InvestGrids Market Intelligence",
-        }
-        for model in _OR_FREE_MODELS:
+        for model in _OR_SMALL:
+            if model in _EXHAUSTED:
+                continue
             result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers)
             if result:
-                log.info("ai.success", provider="openrouter", model=model)
+                log.info("ai.success", provider="openrouter-small", model=model)
                 return result
-            log.warning("ai.skip", provider="openrouter", model=model)
 
-    log.error("ai.all_providers_failed")
+    log.error("ai.all_providers_failed", exhausted_count=len(_EXHAUSTED))
     return ""
 
 

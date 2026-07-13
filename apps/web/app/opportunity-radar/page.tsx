@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import Link from "next/link";
-import { AreaChart, Area, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
-import { Target, ClipboardList } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -18,27 +15,6 @@ interface RadarItem {
   confidence: number;
   beneficiaries: string[];
   sectors?: string[];
-}
-
-interface GmpPoint { label: string; value: number }
-interface IPO {
-  id: string; name: string; sector: string; type: "Mainboard" | "SME";
-  priceMin: number; priceMax: number; issueSize: string;
-  freshIssue: string; offerForSale: string; lotSize: number; listingOn: string;
-  openDate: string; closeDate: string; allotmentDate: string;
-  refundDate: string; creditDate: string; listingDate: string;
-  status: "Upcoming" | "Ongoing" | "Listed";
-  gmp: number; gmpPct: number; gmpTrend: GmpPoint[];
-  description: string; founded: string; headquarters: string;
-  promoters: string; website: string; highlights: string[];
-  aiSummary: string; aiRating: string;
-  subscriptionRetail: number | null; subscriptionHNI: number | null; subscriptionQIB: number | null;
-}
-interface SectorTrend { name: string; count: number; pct: number; color: string }
-interface Sentiment { score: number; label: string; retail: string; hni: string; volatility: string; overall: string }
-interface IPOData {
-  ipos: IPO[]; stats: { upcoming: number; ongoing: number; listed: number; avg_listing_gain: number };
-  sector_trends: SectorTrend[]; sentiment: Sentiment; ai_insight: string;
 }
 
 // ── Static fallback data ──────────────────────────────────────────────────────
@@ -72,16 +48,6 @@ const CHIP_COLORS = [
   "bg-rose-500/25 text-rose-200",
   "bg-teal-500/25 text-teal-200",
 ];
-
-const STATUS_BADGE: Record<string, string> = {
-  Upcoming: "bg-sky-500/10 text-sky-300 border border-sky-500/20",
-  Ongoing:  "bg-amber-500/10 text-amber-300 border border-amber-500/20",
-  Listed:   "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20",
-};
-
-const RATING_COLOR: Record<string, string> = {
-  Bullish: "text-emerald-400", Neutral: "text-amber-400", Bearish: "text-rose-400",
-};
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -121,61 +87,7 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-function GmpChart({ data }: { data: GmpPoint[] }) {
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-        <defs>
-          <linearGradient id="gmp-grad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#34d399" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#34d399" stopOpacity={0}   />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="value" stroke="#34d399" strokeWidth={1.5} fill="url(#gmp-grad)" dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
-function SentimentGauge({ score, label }: { score: number; label: string }) {
-  const segments = [
-    { color: "#f43f5e", pct: 25 }, { color: "#f97316", pct: 25 },
-    { color: "#fbbf24", pct: 25 }, { color: "#34d399", pct: 25 },
-  ];
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative w-32 h-16 overflow-hidden">
-        <svg viewBox="0 0 100 50" className="w-full">
-          {segments.map((seg, i) => {
-            const start = i * 45 - 90;
-            const end = start + 44;
-            const r = 40, cx = 50, cy = 50;
-            const toRad = (d: number) => (d * Math.PI) / 180;
-            const x1 = cx + r * Math.cos(toRad(start));
-            const y1 = cy + r * Math.sin(toRad(start));
-            const x2 = cx + r * Math.cos(toRad(end));
-            const y2 = cy + r * Math.sin(toRad(end));
-            return (
-              <path key={i} d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`} fill={seg.color} opacity={0.7}/>
-            );
-          })}
-          {(() => {
-            const angle = -90 + (score / 100) * 180;
-            const rad = (angle * Math.PI) / 180;
-            const nx = 50 + 32 * Math.cos(rad);
-            const ny = 50 + 32 * Math.sin(rad);
-            return <line x1="50" y1="50" x2={nx} y2={ny} stroke="white" strokeWidth="2" strokeLinecap="round" />;
-          })()}
-          <circle cx="50" cy="50" r="5" fill="#1e293b" stroke="white" strokeWidth="1.5" />
-        </svg>
-      </div>
-      <p className="text-3xl font-bold text-white mt-1">{score}</p>
-      <p className="text-sm font-semibold text-emerald-400">{label}</p>
-    </div>
-  );
-}
-
-// ── Opportunities Tab ─────────────────────────────────────────────────────────
+// ── Opportunities ─────────────────────────────────────────────────────────────
 
 function OpportunitiesTab() {
   const [items, setItems] = useState<RadarItem[]>(STATIC_RADAR);
@@ -331,260 +243,43 @@ function OpportunitiesTab() {
               ))}
             </div>
           </div>
+          <div className="mt-6 border-t border-white/5 pt-4">
+            <Link href="/ai-search?q=top investment opportunities India"
+              className="block w-full rounded-xl bg-gradient-to-r from-violet-600/80 to-sky-500/80 py-2 text-center text-[12px] font-semibold text-white hover:opacity-90 transition">
+              Ask AI for Analysis
+            </Link>
+          </div>
         </aside>
       </div>
     </>
   );
 }
 
-// ── IPO Tab ───────────────────────────────────────────────────────────────────
-
-function IPOTab() {
-  const [data, setData] = useState<IPOData | null>(null);
-  const [filter, setFilter] = useState<"all"|"upcoming"|"ongoing"|"listed">("all");
-  const [selected, setSelected] = useState<IPO | null>(null);
-
-  useEffect(() => {
-    fetch(`${API}/api/ipo/`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) { setData(d); setSelected(d.ipos[0] ?? null); } })
-      .catch(() => {});
-  }, []);
-
-  const ipos = data?.ipos ?? [];
-  const stats = data?.stats ?? { upcoming: 0, ongoing: 0, listed: 0, avg_listing_gain: 0 };
-  const sectorTrends = data?.sector_trends ?? [];
-  const sentiment = data?.sentiment ?? { score: 78, label: "Bullish", retail: "High", hni: "High", volatility: "Moderate", overall: "Bullish" };
-  const displayed = filter === "all" ? ipos : ipos.filter(i => i.status.toLowerCase() === filter);
-
-  return (
-    <div className="space-y-5">
-      {/* AI Insight */}
-      {data?.ai_insight && (
-        <div className="rounded-[20px] border border-violet-500/20 bg-violet-500/[0.06] p-4">
-          <div className="flex items-center gap-2 mb-1.5">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 shrink-0 text-violet-300"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
-            <p className="text-[10px] font-bold tracking-widest text-violet-300 uppercase">AI Daily Insight</p>
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed">{data.ai_insight}</p>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Upcoming IPOs",      value: stats.upcoming, sub: "+3 this week",      color: "text-sky-400",     dot: "bg-sky-400" },
-          { label: "Ongoing IPOs",       value: stats.ongoing,  sub: "2 closing soon",    color: "text-amber-400",   dot: "bg-amber-400" },
-          { label: "Listed This Month",  value: stats.listed,   sub: `Avg. Gain ${stats.avg_listing_gain}%`, color: "text-emerald-400", dot: "bg-emerald-400" },
-        ].map(s => (
-          <div key={s.label} className="rounded-[18px] border border-white/10 bg-white/[0.02] p-4">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-white">{s.value}</span>
-              <span className={`h-2 w-2 rounded-full ${s.dot} animate-pulse`}/>
-            </div>
-            <p className="text-xs font-semibold text-white mt-0.5">{s.label}</p>
-            <p className={`text-[11px] mt-0.5 ${s.color}`}>{s.sub}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Filter + List + Detail */}
-      <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-4">
-          <p className="text-sm font-semibold text-white mb-3">IPO Overview</p>
-          <div className="flex gap-1 mb-3">
-            {(["all", "upcoming", "ongoing", "listed"] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={`rounded-[10px] px-3 py-1.5 text-[11px] font-medium capitalize transition ${filter === f ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]"}`}>
-                {f === "all" ? `All (${ipos.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${ipos.filter(i => i.status.toLowerCase() === f).length})`}
-              </button>
-            ))}
-          </div>
-          <div className="space-y-0.5 max-h-[480px] overflow-y-auto pr-1">
-            {displayed.length === 0 ? (
-              <p className="text-center text-sm text-slate-500 py-8">No IPOs in this category</p>
-            ) : displayed.map(ipo => (
-              <button key={ipo.id} onClick={() => setSelected(ipo)}
-                className={`w-full text-left px-3 py-3 rounded-[14px] transition hover:bg-white/[0.04] border ${selected?.id === ipo.id ? "border-violet-500/30 bg-violet-500/[0.05]" : "border-transparent"}`}>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white/[0.06] text-base font-bold text-white">
-                    {ipo.name.charAt(0)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-xs font-semibold text-white truncate">{ipo.name}</p>
-                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${ipo.type === "SME" ? "bg-amber-500/15 text-amber-300" : "bg-indigo-500/15 text-indigo-300"}`}>{ipo.type}</span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <p className="text-[10px] text-slate-500">{ipo.sector}</p>
-                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${STATUS_BADGE[ipo.status]}`}>{ipo.status}</span>
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-xs font-semibold text-white">₹{ipo.priceMin}–{ipo.priceMax}</p>
-                    <p className="text-[10px] text-emerald-400">₹{ipo.gmp} ({ipo.gmpPct > 0 ? "+" : ""}{ipo.gmpPct.toFixed(2)}%)</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Detail panel */}
-        <div className="min-h-[400px]">
-          {selected ? (
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-4 h-full">
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-violet-500/20 to-sky-500/20 text-xl font-bold text-white border border-white/10">
-                    {selected.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-white">{selected.name}</p>
-                    <p className="text-xs text-slate-400">{selected.sector}</p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE[selected.status]}`}>{selected.status} IPO</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-[10px] text-slate-500">Price Band</p>
-                  <p className="text-lg font-bold text-white">₹{selected.priceMin} – ₹{selected.priceMax}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                {[["Issue Size", selected.issueSize], ["Lot Size", `${selected.lotSize} Shares`], ["Listing On", selected.listingOn], ["GMP", `₹${selected.gmp} (${selected.gmpPct.toFixed(2)}%)`]].map(([k, v]) => (
-                  <div key={k as string} className="rounded-[12px] border border-white/8 bg-white/[0.02] p-2.5">
-                    <p className="text-[10px] text-slate-500">{k as string}</p>
-                    <p className="text-xs font-semibold text-white mt-0.5">{v as string}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-1.5 text-[11px] mb-4">
-                {[["Open", selected.openDate], ["Close", selected.closeDate], ["Allotment", selected.allotmentDate], ["Listing", selected.listingDate]].map(([k, v]) => (
-                  <div key={k as string} className="flex justify-between">
-                    <span className="text-slate-500">{k as string}</span>
-                    <span className="text-white font-medium">{v as string}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-[16px] border border-violet-500/15 bg-violet-500/[0.04] p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 shrink-0 text-violet-300"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
-                  <div className="flex items-center justify-between flex-1">
-                    <p className="text-[10px] font-bold tracking-widest text-violet-300 uppercase">AI IPO Rating</p>
-                    <span className={`text-[11px] font-bold ${RATING_COLOR[selected.aiRating] ?? "text-white"}`}>{selected.aiRating}</span>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed">{selected.aiSummary}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.02]">
-              <p className="text-sm text-slate-500">Select an IPO to view details</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom: Sentiment + Sector Trends */}
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-5">
-          <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-4">IPO Market Sentiment</p>
-          <div className="flex items-start gap-6">
-            <SentimentGauge score={sentiment.score} label={sentiment.label} />
-            <div className="space-y-2 flex-1">
-              {[["Retail Interest", sentiment.retail, "text-emerald-400"], ["Institutional Interest", sentiment.hni, "text-emerald-400"], ["Market Volatility", sentiment.volatility, "text-amber-400"], ["Overall Sentiment", sentiment.overall, "text-emerald-400"]].map(([label, val, color]) => (
-                <div key={label as string} className="flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400">{label as string}</span>
-                  <span className={`text-[11px] font-semibold ${color as string}`}>{val as string}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {sectorTrends.length > 0 && (
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-5">
-            <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">IPO Sector Trends</p>
-            <div className="flex items-center gap-4 mt-3">
-              <div className="h-36 w-36 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={sectorTrends} dataKey="count" cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2}>
-                      {sectorTrends.map((s, i) => <Cell key={i} fill={s.color} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ background: "#020617", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} formatter={(v: number) => [`${v} IPOs`]}/>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex-1 space-y-1.5">
-                {sectorTrends.map(s => (
-                  <div key={s.name} className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }}/>
-                      <span className="text-[11px] text-slate-400">{s.name}</span>
-                    </div>
-                    <span className="text-[11px] font-medium text-white">{s.count} ({s.pct}%)</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type Tab = "opportunities" | "ipo";
-
 export default function OpportunityRadarPage() {
-  const [tab, setTab] = useState<Tab>("opportunities");
-
-  const tabs: { id: Tab; label: string; icon: ReactNode }[] = [
-    { id: "opportunities", label: "Opportunities", icon: <Target className="h-3.5 w-3.5" /> },
-    { id: "ipo",           label: "IPO Hub",       icon: <ClipboardList className="h-3.5 w-3.5" /> },
-  ];
-
   return (
     <main className="min-w-0 pb-10">
       {/* Header */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400 mb-2">AI-Powered</p>
           <h1 className="text-2xl font-bold text-white">Opportunity Radar</h1>
-          <p className="mt-1 text-sm text-slate-400">AI-powered investment opportunities · IPO pipeline · Market themes</p>
+          <p className="mt-1 text-sm text-slate-400">Themes and market opportunities ranked by AI signal strength</p>
         </div>
-        <Link href="/ai-search?q=top investment opportunities India"
-          className="flex items-center gap-2 rounded-[14px] bg-gradient-to-r from-violet-600 to-sky-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition whitespace-nowrap">
-          <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg> AI Analysis
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/ipo-hub"
+            className="flex items-center gap-2 rounded-[14px] border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white transition whitespace-nowrap">
+            IPO Hub →
+          </Link>
+          <Link href="/ai-search?q=top investment opportunities India"
+            className="flex items-center gap-2 rounded-[14px] bg-gradient-to-r from-violet-600 to-sky-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition whitespace-nowrap">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg> AI Analysis
+          </Link>
+        </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="mb-6 flex gap-1 border-b border-white/8 pb-0">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition ${
-              tab === t.id
-                ? "border-sky-500 text-white"
-                : "border-transparent text-slate-500 hover:text-slate-300"
-            }`}
-          >
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "opportunities" && <OpportunitiesTab />}
-      {tab === "ipo"           && <IPOTab />}
+      <OpportunitiesTab />
     </main>
   );
 }

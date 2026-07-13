@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 
 import { SiteHeader }        from "@/components/SiteHeader";
-import { Sidebar }            from "@/components/Sidebar";
 import { Footer }             from "@/components/Footer";
 import { NavigationProgress } from "@/components/NavigationProgress";
 import { NavLoadingProvider } from "@/components/NavLoadingProvider";
@@ -59,8 +58,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // suppressHydrationWarning: browser extensions (dark-mode tools, password
     // managers) often inject attributes on <html> between SSR and hydration,
     // causing a harmless but noisy hydration mismatch warning.
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className="min-h-screen bg-slate-950 text-slate-100 font-[family-name:var(--font-inter)]">
+    <html lang="en-IN" className={inter.variable} suppressHydrationWarning>
+      <body className="min-h-screen bg-[#020617] text-slate-100 font-[family-name:var(--font-inter)]">
         <script
           type="application/ld+json"
           // biome-ignore lint/security/noDangerouslySetInnerHtml: static JSON-LD
@@ -77,10 +76,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AlertProvider>
           <NavLoadingProvider>
             <SiteHeader />
-            <div className="mx-auto grid max-w-[1600px] gap-6 px-6 py-6 xl:grid-cols-[240px_1fr_260px]">
-              <Sidebar />
+            <main className="min-h-[calc(100vh-72px)]">
               {children}
-            </div>
+            </main>
             <BreakingNewsAlert />
           </NavLoadingProvider>
         </AlertProvider>

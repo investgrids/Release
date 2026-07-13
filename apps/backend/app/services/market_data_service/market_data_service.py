@@ -36,10 +36,15 @@ log = logging.getLogger(__name__)
 
 def _build_provider() -> MarketDataProvider:
     """
-    Select the best available provider.
+    Select the best available provider at startup.
+
     Decision order:
-      1. Fyers — if FYERS_CLIENT_ID and FYERS_ACCESS_TOKEN are set
+      1. Fyers — FYERS_CLIENT_ID + token from env var OR Redis cache
       2. YFinance — always available, no credentials needed
+
+    If TOTP credentials are also set (FYERS_LOGIN_ID / FYERS_PIN / FYERS_TOTP_KEY),
+    the async upgrade_to_fyers() is called from the app lifespan to auto-auth
+    and swap the provider without a restart.
     """
     try:
         from app.core.config import settings
@@ -49,24 +54,36 @@ def _build_provider() -> MarketDataProvider:
         secret_key   = getattr(settings, "fyers_secret_key",   "")
         redirect_uri = getattr(settings, "fyers_redirect_uri", "https://127.0.0.1:8000/api/data/auth/callback")
 
-        if client_id and access_token:
-            try:
-                from .providers.fyers import FyersProvider
-                provider = FyersProvider(
-                    client_id    = client_id,
-                    access_token = access_token,
-                    secret_key   = secret_key,
-                    redirect_uri = redirect_uri,
-                )
-                log.info("market_data.provider=Fyers")
-                return provider
-            except Exception as exc:
-                log.warning("market_data.fyers_init_failed error=%s", str(exc))
+        if client_id:
+            # If no token in env, try Redis (token stored there after TOTP auth / OAuth)
+            if not access_token:
+                try:
+                    from .providers.fyers import FyersAuthManager
+                    _mgr = FyersAuthManager(client_id, secret_key, redirect_uri)
+                    access_token = _mgr.get_token() or ""
+                    if access_token:
+                        log.info("market_data.fyers_token_from_redis")
+                except Exception:
+                    pass
+
+            if access_token:
+                try:
+                    from .providers.fyers import FyersProvider
+                    provider = FyersProvider(
+                        client_id    = client_id,
+                        access_token = access_token,
+                        secret_key   = secret_key,
+                        redirect_uri = redirect_uri,
+                    )
+                    log.info("market_data.provider=Fyers")
+                    return provider
+                except Exception as exc:
+                    log.warning("market_data.fyers_init_failed error=%s", str(exc))
     except Exception:
         pass
 
     from .providers.yfinance import YFinanceProvider
-    log.info("market_data.provider=YFinance")
+    log.info("market_data.provider=YFinance (Fyers credentials not set or token missing)")
     return YFinanceProvider()
 
 
@@ -211,3 +228,60 @@ class MarketDataService:
 
 # ── Singleton (imported by the rest of the application) ───────────────────────
 market_data_service = MarketDataService()
+
+
+# ── App-level Fyers initialisation / refresh ──────────────────────────────────
+
+async def upgrade_to_fyers() -> bool:
+    """
+    Attempt TOTP-based automated Fyers login and swap the active provider.
+
+    Called at startup (from app lifespan) and daily at 5:30 AM IST (from scheduler).
+    Returns True if the provider was successfully swapped to Fyers.
+
+    No-op (returns False silently) if TOTP credentials are not configured.
+    """
+    import asyncio
+    import concurrent.futures
+
+    try:
+        from app.core.config import settings
+        client_id    = getattr(settings, "fyers_client_id",    "")
+        secret_key   = getattr(settings, "fyers_secret_key",   "")
+        redirect_uri = getattr(settings, "fyers_redirect_uri", "")
+        login_id     = getattr(settings, "fyers_login_id",     "")
+        pin          = getattr(settings, "fyers_pin",          "")
+        totp_key     = getattr(settings, "fyers_totp_key",     "")
+
+        if not (client_id and secret_key and login_id and pin and totp_key):
+            log.debug("market_data.fyers_upgrade_skipped reason=missing_totp_credentials")
+            return False
+
+        from .providers.fyers import FyersAuthManager, FyersProvider
+
+        auth_mgr = FyersAuthManager(client_id, secret_key, redirect_uri)
+
+        # Run blocking HTTP calls in a thread so the event loop stays free
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            token = await loop.run_in_executor(
+                ex, auth_mgr.auto_authenticate, login_id, pin, totp_key
+            )
+
+        if not token:
+            log.error("market_data.fyers_upgrade_failed reason=no_token")
+            return False
+
+        new_provider = FyersProvider(
+            client_id    = client_id,
+            access_token = token,
+            secret_key   = secret_key,
+            redirect_uri = redirect_uri,
+        )
+        market_data_service.swap_provider(new_provider)
+        log.info("market_data.upgraded_to_fyers")
+        return True
+
+    except Exception as exc:
+        log.error("market_data.fyers_upgrade_error error=%s", str(exc))
+        return False

@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Flame, Landmark, Building2, Repeat2, Telescope, Zap, Link2, BarChart2, Plane, Factory } from "lucide-react";
+import { MarketContextStrip } from "@/components/MarketContextStrip";
+import { NextSteps } from "@/components/NextSteps";
 
 export const metadata: Metadata = {
   title: "Ripple Engine — Market Dependency Graph | MarketRipple",
@@ -13,12 +15,12 @@ export const dynamic = "force-dynamic";
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
-  geopolitical: { label: "Geopolitical", cls: "border-rose-500/30 bg-rose-500/10 text-rose-400" },
-  macro:        { label: "Macro",        cls: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
-  monetary:     { label: "Monetary",     cls: "border-sky-500/30 bg-sky-500/10 text-sky-400" },
-  fiscal:       { label: "Fiscal",       cls: "border-violet-500/30 bg-violet-500/10 text-violet-400" },
-  earnings:     { label: "Earnings",     cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" },
-  commodity:    { label: "Commodity",    cls: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
+  geopolitical: { label: "Global Event",       cls: "border-rose-500/30 bg-rose-500/10 text-rose-400" },
+  macro:        { label: "Economy",            cls: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
+  monetary:     { label: "Central Bank",       cls: "border-sky-500/30 bg-sky-500/10 text-sky-400" },
+  fiscal:       { label: "Government Budget",  cls: "border-violet-500/30 bg-violet-500/10 text-violet-400" },
+  earnings:     { label: "Company Earnings",   cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" },
+  commodity:    { label: "Raw Materials",      cls: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
 };
 
 function impactColor(score: number) {
@@ -58,6 +60,7 @@ export default async function RipplePage() {
 
   return (
     <div className="min-h-screen space-y-8 pb-16">
+      <MarketContextStrip />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-indigo-500/15 bg-[#080c18] p-8">
@@ -75,7 +78,7 @@ export default async function RipplePage() {
               <span className="text-[22px] font-semibold text-slate-400">Powered by Ripple Engine AI</span>
             </h1>
             <p className="text-[14px] text-slate-400 leading-7 max-w-xl">
-              Every market event creates ripple effects across the economy. Discover exactly how one event cascades through commodities, currencies, sectors, companies, and government policy — with AI-scored confidence at each step.
+              When one thing changes in the economy, it triggers a chain of effects. An interest rate cut makes loans cheaper, which helps real estate, which affects cement companies. This tool maps that entire chain — so you can see what to watch before the market reacts.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               {([
@@ -226,6 +229,46 @@ export default async function RipplePage() {
           ))}
         </div>
       </div>
+
+      {/* Intelligent guidance — derived from top ripple event */}
+      {(() => {
+        const top = displayEvents[0];
+        if (!top) return null;
+        const q    = (s: string) => encodeURIComponent(s);
+        const cats = (top.categories ?? []).slice(0, 2).join(" and ");
+        const shortTitle = top.title.length > 85 ? top.title.slice(0, 82) + "…" : top.title;
+        return (
+          <NextSteps config={{
+            takeaway: `${shortTitle} is creating ripple effects${cats ? ` across ${cats}` : ""} — map the full chain to find where the real opportunity lies.`,
+            primary: {
+              label: "Read the full event analysis",
+              why:   "Because understanding the origin of the ripple changes how you interpret downstream effects — start with the cause, not the symptoms.",
+              href:  `/events/${top.id}`,
+            },
+            groups: [
+              {
+                label: "Understand More",
+                actions: [
+                  {
+                    label: "Ask AI: What are the second-order effects?",
+                    why:   "Because ripple effects compound — the real opportunity is often in companies two steps removed from the headline event.",
+                    href:  `/ai-search?q=${q(`What are the second-order market effects of "${top.title}"? Which companies benefit indirectly?`)}`,
+                  },
+                ],
+              },
+              ...(cats ? [{
+                label: "Monitor",
+                actions: [{
+                  label: `Track ${cats} sector news`,
+                  why:   `Because monitoring sector news flow tells you when the ripple has peaked and when the opportunity window is closing.`,
+                  href:  `/events?category=${top.event_type ?? ""}`,
+                }],
+              }] : []),
+            ],
+            path: ([top.event_type ?? "Event", ...(top.categories ?? []).slice(0, 2), "Investment Chain"] as string[]).filter(Boolean),
+          }} />
+        );
+      })()}
 
     </div>
   );

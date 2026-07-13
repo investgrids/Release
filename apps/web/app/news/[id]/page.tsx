@@ -12,6 +12,8 @@ import {
   Building2, Monitor, Repeat2, Settings, Radio, Flag, Pin,
   ClipboardList, Globe2, Target, Newspaper,
 } from "lucide-react";
+import { useIntelligence } from "@/hooks/useIntelligence";
+import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const PALETTE = ["#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#06b6d4", "#f43f5e"];
@@ -874,6 +876,8 @@ export default function NewsDetailPage() {
   const [loading, setLoading]  = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  const { data: intelligence } = useIntelligence("news", id || undefined);
+
   // Fetch article + news + events in parallel
   useEffect(() => {
     if (!id) return;
@@ -1027,6 +1031,11 @@ export default function NewsDetailPage() {
           )}
         </div>
       </div>
+
+      {/* ── Intelligence Block ────────────────────────────────────────────── */}
+      {intelligence && (
+        <IntelligenceBlock data={intelligence} label="News Intelligence" compact={true} />
+      )}
 
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
       <div className="flex gap-1 border-b border-white/[0.06] pb-px">

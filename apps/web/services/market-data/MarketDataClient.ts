@@ -25,7 +25,7 @@ import type {
 } from "./types";
 import { clientCache, TTL_QUOTE, TTL_INDICES, TTL_HISTORY, TTL_COMPANY, TTL_MOVERS, TTL_SECTORS, TTL_STATUS } from "./cache/memory";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const DATA_BASE = `${API_BASE}/api/data`;
 
 // ── Fetch helper ────────────────────────────────────────────────────────────

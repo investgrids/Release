@@ -6,13 +6,18 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
-import { Target, Building2, BarChart2, Sparkles, MailX } from "lucide-react";
+import { Target, Building2, BarChart2, Sparkles, MailX, ArrowRight } from "lucide-react";
+import { MarketContextStrip } from "@/components/MarketContextStrip";
+import { NextSteps } from "@/components/NextSteps";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { InvestmentThesisCard, OpportunityLifecycleCard, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, MultiHorizonOutlookCard } from "@/components/intelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent } from "@/components/RelatedContent";
+import { HistoricalMemory } from "@/components/HistoricalMemory";
+import { useIntelligence } from "@/hooks/useIntelligence";
+import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTip,
   ResponsiveContainer, PieChart, Pie, Cell,
@@ -179,6 +184,7 @@ function Card({ title, action, children, className = "" }: {
 
 // ── Tab: Overview ─────────────────────────────────────────────────────────────
 function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => void }) {
+  const [deepOpen, setDeepOpen] = useState(false);
   const isPending = data.event.enrichment_status !== "done";
   const evidenceItems = (data.relatedNews ?? []).slice(0, 6).map(n => ({
     type: "news" as const,
@@ -199,6 +205,7 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
         </div>
       )}
 
+      {/* Level 1: What happened */}
       {data.summary.text && (
         <Card>
           <div className="flex items-start gap-3">
@@ -208,11 +215,11 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-400">AI Summary</p>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-400">What Happened</p>
               <p className="text-[13px] leading-5 text-slate-300">{data.summary.text}</p>
               {data.summary.key_bullets?.length > 0 && (
                 <ul className="mt-3 space-y-1">
-                  {data.summary.key_bullets.map((b, i) => (
+                  {data.summary.key_bullets.slice(0, 3).map((b, i) => (
                     <li key={i} className="flex items-start gap-2 text-[12px] text-slate-400">
                       <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400"/>
                       {b}
@@ -220,107 +227,14 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
                   ))}
                 </ul>
               )}
-              <button onClick={() => goTab("Market")}
-                className="mt-3 flex items-center gap-1 text-[12px] font-medium text-violet-400 hover:text-violet-300 transition">
-                View Market Impact
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-                </svg>
-              </button>
             </div>
           </div>
         </Card>
       )}
 
-      {data.confidence > 0 && (
-        <AITransparencyPanel
-          confidence={data.confidence}
-          reasoning={data.summary.why_it_matters || data.summary.text || "AI-generated event analysis based on available market data and historical precedents."}
-          summary={data.summary.text}
-          evidence={evidenceItems}
-          companies={data.companies.slice(0, 6).map(c => ({ name: c.name || c.symbol, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
-          limitations={data.summary.risk_factors?.length ? data.summary.risk_factors.slice(0, 3) : ["Analysis based on available public data.", "Market conditions may change rapidly.", "Historical patterns may not repeat."]}
-          whyReason={`This event is shown because it has an impact score of ${Math.round(data.impactScore)}/100 and affects ${data.affectedSectors.length} sectors.`}
-          whyChain={data.affectedSectors.slice(0, 4).map(s => s.sector)}
-          compact
-          title={data.event.title}
-        />
-      )}
-      <AIDisclaimer />
-
-      <InvestmentThesisCard
-        entityType="event"
-        entityId={data.event.id}
-        entityTitle={data.event.title}
-        entityDescription={data.event.description}
-        entitySector={data.affectedSectors?.[0]?.sector}
-        thesis={data.summary.text}
-        whyItMatters={data.summary.why_it_matters}
-        businessImpact={data.summary.immediate_impact}
-        keyDrivers={(data.summary.opportunities ?? []).slice(0, 4)}
-        riskFactors={(data.summary.risk_factors ?? []).slice(0, 3)}
-        confidence={data.confidence}
-        timeHorizon="Near-term (1–3 months)"
-      />
-
-      <OpportunityLifecycleCard
-        stage={(() => {
-          const score = data.impactScore ?? 50;
-          const status = data.event.enrichment_status;
-          if (score > 80) return "strong-momentum" as const;
-          if (score > 65) return "developing" as const;
-          if (status !== "done") return "emerging" as const;
-          return "emerging" as const;
-        })()}
-        description={data.summary.text?.slice(0, 180) || "Event impact is being analysed."}
-        whyAssigned={data.summary.why_it_matters || `This event has an impact score of ${Math.round(data.impactScore)}/100 across ${data.affectedSectors?.length ?? 0} sectors.`}
-        historicalComparison={`Events of type "${data.event.event_type}" with similar impact scores have historically caused 2–8% sector-level price moves within 5 trading sessions.`}
-        confidence={data.confidence}
-        expectedEvolution={data.summary.long_term_impact || "Watch for sector re-rating and earnings guidance revisions in the 30–90 day window post-event."}
-        risks={(data.summary.risk_factors ?? []).slice(0, 3)}
-      />
-
-      <ScenarioAnalysis
-        entityType="event"
-        entityId={String(data.event.id)}
-        entityTitle={data.event.title}
-        entityDescription={data.event.description}
-        entitySector={data.affectedSectors?.[0]?.sector}
-      />
-      <MonitoringChecklist
-        entityType="event"
-        entityId={String(data.event.id)}
-        entityTitle={data.event.title}
-        entityDescription={data.event.description}
-        entitySector={data.affectedSectors?.[0]?.sector}
-      />
-      <PatternIntelligenceCard
-        entityType="event"
-        entityId={String(data.event.id)}
-        entityTitle={data.event.title}
-        entityDescription={data.event.description}
-        entitySector={data.affectedSectors?.[0]?.sector}
-      />
-
-      <RelatedContent
-        entityType="event"
-        entityId={data.event.id}
-        title={data.event.title}
-        sector={data.affectedSectors?.[0]?.sector}
-      />
-
-      <MultiHorizonOutlookCard
-        fetchContext={{
-          type:       "event",
-          title:      data.event.title,
-          context:    data.summary.text,
-          sectors:    data.affectedSectors.slice(0, 4).map(s => s.sector),
-          context_id: `event:${data.event.id}`,
-        }}
-      />
-
+      {/* Level 1: Who's affected — most actionable */}
       <div className="grid grid-cols-3 gap-3">
-        <Card title="Beneficiary Companies"
+        <Card title="Beneficiaries"
           action={data.beneficiaries.length > 3
             ? <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-300">View All →</button>
             : undefined}>
@@ -337,7 +251,7 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
           )}
         </Card>
 
-        <Card title="Negatively Affected"
+        <Card title="At Risk"
           action={data.losers.length > 3
             ? <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-300">View All →</button>
             : undefined}>
@@ -373,6 +287,7 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
         </Card>
       </div>
 
+      {/* Level 2: Context — timeline + historical comparison */}
       <div className="grid grid-cols-2 gap-3">
         <Card title="Timeline"
           action={data.timeline.length > 3
@@ -426,6 +341,109 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
           )}
         </Card>
       </div>
+
+      {/* Level 3: Deep Research — collapsed by default */}
+      <div className="overflow-hidden rounded-[20px] border border-white/[0.06] bg-white/[0.01]">
+        <button
+          onClick={() => setDeepOpen(o => !o)}
+          className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03]"
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-slate-300">Deep Research</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">Thesis · Scenarios · Patterns · Monitoring · Multi-horizon outlook</p>
+          </div>
+          <svg className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${deepOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+
+        {deepOpen && (
+          <div className="space-y-4 border-t border-white/[0.06] p-4">
+            {data.confidence > 0 && (
+              <AITransparencyPanel
+                confidence={data.confidence}
+                reasoning={data.summary.why_it_matters || data.summary.text || "AI-generated event analysis based on available market data and historical precedents."}
+                summary={data.summary.text}
+                evidence={evidenceItems}
+                companies={data.companies.slice(0, 6).map(c => ({ name: c.name || c.symbol, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
+                limitations={data.summary.risk_factors?.length ? data.summary.risk_factors.slice(0, 3) : ["Analysis based on available public data.", "Market conditions may change rapidly.", "Historical patterns may not repeat."]}
+                whyReason={`This event is shown because it has an impact score of ${Math.round(data.impactScore)}/100 and affects ${data.affectedSectors.length} sectors.`}
+                whyChain={data.affectedSectors.slice(0, 4).map(s => s.sector)}
+                compact
+                title={data.event.title}
+              />
+            )}
+            <InvestmentThesisCard
+              entityType="event"
+              entityId={data.event.id}
+              entityTitle={data.event.title}
+              entityDescription={data.event.description}
+              entitySector={data.affectedSectors?.[0]?.sector}
+              thesis={data.summary.text}
+              whyItMatters={data.summary.why_it_matters}
+              businessImpact={data.summary.immediate_impact}
+              keyDrivers={(data.summary.opportunities ?? []).slice(0, 4)}
+              riskFactors={(data.summary.risk_factors ?? []).slice(0, 3)}
+              confidence={data.confidence}
+              timeHorizon="Near-term (1–3 months)"
+            />
+            <OpportunityLifecycleCard
+              stage={(() => {
+                const score = data.impactScore ?? 50;
+                const status = data.event.enrichment_status;
+                if (score > 80) return "strong-momentum" as const;
+                if (score > 65) return "developing" as const;
+                if (status !== "done") return "emerging" as const;
+                return "emerging" as const;
+              })()}
+              description={data.summary.text?.slice(0, 180) || "Event impact is being analysed."}
+              whyAssigned={data.summary.why_it_matters || `This event has an impact score of ${Math.round(data.impactScore)}/100 across ${data.affectedSectors?.length ?? 0} sectors.`}
+              historicalComparison={`Events of type "${data.event.event_type}" with similar impact scores have historically caused 2–8% sector-level price moves within 5 trading sessions.`}
+              confidence={data.confidence}
+              expectedEvolution={data.summary.long_term_impact || "Watch for sector re-rating and earnings guidance revisions in the 30–90 day window post-event."}
+              risks={(data.summary.risk_factors ?? []).slice(0, 3)}
+            />
+            <ScenarioAnalysis
+              entityType="event"
+              entityId={String(data.event.id)}
+              entityTitle={data.event.title}
+              entityDescription={data.event.description}
+              entitySector={data.affectedSectors?.[0]?.sector}
+            />
+            <MonitoringChecklist
+              entityType="event"
+              entityId={String(data.event.id)}
+              entityTitle={data.event.title}
+              entityDescription={data.event.description}
+              entitySector={data.affectedSectors?.[0]?.sector}
+            />
+            <PatternIntelligenceCard
+              entityType="event"
+              entityId={String(data.event.id)}
+              entityTitle={data.event.title}
+              entityDescription={data.event.description}
+              entitySector={data.affectedSectors?.[0]?.sector}
+            />
+            <MultiHorizonOutlookCard
+              fetchContext={{
+                type:       "event",
+                title:      data.event.title,
+                context:    data.summary.text,
+                sectors:    data.affectedSectors.slice(0, 4).map(s => s.sector),
+                context_id: `event:${data.event.id}`,
+              }}
+            />
+            <RelatedContent
+              entityType="event"
+              entityId={data.event.id}
+              title={data.event.title}
+              sector={data.affectedSectors?.[0]?.sector}
+            />
+          </div>
+        )}
+      </div>
+
+      <AIDisclaimer />
     </div>
   );
 }
@@ -525,32 +543,17 @@ function TimelineTab({ data }: { data: EventDetail }) {
 
 // ── Tab: Historical ───────────────────────────────────────────────────────────
 function HistoricalTab({ data }: { data: EventDetail }) {
-  if (!data.historicalEvents.length) return <Empty msg="No similar historical events found."/>;
+  const sectors   = data.affectedSectors.slice(0, 4).map(s => s.sector);
+  const sentiment = data.marketReaction?.sentiment ?? undefined;
+  const category  = data.event.event_type ?? undefined;
+
   return (
-    <div className="space-y-3">
-      {data.historicalEvents.map((he, i) => (
-        <Link key={i} href={`/events/${he.id}`}
-          className="flex items-start gap-4 rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-4 hover:border-sky-500/20 hover:bg-sky-500/[0.03] transition block">
-          <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-white/[0.05]">
-            <span className="text-[18px] font-black text-slate-200 leading-none">{Math.round(he.impact_score)}</span>
-            <span className="text-[8px] text-slate-500 mt-0.5">Impact</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-semibold text-white line-clamp-2">{he.title}</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">{fmt(he.event_date)}</p>
-            {he.reason && <p className="mt-1.5 text-[12px] text-slate-400 line-clamp-2">{he.reason}</p>}
-            {he.similarity_score > 0 && (
-              <div className="mt-2 flex items-center gap-2">
-                <div className="h-1 w-24 rounded bg-white/[0.06]">
-                  <div className="h-1 rounded bg-violet-500" style={{ width: `${Math.round(he.similarity_score * 100)}%` }}/>
-                </div>
-                <span className="text-[10px] text-slate-500">{Math.round(he.similarity_score * 100)}% similar</span>
-              </div>
-            )}
-          </div>
-        </Link>
-      ))}
-    </div>
+    <HistoricalMemory
+      category={category}
+      sectors={sectors}
+      sentiment={sentiment}
+      limit={10}
+    />
   );
 }
 
@@ -833,7 +836,155 @@ function RightPanel({
         </Card>
       )}
 
+      {/* Historical Memory sidebar preview */}
+      <HistoricalMemory
+        category={data.event.event_type ?? undefined}
+        sectors={data.affectedSectors.slice(0, 4).map(s => s.sector)}
+        sentiment={data.marketReaction?.sentiment ?? undefined}
+        limit={3}
+      />
+
     </div>
+  );
+}
+
+// ── VerdictCard ───────────────────────────────────────────────────────────────
+function VerdictCard({ data }: { data: EventDetail }) {
+  const score = data.impactScore;
+  const topBen = data.beneficiaries[0];
+  const topRisk = data.losers[0];
+
+  const verdict =
+    score >= 85 ? "This event is actively moving markets. Take notice." :
+    score >= 70 ? "Notable market implications — relevant if you hold related stocks." :
+    score >= 50 ? "Moderate impact. Monitor if you are exposed to the affected sectors." :
+    "Low broad impact — unlikely to affect diversified portfolios significantly.";
+
+  const whyLine = data.summary.why_it_matters
+    ? data.summary.why_it_matters.split(/[.!?]/)[0]?.trim()
+    : data.summary.immediate_impact
+      ? data.summary.immediate_impact.split(/[.!?]/)[0]?.trim()
+      : null;
+
+  const sc = scoreColor(score);
+
+  return (
+    <div className="mb-5 rounded-[20px] border border-sky-500/[0.15] bg-gradient-to-r from-[#06101f] to-[#080d1c] p-5">
+      <div className="flex items-start gap-5">
+        {/* Verdict */}
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-400">AI Verdict</p>
+          </div>
+          <p className="text-[15px] font-semibold leading-snug text-white">{verdict}</p>
+          {whyLine && (
+            <p className="mt-1.5 text-[13px] leading-5 text-slate-400">{whyLine}.</p>
+          )}
+        </div>
+
+        {/* Top pick + risk */}
+        <div className="flex shrink-0 gap-6 text-right">
+          {topBen && (
+            <div>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-500">Top Pick</p>
+              <Link href={`/companies/${topBen.symbol}`}
+                className="block text-[14px] font-bold text-emerald-300 transition hover:text-emerald-200">
+                {topBen.name || topBen.symbol}
+              </Link>
+              <p className="text-[10px] text-slate-500">↑ Benefits most</p>
+            </div>
+          )}
+          {topRisk && (
+            <div>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-rose-500">Caution</p>
+              <Link href={`/companies/${topRisk.symbol}`}
+                className="block text-[14px] font-bold text-rose-300 transition hover:text-rose-200">
+                {topRisk.name || topRisk.symbol}
+              </Link>
+              <p className="text-[10px] text-slate-500">↓ At risk</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Action row */}
+      <div className="mt-4 flex items-center gap-3 border-t border-white/[0.05] pt-3">
+        <Link
+          href={`/ai-search?q=${encodeURIComponent(`What should I do about: ${data.event.title}`)}`}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-[13px] font-bold text-white transition hover:bg-violet-500"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Ask AI what this means for me
+        </Link>
+        {topBen && (
+          <Link href={`/companies/${topBen.symbol}`}
+            className="text-[12px] font-medium text-emerald-400 transition hover:text-emerald-300">
+            Research {topBen.name || topBen.symbol} →
+          </Link>
+        )}
+        <Link href={`/ripple/${data.event.id}`}
+          className="ml-auto text-[12px] font-medium text-slate-500 transition hover:text-slate-300">
+          See ripple chain →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── WhatNextSection ───────────────────────────────────────────────────────────
+function WhatNextSection({ data }: { data: EventDetail }) {
+  const q         = (s: string) => encodeURIComponent(s);
+  const topBen    = data.beneficiaries[0];
+  const topRisk   = data.losers[0];
+  const topSec    = data.affectedSectors[0]?.sector;
+  const title     = data.event.title;
+  const benCount  = data.beneficiaries.length;
+  const riskCount = data.losers.length;
+
+  return (
+    <NextSteps config={{
+      takeaway: `${benCount} ${benCount === 1 ? "company stands" : "companies stand"} to benefit and ${riskCount} face headwinds — the market may not have fully priced this in yet.`,
+      primary: topBen ? {
+        label: `Research ${topBen.name || topBen.symbol}`,
+        why:   `Because they're the highest-conviction beneficiary — this event directly improves their order book and revenue outlook.`,
+        href:  `/companies/${topBen.symbol}`,
+      } : {
+        label: `Ask AI: Who benefits most from this event?`,
+        why:   `Because identifying specific winners is the first step toward an actionable investment thesis.`,
+        href:  `/ai-search?q=${q(`Which companies benefit most from "${title}"?`)}`,
+      },
+      groups: [
+        {
+          label: "Understand More",
+          actions: [
+            {
+              label: `Ask AI: How long will this impact last?`,
+              why:   `Because duration determines whether to buy now or wait for a better entry after the initial market reaction.`,
+              href:  `/ai-search?q=${q(`How long will the market impact of "${title}" last and what should investors do?`)}`,
+            },
+            topSec ? {
+              label: `Trace the ripple across ${topSec}`,
+              why:   `Because indirect effects in adjacent sectors often create the best risk-adjusted opportunities.`,
+              href:  `/ripple/${data.event.id}`,
+            } : {
+              label: "Trace the full ripple chain",
+              why:   "Because second-order effects compound — the real opportunity is often two steps removed from the headline.",
+              href:  `/ripple/${data.event.id}`,
+            },
+          ],
+        },
+        ...(topRisk ? [{
+          label: "Monitor",
+          actions: [{
+            label: `Watch ${topRisk.name || topRisk.symbol}`,
+            why:   `Because they face the most direct headwind — when the risk is fully priced in, that signals a potential entry.`,
+            href:  `/companies/${topRisk.symbol}`,
+          }],
+        }] : []),
+      ],
+      path: [data.event.event_type || "Event", topSec || "Sector", topBen?.name || topBen?.symbol || "Company", "Investment Thesis"].filter(Boolean) as string[],
+    }} />
   );
 }
 
@@ -869,6 +1020,8 @@ export default function EventExplorerPage() {
   const [activeTab,   setActiveTab]   = useState<Tab>("Overview");
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState("");
+
+  const { data: intelligence } = useIntelligence("event", id || undefined);
 
   useEffect(() => {
     if (!id) return;
@@ -937,6 +1090,7 @@ export default function EventExplorerPage() {
   return (
     <main className="min-w-0 pb-10">
       <TrackPageVisit type="event" id={ev.id} title={ev.title} subtitle={ev.event_type} href={`/events/${ev.id}`} />
+      <MarketContextStrip />
 
       {/* ── Breadcrumb + actions ───────────────────────────────────────── */}
       <div className="mb-4 flex items-center justify-between">
@@ -966,11 +1120,17 @@ export default function EventExplorerPage() {
         </div>
       </div>
 
-      {/* ── Smart CTAs ────────────────────────────────────────────────── */}
+      {/* ── Contextual quick links ────────────────────────────────────── */}
       <div className="mb-4 flex flex-wrap gap-2">
-        <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(ev.title.slice(0, 100))}`} />
-        <SmartCTA variant="see-companies" href="/companies" />
-        <SmartCTA variant="explore-opportunity" href="/radar" />
+        <Link href={`/insights/${id}`}
+          className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold text-violet-300 hover:bg-violet-500/20 transition">
+          ✦ Intelligence Report
+        </Link>
+        <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${ev.title}`)}`} />
+        {data.beneficiaries?.[0] && (
+          <SmartCTA variant="see-companies" href={`/companies/${data.beneficiaries[0].symbol}`} context={data.beneficiaries[0].name || data.beneficiaries[0].symbol} />
+        )}
+        <SmartCTA variant="view-ripple" href={`/ripple/${ev.id}`} />
       </div>
 
       {/* ── Page title + event header ──────────────────────────────────── */}
@@ -1024,6 +1184,16 @@ export default function EventExplorerPage() {
         <KpiCard label="Confidence Level"   value={data.confidence > 0 ? `${Math.round(data.confidence)}%` : "—"} sub={data.confidence >= 80 ? "High Confidence" : data.confidence >= 60 ? "Moderate" : "Low Confidence"} icon={<Sparkles className="h-4 w-4" />} color="text-violet-400" border="border-violet-500/15"/>
       </div>
 
+      {/* ── Verdict card ─────────────────────────────────────────────────── */}
+      {data.impactScore > 0 && <VerdictCard data={data} />}
+
+      {/* ── AI Intelligence Block — unified intelligence layer ────────────── */}
+      {intelligence && (
+        <div className="mb-5">
+          <IntelligenceBlock data={intelligence} label="Event Intelligence" compact={true} />
+        </div>
+      )}
+
       {/* ── Tab bar ───────────────────────────────────────────────────────── */}
       <div className="mb-5 flex items-center border-b border-white/[0.06]" role="tablist">
         {TABS.map(tab => (
@@ -1058,6 +1228,8 @@ export default function EventExplorerPage() {
           {activeTab === "Related News"  && <NewsTab       data={data}/>}
           {activeTab === "Market"        && <MarketTab     data={data}/>}
           {activeTab === "Graph"         && <GraphTab      data={data}/>}
+
+          <WhatNextSection data={data} />
         </div>
 
         <aside className="sticky top-[84px]">

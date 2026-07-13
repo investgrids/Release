@@ -18,3 +18,21 @@ dist/
 build/
 .DS_Store
 *.egg-info/
+
+.vercel
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Log files
+*.log
+*.log.*
+server_new.err
+server_new.log
+uvicorn_*.log
+uvicorn_*.err
+fyersApi.log
+fyersRequests.log
+
+# Temp projects
+omniroute-temp/

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Download, BarChart2, Star } from "lucide-react";
 import { CompanySearchInput } from "./_components/SearchInput";
 import { FilterSidebar } from "./_components/FilterSidebar";
+import { filterAndRank, ALL_SECTORS, COMPANIES } from "@/lib/companies-data";
 
 export const metadata: Metadata = {
   title: "Company Universe — NSE Listed Companies | MarketRipple",
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const BACKEND = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const PAGE_SIZE = 20;
 
 // ── Sector → colored dot ──────────────────────────────────────────────────────
 const SECTOR_DOT: Record<string, string> = {
@@ -107,38 +109,62 @@ export default async function CompaniesPage({
   const sort   = typeof params.sort   === "string" ? params.sort   : "name";
   const page   = typeof params.page   === "string" ? Math.max(1, parseInt(params.page, 10) || 1) : 1;
 
-  const [companiesRes, sectorsRes] = await Promise.all([
-    fetch(
-      `${API}/api/companies/?q=${encodeURIComponent(q)}&sector=${encodeURIComponent(sector)}&cap=${cap}&sort=${sort}&page=${page}&page_size=20`,
-      { cache: "no-store" },
-    ),
-    fetch(`${API}/api/companies/sectors`, { cache: "no-store" }),
-  ]);
+  // ── In-memory search & filter (no HTTP) ───────────────────────────────────
+  const filtered    = filterAndRank(q, sector, cap, sort);
+  const total       = filtered.length;
+  const totalPages  = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const safePage    = Math.min(page, totalPages);
+  const pageItems   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const cData = companiesRes.ok ? await companiesRes.json() : { companies: [], total: 0, total_pages: 1, page: 1 };
-  const sectors: string[] = sectorsRes.ok ? ((await sectorsRes.json()).sectors ?? []) : [];
+  // ── Fetch live prices from Railway for this page only ────────────────────
+  type Quote = {
+    symbol: string;
+    price_str: string;
+    change_percent: number;
+    positive: boolean;
+  };
 
-  const companies: any[]  = cData.companies   ?? [];
-  const total: number     = cData.total       ?? 0;
-  const totalPages: number = cData.total_pages ?? 1;
+  let priceMap: Record<string, Quote> = {};
+  if (pageItems.length > 0) {
+    try {
+      const symbols = pageItems.map(c => c.symbol).join(",");
+      const res = await fetch(
+        `${BACKEND}/api/data/quotes?symbols=${encodeURIComponent(symbols)}`,
+        { cache: "no-store", signal: AbortSignal.timeout(8000) },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const quotes: Quote[] = data.quotes ?? [];
+        priceMap = Object.fromEntries(quotes.map(q => [q.symbol, q]));
+      }
+    } catch {
+      // Price fetch failed — show placeholders; data still loads
+    }
+  }
 
-  // Pagination base (without page param)
+  // ── Combine static data + live prices ────────────────────────────────────
+  const companies = pageItems.map(co => ({
+    ...co,
+    price:    priceMap[co.symbol]?.price_str     ?? null,
+    pct:      priceMap[co.symbol]?.change_percent ?? null,
+    positive: priceMap[co.symbol]?.positive       ?? null,
+  }));
+
+  // ── Pagination ────────────────────────────────────────────────────────────
   const baseParams = new URLSearchParams();
-  if (q)                    baseParams.set("q", q);
-  if (sector)               baseParams.set("sector", sector);
-  if (cap)                  baseParams.set("cap", cap);
+  if (q)                       baseParams.set("q", q);
+  if (sector)                  baseParams.set("sector", sector);
+  if (cap)                     baseParams.set("cap", cap);
   if (sort && sort !== "name") baseParams.set("sort", sort);
 
-  const from = total > 0 ? (page - 1) * 20 + 1 : 0;
-  const to   = Math.min(page * 20, total);
-  const pageList = buildPageList(page, totalPages);
+  const from     = total > 0 ? (safePage - 1) * PAGE_SIZE + 1 : 0;
+  const to       = Math.min(safePage * PAGE_SIZE, total);
+  const pageList = buildPageList(safePage, totalPages);
 
-  // ── Column grid definition ──
-  // Company(3fr) Ticker(1fr) Sector(1.5fr) MarketCap(1.2fr) Price(1.2fr) Chg(1fr) Chart(80px) Star(44px)
   const colGrid = "grid-cols-[3fr_1fr_1.5fr_1.2fr_1.2fr_1fr_80px_44px]";
 
   return (
-    <div className="min-h-screen space-y-5 pb-16">
+    <div className="min-h-screen space-y-5 pb-16 xl:col-span-2">
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -164,11 +190,11 @@ export default async function CompaniesPage({
       {/* ── Stats strip ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {[
-          { label: "Total Companies",       value: total > 0 ? total.toLocaleString() : "260+",           sub: "NSE Listed" },
-          { label: "Market Cap Coverage",   value: "98.7%",                                                sub: "of Indian Equities" },
-          { label: "Total Market Cap",      value: "₹ 409 Lakh Cr",                                       sub: "Live Coverage" },
-          { label: "Sectors Covered",       value: sectors.length > 0 ? String(sectors.length) : "17",    sub: "Across All Industries" },
-          { label: "Last Updated",          value: "Live",                                                 sub: "Real-time Prices" },
+          { label: "Total Companies",     value: COMPANIES.length.toLocaleString(), sub: "NSE Listed" },
+          { label: "Market Cap Coverage", value: "98.7%",                           sub: "of Indian Equities" },
+          { label: "Total Market Cap",    value: "₹ 409 Lakh Cr",                   sub: "Live Coverage" },
+          { label: "Sectors Covered",     value: String(ALL_SECTORS.length),        sub: "Across All Industries" },
+          { label: "Last Updated",        value: "Live",                            sub: "Real-time Prices" },
         ].map(s => (
           <div key={s.label} className="rounded-xl border border-white/[0.06] bg-[#0a0d16] p-4">
             <p className="mb-1 text-[11px] text-slate-500">{s.label}</p>
@@ -183,7 +209,7 @@ export default async function CompaniesPage({
 
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
         <FilterSidebar
-          sectors={sectors}
+          sectors={ALL_SECTORS}
           initialSector={sector}
           initialCap={cap}
           initialSort={sort}
@@ -229,10 +255,10 @@ export default async function CompaniesPage({
               </div>
             ) : (
               <div>
-                {companies.map((co: any, i: number) => {
-                  const pct      = co.pct as number | null | undefined;
-                  const positive = co.positive as boolean | null | undefined;
-                  const pctStr   = pct != null
+                {companies.map((co, i) => {
+                  const pct       = co.pct as number | null;
+                  const positive  = co.positive as boolean | null;
+                  const pctStr    = pct != null
                     ? `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`
                     : "—";
                   const dotColor  = SECTOR_DOT[co.sector] ?? "bg-slate-400";
@@ -298,8 +324,8 @@ export default async function CompaniesPage({
                       </div>
 
                       {/* Star */}
-                      <div className="flex justify-center" onClick={e => e.preventDefault()}>
-                        <Star className="h-4 w-4 cursor-pointer text-slate-600 transition hover:text-amber-400" />
+                      <div className="flex justify-center">
+                        <Star className="h-4 w-4 text-slate-600" />
                       </div>
                     </Link>
                   );
@@ -319,9 +345,9 @@ export default async function CompaniesPage({
 
               {totalPages > 1 && (
                 <div className="flex items-center gap-1">
-                  {page > 1 && (
+                  {safePage > 1 && (
                     <Link
-                      href={pageHref(baseParams, page - 1)}
+                      href={pageHref(baseParams, safePage - 1)}
                       className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-[#0a0d16] text-[13px] text-slate-500 transition hover:border-indigo-500/30 hover:text-white"
                     >
                       ‹
@@ -337,7 +363,7 @@ export default async function CompaniesPage({
                         key={p}
                         href={pageHref(baseParams, p as number)}
                         className={`flex h-7 w-7 items-center justify-center rounded-lg text-[12px] transition ${
-                          p === page
+                          p === safePage
                             ? "bg-indigo-600 font-bold text-white"
                             : "border border-white/[0.07] bg-[#0a0d16] text-slate-400 hover:border-indigo-500/30 hover:text-white"
                         }`}
@@ -346,9 +372,9 @@ export default async function CompaniesPage({
                       </Link>
                     ),
                   )}
-                  {page < totalPages && (
+                  {safePage < totalPages && (
                     <Link
-                      href={pageHref(baseParams, page + 1)}
+                      href={pageHref(baseParams, safePage + 1)}
                       className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-[#0a0d16] text-[13px] text-slate-500 transition hover:border-indigo-500/30 hover:text-white"
                     >
                       ›

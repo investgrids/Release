@@ -58,21 +58,46 @@ async def lifespan(app: FastAPI):
     from app.scheduler import start_scheduler, stop_scheduler
     scheduler = await start_scheduler()
 
-    # ── 4. Warm dashboard cache (async, non-blocking) ─────────────────────────
+    # ── 4. Fyers auto-auth (TOTP) — upgrades provider before cache warmup ────
+    asyncio.create_task(_try_fyers_upgrade(), name="fyers-auto-auth")
+
+    # ── 5. Intelligence workers (TriageWorker + StoryEngine) ─────────────────
+    from app.services.intelligence.triage_worker import get_triage_worker
+    from app.services.intelligence.story_engine import get_story_engine
+    _triage_worker = get_triage_worker()
+    _story_engine  = get_story_engine()
+    await _triage_worker.start()
+    await _story_engine.start()
+
+    # ── 6. Warm caches (async, non-blocking) ─────────────────────────────────
     asyncio.create_task(_warm_dashboard_cache(), name="cache-warmup")
     asyncio.create_task(_warm_market_cache(), name="market-cache-warmup")
     asyncio.create_task(_seed_opportunities_if_empty(), name="opportunity-seed")
+    asyncio.create_task(_warm_mie_state(), name="mie-warmup")
+    asyncio.create_task(_seed_historical_memory(), name="historical-memory-seed")
+    asyncio.create_task(_seed_intelligence_graph(), name="intelligence-graph-seed")
 
     log.info("app.started", env="production" if settings.json_logs else "development")
 
     yield  # Application is live
 
     # ── Shutdown ──────────────────────────────────────────────────────────────
+    await _triage_worker.stop()
+    await _story_engine.stop()
     await stop_scheduler()
     from app.core.redis import close_redis
     await close_redis()
     await engine.dispose()
     log.info("app.stopped")
+
+
+async def _try_fyers_upgrade() -> None:
+    """Try TOTP-based Fyers auth at startup. Swaps provider from YFinance → Fyers."""
+    try:
+        from app.services.market_data_service import upgrade_to_fyers
+        await upgrade_to_fyers()
+    except Exception as exc:
+        log.warning("startup.fyers_upgrade_error error=%s", str(exc))
 
 
 async def _seed_opportunities_if_empty() -> None:
@@ -194,6 +219,40 @@ async def _warm_market_cache() -> None:
         log.warning("market.cache.warmup.failed", error=str(exc))
 
 
+async def _seed_historical_memory() -> None:
+    """Seed Historical Market Memory with verified past events on first boot."""
+    await asyncio.sleep(6)
+    try:
+        from app.services.historical_memory_service import seed_historical_events
+        await seed_historical_events()
+    except Exception as exc:
+        log.warning("historical_memory.seed_error", error=str(exc))
+
+
+async def _seed_intelligence_graph() -> None:
+    """Seed the Market Intelligence Graph on first boot."""
+    await asyncio.sleep(10)
+    try:
+        from app.services.intelligence_graph_service import seed_intelligence_graph
+        await seed_intelligence_graph()
+    except Exception as exc:
+        log.warning("intelligence_graph.seed_error", error=str(exc))
+
+
+async def _warm_mie_state() -> None:
+    """Pre-compute and cache the MIE state on startup."""
+    await asyncio.sleep(8)  # wait for DB/Redis and workers to settle
+    try:
+        from app.services.intelligence.engine import refresh_mie_state
+        state = await refresh_mie_state()
+        log.info("mie.warmup_complete",
+                 session=state.get("market_session"),
+                 events=len(state.get("top_events", [])),
+                 themes=len(state.get("themes", [])))
+    except Exception as exc:
+        log.warning("mie.warmup_error", error=str(exc))
+
+
 async def _warm_dashboard_cache() -> None:
     """Warm the dashboard cache once at startup if it's cold."""
     from app.cache import get as cache_get, DASHBOARD_KEY
@@ -250,7 +309,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -282,7 +341,25 @@ app.include_router(scenario.router,     prefix="/api/scenario",     tags=["scena
 app.include_router(pattern.router,      prefix="/api/pattern",      tags=["pattern"])
 # Related Content — cross-entity related intelligence for RelatedContent component
 app.include_router(related.router,      prefix="/api/related",      tags=["related"])
-app.include_router(companies.router,    prefix="/api/companies",    tags=["companies"])
+app.include_router(companies.router,          prefix="/api/companies",            tags=["companies"])
+# SSE live broadcast
+app.include_router(stream.router,             prefix="/api/stream",               tags=["stream"])
+# Intelligence market endpoints (story, themes, feed, explain)
+app.include_router(intelligence_market.router, prefix="/api/intelligence/market",  tags=["intelligence-market"])
+# ── Market Intelligence Engine — single source of truth ──────────────────────
+app.include_router(mie.router, prefix="/api/mie", tags=["mie"])
+# ── Historical Market Memory — verified past events for AI grounding ──────────
+app.include_router(historical_memory.router, prefix="/api/historical", tags=["historical"])
+# ── Market Intelligence Graph — entity relationship engine ────────────────────
+app.include_router(graph.router, prefix="/api/graph", tags=["graph"])
+# ── Prediction Learning Engine — tracks predictions vs reality over time ───────
+app.include_router(predictions.router, prefix="/api/predictions", tags=["predictions"])
+# ── Universal Intelligence API — every page consumes from one intelligence layer
+app.include_router(intelligence_pages.router, prefix="/api/intelligence", tags=["intelligence"])
+# ── Company Announcements — BSE/NSE corporate filings feed ───────────────────
+app.include_router(announcements.router, prefix="/api/announcements", tags=["announcements"])
+# ── AIPE Publishing Engine — autonomous intelligence article publishing ────────
+app.include_router(publishing.router, prefix="/api/publishing", tags=["publishing"])
 
 
 @app.get("/health")
