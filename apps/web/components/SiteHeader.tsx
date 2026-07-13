@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useNavLoading } from "@/components/NavLoadingProvider";
 import { useAlerts } from "@/components/AlertProvider";
-import { Bell, Search, ChevronDown, Menu, X } from "lucide-react";
+import { Bell, Search, ChevronDown, Menu, X, Bookmark } from "lucide-react";
+import { WatchlistDrawer } from "@/components/WatchlistDrawer";
+import { useWatchlist } from "@/hooks/useWatchlist";
 
 // Primary nav — always visible on desktop
 const NAV_PRIMARY = [
@@ -46,9 +48,11 @@ export function SiteHeader() {
   const { alerts }  = useAlerts();
   const [session, setSession]   = useState(getISTSession);
   const [nifty, setNifty]       = useState<{ value: string; change: string; positive: boolean } | null>(null);
-  const [mobileOpen, setMobile] = useState(false);
-  const [searchOpen, setSearch] = useState(false);
-  const [moreOpen, setMore]     = useState(false);
+  const [mobileOpen, setMobile]       = useState(false);
+  const [searchOpen, setSearch]       = useState(false);
+  const [moreOpen, setMore]           = useState(false);
+  const [watchlistOpen, setWatchlist] = useState(false);
+  const { count: watchlistCount }     = useWatchlist();
   const [query, setQuery]       = useState("");
   const moreRef                 = useRef<HTMLDivElement>(null);
 
@@ -174,6 +178,26 @@ export function SiteHeader() {
               <Search className="h-4 w-4" />
             </button>
 
+            {/* Watchlist */}
+            <div className="relative">
+              <button
+                onClick={() => setWatchlist(o => !o)}
+                className={`flex h-9 w-9 items-center justify-center rounded-full border transition ${
+                  watchlistOpen
+                    ? "border-violet-500/40 bg-violet-500/15 text-violet-400"
+                    : "border-white/[0.08] bg-white/[0.03] text-slate-400 hover:bg-white/[0.07] hover:text-white"
+                }`}
+                title="Watchlist"
+              >
+                <Bookmark className="h-4 w-4" fill={watchlistCount > 0 ? "currentColor" : "none"} />
+              </button>
+              {watchlistCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-[8px] font-black text-white">
+                  {watchlistCount > 9 ? "9+" : watchlistCount}
+                </span>
+              )}
+            </div>
+
             {/* Notifications */}
             <div className="relative">
               <button className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-slate-400 transition hover:bg-white/[0.07] hover:text-white">
@@ -222,6 +246,9 @@ export function SiteHeader() {
           </div>
         )}
       </header>
+
+      {/* Watchlist drawer */}
+      <WatchlistDrawer open={watchlistOpen} onClose={() => setWatchlist(false)} />
 
       {/* Mobile nav drawer */}
       {mobileOpen && (

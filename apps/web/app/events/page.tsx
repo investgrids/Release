@@ -9,6 +9,7 @@ import {
   Landmark, ClipboardList, Building2, Zap, Globe, Globe2,
   BarChart2, Pin, HardHat, TrendingUp, Shield, Monitor,
 } from "lucide-react";
+import { WatchlistButton } from "@/components/WatchlistButton";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
 import type { ReactNode } from "react";
@@ -277,11 +278,10 @@ function EventCard({ ev }: { ev: Event }) {
         </div>
         {/* Actions */}
         <div className="mt-1 flex gap-1">
-          <button className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/8 bg-white/[0.03] text-slate-500 hover:text-white transition" title="Bookmark">
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-            </svg>
-          </button>
+          <WatchlistButton
+            item={{ id: ev.id, type: "event", label: ev.title, subtitle: ev.category }}
+            size="sm"
+          />
           <button className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/8 bg-white/[0.03] text-slate-500 hover:text-white transition" title="Share">
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>

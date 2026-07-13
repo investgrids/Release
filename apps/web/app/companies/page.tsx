@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, BarChart2, Star } from "lucide-react";
+import { Download, BarChart2 } from "lucide-react";
+import { WatchlistButton } from "@/components/WatchlistButton";
 import { CompanySearchInput } from "./_components/SearchInput";
 import { FilterSidebar } from "./_components/FilterSidebar";
 import { filterAndRank, ALL_SECTORS, COMPANIES } from "@/lib/companies-data";
@@ -323,9 +324,12 @@ export default async function CompaniesPage({
                         <Sparkline positive={positive ?? undefined} />
                       </div>
 
-                      {/* Star */}
+                      {/* Watchlist */}
                       <div className="flex justify-center">
-                        <Star className="h-4 w-4 text-slate-600" />
+                        <WatchlistButton
+                          item={{ id: co.symbol, type: "company", label: co.name, ticker: co.symbol }}
+                          size="sm"
+                        />
                       </div>
                     </Link>
                   );
