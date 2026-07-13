@@ -4,13 +4,18 @@ import { TrendingUp, AlertTriangle, Newspaper, Calendar, BarChart2, ArrowRight, 
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_URL ?? "http://localhost:8000";
 
-export const revalidate = 900; // Revalidate every 15 minutes
+export const dynamic   = "force-dynamic";
+export const revalidate = 0;
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
+function timed(ms: number): AbortSignal {
+  return AbortSignal.timeout ? AbortSignal.timeout(ms) : new AbortController().signal;
+}
+
 async function fetchHomeIntelligence() {
   try {
-    const res = await fetch(`${API}/api/intelligence/home`, { next: { revalidate: 900 } });
+    const res = await fetch(`${API}/api/intelligence/home`, { cache: "no-store", signal: timed(10000) });
     if (res.ok) return res.json();
   } catch {}
   return null;
@@ -18,7 +23,7 @@ async function fetchHomeIntelligence() {
 
 async function fetchMarketOverview() {
   try {
-    const res = await fetch(`${API}/api/market/overview`, { next: { revalidate: 300 } });
+    const res = await fetch(`${API}/api/market/overview`, { cache: "no-store", signal: timed(10000) });
     if (res.ok) return res.json();
   } catch {}
   return null;
@@ -26,7 +31,7 @@ async function fetchMarketOverview() {
 
 async function fetchTopEvents() {
   try {
-    const res = await fetch(`${API}/api/events/?limit=5`, { next: { revalidate: 600 } });
+    const res = await fetch(`${API}/api/events/?limit=5`, { cache: "no-store", signal: timed(8000) });
     if (res.ok) return res.json();
   } catch {}
   return [];
@@ -34,7 +39,7 @@ async function fetchTopEvents() {
 
 async function fetchTopNews() {
   try {
-    const res = await fetch(`${API}/api/news/?limit=6`, { next: { revalidate: 600 } });
+    const res = await fetch(`${API}/api/news/?limit=6`, { cache: "no-store", signal: timed(8000) });
     if (res.ok) {
       const d = await res.json();
       return Array.isArray(d) ? d : (d.articles ?? d.news ?? []);
