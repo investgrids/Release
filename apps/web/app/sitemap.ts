@@ -6,7 +6,10 @@ const now   = new Date().toISOString();
 
 async function safeJson<T>(url: string, fallback: T): Promise<T> {
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 } });
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 8000);
+    const res = await fetch(url, { next: { revalidate: 3600 }, signal: ac.signal });
+    clearTimeout(timer);
     if (!res.ok) return fallback;
     return res.json() as Promise<T>;
   } catch { return fallback; }
