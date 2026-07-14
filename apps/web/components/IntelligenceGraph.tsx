@@ -10,13 +10,11 @@ import ReactFlow, {
   ReactFlowProvider, BaseEdge, EdgeLabelRenderer,
   getBezierPath, type EdgeProps,
 } from "reactflow";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
-  Search, Share2, Download, RefreshCw, HelpCircle, X, Bell,
-  Home, Zap, CalendarDays, Building2, Bot, BarChart2, TrendingUp,
-  Network, Briefcase, BookOpen, ChevronRight, ArrowRight, Plus, Minus,
-  Maximize2, Clock, Activity,
+  Search, Share2, Download, RefreshCw, HelpCircle, X,
+  Zap, Building2, BarChart2,
+  Network, Briefcase, BookOpen, ChevronRight, Plus, Minus,
+  Maximize2,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -83,20 +81,6 @@ const TYPE_CLUSTER: Record<string, { x: number; y: number }> = {
 
 const FILTER_TABS = ["All", "Events", "Sectors", "Companies", "Themes", "Macro", "Commodities", "Geography"];
 
-const NAV_ITEMS = [
-  { icon: Home,         label: "Home",            href: "/" },
-  { icon: Activity,     label: "Intelligence",    href: "/market-intelligence" },
-  { icon: Zap,          label: "Events",          href: "/events" },
-  { icon: Building2,    label: "Companies",       href: "/companies" },
-  { icon: Bot,          label: "AI Search",       href: "/ai-search" },
-  { icon: Bell,         label: "Watch Signals",   href: "/signals" },
-  { icon: BarChart2,    label: "Market Overview", href: "/markets" },
-  { icon: Briefcase,    label: "Themes",          href: "/themes" },
-  { icon: TrendingUp,   label: "Commodities",     href: "/commodities" },
-  { icon: CalendarDays, label: "Calendar",        href: "/calendar" },
-  { icon: Network,      label: "Knowledge Graph", href: "/graph" },
-  { icon: BookOpen,     label: "Market Pulse",    href: "/market-pulse" },
-];
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 function computeInitialPositions(nodes: RawNode[]): Map<string, { x: number; y: number }> {
@@ -242,112 +226,6 @@ function buildEdges(
       },
     } as Edge;
   });
-}
-
-// ─── Left sidebar ─────────────────────────────────────────────────────────────
-function LeftSidebar({ activeFilter, onFilterChange, stats, visibleNodeTypes, visibleEdgeTypes, onToggleNode, onToggleEdge }: {
-  activeFilter: string; onFilterChange: (f: string) => void;
-  stats: { total: number; edges: number; byType: Record<string, number> };
-  visibleNodeTypes: Set<string>; visibleEdgeTypes: Set<string>;
-  onToggleNode: (t: string) => void; onToggleEdge: (t: string) => void;
-}) {
-  const pathname = usePathname();
-  const [time, setTime] = useState("");
-  const [marketOpen, setMarketOpen] = useState(false);
-  const [countdown, setCountdown] = useState("");
-
-  useEffect(() => {
-    function tick() {
-      const ist = new Date(Date.now() + 5.5 * 3600000);
-      const h = ist.getUTCHours(), m = ist.getUTCMinutes(), s = ist.getUTCSeconds();
-      const dow = ist.getUTCDay(), mins = h * 60 + m;
-      const isOpen = dow >= 1 && dow <= 5 && mins >= 9*60+15 && mins < 15*60+30;
-      setMarketOpen(isOpen);
-      setTime(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")} ${h >= 12 ? "PM" : "AM"} IST`);
-      if (isOpen) {
-        const rem = 15*60+30 - mins;
-        setCountdown(`${String(Math.floor(rem/60)).padStart(2,"0")}:${String(rem%60).padStart(2,"0")}:${String(s).padStart(2,"0")}`);
-      } else {
-        let diff = 9*60+15 - mins; if (diff < 0) diff += 24*60;
-        setCountdown(`${String(Math.floor(diff/60)).padStart(2,"0")}:${String(diff%60).padStart(2,"0")}:${String(s).padStart(2,"0")}`);
-      }
-    }
-    tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div style={{ width: 210, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", borderRight: "1px solid rgba(255,255,255,0.06)", background: "#080c18", overflowY: "auto" }}>
-      {/* Logo */}
-      <div style={{ padding: "16px 14px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#7c3aed,#3b82f6)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(124,58,237,0.35)" }}>
-            <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 15, height: 15, color: "#fff" }}>
-              <path d="M12 2L14.4 9.6L22 9.6L15.8 14.1L18.2 21.7L12 17L5.8 21.7L8.2 14.1L2 9.6L9.6 9.6Z"/>
-            </svg>
-          </div>
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", lineHeight: 1 }}>MarketRipple</p>
-            <p style={{ fontSize: 9.5, color: "#475569", marginTop: 2 }}>AI Market Intelligence</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav style={{ padding: "8px 7px", flex: 1 }}>
-        {NAV_ITEMS.map(item => {
-          const Icon = item.icon;
-          const active = pathname === item.href;
-          return (
-            <Link key={item.href} href={item.href as any} style={{
-              display: "flex", alignItems: "center", gap: 9, padding: "7px 9px", borderRadius: 9, marginBottom: 1,
-              background: active ? "rgba(124,58,237,0.18)" : "transparent",
-              color: active ? "#c4b5fd" : "#64748b",
-              textDecoration: "none", fontSize: 12, fontWeight: active ? 700 : 500,
-              borderLeft: active ? "2px solid #7c3aed" : "2px solid transparent",
-              transition: "background 0.15s, color 0.15s",
-            }}>
-              <Icon width={14} height={14} style={{ flexShrink: 0 }}/>
-              {item.label}
-            </Link>
-          );
-        })}
-        <div style={{ height: 4 }}/>
-        <button style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 9px", borderRadius: 9, width: "100%", background: "none", border: "none", cursor: "pointer", color: "#475569", fontSize: 12 }}>
-          <span style={{ fontWeight: 800 }}>···</span> More
-        </button>
-      </nav>
-
-      {/* Ask AI */}
-      <div style={{ padding: "0 8px 8px" }}>
-        <Link href="/ai-search" style={{
-          display: "flex", alignItems: "center", gap: 9, padding: "11px 12px", borderRadius: 13,
-          textDecoration: "none", background: "linear-gradient(135deg,#1e0f4a,#26126a)",
-          border: "1px solid rgba(124,58,237,0.4)",
-        }}>
-          <div style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(124,58,237,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Bot width={13} height={13} style={{ color: "#c4b5fd" }}/>
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 11.5, fontWeight: 700, color: "#fff", lineHeight: 1 }}>Ask AI</p>
-            <p style={{ fontSize: 9.5, color: "#7c3aed", marginTop: 2 }}>Ask anything about markets</p>
-          </div>
-          <ArrowRight width={13} height={13} style={{ color: "#7c3aed" }}/>
-        </Link>
-      </div>
-
-      {/* Market status */}
-      <div style={{ padding: "9px 14px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: marketOpen ? "#22c55e" : "#64748b", boxShadow: marketOpen ? "0 0 8px rgba(34,197,94,0.6)" : "none" }}/>
-          <p style={{ fontSize: 10.5, fontWeight: 700, color: marketOpen ? "#22c55e" : "#64748b" }}>
-            {marketOpen ? "Market is Open" : "Market is Closed"}
-          </p>
-        </div>
-        <p style={{ fontSize: 9.5, color: "#334155" }}>{marketOpen ? "Closes in" : "Opens in"} {countdown}</p>
-        <p style={{ fontSize: 9.5, color: "#334155", marginTop: 1 }}>{time}</p>
-      </div>
-    </div>
-  );
 }
 
 // ─── Right detail panel ───────────────────────────────────────────────────────
@@ -672,14 +550,6 @@ function GraphInner({ initialGraph }: { initialGraph: GraphData | null }) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", background: "#080c18" }}>
 
-      {/* Left sidebar nav */}
-      <LeftSidebar
-        activeFilter={activeFilter} onFilterChange={setActiveFilter}
-        stats={stats} visibleNodeTypes={visibleNodeTypes} visibleEdgeTypes={visibleEdgeTypes}
-        onToggleNode={t => setVisibleNodeTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n; })}
-        onToggleEdge={t => setVisibleEdgeTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n; })}
-      />
-
       {/* Main area */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
 
@@ -720,7 +590,7 @@ function GraphInner({ initialGraph }: { initialGraph: GraphData | null }) {
                   {b.icon}{b.label}
                 </button>
               ))}
-              {/* Nifty */}
+              {/* Nifty live price */}
               {nifty && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 9, padding: "5px 10px" }}>
                   <p style={{ fontSize: 9.5, color: "#475569", fontWeight: 700 }}>NIFTY 50</p>
@@ -728,15 +598,6 @@ function GraphInner({ initialGraph }: { initialGraph: GraphData | null }) {
                   <p style={{ fontSize: 10.5, fontWeight: 700, color: nifty.positive ? "#22c55e" : "#ef4444" }}>{nifty.change}</p>
                 </div>
               )}
-              {/* Bell */}
-              <div style={{ position: "relative" }}>
-                <button style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
-                  <Bell width={14} height={14}/>
-                </button>
-                <span style={{ position: "absolute", top: -2, right: -2, width: 15, height: 15, borderRadius: "50%", background: "#ef4444", fontSize: 8.5, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>3</span>
-              </div>
-              {/* Avatar */}
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#3b82f6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#fff" }}>VS</div>
             </div>
           </div>
 
