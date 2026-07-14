@@ -34,25 +34,25 @@ export function CountdownTimer({
 
   return (
     <div className="flex flex-col items-center">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1">{label}</p>
-      <div className="flex items-end gap-1">
+      <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-500 mb-1">{label}</p>
+      <div className="flex items-end gap-0.5">
         {h > 0 && (
           <>
             <div className="flex flex-col items-center">
-              <span className="text-[32px] font-black text-white leading-none tabular-nums">{pad(h)}</span>
-              <span className="text-[9px] text-slate-600 mt-0.5">HRS</span>
+              <span className="text-[20px] font-black text-white leading-none tabular-nums">{pad(h)}</span>
+              <span className="text-[8px] text-slate-600 mt-0.5">HRS</span>
             </div>
-            <span className="text-[28px] font-black text-slate-600 mb-1">:</span>
+            <span className="text-[17px] font-black text-slate-600 mb-0.5">:</span>
           </>
         )}
         <div className="flex flex-col items-center">
-          <span className="text-[32px] font-black text-white leading-none tabular-nums">{pad(m)}</span>
-          <span className="text-[9px] text-slate-600 mt-0.5">MINS</span>
+          <span className="text-[20px] font-black text-white leading-none tabular-nums">{pad(m)}</span>
+          <span className="text-[8px] text-slate-600 mt-0.5">MINS</span>
         </div>
-        <span className="text-[28px] font-black text-slate-600 mb-1">:</span>
+        <span className="text-[17px] font-black text-slate-600 mb-0.5">:</span>
         <div className="flex flex-col items-center">
-          <span className="text-[32px] font-black text-white leading-none tabular-nums">{pad(s)}</span>
-          <span className="text-[9px] text-slate-600 mt-0.5">SECS</span>
+          <span className="text-[20px] font-black text-white leading-none tabular-nums">{pad(s)}</span>
+          <span className="text-[8px] text-slate-600 mt-0.5">SECS</span>
         </div>
       </div>
     </div>

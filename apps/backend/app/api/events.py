@@ -20,40 +20,66 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
+def _normalize_score(score: float) -> float:
+    """Normalize to 0-100 scale. Seed events use 0-10; pipeline events use 0-100."""
+    if score <= 10.0:
+        return round(score * 10.0, 1)
+    return round(score, 1)
+
+
+def _build_summary(e, companies: list) -> EventSummary:
+    return EventSummary(
+        id=e.id,
+        title=e.title,
+        summary=e.summary or "",
+        impact_score=_normalize_score(float(e.impact_score or 0)),
+        confidence=float(e.confidence or 0),
+        sectors=e.sectors or [],
+        companies=companies,
+        date=e.published_at,
+        category=e.category or e.event_type or "Macro",
+        event_type=e.event_type or "",
+        source=e.source or "",
+    )
+
+
 @router.get("/", response_model=List[EventSummary])
 async def list_events(
     limit: int = Query(20, ge=1, le=100),
+    page_size: int = Query(None, ge=1, le=100),
+    sort_by: str = Query("published_at"),
     db: AsyncSession = Depends(get_db),
 ):
-    rows = await get_events(db, limit=limit)
-    result = []
-    for e in rows:
-        companies = []
-        for c in (e.companies or []):
-            if isinstance(c, dict):
-                companies.append(CompanyImpact(
-                    symbol=c.get("symbol", ""),
-                    name=c.get("name", ""),
-                    impact=c.get("impact", "Neutral"),
-                ))
-            elif isinstance(c, str) and c.strip():
-                companies.append(CompanyImpact(symbol=c.strip(), name=c.strip(), impact="Neutral"))
-        result.append(
-            EventSummary(
-                id=e.id,
-                title=e.title,
-                summary=e.summary or "",
-                impact_score=float(e.impact_score or 0),
-                confidence=float(e.confidence or 0),
-                sectors=e.sectors or [],
-                companies=companies,
-                date=e.published_at,
-                category=e.category or e.event_type or "Macro",
-                event_type=e.event_type or "",
-                source=e.source or "",
-            )
-        )
-    return result
+    effective_limit = page_size if page_size is not None else limit
+
+    if sort_by == "impact_score":
+        # Fetch a wider pool so mixed-scale scores can be normalized and re-sorted in Python.
+        # Pipeline events use 0-100 (score=60), seed events use 0-10 (score=8.7 → norm 87).
+        # DB ordering on raw values would put 60 before 8.7, hiding high-quality seeds.
+        pool_rows = await get_events(db, limit=200, sort_by="published_at")
+        result = []
+        for e in pool_rows:
+            companies = [
+                CompanyImpact(symbol=c.get("symbol", ""), name=c.get("name", ""), impact=c.get("impact", "Neutral"))
+                if isinstance(c, dict) else
+                CompanyImpact(symbol=c.strip(), name=c.strip(), impact="Neutral")
+                for c in (e.companies or []) if isinstance(c, dict) or (isinstance(c, str) and c.strip())
+            ]
+            result.append(_build_summary(e, companies))
+        result.sort(key=lambda x: x.impact_score, reverse=True)
+        return result[:effective_limit]
+    else:
+        rows = await get_events(db, limit=effective_limit, sort_by=sort_by)
+        result = []
+        for e in rows:
+            companies = [
+                CompanyImpact(symbol=c.get("symbol", ""), name=c.get("name", ""), impact=c.get("impact", "Neutral"))
+                if isinstance(c, dict) else
+                CompanyImpact(symbol=c.strip(), name=c.strip(), impact="Neutral")
+                for c in (e.companies or []) if isinstance(c, dict) or (isinstance(c, str) and c.strip())
+            ]
+            result.append(_build_summary(e, companies))
+        return result
 
 
 @router.get("/{event_id}/market-data")

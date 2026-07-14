@@ -301,13 +301,14 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted }: {
               }`}>
               {watchlisted ? <><Check className="h-3.5 w-3.5" />Watchlisted</> : "+ Add to Watchlist"}
             </button>
-            <button className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-[12px] font-medium text-slate-300 hover:border-white/20 transition">
+            <Link href={`/compare?a=${symbol}`}
+              className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-[12px] font-medium text-slate-300 hover:border-sky-500/30 hover:text-sky-300 transition">
               ↔ Compare
-            </button>
-            <button className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-[12px] font-medium text-violet-300 hover:border-violet-500/30 transition">
+            </Link>
+            <Link href={`/ai-search?q=${encodeURIComponent(`Should I buy ${stock.name} (${symbol}) right now? Analyse its current valuation, recent events, and outlook vs sector peers.`)}`}
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-[12px] font-medium text-violet-300 hover:border-violet-500/30 hover:bg-violet-500/[0.06] transition">
               <Sparkles className="h-3.5 w-3.5 text-violet-400" /> Ask AI
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-400 hover:text-white transition">⋯</button>
+            </Link>
           </div>
         </div>
       </div>

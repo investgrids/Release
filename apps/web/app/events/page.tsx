@@ -100,22 +100,35 @@ function companyLabel(c: string | { symbol: string; name: string }) {
   return typeof c === "string" ? c : (c.name ?? c.symbol);
 }
 
+function normalizeDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "Unknown";
+  // ISO timestamps — strip to YYYY-MM-DD for grouping
+  const iso = dateStr.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : "Unknown";
+}
+
 function groupByDate(events: Event[]): [string, Event[]][] {
   const groups: Record<string, Event[]> = {};
   for (const ev of events) {
-    const key = ev.date || "Unknown";
+    const key = normalizeDate(ev.date);
     (groups[key] = groups[key] ?? []).push(ev);
   }
-  return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  // "Unknown" (null published_at) goes to the top since we sort by impact_score
+  return Object.entries(groups).sort((a, b) => {
+    if (a[0] === "Unknown") return -1;
+    if (b[0] === "Unknown") return 1;
+    return b[0].localeCompare(a[0]);
+  });
 }
 
 function formatDateLabel(dateStr: string): string {
+  if (dateStr === "Unknown") return "Recent Events";
   try {
     const d = new Date(dateStr);
     const today = new Date();
     const diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
-    if (diff === 0) return `Today\n${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
-    if (diff === 1) return `Yesterday\n${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+    if (diff === 0) return `Today · ${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+    if (diff === 1) return `Yesterday · ${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
     return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
   } catch { return dateStr; }
 }
@@ -354,7 +367,7 @@ export default function EventsPage() {
   const trendData = useMemo(() => buildTrendData(events), [events]);
 
   useEffect(() => {
-    fetch(`${API}/api/events/?limit=${limit}`)
+    fetch(`${API}/api/events/?sort_by=impact_score&limit=${limit}`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : [])
       .then(d => { if (Array.isArray(d) && d.length) setEvents(d); })
       .catch(() => {});

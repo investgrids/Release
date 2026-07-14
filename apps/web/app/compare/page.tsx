@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -216,8 +217,16 @@ function ScoreRing({ score, label, col }: { score: number; label: string; col: s
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function ComparePage() {
-  const [selected, setSelected]     = useState<string[]>(["TATAPOWER", "NTPC", "ADANIPOWER"]);
+function ComparePageInner() {
+  const searchParams = useSearchParams();
+  const initSelected = (() => {
+    const a = searchParams.get("a")?.toUpperCase();
+    const b = searchParams.get("b")?.toUpperCase();
+    if (a && b) return [a, b];
+    if (a) return [a, "NTPC"];
+    return ["TATAPOWER", "NTPC", "ADANIPOWER"];
+  })();
+  const [selected, setSelected]     = useState<string[]>(initSelected);
   const [stocks,   setStocks]       = useState<Record<string, StockData>>({});
   const [chartMap, setChartMap]     = useState<Record<string, { label: string; value: number }[]>>({});
   const [period,   setPeriod]       = useState("1Y");
@@ -1301,5 +1310,13 @@ export default function ComparePage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function ComparePage() {
+  return (
+    <Suspense fallback={<div className="flex h-64 items-center justify-center"><div className="h-5 w-5 animate-spin rounded-full border-2 border-violet-500 border-t-transparent"/></div>}>
+      <ComparePageInner />
+    </Suspense>
   );
 }

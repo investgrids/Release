@@ -798,6 +798,37 @@ async def market_opportunities(limit: int = Query(6, le=20)):
         return {"opportunities": []}
 
 
+@router.get("/opening-prediction")
+async def market_opening_prediction():
+    """Tomorrow's Nifty opening prediction — 5-layer AI analysis with 30-min cache."""
+    from app.db.session import AsyncSessionLocal
+    from app.services.opening_prediction_service import build_opening_prediction
+    try:
+        async with AsyncSessionLocal() as db:
+            return await build_opening_prediction(db)
+    except Exception as exc:
+        import structlog
+        structlog.get_logger(__name__).warning("opening_prediction.endpoint_error", error=str(exc))
+        return {
+            "signals":    {},
+            "events":     {"today": [], "tomorrow": [], "mie_signals": []},
+            "historical": {"similar_events": [], "count": 0, "avg_nifty_1d": None},
+            "prediction": {
+                "direction": "Neutral", "confidence": 55,
+                "range_low": -15, "range_high": 25,
+                "primary_drivers": ["Data unavailable"],
+                "risks": ["Check backend logs"],
+                "conflicting_signals": [],
+                "reasoning": "Prediction service encountered an error.",
+                "historical_note": None,
+                "uncertainty_note": "AI layer unavailable.",
+                "ai_generated": False,
+            },
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "error": str(exc),
+        }
+
+
 @router.get("/insights")
 async def market_insights():
     movers = await get_top_movers()

@@ -481,9 +481,18 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-[15px] font-semibold text-white">Companies That Matter</p>
-            <Link href="/companies" className="text-[12px] text-violet-400 hover:text-violet-300 transition">
-              View All Companies →
-            </Link>
+            <div className="flex items-center gap-3">
+              {companies.length >= 2 && (
+                <Link
+                  href={`/compare?a=${companies[0].symbol}&b=${companies[1].symbol}`}
+                  className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/20 transition">
+                  ↔ Compare {companies[0].symbol} vs {companies[1].symbol}
+                </Link>
+              )}
+              <Link href="/companies" className="text-[12px] text-violet-400 hover:text-violet-300 transition">
+                View All →
+              </Link>
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {companies.slice(0, 6).map((co, idx) => {
@@ -850,7 +859,7 @@ function RightSidebar({ result, onAction }: {
   }
 
   return (
-    <aside className="hidden xl:block sticky top-[92px] self-start max-h-[calc(100vh-92px)] overflow-y-auto space-y-3 pr-1" style={{ scrollbarWidth: "none" }}>
+    <aside className="hidden xl:flex xl:flex-col w-[280px] shrink-0 sticky top-[92px] self-start max-h-[calc(100vh-92px)] overflow-y-auto space-y-3 pr-1" style={{ scrollbarWidth: "none" }}>
 
       {/* Investment Verdict */}
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">

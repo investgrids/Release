@@ -107,27 +107,26 @@ export function MarketClient({
       <div className="min-w-0 space-y-5 pb-8">
 
         {/* Hero header card */}
-        <div className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6">
+        <div className="rounded-xl border border-white/[0.08] bg-[#080c14] px-5 py-4">
 
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex items-start justify-between gap-4">
             {/* Left: title + greeting + summary */}
             <div className="flex-1 min-w-0">
-              <div className="mb-3 flex items-center gap-3">
-                <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${sessColor}`}>
+              <div className="mb-2 flex items-center gap-2.5">
+                <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${sessColor}`}>
                   ● {sessLabel}
                 </span>
-                <span className="text-[11px] text-slate-600">{session?.date} · {timeIST} IST</span>
+                <span className="text-[10px] text-slate-600">{session?.date} · {timeIST} IST</span>
               </div>
-              <h1 className="text-[28px] font-black text-white leading-tight mb-2">
+              <h1 className="text-[20px] font-black text-white leading-tight mb-1.5">
                 Market Intelligence
-                <span className="ml-3 text-[16px] text-slate-500 font-normal">Command Center</span>
+                <span className="ml-2.5 text-[13px] text-slate-500 font-normal">Command Center</span>
               </h1>
-              <p className="text-[13px] text-slate-400 leading-6 max-w-lg">
+              <p className="text-[12px] text-slate-400 leading-5 max-w-lg">
                 Real-time market insights, AI analysis &amp; actionable intelligence across all sessions.
-                Monitor global flows, corporate events, and emerging opportunities.
               </p>
               {/* Quick actions */}
-              <div className="mt-4 flex gap-2 flex-wrap">
+              <div className="mt-3 flex gap-2 flex-wrap">
                 {([
                   { icon: <Sparkles className="h-3.5 w-3.5" />, label: "Ask AI",            href: "#",                 color: "flex items-center gap-1.5 bg-gradient-to-r from-violet-600/80 to-sky-600/60 hover:from-violet-600 hover:to-sky-600 text-white" },
                   { icon: <Zap className="h-3.5 w-3.5" />,      label: "Explore Events",    href: "/events",           color: "flex items-center gap-1.5 border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] text-slate-300" },
@@ -154,15 +153,15 @@ export function MarketClient({
             )}
 
             {/* Right: KPI mini cards */}
-            <div className="shrink-0 grid grid-cols-2 gap-2">
+            <div className="shrink-0 grid grid-cols-2 gap-1.5">
               {[
                 { label: "AI Confidence", value: `${initialInsights?.confidence ?? 92}%`,   color: "text-violet-400" },
                 { label: "Fear & Greed",  value: String(initialInsights?.fear_greed ?? 72),   color: "text-amber-400"  },
                 { label: "Events Today",  value: String(initialEvents?.length ?? 0),          color: "text-sky-400"    },
                 { label: "Opportunities", value: String(initialOpportunities?.length ?? 0),   color: "text-emerald-400"},
               ].map(k => (
-                <div key={k.label} className="rounded-lg border border-white/[0.06] bg-[#0d1120] px-3 py-2.5 min-w-[90px]">
-                  <p className={`text-[18px] font-black leading-none tabular-nums ${k.color}`}>{k.value}</p>
+                <div key={k.label} className="rounded-lg border border-white/[0.06] bg-[#0d1120] px-2.5 py-2 min-w-[78px]">
+                  <p className={`text-[15px] font-black leading-none tabular-nums ${k.color}`}>{k.value}</p>
                   <p className="text-[9px] text-slate-600 mt-0.5 uppercase tracking-wider">{k.label}</p>
                 </div>
               ))}

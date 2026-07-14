@@ -49,9 +49,13 @@ async def lifespan(app: FastAPI):
 
     async with AsyncSessionLocal() as db:
         await seed(db)
-    from app.db.seed import seed_missing_stories
+    from app.db.seed import seed_missing_stories, seed_missing_calendar, seed_missing_events
     async with AsyncSessionLocal() as db:
         await seed_missing_stories(db)
+    async with AsyncSessionLocal() as db:
+        await seed_missing_calendar(db)
+    async with AsyncSessionLocal() as db:
+        await seed_missing_events(db)
     log.info("db.seed_done")
 
     # ── 3. APScheduler ────────────────────────────────────────────────────────

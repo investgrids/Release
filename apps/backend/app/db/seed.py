@@ -1,4 +1,4 @@
-﻿"""
+"""
 Populate the database with initial content data.
 Only inserts rows that don't already exist (idempotent).
 """
@@ -22,7 +22,7 @@ EVENTS = [
     ),
     models.Event(
         id="evt-defence-budget-2026",
-        title="Defence capital expenditure raised by ₹45,000 Cr in revised estimates",
+        title="Defence capital expenditure raised by Rs. 45,000 Cr in revised estimates",
         summary="The revised budget allocation boosts indigenous defence procurement, benefiting domestic manufacturers under the Make-in-India initiative. Order books at BEL, HAL and Bharat Forge are expected to expand significantly.",
         impact_score=9.1,
         confidence=0.89,
@@ -64,7 +64,7 @@ EVENTS = [
     ),
     models.Event(
         id="evt-semiconductor-plc-2026",
-        title="India Semiconductor Mission approves ₹76,000 Cr fab incentive",
+        title="India Semiconductor Mission approves Rs. 76,000 Cr fab incentive",
         summary="The government approved production-linked incentives for three semiconductor fabrication units. The scheme covers 50% capital subsidy for advanced nodes, signalling long-term domestic chip manufacturing ambitions.",
         impact_score=9.4,
         confidence=0.91,
@@ -118,6 +118,20 @@ NEWS = [
 
 CALENDAR = [
     models.CalendarEvent(
+        id="cal-wpi-jul-2026",
+        category="Macro",
+        title="June WPI Inflation Data Release",
+        date="Jul 13, 2026",
+        description="Wholesale Price Index reading for June - key input for RBI's inflation assessment and rate outlook.",
+    ),
+    models.CalendarEvent(
+        id="cal-tcs-q1-2026",
+        category="Results",
+        title="TCS Q1 FY27 Earnings Result",
+        date="Jul 13, 2026",
+        description="Tata Consultancy Services quarterly result - bellwether for India's IT sector and US demand outlook.",
+    ),
+    models.CalendarEvent(
         id="cal-rbi-aug-2026",
         category="RBI",
         title="Monetary Policy Committee Meeting",
@@ -136,7 +150,7 @@ CALENDAR = [
         category="Macro",
         title="June CPI Inflation Data Release",
         date="Jul 12, 2026",
-        description="Consumer Price Index reading â€” critical for RBI's inflation trajectory.",
+        description="Consumer Price Index reading - critical for RBI's inflation trajectory.",
     ),
     models.CalendarEvent(
         id="cal-iip-jun-2026",
@@ -152,6 +166,27 @@ CALENDAR = [
         date="Jul 21, 2026",
         description="Key policy bills and supplementary demands for grants to be tabled.",
     ),
+    models.CalendarEvent(
+        id="cal-hcltech-q1-2026",
+        category="Results",
+        title="HCL Technologies Q1 FY27 Results",
+        date="Jul 14, 2026",
+        description="HCL Tech quarterly earnings - second major IT result of the season, key for sector sentiment.",
+    ),
+    models.CalendarEvent(
+        id="cal-uswpi-jul-2026",
+        category="Global",
+        title="US Producer Price Index (PPI)",
+        date="Jul 15, 2026",
+        description="US producer inflation data - impacts Fed rate expectations and USD/INR pair.",
+    ),
+    models.CalendarEvent(
+        id="cal-infy-q1-2026",
+        category="Results",
+        title="Infosys Q1 FY27 Earnings & Guidance",
+        date="Jul 17, 2026",
+        description="Infosys Q1 result and FY27 revenue guidance revision - closely tracked for US tech demand signals.",
+    ),
 ]
 
 RADAR = [
@@ -159,7 +194,7 @@ RADAR = [
         id="radar-defence-2026",
         theme="India Defence Ecosystem",
         score=95,
-        reason="Budget capex up ₹45,000 Cr. Multi-year order pipelines at BEL, HAL and MFSL. Indigenous procurement mandates reduce import dependency.",
+        reason="Budget capex up Rs. 45,000 Cr. Multi-year order pipelines at BEL, HAL and MFSL. Indigenous procurement mandates reduce import dependency.",
         confidence=0.91,
         beneficiaries=["Bharat Electronics", "HAL", "Bharat Forge", "MFSL"],
     ),
@@ -201,14 +236,14 @@ STORIES = [
     models.Story(
         id="story-defence-2026",
         title="India's Defence Boom",
-        description="How a decade of policy shifts, rising capex, and 'Make in India' mandates are building a world-class indigenous defence ecosystem â€” and which companies are at the center of it.",
+        description="How a decade of policy shifts, rising capex, and Make in India mandates are building a world-class indigenous defence ecosystem - and which companies are at the center of it.",
         theme="Macro + Government",
         image="https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=1200&q=80",
     ),
     models.Story(
         id="story-ai-infra-2026",
         title="AI Infrastructure Rush",
-        description="The data center and networking companies positioning themselves to power India's enterprise AI wave â€” from hyperscale cloud to private inference clusters.",
+        description="The data center and networking companies positioning themselves to power India's enterprise AI wave - from hyperscale cloud to private inference clusters.",
         theme="Technology",
         image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
     ),
@@ -276,7 +311,7 @@ async def seed(db):
 
 
 async def seed_missing_stories(db):
-    """Upsert any STORIES entries that are missing — safe to run on an already-seeded DB."""
+    """Upsert any STORIES entries that are missing - safe to run on an already-seeded DB."""
     from sqlalchemy import select
     for story in STORIES:
         existing = (await db.execute(select(models.Story).where(models.Story.id == story.id))).scalar_one_or_none()
@@ -287,5 +322,54 @@ async def seed_missing_stories(db):
                 description=story.description,
                 theme=story.theme,
                 image=story.image,
+            ))
+    await db.commit()
+
+
+async def seed_missing_calendar(db):
+    """Upsert any CALENDAR entries that are missing - safe to run on an already-seeded DB."""
+    from sqlalchemy import select
+    for event in CALENDAR:
+        existing = (await db.execute(select(models.CalendarEvent).where(models.CalendarEvent.id == event.id))).scalar_one_or_none()
+        if not existing:
+            db.add(models.CalendarEvent(
+                id=event.id,
+                category=event.category,
+                title=event.title,
+                date=event.date,
+                description=event.description,
+            ))
+    await db.commit()
+
+
+async def seed_missing_events(db):
+    """Upsert EVENTS entries, restoring authoritative scores that the pipeline may overwrite."""
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+    now = datetime.now(timezone.utc)
+    for event in EVENTS:
+        existing = (await db.execute(select(models.Event).where(models.Event.id == event.id))).scalar_one_or_none()
+        if existing:
+            # Restore curated scores the pipeline overwrites, and bump published_at to now
+            # so seed events always appear as recent (they're evergreen market intelligence)
+            existing.impact_score = event.impact_score
+            existing.confidence   = event.confidence
+            existing.category     = event.category
+            existing.published_at = now
+            if event.sectors:
+                existing.sectors = event.sectors
+            if event.companies:
+                existing.companies = event.companies
+        else:
+            db.add(models.Event(
+                id=event.id,
+                title=event.title,
+                summary=event.summary,
+                impact_score=event.impact_score,
+                confidence=event.confidence,
+                sectors=event.sectors,
+                companies=event.companies,
+                category=event.category,
+                published_at=now,
             ))
     await db.commit()

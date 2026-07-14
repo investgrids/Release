@@ -6,6 +6,7 @@ import {
   Droplets, BarChart2, Banknote, ArrowRightLeft,
   TrendingUp, Sparkles,
 } from "lucide-react";
+import OpeningPrediction from "@/components/market/OpeningPrediction";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -95,9 +96,9 @@ function GiftNiftyHero({ data }: { data: any }) {
   const tc = pos ? "text-emerald-400" : "text-rose-400";
   const bc = pos ? "border-emerald-500/20" : "border-rose-500/20";
   return (
-    <div className={`rounded-xl border ${bc} bg-[#0a0d16] p-5`}>
+    <div className={`rounded-xl border ${bc} bg-[#0a0d16] p-4`}>
 
-      <div className="mb-3 flex items-start justify-between">
+      <div className="mb-2.5 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Nifty Futures</span>
@@ -110,11 +111,11 @@ function GiftNiftyHero({ data }: { data: any }) {
         <MiniChart chart={data.chart} positive={pos} />
       </div>
 
-      <div className="flex items-baseline gap-3 mb-1">
-        <p className="text-[34px] font-black tracking-tight text-white leading-none tabular-nums">{data.value}</p>
-        <p className={`text-[17px] font-bold tabular-nums ${tc}`}>{data.pct}</p>
+      <div className="flex items-baseline gap-2.5 mb-1">
+        <p className="text-[26px] font-black tracking-tight text-white leading-none tabular-nums">{data.value}</p>
+        <p className={`text-[14px] font-bold tabular-nums ${tc}`}>{data.pct}</p>
       </div>
-      <p className={`text-[12px] font-semibold ${tc}`}>{data.change}</p>
+      <p className={`text-[11px] font-semibold ${tc}`}>{data.change}</p>
 
       {data.spot_value && (
         <div className="mt-3 flex items-center gap-3 rounded-[12px] border border-white/[0.07] bg-white/[0.04] px-3 py-2">
@@ -154,8 +155,8 @@ function BankNiftyCard({ data }: { data: any }) {
   const bc = pos ? "border-emerald-500/15" : "border-rose-500/15";
 
   return (
-    <div className={`relative overflow-hidden rounded-xl border ${bc} bg-[#0a0d16] p-5`}>
-      <div className="mb-3 flex items-start justify-between">
+    <div className={`relative overflow-hidden rounded-xl border ${bc} bg-[#0a0d16] p-4`}>
+      <div className="mb-2.5 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Bank Nifty Futures</span>
@@ -165,9 +166,9 @@ function BankNiftyCard({ data }: { data: any }) {
         <MiniChart chart={data.chart} positive={pos} />
       </div>
 
-      <div className="flex items-baseline gap-3 mb-1">
-        <p className="text-[28px] font-black tracking-tight text-white leading-none">{data.value}</p>
-        <p className={`text-[15px] font-bold ${tc}`}>{data.pct}</p>
+      <div className="flex items-baseline gap-2.5 mb-1">
+        <p className="text-[22px] font-black tracking-tight text-white leading-none">{data.value}</p>
+        <p className={`text-[13px] font-bold ${tc}`}>{data.pct}</p>
       </div>
       <p className={`text-[11px] font-semibold ${tc}`}>{data.change}</p>
 
@@ -210,15 +211,15 @@ function IndiaVIXCard({ data }: { data: any }) {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0a0d16] p-5">
-      <div className="mb-3 flex items-center justify-between">
+    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0a0d16] p-4">
+      <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">India VIX</span>
         <MiniChart chart={data.chart} positive={!pos} />
       </div>
 
       <div className="mb-2 flex items-baseline gap-2">
-        <p className="text-[30px] font-black tracking-tight text-white leading-none">{data.value}</p>
-        <p className={`text-[13px] font-bold ${pos ? "text-rose-400" : "text-emerald-400"}`}>{data.pct}</p>
+        <p className="text-[22px] font-black tracking-tight text-white leading-none">{data.value}</p>
+        <p className={`text-[11px] font-bold ${pos ? "text-rose-400" : "text-emerald-400"}`}>{data.pct}</p>
       </div>
 
       <span className={`mb-2 inline-block rounded-full border px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${BADGE[c]}`}>
@@ -268,7 +269,7 @@ function FIIDIICard({ data }: { data: any }) {
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
           <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-600">FII / FPI</p>
-          <p className={`text-[22px] font-black leading-none ${fiiPos ? "text-emerald-400" : "text-rose-400"}`}>
+          <p className={`text-[17px] font-black leading-none ${fiiPos ? "text-emerald-400" : "text-rose-400"}`}>
             {fmt(fii)}
           </p>
           <p className="text-[10px] text-slate-500">{fiiPos ? "Net Buying" : "Net Selling"}</p>
@@ -282,7 +283,7 @@ function FIIDIICard({ data }: { data: any }) {
 
         <div className="flex flex-col gap-1 border-l border-white/[0.06] pl-4">
           <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-600">DII</p>
-          <p className={`text-[22px] font-black leading-none ${diiPos ? "text-emerald-400" : "text-rose-400"}`}>
+          <p className={`text-[17px] font-black leading-none ${diiPos ? "text-emerald-400" : "text-rose-400"}`}>
             {fmt(dii)}
           </p>
           <p className="text-[10px] text-slate-500">{diiPos ? "Net Buying" : "Net Selling"}</p>
@@ -307,7 +308,7 @@ function USFutureCard({ item }: { item: any }) {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 leading-tight max-w-[80px]">{item.name}</p>
         <MiniChart chart={item.chart} positive={pos} />
       </div>
-      <p className="text-[20px] font-black text-white leading-none mb-1">{item.value}</p>
+      <p className="text-[16px] font-black text-white leading-none mb-1">{item.value}</p>
       <p className={`text-[11px] font-bold ${pos ? "text-emerald-400" : "text-rose-400"}`}>{item.pct}</p>
       <p className="text-[10px] text-slate-600 mt-0.5">{item.change}</p>
     </div>
@@ -416,7 +417,7 @@ function AIPrediction({ data, pcr }: { data: any; pcr?: any }) {
   const sentColor = sentiment === "Bullish" ? "text-emerald-400" : sentiment === "Bearish" ? "text-rose-400" : "text-amber-400";
   const sentBg    = sentiment === "Bullish" ? "bg-emerald-500/10 border-emerald-500/20" : sentiment === "Bearish" ? "bg-rose-500/10 border-rose-500/20" : "bg-amber-500/10 border-amber-500/20";
 
-  const R = 42, CX = 52, CY = 52, circ = 2 * Math.PI * R;
+  const R = 34, CX = 42, CY = 42, circ = 2 * Math.PI * R;
   const bullDash = (bull_pct / 100) * circ;
   const neutDash = (neutral_pct / 100) * circ;
   const bearDash = (bear_pct / 100) * circ;
@@ -443,17 +444,17 @@ function AIPrediction({ data, pcr }: { data: any; pcr?: any }) {
 
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
-          <svg width="104" height="104" viewBox="0 0 104 104">
-            <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="14"/>
-            <circle cx={CX} cy={CY} r={R} fill="none" stroke="#f43f5e" strokeWidth="14"
+          <svg width="84" height="84" viewBox="0 0 84 84">
+            <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="12"/>
+            <circle cx={CX} cy={CY} r={R} fill="none" stroke="#f43f5e" strokeWidth="12"
               strokeDasharray={`${bearDash} ${circ - bearDash}`}
-              strokeDashoffset={-(bullDash + neutDash)} strokeLinecap="butt" transform="rotate(-90,52,52)"/>
-            <circle cx={CX} cy={CY} r={R} fill="none" stroke="#f59e0b" strokeWidth="14"
+              strokeDashoffset={-(bullDash + neutDash)} strokeLinecap="butt" transform="rotate(-90,42,42)"/>
+            <circle cx={CX} cy={CY} r={R} fill="none" stroke="#f59e0b" strokeWidth="12"
               strokeDasharray={`${neutDash} ${circ - neutDash}`}
-              strokeDashoffset={-bullDash} strokeLinecap="butt" transform="rotate(-90,52,52)"/>
-            <circle cx={CX} cy={CY} r={R} fill="none" stroke="#22c55e" strokeWidth="14"
+              strokeDashoffset={-bullDash} strokeLinecap="butt" transform="rotate(-90,42,42)"/>
+            <circle cx={CX} cy={CY} r={R} fill="none" stroke="#22c55e" strokeWidth="12"
               strokeDasharray={`${bullDash} ${circ - bullDash}`}
-              strokeDashoffset="0" strokeLinecap="butt" transform="rotate(-90,52,52)"/>
+              strokeDashoffset="0" strokeLinecap="butt" transform="rotate(-90,42,42)"/>
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <p className="text-[13px] font-black text-white">{confidence}%</p>
@@ -462,7 +463,7 @@ function AIPrediction({ data, pcr }: { data: any; pcr?: any }) {
         </div>
 
         <div className="flex-1 space-y-1.5">
-          <p className={`text-[22px] font-black ${sentColor}`}>{sentiment}</p>
+          <p className={`text-[17px] font-black ${sentColor}`}>{sentiment}</p>
           <div className="space-y-1">
             {([["Bullish", bull_pct, "#22c55e"], ["Neutral", neutral_pct, "#f59e0b"], ["Bearish", bear_pct, "#f43f5e"]] as const).map(([l, p, c]) => (
               <div key={l} className="flex items-center gap-2">
@@ -750,7 +751,10 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
         </div>
       </div>
 
-      {/* ── Section 5: Stocks + AI + Movers ──────────────────────────────── */}
+      {/* ── Section 5: Tomorrow's Opening Prediction (AI 5-layer) ──────── */}
+      <OpeningPrediction />
+
+      {/* ── Section 6: Stocks + AI + Movers ──────────────────────────────── */}
       <div className="grid grid-cols-[1fr_320px] gap-5">
         <StocksToWatch stocks={data?.stocks_to_watch ?? []} />
         <div className="space-y-5">

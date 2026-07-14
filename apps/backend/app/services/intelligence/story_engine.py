@@ -83,13 +83,40 @@ async def _fetch_context() -> dict:
         return {}
 
 
+def _idx_price(idx: dict) -> float:
+    """Extract numeric price from index dict (handles 'value' or 'price' field)."""
+    raw = idx.get("value") or idx.get("price") or "0"
+    try:
+        return float(str(raw).replace(",", ""))
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _idx_pct(idx: dict) -> float:
+    """Extract change % from index dict (handles 'pct' or 'change_pct' field)."""
+    raw = idx.get("pct") if idx.get("pct") is not None else idx.get("change_pct", 0)
+    try:
+        return round(float(raw), 2)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _sec_pct(sec: dict) -> float:
+    """Extract change % from sector dict (handles 'change_pct' or 'pct' field)."""
+    raw = sec.get("change_pct") if sec.get("change_pct") is not None else sec.get("pct", 0)
+    try:
+        return round(float(raw), 2)
+    except (ValueError, TypeError):
+        return 0.0
+
+
 def _context_hash(ctx: dict) -> str:
     parts: list[str] = []
     nifty = ctx.get("nifty", {})
     if nifty:
-        parts.append(f"n:{float(nifty.get('price', 0)):.0f}:{round(float(nifty.get('change_pct', 0)), 1)}")
+        parts.append(f"n:{_idx_price(nifty):.0f}:{_idx_pct(nifty)}")
     for s in ctx.get("sectors", [])[:5]:
-        parts.append(f"{s.get('name', '')}:{round(float(s.get('change_pct', 0)), 1)}")
+        parts.append(f"{s.get('name', '')}:{_sec_pct(s)}")
     parts.extend(ctx.get("recent_events", [])[:3])
     return hashlib.md5("|".join(parts).encode()).hexdigest()[:16]
 
@@ -104,10 +131,10 @@ async def _generate(ctx: dict) -> dict | None:
 
     prompt = (
         f"Live Market ({datetime.now(_IST).strftime('%H:%M IST')}):\n\n"
-        f"NIFTY 50: {nifty.get('price', 'N/A')} ({nifty.get('change_pct', 'N/A')}%)\n"
-        f"BANK NIFTY: {bnk.get('price', 'N/A')} ({bnk.get('change_pct', 'N/A')}%)\n\n"
+        f"NIFTY 50: {_idx_price(nifty) or 'N/A'} ({_idx_pct(nifty):+.2f}%)\n"
+        f"BANK NIFTY: {_idx_price(bnk) or 'N/A'} ({_idx_pct(bnk):+.2f}%)\n\n"
         f"SECTORS:\n" +
-        "\n".join(f"- {s.get('name', '')}: {s.get('change_pct', '')}%" for s in secs[:6]) +
+        "\n".join(f"- {s.get('name', '')}: {_sec_pct(s):+.2f}%" for s in secs[:6]) +
         f"\n\nRECENT EVENTS (2h):\n" +
         ("\n".join(evts) if evts else "- None") +
         "\n\nGenerate the market narrative JSON."
@@ -155,7 +182,7 @@ async def _save_story(data: dict, ctx: dict, prev_hash: str | None) -> str:
                 events_included=ctx.get("recent_events", [])[:5],
                 previous_story_hash=prev_hash,
                 story_hash=story_hash,
-                nifty_at=float(nifty.get("price", 0)) or None,
+                nifty_at=_idx_price(nifty) or None,
             ))
             await db.commit()
     except Exception as exc:

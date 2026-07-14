@@ -706,30 +706,59 @@ export default async function IntelligenceArticlePage({
                     View all <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {(relCompanies.length ? relCompanies : companies).slice(0, 5).map((c: any, i: number) => {
                     const name   = typeof c === "string" ? c : (c.name ?? c.company ?? c.symbol ?? c);
                     const symbol = typeof c === "object" ? (c.symbol ?? c.ticker ?? "") : "";
                     const change = typeof c === "object" ? (c.change_pct ?? c.change ?? c.nifty_change ?? null) : null;
                     const pos    = change == null ? true : parseFloat(String(change)) >= 0;
                     return (
-                      <Link key={i} href={symbol ? `/companies/${symbol}` as any : "/companies"}
-                        className="flex items-center justify-between rounded-xl px-3 py-2.5 transition hover:bg-white/[0.03]">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-[9px] font-black text-slate-400">
+                      <div key={i} className="group flex items-center justify-between rounded-xl px-3 py-2.5 transition hover:bg-white/[0.03]">
+                        <Link href={symbol ? `/companies/${symbol}` as any : "/companies"}
+                          className="flex flex-1 items-center gap-2.5 min-w-0">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-[9px] font-black text-slate-400">
                             {(symbol || name || "?").slice(0, 2).toUpperCase()}
                           </div>
-                          <span className="text-[12px] font-medium text-white">{name}</span>
+                          <div className="min-w-0">
+                            <span className="block text-[12px] font-medium text-white truncate">{name}</span>
+                            {change != null && (
+                              <span className={`text-[11px] font-bold tabular-nums ${pos ? "text-emerald-400" : "text-rose-400"}`}>
+                                {pos ? "+" : ""}{parseFloat(String(change)).toFixed(2)}%
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                        <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
+                          {symbol && (
+                            <Link href={`/companies/${symbol}`}
+                              className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-1 text-[9px] font-semibold text-slate-400 hover:text-white transition">
+                              Research →
+                            </Link>
+                          )}
+                          {symbol && (
+                            <Link href={`/ai-search?q=${encodeURIComponent(`Analyse ${name || symbol} — should I buy, hold or sell right now?`)}`}
+                              className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-[9px] font-semibold text-violet-400 hover:bg-violet-500/20 transition">
+                              Ask AI
+                            </Link>
+                          )}
                         </div>
-                        {change != null && (
-                          <span className={`text-[12px] font-bold tabular-nums ${pos ? "text-emerald-400" : "text-rose-400"}`}>
-                            {pos ? "+" : ""}{parseFloat(String(change)).toFixed(2)}%
-                          </span>
-                        )}
-                      </Link>
+                      </div>
                     );
                   })}
                 </div>
+                {/* Compare CTA if 2+ companies */}
+                {(relCompanies.length >= 2 || companies.length >= 2) && (() => {
+                  const list = relCompanies.length >= 2 ? relCompanies : companies;
+                  const s0 = typeof list[0] === "object" ? list[0].symbol : "";
+                  const s1 = typeof list[1] === "object" ? list[1].symbol : "";
+                  if (!s0 || !s1) return null;
+                  return (
+                    <Link href={`/compare?a=${s0}&b=${s1}`}
+                      className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-3 py-2 text-[11px] font-semibold text-sky-400 hover:bg-sky-500/10 transition">
+                      ↔ Compare {s0} vs {s1}
+                    </Link>
+                  );
+                })()}
               </div>
             )}
 

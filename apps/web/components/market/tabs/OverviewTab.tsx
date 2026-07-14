@@ -12,32 +12,32 @@ function AIExecutiveSummary({ data }: { data: any }) {
   const label = score >= 65 ? "Bullish" : score >= 45 ? "Neutral" : "Bearish";
   const color = score >= 65 ? "text-emerald-400" : score >= 45 ? "text-amber-400" : "text-rose-400";
   return (
-    <div className="rounded-xl border border-sky-500/10 bg-[#080c14] p-6">
-      <div className="relative flex items-start gap-8">
+    <div className="rounded-xl border border-sky-500/10 bg-[#080c14] px-4 py-3.5">
+      <div className="relative flex items-start gap-5">
         <div className="flex-1 min-w-0">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-sky-500/20 text-sky-400"><Sparkles className="h-3.5 w-3.5" /></span>
-            <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-400">AI Executive Summary</span>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400"><Sparkles className="h-3 w-3" /></span>
+            <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-400">AI Executive Summary</span>
           </div>
-          <h2 className="text-[18px] font-black text-white mb-2 leading-snug">
+          <h2 className="text-[14px] font-black text-white mb-1.5 leading-snug">
             Market Sentiment: <span className={color}>{label}</span>
           </h2>
-          <p className="text-[13px] leading-6 text-slate-400">
+          <p className="text-[12px] leading-5 text-slate-400">
             Indian markets are showing {label.toLowerCase()} momentum with {score >= 65 ? "strong" : "mixed"} institutional participation.
             Infrastructure, banking, and defence sectors are in focus with multiple high-impact events scheduled.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3 shrink-0">
+        <div className="grid grid-cols-2 gap-2 shrink-0">
           {([
-            { label: "Sentiment Score", value: `${score}%`,  color: color,            icon: <BarChart2 className="h-4 w-4" /> },
-            { label: "AI Confidence",   value: "92%",        color: "text-violet-400", icon: <Bot className="h-4 w-4" /> },
-            { label: "Events Today",    value: (data?.events?.length ?? 0) + "",        color: "text-amber-400",  icon: <Zap className="h-4 w-4" /> },
-            { label: "Opportunities",   value: (data?.opportunities?.length ?? 0) + "", color: "text-emerald-400",icon: <Target className="h-4 w-4" /> },
+            { label: "Sentiment Score", value: `${score}%`,  color: color,            icon: <BarChart2 className="h-3.5 w-3.5" /> },
+            { label: "AI Confidence",   value: "92%",        color: "text-violet-400", icon: <Bot className="h-3.5 w-3.5" /> },
+            { label: "Events Today",    value: (data?.events?.length ?? 0) + "",        color: "text-amber-400",  icon: <Zap className="h-3.5 w-3.5" /> },
+            { label: "Opportunities",   value: (data?.opportunities?.length ?? 0) + "", color: "text-emerald-400",icon: <Target className="h-3.5 w-3.5" /> },
           ] as { label: string; value: string; color: string; icon: ReactNode }[]).map(s => (
-            <div key={s.label} className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 min-w-[120px]">
+            <div key={s.label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2 min-w-[90px]">
               <span className="text-slate-400 mb-0.5 block">{s.icon}</span>
-              <p className={`text-[18px] font-black ${s.color}`}>{s.value}</p>
-              <p className="text-[10px] text-slate-500">{s.label}</p>
+              <p className={`text-[14px] font-black ${s.color}`}>{s.value}</p>
+              <p className="text-[9px] text-slate-500">{s.label}</p>
             </div>
           ))}
         </div>

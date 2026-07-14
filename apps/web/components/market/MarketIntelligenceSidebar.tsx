@@ -49,7 +49,7 @@ function FearGreedGauge({ value }: { value: number }) {
           <line x1={CX} y1={CY} x2={needleX} y2={needleY} stroke="white" strokeWidth="2" strokeLinecap="round"/>
           <circle cx={CX} cy={CY} r="4" fill="white"/>
         </svg>
-        <p className="text-[28px] font-black text-white leading-none">{value}</p>
+        <p className="text-[22px] font-black text-white leading-none">{value}</p>
         <p className="text-[12px] font-semibold mt-0.5" style={{ color }}>{label}</p>
         <p className="text-[9px] text-slate-600 mt-1">Yesterday: {Math.max(10, value - 4)}</p>
       </div>

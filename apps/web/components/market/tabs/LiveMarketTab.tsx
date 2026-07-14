@@ -80,15 +80,23 @@ function computeHealthScore(data: any, story: MarketStory | null): number {
 // ─────────────────────────────────────────────────────────────────────────────
 // Section 1 — AI Market Story
 // ─────────────────────────────────────────────────────────────────────────────
-function LiveStoryPanel({ story, loading }: { story: MarketStory | null; loading: boolean }) {
-  const meta = moodMeta(story?.mood ?? "");
+function pulseDisplay(p: string): { icon: string; label: string; cls: string } {
+  if (p === "+") return { icon: "▲", label: "Bullish",  cls: "text-emerald-400" };
+  if (p === "-") return { icon: "▼", label: "Bearish",  cls: "text-rose-400"    };
+  return              { icon: "→", label: "Neutral",  cls: "text-amber-400"   };
+}
 
-  const highlights: { label: string; value: string }[] = story ? [
-    { label: "Pulse",          value: story.pulse        || "—" },
-    { label: "Direction",      value: story.direction    || "—" },
-    { label: "Trader Watch",   value: story.trader_watch || "—" },
-    { label: "Investor Watch", value: story.investor_watch || "—" },
-  ] : [];
+function dirDisplay(d: string): { icon: string; label: string; cls: string } {
+  const dl = (d ?? "").toLowerCase();
+  if (dl === "up"   || dl === "rising")    return { icon: "↑", label: "Uptrend",  cls: "text-emerald-400" };
+  if (dl === "down" || dl === "falling")   return { icon: "↓", label: "Downtrend", cls: "text-rose-400"    };
+  return                                          { icon: "↔", label: "Sideways",  cls: "text-amber-400"   };
+}
+
+function LiveStoryPanel({ story, loading }: { story: MarketStory | null; loading: boolean }) {
+  const meta  = moodMeta(story?.mood ?? "");
+  const pulse = story ? pulseDisplay(story.pulse) : null;
+  const dir   = story ? dirDisplay(story.direction) : null;
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-[#0d0e1f] to-[#080c14] p-6">
@@ -135,14 +143,34 @@ function LiveStoryPanel({ story, loading }: { story: MarketStory | null; loading
         )}
 
         {/* Pulse grid */}
-        {highlights.length > 0 && (
+        {story && pulse && dir && (
           <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {highlights.map(({ label, value }) => (
-              <div key={label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
-                <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600">{label}</p>
-                <p className={`text-[12px] font-bold leading-snug ${signalColor(value)}`}>{value}</p>
-              </div>
-            ))}
+            {/* Pulse */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+              <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Pulse</p>
+              <p className={`text-[18px] font-black leading-none ${pulse.cls}`}>{pulse.icon}</p>
+              <p className={`mt-0.5 text-[10px] font-semibold ${pulse.cls}`}>{pulse.label}</p>
+            </div>
+            {/* Direction */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+              <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Direction</p>
+              <p className={`text-[18px] font-black leading-none ${dir.cls}`}>{dir.icon}</p>
+              <p className={`mt-0.5 text-[10px] font-semibold ${dir.cls}`}>{dir.label}</p>
+            </div>
+            {/* Trader Watch */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+              <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Trader Watch</p>
+              <p className={`text-[11px] font-semibold leading-snug ${signalColor(story.trader_watch)}`}>
+                {story.trader_watch || "—"}
+              </p>
+            </div>
+            {/* Investor Watch */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+              <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Investor Watch</p>
+              <p className={`text-[11px] font-semibold leading-snug ${signalColor(story.investor_watch)}`}>
+                {story.investor_watch || "—"}
+              </p>
+            </div>
           </div>
         )}
       </div>

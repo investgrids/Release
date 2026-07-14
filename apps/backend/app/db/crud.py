@@ -3,9 +3,13 @@ from sqlalchemy import select, func
 from app.db import models_legacy as models
 
 
-async def get_events(db: AsyncSession, limit: int = 20):
+async def get_events(db: AsyncSession, limit: int = 20, sort_by: str = "published_at"):
+    if sort_by == "impact_score":
+        order = models.Event.impact_score.desc()
+    else:
+        order = models.Event.published_at.desc()
     result = await db.execute(
-        select(models.Event).order_by(models.Event.published_at.desc()).limit(limit)
+        select(models.Event).order_by(order).limit(limit)
     )
     return result.scalars().all()
 

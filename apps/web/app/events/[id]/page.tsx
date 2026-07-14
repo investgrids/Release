@@ -1122,9 +1122,9 @@ export default function EventExplorerPage() {
 
       {/* ── Contextual quick links ────────────────────────────────────── */}
       <div className="mb-4 flex flex-wrap gap-2">
-        <Link href={`/insights/${id}`}
+        <Link href="/market-intelligence"
           className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold text-violet-300 hover:bg-violet-500/20 transition">
-          ✦ Intelligence Report
+          ✦ Intelligence Feed
         </Link>
         <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${ev.title}`)}`} />
         {data.beneficiaries?.[0] && (
