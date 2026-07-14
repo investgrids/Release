@@ -71,30 +71,75 @@ const EDGE_META: Record<string, { color: string; label: string; positive: boolea
   triggered_by:  { color: "#fbbf24", label: "Triggered By",  positive: true  },
 };
 
-const TYPE_CLUSTER: Record<string, { x: number; y: number }> = {
-  commodity: { x: 0, y: -700 }, theme: { x: 700, y: -400 },
-  country:   { x: 1000, y: 0 }, index: { x: 700, y: 400 },
-  currency:  { x: 0, y: 700 },  policy: { x: -800, y: 350 },
-  sector:    { x: -750, y: -200 }, company: { x: -350, y: -650 },
-  event:     { x: 200, y: 0 },
-};
-
 const FILTER_TABS = ["All", "Events", "Sectors", "Companies", "Themes", "Macro", "Commodities", "Geography"];
 
+// ─── Layout — BFS radial from most-connected node ────────────────────────────
+function computeInitialPositions(nodes: RawNode[], edges: RawEdge[]): Map<string, { x: number; y: number }> {
+  if (nodes.length === 0) return new Map();
 
-// ─── Layout ───────────────────────────────────────────────────────────────────
-function computeInitialPositions(nodes: RawNode[]): Map<string, { x: number; y: number }> {
-  const groups: Record<string, string[]> = {};
-  for (const n of nodes) (groups[n.node_type] ??= []).push(n.id);
+  // Degree count per node
+  const degree: Record<string, number> = {};
+  for (const n of nodes) degree[n.id] = 0;
+  for (const e of edges) {
+    degree[e.source] = (degree[e.source] ?? 0) + 1;
+    degree[e.target] = (degree[e.target] ?? 0) + 1;
+  }
+
+  // Adjacency list
+  const adj: Record<string, Set<string>> = {};
+  for (const n of nodes) adj[n.id] = new Set();
+  for (const e of edges) {
+    adj[e.source]?.add(e.target);
+    adj[e.target]?.add(e.source);
+  }
+
+  // Pick center node — prefer event/policy type with most connections
+  const ranked = [...nodes].sort((a, b) => {
+    const typeScore = (t: string) => ({ event: 3, policy: 2, theme: 1 }[t.toLowerCase()] ?? 0);
+    return (typeScore(b.node_type) * 10 + (degree[b.id] ?? 0)) - (typeScore(a.node_type) * 10 + (degree[a.id] ?? 0));
+  });
+  const center = ranked[0];
+
+  // BFS levels from center
+  const visited = new Set<string>([center.id]);
+  const levels: string[][] = [[center.id]];
+  while (visited.size < nodes.length) {
+    const prev = levels[levels.length - 1];
+    const next: string[] = [];
+    for (const id of prev)
+      for (const nb of (adj[id] ?? new Set()))
+        if (!visited.has(nb)) { visited.add(nb); next.push(nb); }
+    if (next.length === 0) {
+      // Disconnected nodes — add remaining
+      const rem = nodes.filter(n => !visited.has(n.id)).map(n => n.id);
+      if (rem.length) { rem.forEach(id => visited.add(id)); levels.push(rem); }
+      break;
+    }
+    levels.push(next);
+  }
+
+  // Radii per ring — spread enough so nodes don't overlap
+  const RING_RADII = [0, 260, 480, 660, 820, 960, 1080];
+
   const pos = new Map<string, { x: number; y: number }>();
-  for (const [type, ids] of Object.entries(groups)) {
-    const center = TYPE_CLUSTER[type] ?? { x: 0, y: 0 };
-    ids.forEach((id, i) => {
-      if (ids.length === 1) { pos.set(id, { ...center }); return; }
-      const angle  = (i / ids.length) * 2 * Math.PI - Math.PI / 2;
-      const radius = Math.min(40 + ids.length * 22, 200);
-      pos.set(id, { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius });
-    });
+  for (let lvl = 0; lvl < levels.length; lvl++) {
+    const ids = levels[lvl];
+    const r   = RING_RADII[Math.min(lvl, RING_RADII.length - 1)];
+    if (lvl === 0) {
+      pos.set(ids[0], { x: 0, y: 0 });
+    } else {
+      // Spread ids sorted by degree desc so high-degree nodes get prime angles
+      const sorted = [...ids].sort((a, b) => (degree[b] ?? 0) - (degree[a] ?? 0));
+      sorted.forEach((id, i) => {
+        const angle = (i / sorted.length) * 2 * Math.PI - Math.PI / 2;
+        // Small jitter to avoid exact overlap at same radius
+        const jitter = ((i % 3) - 1) * 18;
+        pos.set(id, {
+          x: Math.cos(angle) * (r + jitter),
+          y: Math.sin(angle) * (r + jitter),
+        });
+      });
+    }
   }
   return pos;
 }
@@ -209,15 +254,17 @@ function buildEdges(
     const ekey      = `${e.source}|${e.edge_type}|${e.target}`;
     const isRipple  = rippleEdgeKeys.has(ekey);
     const isAdj     = !!selectedId && (e.source === selectedId || e.target === selectedId);
-    const isDimmed  = hasRipple && !isRipple;
+    const isDimmed  = (hasRipple && !isRipple) || (!!selectedId && !isAdj);
     const meta      = EDGE_META[e.edge_type] ?? { color: "#475569", label: e.edge_type, positive: true };
-    const color     = isRipple ? meta.color : isDimmed ? "#1a2235" : `${meta.color}70`;
+    const color     = isRipple ? meta.color : isDimmed ? "#1e2a3a" : `${meta.color}90`;
+    const sw        = isRipple ? 2.5 : isAdj ? 2 : 1.5;
+    const opacity   = isDimmed ? 0.08 : isRipple ? 1 : isAdj ? 1 : 0.75;
     return {
       id: e.id, source: e.source, target: e.target,
       type: "labeledEdge",
       animated: isRipple,
-      style: { stroke: color, strokeWidth: isRipple ? 2.5 : 1.5, opacity: isDimmed ? 0.12 : 0.9 },
-      markerEnd: { type: MarkerType.ArrowClosed, color, width: 14, height: 14 },
+      style: { stroke: color, strokeWidth: sw, opacity },
+      markerEnd: { type: MarkerType.ArrowClosed, color, width: 12, height: 12 },
       data: {
         label: meta.label,
         sublabel: strengthLabel(e.weight, meta.positive),
@@ -438,7 +485,7 @@ function GraphInner({ initialGraph }: { initialGraph: GraphData | null }) {
       }).catch(() => {});
   }, []);
 
-  // Filter tab → node type visibility
+  // Filter tab → node type visibility (all keys lowercase)
   useEffect(() => {
     const map: Record<string, string[]> = {
       All:         Object.keys(NODE_META),
@@ -446,9 +493,9 @@ function GraphInner({ initialGraph }: { initialGraph: GraphData | null }) {
       Sectors:     ["sector"],
       Companies:   ["company"],
       Themes:      ["theme"],
-      Macro:       ["index", "country"],
+      Macro:       ["index", "country", "macro"],
       Commodities: ["commodity", "currency"],
-      Geography:   ["country"],
+      Geography:   ["country", "geography"],
     };
     setVisibleNodeTypes(new Set(map[activeFilter] ?? Object.keys(NODE_META)));
   }, [activeFilter]);
@@ -470,13 +517,15 @@ function GraphInner({ initialGraph }: { initialGraph: GraphData | null }) {
     return s;
   }, [ripple]);
 
-  // Rebuild graph
+  // Rebuild graph — normalize node_type to lowercase so capitalized API values work
   useEffect(() => {
     const searchLow = search.toLowerCase();
-    const newPos = computeInitialPositions(graphData.nodes);
+    // Normalise raw data once
+    const normNodes = graphData.nodes.map(n => ({ ...n, node_type: n.node_type.toLowerCase() }));
+    const newPos    = computeInitialPositions(normNodes, graphData.edges);
     newPos.forEach((p, id) => { if (!posRef.current.has(id)) posRef.current.set(id, p); });
     const hasRipple = rippleNodeMap.size > 0;
-    const rfNodes: Node<IGNodeData>[] = graphData.nodes.filter(n => visibleNodeTypes.has(n.node_type)).map(n => {
+    const rfNodes: Node<IGNodeData>[] = normNodes.filter(n => visibleNodeTypes.has(n.node_type)).map(n => {
       const pos    = posRef.current.get(n.id) ?? { x: 0, y: 0 };
       const imp    = rippleNodeMap.get(n.id);
       const match  = searchLow ? n.label.toLowerCase().includes(searchLow) : true;
@@ -531,10 +580,13 @@ function GraphInner({ initialGraph }: { initialGraph: GraphData | null }) {
     };
   }, [selectedNode, graphData]);
 
-  // Stats
+  // Stats — normalize node_type to lowercase before counting
   const stats = useMemo(() => {
     const byType: Record<string, number> = {};
-    for (const n of graphData.nodes) byType[n.node_type] = (byType[n.node_type] ?? 0) + 1;
+    for (const n of graphData.nodes) {
+      const t = n.node_type.toLowerCase();
+      byType[t] = (byType[t] ?? 0) + 1;
+    }
     return { total: graphData.nodes.length, edges: graphData.edges.length, byType };
   }, [graphData]);
 
