@@ -62,7 +62,7 @@ async def sector_stocks(sector_id: str):
         try:
             raw = yf.download(
                 tickers, period="2d", interval="1d",
-                progress=False, auto_adjust=True, group_by="ticker",
+                progress=False, auto_adjust=True, group_by="ticker", timeout=10,
             )
         except Exception:
             return []

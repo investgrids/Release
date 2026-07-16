@@ -77,7 +77,7 @@ def _fetch_price_sync(ticker: str) -> float | None:
     try:
         import math
         import yfinance as yf
-        hist = yf.download(ticker, period="3d", interval="1d", progress=False, auto_adjust=True)
+        hist = yf.download(ticker, period="3d", interval="1d", progress=False, auto_adjust=True, timeout=10)
         if hist.empty:
             return None
         close = hist["Close"].iloc[-1]

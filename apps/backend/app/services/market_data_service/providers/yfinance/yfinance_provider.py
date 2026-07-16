@@ -176,7 +176,7 @@ class YFinanceProvider(MarketDataProvider):
         def _fetch():
             try:
                 hist = yf.download(ticker, period=yf_period, interval=yf_interval,
-                                   progress=False, auto_adjust=True)
+                                   progress=False, auto_adjust=True, timeout=10)
                 if hist.empty:
                     return []
                 candles = []

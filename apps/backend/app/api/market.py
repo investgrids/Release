@@ -6,8 +6,24 @@ from __future__ import annotations
 
 import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor as _TP, TimeoutError as _TE
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Query
+
+# Dedicated thread pool for yfinance calls so they don't share the default
+# executor with other I/O work.  result(timeout=9) gives each call a hard cap
+# — if Yahoo doesn't respond in 9 s, we return None and serve stale/empty data
+# instead of blocking the gunicorn worker indefinitely.
+_YF_POOL = _TP(max_workers=6, thread_name_prefix="yf-market")
+_YF_TIMEOUT = 9.0
+
+
+def _yf_run(fn):
+    """Run a zero-arg callable in the yfinance pool with a hard timeout."""
+    try:
+        return _YF_POOL.submit(fn).result(timeout=_YF_TIMEOUT)
+    except (_TE, Exception):
+        return None
 
 from app.services.market_data import (
     get_premarket_data,
@@ -35,7 +51,7 @@ def _cached_sync(key: str, ttl: int, fn):
 
 # ── Shared yfinance helpers ────────────────────────────────────────────────────
 def _yf_quote(ticker: str) -> dict | None:
-    try:
+    def _inner():
         import yfinance as yf
         fi = yf.Ticker(ticker).fast_info
         price = float(fi.last_price or 0)
@@ -45,15 +61,14 @@ def _yf_quote(ticker: str) -> dict | None:
         change = price - prev
         pct    = (change / prev) * 100
         return {"price": price, "change": change, "pct": pct, "positive": change >= 0}
-    except Exception:
-        return None
+    return _yf_run(_inner)
 
 
 def _yf_mini(ticker: str, period: str = "1d", interval: str = "60m") -> list[dict]:
-    try:
+    def _inner():
         import yfinance as yf, math
         hist = yf.download(ticker, period=period, interval=interval,
-                           progress=False, auto_adjust=True)
+                           progress=False, auto_adjust=True, timeout=8)
         if hist.empty:
             return []
         res = []
@@ -66,8 +81,7 @@ def _yf_mini(ticker: str, period: str = "1d", interval: str = "60m") -> list[dic
                 continue
             res.append({"label": idx.strftime("%H:%M"), "value": round(v, 2)})
         return res[-20:]
-    except Exception:
-        return []
+    return _yf_run(_inner) or []
 
 
 # ── Pre-market ticker sets ────────────────────────────────────────────────────

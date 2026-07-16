@@ -16,6 +16,11 @@ router = APIRouter()
 _price_cache: dict[str, tuple[float, dict]] = {}
 _PRICE_TTL = 120  # 2-minute freshness for live prices
 
+# Cap concurrent yfinance threads — Yahoo throttles hard above ~6 parallel requests
+# from the same IP, causing long hangs that trigger gunicorn's 120 s worker timeout.
+_YF_SEM = asyncio.Semaphore(6)
+_YF_CALL_TIMEOUT = 9.0  # seconds per individual yfinance call
+
 
 def _yf_price(ticker: str) -> dict | None:
     """Synchronous yfinance fast_info fetch — run in executor."""
@@ -42,7 +47,7 @@ def _yf_sparkline(ticker: str, points: int = 8) -> list[float]:
     """Return last N intraday hourly close prices normalised to % change from open."""
     try:
         import yfinance as yf, math
-        hist = yf.download(ticker, period="1d", interval="60m", progress=False, auto_adjust=True)
+        hist = yf.download(ticker, period="1d", interval="60m", progress=False, auto_adjust=True, timeout=8)
         if hist.empty:
             return []
         closes: list[float] = []
@@ -141,11 +146,20 @@ async def get_live_data():
         if tkr not in ticker_map:
             ticker_map[tkr] = nid
 
-    # Fetch all prices concurrently in executor
+    # Fetch all prices concurrently in executor.
+    # Semaphore caps parallel Yahoo requests to 6; wait_for kills hangers after 9 s.
     loop = asyncio.get_running_loop()
 
     async def _fetch_one(ticker: str) -> tuple[str, dict | None]:
-        result = await loop.run_in_executor(None, _yf_price, ticker)
+        async with _YF_SEM:
+            try:
+                result = await asyncio.wait_for(
+                    loop.run_in_executor(None, _yf_price, ticker),
+                    timeout=_YF_CALL_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                log.warning("graph.live.yf_timeout", ticker=ticker)
+                result = None
         return ticker, result
 
     results = await asyncio.gather(*[_fetch_one(t) for t in ticker_map])
@@ -179,7 +193,14 @@ async def get_node_sparkline(node_id: str):
         raise HTTPException(404, "Node not found or has no ticker")
 
     loop = asyncio.get_running_loop()
-    sparkline = await loop.run_in_executor(None, _yf_sparkline, node["ticker"])
+    async with _YF_SEM:
+        try:
+            sparkline = await asyncio.wait_for(
+                loop.run_in_executor(None, _yf_sparkline, node["ticker"]),
+                timeout=_YF_CALL_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            sparkline = []
     return {"node_id": node_id, "ticker": node["ticker"], "sparkline": sparkline}
 
 

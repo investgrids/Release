@@ -82,7 +82,7 @@ def _fetch_quote(ticker: str) -> Optional[dict]:
 def _fetch_history(ticker: str, period: str = "5d", interval: str = "1d") -> list[dict]:
     import math
     try:
-        hist = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
+        hist = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True, timeout=10)
         if hist.empty:
             return []
         result = []
@@ -449,7 +449,7 @@ async def get_index_chart(symbol: str, period: str = "6M") -> list:
 
     def _fetch():
         try:
-            hist = yf.download(ticker, period=yf_period, interval=interval, progress=False, auto_adjust=True)
+            hist = yf.download(ticker, period=yf_period, interval=interval, progress=False, auto_adjust=True, timeout=10)
             if hist.empty:
                 return []
             result = []
@@ -480,7 +480,7 @@ async def get_stock_chart(symbol: str, period: str = "6M") -> list:
         try:
             hist = yf.download(
                 ns_ticker, period=yf_period, interval=interval,
-                progress=False, auto_adjust=True,
+                progress=False, auto_adjust=True, timeout=10,
             )
             if hist.empty:
                 return []
@@ -759,7 +759,7 @@ async def get_ticker_chart(ticker: str, period: str = "1D") -> list[dict]:
         import math
         try:
             hist = yf.download(ticker, period=yf_period, interval=interval,
-                               progress=False, auto_adjust=True)
+                               progress=False, auto_adjust=True, timeout=10)
             if hist.empty:
                 return []
             result = []

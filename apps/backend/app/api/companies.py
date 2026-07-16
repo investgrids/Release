@@ -337,7 +337,7 @@ def _fetch_prices_sync(symbols: list[str]) -> dict[str, dict]:
         ns = [f"{s}.NS" for s in symbols]
         # period="2d" gives today + yesterday so we can compute change
         data = yf.download(ns, period="2d", interval="1d",
-                           progress=False, auto_adjust=True, group_by="ticker")
+                           progress=False, auto_adjust=True, group_by="ticker", timeout=10)
 
         result: dict[str, dict] = {}
         for sym, ns_sym in zip(symbols, ns):
