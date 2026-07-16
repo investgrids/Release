@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 
 type Metrics = { fcp: number | null; lcp: number | null };
 
@@ -54,7 +55,7 @@ export function PerfBadge() {
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
           <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Fake Glass · Perf</p>
         </div>
-        <button onClick={() => setVisible(false)} className="text-[10px] text-slate-600 hover:text-slate-400">✕</button>
+        <button onClick={() => setVisible(false)} className="text-slate-600 hover:text-slate-400 flex items-center"><X size={12} strokeWidth={2}/></button>
       </div>
       <div className="space-y-1">
         <Row label="FCP" ms={m.fcp} g={fGrade} />

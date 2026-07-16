@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import {
   Droplets, BarChart2, Banknote, ArrowRightLeft,
-  TrendingUp, Sparkles,
+  TrendingUp, Sparkles, Globe,
 } from "lucide-react";
 import OpeningPrediction from "@/components/market/OpeningPrediction";
 
@@ -705,7 +705,7 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
         {data?.european?.length > 0 && (
           <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
             <div className="mb-3 flex items-center gap-2">
-              <span className="text-base">🌍</span>
+              <Globe size={14} strokeWidth={1.8} className="text-slate-400"/>
               <h3 className="text-[13px] font-bold text-white">European Markets</h3>
             </div>
             <div className="space-y-2">

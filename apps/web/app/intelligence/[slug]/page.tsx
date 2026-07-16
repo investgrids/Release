@@ -5,7 +5,12 @@ import {
   Calendar, TrendingUp, TrendingDown, ChevronRight, Zap,
   AlertCircle, Building2, Layers, BookOpen, Clock, ExternalLink,
 } from "lucide-react";
-import MiniIntelligenceGraph, { makeNodeId } from "@/components/MiniIntelligenceGraph";
+import MiniIntelligenceGraph from "@/components/MiniIntelligenceGraph";
+
+function makeNodeId(nodeType: string, label: string): string {
+  const slug = label.toLowerCase().replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
+  return `${nodeType}:${slug}`;
+}
 
 export const dynamic = "force-dynamic";
 

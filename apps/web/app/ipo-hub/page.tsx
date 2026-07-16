@@ -172,10 +172,12 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
         {/* Action buttons */}
         <div className="flex gap-2 mt-3">
           <button className="flex items-center gap-1.5 rounded-[10px] border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/10 transition">
-            <span>⬇</span> Download DRHP
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download DRHP
           </button>
           <button className="flex items-center gap-1.5 rounded-[10px] border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-[11px] text-violet-300 hover:bg-violet-500/15 transition">
-            <span>☆</span> Add to Watchlist
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+            Add to Watchlist
           </button>
         </div>
       </div>

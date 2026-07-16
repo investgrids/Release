@@ -49,7 +49,7 @@ function truncate(s: string, n: number) {
 }
 
 /** Build node ID from type + label, mirroring backend make_node_id() */
-export function makeNodeId(nodeType: string, label: string): string {
+function makeNodeId(nodeType: string, label: string): string {
   const slug = label.toLowerCase().replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
   return `${nodeType}:${slug}`;
 }

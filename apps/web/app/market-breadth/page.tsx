@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TrendingUp, LineChart, Layers, Globe, Banknote, Bookmark } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Market Breadth | MarketRipple",
@@ -34,15 +35,15 @@ export default function MarketBreadthPage() {
 
         <div className="relative mx-auto mb-8 grid max-w-xl grid-cols-2 gap-3 text-left sm:grid-cols-3">
           {[
-            { label: "Advance / Decline", icon: "⬆" },
-            { label: "A/D Ratio Line", icon: "📊" },
-            { label: "Sector Breadth", icon: "🏭" },
-            { label: "FII Net Flow", icon: "🌍" },
-            { label: "DII Net Flow", icon: "🏦" },
-            { label: "52W High/Low", icon: "📌" },
+            { label: "Advance / Decline", icon: <TrendingUp size={15} strokeWidth={1.7}/> },
+            { label: "A/D Ratio Line",    icon: <LineChart  size={15} strokeWidth={1.7}/> },
+            { label: "Sector Breadth",    icon: <Layers     size={15} strokeWidth={1.7}/> },
+            { label: "FII Net Flow",      icon: <Globe      size={15} strokeWidth={1.7}/> },
+            { label: "DII Net Flow",      icon: <Banknote   size={15} strokeWidth={1.7}/> },
+            { label: "52W High/Low",      icon: <Bookmark   size={15} strokeWidth={1.7}/> },
           ].map(f => (
             <div key={f.label} className="flex items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
-              <span className="text-lg leading-none">{f.icon}</span>
+              <span className="text-slate-400 flex items-center">{f.icon}</span>
               <span className="text-[12px] font-medium text-slate-300">{f.label}</span>
             </div>
           ))}

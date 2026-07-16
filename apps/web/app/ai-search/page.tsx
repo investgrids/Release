@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Newspaper, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw } from "lucide-react";
+import { Search, Newspaper, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw, Building2, ChevronRight, Target } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { DecisionIntelligencePanel, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
@@ -733,25 +733,25 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         <div className="grid grid-cols-4 gap-3">
           {[
             topCo ? {
-              icon: "🏢",
+              icon: <Building2 size={15} strokeWidth={1.7}/>,
               label: `Open ${topCo.name} Analysis`,
               sub: "Deep dive into company",
               href: `/companies/${topCo.symbol}`,
             } : null,
             topEv ? {
-              icon: "📅",
+              icon: <BarChart2 size={15} strokeWidth={1.7}/>,
               label: `Read ${topEv.title.length > 28 ? topEv.title.slice(0, 25) + "…" : topEv.title}`,
               sub: "Understand the event",
               href: `/events/${topEv.id}`,
             } : null,
             topSec ? {
-              icon: "🔍",
+              icon: <Search size={15} strokeWidth={1.7}/>,
               label: `Explore ${topSec.name} Sector`,
               sub: "Sector & theme analysis",
               href: `/sectors`,
             } : null,
             topFU ? {
-              icon: "💬",
+              icon: <Sparkles size={15} strokeWidth={1.7}/>,
               label: "Ask Another Question",
               sub: "Continue AI research",
               action: () => onFollowUp(topFU),
@@ -760,22 +760,22 @@ function SearchResults({ result, onFollowUp, resultTime }: {
             cta!.action ? (
               <button key={i} onClick={cta!.action}
                 className="group flex items-center gap-3 rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-left transition hover:border-violet-500/30 hover:bg-violet-500/[0.04]">
-                <span className="text-base">{cta!.icon}</span>
+                <span className="text-slate-400 flex items-center">{cta!.icon}</span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-medium text-white line-clamp-1">{cta!.label}</p>
                   <p className="text-[10px] text-slate-500 mt-0.5">{cta!.sub}</p>
                 </div>
-                <span className="text-slate-600 group-hover:text-violet-400 transition text-sm">→</span>
+                <ChevronRight size={13} strokeWidth={1.8} className="text-slate-600 group-hover:text-violet-400 transition"/>
               </button>
             ) : (
               <Link key={i} href={(cta as any).href as any}
                 className="group flex items-center gap-3 rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-violet-500/30 hover:bg-violet-500/[0.04]">
-                <span className="text-base">{cta!.icon}</span>
+                <span className="text-slate-400 flex items-center">{cta!.icon}</span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-medium text-white line-clamp-1">{cta!.label}</p>
                   <p className="text-[10px] text-slate-500 mt-0.5">{cta!.sub}</p>
                 </div>
-                <span className="text-slate-600 group-hover:text-violet-400 transition text-sm">→</span>
+                <ChevronRight size={13} strokeWidth={1.8} className="text-slate-600 group-hover:text-violet-400 transition"/>
               </Link>
             )
           ))}
@@ -864,7 +864,7 @@ function RightSidebar({ result, onAction }: {
       {/* Investment Verdict */}
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="text-[13px]">🎯</span>
+          <Target size={14} strokeWidth={1.8} className="text-violet-400"/>
           <p className="text-[13px] font-semibold text-white">Investment Verdict</p>
         </div>
 

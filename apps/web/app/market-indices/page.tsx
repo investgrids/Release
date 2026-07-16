@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 
@@ -95,7 +96,7 @@ function WhatThisMeans({ indices }: { indices: IndexQuote[] }) {
   const vix       = indices.find(i => i.name === "INDIA VIX");
   const bankNifty = indices.find(i => i.name === "BANK NIFTY");
 
-  const insights: { arrow: string; color: string; title: string; detail: string }[] = [];
+  const insights: { arrow: React.ReactNode; color: string; title: string; detail: string }[] = [];
 
   if (nifty) {
     const up = nifty.positive;
@@ -113,7 +114,7 @@ function WhatThisMeans({ indices }: { indices: IndexQuote[] }) {
     const vixVal = parseFloat(vix.value) || 18;
     const calm   = vixVal < 20;
     insights.push({
-      arrow: calm ? "🟢" : "🟡",
+      arrow: calm ? <CheckCircle2 size={16} strokeWidth={1.8}/> : <AlertTriangle size={16} strokeWidth={1.8}/>,
       color: calm ? "text-sky-400" : "text-amber-400",
       title: calm
         ? `Market is calm (VIX ${vix.value})`
@@ -146,7 +147,7 @@ function WhatThisMeans({ indices }: { indices: IndexQuote[] }) {
       <div className="space-y-4">
         {insights.map((ins, i) => (
           <div key={i} className="flex items-start gap-3">
-            <span className={`shrink-0 text-[16px] leading-none ${ins.color}`}>{ins.arrow}</span>
+            <span className={`shrink-0 flex items-center ${ins.color}`}>{ins.arrow}</span>
             <div className="min-w-0">
               <p className={`text-[13px] font-semibold ${ins.color}`}>{ins.title}</p>
               <p className="mt-0.5 text-[12px] leading-5 text-slate-400">{ins.detail}</p>

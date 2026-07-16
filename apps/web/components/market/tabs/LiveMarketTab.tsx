@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAlerts } from "@/components/AlertProvider";
+import {
+  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronRight,
+  Banknote, Monitor, Zap, Shield, Car, Pill, HardHat,
+  ShoppingCart, Layers, Building2, LineChart, FlaskConical, BarChart2,
+} from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -80,17 +85,17 @@ function computeHealthScore(data: any, story: MarketStory | null): number {
 // ─────────────────────────────────────────────────────────────────────────────
 // Section 1 — AI Market Story
 // ─────────────────────────────────────────────────────────────────────────────
-function pulseDisplay(p: string): { icon: string; label: string; cls: string } {
-  if (p === "+") return { icon: "▲", label: "Bullish",  cls: "text-emerald-400" };
-  if (p === "-") return { icon: "▼", label: "Bearish",  cls: "text-rose-400"    };
-  return              { icon: "→", label: "Neutral",  cls: "text-amber-400"   };
+function pulseDisplay(p: string): { icon: React.ReactNode; label: string; cls: string } {
+  if (p === "+") return { icon: <TrendingUp  size={10} strokeWidth={2}/>, label: "Bullish", cls: "text-emerald-400" };
+  if (p === "-") return { icon: <TrendingDown size={10} strokeWidth={2}/>, label: "Bearish", cls: "text-rose-400"   };
+  return              { icon: <Minus        size={10} strokeWidth={2}/>, label: "Neutral", cls: "text-amber-400"  };
 }
 
-function dirDisplay(d: string): { icon: string; label: string; cls: string } {
+function dirDisplay(d: string): { icon: React.ReactNode; label: string; cls: string } {
   const dl = (d ?? "").toLowerCase();
-  if (dl === "up"   || dl === "rising")    return { icon: "↑", label: "Uptrend",  cls: "text-emerald-400" };
-  if (dl === "down" || dl === "falling")   return { icon: "↓", label: "Downtrend", cls: "text-rose-400"    };
-  return                                          { icon: "↔", label: "Sideways",  cls: "text-amber-400"   };
+  if (dl === "up"   || dl === "rising")    return { icon: <TrendingUp  size={10} strokeWidth={2}/>, label: "Uptrend",   cls: "text-emerald-400" };
+  if (dl === "down" || dl === "falling")   return { icon: <TrendingDown size={10} strokeWidth={2}/>, label: "Downtrend", cls: "text-rose-400"    };
+  return                                          { icon: <Minus        size={10} strokeWidth={2}/>, label: "Sideways",  cls: "text-amber-400"   };
 }
 
 function LiveStoryPanel({ story, loading }: { story: MarketStory | null; loading: boolean }) {
@@ -348,7 +353,7 @@ function MarketDrivers({ movers }: { movers: any }) {
                 className={`mt-3 w-full rounded-lg py-1.5 text-[9px] font-semibold transition text-left px-2 ${
                   isOpen ? "bg-violet-500/15 text-violet-300" : "bg-white/[0.04] text-slate-500 hover:text-violet-400 hover:bg-violet-500/8"
                 }`}>
-                {isOpen ? "▲ Why?" : "▼ Why?"}
+                <span className="flex items-center gap-1">{isOpen ? <ChevronDown size={9} strokeWidth={2}/> : <ChevronRight size={9} strokeWidth={2}/>} Why?</span>
               </button>
               {isOpen && (
                 <p className="mt-2 border-t border-white/[0.05] pt-2 text-[10px] leading-4 text-slate-400">
@@ -415,7 +420,7 @@ function CompanyCard({ company, positive }: { company: any; positive: boolean })
         className={`mt-3 flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition ${
           open ? "bg-violet-500/10 text-violet-300" : "bg-white/[0.03] text-slate-500 hover:text-violet-400 hover:bg-violet-500/5"
         }`}>
-        <span className="text-[8px]">{open ? "▲" : "▼"}</span> Why?
+        {open ? <ChevronDown size={9} strokeWidth={2}/> : <ChevronRight size={9} strokeWidth={2}/>} Why?
       </button>
 
       {open && (
@@ -510,11 +515,19 @@ function SectorIntelligence({ sectors }: { sectors: any[] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme Intelligence
 // ─────────────────────────────────────────────────────────────────────────────
-const THEME_ICON: Record<string, string> = {
-  "Banking": "🏦", "IT & Technology": "💻", "Power & Energy": "⚡",
-  "Defence": "🛡️", "Auto & EV": "🚗", "Pharma & Healthcare": "💊",
-  "Infrastructure": "🏗️", "FMCG": "🛒", "Metals & Mining": "⛏️",
-  "Real Estate": "🏢", "Financial Services": "💹", "Chemicals": "🧪",
+const THEME_ICON: Record<string, React.ReactNode> = {
+  "Banking":           <Banknote     size={13} strokeWidth={1.7}/>,
+  "IT & Technology":   <Monitor      size={13} strokeWidth={1.7}/>,
+  "Power & Energy":    <Zap          size={13} strokeWidth={1.7}/>,
+  "Defence":           <Shield       size={13} strokeWidth={1.7}/>,
+  "Auto & EV":         <Car          size={13} strokeWidth={1.7}/>,
+  "Pharma & Healthcare":<Pill        size={13} strokeWidth={1.7}/>,
+  "Infrastructure":    <HardHat      size={13} strokeWidth={1.7}/>,
+  "FMCG":              <ShoppingCart size={13} strokeWidth={1.7}/>,
+  "Metals & Mining":   <Layers       size={13} strokeWidth={1.7}/>,
+  "Real Estate":       <Building2    size={13} strokeWidth={1.7}/>,
+  "Financial Services":<LineChart    size={13} strokeWidth={1.7}/>,
+  "Chemicals":         <FlaskConical size={13} strokeWidth={1.7}/>,
 };
 
 function ThemeIntelligence({ themes }: { themes: ThemeData[] }) {
@@ -529,14 +542,14 @@ function ThemeIntelligence({ themes }: { themes: ThemeData[] }) {
         {themes.slice(0, 10).map((t, i) => {
           const up   = /rising|up|strong|gaining/i.test(t.momentum ?? "");
           const down = /falling|down|weak|losing/i.test(t.momentum ?? "");
-          const arrow  = up ? "↑" : down ? "↓" : "→";
+          const arrow  = up ? <TrendingUp size={10} strokeWidth={2}/> : down ? <TrendingDown size={10} strokeWidth={2}/> : <Minus size={10} strokeWidth={2}/>;
           const momCls = up ? "bg-emerald-500/10 text-emerald-400" : down ? "bg-rose-500/10 text-rose-400" : "bg-slate-500/10 text-slate-400";
           const barCls = up ? "bg-emerald-500" : down ? "bg-rose-500" : "bg-slate-500";
           return (
             <div key={t.theme}
               className="flex items-center gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] px-3 py-2.5 hover:border-violet-500/15 transition">
               <span className="w-4 shrink-0 text-[10px] font-black tabular-nums text-slate-600">#{i + 1}</span>
-              <span className="w-5 shrink-0 text-center text-[13px]">{THEME_ICON[t.theme] ?? "📊"}</span>
+              <span className="w-5 shrink-0 flex items-center justify-center text-slate-400">{THEME_ICON[t.theme] ?? <BarChart2 size={13} strokeWidth={1.7}/>}</span>
               <span className="flex-1 truncate text-[12px] font-semibold text-white">{t.theme}</span>
               {t.news_count_24h > 0 && (
                 <span className="shrink-0 rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[8px] text-sky-400">
@@ -644,9 +657,9 @@ function BreadthExplained({ breadth }: { breadth: any }) {
           <div className="h-full bg-rose-500 transition-all" style={{ width: `${(breadth.declines / total * 100).toFixed(1)}%` }} />
         </div>
         <div className="flex shrink-0 items-center gap-3 text-[11px] font-bold tabular-nums">
-          <span className="text-emerald-400">{breadth.advances}↑</span>
-          <span className="text-slate-600">{breadth.unchanged}→</span>
-          <span className="text-rose-400">{breadth.declines}↓</span>
+          <span className="flex items-center gap-0.5 text-emerald-400">{breadth.advances}<TrendingUp size={9} strokeWidth={2}/></span>
+          <span className="flex items-center gap-0.5 text-slate-600">{breadth.unchanged}<Minus size={9} strokeWidth={2}/></span>
+          <span className="flex items-center gap-0.5 text-rose-400">{breadth.declines}<TrendingDown size={9} strokeWidth={2}/></span>
         </div>
       </div>
       {(breadth.high52w || breadth.low52w) && (
@@ -759,8 +772,8 @@ function MarketReplay() {
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <button onClick={toggle} className="flex w-full items-center gap-3 text-left">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-[12px] text-violet-400">
-          {open ? "▼" : "▶"}
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+          {open ? <ChevronDown size={14} strokeWidth={2}/> : <ChevronRight size={14} strokeWidth={2}/>}
         </span>
         <div>
           <h3 className="text-[14px] font-bold text-white">Market Replay</h3>
@@ -784,11 +797,11 @@ function MarketReplay() {
                 const d = new Date(e.generated_at);
                 const t = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
                 const { cls: mCls, bg: mBg, border: mBdr } = moodMeta(e.mood);
-                const arrow = e.pulse === "+" ? "▲" : e.pulse === "-" ? "▼" : "→";
+                const arrow = e.pulse === "+" ? <TrendingUp size={11} strokeWidth={2}/> : e.pulse === "-" ? <TrendingDown size={11} strokeWidth={2}/> : <Minus size={11} strokeWidth={2}/>;
                 return (
                   <div key={i} className="flex items-start gap-4">
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${mBdr} ${mBg} z-10`}>
-                      <span className={`text-[9px] font-black ${mCls}`}>{arrow}</span>
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${mBdr} ${mBg} z-10 ${mCls}`}>
+                      {arrow}
                     </div>
                     <div className="flex-1 min-w-0 rounded-xl border border-white/[0.04] bg-white/[0.02] p-3">
                       <div className="mb-1 flex flex-wrap items-center gap-2">

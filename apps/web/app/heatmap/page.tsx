@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TrendingUp, LayoutGrid, Layers, MousePointerClick, RefreshCw, Thermometer } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Market Heatmap | MarketRipple",
@@ -39,15 +40,15 @@ export default function HeatmapPage() {
         {/* What you'll see */}
         <div className="relative mx-auto mb-8 grid max-w-xl grid-cols-2 gap-3 text-left sm:grid-cols-3">
           {[
-            { label: "Live % Change", icon: "📈" },
-            { label: "Market Cap Size", icon: "🔲" },
-            { label: "Sector Grouping", icon: "🏭" },
-            { label: "Click → Company", icon: "🔍" },
-            { label: "Auto-refresh 5m", icon: "⏱" },
-            { label: "Sector Heat", icon: "🌡" },
+            { label: "Live % Change",  icon: <TrendingUp       size={15} strokeWidth={1.7}/> },
+            { label: "Market Cap Size",icon: <LayoutGrid        size={15} strokeWidth={1.7}/> },
+            { label: "Sector Grouping",icon: <Layers           size={15} strokeWidth={1.7}/> },
+            { label: "Click → Company",icon: <MousePointerClick size={15} strokeWidth={1.7}/> },
+            { label: "Auto-refresh 5m",icon: <RefreshCw        size={15} strokeWidth={1.7}/> },
+            { label: "Sector Heat",    icon: <Thermometer      size={15} strokeWidth={1.7}/> },
           ].map(f => (
             <div key={f.label} className="flex items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
-              <span className="text-lg leading-none">{f.icon}</span>
+              <span className="text-slate-400 flex items-center">{f.icon}</span>
               <span className="text-[12px] font-medium text-slate-300">{f.label}</span>
             </div>
           ))}
