@@ -13,8 +13,10 @@ Each model that returns HTTP 429 (rate-limited) is remembered in _EXHAUSTED
 for the lifetime of the process and skipped on all future calls — no wasted
 round-trips. Resets when Railway restarts (typically daily).
 """
+import time
 import httpx
 import structlog
+from dataclasses import dataclass, field
 from app.core.config import settings
 from app.core.redis import cache_get, cache_set
 
@@ -25,9 +27,114 @@ _OR_URL       = "https://openrouter.ai/api/v1/chat/completions"
 _GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 _CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions"
 _GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+_NVIDIA_PATH  = "/chat/completions"   # appended to settings.nvidia_base_url
 
 # Models that have returned 429 (rate exhausted) — skipped until process restart
 _EXHAUSTED: set[str] = set()
+
+
+# ── NVIDIA "best effort" resilience layer ───────────────────────────────────
+#
+# NVIDIA is the *preferred* reasoning model, never a *required* one. A user
+# must never wait on it: every call is bounded by a hard timeout, and a
+# circuit breaker stops even attempting NVIDIA for a cooldown period after
+# it's been failing repeatedly, so a degraded NVIDIA backend can't add
+# latency to every single request. All of this is internal — the provider
+# that actually answered a query is never surfaced to the API response, only
+# to server-side logs/metrics.
+
+_NVIDIA_TIMEOUT_S = 2.5              # hard cap — never keep a user waiting on this
+_CIRCUIT_FAILURE_THRESHOLD = 3        # consecutive failures before the circuit opens
+_CIRCUIT_COOLDOWN_S = 60.0            # how long the circuit stays open before a trial call
+
+
+@dataclass
+class _NvidiaMetrics:
+    """In-process counters. Per-worker (like _EXHAUSTED) — resets on restart."""
+    attempts: int = 0
+    successes: int = 0
+    timeouts: int = 0
+    rate_limited: int = 0     # 429
+    server_errors: int = 0    # 5xx
+    other_failures: int = 0
+    fallbacks: int = 0        # every time a caller had to use the existing chain instead
+    circuit_opens: int = 0
+    _latencies_ms: list = field(default_factory=list)   # rolling window, capped
+
+    def record_latency(self, ms: float) -> None:
+        self._latencies_ms.append(ms)
+        if len(self._latencies_ms) > 200:
+            self._latencies_ms.pop(0)
+
+    def avg_latency_ms(self) -> float | None:
+        return sum(self._latencies_ms) / len(self._latencies_ms) if self._latencies_ms else None
+
+    def snapshot(self) -> dict:
+        avg = self.avg_latency_ms()
+        return {
+            "attempts": self.attempts,
+            "successes": self.successes,
+            "timeouts": self.timeouts,
+            "rate_limited": self.rate_limited,
+            "server_errors": self.server_errors,
+            "other_failures": self.other_failures,
+            "fallbacks": self.fallbacks,
+            "circuit_opens": self.circuit_opens,
+            "avg_latency_ms": round(avg, 1) if avg is not None else None,
+            "success_rate": round(self.successes / self.attempts, 3) if self.attempts else None,
+        }
+
+
+_nvidia_metrics = _NvidiaMetrics()
+
+
+class _CircuitState:
+    CLOSED = "closed"        # normal — calls go through
+    OPEN = "open"             # tripped — skip NVIDIA entirely until cooldown elapses
+    HALF_OPEN = "half_open"   # cooldown elapsed — allow exactly one trial call
+
+
+@dataclass
+class _CircuitBreaker:
+    failure_threshold: int
+    cooldown_s: float
+    state: str = _CircuitState.CLOSED
+    consecutive_failures: int = 0
+    opened_at: float = 0.0
+
+    def allow_request(self) -> bool:
+        if self.state == _CircuitState.CLOSED:
+            return True
+        if self.state == _CircuitState.OPEN:
+            if time.monotonic() - self.opened_at >= self.cooldown_s:
+                self.state = _CircuitState.HALF_OPEN
+                return True
+            return False
+        return True   # HALF_OPEN: let the trial call through
+
+    def record_success(self) -> None:
+        self.state = _CircuitState.CLOSED
+        self.consecutive_failures = 0
+
+    def record_failure(self) -> None:
+        self.consecutive_failures += 1
+        should_open = self.state == _CircuitState.HALF_OPEN or self.consecutive_failures >= self.failure_threshold
+        if should_open:
+            if self.state != _CircuitState.OPEN:
+                _nvidia_metrics.circuit_opens += 1
+            self.state = _CircuitState.OPEN
+            self.opened_at = time.monotonic()
+
+
+_nvidia_circuit = _CircuitBreaker(
+    failure_threshold=_CIRCUIT_FAILURE_THRESHOLD,
+    cooldown_s=_CIRCUIT_COOLDOWN_S,
+)
+
+
+def get_nvidia_metrics() -> dict:
+    """Snapshot for a future /health or /debug endpoint."""
+    return {**_nvidia_metrics.snapshot(), "circuit_state": _nvidia_circuit.state}
 
 # ── Tier 1: OpenRouter HIGH-QUALITY large free models (best reasoning, tried first)
 _OR_HIGH_QUALITY = [
@@ -144,6 +251,101 @@ async def _call_provider(
     except Exception as exc:
         log.warning("ai.exception", model=model, exc=str(exc)[:120])
         return ""
+
+
+async def _call_nvidia_raw(prompt: str, system: str, max_tokens: int) -> tuple[str, str | None]:
+    """
+    Low-level NVIDIA call, bounded by `_NVIDIA_TIMEOUT_S`. Returns
+    (text, failure_kind) — failure_kind is None on success, else one of
+    "timeout" | "rate_limited" | "server_error" | "other". Never raises.
+    """
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {settings.nvidia_api_key}",
+    }
+    payload = {
+        "model": settings.nvidia_model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": 0.4,
+    }
+    url = settings.nvidia_base_url.rstrip("/") + _NVIDIA_PATH
+    try:
+        async with httpx.AsyncClient(timeout=_NVIDIA_TIMEOUT_S) as client:
+            r = await client.post(url, json=payload, headers=headers)
+            if r.status_code == 429:
+                return "", "rate_limited"
+            if r.status_code >= 500:
+                return "", "server_error"
+            if r.status_code >= 400:
+                return "", "other"
+            data = r.json()
+            if "error" in data:
+                return "", "other"
+            content = data["choices"][0]["message"]["content"]
+            content = content.strip() if content else ""
+            return (content, None) if content else ("", "other")
+    except httpx.TimeoutException:
+        return "", "timeout"
+    except Exception:
+        return "", "other"
+
+
+async def _call_nvidia(prompt: str, system: str = "", max_tokens: int = 900) -> str:
+    """
+    NVIDIA NIM — the "best reasoning" tier, called on a best-effort basis
+    only. A hard `_NVIDIA_TIMEOUT_S` cap and a circuit breaker (see above)
+    mean this never adds more than ~2.5s of latency to a request, even when
+    NVIDIA is degraded or unreachable — callers always fall back to
+    `_call_with_fallback` on an empty result, exactly like every other tier.
+    Never raises. Which provider actually answered is logged server-side
+    only (`ai.success` / `ai.nvidia.failed`) and never returned to the API
+    caller.
+    """
+    if not settings.nvidia_api_key:
+        return ""
+
+    if not _nvidia_circuit.allow_request():
+        _nvidia_metrics.fallbacks += 1
+        log.info("ai.nvidia.circuit_open_skip")
+        return ""
+
+    _nvidia_metrics.attempts += 1
+    t0 = time.monotonic()
+    text, failure_kind = await _call_nvidia_raw(prompt, system, max_tokens)
+    elapsed_ms = (time.monotonic() - t0) * 1000
+    _nvidia_metrics.record_latency(elapsed_ms)
+
+    if failure_kind is None:
+        _nvidia_metrics.successes += 1
+        _nvidia_circuit.record_success()
+        log.info("ai.success", provider="nvidia", model=settings.nvidia_model, latency_ms=round(elapsed_ms))
+        return text
+
+    if failure_kind == "timeout":
+        _nvidia_metrics.timeouts += 1
+    elif failure_kind == "rate_limited":
+        _nvidia_metrics.rate_limited += 1
+    elif failure_kind == "server_error":
+        _nvidia_metrics.server_errors += 1
+    else:
+        _nvidia_metrics.other_failures += 1
+
+    _nvidia_circuit.record_failure()
+    _nvidia_metrics.fallbacks += 1
+    log.warning(
+        "ai.nvidia.failed",
+        reason=failure_kind,
+        latency_ms=round(elapsed_ms),
+        circuit_state=_nvidia_circuit.state,
+        consecutive_failures=_nvidia_circuit.consecutive_failures,
+    )
+    return ""
 
 
 async def _call_with_fallback(

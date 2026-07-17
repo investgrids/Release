@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
 
+    # NVIDIA NIM — "best reasoning" model tier for the AI pipeline's Decision
+    # Intelligence explanation stage (integrate.api.nvidia.com, OpenAI-compatible).
+    nvidia_api_key: str = ""
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
+    nvidia_model: str = "nvidia/nemotron-3-ultra-550b-a55b"
+
     # Legacy single-provider pipeline (app/pipeline/event_pipeline.py) — always
     # routes through OpenRouter's free tier, matching every other AI call in
     # this codebase. Do not point this at a paid provider.

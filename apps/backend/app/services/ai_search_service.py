@@ -343,8 +343,17 @@ def _detect_decision_intent(query: str) -> dict:
             raw = pm.group(1)
             portfolio = [p.strip() for p in re.split(r",\s*|\s+and\s+", raw) if p.strip()][:6]
 
+    # A genuine two-asset comparison needs BOTH sides actually named by the
+    # user — "should I invest in defence stocks" only ever fills `target`
+    # (via the "invest in X" pattern), never `holding`. Without this check,
+    # the decision-comparison prompt used to fabricate a placeholder
+    # "Asset A" / RELIANCE holding and frame every single-entity question as
+    # a two-way switch decision nobody asked for.
+    is_comparison = bool(holding) and bool(target)
+
     return {
         "is_decision":       is_decision,
+        "is_comparison":     is_comparison,
         "intent":            detected_intent,
         "holding":           holding,
         "target":            target,
@@ -359,6 +368,250 @@ def _detect_decision_intent(query: str) -> dict:
         "target_is_commodity":  target_is_commodity,
         "portfolio":            portfolio,
     }
+
+
+# ── Research outlook enum (replaces Buy/Sell/Hold advisory language) ──────────
+# This is a research platform, not an advisory platform — no recommendation
+# language is allowed to reach the response. Enforced twice: the prompt asks
+# for one of these exact 8 labels, and _normalize_outlook() below forcibly
+# remaps whatever the AI actually returns, so a model ignoring instructions
+# (or an older cached response) can never leak "Buy"/"Sell"/"Hold" to the UI.
+_OUTLOOK_LABELS = [
+    "Strongly Constructive", "Constructive", "Positive Outlook",
+    "Selectively Constructive", "Neutral", "Cautious",
+    "Elevated Risk", "High Uncertainty",
+]
+_OUTLOOK_LABELS_LOWER = {lbl.lower(): lbl for lbl in _OUTLOOK_LABELS}
+_ADVISORY_LANGUAGE_MAP = {
+    "strong buy": "Strongly Constructive", "buy": "Constructive", "accumulate": "Constructive",
+    "outperform": "Positive Outlook", "add": "Positive Outlook",
+    "hold": "Neutral", "market perform": "Neutral",
+    "reduce": "Cautious", "underperform": "Cautious", "trim": "Cautious",
+    "sell": "Elevated Risk", "underweight": "Elevated Risk",
+    "strong sell": "High Uncertainty", "avoid": "High Uncertainty",
+}
+
+
+def _normalize_outlook(rating: str, direction: str, confidence: float, opportunity_score: float) -> str:
+    """Coerce any rating string into one of the 8 allowed research-outlook labels."""
+    r = (rating or "").strip().lower()
+    if r in _OUTLOOK_LABELS_LOWER:
+        return _OUTLOOK_LABELS_LOWER[r]
+    for phrase, mapped in _ADVISORY_LANGUAGE_MAP.items():
+        if phrase in r:
+            return mapped
+    # No usable rating string at all — derive purely from the numeric signals.
+    d = (direction or "neutral").lower()
+    conf = confidence or 0
+    opp = opportunity_score or 0
+    if d == "bullish":
+        if opp >= 85 and conf >= 80:
+            return "Strongly Constructive"
+        if opp >= 70:
+            return "Constructive"
+        return "Positive Outlook"
+    if d == "bearish":
+        if opp <= 30 or conf < 40:
+            return "High Uncertainty"
+        return "Elevated Risk"
+    if conf < 50:
+        return "Cautious"
+    return "Selectively Constructive" if opp >= 55 else "Neutral"
+
+
+def _suitable_for(horizon: str, risk_level: str) -> str:
+    h = (horizon or "").lower()
+    r = (risk_level or "").lower()
+    long_term = any(k in h for k in ("12", "18", "24", "2 year", "3 year", "long"))
+    short_term = any(k in h for k in ("day", "week", "1 month", "intraday", "short"))
+    if "high" in r or "aggressive" in r:
+        return "Active Traders" if short_term else "Growth-Oriented Investors"
+    if short_term:
+        return "Tactical / Short-Term Investors"
+    if long_term:
+        return "Long-term Investors"
+    return "Balanced / Medium-Term Investors"
+
+
+def _sector_status(positive: bool, score: float) -> str:
+    s = score or 0
+    if positive:
+        if s >= 85:
+            return "Structural Tailwind"
+        if s >= 65:
+            return "Beneficiary"
+        return "Indirect Benefit"
+    if s <= 35:
+        return "Structural Headwind"
+    return "Headwind"
+
+
+def _sector_time_horizon(status: str) -> str:
+    return {
+        "Structural Tailwind": "3-5 Years", "Structural Headwind": "3-5 Years",
+        "Beneficiary": "2-3 Years", "Headwind": "2-3 Years",
+        "Indirect Benefit": "1-2 Years",
+    }.get(status, "1-2 Years")
+
+
+def _classify_ripple_position(companies: list[dict]) -> None:
+    """
+    Mutates `companies` in place, adding `ripple_position`. Deterministic,
+    based on sort rank within each impact_type group — not left entirely to
+    the AI, so labeling is consistent regardless of prompt compliance.
+    """
+    beneficiaries = [c for c in companies if (c.get("impact_type") or "").lower() == "beneficiary"]
+    at_risk       = [c for c in companies if (c.get("impact_type") or "").lower() == "at_risk"]
+    for i, c in enumerate(beneficiaries):
+        c["ripple_position"] = "Primary Beneficiary" if i < 2 else "Secondary Beneficiary"
+    for i, c in enumerate(at_risk):
+        c["ripple_position"] = "Primary Pressure" if i < 2 else "Secondary Pressure"
+    for c in companies:
+        c.setdefault("ripple_position", "Indirect Exposure")
+
+
+# Canonical vocabulary used by historical_memory_service's seed table — live
+# events only ever carry event_type="macro", which never matches this, so
+# historical comparison must be inferred from the query text itself instead.
+_HIST_CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "Monetary Policy":       ("rbi", "repo rate", "interest rate", "rate cut", "rate hike", "monetary policy"),
+    "Union Budget":          ("union budget", "budget 20", "capex outlay", "fiscal budget", "finance bill", "budget capex", "the budget", "latest budget", "budget announcement", "budget spending"),
+    "Infrastructure Policy": ("pli scheme", "production-linked incentive", "infrastructure policy", "production linked"),
+    "Geopolitical":          ("war", "geopolitical", "sanctions", "conflict", "border tension", "pakistan", "ukraine", "military"),
+    "Global Market Shock":   ("global market", "recession", "financial crisis", "bankruptcy", "fed taper", "contagion", "circuit breaker"),
+    "Corporate Crisis":      ("fraud", "default", "scam", "corporate crisis", "insolvency", "moratorium"),
+    "Commodity Shock":       ("crude", "oil price", "commodity shock", "gold price", "wti"),
+    "Election":              ("election", "lok sabha", "poll result", "government formation"),
+    "Regulatory":            ("gst", "regulation", "sebi", "compliance", "regulatory", "demonetization", "demonetisation"),
+    "Trade Policy":          ("trade deal", "tariff", "import duty", "export ban"),
+}
+_HIST_SECTOR_NAMES = [
+    "PSU Banks", "Housing Finance", "Capital Markets", "Capital Goods", "Specialty Chemicals",
+    "Consumer Durables", "Real Estate", "Oil & Gas", "Banking", "NBFC", "Defence", "Infrastructure",
+    "Metal", "Cement", "Auto", "Retail", "FMCG", "Aviation", "Railway", "PSU", "Pharma",
+    "Electronics", "Textile", "Telecom", "Media", "Ports", "Utilities", "Jewellery", "Hotels",
+    "Fertilizers", "Paints", "Tyres", "Financials", "Consumer", "Tourism", "Logistics", "Finance",
+]
+
+
+def _cap_words(text: str, limit: int = 120) -> str:
+    """Hard safety net behind the prompt's own word-limit instruction — the
+    model doesn't always obey it, and an Executive Summary is worthless if
+    it silently balloons into a wall of text."""
+    words = (text or "").split()
+    if len(words) <= limit:
+        return text or ""
+    return " ".join(words[:limit]).rstrip(",.;:") + "…"
+
+
+def _key_difference(hist_query: dict, h: dict) -> str:
+    """
+    Deterministic, factual diff between the current query's inferred context
+    and a matched historical event — never AI-invented, so it can't overstate
+    how similar the two situations actually are.
+    """
+    parts: list[str] = []
+    q_cat, h_cat = hist_query.get("category"), h.get("category")
+    if q_cat and h_cat:
+        parts.append("same category" if q_cat == h_cat else f"category differs ({h_cat} vs current {q_cat})")
+
+    q_sec, h_sec = set(hist_query.get("sectors") or []), set(h.get("sectors") or [])
+    if q_sec and h_sec:
+        overlap, only_hist = q_sec & h_sec, h_sec - q_sec
+        if overlap and only_hist:
+            parts.append(f"shares {', '.join(sorted(overlap))} but this event also touched {', '.join(sorted(only_hist))}")
+        elif overlap:
+            parts.append(f"same sector focus ({', '.join(sorted(overlap))})")
+        else:
+            parts.append(f"different sectors ({', '.join(sorted(h_sec))} vs current {', '.join(sorted(q_sec))})")
+
+    if not parts:
+        return "Limited structured overlap — treat as a loose historical reference only."
+    return ("; ".join(parts) + ".")[0].upper() + ("; ".join(parts) + ".")[1:]
+
+
+def _infer_historical_category(query_lower: str) -> str | None:
+    for category, keywords in _HIST_CATEGORY_KEYWORDS.items():
+        if any(k in query_lower for k in keywords):
+            return category
+    return None
+
+
+def _infer_historical_sectors(query_lower: str) -> list[str]:
+    return [s for s in _HIST_SECTOR_NAMES if s.lower() in query_lower]
+
+
+def _build_market_horizons(ai: dict, confidence: float, sentiment: str) -> list[dict]:
+    """
+    Deterministic Immediate/Next Quarter/Long Term confidence bars, replacing
+    the old meaningless price-line chart. Confidence naturally decays further
+    out — near-term reaction is more predictable than a 6-12 month outcome —
+    and each bar reuses the AI's own impact narrative rather than fabricating
+    a new one, so it stays grounded in what was actually said.
+    """
+    direction = "positive" if sentiment == "positive" else ("negative" if sentiment == "negative" else "neutral")
+    base = max(0.0, min(100.0, confidence or 0))
+    return [
+        {
+            "horizon": "Immediate", "window": "1-2 weeks",
+            "confidence": round(min(95, base + 10)), "direction": direction,
+            "description": ai.get("immediate_impact") or "Short-term price action likely to reflect the news within days.",
+        },
+        {
+            "horizon": "Next Quarter", "window": "1-3 months",
+            "confidence": round(base), "direction": direction,
+            "description": ai.get("medium_term") or "Medium-term fundamentals will determine whether the initial move sustains.",
+        },
+        {
+            "horizon": "Long Term", "window": "6-12 months",
+            "confidence": round(max(15, base - 20)), "direction": direction,
+            "description": ai.get("long_term") or "Longer-term outcome depends on execution and macro conditions beyond current visibility.",
+        },
+    ]
+
+
+def _build_reasoning_methods(
+    events: list, similar: list, extra_context_lines: list[str],
+    mie_state: dict, ripple_chain: list, companies: list,
+    news: list | None = None, policies: list | None = None,
+) -> list[dict]:
+    """
+    Deterministic — reports which data sources ACTUALLY contributed to this
+    specific answer, not a hardcoded marketing list. `used: False` entries
+    stay visible so the transparency panel is honest about gaps, not just a
+    checklist of things that sound good.
+    """
+    valuation_used = any("P/E" in l or "P/B" in l for l in extra_context_lines)
+    return [
+        {"label": "News",                  "used": bool(news) or bool(events)},
+        {"label": "Policies",              "used": bool(policies)},
+        {"label": "Historical Events",     "used": bool(similar)},
+        {"label": "Financial Statements",  "used": bool(companies)},
+        {"label": "Valuation",             "used": valuation_used},
+        {"label": "Intelligence Graph",    "used": bool(ripple_chain)},
+        {"label": "Ripple Engine",         "used": bool(ripple_chain)},
+        {"label": "Company Relationships", "used": len(companies) >= 2},
+    ]
+
+
+def _confidence_caveats(conf_result: Any, events: list, similar: list, source_count: int) -> list[str]:
+    """What would raise or lower trust in this specific answer — derived from
+    the same signals `confidence_service` already scored, not a separate
+    guess."""
+    caveats: list[str] = []
+    if not events:
+        caveats.append("No matching events found in the database for this query")
+    if not similar:
+        caveats.append("No closely matching historical precedent found")
+    if source_count < 3:
+        caveats.append("Limited data coverage — fewer than 3 corroborating sources")
+    if conf_result is not None:
+        breakdown = conf_result.breakdown or {}
+        if breakdown.get("market_confirmation", 0) < 5:
+            caveats.append("Live market signals not yet confirming this thesis")
+        if breakdown.get("historical", 0) < 5:
+            caveats.append("Weak historical match for this scenario")
+    return caveats
 
 
 # ── AI prompt ─────────────────────────────────────────────────────────────────
@@ -442,25 +695,33 @@ RELATED EVENTS: {evs}
 INSTRUCTIONS:
 - Fill every string field with real, specific analysis about {holding} and {target}.
 - All strings must be your original analytical content — never copy field descriptions.
-- Do not say Buy/Sell/Strong Buy. Explain trade-offs only. No direct financial advice.
+- This is a RESEARCH platform, not an advisory one. Never say Buy/Sell/Hold/Strong Buy/Strong Sell/Accumulate/Reduce anywhere. Explain trade-offs only. No direct financial advice.
+- "investment_verdict.rating" MUST be exactly one of these 8 values, nothing else: {", ".join(f'"{l}"' for l in _OUTLOOK_LABELS)}.
 - Entity A symbol hint: {symbol_hint(holding, holding_is_commodity, holding_is_sector)}
 - Entity B symbol hint: {symbol_hint(target, target_is_commodity, target_is_sector)}
 - Use the entity name exactly as given in "entity" field (e.g. "{holding}", "{target}").
 - "advantage" in comparison rows must be "holding", "target", or "neutral".
 - "near_term_outlook" must be "positive", "cautious", "neutral", or "negative".
 - "sentiment" must be "bullish", "bearish", or "neutral".
+- "key_drivers[].icon" must be ONE lowercase keyword from: procurement, policy, manufacturing, export, valuation, risk, demand, technology, capex, regulation, earnings, supply-chain, currency, commodity, credit.
 - Return valid JSON only. No markdown. No commentary outside the JSON.
 
 JSON to fill and return:
 {{
   "summary": "",
+  "bottom_line": "MAX 120 WORDS. ONE paragraph answering ONLY this exact question directly — name the specific trade-off between {holding} and {target}, who comes out ahead on the metric that actually matters here, and the one factor most likely to change that. No generic filler.",
   "what_happened": "",
   "why_it_happened": "",
   "immediate_impact": "",
   "medium_term": "",
   "long_term": "",
+  "what_priced_in": "1-2 sentences: how much of this trade-off is already reflected in current prices/positioning for {holding} and {target}?",
   "risks": ["", "", ""],
   "opportunities": ["", "", ""],
+  "key_drivers": [
+    {{"icon": "valuation", "title": "2-4 word driver name", "explanation": "1 sentence mechanism behind this trade-off", "confidence": 85}},
+    {{"icon": "risk", "title": "2-4 word driver name", "explanation": "1 sentence mechanism", "confidence": 76}}
+  ],
   "confidence": 70,
   "confidence_self_rating": 7,
   "sentiment": "neutral",
@@ -469,11 +730,11 @@ JSON to fill and return:
     {{"symbol": "", "name": "{target}",  "impact_type": "neutral", "impact_score": 70, "confidence": 68, "reason": ""}}
   ],
   "sectors": [
-    {{"name": "", "score": 65, "confidence": 62, "outlook": "Moderate", "positive": true}},
-    {{"name": "", "score": 70, "confidence": 65, "outlook": "Moderate", "positive": true}}
+    {{"name": "", "score": 65, "confidence": 62, "outlook": "Moderate", "positive": true, "explanation": "1 sentence on why this sector is exposed and to what degree"}},
+    {{"name": "", "score": 70, "confidence": 65, "outlook": "Moderate", "positive": true, "explanation": "1 sentence"}}
   ],
   "investment_verdict": {{
-    "rating": "Evaluate Carefully",
+    "rating": "Selectively Constructive",
     "direction": "neutral",
     "confidence": 68,
     "horizon": "{horizon}",
@@ -482,7 +743,6 @@ JSON to fill and return:
     "catalysts": ["", ""],
     "opportunity_score": 65
   }},
-  "similar_events": [],
   "follow_up_questions": [
     "What is your investment horizon for this decision?",
     "What is your risk tolerance - conservative, moderate, or aggressive?",
@@ -562,32 +822,39 @@ Policies: {pols}
 Return ONLY this JSON (no fences, no extra keys):
 {{
   "summary": "2-3 sentence executive summary specific to the query",
+  "bottom_line": "MAX 120 WORDS. ONE paragraph that answers ONLY this exact question, directly and specifically. No generic filler, no restating the question, no boilerplate market commentary. Name the specific mechanism (e.g. what actually drives the outcome), who benefits most and why, and the one factor that most determines whether that plays out.",
   "what_happened": "1 factual sentence about what actually happened",
   "why_it_happened": "1 contextual sentence explaining the cause",
   "immediate_impact": "1 sentence on near-term market effect",
   "medium_term": "1 sentence on 3-12 month outlook",
   "long_term": "1 sentence on structural implications",
+  "what_priced_in": "1-2 sentences: has the market already priced this in? Reference recent sector/stock performance if you have context for it, and state plainly whether future returns now depend more on new catalysts or on execution of what's already known.",
   "risks": ["specific risk 1", "specific risk 2", "specific risk 3"],
   "opportunities": ["specific opportunity 1", "specific opportunity 2", "specific opportunity 3"],
+  "key_drivers": [
+    {{"icon": "procurement", "title": "2-4 word driver name", "explanation": "1 sentence on the actual mechanism, not a restatement of the title", "confidence": 92}},
+    {{"icon": "policy", "title": "2-4 word driver name", "explanation": "1 sentence mechanism", "confidence": 87}},
+    {{"icon": "export", "title": "2-4 word driver name", "explanation": "1 sentence mechanism", "confidence": 74}}
+  ],
   "confidence": 78,
   "confidence_self_rating": 7,
   "sentiment": "bullish",
   "companies": [
-    {{"symbol": "SYMBOL1", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 90, "confidence": 85, "reason": "specific 1-line reason tied to the query"}},
+    {{"symbol": "SYMBOL1", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 90, "confidence": 85, "reason": "specific 1-line reason tied to the query — this is shown to the user as literally why the company matters here"}},
     {{"symbol": "SYMBOL2", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 85, "confidence": 80, "reason": "specific 1-line reason"}},
     {{"symbol": "SYMBOL3", "name": "Full Company Name", "impact_type": "beneficiary", "impact_score": 78, "confidence": 74, "reason": "specific 1-line reason"}},
     {{"symbol": "SYMBOL4", "name": "Full Company Name", "impact_type": "neutral",     "impact_score": 65, "confidence": 60, "reason": "specific 1-line reason"}},
     {{"symbol": "SYMBOL5", "name": "Full Company Name", "impact_type": "at_risk",     "impact_score": 45, "confidence": 55, "reason": "specific 1-line reason"}}
   ],
   "sectors": [
-    {{"name": "Most Relevant Sector", "score": 90, "confidence": 85, "outlook": "Strong Growth", "positive": true}},
-    {{"name": "Second Sector",        "score": 82, "confidence": 78, "outlook": "Positive",      "positive": true}},
-    {{"name": "Third Sector",         "score": 70, "confidence": 65, "outlook": "Moderate",      "positive": true}},
-    {{"name": "Fourth Sector",        "score": 60, "confidence": 58, "outlook": "Neutral",       "positive": true}},
-    {{"name": "Affected Sector",      "score": 45, "confidence": 50, "outlook": "Cautious",      "positive": false}}
+    {{"name": "Most Relevant Sector", "score": 90, "confidence": 85, "outlook": "Strong Growth", "positive": true, "explanation": "1 sentence on the mechanism connecting this sector to the query"}},
+    {{"name": "Second Sector",        "score": 82, "confidence": 78, "outlook": "Positive",      "positive": true, "explanation": "1 sentence"}},
+    {{"name": "Third Sector",         "score": 70, "confidence": 65, "outlook": "Moderate",      "positive": true, "explanation": "1 sentence"}},
+    {{"name": "Fourth Sector",        "score": 60, "confidence": 58, "outlook": "Neutral",       "positive": true, "explanation": "1 sentence"}},
+    {{"name": "Affected Sector",      "score": 45, "confidence": 50, "outlook": "Cautious",      "positive": false, "explanation": "1 sentence"}}
   ],
   "investment_verdict": {{
-    "rating": "Strong Buy",
+    "rating": "Constructive",
     "direction": "bullish",
     "confidence": 78,
     "horizon": "12-18 months",
@@ -596,10 +863,6 @@ Return ONLY this JSON (no fences, no extra keys):
     "catalysts": ["Specific catalyst 1", "Specific catalyst 2", "Specific catalyst 3"],
     "opportunity_score": 85
   }},
-  "similar_events": [
-    {{"title": "Relevant historical event title", "date": "Month Year", "outcome": "What happened to relevant stocks/sectors", "winners": ["SYMBOL1", "SYMBOL2"], "losers": ["SYMBOL3"], "similarity": 0.80}},
-    {{"title": "Another relevant historical event", "date": "Month Year", "outcome": "Market outcome description", "winners": ["SYMBOL4"], "losers": ["SYMBOL5"], "similarity": 0.65}}
-  ],
   "follow_up_questions": [
     "Specific follow-up question relevant to this query?",
     "Another specific follow-up question?",
@@ -614,7 +877,11 @@ Return ONLY this JSON (no fences, no extra keys):
   ]
 }}
 
-CRITICAL: The "insights" titles must be SPECIFIC to the query "{query}" - choose angles that make sense for this exact topic. Use real NSE symbols, actual rupee amounts, and genuine Indian market context throughout.{_intent_overlay(intent_data, extra_context)}"""
+CRITICAL RULES:
+- "investment_verdict.rating" MUST be exactly one of these 8 values, nothing else: {", ".join(f'"{l}"' for l in _OUTLOOK_LABELS)}. This is a RESEARCH platform, not an advisory one — never say Buy, Sell, Hold, Strong Buy, Strong Sell, Accumulate, or Reduce anywhere in any field.
+- "companies" must ONLY include companies with a direct, specific, mechanistic connection to this exact query. Do not pad the list with generic large-caps (e.g. HUL, Reliance, Tata Motors) unless the query is genuinely and specifically about them. Every entry must be a listed, tradeable equity with a real NSE symbol — never a government body, ministry, PSU research arm, or other unlisted entity (e.g. DRDO is not investable; if relevant, name the listed contractors it drives orders to instead).
+- "key_drivers[].icon" must be ONE lowercase keyword from: procurement, policy, manufacturing, export, valuation, risk, demand, technology, capex, regulation, earnings, supply-chain, currency, commodity, credit.
+- The "insights" titles must be SPECIFIC to the query "{query}" — choose angles that make sense for this exact topic. Use real NSE symbols, actual rupee amounts, and genuine Indian market context throughout.{_intent_overlay(intent_data, extra_context)}"""
 
 
 def _intent_overlay(intent_data: dict | None, extra_context: str = "") -> str:
@@ -655,7 +922,7 @@ INTENT: EARNINGS PREVIEW — User is positioning ahead of results.
 - "summary" must cover: consensus expectations, key metrics to watch, beat vs miss thresholds.
 - "risks" must list miss scenarios with expected stock reactions (e.g. "-5% if revenue misses by 2%").
 - "opportunities" must list beat scenarios with upside estimates.
-- "similar_events" must include the company's last 2 earnings reactions (historical pattern).
+- "key_drivers" should reference the company's recent earnings reaction pattern where relevant.
 - "follow_up_questions" must address: historical move range, key metric focus, risk/reward ratio.
 - "timeline" must show: results date, pre-result window, post-result action.{budget_note}""",
 
@@ -893,6 +1160,92 @@ def _build_graph(query: str, sectors: list[dict], companies: list[dict]) -> dict
     return {"nodes": nodes, "edges": edges}
 
 
+# ── Ripple chain (real graph traversal — MarketRipple's differentiator) ───────
+_FALL_WORDS = re.compile(r"\b(falls?|falling|drops?|declin\w*|cuts?|lower|down|crash\w*|slump\w*)\b", re.IGNORECASE)
+
+
+async def _build_ripple_chain(query: str) -> list[dict]:
+    """
+    Resolves the query's primary entity to a real intelligence-graph node and
+    returns a branching, depth-leveled causal structure — every node at every
+    level is a genuine weighted-edge traversal result from
+    `intelligence_graph_service.ripple_from_node` (first-order, second-order,
+    third-order effects), never a single cherry-picked linear path and never
+    an invented node. Returns [] when the query's entity isn't a graph node
+    yet (graceful — not every query has one).
+
+    Shape: [{"depth": 0, "nodes": [{id,label,type,direction,weight,parent_id}]}, ...]
+    """
+    try:
+        from app.ai_pipeline.retrieval.entity_resolver import resolve_entities
+        from app.services.intelligence_graph_service import ripple_from_node
+
+        entities = [e for e in await resolve_entities(query, limit=5) if e.get("in_graph")]
+        if not entities:
+            return []
+        change = "fall" if _FALL_WORDS.search(query) else "rise"
+
+        # The highest-scored entity isn't always useful as a ripple source —
+        # e.g. "Defence" (sector) can outrank "Union Budget Defence Boost"
+        # (policy) on text-match score alone, yet Defence is a sink node
+        # with no outgoing edges. Try candidates in score order and use the
+        # first one that actually produces a real traversal.
+        source, impacts = None, []
+        for candidate in entities:
+            result = await ripple_from_node(candidate["id"], change=change, max_depth=4)
+            candidate_impacts = result.get("impacts", [])
+            if candidate_impacts:
+                source, impacts = candidate, candidate_impacts
+                break
+        if not impacts:
+            return []
+
+        # ripple_from_node's BFS can append the same node more than once
+        # (each time a higher-weight path to it is found via a different
+        # parent) without removing the earlier, weaker entry — collapse to
+        # one entry per node, keeping its strongest path, before grouping by
+        # depth. Without this a node could land in the level-nodes list
+        # twice, producing duplicate React keys on render.
+        best_by_node: dict[str, dict] = {}
+        for impact in impacts:
+            nid = (impact.get("node") or {}).get("id")
+            if not nid:
+                continue
+            prev = best_by_node.get(nid)
+            if prev is None or float(impact.get("accumulated_weight", 0) or 0) > float(prev.get("accumulated_weight", 0) or 0):
+                best_by_node[nid] = impact
+
+        by_depth: dict[int, list[dict]] = {}
+        for impact in best_by_node.values():
+            node = impact.get("node", {}) or {}
+            depth = impact.get("depth", 1)
+            path = impact.get("path", [])
+            parent_id = path[-1].get("from") if path else source["id"]
+            by_depth.setdefault(depth, []).append({
+                "id": node.get("id"), "label": node.get("label"), "type": node.get("node_type"),
+                "direction": impact.get("impact_direction", "uncertain"),
+                "weight": round(float(impact.get("accumulated_weight", 0) or 0), 2),
+                "parent_id": parent_id,
+            })
+
+        levels: list[dict] = [{
+            "depth": 0,
+            "nodes": [{
+                "id": source["id"], "label": source["label"], "type": source["node_type"],
+                "direction": "positive" if change == "rise" else "negative", "weight": 1.0, "parent_id": None,
+            }],
+        }]
+        for depth in sorted(by_depth.keys())[:4]:
+            # Cap branch width per level so the diagram stays readable —
+            # strongest real edges win, nothing here is invented.
+            nodes = sorted(by_depth[depth], key=lambda n: n["weight"], reverse=True)[:5]
+            levels.append({"depth": depth, "nodes": nodes})
+        return levels
+    except Exception as exc:
+        log.warning("ai_search.ripple_chain_failed", error=str(exc)[:150])
+        return []
+
+
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 async def run_ai_search(query: str, db: AsyncSession) -> dict:
     """Full AI search pipeline. Returns complete research report dict."""
@@ -953,8 +1306,9 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         pass
 
     extra_context = "\n".join(extra_context_lines)
-    mie_state: dict = {}  # captured for confidence signals
-    similar:   list = []  # captured for confidence signals
+    mie_state:  dict = {}  # captured for confidence signals
+    similar:    list = []  # captured for confidence signals
+    hist_query: dict = {}  # captured for the historical "key difference" note
 
     # Inject intelligence from the MIE — single source of truth for all AI context
     try:
@@ -994,7 +1348,9 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     try:
         from app.services.historical_memory_service import find_similar_events, format_for_ai_prompt
 
-        # Derive search attributes from the query's events and intent
+        # Derive search attributes from the query text first — live events only
+        # ever carry event_type="macro" so they can't drive category matching —
+        # falling back to event-derived sectors when the query itself is generic.
         hist_sectors: list[str] = []
         hist_category: str | None = None
         for ev in (events or [])[:3]:
@@ -1002,9 +1358,10 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             if not hist_category:
                 hist_category = ev.get("event_type") or ev.get("category")
 
+        _query_lower = query.lower()
         hist_query = {
-            "category":  hist_category,
-            "sectors":   list(dict.fromkeys(hist_sectors))[:4],
+            "category":  _infer_historical_category(_query_lower) or hist_category,
+            "sectors":   _infer_historical_sectors(_query_lower) or list(dict.fromkeys(hist_sectors))[:4],
             "sentiment": intent_data.get("sentiment"),
         }
 
@@ -1062,8 +1419,12 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     except Exception:
         pass
 
-    # AI generation — decision/portfolio/list queries get specialized prompt
-    if intent_data["is_decision"] and intent not in ("list_picks", "portfolio_review", "news_reaction", "earnings_preview", "entry_timing"):
+    # AI generation — only genuine two-asset comparisons (both a holding AND
+    # a target actually named by the user) get the switch/hold comparison
+    # prompt. Everything else — including single-entity "should I invest in
+    # X" questions — is an investment_opportunity query and goes through the
+    # general prompt so it never fabricates a placeholder "Asset A".
+    if intent_data["is_comparison"] and intent not in ("list_picks", "portfolio_review", "news_reaction", "earnings_preview", "entry_timing"):
         prompt  = _build_decision_prompt(query, intent_data, events, news, policies, extra_context=extra_context)
         max_tok = 4000
     else:
@@ -1096,34 +1457,97 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     if not ai:
         ai = {
             "summary": f"Market intelligence analysis for: {query}. Analysis based on real-time database events and news.",
+            "bottom_line": (
+                f"There isn't enough freshly generated analysis to answer “{query}” with confidence right now "
+                "— the underlying event and news data is available below, but the synthesis step didn't complete. "
+                "Try rephrasing the question or checking back shortly."
+            ),
             "what_happened": "A significant market development has been identified related to the queried topic.",
             "why_it_happened": "Multiple macro, policy, and sector-specific factors are driving this development.",
             "immediate_impact": "Near-term markets are reacting to this development with sector-specific movement.",
             "medium_term": "The 3-12 month outlook depends on policy execution and global macro environment.",
             "long_term": "Structural implications are broadly positive for India's capital markets.",
+            "what_priced_in": "Insufficient data to assess current positioning — treat any near-term move as unconfirmed.",
             "risks": ["Execution risk", "Global headwinds", "Regulatory uncertainty"],
             "opportunities": ["Sector rotation", "Infrastructure capex", "Export growth"],
-            "confidence": 60, "sentiment": "neutral",
+            "key_drivers": [],
+            "confidence": 40, "sentiment": "neutral",
             "insights": [
                 {"icon": "📊", "title": "Market Overview",   "summary": "Current market conditions reflect mixed global and domestic signals with selective sector strength."},
                 {"icon": "🏛️", "title": "Policy Framework", "summary": "Government policy remains focused on infrastructure, manufacturing, and economic growth enablement."},
                 {"icon": "🏆", "title": "Sector Leaders",   "summary": "Infrastructure and defence sectors are well positioned to outperform peers in this environment."},
                 {"icon": "⚠️", "title": "Risk Watch",       "summary": "Monitor global commodity prices, currency movements, and domestic fiscal deficit trajectory."},
             ],
-            "companies": [], "sectors": [], "similar_events": [], "timeline": [],
+            "companies": [], "sectors": [], "timeline": [],
             "follow_up_questions": ["Which sectors benefit most?", "What is the timeline?", "Key risks?", "Historical precedents?"],
             "investment_verdict": {
-                "rating": "Neutral", "direction": "neutral", "confidence": 55,
+                "rating": "Neutral", "direction": "neutral", "confidence": 40,
                 "horizon": "6-12 months", "top_picks": [],
                 "risks": ["Macro uncertainty"], "catalysts": ["Policy clarity"],
-                "opportunity_score": 60,
+                "opportunity_score": 50,
             },
         }
 
-    # Finalize evidence-based confidence with AI self-rating + calibration adjustment
+    # Enrich companies with live prices (in thread executor)
+    raw_cos = ai.get("companies", [])
+    ai_summary = ai.get("summary", query)
+    try:
+        companies_enriched = await loop.run_in_executor(None, _enrich_sync, raw_cos) if raw_cos else []
+    except Exception as _e:
+        log.warning("ai_search.enrich_fail", exc=str(_e)[:80])
+        companies_enriched = []
+
+    # De-duplicate by symbol — the AI occasionally returns the same company
+    # twice under two different framings (e.g. once as a beneficiary, once
+    # flagged as at-risk), which reads as a data-quality bug, not nuance.
+    # Keep whichever occurrence has the higher impact score.
+    _seen_symbols: dict[str, dict] = {}
+    for _c in companies_enriched:
+        _sym = (_c.get("symbol") or "").upper()
+        if not _sym:
+            continue
+        _prev = _seen_symbols.get(_sym)
+        if _prev is None or float(_c.get("impact_score", 0) or 0) > float(_prev.get("impact_score", 0) or 0):
+            _seen_symbols[_sym] = _c
+    companies_enriched = list(_seen_symbols.values())
+
+    # Sort by actual impact score (defense-in-depth — don't trust AI ordering)
+    # and classify each company's position in the ripple, deterministically.
+    companies_enriched.sort(key=lambda c: float(c.get("impact_score", 0) or 0), reverse=True)
+    _classify_ripple_position(companies_enriched)
+    for _c in companies_enriched:
+        _c.setdefault("why_it_matters", _c.get("reason", ""))
+
+    # Sectors: time_horizon + status are computed server-side, not AI-generated,
+    # so labeling stays consistent regardless of prompt compliance.
+    sectors_raw = ai.get("sectors", [])
+    for _s in sectors_raw:
+        _status = _sector_status(bool(_s.get("positive", True)), float(_s.get("score", 0) or 0))
+        _s["status"] = _status
+        _s["time_horizon"] = _sector_time_horizon(_status)
+        _s.setdefault("explanation", "")
+
+    # Finalize evidence-based confidence — now that live company prices and
+    # sector direction exist, feed the formula genuine market/sector
+    # confirmation signals instead of leaving them at 0 (they were computed
+    # before enrichment ran, so market_confirming/sector_confirming/
+    # company_sensitivity never had real data to work with).
     if _pre_factors is not None:
         try:
             from app.services.confidence_service import calculate_confidence as _calc_conf, _THRESHOLDS
+            _thesis = ai.get("sentiment") or "neutral"
+            if _thesis == "bullish":
+                _pre_factors.market_confirming = sum(
+                    1 for c in companies_enriched if c.get("price") != "—" and c.get("positive")
+                )
+                _pre_factors.sector_confirming = sum(1 for s in sectors_raw if s.get("positive"))
+            elif _thesis == "bearish":
+                _pre_factors.market_confirming = sum(
+                    1 for c in companies_enriched if c.get("price") != "—" and not c.get("positive")
+                )
+                _pre_factors.sector_confirming = sum(1 for s in sectors_raw if not s.get("positive"))
+            _top_impact = max((float(c.get("impact_score", 0) or 0) for c in companies_enriched), default=0)
+            _pre_factors.company_sensitivity = "high" if _top_impact >= 80 else ("medium" if _top_impact >= 55 else "low")
             _pre_factors.ai_certainty = min(10, max(1, int(ai.get("confidence_self_rating") or 5)))
             _conf_result = _calc_conf(_pre_factors)
 
@@ -1144,15 +1568,6 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         except Exception:
             pass
 
-    # Enrich companies with live prices (in thread executor)
-    raw_cos = ai.get("companies", [])
-    ai_summary = ai.get("summary", query)
-    try:
-        companies_enriched = await loop.run_in_executor(None, _enrich_sync, raw_cos) if raw_cos else []
-    except Exception as _e:
-        log.warning("ai_search.enrich_fail", exc=str(_e)[:80])
-        companies_enriched = []
-
     # Build context-aware chart: use the query's companies when available, else indices
     _CHART_COLORS = ["#818cf8", "#34d399", "#fb923c", "#f472b6"]
     chart_tickers = []
@@ -1161,24 +1576,59 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         if _sym:
             _name = (_c.get("name") or _sym)[:22]
             chart_tickers.append((_name, f"{_sym}.NS", _CHART_COLORS[_i % 4]))
-    try:
-        chart = await loop.run_in_executor(None, _fetch_chart_sync, chart_tickers)
-    except Exception:
-        chart = {"labels": [], "series": []}
 
-    # Generate dynamic insights (sequential, after main call)
-    try:
-        insights = await _generate_insights(query, ai_summary)
-    except Exception as _e:
-        log.warning("ai_search.insights_fail", exc=str(_e)[:80])
-        insights = []
+    # Everything below is independent — run it all concurrently rather than
+    # as a chain of sequential awaits.
+    top_sector = sectors_raw[0]["name"] if sectors_raw else None
+    _entity_type = "search"
 
-    graph = _build_graph(query, ai.get("sectors", []), companies_enriched)
+    async def _safe(coro, default, label: str):
+        try:
+            return await coro
+        except Exception as _e:
+            log.warning(f"ai_search.{label}_fail", exc=str(_e)[:120])
+            return default
 
-    # Extract decision_intelligence block when present (decision queries)
+    from app.services.ai_service import generate_scenario_analysis, generate_monitoring_checklist
+
+    (
+        chart, insights, ripple_chain, scenarios, monitoring_raw,
+    ) = await asyncio.gather(
+        _safe(loop.run_in_executor(None, _fetch_chart_sync, chart_tickers), {"labels": [], "series": []}, "chart"),
+        _safe(_generate_insights(query, ai_summary), [], "insights"),
+        _safe(_build_ripple_chain(query), [], "ripple_chain"),
+        _safe(
+            generate_scenario_analysis(_entity_type, ck, title=query, description=ai_summary, sector=top_sector or ""),
+            {}, "scenarios",
+        ),
+        _safe(
+            generate_monitoring_checklist(_entity_type, ck, title=query, description=ai_summary, sector=top_sector or ""),
+            {}, "monitoring",
+        ),
+    )
+    horizons_raw = _build_market_horizons(
+        ai, _conf_result.total_score if _conf_result else ai.get("confidence", 50), ai.get("sentiment", "neutral"),
+    )
+
+    what_to_monitor = [
+        {
+            "title": item.get("label", ""),
+            "why_it_matters": item.get("why_it_matters", ""),
+            "importance": item.get("importance", "medium"),
+            "frequency": item.get("frequency", ""),
+        }
+        for item in (monitoring_raw.get("items", []) if isinstance(monitoring_raw, dict) else [])
+    ]
+
+    graph = _build_graph(query, sectors_raw, companies_enriched)
+
+    # Extract decision_intelligence block when present — only for genuine
+    # two-asset comparisons; a single-entity "should I invest in X" question
+    # has no holding to compare against and must not render the
+    # switch/hold comparison panel at all.
     raw_di = ai.get("decision_intelligence")
     decision_intelligence: dict | None = None
-    if intent_data["is_decision"] and isinstance(raw_di, dict):
+    if intent_data["is_comparison"] and isinstance(raw_di, dict):
         decision_intelligence = raw_di
         decision_intelligence.setdefault("intent",            intent_data["intent"])
         decision_intelligence.setdefault("detected_holding",  intent_data.get("holding"))
@@ -1201,7 +1651,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
                     block["entity_type"] = "sector"
                 else:
                     block["entity_type"] = "company"
-    elif intent_data["is_decision"]:
+    elif intent_data["is_comparison"]:
         decision_intelligence = {
             "intent":           intent_data["intent"],
             "detected_holding": intent_data.get("holding"),
@@ -1214,42 +1664,93 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             "decision_summary": ai.get("summary", ""),
         }
 
+    _final_confidence = round(_conf_result.total_score) if _conf_result else ai.get("confidence", 65)
+
+    # Research Outlook — rating is forced through the 8-label enum regardless
+    # of what the AI returned; this is a research platform, never advisory.
+    _verdict_raw  = ai.get("investment_verdict", {}) or {}
+    _verdict_horizon = _verdict_raw.get("horizon", "6-12 months")
+    _verdict_risk    = "High" if _final_confidence < 50 else ("Medium" if _final_confidence < 75 else "Low")
+    investment_verdict = {
+        **_verdict_raw,
+        "rating": _normalize_outlook(
+            _verdict_raw.get("rating", ""), _verdict_raw.get("direction", "neutral"),
+            _verdict_raw.get("confidence", _final_confidence), _verdict_raw.get("opportunity_score", 50),
+        ),
+        "risk_level": _verdict_risk,
+        "suitable_for": _suitable_for(_verdict_horizon, _verdict_risk),
+    }
+
+    # Historical Comparison — real, structured data from historical_memory_service
+    # (verified seed events with real per-company returns), never AI-invented.
+    historical_comparison = [
+        {
+            "event_title":  h.get("event_title", ""),
+            "event_date":   str(h.get("event_date", ""))[:10],
+            "similarity":   h.get("similarity", 0),
+            "key_lesson":   h.get("key_lesson", ""),
+            "key_difference": _key_difference(hist_query, h),
+            "what_happened": h.get("what_happened", ""),
+            "sector_reactions":  h.get("sector_reactions", {}),
+            "historical_winners": h.get("historical_winners", []),
+            "historical_losers":  h.get("historical_losers", []),
+            "nifty_1w": h.get("nifty_1w"),
+            "nifty_1m": h.get("nifty_1m"),
+        }
+        for h in similar
+    ]
+
+    ai_reasoning_methods = _build_reasoning_methods(
+        events, similar, extra_context_lines, mie_state, ripple_chain, companies_enriched,
+        news=news, policies=policies,
+    )
+    confidence_caveats = _confidence_caveats(_conf_result, events, similar, len(news) + len(events))
+
     result = {
         "query": query,
         "entities": entities,
         "answer": {
             "summary":          ai.get("summary", ""),
+            "bottom_line":      _cap_words(ai.get("bottom_line", ai.get("summary", "")), 120),
             "what_happened":    ai.get("what_happened", ""),
             "why_it_happened":  ai.get("why_it_happened", ""),
             "immediate_impact": ai.get("immediate_impact", ""),
             "medium_term":      ai.get("medium_term", ""),
             "long_term":        ai.get("long_term", ""),
+            "what_priced_in":   ai.get("what_priced_in", ""),
             "risks":            ai.get("risks", []),
             "opportunities":    ai.get("opportunities", []),
-            "confidence":       round(_conf_result.total_score) if _conf_result else ai.get("confidence", 65),
+            "confidence":       _final_confidence,
             "confidence_level": _conf_result.level if _conf_result else "Medium",
             "sentiment":        ai.get("sentiment", "neutral"),
             "sources_count":    len(news) + len(events),
         },
+        "key_drivers":          ai.get("key_drivers", []),
         "insights":             insights or ai.get("insights", []),
         "companies":            companies_enriched,
-        "sectors":              ai.get("sectors", []),
+        "sectors":              sectors_raw,
         "related_events":       events[:6],
         "news":                 news[:6],
         "policies":             policies[:4],
         "timeline":             ai.get("timeline", []),
-        "similar_events":       ai.get("similar_events", []),
+        "historical_comparison": historical_comparison,
+        "ripple_chain":         ripple_chain,
+        "scenarios":            scenarios if isinstance(scenarios, dict) else {},
+        "market_impact_horizons": horizons_raw if isinstance(horizons_raw, list) else [],
+        "what_to_monitor":      what_to_monitor,
+        "ai_reasoning_methods": ai_reasoning_methods,
         "follow_up_questions":  ai.get("follow_up_questions", []),
-        "investment_verdict":   ai.get("investment_verdict", {}),
+        "investment_verdict":   investment_verdict,
         "market_chart":         chart,
         "graph":                graph,
         "citations":            list({a.get("source", "") for a in news if a.get("source")}),
         "decision_intelligence": decision_intelligence,
         "confidence_data": {
             "level":     _conf_result.level if _conf_result else "Medium",
-            "score":     round(_conf_result.total_score) if _conf_result else ai.get("confidence", 65),
+            "score":     _final_confidence,
             "reasons":   list(_conf_result.reasons) if _conf_result else [],
             "breakdown": dict(_conf_result.breakdown) if _conf_result else {},
+            "caveats":   confidence_caveats,
         },
     }
 

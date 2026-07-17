@@ -41,6 +41,18 @@ class OpportunityService:
 
     # â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+    async def list_by_sector_or_theme(self, terms: list[str], limit: int = 10) -> list[dict]:
+        """Lightweight summaries for sector/theme-scoped queries — no nested-join DTO needed here."""
+        opps = await self._repo.list_by_sector_or_theme(terms, limit)
+        return [
+            {
+                "id": o.id, "slug": o.slug, "title": o.title, "summary": o.summary,
+                "opportunity_score": o.opportunity_score, "confidence": o.confidence,
+                "trend": o.trend, "risk_level": o.risk_level, "sectors": o.sectors or [],
+            }
+            for o in opps
+        ]
+
     async def get_opportunity_details(
         self, opportunity_id: int
     ) -> Optional[OpportunityDetailResponse]:

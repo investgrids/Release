@@ -607,7 +607,7 @@ async def seed_historical_events() -> None:
             "risk_score": 22.0,
             "confidence": 93.0,
             "what_happened": "FM Sitharaman increased capital expenditure by 33% to ₹10 lakh crore — highest ever. Defence, railway and green energy got highest allocations. Nifty rose 1.5% on Budget Day. Infrastructure and defence stocks rose 10-20% in 1 month.",
-            "key_lesson": "Infrastructure budgets with rising capex create 2-3 week rallies in capital goods, defence, and railways. L&T, HAL, RVNL are the most consistent Budget Day winners when capex rises. Sell FMCG on Budget Day in high-capex budgets.",
+            "key_lesson": "Infrastructure budgets with rising capex have historically produced 2-3 week rallies in capital goods, defence, and railways. L&T, HAL, RVNL have been the most consistent Budget Day outperformers when capex rises, while FMCG has typically underperformed on Budget Day in high-capex budgets.",
             "source": "seed",
         },
         # ── Pulwama Attack ────────────────────────────────────────────────────
@@ -642,7 +642,7 @@ async def seed_historical_events() -> None:
             "risk_score": 45.0,
             "confidence": 85.0,
             "what_happened": "Pulwama attack on Feb 14, 2019 killed 40 CRPF jawans. India responded with Balakot airstrikes on Feb 26. Markets fell 1% immediately but recovered within 3 weeks — historically India-Pakistan tensions have <1 month market impact.",
-            "key_lesson": "India-Pakistan geopolitical shocks cause 1-2% Nifty dip but market recovers in 3-4 weeks. Defence stocks rally 5-10%. Avoid Tourism and Aviation during standoffs. Historical precedent: markets recovered in <1 month in all India-Pakistan incidents since 1999.",
+            "key_lesson": "India-Pakistan geopolitical shocks have historically caused a 1-2% Nifty dip with recovery in 3-4 weeks. Defence stocks have rallied 5-10%, while Tourism and Aviation have underperformed during standoffs. Historical precedent: markets recovered in under a month in all India-Pakistan incidents since 1999.",
             "source": "seed",
         },
         # ── Lehman Brothers / 2008 ────────────────────────────────────────────
@@ -678,7 +678,7 @@ async def seed_historical_events() -> None:
             "risk_score": 98.0,
             "confidence": 95.0,
             "what_happened": "Lehman Brothers filed for bankruptcy on Sep 15, 2008 — the largest bankruptcy in US history. Nifty fell from 5,500 to 2,500 (a 55% drawdown) by March 2009. FIIs pulled out $13B from Indian markets in 2008.",
-            "key_lesson": "Global financial crises cause 40-60% drawdowns in Indian markets. Avoid leverage stocks (Real Estate, Infra, NBFCs). Pharma and FMCG are the most defensive. Recovery after a financial crisis is typically 18-24 months but gains are 100%+ from the bottom.",
+            "key_lesson": "Global financial crises have historically caused 40-60% drawdowns in Indian markets. Leveraged sectors (Real Estate, Infra, NBFCs) have underperformed most, while Pharma and FMCG have been the most defensive. Recovery after a financial crisis is typically 18-24 months but gains are 100%+ from the bottom.",
             "source": "seed",
         },
         # ── Budget 2020 (Disappointment) ──────────────────────────────────────
@@ -744,7 +744,7 @@ async def seed_historical_events() -> None:
             "risk_score": 25.0,
             "confidence": 88.0,
             "what_happened": "RBI held rates at 6.5% in April 2023 MPC — signalling the end of the most aggressive rate hike cycle since 2010. Rate-sensitive sectors rallied strongly. Market interpreted this as the beginning of the rate cut expectation cycle.",
-            "key_lesson": "Rate pause after a hike cycle is bullish for Housing Finance, Real Estate, and Auto — these sectors outperform 3-6 months after the pause. Banking also benefits from NIM stability. Buy rate-sensitives on the first RBI pause.",
+            "key_lesson": "A rate pause after a hike cycle has historically been bullish for Housing Finance, Real Estate, and Auto — these sectors have outperformed 3-6 months after the pause. Banking also benefits from NIM stability. Rate-sensitive sectors have historically re-rated higher starting from the first RBI pause.",
             "source": "seed",
         },
         # ── PLI Scheme Launch ──────────────────────────────────────────────────
@@ -847,7 +847,7 @@ async def seed_historical_events() -> None:
             "risk_score": 75.0,
             "confidence": 88.0,
             "what_happened": "RBI imposed a moratorium on Yes Bank on March 5, 2020, capping withdrawals at ₹50,000. Yes Bank had hidden NPAs of ₹40,000 Cr. SBI led a rescue. This coincided with early COVID fears, amplifying the market decline in March 2020.",
-            "key_lesson": "When RBI imposes moratorium, the affected bank stock falls 80-90% — essentially a wipeout. State Bank leads bailouts — buy SBI on RBI moratoriums. NBFC stocks with similar exposure profiles fall 30-50% on contagion fears.",
+            "key_lesson": "When RBI imposes a moratorium, the affected bank stock has historically fallen 80-90% — essentially a wipeout. State Bank has typically led bailouts and re-rated higher on that role. NBFC stocks with similar exposure profiles have fallen 30-50% on contagion fears.",
             "source": "seed",
         },
         # ── RBI Surprise Cut Jan 2015 ─────────────────────────────────────────
@@ -917,7 +917,7 @@ async def seed_historical_events() -> None:
             "risk_score": 80.0,
             "confidence": 88.0,
             "what_happened": "Fed Chairman Bernanke hinted at tapering QE on May 22, 2013. USD/INR surged to 68 in 2 months. FIIs pulled $5B from Indian equities. Nifty fell 12% in 1 month. RBI was forced to raise rates to defend the rupee.",
-            "key_lesson": "Fed taper/rate hike signals cause massive FII outflows from India. Nifty falls 8-12% in 1 month. IT stocks with high USD exposure are the biggest beneficiaries (rupee weakness adds to USD revenues). Banking and Real Estate fall most — buy IT on Fed hawkishness.",
+            "key_lesson": "Fed taper/rate hike signals have historically caused massive FII outflows from India, with Nifty falling 8-12% in a month. IT stocks with high USD exposure have been the biggest beneficiaries (rupee weakness adds to USD revenues), while Banking and Real Estate have fallen most — IT has tended to hold up best during Fed hawkishness.",
             "source": "seed",
         },
         # ── Crude Oil Crash April 2020 ────────────────────────────────────────
@@ -985,7 +985,7 @@ async def seed_historical_events() -> None:
             "risk_score": 22.0,
             "confidence": 85.0,
             "what_happened": "RBI changed stance from 'calibrated tightening' to 'neutral' in Feb 2019 MPC, then cut rates 25bps. This began a 135bps cut cycle through 2019. Housing Finance and Auto were the biggest sector beneficiaries. Nifty rose 8% in 6 months.",
-            "key_lesson": "Beginning of rate cut cycles are consistently bullish for Housing Finance, Auto, and NBFCs. Buy these sectors at the first cut — they tend to outperform by 10-15% over the next 6 months. The market front-runs further cuts immediately.",
+            "key_lesson": "The beginning of rate cut cycles has consistently been bullish for Housing Finance, Auto, and NBFCs — these sectors have tended to outperform by 10-15% over the next 6 months starting from the first cut. The market typically front-runs further cuts immediately.",
             "source": "seed",
         },
         # ── Budget July 2024 (STCG/LTCG Hike) ───────────────────────────────
@@ -1054,7 +1054,7 @@ async def seed_historical_events() -> None:
             "risk_score": 30.0,
             "confidence": 85.0,
             "what_happened": "HDFC Ltd and HDFC Bank announced a landmark merger creating India's largest financial group with combined assets of ₹18L Cr. HDFC Bank surged 10% on day 1. The merger was completed in July 2023 and created the world's 4th largest bank by market cap.",
-            "key_lesson": "Banking sector consolidation creates immediate 8-10% gains for the combined entity. Housing finance competitors underperform. Mergers in banking create long-term scale benefits — buy the merged entity on the merger announcement day.",
+            "key_lesson": "Banking sector consolidation has historically produced immediate 8-10% gains for the combined entity, while housing finance competitors underperformed. Mergers in banking have created long-term scale benefits, with the merged entity typically re-rating from the announcement day.",
             "source": "seed",
         },
     ]
@@ -1092,6 +1092,53 @@ async def seed_historical_events() -> None:
         await db.commit()
 
     log.info("historical_memory.seeded", count=len(EVENTS))
+
+
+async def apply_incremental_patches() -> None:
+    """
+    Corrects imperative advisory phrasing ("buy X", "Sell Y") in already-seeded
+    `key_lesson` text — this is a research platform, not an advisory one, and
+    that language slipped into the original seed copy for 8 events. Runs
+    unconditionally on every boot (not gated by seed_historical_events' skip
+    guard) so it reaches databases that were already seeded before this fix
+    was written. Plain UPDATEs by title are idempotent — safe to re-run.
+    """
+    fixes = {
+        "Union Budget 2023 — ₹10L Cr Capex Outlay":
+            "Infrastructure budgets with rising capex have historically produced 2-3 week rallies in capital goods, defence, and railways. L&T, HAL, RVNL have been the most consistent Budget Day outperformers when capex rises, while FMCG has typically underperformed on Budget Day in high-capex budgets.",
+        "RBI Pauses Rate Hike Cycle — Peak Rate Signalled":
+            "A rate pause after a hike cycle has historically been bullish for Housing Finance, Real Estate, and Auto — these sectors have outperformed 3-6 months after the pause. Banking also benefits from NIM stability. Rate-sensitive sectors have historically re-rated higher starting from the first RBI pause.",
+        "RBI Begins Rate Cut Cycle — 135bps Cuts in 2019":
+            "The beginning of rate cut cycles has consistently been bullish for Housing Finance, Auto, and NBFCs — these sectors have tended to outperform by 10-15% over the next 6 months starting from the first cut. The market typically front-runs further cuts immediately.",
+        "HDFC Ltd + HDFC Bank Mega Merger Announced":
+            "Banking sector consolidation has historically produced immediate 8-10% gains for the combined entity, while housing finance competitors underperformed. Mergers in banking have created long-term scale benefits, with the merged entity typically re-rating from the announcement day.",
+        "Pulwama Terror Attack — India-Pakistan Military Standoff":
+            "India-Pakistan geopolitical shocks have historically caused a 1-2% Nifty dip with recovery in 3-4 weeks. Defence stocks have rallied 5-10%, while Tourism and Aviation have underperformed during standoffs. Historical precedent: markets recovered in under a month in all India-Pakistan incidents since 1999.",
+        "Lehman Brothers Bankruptcy — Global Financial Crisis":
+            "Global financial crises have historically caused 40-60% drawdowns in Indian markets. Leveraged sectors (Real Estate, Infra, NBFCs) have underperformed most, while Pharma and FMCG have been the most defensive. Recovery after a financial crisis is typically 18-24 months but gains are 100%+ from the bottom.",
+        "Yes Bank RBI Moratorium — Depositor Freeze":
+            "When RBI imposes a moratorium, the affected bank stock has historically fallen 80-90% — essentially a wipeout. State Bank has typically led bailouts and re-rated higher on that role. NBFC stocks with similar exposure profiles have fallen 30-50% on contagion fears.",
+        "US Fed Taper Talk — Emerging Market Selloff":
+            "Fed taper/rate hike signals have historically caused massive FII outflows from India, with Nifty falling 8-12% in a month. IT stocks with high USD exposure have been the biggest beneficiaries (rupee weakness adds to USD revenues), while Banking and Real Estate have fallen most — IT has tended to hold up best during Fed hawkishness.",
+    }
+    try:
+        from app.db.session import AsyncSessionLocal
+        from app.db.models.historical_memory import HistoricalMarketEvent
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as db:
+            updated = 0
+            for title, new_lesson in fixes.items():
+                rows = (await db.execute(
+                    select(HistoricalMarketEvent).where(HistoricalMarketEvent.event_title == title)
+                )).scalars().all()
+                for row in rows:
+                    row.key_lesson = new_lesson
+                    updated += 1
+            await db.commit()
+        log.info("historical_memory.incremental_patch_applied", updated=updated)
+    except Exception as exc:
+        log.warning("historical_memory.incremental_patch_failed", error=str(exc))
 
 
 def format_for_ai_prompt(similar_events: list[dict], max_events: int = 5) -> str:

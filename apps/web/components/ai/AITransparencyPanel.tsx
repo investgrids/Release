@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Bot, ChevronDown, ChevronUp, ExternalLink, RefreshCw } from "lucide-react";
 import { ConfidenceBadge, ConfidenceMeter } from "./ConfidenceBadge";
 import { EvidenceCard, type EvidenceCardProps } from "./EvidenceCard";
-import { AIDisclaimer } from "./AIDisclaimer";
 import { MethodologyDrawer } from "./MethodologyDrawer";
 import { WhyAmISeeingThis } from "./WhyAmISeeingThis";
 import type { EvidenceType } from "./EvidenceCard";
@@ -223,9 +222,6 @@ export function AITransparencyPanel({
                 />
               </div>
             </div>
-
-            {/* Disclaimer */}
-            <AIDisclaimer />
           </div>
         )}
       </div>

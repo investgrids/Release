@@ -9,7 +9,6 @@ import {
   ArrowRight, Zap,
 } from "lucide-react";
 import { InvestmentThesisCard } from "@/components/intelligence/InvestmentThesis";
-import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -741,8 +740,6 @@ export function DecisionIntelligencePanel({ di, query, onRefine }: DecisionIntel
           />
         </div>
       )}
-
-      <AIDisclaimer />
     </div>
   );
 }

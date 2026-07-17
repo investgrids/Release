@@ -227,8 +227,9 @@ async def _seed_historical_memory() -> None:
     """Seed Historical Market Memory with verified past events on first boot."""
     await asyncio.sleep(6)
     try:
-        from app.services.historical_memory_service import seed_historical_events
+        from app.services.historical_memory_service import seed_historical_events, apply_incremental_patches
         await seed_historical_events()
+        await apply_incremental_patches()
     except Exception as exc:
         log.warning("historical_memory.seed_error", error=str(exc))
 
@@ -237,8 +238,9 @@ async def _seed_intelligence_graph() -> None:
     """Seed the Market Intelligence Graph on first boot."""
     await asyncio.sleep(10)
     try:
-        from app.services.intelligence_graph_service import seed_intelligence_graph
+        from app.services.intelligence_graph_service import seed_intelligence_graph, apply_incremental_patches
         await seed_intelligence_graph()
+        await apply_incremental_patches()
     except Exception as exc:
         log.warning("intelligence_graph.seed_error", error=str(exc))
 

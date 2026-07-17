@@ -5,47 +5,69 @@ import type { ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Newspaper, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw, Building2, ChevronRight, Target } from "lucide-react";
+import { Search, Newspaper, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw, Building2, ChevronRight, Target, Truck, Landmark, Factory, Ship, LineChart as LineChartIcon, ShieldAlert, Users, Cpu, Wallet, Scale, Receipt, GitBranch, DollarSign, Package, CreditCard, Eye, ListChecks, ArrowRight, Clock, AlertTriangle, GitCompare, FileText } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { DecisionIntelligencePanel, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface AnswerSection {
-  summary: string; what_happened: string; why_it_happened: string;
+  summary: string; bottom_line: string; what_happened: string; why_it_happened: string;
   immediate_impact: string; medium_term: string; long_term: string;
+  what_priced_in: string;
   risks: string[]; opportunities: string[];
   confidence: number; confidence_level?: string;
   sentiment: "bullish" | "bearish" | "neutral";
   sources_count: number;
 }
+interface KeyDriver    { icon: string; title: string; explanation: string; confidence: number; }
 interface Insight      { icon: string; title: string; summary: string; }
-interface Company      { symbol: string; name: string; price: string; change: string; positive: boolean; impact_type: string; impact_score: number; confidence: number; reason: string; chart: number[]; }
-interface Sector       { name: string; score: number; confidence: number; outlook: string; positive: boolean; }
+interface Company      { symbol: string; name: string; price: string; change: string; positive: boolean; impact_type: string; impact_score: number; confidence: number; reason: string; chart: number[]; ripple_position?: string; why_it_matters?: string; }
+interface Sector       { name: string; score: number; confidence: number; outlook: string; positive: boolean; status?: string; time_horizon?: string; explanation?: string; }
 interface RelatedEvent { id: string; title: string; date: string; impact_score: number; confidence: number; category: string; }
 interface NewsItem     { id: string; headline: string; summary: string; source: string; published_at: string; impact_score: number; }
 interface Policy       { id: number; title: string; ministry: string; status: string; impact_score: number; }
 interface Timeline     { date: string; title: string; description: string; }
-interface SimilarEvent { title: string; date: string; outcome: string; winners: string[]; losers: string[]; similarity: number; }
-interface InvestmentVerdict { rating: string; direction: string; confidence: number; horizon: string; top_picks: string[]; risks: string[]; catalysts: string[]; opportunity_score: number; }
+interface HistoricalMove       { symbol: string; name: string; return_1w?: number; return_1m?: number; reason: string; }
+interface HistoricalComparison {
+  event_title: string; event_date: string; similarity: number; key_lesson: string;
+  key_difference: string;
+  what_happened: string; sector_reactions: Record<string, number>;
+  historical_winners: HistoricalMove[]; historical_losers: HistoricalMove[];
+  nifty_1w: number | null; nifty_1m: number | null;
+}
+interface RippleNode  { id: string; label: string; type: string; direction: string; weight: number; parent_id: string | null; }
+interface RippleLevel { depth: number; nodes: RippleNode[]; }
+interface Scenario      { probability: number; outcome: string; key_drivers: string[]; supporting_evidence: string; major_catalysts: string[]; expected_evolution: string; confidence: number; }
+interface Scenarios     { bull?: Scenario; base?: Scenario; bear?: Scenario; }
+interface MarketHorizon { horizon: string; window: string; confidence: number; direction: string; description: string; }
+interface MonitorItem   { title: string; why_it_matters: string; importance: string; frequency: string; }
+interface ReasoningMethod { label: string; used: boolean; }
+interface ConfidenceData  { level: string; score: number; reasons: string[]; breakdown: Record<string, number>; caveats: string[]; }
+interface InvestmentVerdict { rating: string; direction: string; confidence: number; horizon: string; top_picks: string[]; risks: string[]; catalysts: string[]; opportunity_score: number; risk_level?: string; suitable_for?: string; }
 interface ChartSeries  { name: string; data: number[]; color: string; }
 interface MarketChart  { labels: string[]; series: ChartSeries[]; }
 interface GraphNode    { id: string; label: string; type: string; x: number; y: number; }
 interface GraphEdge    { id: string; source: string; target: string; label: string; }
 
 interface SearchResult {
-  query: string; answer: AnswerSection; insights: Insight[];
+  query: string; answer: AnswerSection; key_drivers: KeyDriver[]; insights: Insight[];
   companies: Company[]; sectors: Sector[]; related_events: RelatedEvent[];
   news: NewsItem[]; policies: Policy[]; timeline: Timeline[];
-  similar_events: SimilarEvent[]; follow_up_questions: string[];
+  historical_comparison: HistoricalComparison[];
+  ripple_chain: RippleLevel[];
+  scenarios: Scenarios;
+  market_impact_horizons: MarketHorizon[];
+  what_to_monitor: MonitorItem[];
+  ai_reasoning_methods: ReasoningMethod[];
+  follow_up_questions: string[];
   investment_verdict: InvestmentVerdict; market_chart: MarketChart;
   graph: { nodes: GraphNode[]; edges: GraphEdge[] };
   citations: string[];
   decision_intelligence: DecisionIntelligence | null;
-  confidence_data?: unknown;
+  confidence_data?: ConfidenceData;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -82,6 +104,72 @@ const EVENT_STATUS_COLORS: Record<string, { dot: string; label: string; bg: stri
   Completed: { dot: "bg-emerald-400", label: "Completed", bg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
   Ongoing:   { dot: "bg-amber-400 animate-pulse", label: "Ongoing",   bg: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
   Upcoming:  { dot: "bg-sky-400",    label: "Upcoming",  bg: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
+};
+
+// Fixed keyword whitelist enforced by the backend prompt for key_drivers[].icon
+const DRIVER_ICON_MAP: Record<string, ReactNode> = {
+  procurement:   <Package className="h-4 w-4"/>,
+  policy:        <Landmark className="h-4 w-4"/>,
+  manufacturing: <Factory className="h-4 w-4"/>,
+  export:        <Ship className="h-4 w-4"/>,
+  valuation:     <LineChartIcon className="h-4 w-4"/>,
+  risk:          <ShieldAlert className="h-4 w-4"/>,
+  demand:        <Users className="h-4 w-4"/>,
+  technology:    <Cpu className="h-4 w-4"/>,
+  capex:         <Wallet className="h-4 w-4"/>,
+  regulation:    <Scale className="h-4 w-4"/>,
+  earnings:      <Receipt className="h-4 w-4"/>,
+  "supply-chain": <Truck className="h-4 w-4"/>,
+  currency:      <DollarSign className="h-4 w-4"/>,
+  commodity:     <Package className="h-4 w-4"/>,
+  credit:        <CreditCard className="h-4 w-4"/>,
+};
+
+const RIPPLE_TYPE_COLOR: Record<string, string> = {
+  policy:    "border-violet-500/30 bg-violet-500/10 text-violet-300",
+  sector:    "border-sky-500/30 bg-sky-500/10 text-sky-300",
+  commodity: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  company:   "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  event:     "border-rose-500/30 bg-rose-500/10 text-rose-300",
+};
+
+const RIPPLE_POSITION_COLOR: Record<string, string> = {
+  "Primary Beneficiary":   "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  "Secondary Beneficiary": "bg-emerald-500/10 text-emerald-400/80 border-emerald-500/20",
+  "Primary Pressure":      "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  "Secondary Pressure":    "bg-rose-500/10 text-rose-400/80 border-rose-500/20",
+  "Indirect Exposure":     "bg-slate-500/10 text-slate-400 border-slate-500/20",
+};
+
+const SECTOR_STATUS_COLOR: Record<string, string> = {
+  "Structural Tailwind": "text-emerald-400",
+  "Beneficiary":         "text-emerald-400/80",
+  "Indirect Benefit":    "text-sky-400",
+  "Headwind":            "text-amber-400",
+  "Structural Headwind": "text-rose-400",
+};
+
+const OUTLOOK_COLOR: Record<string, string> = {
+  "Strongly Constructive":    "text-emerald-400",
+  "Constructive":             "text-emerald-400",
+  "Positive Outlook":         "text-emerald-400/80",
+  "Selectively Constructive": "text-sky-400",
+  "Neutral":                  "text-amber-400",
+  "Cautious":                 "text-amber-400",
+  "Elevated Risk":            "text-rose-400",
+  "High Uncertainty":         "text-rose-400",
+};
+
+// Professional status-dot indicator per outlook label — no emoji.
+const OUTLOOK_DOT: Record<string, string> = {
+  "Strongly Constructive":    "bg-emerald-400",
+  "Constructive":             "bg-emerald-400",
+  "Positive Outlook":         "bg-emerald-400/70",
+  "Selectively Constructive": "bg-sky-400",
+  "Neutral":                  "bg-amber-400",
+  "Cautious":                 "bg-amber-400",
+  "Elevated Risk":            "bg-rose-500",
+  "High Uncertainty":         "bg-rose-500",
 };
 
 // ── Micro-components ──────────────────────────────────────────────────────────
@@ -125,21 +213,6 @@ function SmallRing({ score, size = 36 }: { score: number; size?: number }) {
         {score}
       </text>
     </svg>
-  );
-}
-
-/** Star rating component */
-function Stars({ score }: { score: number }) {
-  const filled = score >= 85 ? 5 : score >= 70 ? 4 : score >= 50 ? 3 : score >= 35 ? 2 : 1;
-  return (
-    <div className="flex gap-0.5">
-      {[1,2,3,4,5].map(i => (
-        <svg key={i} className={`h-3 w-3 ${i <= filled ? "text-amber-400" : "text-slate-700"}`}
-          viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      ))}
-    </div>
   );
 }
 
@@ -294,21 +367,6 @@ function EmptyState({ onSearch }: { onSearch: (q: string) => void }) {
   );
 }
 
-// ── Chart tooltip ──────────────────────────────────────────────────────────────
-function ChartTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-xl border border-white/10 bg-slate-900/90 px-3 py-2 text-xs backdrop-blur-sm">
-      <p className="text-slate-400 mb-1">{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.name} style={{ color: p.color }} className="font-semibold">
-          {p.name}: {p.value > 0 ? "+" : ""}{p.value?.toFixed(2)}%
-        </p>
-      ))}
-    </div>
-  );
-}
-
 // ── Search Results ─────────────────────────────────────────────────────────────
 function SearchResults({ result, onFollowUp, resultTime }: {
   result: SearchResult;
@@ -317,9 +375,12 @@ function SearchResults({ result, onFollowUp, resultTime }: {
 }) {
   const [showMore, setShowMore] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [activeRippleNode, setActiveRippleNode] = useState<string | null>(null);
 
-  const { answer, companies, sectors, related_events, news,
-          investment_verdict, market_chart, similar_events,
+  const { answer, key_drivers, companies, sectors, related_events, news, policies,
+          investment_verdict, historical_comparison,
+          ripple_chain, scenarios, market_impact_horizons, what_to_monitor,
+          ai_reasoning_methods, confidence_data,
           follow_up_questions, decision_intelligence } = result;
 
   const isDecision = !!decision_intelligence?.intent && decision_intelligence.intent !== "general";
@@ -327,28 +388,43 @@ function SearchResults({ result, onFollowUp, resultTime }: {
   // Relative time
   const minAgo = Math.max(1, Math.round((Date.now() - resultTime.getTime()) / 60000));
 
-  // Verdict direction label
+  // Verdict direction — drives the icon only; the label itself is always the
+  // research-outlook enum (never Buy/Sell/Hold), colored via OUTLOOK_COLOR.
   const dir = answer?.sentiment ?? investment_verdict?.direction ?? "neutral";
   const isBull = dir === "bullish";
   const isBear = dir === "bearish";
-  const verdictColor = isBull ? "text-emerald-400" : isBear ? "text-rose-400" : "text-amber-400";
-  const risk = riskLevel(investment_verdict?.confidence ?? answer?.confidence ?? 70);
-
-  // Chart data
-  const chartData = (market_chart?.labels || []).map((label, i) => {
-    const row: Record<string, any> = { label };
-    (market_chart?.series || []).forEach(s => { row[s.name] = s.data[i] ?? 0; });
-    return row;
-  });
-
-  // Similar event for historical section
-  const simEv = similar_events?.[0];
+  const outlookLabel = investment_verdict?.rating || "Neutral";
+  const verdictColor = OUTLOOK_COLOR[outlookLabel] ?? (isBull ? "text-emerald-400" : isBear ? "text-rose-400" : "text-amber-400");
+  const risk = investment_verdict?.risk_level
+    ? { label: investment_verdict.risk_level, color:
+        investment_verdict.risk_level === "Low" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+        : investment_verdict.risk_level === "Medium" ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+        : "text-rose-400 bg-rose-500/10 border-rose-500/20" }
+    : riskLevel(answer?.confidence ?? investment_verdict?.confidence ?? 70);
+  const suitableForLabel = investment_verdict?.suitable_for || suitableFor(investment_verdict?.horizon || "");
 
   // Continue Your Research CTAs
-  const topCo  = companies?.[0];
-  const topEv  = related_events?.[0];
-  const topFU  = follow_up_questions?.[0];
-  const topSec = sectors?.[0];
+  const topCo   = companies?.[0];
+  const topCo2  = companies?.[1];
+  const topEv   = related_events?.[0];
+  const topFU   = follow_up_questions?.[0];
+  const topSec  = sectors?.[0];
+  const topPol  = policies?.[0];
+  const hasRipple = (ripple_chain?.length ?? 0) > 1;
+
+  // Distinct from the Executive Summary — describes HOW the answer was
+  // built (source mix + methodology), never restates WHAT it concluded.
+  const methodologySummary = (() => {
+    const parts: string[] = [];
+    if (news?.length) parts.push(`${news.length} news article${news.length > 1 ? "s" : ""}`);
+    if (policies?.length) parts.push(`${policies.length} policy document${policies.length > 1 ? "s" : ""}`);
+    if (related_events?.length) parts.push(`${related_events.length} market event${related_events.length > 1 ? "s" : ""}`);
+    if (companies?.length) parts.push(`${companies.length} compan${companies.length > 1 ? "ies" : "y"}`);
+    let out = parts.length ? `Synthesized from ${parts.join(", ")}` : "Synthesized from available market data";
+    if (historical_comparison?.length) out += `, cross-checked against ${historical_comparison.length} historical precedent${historical_comparison.length > 1 ? "s" : ""}`;
+    if (hasRipple) out += ", propagated through MarketRipple's Intelligence Graph and Ripple Engine";
+    return out + ".";
+  })();
 
   function handleSave() {
     try {
@@ -405,82 +481,119 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         <DecisionIntelligencePanel di={decision_intelligence} query={result.query} onRefine={onFollowUp}/>
       )}
 
-      {/* ── Row 1: AI Decision + Key Evidence ────────────────────────────────── */}
-      <div className="grid grid-cols-[1fr_auto] gap-4 min-h-0">
+      {/* ── 1. Research Outlook ───────────────────────────────────────────────── */}
+      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-0.5 text-[10px] font-bold text-violet-300 uppercase tracking-wider">Research Outlook</span>
+          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5 text-[10px] font-medium text-slate-400">Not investment advice</span>
+        </div>
 
-        {/* AI Decision */}
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-0.5 text-[10px] font-bold text-violet-300 uppercase tracking-wider">AI Decision</span>
-            <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5 text-[10px] font-medium text-slate-400">Bottom Line Up Front</span>
-          </div>
-
-          <div className="flex items-start gap-4 mb-4">
-            <DirectionIcon direction={dir} size={64}/>
-            <div>
-              <p className={`text-[26px] font-extrabold leading-tight ${verdictColor}`}>
-                {investment_verdict?.rating || (isBull ? "Moderately Bullish" : isBear ? "Moderately Bearish" : "Neutral")}
-              </p>
-              <p className="text-[12px] text-slate-400 mt-1 leading-relaxed max-w-sm">
-                {answer?.summary?.length > 180 ? answer.summary.slice(0, 177) + "…" : answer?.summary}
-              </p>
-            </div>
-          </div>
-
-          {/* Stats row */}
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { label: "Confidence", value: `${answer?.confidence ?? investment_verdict?.confidence ?? 0}%`, color: "text-emerald-400" },
-              { label: "Time Horizon", value: investment_verdict?.horizon || "6–18 Months", color: "text-slate-200" },
-              { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0] },
-              { label: "Suitable For", value: suitableFor(investment_verdict?.horizon || ""), color: "text-slate-200" },
-            ].map(s => (
-              <div key={s.label} className="rounded-[12px] border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">{s.label}</p>
-                <p className={`text-[12px] font-semibold ${s.color}`}>{s.value}</p>
-              </div>
-            ))}
+        <div className="flex items-center gap-4 mb-4">
+          <DirectionIcon direction={dir} size={64}/>
+          <div className="flex items-center gap-2.5">
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${OUTLOOK_DOT[outlookLabel] ?? "bg-amber-400"}`}/>
+            <p className={`text-[26px] font-extrabold leading-tight ${verdictColor}`}>{outlookLabel}</p>
           </div>
         </div>
 
-        {/* Key Evidence */}
-        <div className="w-72 rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-semibold text-white">Why? (Key Evidence)</p>
-          </div>
-          <div className="space-y-2.5">
-            {((answer?.opportunities?.length ? answer.opportunities : []).slice(0, 5)).map((op, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
-                  <svg className="h-2.5 w-2.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[12px] font-medium text-white leading-tight">{op.split(":")[0] || op.slice(0, 40)}</p>
-                  {op.includes(":") && <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">{op.split(":").slice(1).join(":").trim()}</p>}
-                </div>
-              </div>
-            ))}
-            {/* Fallback if no opportunities */}
-            {!answer?.opportunities?.length && (answer?.risks || []).slice(0, 3).map((r, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-slate-700/50">
-                  <svg className="h-2.5 w-2.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <p className="text-[12px] text-slate-300 leading-tight line-clamp-2">{r}</p>
-              </div>
-            ))}
-          </div>
-          <Link href="/events" className="mt-4 flex items-center gap-1 text-[11px] font-medium text-violet-400 hover:text-violet-300 transition">
-            View All Evidence <span>→</span>
-          </Link>
+        {/* Stats row */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: "Confidence", value: `${answer?.confidence ?? investment_verdict?.confidence ?? 0}%`, color: "text-emerald-400" },
+            { label: "Time Horizon", value: investment_verdict?.horizon || "6–18 Months", color: "text-slate-200" },
+            { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0] },
+            { label: "Suitable For", value: suitableForLabel, color: "text-slate-200" },
+          ].map(s => (
+            <div key={s.label} className="rounded-[12px] border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">{s.label}</p>
+              <p className={`text-[12px] font-semibold ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* ── Row 2: Companies That Matter ─────────────────────────────────────── */}
+      {/* ── 2. Executive Summary ──────────────────────────────────────────────── */}
+      <div className="rounded-[20px] border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.06] to-transparent p-5">
+        <p className="text-[11px] uppercase tracking-wider text-violet-400 mb-2 font-semibold">Executive Summary</p>
+        <p className="text-[14px] text-white leading-relaxed">
+          {answer?.bottom_line || answer?.summary || "No direct answer generated for this query."}
+        </p>
+      </div>
+
+      {/* ── 3. Why AI Thinks This ─────────────────────────────────────────────── */}
+      {key_drivers?.length > 0 && (
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <p className="text-[15px] font-semibold text-white mb-4">Why AI Thinks This</p>
+          <div className="grid grid-cols-3 gap-3">
+            {key_drivers.slice(0, 6).map((kd, i) => (
+              <div key={i} className="rounded-[14px] border border-white/[0.07] bg-white/[0.02] p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">
+                    {DRIVER_ICON_MAP[kd.icon] ?? <Sparkles className="h-4 w-4"/>}
+                  </div>
+                  <p className="text-[12px] font-semibold text-white leading-tight">{kd.title}</p>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed mb-2">{kd.explanation}</p>
+                <div className="flex items-center gap-2">
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400" style={{ width: `${kd.confidence}%` }}/>
+                  </div>
+                  <p className="text-[10px] tabular-nums text-slate-500">{kd.confidence}%</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 4. Ripple Analysis ────────────────────────────────────────────────── */}
+      {ripple_chain?.length > 1 && (
+        <div id="ripple-analysis" className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <GitBranch className="h-4 w-4 text-violet-400"/>
+            <p className="text-[15px] font-semibold text-white">Ripple Analysis</p>
+          </div>
+          <p className="text-[10px] text-slate-500 mb-4">How the impact propagates through the economy — first, second and third-order effects, from the intelligence graph.</p>
+          <div className="overflow-x-auto pb-1">
+            <div className="flex items-stretch gap-2 min-w-max">
+              {ripple_chain.map((level, li) => (
+                <div key={level.depth} className="flex items-center">
+                  <div className="flex flex-col gap-2 justify-center">
+                    <p className="text-[8px] uppercase tracking-wider text-slate-600 text-center">
+                      {li === 0 ? "Source" : li === 1 ? "1st Order" : li === 2 ? "2nd Order" : "3rd Order+"}
+                    </p>
+                    {level.nodes.map((node, ni) => (
+                      <button
+                        key={`${level.depth}-${node.id ?? ni}`}
+                        onClick={() => setActiveRippleNode(node.id === activeRippleNode ? null : node.id)}
+                        className={`rounded-[12px] border px-3 py-2 text-left transition ${RIPPLE_TYPE_COLOR[node.type] ?? "border-white/10 bg-white/[0.03] text-slate-300"} ${activeRippleNode === node.id ? "ring-2 ring-violet-400/50" : "hover:brightness-125"}`}>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[9px] uppercase tracking-wider opacity-70">{node.type}</p>
+                          {node.direction === "positive" && <TrendingUp className="h-2.5 w-2.5 text-emerald-400"/>}
+                          {node.direction === "negative" && <TrendingDown className="h-2.5 w-2.5 text-rose-400"/>}
+                        </div>
+                        <p className="text-[12px] font-semibold whitespace-nowrap">{node.label}</p>
+                      </button>
+                    ))}
+                  </div>
+                  {li < ripple_chain.length - 1 && (
+                    <ArrowRight className="h-4 w-4 text-slate-700 mx-2 shrink-0"/>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. Companies That Matter ──────────────────────────────────────────── */}
       {companies?.length > 0 && (
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[15px] font-semibold text-white">Companies That Matter</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-[15px] font-semibold text-white">Companies That Matter</p>
+              <span className="text-[10px] text-slate-500">Ranked by impact score</span>
+            </div>
             <div className="flex items-center gap-3">
               {companies.length >= 2 && (
                 <Link
@@ -501,7 +614,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
               return (
                 <div key={co.symbol} className="rounded-[16px] border border-white/[0.07] bg-white/[0.02] p-4">
                   {/* Header */}
-                  <div className="flex items-center gap-2.5 mb-3">
+                  <div className="flex items-center gap-2.5 mb-2.5">
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${av} text-[11px] font-bold text-white`}>
                       {co.symbol.slice(0, 2)}
                     </div>
@@ -521,10 +634,17 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                     </div>
                   </div>
 
+                  {/* Ripple position badge */}
+                  {co.ripple_position && (
+                    <span className={`inline-block mb-2 rounded border px-1.5 py-0.5 text-[9px] font-semibold ${RIPPLE_POSITION_COLOR[co.ripple_position] ?? "bg-slate-500/10 text-slate-400 border-slate-500/20"}`}>
+                      {co.ripple_position}
+                    </span>
+                  )}
+
                   {/* Why it matters */}
                   <div className="mb-3">
                     <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Why it matters</p>
-                    <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-2">{co.reason || "Directly impacted by this event"}</p>
+                    <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-2">{co.why_it_matters || co.reason || "Directly impacted by this event"}</p>
                   </div>
 
                   {/* Footer */}
@@ -545,31 +665,34 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         </div>
       )}
 
-      {/* ── Row 3: Sector Impact + Related Events Timeline ───────────────────── */}
-      <div className="grid grid-cols-[1fr_1.4fr] gap-4">
+      {/* ── 6. Sector Impact + Related Events Timeline ───────────────────────── */}
+      <div className="grid grid-cols-[1.2fr_1.2fr] gap-4">
 
         {/* Sector Impact */}
         {sectors?.length > 0 && (
           <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
             <p className="text-[14px] font-semibold text-white mb-4">Sector Impact</p>
             <div className="w-full">
-              <div className="grid grid-cols-3 gap-x-2 mb-2">
-                {["Sector", "Impact", "Outlook"].map(h => (
+              <div className="grid grid-cols-[1.3fr_0.6fr_0.7fr_1fr_0.8fr] gap-x-2 mb-2">
+                {["Sector", "Impact", "Confidence", "Status", "Horizon"].map(h => (
                   <p key={h} className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">{h}</p>
                 ))}
               </div>
-              <div className="space-y-2.5">
-                {sectors.slice(0, 5).map(s => {
-                  const outlookColor = s.score >= 70 ? "text-emerald-400" : s.score >= 50 ? "text-amber-400" : "text-rose-400";
-                  const outlookLabel = s.outlook || (s.score >= 85 ? "Very Positive" : s.score >= 70 ? "Positive" : s.score >= 50 ? "Neutral to Positive" : s.score >= 35 ? "Neutral" : "Neutral to Negative");
-                  return (
-                    <div key={s.name} className="grid grid-cols-3 gap-x-2 items-center">
+              <div className="space-y-3">
+                {sectors.slice(0, 5).map(s => (
+                  <div key={s.name}>
+                    <div className="grid grid-cols-[1.3fr_0.6fr_0.7fr_1fr_0.8fr] gap-x-2 items-center">
                       <p className="text-[12px] font-medium text-slate-200 truncate">{s.name}</p>
-                      <Stars score={s.score}/>
-                      <p className={`text-[11px] font-medium ${outlookColor}`}>{outlookLabel}</p>
+                      <p className="text-[12px] font-bold tabular-nums text-white">{(s.score / 10).toFixed(1)}</p>
+                      <p className="text-[11px] tabular-nums text-slate-400">{s.confidence}%</p>
+                      <p className={`text-[11px] font-medium truncate ${SECTOR_STATUS_COLOR[s.status ?? ""] ?? "text-slate-300"}`}>{s.status || s.outlook || "—"}</p>
+                      <p className="text-[10px] text-slate-500">{s.time_horizon || "—"}</p>
                     </div>
-                  );
-                })}
+                    {s.explanation && (
+                      <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5 line-clamp-1">{s.explanation}</p>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -580,13 +703,12 @@ function SearchResults({ result, onFollowUp, resultTime }: {
           <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <span className="text-[13px]">⏰</span>
+                <Clock className="h-3.5 w-3.5 text-slate-400"/>
                 <p className="text-[14px] font-semibold text-white">Related Events Timeline</p>
               </div>
               <Link href="/events" className="text-[11px] text-violet-400 hover:text-violet-300 transition">View All Events →</Link>
             </div>
             <div className="relative overflow-x-auto">
-              {/* Horizontal timeline */}
               <div className="flex items-start gap-0 min-w-max">
                 {related_events.slice(0, 5).map((ev, i) => {
                   const status = inferStatus(ev.date);
@@ -595,13 +717,11 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                   return (
                     <div key={ev.id} className="flex items-start">
                       <div className="flex flex-col items-center w-32">
-                        {/* Dot + line */}
                         <div className="flex items-center w-full">
                           {i > 0 && <div className="flex-1 h-px bg-white/[0.08]"/>}
                           <div className={`h-3 w-3 shrink-0 rounded-full border-2 border-[#0d1117] ${sc.dot}`}/>
                           {!isLast && <div className="flex-1 h-px bg-white/[0.08]"/>}
                         </div>
-                        {/* Content below dot */}
                         <div className="mt-2 px-1 text-center">
                           <Link href={`/events/${ev.id}`}
                             className="block text-[11px] font-medium text-slate-200 hover:text-white transition line-clamp-2 leading-tight text-center">
@@ -622,53 +742,162 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         )}
       </div>
 
-      {/* ── Row 4: Historical + Risks + Monitor + Follow-ups ─────────────────── */}
-      <div className="grid grid-cols-4 gap-4">
+      {/* ── Layer boundary ─────────────────────────────────────────────────────
+          Everything above is the Executive Decision layer — what a reader
+          needs in under 30 seconds. Everything below is Deep Research —
+          historical precedent, scenarios, valuation context, methodology. */}
+      <div className="flex items-center gap-3 pt-2 pb-1">
+        <div className="h-px flex-1 bg-white/[0.07]"/>
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+          <ListChecks className="h-3 w-3"/>
+          Deep Research
+        </span>
+        <div className="h-px flex-1 bg-white/[0.07]"/>
+      </div>
 
-        {/* Historical Similar Events */}
+      {/* ── 7. Market Context ─────────────────────────────────────────────────── */}
+      {answer?.what_priced_in && (
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-semibold text-white">Historical Similar Events</p>
+          <div className="flex items-center gap-2 mb-2">
+            <Eye className="h-4 w-4 text-sky-400"/>
+            <p className="text-[15px] font-semibold text-white">Market Context</p>
+            <span className="text-[10px] text-slate-500">— is this already priced in?</span>
           </div>
-          {simEv ? (
-            <>
-              <p className="text-[11px] font-medium text-violet-300 mb-1">{simEv.title}</p>
-              <p className="text-[9px] text-slate-500 mb-3">
-                {simEv.date} · <span className="text-violet-400">{Math.round(simEv.similarity * 100)}% match</span>
-              </p>
-              {/* Mini chart placeholder */}
-              {chartData.length > 0 && (
-                <div className="mb-3 h-[60px]">
-                  <ResponsiveContainer width="100%" height={60}>
-                    <LineChart data={chartData.slice(0, 12)} margin={{ top: 2, right: 2, bottom: 0, left: -30 }}>
-                      <YAxis tick={false} axisLine={false} tickLine={false}/>
-                      {(market_chart?.series || []).slice(0, 2).map(s => (
-                        <Line key={s.name} type="monotone" dataKey={s.name} stroke={s.color}
-                          strokeWidth={1.5} dot={false}/>
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-              {/* Winners */}
-              {simEv.winners?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {simEv.winners.slice(0, 4).map(w => (
-                    <span key={w} className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">{w}</span>
-                  ))}
-                </div>
-              )}
-              <p className="mt-2 text-[10px] text-slate-500 leading-relaxed line-clamp-2">{simEv.outcome}</p>
-            </>
-          ) : (
-            <p className="text-[12px] text-slate-500 text-center py-4">No similar historical events found</p>
-          )}
+          <p className="text-[12px] text-slate-300 leading-relaxed">{answer.what_priced_in}</p>
         </div>
+      )}
 
-        {/* Risks & Counter Arguments */}
+      {/* ── 8. Market Impact — Immediate / Next Quarter / Long Term ──────────── */}
+      {market_impact_horizons?.length > 0 && (
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <p className="text-[15px] font-semibold text-white mb-4">Market Impact Over Time</p>
+          <div className="grid grid-cols-3 gap-3">
+            {market_impact_horizons.map(h => {
+              const dirColor = h.direction === "positive" ? "text-emerald-400" : h.direction === "negative" ? "text-rose-400" : "text-amber-400";
+              const barColor = h.direction === "positive" ? "from-emerald-500 to-emerald-300" : h.direction === "negative" ? "from-rose-500 to-rose-300" : "from-amber-500 to-amber-300";
+              return (
+                <div key={h.horizon} className="rounded-[14px] border border-white/[0.07] bg-white/[0.02] p-4">
+                  <p className="text-[12px] font-semibold text-white">{h.horizon}</p>
+                  <p className="text-[9px] text-slate-500 mb-2">{h.window}</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                      <div className={`h-full rounded-full bg-gradient-to-r ${barColor}`} style={{ width: `${h.confidence}%` }}/>
+                    </div>
+                    <p className={`text-[10px] font-semibold tabular-nums ${dirColor}`}>{h.confidence}%</p>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-3">{h.description}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 9. Historical Comparison ──────────────────────────────────────────── */}
+      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <p className="text-[15px] font-semibold text-white mb-4">Historical Comparison</p>
+        {historical_comparison?.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {historical_comparison.slice(0, 2).map((h, i) => (
+              <div key={i} className="rounded-[14px] border border-white/[0.07] bg-white/[0.02] p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[12px] font-medium text-violet-300">{h.event_title}</p>
+                  <span className="shrink-0 rounded bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-violet-400">{Math.round(h.similarity)}% match score</span>
+                </div>
+                <p className="text-[9px] text-slate-500 mb-2">{h.event_date}</p>
+
+                {/* Outcome — real index returns, honestly labeled by the actual window available */}
+                {(h.nifty_1w != null || h.nifty_1m != null) && (
+                  <div className="flex items-center gap-4 mb-2.5">
+                    {h.nifty_1w != null && (
+                      <div>
+                        <p className="text-[8px] uppercase tracking-wider text-slate-500">Nifty · 1 Week</p>
+                        <p className={`text-[13px] font-bold tabular-nums ${h.nifty_1w >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{h.nifty_1w >= 0 ? "+" : ""}{h.nifty_1w}%</p>
+                      </div>
+                    )}
+                    {h.nifty_1m != null && (
+                      <div>
+                        <p className="text-[8px] uppercase tracking-wider text-slate-500">Nifty · 1 Month</p>
+                        <p className={`text-[13px] font-bold tabular-nums ${h.nifty_1m >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{h.nifty_1m >= 0 ? "+" : ""}{h.nifty_1m}%</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-[11px] text-slate-400 leading-relaxed mb-3 line-clamp-3">{h.key_lesson || h.what_happened}</p>
+                {h.historical_winners?.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-[9px] uppercase tracking-wider text-emerald-500/70 mb-1">Winners</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {h.historical_winners.slice(0, 4).map(w => {
+                        const ret = w.return_1m ?? w.return_1w;
+                        return (
+                          <span key={w.symbol} title={w.reason} className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400 tabular-nums">
+                            {w.symbol}{ret != null ? ` +${ret}% (${w.return_1m != null ? "1M" : "1W"})` : ""}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {h.historical_losers?.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[9px] uppercase tracking-wider text-rose-500/70 mb-1">Losers</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {h.historical_losers.slice(0, 3).map(l => {
+                        const ret = l.return_1m ?? l.return_1w;
+                        return (
+                          <span key={l.symbol} title={l.reason} className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-400 tabular-nums">
+                            {l.symbol}{ret != null ? ` ${ret}% (${l.return_1m != null ? "1M" : "1W"})` : ""}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {h.key_difference && (
+                  <div className="pt-2 border-t border-white/[0.06]">
+                    <p className="text-[8px] uppercase tracking-wider text-amber-500/70 mb-0.5">Key Difference</p>
+                    <p className="text-[10px] text-amber-300/70 leading-relaxed">{h.key_difference}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-slate-500 text-center py-4">No closely matching historical precedent found for this query.</p>
+        )}
+      </div>
+
+      {/* ── 10. Scenarios: Bull / Base / Bear ─────────────────────────────────── */}
+      {scenarios && (scenarios.bull || scenarios.base || scenarios.bear) && (
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <p className="text-[15px] font-semibold text-white mb-4">Scenarios</p>
+          <div className="grid grid-cols-3 gap-3">
+            {([
+              { key: "bull", label: "Bull Case", data: scenarios.bull, color: "text-emerald-400", bg: "border-emerald-500/20 bg-emerald-500/[0.04]" },
+              { key: "base", label: "Base Case", data: scenarios.base, color: "text-sky-400", bg: "border-sky-500/20 bg-sky-500/[0.04]" },
+              { key: "bear", label: "Bear Case", data: scenarios.bear, color: "text-rose-400", bg: "border-rose-500/20 bg-rose-500/[0.04]" },
+            ] as const).map(sc => sc.data && (
+              <div key={sc.key} className={`rounded-[14px] border p-4 ${sc.bg}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className={`text-[12px] font-bold ${sc.color}`}>{sc.label}</p>
+                  <p className="text-[10px] tabular-nums text-slate-500">{sc.data.probability}%</p>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-4">{sc.data.outcome}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 11. Risks & Counterarguments + What To Monitor + AI Reasoning ────── */}
+      <div className="grid grid-cols-3 gap-4">
+
+        {/* Risks & Counterarguments */}
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-semibold text-white">Risks & Counter Arguments</p>
+            <p className="text-[13px] font-semibold text-white">Risks & Counterarguments</p>
             {(answer?.risks?.length ?? 0) > 4 && (
               <button onClick={() => setShowMore(v => !v)} className="text-[10px] text-violet-400">View All →</button>
             )}
@@ -690,53 +919,76 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
           <p className="text-[13px] font-semibold text-white mb-3">What To Monitor</p>
           <div className="space-y-2.5">
-            {(investment_verdict?.catalysts?.length
-              ? investment_verdict.catalysts
-              : answer?.opportunities?.slice(0, 5) || []
-            ).slice(0, 5).map((c, i) => (
+            {(what_to_monitor?.length ? what_to_monitor : []).slice(0, 5).map((m, i) => (
               <div key={i} className="flex items-start gap-2">
                 <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
                   <svg className="h-2.5 w-2.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-2">{c}</p>
+                <div className="min-w-0">
+                  <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-1">{m.title}</p>
+                  <p className="text-[9px] text-slate-500">{m.frequency}{m.frequency && m.importance ? " · " : ""}{m.importance}</p>
+                </div>
               </div>
             ))}
+            {!what_to_monitor?.length && (
+              <p className="text-[11px] text-slate-500">No monitoring checklist generated.</p>
+            )}
           </div>
         </div>
 
-        {/* Follow-up Questions */}
+        {/* AI Reasoning */}
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-semibold text-white">Follow-up Questions</p>
+          <div className="flex items-center gap-2 mb-3">
+            <ListChecks className="h-3.5 w-3.5 text-violet-400"/>
+            <p className="text-[13px] font-semibold text-white">AI Reasoning</p>
           </div>
-          <div className="space-y-2">
-            {(follow_up_questions || []).slice(0, 4).map((q, i) => (
-              <button key={i} onClick={() => onFollowUp(q)}
-                className="group flex w-full items-start gap-2 text-left transition hover:text-violet-300">
-                <span className="mt-0.5 text-slate-600 group-hover:text-violet-400 transition text-xs">›</span>
-                <p className="text-[11px] text-slate-400 group-hover:text-violet-300 transition leading-relaxed line-clamp-2">{q}</p>
-              </button>
+          <div className="space-y-1.5">
+            {(ai_reasoning_methods ?? []).map((m, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ${m.used ? "bg-emerald-500/20" : "bg-slate-700/40"}`}>
+                  {m.used
+                    ? <svg className="h-2 w-2 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
+                    : <Minus className="h-2 w-2 text-slate-600"/>}
+                </div>
+                <p className={`text-[10.5px] leading-tight ${m.used ? "text-slate-300" : "text-slate-600"}`}>{m.label}</p>
+              </div>
             ))}
           </div>
-          {(follow_up_questions?.length ?? 0) > 4 && (
-            <button onClick={() => onFollowUp(follow_up_questions![4])}
-              className="mt-3 text-[11px] text-violet-400 hover:text-violet-300 transition">
-              View More →
-            </button>
+          {(confidence_data?.caveats?.length ?? 0) > 0 && (
+            <div className="mt-3 pt-3 border-t border-white/[0.06]">
+              <p className="text-[9px] uppercase tracking-wider text-amber-500/70 mb-1.5">Lower confidence if</p>
+              <div className="space-y-1">
+                {confidence_data!.caveats.slice(0, 3).map((c, i) => (
+                  <p key={i} className="text-[10px] text-amber-300/70 leading-tight">{c}</p>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* ── Continue Your Research ────────────────────────────────────────────── */}
+      {/* ── 12. Continue Your Research ────────────────────────────────────────── */}
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
         <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-3">Continue Your Research</p>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {[
             topCo ? {
               icon: <Building2 size={15} strokeWidth={1.7}/>,
               label: `Open ${topCo.name} Analysis`,
               sub: "Deep dive into company",
               href: `/companies/${topCo.symbol}`,
+            } : null,
+            hasRipple ? {
+              icon: <GitBranch size={15} strokeWidth={1.7}/>,
+              label: "View Ripple Graph",
+              sub: "See the full propagation chain",
+              action: () => document.getElementById("ripple-analysis")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+            } : null,
+            (topCo && topCo2) ? {
+              icon: <GitCompare size={15} strokeWidth={1.7}/>,
+              label: `Compare ${topCo.symbol} vs ${topCo2.symbol}`,
+              sub: "Side-by-side comparison",
+              href: `/compare?a=${topCo.symbol}&b=${topCo2.symbol}`,
             } : null,
             topEv ? {
               icon: <BarChart2 size={15} strokeWidth={1.7}/>,
@@ -749,6 +1001,12 @@ function SearchResults({ result, onFollowUp, resultTime }: {
               label: `Explore ${topSec.name} Sector`,
               sub: "Sector & theme analysis",
               href: `/sectors`,
+            } : null,
+            topPol ? {
+              icon: <FileText size={15} strokeWidth={1.7}/>,
+              label: `View ${topPol.title.length > 26 ? topPol.title.slice(0, 23) + "…" : topPol.title}`,
+              sub: "Policy detail",
+              href: `/policies`,
             } : null,
             topFU ? {
               icon: <Sparkles size={15} strokeWidth={1.7}/>,
@@ -782,34 +1040,30 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         </div>
       </div>
 
-      {/* ── Market Performance Chart (collapsed by default) ───────────────────── */}
-      {chartData.length > 0 && (
+      {/* ── 13. Follow-up Questions ───────────────────────────────────────────── */}
+      {follow_up_questions?.length > 0 && (
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[14px] font-semibold text-white">Market Impact Overview</p>
-            <span className="rounded-lg px-2 py-0.5 text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30">1D</span>
+          <p className="text-[13px] font-semibold text-white mb-3">Follow-up Questions</p>
+          <div className="grid grid-cols-2 gap-2">
+            {follow_up_questions.slice(0, 4).map((q, i) => (
+              <button key={i} onClick={() => onFollowUp(q)}
+                className="group flex items-start gap-2 text-left transition hover:text-violet-300">
+                <span className="mt-0.5 text-slate-600 group-hover:text-violet-400 transition text-xs">›</span>
+                <p className="text-[11px] text-slate-400 group-hover:text-violet-300 transition leading-relaxed line-clamp-2">{q}</p>
+              </button>
+            ))}
           </div>
-          <ResponsiveContainer width="100%" height={140}>
-            <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
-              <YAxis tick={{ fontSize: 9, fill: "#64748b" }} tickLine={false} axisLine={false} tickFormatter={v => `${v > 0 ? "+" : ""}${v}%`}/>
-              <ReferenceLine y={0} stroke="rgba(255,255,255,0.07)" strokeDasharray="3 3"/>
-              <Tooltip content={<ChartTooltip/>}/>
-              {(market_chart?.series || []).map(s => (
-                <Line key={s.name} type="monotone" dataKey={s.name} stroke={s.color}
-                  strokeWidth={1.5} dot={false} activeDot={{ r: 3, fill: s.color }}/>
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
         </div>
       )}
 
-      {/* ── AI Transparency ───────────────────────────────────────────────────── */}
+      {/* ── 14. AI Transparency + Disclaimer ──────────────────────────────────── */}
       <AITransparencyPanel
         confidence={result.answer?.confidence ?? 70}
-        reasoning={result.answer?.summary ?? "AI-generated analysis based on your query and current market data."}
+        reasoning={methodologySummary}
         events={(result.related_events ?? []).slice(0, 5).map((e) => ({ title: e.title, href: `/events/${e.id}` }))}
         companies={(result.companies ?? []).slice(0, 5).map((c) => ({ name: c.name, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
+        assumptions={confidence_data?.reasons ?? []}
+        limitations={confidence_data?.caveats ?? []}
       />
       <AIDisclaimer />
     </div>
@@ -824,13 +1078,21 @@ function RightSidebar({ result, onAction }: {
   const [copied, setCopied] = useState(false);
 
   const v = result?.investment_verdict;
-  const score = v?.opportunity_score ?? v?.confidence ?? result?.answer?.confidence ?? 0;
-  const dir   = v?.direction ?? result?.answer?.sentiment ?? "neutral";
-  const isBull = dir === "bullish";
-  const isBear = dir === "bearish";
-  const verdictLabel = isBull ? "Bullish" : isBear ? "Bearish" : "Neutral";
-  const verdictColor = isBull ? "text-emerald-400" : isBear ? "text-rose-400" : "text-amber-400";
-  const riskInfo = result ? riskLevel(v?.confidence ?? result.answer?.confidence ?? 70) : { label: "—", color: "text-slate-400" };
+  // Single canonical confidence number, shown everywhere on the page —
+  // never opportunity_score, which is a different metric (upside sizing,
+  // not evidence confidence) and must never masquerade as a second
+  // "confidence" percentage.
+  const score = result?.confidence_data?.score ?? result?.answer?.confidence ?? v?.confidence ?? 0;
+  const verdictLabel = v?.rating || "Neutral";
+  const verdictColor = OUTLOOK_COLOR[verdictLabel] ?? "text-amber-400";
+  const riskInfo = result
+    ? (v?.risk_level
+        ? { label: v.risk_level, color:
+            v.risk_level === "Low" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+            : v.risk_level === "Medium" ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+            : "text-rose-400 bg-rose-500/10 border-rose-500/20" }
+        : riskLevel(result.answer?.confidence ?? v?.confidence ?? 70))
+    : { label: "—", color: "text-slate-400" };
 
   const QUICK_ACTIONS = [
     { icon: <Bot className="h-4 w-4"/>,      label: "Ask Follow-up Question", action: "followup" },
@@ -861,11 +1123,11 @@ function RightSidebar({ result, onAction }: {
   return (
     <aside className="hidden xl:flex xl:flex-col w-[280px] shrink-0 sticky top-[92px] self-start max-h-[calc(100vh-92px)] overflow-y-auto space-y-3 pr-1" style={{ scrollbarWidth: "none" }}>
 
-      {/* Investment Verdict */}
+      {/* Research Outlook */}
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
         <div className="flex items-center gap-2 mb-4">
           <Target size={14} strokeWidth={1.8} className="text-violet-400"/>
-          <p className="text-[13px] font-semibold text-white">Investment Verdict</p>
+          <p className="text-[13px] font-semibold text-white">Research Outlook</p>
         </div>
 
         {result ? (
@@ -874,7 +1136,10 @@ function RightSidebar({ result, onAction }: {
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Overall View</p>
-                <p className={`text-[15px] font-bold ${verdictColor}`}>{verdictLabel}</p>
+                <p className={`flex items-center gap-1.5 text-[14px] font-bold leading-tight ${verdictColor}`}>
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${OUTLOOK_DOT[verdictLabel] ?? "bg-amber-400"}`}/>
+                  {verdictLabel}
+                </p>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Risk</p>
@@ -895,7 +1160,7 @@ function RightSidebar({ result, onAction }: {
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Best For</p>
-                <p className="text-[12px] font-semibold text-white">{suitableFor(v?.horizon || "")}</p>
+                <p className="text-[12px] font-semibold text-white">{v?.suitable_for || suitableFor(v?.horizon || "")}</p>
               </div>
             </div>
 
@@ -927,14 +1192,18 @@ function RightSidebar({ result, onAction }: {
         </div>
       </div>
 
-      {/* Sources & Confidence */}
+      {/* Sources & Transparency */}
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
-        <p className="text-[12px] font-semibold text-slate-300 mb-3">Sources & Confidence</p>
+        <p className="text-[12px] font-semibold text-slate-300 mb-3">Sources & Transparency</p>
         <div className="space-y-2.5">
           {[
-            { label: "Data Sources",       value: result?.news?.length ?? 0 },
-            { label: "Events Analyzed",    value: result?.related_events?.length ?? 0 },
-            { label: "Companies Analyzed", value: result?.companies?.length ?? 0 },
+            { label: "News Articles",       value: result?.news?.length ?? 0 },
+            { label: "Government Documents", value: result?.policies?.length ?? 0 },
+            { label: "Events",               value: result?.related_events?.length ?? 0 },
+            { label: "Companies",            value: result?.companies?.length ?? 0 },
+            { label: "Historical Matches",   value: result?.historical_comparison?.length ?? 0 },
+            { label: "Graph Nodes",          value: result?.graph?.nodes?.length ?? 0 },
+            { label: "Graph Edges",          value: result?.graph?.edges?.length ?? 0 },
           ].map(s => (
             <div key={s.label} className="flex items-center justify-between">
               <p className="text-[11px] text-slate-400">{s.label}</p>
@@ -1139,7 +1408,7 @@ function AISearchInner() {
           {error && (
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="rounded-[16px] border border-rose-500/20 bg-rose-500/[0.05] p-4 flex items-center gap-3">
-              <span className="text-rose-400 text-lg">⚠</span>
+              <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0"/>
               <div>
                 <p className="text-[13px] font-medium text-rose-300">Search failed</p>
                 <p className="text-[11px] text-rose-400/70">{error}</p>

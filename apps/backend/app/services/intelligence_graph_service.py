@@ -484,6 +484,7 @@ async def seed_intelligence_graph() -> None:
         ("RBI Rate Hike",           "RBI increases repo rate; hurts borrowers and growth-sensitive sectors."),
         ("RBI Rate Cut",            "RBI decreases repo rate; benefits borrowers and rate-sensitive sectors."),
         ("Union Budget Infra Boost","Annual budget allocates record capex for roads, railways, ports, airports."),
+        ("Union Budget Defence Boost","Annual budget allocates record capex for defence procurement, indigenous manufacturing, and modernization."),
         ("PLI Manufacturing",       "PLI scheme disbursements for electronics, auto, textiles, defence."),
         ("Windfall Tax on Crude",   "Government levies windfall tax on domestic crude producers when prices spike."),
         ("GST",                     "Goods and Services Tax; unified indirect tax affecting FMCG and retail margins."),
@@ -640,6 +641,12 @@ async def seed_intelligence_graph() -> None:
     await E("Union Budget Infra Boost","policy","benefits","Steel",     "commodity",0.80, 0.90, 0,   "Government infra projects are the largest steel offtake client")
     await E("Union Budget Infra Boost","policy","influences","Capex Super Cycle","theme",0.80,0.88,0,"Budget infra boost is the trigger/reinforcement of the capex theme")
 
+    # ── UNION BUDGET DEFENCE BOOST ────────────────────────────────────────────
+    await E("Union Budget Defence Boost","policy","benefits","Defence","sector",0.90, 0.93, 0,  "Direct government capex allocation for defence procurement and indigenous manufacturing")
+    await E("Union Budget Defence Boost","policy","benefits","Metal",  "sector",0.50, 0.75, 60, "Defence shipbuilding, armoured vehicles, and artillery production drive metal offtake")
+    await E("Union Budget Defence Boost","policy","influences","Make in India","theme",0.75,0.85,0,"Defence procurement and indigenous production is a flagship pillar of Make in India")
+    await E("Union Budget Defence Boost","policy","influences","Capex Super Cycle","theme",0.60,0.80,0,"Defence indigenous manufacturing investment reinforces the broader industrial capex cycle")
+
     # Infrastructure downstream
     await E("Infrastructure","sector","benefits",  "Cement",            "sector",   0.80, 0.88, 30,  "Infra projects consume 40%+ of India's cement output")
     await E("Infrastructure","sector","benefits",  "Steel",             "commodity",0.75, 0.85, 30,  "Infra is the single largest steel consuming sector in India")
@@ -659,3 +666,31 @@ async def seed_intelligence_graph() -> None:
     await E("Rate Cut Cycle", "theme","benefits",  "Nifty 50",          "index",    0.75, 0.85, 0,   "Rate cut cycle lifts all boats; re-rates growth equities higher")
 
     log.info("mig.seeded")
+
+
+async def apply_incremental_patches() -> None:
+    """
+    Small, additive graph fixes that must land even on databases that were
+    already seeded before this patch was written — `seed_intelligence_graph`
+    skips entirely once any node exists, so new nodes/edges added after the
+    initial seed would otherwise never reach an already-running deployment.
+    `upsert_node`/`upsert_edge` are idempotent, so this is safe to call on
+    every boot.
+    """
+    try:
+        await upsert_node(
+            "policy", "Union Budget Defence Boost",
+            description="Annual budget allocates record capex for defence procurement, indigenous manufacturing, and modernization.",
+        )
+        src = make_node_id("policy", "Union Budget Defence Boost")
+        await upsert_edge(src, make_node_id("sector", "Defence"), "benefits", 0.90, 0.93, 0,
+                           "Direct government capex allocation for defence procurement and indigenous manufacturing")
+        await upsert_edge(src, make_node_id("sector", "Metal"), "benefits", 0.50, 0.75, 60,
+                           "Defence shipbuilding, armoured vehicles, and artillery production drive metal offtake")
+        await upsert_edge(src, make_node_id("theme", "Make in India"), "influences", 0.75, 0.85, 0,
+                           "Defence procurement and indigenous production is a flagship pillar of Make in India")
+        await upsert_edge(src, make_node_id("theme", "Capex Super Cycle"), "influences", 0.60, 0.80, 0,
+                           "Defence indigenous manufacturing investment reinforces the broader industrial capex cycle")
+        log.info("mig.incremental_patch_applied")
+    except Exception as exc:
+        log.warning("mig.incremental_patch_failed", error=str(exc))

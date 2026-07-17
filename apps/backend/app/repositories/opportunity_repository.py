@@ -58,6 +58,34 @@ class OpportunityRepository:
         )
         return rows_q.scalars().all(), total
 
+    async def list_by_sector_or_theme(
+        self, terms: list[str], limit: int = 10
+    ) -> list[Opportunity]:
+        """
+        Opportunities whose `sectors` JSON list contains any of `terms`
+        (case-insensitive) or whose title mentions one. `sectors` is stored
+        as a plain JSON list of strings on SQLite, which doesn't offer a
+        portable JSON-containment operator the way Postgres JSONB does — so
+        this filters in Python over a bounded, score-ordered candidate pool
+        rather than relying on a DB-side JSON query.
+        """
+        if not terms:
+            return []
+        terms_lower = [t.lower() for t in terms]
+        candidates_q = await self._db.execute(
+            select(Opportunity).order_by(Opportunity.opportunity_score.desc()).limit(200)
+        )
+        candidates = candidates_q.scalars().all()
+
+        def _matches(opp: Opportunity) -> bool:
+            opp_sectors = [str(s).lower() for s in (opp.sectors or [])]
+            if any(t in opp_sectors for t in terms_lower):
+                return True
+            title_lower = (opp.title or "").lower()
+            return any(t in title_lower for t in terms_lower)
+
+        return [o for o in candidates if _matches(o)][:limit]
+
     async def get_company_counts(self, ids: list[int]) -> dict[int, int]:
         from sqlalchemy import func
         if not ids:
