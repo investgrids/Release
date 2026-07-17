@@ -43,9 +43,14 @@ def configure_logging(level: str = "INFO", json_logs: bool = False) -> None:
     )
 
     formatter = structlog.stdlib.ProcessorFormatter(
+        # Runs only on records that did NOT originate from structlog (stdlib
+        # `logging.getLogger()` calls from APScheduler, uvicorn, etc). Must
+        # run before remove_processors_meta strips "_record" — add_logger_name
+        # needs it to resolve the logger name for these foreign records.
+        foreign_pre_chain=shared_processors,
+        # Runs on every record regardless of origin.
         processors=[
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            *shared_processors,
             renderer,
         ],
     )
