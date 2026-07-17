@@ -50,7 +50,7 @@ async def _db_save(
     event_id: str | None,
     event_title: str,
     event_summary: str,
-    event_impact: float,
+    event_impact: float | None,
     graph_data: dict,
     insights: dict,
     scenario_type: str = "event",
@@ -83,7 +83,7 @@ async def get_or_generate_ripple(
     event_title: str,
     event_summary: str,
     event_type: str,
-    event_impact: float,
+    event_impact: float | None,
     companies: list,
     sectors: list,
     db: AsyncSession,
@@ -104,6 +104,12 @@ async def get_or_generate_ripple(
             _store(cache_key, db_hit)
             return db_hit
 
+    # Both the AI prompt's scaling hint and the fallback template selector
+    # need *some* number even when the underlying event's real score is
+    # unknown — this local-only fallback never leaves the function: the
+    # `result`/DB row below still store the real (possibly None) value.
+    _generation_hint = event_impact if event_impact is not None else 7.0
+
     # Try AI generation
     try:
         from app.services.ai_service import generate_ripple_graph as ai_gen
@@ -111,7 +117,7 @@ async def get_or_generate_ripple(
             title=event_title,
             summary=event_summary,
             event_type=event_type,
-            impact_score=event_impact,
+            impact_score=_generation_hint,
             companies=companies,
             sectors=sectors,
         )
@@ -126,7 +132,7 @@ async def get_or_generate_ripple(
         log.info("ripple.ai_generated", event_id=event_id, nodes=len(graph_data["nodes"]))
     else:
         log.info("ripple.fallback", event_id=event_id)
-        fb = _build_fallback_graph(event_title, event_summary, event_type, event_impact, companies, sectors)
+        fb = _build_fallback_graph(event_title, event_summary, event_type, _generation_hint, companies, sectors)
         graph_data = {"nodes": fb["nodes"], "edges": fb["edges"]}
         insights = fb.get("insights", {})
         source = "fallback_template"

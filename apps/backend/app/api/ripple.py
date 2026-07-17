@@ -13,6 +13,20 @@ from app.services.ripple_service import get_or_generate_ripple, generate_scenari
 
 router = APIRouter()
 
+
+def _impact_hint(event: Event) -> float | None:
+    """
+    ripple_service's AI-narrative generation expects a 0-10 scaling hint
+    (its own internal default is 7.0), while Event.impact_score is the
+    Scoring Engine's 0-100 scale — convert instead of passing the raw
+    0-100 number straight into a 0-10-scale prompt. Returns None (not a
+    fabricated "7.0") when the event genuinely has no computed score yet,
+    e.g. it's still enriching or the engine returned insufficient_data.
+    """
+    if event.impact_score is None:
+        return None
+    return round(event.impact_score / 10.0, 1)
+
 # Static demo ripples — shown on the list page when the DB has no high-impact events
 _DEMO_RIPPLES: dict[str, dict] = {
     "1": {"title": "India-Pakistan Military Tensions",   "event_type": "geopolitical", "impact": 9.2},
@@ -63,7 +77,7 @@ async def get_event_ripple(
         event_title=event.title or "",
         event_summary=(event.summary or event.description or "")[:1000],
         event_type=event.event_type or "macro",
-        event_impact=float(event.impact_score or 7.0),
+        event_impact=_impact_hint(event),
         companies=companies,
         sectors=sectors,
         db=db,
@@ -128,7 +142,7 @@ async def get_company_ripple(
             event_title=event.title or ticker,
             event_summary=(event.summary or event.description or "")[:1000],
             event_type=event.event_type or "macro",
-            event_impact=float(event.impact_score or 7.0),
+            event_impact=_impact_hint(event),
             companies=companies,
             sectors=sectors,
             db=db,
@@ -190,7 +204,7 @@ async def get_theme_ripple(
             event_title=f"{theme.title()} Theme: {event.title}",
             event_summary=(event.summary or "")[:800],
             event_type=event.event_type or "macro",
-            event_impact=float(event.impact_score or 7.0),
+            event_impact=_impact_hint(event),
             companies=companies,
             sectors=sectors,
             db=db,
