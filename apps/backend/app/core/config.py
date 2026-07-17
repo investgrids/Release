@@ -63,8 +63,15 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
 
+    # Legacy single-provider pipeline (app/pipeline/event_pipeline.py) — always
+    # routes through OpenRouter's free tier, matching every other AI call in
+    # this codebase. Do not point this at a paid provider.
+    ai_provider: str = "openrouter"
+
     # Legacy providers (kept for future use)
     deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
+    deepseek_model: str = "deepseek-chat"
     openai_api_key: str = ""
 
     # ── Finnhub ───────────────────────────────────────────────────────────────

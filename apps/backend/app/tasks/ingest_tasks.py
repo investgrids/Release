@@ -60,6 +60,20 @@ async def _persist_articles(db, items: list[RawItem]) -> list[str]:
     """Write new NewsArticle rows; return list of newly-inserted IDs."""
     if not items:
         return []
+    # Some providers (e.g. NSE, when an announcement number is missing) hash
+    # only the headline text into the id — generic headlines like "Updates" or
+    # "Dividend updates" then collide across different companies in the same
+    # batch. Dedupe by id here so a same-batch collision can't violate the
+    # NewsArticle.id UNIQUE constraint and crash the whole ingest job.
+    seen: set[str] = set()
+    deduped: list[RawItem] = []
+    for item in items:
+        if item.id in seen:
+            continue
+        seen.add(item.id)
+        deduped.append(item)
+    items = deduped
+
     all_ids = [i.id for i in items]
     existing = await _existing_ids(db, NewsArticle, all_ids)
     new_ids = []
@@ -88,9 +102,11 @@ async def _create_events(db, items: list[RawItem], new_ids: set[str],
     now = datetime.now(timezone.utc)
     existing = await _existing_ids(db, Event, list(new_ids))
     saved = 0
+    seen: set[str] = set()
     for item in items:
-        if item.id not in new_ids or item.id in existing:
+        if item.id not in new_ids or item.id in existing or item.id in seen:
             continue
+        seen.add(item.id)
         db.add(Event(
             id=item.id,
             title=item.headline,

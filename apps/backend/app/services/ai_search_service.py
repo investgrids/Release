@@ -1,9 +1,9 @@
-﻿"""
-AI Search Service â€” Market Intelligence Research Engine.
+"""
+AI Search Service — Market Intelligence Research Engine.
 
 Pipeline:
   1. In-process / Redis cache check
-  2. Entity extraction (regex + keyword â€” fast, no AI call)
+  2. Entity extraction (regex + keyword — fast, no AI call)
   3. Parallel DB search (events, news, policies)
   4. AI generation (single structured JSON call)
   5. Live price enrichment (yfinance, best-effort)
@@ -31,7 +31,7 @@ from app.services.news_fetcher import get_live_news
 
 log = structlog.get_logger(__name__)
 
-# â”€â”€ In-process cache (fallback when Redis unavailable) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── In-process cache (fallback when Redis unavailable) ───────────────────────
 _CACHE: dict[str, tuple[float, Any]] = {}
 _TTL = 1800  # 30 min
 
@@ -49,7 +49,7 @@ def _cset(key: str, val: Any) -> None:
     _CACHE[key] = (time.time(), val)
 
 
-# â”€â”€ Entity extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Entity extraction ─────────────────────────────────────────────────────────
 _COMPANIES = [
     "rvnl", "irfc", "beml", "ircon", "reliance", "tcs", "infosys", "hdfc", "icici",
     "sbi", "ntpc", "bhel", "l&t", "larsen", "hal", "bel", "adani", "tata", "wipro",
@@ -75,7 +75,7 @@ def _extract_entities(query: str) -> dict:
     }
 
 
-# â”€â”€ DB search helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── DB search helpers ─────────────────────────────────────────────────────────
 def _words(query: str) -> list[str]:
     return [w for w in re.findall(r"\w+", query.lower()) if len(w) >= 2][:8]
 
@@ -166,7 +166,7 @@ async def _search_policies(db: AsyncSession, query: str, limit: int = 5) -> list
     ]
 
 
-# â”€â”€ Intent detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Intent detection ──────────────────────────────────────────────────────────
 _DECISION_INTENTS = {
     "switch":           [r"\bswitch(?:ing)?\b", r"\brotate?\b", r"\binstead of\b", r"\bsell.{1,30}buy\b", r"\bmove from\b", r"\breplace\b"],
     "hold":             [r"\bshould i hold\b", r"\bkeep holding\b", r"\bcontinue holding\b", r"\bstill hold\b", r"\bhold or sell\b"],
@@ -214,7 +214,7 @@ _COMPARE_RE_3 = re.compile(
     re.IGNORECASE,
 )
 _BUDGET_RE = re.compile(
-    r"â‚¹\s*([\d,]+)\s*(lakh|crore|thousand|k)?|(\d+)\s*(lakh|crore|thousand)\b",
+    r"₹\s*([\d,]+)\s*(lakh|crore|thousand|k)?|(\d+)\s*(lakh|crore|thousand)\b",
     re.IGNORECASE,
 )
 _SECTOR_NAMES = {
@@ -234,7 +234,7 @@ _COMMODITY_NAMES = {
     "mutual fund", "index fund", "etf",
     "sgb", "sovereign gold bond",
 }
-# Commodity ETF tickers for common assets â€” used in prompt hints
+# Commodity ETF tickers for common assets — used in prompt hints
 _COMMODITY_TICKERS = {
     "gold": "GOLDBEES", "silver": "SILVERETF", "nifty": "NIFTYBEES",
     "oil": "OILCOUNTRY", "crude": "OILCOUNTRY",
@@ -307,13 +307,13 @@ def _detect_decision_intent(query: str) -> dict:
             try:
                 amt = float(amt_str)
                 if unit in ("lakh",):
-                    budget = f"â‚¹{amt:.0f} lakh"
+                    budget = f"₹{amt:.0f} lakh"
                 elif unit in ("crore",):
-                    budget = f"â‚¹{amt:.0f} crore"
+                    budget = f"₹{amt:.0f} crore"
                 elif unit in ("thousand", "k"):
-                    budget = f"â‚¹{amt * 1000:.0f}"
+                    budget = f"₹{amt * 1000:.0f}"
                 else:
-                    budget = f"â‚¹{amt_str}"
+                    budget = f"₹{amt_str}"
             except ValueError:
                 pass
 
@@ -324,10 +324,10 @@ def _detect_decision_intent(query: str) -> dict:
         if cm:
             pick_count = min(int(cm.group(1)), 10)
 
-    # Sector entity detection â€” flag when holding/target is a sector, not a company
+    # Sector entity detection — flag when holding/target is a sector, not a company
     holding_is_sector    = bool(holding and holding.lower().strip() in _SECTOR_NAMES)
     target_is_sector     = bool(target  and target.lower().strip()  in _SECTOR_NAMES)
-    # Commodity/asset class detection â€” Gold, Silver, Nifty, crypto, bonds, etc.
+    # Commodity/asset class detection — Gold, Silver, Nifty, crypto, bonds, etc.
     holding_is_commodity = bool(holding and holding.lower().strip() in _COMMODITY_NAMES)
     target_is_commodity  = bool(target  and target.lower().strip()  in _COMMODITY_NAMES)
 
@@ -361,7 +361,7 @@ def _detect_decision_intent(query: str) -> dict:
     }
 
 
-# â”€â”€ AI prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── AI prompt ─────────────────────────────────────────────────────────────────
 _SYSTEM = (
     "You are a senior Indian equity market analyst at an institutional fund. "
     "Generate structured market intelligence for professional investors. "
@@ -441,7 +441,7 @@ RELATED EVENTS: {evs}
 
 INSTRUCTIONS:
 - Fill every string field with real, specific analysis about {holding} and {target}.
-- All strings must be your original analytical content â€” never copy field descriptions.
+- All strings must be your original analytical content — never copy field descriptions.
 - Do not say Buy/Sell/Strong Buy. Explain trade-offs only. No direct financial advice.
 - Entity A symbol hint: {symbol_hint(holding, holding_is_commodity, holding_is_sector)}
 - Entity B symbol hint: {symbol_hint(target, target_is_commodity, target_is_sector)}
@@ -627,13 +627,13 @@ def _intent_overlay(intent_data: dict | None, extra_context: str = "") -> str:
     pick_count = intent_data.get("pick_count") or 3
     portfolio  = intent_data.get("portfolio") or []
     horizon    = intent_data.get("horizon") or "medium-term"
-    budget_note = f"\n- User has {budget} to invest â€” calibrate sizing accordingly." if budget else ""
+    budget_note = f"\n- User has {budget} to invest — calibrate sizing accordingly." if budget else ""
     portfolio_note = f"\n- Portfolio holdings: {', '.join(portfolio)}" if portfolio else ""
 
     overlays: dict[str, str] = {
         "list_picks": f"""
 
-INTENT: LIST PICKS â€” User wants a ranked stock list, not an essay.
+INTENT: LIST PICKS — User wants a ranked stock list, not an essay.
 - Return exactly {pick_count} companies in "companies" array, ranked by conviction (highest first).
 - "investment_verdict.rating" must be "Top {pick_count} Picks Identified".
 - "investment_verdict.top_picks" must contain the top 3 NSE symbols.
@@ -642,16 +642,16 @@ INTENT: LIST PICKS â€” User wants a ranked stock list, not an essay.
 
         "news_reaction": f"""
 
-INTENT: NEWS REACTION â€” A recent event just happened; user wants immediate guidance.
+INTENT: NEWS REACTION — A recent event just happened; user wants immediate guidance.
 - "summary" must be exactly what this news means for investors RIGHT NOW (2 sentences).
 - "immediate_impact" must name specific sectors/stocks and expected directional move.
 - "medium_term" must describe the thesis window (days/weeks, not months).
 - "follow_up_questions" must include: price level where thesis breaks, add/reduce decision, key upcoming catalyst.
-- Prioritize recency â€” today's news beats older context.{budget_note}""",
+- Prioritize recency — today's news beats older context.{budget_note}""",
 
         "earnings_preview": f"""
 
-INTENT: EARNINGS PREVIEW â€” User is positioning ahead of results.
+INTENT: EARNINGS PREVIEW — User is positioning ahead of results.
 - "summary" must cover: consensus expectations, key metrics to watch, beat vs miss thresholds.
 - "risks" must list miss scenarios with expected stock reactions (e.g. "-5% if revenue misses by 2%").
 - "opportunities" must list beat scenarios with upside estimates.
@@ -661,7 +661,7 @@ INTENT: EARNINGS PREVIEW â€” User is positioning ahead of results.
 
         "entry_timing": f"""
 
-INTENT: ENTRY TIMING â€” User wants to know if now is a good entry point.
+INTENT: ENTRY TIMING — User wants to know if now is a good entry point.
 - "summary" must assess: current price vs historical range, risk/reward at today's level.
 - "immediate_impact" must state the current technical setup (near 52W high/low, recent trend).
 - "opportunities" must list: entry triggers and what confirms the setup.
@@ -671,7 +671,7 @@ INTENT: ENTRY TIMING â€” User wants to know if now is a good entry point.
 
         "portfolio_review": f"""
 
-INTENT: PORTFOLIO REVIEW â€” User wants portfolio-level analysis.
+INTENT: PORTFOLIO REVIEW — User wants portfolio-level analysis.
 - "summary" must cover: sector concentration, single-factor exposure, missing diversifiers.
 - "sectors" must list all sectors covered AND key missing ones (label missing ones "Underweight").
 - "risks" must include portfolio-level risks: concentration, correlation, liquidity.
@@ -680,7 +680,7 @@ INTENT: PORTFOLIO REVIEW â€” User wants portfolio-level analysis.
 
         "sell": f"""
 
-INTENT: SELL / EXIT ANALYSIS â€” User is evaluating whether to exit a position.
+INTENT: SELL / EXIT ANALYSIS — User is evaluating whether to exit a position.
 - "summary" must weigh: exit thesis strength vs opportunity cost of remaining.
 - "investment_verdict.direction" should be "bearish" if exit is recommended, "neutral" otherwise.
 - "risks" must include: what happens if the bearish thesis is wrong (false exit risk).
@@ -693,7 +693,7 @@ INTENT: SELL / EXIT ANALYSIS â€” User is evaluating whether to exit a posit
     return overlay + ctx_block
 
 
-# â”€â”€ Insight card generation (separate focused call) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Insight card generation (separate focused call) ───────────────────────────
 async def _generate_insights(query: str, summary: str) -> list[dict]:
     """
     Dedicated call for 4 insight cards so the model isn't distracted by
@@ -705,9 +705,9 @@ async def _generate_insights(query: str, summary: str) -> list[dict]:
         "Return a JSON array of exactly 4 insight cards for this specific query.\n"
         "Each card: {\"icon\": <single emoji>, \"title\": <4-6 words>, \"summary\": <1 short sentence, max 20 words>}\n\n"
         "The title must be a unique analytical angle relevant to THIS exact query.\n"
-        "Example â€” for 'Infosys Q4 miss': [\"Revenue Guidance Shock\", \"Deal Win Momentum\", \"Margin Pressure Analysis\", \"Peer Valuation Reset\"]\n"
-        "Example â€” for 'RBI rate cut': [\"Rate Transmission Speed\", \"NIM Expansion Outlook\", \"Credit Demand Catalyst\", \"Bond Market Rally\"]\n"
-        "Example â€” for 'Defence CAPEX hike': [\"Order Book Surge\", \"Make-in-India Push\", \"Export Market Entry\", \"R&D Investment Cycle\"]\n\n"
+        "Example — for 'Infosys Q4 miss': [\"Revenue Guidance Shock\", \"Deal Win Momentum\", \"Margin Pressure Analysis\", \"Peer Valuation Reset\"]\n"
+        "Example — for 'RBI rate cut': [\"Rate Transmission Speed\", \"NIM Expansion Outlook\", \"Credit Demand Catalyst\", \"Bond Market Rally\"]\n"
+        "Example — for 'Defence CAPEX hike': [\"Order Book Surge\", \"Make-in-India Push\", \"Export Market Entry\", \"R&D Investment Cycle\"]\n\n"
         "Return ONLY the JSON array, no other text."
     )
     raw = await _call_with_fallback(prompt, max_tokens=1000)
@@ -727,7 +727,7 @@ async def _generate_insights(query: str, summary: str) -> list[dict]:
                 if isinstance(v, list) and v:
                     return v[:4]
     except Exception:
-        # Truncated JSON â€” extract any complete array items via regex
+        # Truncated JSON — extract any complete array items via regex
         m = re.search(r"\[.*\]", raw, re.DOTALL)
         if m:
             try:
@@ -747,14 +747,14 @@ async def _generate_insights(query: str, summary: str) -> list[dict]:
     return []
 
 
-# â”€â”€ Company price enrichment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Company price enrichment ──────────────────────────────────────────────────
 def _enrich_sync(companies: list[dict]) -> list[dict]:
     """Add live prices synchronously (runs in executor)."""
     from app.services.market_data import _fetch_quote, _fmt_price, _fetch_history
     enriched = []
     for c in companies:
         sym = c.get("symbol", "")
-        # Strip exchange suffix if AI already included it (e.g. HDFCBANK.NS â†’ HDFCBANK)
+        # Strip exchange suffix if AI already included it (e.g. HDFCBANK.NS → HDFCBANK)
         sym_base = re.sub(r'\.(NS|BO|BSE|NSE)$', '', sym.strip().upper())
         try:
             q = _fetch_quote(f"{sym_base}.NS")
@@ -766,14 +766,14 @@ def _enrich_sync(companies: list[dict]) -> list[dict]:
                 hist = _fetch_history(f"{sym_base}.NS", "5d", "1d")
                 c["chart"] = [h["value"] for h in (hist or [])][-5:]
             else:
-                c["price"] = "â€”"; c["change"] = "â€”"; c["positive"] = True; c["chart"] = []
+                c["price"] = "—"; c["change"] = "—"; c["positive"] = True; c["chart"] = []
         except Exception:
-            c["price"] = "â€”"; c["change"] = "â€”"; c["positive"] = True; c["chart"] = []
+            c["price"] = "—"; c["change"] = "—"; c["positive"] = True; c["chart"] = []
         enriched.append(c)
     return enriched
 
 
-# â”€â”€ Valuation data fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Valuation data fetch ──────────────────────────────────────────────────────
 def _fetch_valuation_sync(symbols: list[str]) -> dict:
     """Fetch P/E, P/B, 52W range from yfinance for valuation-sensitive queries."""
     import yfinance as yf
@@ -812,7 +812,7 @@ def _fetch_vix_sync() -> float | None:
     return None
 
 
-# â”€â”€ Market chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Market chart ──────────────────────────────────────────────────────────────
 def _fetch_chart_sync(tickers: list) -> dict:
     """Fetch 1D intraday chart. Uses company tickers when provided, else indices."""
     import yfinance as yf
@@ -871,12 +871,12 @@ def _fetch_chart_sync(tickers: list) -> dict:
     }
 
 
-# â”€â”€ Network graph â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Network graph ─────────────────────────────────────────────────────────────
 def _build_graph(query: str, sectors: list[dict], companies: list[dict]) -> dict:
     nodes: list[dict] = []
     edges: list[dict] = []
 
-    q_label = query[:28] + ("â€¦" if len(query) > 28 else "")
+    q_label = query[:28] + ("…" if len(query) > 28 else "")
     nodes.append({"id": "q",  "label": q_label, "type": "query",  "x": 360, "y": 0})
 
     for i, s in enumerate(sectors[:5]):
@@ -893,12 +893,12 @@ def _build_graph(query: str, sectors: list[dict], companies: list[dict]) -> dict
     return {"nodes": nodes, "edges": edges}
 
 
-# â”€â”€ Main pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Main pipeline ─────────────────────────────────────────────────────────────
 async def run_ai_search(query: str, db: AsyncSession) -> dict:
     """Full AI search pipeline. Returns complete research report dict."""
     ck = _ck(query)
 
-    # Detect intent first â€” needed to compute the right cache TTL
+    # Detect intent first — needed to compute the right cache TTL
     intent_data = _detect_decision_intent(query)
     intent      = intent_data.get("intent", "general")
     ttl         = 300 if intent == "news_reaction" else _TTL
@@ -943,7 +943,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             except Exception:
                 pass
 
-    # Fetch India VIX â€” always (used for confidence scoring; injected into context for VIX queries)
+    # Fetch India VIX — always (used for confidence scoring; injected into context for VIX queries)
     _vix_level: float | None = None
     try:
         _vix_level = await loop.run_in_executor(None, _fetch_vix_sync)
@@ -956,7 +956,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     mie_state: dict = {}  # captured for confidence signals
     similar:   list = []  # captured for confidence signals
 
-    # Inject intelligence from the MIE â€” single source of truth for all AI context
+    # Inject intelligence from the MIE — single source of truth for all AI context
     try:
         from app.services.intelligence.engine import get_intelligence_state
         mie = await get_intelligence_state()
@@ -968,8 +968,8 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         signals = mie.get("signals", {})
         if signals.get("mood") and signals.get("direction"):
             intel_lines.append(
-                f"[MARKET MOOD] {signals['mood']} Â· {signals['direction'].upper()} Â· "
-                f"Risk: {signals.get('risk_level', 'MODERATE')} Â· "
+                f"[MARKET MOOD] {signals['mood']} · {signals['direction'].upper()} · "
+                f"Risk: {signals.get('risk_level', 'MODERATE')} · "
                 f"AI confidence: {signals.get('confidence', 0)}%"
             )
 
@@ -977,7 +977,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         if signals.get("top_theme"):
             intel_lines.append(f"[TOP THEME] {signals['top_theme']} (score {signals.get('top_theme_score', 0):.0f})")
 
-        # High-urgency events (â‰¥ 5) from MIE top_events (already ranked, last 8h)
+        # High-urgency events (≥ 5) from MIE top_events (already ranked, last 8h)
         top_evts = [e for e in mie.get("top_events", []) if e.get("urgency", 0) >= 5][:6]
         for e in top_evts:
             intel_lines.append(
@@ -990,7 +990,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     except Exception:
         pass
 
-    # Inject Historical Market Memory â€” verified past events to replace hallucinated comparisons
+    # Inject Historical Market Memory — verified past events to replace hallucinated comparisons
     try:
         from app.services.historical_memory_service import find_similar_events, format_for_ai_prompt
 
@@ -1010,7 +1010,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
 
         if hist_query.get("category") or hist_query.get("sectors"):
             similar = await find_similar_events(hist_query, limit=5, min_similarity=25.0)
-            if similar:  # noqa: SIM102 â€” also captures outer `similar` for confidence
+            if similar:  # noqa: SIM102 — also captures outer `similar` for confidence
                 hist_block = format_for_ai_prompt(similar, max_events=5)
                 extra_context = (extra_context + "\n\n" + hist_block) if extra_context else hist_block
     except Exception:
@@ -1062,7 +1062,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     except Exception:
         pass
 
-    # AI generation â€” decision/portfolio/list queries get specialized prompt
+    # AI generation — decision/portfolio/list queries get specialized prompt
     if intent_data["is_decision"] and intent not in ("list_picks", "portfolio_review", "news_reaction", "earnings_preview", "entry_timing"):
         prompt  = _build_decision_prompt(query, intent_data, events, news, policies, extra_context=extra_context)
         max_tok = 4000
@@ -1105,10 +1105,10 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             "opportunities": ["Sector rotation", "Infrastructure capex", "Export growth"],
             "confidence": 60, "sentiment": "neutral",
             "insights": [
-                {"icon": "ðŸ“Š", "title": "Market Overview",   "summary": "Current market conditions reflect mixed global and domestic signals with selective sector strength."},
-                {"icon": "ðŸ›ï¸", "title": "Policy Framework", "summary": "Government policy remains focused on infrastructure, manufacturing, and economic growth enablement."},
-                {"icon": "ðŸ†", "title": "Sector Leaders",   "summary": "Infrastructure and defence sectors are well positioned to outperform peers in this environment."},
-                {"icon": "âš ï¸", "title": "Risk Watch",       "summary": "Monitor global commodity prices, currency movements, and domestic fiscal deficit trajectory."},
+                {"icon": "📊", "title": "Market Overview",   "summary": "Current market conditions reflect mixed global and domestic signals with selective sector strength."},
+                {"icon": "🏛️", "title": "Policy Framework", "summary": "Government policy remains focused on infrastructure, manufacturing, and economic growth enablement."},
+                {"icon": "🏆", "title": "Sector Leaders",   "summary": "Infrastructure and defence sectors are well positioned to outperform peers in this environment."},
+                {"icon": "⚠️", "title": "Risk Watch",       "summary": "Monitor global commodity prices, currency movements, and domestic fiscal deficit trajectory."},
             ],
             "companies": [], "sectors": [], "similar_events": [], "timeline": [],
             "follow_up_questions": ["Which sectors benefit most?", "What is the timeline?", "Key risks?", "Historical precedents?"],
@@ -1127,7 +1127,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             _pre_factors.ai_certainty = min(10, max(1, int(ai.get("confidence_self_rating") or 5)))
             _conf_result = _calc_conf(_pre_factors)
 
-            # Apply historical calibration (only when â‰¥ 10 verified predictions for this level)
+            # Apply historical calibration (only when ≥ 10 verified predictions for this level)
             if _cal_data:
                 _lvl_cal = _cal_data.get(_conf_result.level, {})
                 _cal_f   = float(_lvl_cal.get("calibration_factor", 1.0))
@@ -1308,7 +1308,7 @@ async def _store_search_predictions(result: dict, conf_result: Any) -> None:
             ]
             pred_text = (
                 f"{direction.upper()} on {', '.join(c.get('symbol','') for c in top_cos) or 'market'} "
-                f"â€” {answer.get('immediate_impact', '')[:120]}"
+                f"— {answer.get('immediate_impact', '')[:120]}"
             )
             await store_prediction(
                 source="ai_search",
