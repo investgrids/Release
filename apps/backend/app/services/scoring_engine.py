@@ -3,9 +3,21 @@ Centralized Scoring Engine — the single source of every score shown anywhere
 in the app (Event Impact, Company Impact, Sector Strength, Theme Strength,
 Opportunity, Risk, AI Confidence, Ripple Strength).
 
+Architecture (see app/services/feature_extraction.py for the layer upstream
+of this one):
+
+    Raw data -> Feature Extraction Engine -> Scoring Engine -> Ripple Engine -> Frontend
+
+This module NEVER derives a signal from raw data itself — no timestamp math,
+no log-scaling a market cap, no walking a ripple graph. It only receives
+already-named 0-100 features (or None, when a signal genuinely isn't
+available) and combines them. That boundary is what keeps every page's
+score computed from the same evidence instead of each page approximating
+its own version of "recency" or "ripple reach".
+
 Hard rules this module enforces:
   1. No score is ever invented. Every sub-component is either a real,
-     caller-supplied signal or it is left as None and excluded from the
+     caller-supplied feature or it is left as None and excluded from the
      formula — the weight it would have used is redistributed across the
      components that *do* have real data (see `_weighted_composite`).
   2. If too little real data is available to produce a meaningful score,
@@ -17,15 +29,13 @@ Hard rules this module enforces:
      3-of-10-signal score is honestly labeled low-confidence even if the
      score itself looks fine.
   4. Every model returns the same contract (`ScoreResult`) with `score`,
-     `confidence`, `breakdown`, `reasoning`, `updated_at`, `version` — no
-     page-specific shapes, no ad hoc component calculating its own number.
-
-This module is pure: it takes typed inputs and returns a ScoreResult. It
-does not fetch data itself. Callers (pipelines, API routes, workers) own
-gathering real signals (DB queries, market_data, the intelligence graph,
-historical memory, confidence_service) and pass them in. This keeps the
-formulas testable and keeps "never fabricate" enforceable in one place,
-while letting each call site be wired in independently over time.
+     `confidence`, `breakdown`, `top_contributors`, `reasoning`,
+     `updated_at`, `version` — no page-specific shapes.
+  5. Formulas are versioned. Weight tables live in `_WEIGHTS[model][version]`
+     and a stored `ScoreResult.version` (e.g. "Event Impact v1.0") always
+     tells you exactly which formula produced a number, even after the
+     weights are retuned in a later version — old reports stay
+     reproducible instead of silently drifting when weights change.
 """
 from __future__ import annotations
 
@@ -42,19 +52,21 @@ ENGINE_VERSION = "Score Engine v1"
 
 @dataclass
 class ScoreResult:
-    score:      Optional[float]
-    confidence: Optional[float]
-    breakdown:  dict
-    reasoning:  list
-    status:     str = "ok"                 # "ok" | "insufficient_data"
-    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    version:    str = ENGINE_VERSION
+    score:            Optional[float]
+    confidence:        Optional[float]
+    breakdown:           dict
+    reasoning:             list
+    top_contributors:        list = field(default_factory=list)   # [{label, value, signed_contribution, direction}]
+    status:                    str = "ok"                          # "ok" | "insufficient_data"
+    updated_at:                   str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    version:                        str = ENGINE_VERSION
 
     def to_dict(self) -> dict:
         return {
             "score": self.score,
             "confidence": self.confidence,
             "breakdown": self.breakdown,
+            "top_contributors": self.top_contributors,
             "reasoning": self.reasoning,
             "status": self.status,
             "updated_at": self.updated_at,
@@ -62,18 +74,23 @@ class ScoreResult:
         }
 
 
-def _insufficient(reason: str, partial_breakdown: Optional[dict] = None) -> ScoreResult:
+def _insufficient(reason: str, partial_breakdown: Optional[dict] = None, version: str = ENGINE_VERSION) -> ScoreResult:
     return ScoreResult(
         score=None,
         confidence=None,
         breakdown=partial_breakdown or {},
         reasoning=[reason],
         status="insufficient_data",
+        version=version,
     )
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
     return max(lo, min(hi, v))
+
+
+def _label(name: str) -> str:
+    return name.replace("_", " ").title()
 
 
 # Minimum fraction of a formula's total weight that must be backed by real
@@ -82,34 +99,77 @@ def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
 _MIN_COVERAGE = 0.35
 
 
-def _weighted_composite(
-    components: dict,  # name -> (value_0_100_or_None, weight)
-) -> tuple:
+def _weighted_composite(components: dict) -> tuple:
     """
     Combine named 0-100 sub-scores into one 0-100 composite, weighted.
+
+    components: name -> (value_0_100_or_None, weight)
 
     Components with value=None are excluded entirely — their weight is
     redistributed proportionally across the components that have real
     data, so missing signals never get silently treated as zero (which
     would fabricate a penalty) or as average (which would fabricate a
-    value). Returns (score, breakdown, coverage) where coverage is the
-    fraction of total intended weight that was actually backed by data.
+    value).
+
+    Returns (score, breakdown, coverage, top_contributors):
+      breakdown         — {name: contribution_points} for every available component
+      coverage          — fraction of total intended weight backed by real data
+      top_contributors  — components ranked by |signed deviation from neutral (50)|,
+                           i.e. how much each one pushed the score up/down from a
+                           neutral midpoint — this is what powers the "Top Drivers"
+                           UI (Phase 4), derived from the same numbers, not invented.
     """
     total_weight = sum(w for _, w in components.values())
     available = {k: (v, w) for k, (v, w) in components.items() if v is not None}
     if not available or total_weight <= 0:
-        return None, {}, 0.0
+        return None, {}, 0.0, []
 
     available_weight = sum(w for _, w in available.values())
     breakdown: dict = {}
+    contributors: list = []
     score = 0.0
     for name, (v, w) in available.items():
-        contribution = _clamp(v) * (w / available_weight)
+        share = w / available_weight
+        contribution = _clamp(v) * share
         breakdown[name] = round(contribution, 1)
         score += contribution
 
+        signed = round((_clamp(v) - 50.0) * share, 1)
+        if signed != 0:
+            contributors.append({
+                "label": _label(name),
+                "value": round(_clamp(v), 1),
+                "signed_contribution": signed,
+                "direction": "up" if signed > 0 else "down",
+            })
+
+    contributors.sort(key=lambda c: abs(c["signed_contribution"]), reverse=True)
     coverage = available_weight / total_weight
-    return round(_clamp(score), 1), breakdown, round(coverage, 2)
+    return round(_clamp(score), 1), breakdown, round(coverage, 2), contributors
+
+
+def _compute(
+    model_key: str,
+    friendly_name: str,
+    values: dict,
+    version: Optional[str] = None,
+    min_coverage: float = _MIN_COVERAGE,
+) -> tuple:
+    """
+    Shared versioned-formula runner (Phase 3): looks up the weight table for
+    `model_key`/`version` (defaulting to that model's current version),
+    combines it with the caller's feature values, and returns everything
+    a model function needs to build its ScoreResult — including the exact
+    "<Friendly Name> v<version>" string that gets stamped onto the result
+    so a stored score always names the formula that produced it, even
+    after weights are retuned in a later version.
+    """
+    version = version or CURRENT_VERSION[model_key]
+    weights = _WEIGHTS[model_key][version]
+    parts = {name: (values.get(name), w) for name, w in weights.items()}
+    score, breakdown, coverage, contributors = _weighted_composite(parts)
+    formula_version = f"{friendly_name} {version}"
+    return score, breakdown, coverage, contributors, formula_version
 
 
 def historical_calibration(current_score: float, similar_events: list, score_field: str = "opportunity_score") -> dict:
@@ -118,8 +178,11 @@ def historical_calibration(current_score: float, similar_events: list, score_fie
     similarity-weighted average of the same metric across real historical
     events (as returned by historical_memory_service.find_similar_events).
 
-    Returns {} if no similar events were found — calibration is additive
-    context, never a substitute for real inputs elsewhere in the formula.
+    This is post-hoc explanatory context, not a scoring input — the input
+    equivalent (`historical_similarity`, `historical_avg_impact`) is
+    produced upstream by feature_extraction.extract_historical_features().
+
+    Returns {} if no similar events were found.
     """
     scored = [
         (e["similarity"], e[score_field])
@@ -149,222 +212,143 @@ def historical_calibration(current_score: float, similar_events: list, score_fie
     }
 
 
-def ripple_reach_score(ripple_result: Optional[dict]) -> tuple:
-    """
-    Shared by the Ripple Strength model AND fed into Event Impact's
-    "ripple_reach" component (Step 6: deeper/wider ripple → higher impact).
-
-    `ripple_result` is the dict returned by
-    intelligence_graph_service.ripple_from_node(). Returns
-    (reach_score_0_100 or None, breakdown, reasoning_bullets).
-    """
-    if not ripple_result or not ripple_result.get("impacts"):
-        return None, {}, []
-
-    impacts = ripple_result["impacts"]
-    total_impacted = len(impacts)
-    weights = [i["accumulated_weight"] for i in impacts]
-    depths = [i["depth"] for i in impacts]
-    node_types = {i["node"]["node_type"] for i in impacts if i.get("node")}
-
-    breadth = _clamp(total_impacted * 8)                       # 8 pts / impacted node, caps ~13 nodes
-    avg_weight_score = _clamp((sum(weights) / len(weights)) * 100) if weights else 0.0
-    depth_score = _clamp((max(depths) / 5.0) * 100) if depths else 0.0
-    diversity_score = _clamp(len(node_types) * 20)              # 20 pts / distinct node type
-
-    parts = {
-        "reach_breadth":  (breadth, 30),
-        "avg_weight":     (avg_weight_score, 30),
-        "max_depth":      (depth_score, 20),
-        "type_diversity": (diversity_score, 20),
-    }
-    score, breakdown, _coverage = _weighted_composite(parts)
-
-    reasoning = [
-        f"Ripples reach {total_impacted} connected entities",
-        f"Deepest chain: {max(depths) if depths else 0} hops",
-        f"Spans {len(node_types)} entity type(s): {', '.join(sorted(node_types))}",
-    ]
-    return score, breakdown, reasoning
-
-
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. Event Impact Score
+# Versioned weight tables (Phase 3) — one entry per model, keyed by version.
+# Adding a new version is: append a new key here, bump CURRENT_VERSION, and
+# any stored ScoreResult still names the exact version that produced it.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_EVENT_TYPE_SEVERITY = {
-    "monetary policy":       92, "union budget":          90,
-    "geopolitical":          85, "global market shock":   90,
-    "corporate crisis":      75, "regulatory":             70,
-    "infrastructure policy": 72, "sectoral policy":        68,
-    "commodity shock":       78, "election":               74,
-    "trade policy":          70, "earnings":               55,
-    "macro":                 50,
+_WEIGHTS: dict = {
+    "event_impact": {
+        "v1.0": {
+            "event_magnitude": 12, "market_breadth": 8, "economic_significance": 14,
+            "company_count": 9, "sector_count": 9, "historical_similarity": 7,
+            "historical_avg_impact": 7, "news_volume": 7, "source_quality": 7,
+            "institutional_mentions": 6, "recency": 6, "ripple_depth": 4, "ripple_width": 4,
+        },
+    },
+    "company_impact": {
+        "v1.0": {
+            "revenue_exposure": 12, "sector_exposure": 14, "news_mentions": 10,
+            "market_cap_weight": 10, "institutional_interest": 12, "order_book_growth": 8,
+            "current_volume": 10, "historical_sensitivity": 14, "ripple_depth": 5, "ripple_width": 5,
+        },
+    },
+    "sector_strength": {
+        "v1.0": {
+            "avg_company_performance": 18, "news_flow": 10, "institutional_flow": 12,
+            "market_breadth": 10, "momentum": 16, "relative_strength": 14,
+            "economic_drivers": 10, "historical_trend": 10,
+        },
+    },
+    "theme_strength": {
+        "v1.0": {
+            "related_events": 20, "company_participation": 20, "news_trend": 18,
+            "government_support": 16, "global_trend": 12, "historical_momentum": 14,
+        },
+    },
+    "opportunity": {
+        "v1.0": {
+            "positive_catalysts": 16, "valuation": 14, "momentum": 16, "business_outlook": 14,
+            "sector_strength": 14, "ai_conviction": 12, "historical_success": 14,
+        },
+    },
+    "risk": {
+        "v1.0": {
+            "macro_risk": 16, "policy_uncertainty": 14, "volatility": 18,
+            "geopolitical_risk": 12, "earnings_risk": 14, "liquidity_risk": 12, "historical_downside": 14,
+        },
+    },
+    "ripple_strength": {
+        "v1.0": {"ripple_depth": 45, "ripple_width": 45, "entity_breadth": 10},
+    },
+}
+
+CURRENT_VERSION: dict = {
+    "event_impact":    "v1.0",
+    "company_impact":  "v1.0",
+    "sector_strength": "v1.0",
+    "theme_strength":  "v1.0",
+    "opportunity":     "v1.0",
+    "risk":            "v1.0",
+    "ripple_strength": "v1.0",
+    "ai_confidence":   "v1.0",   # delegates to confidence_service; versioned for symmetry/discoverability
 }
 
 
-@dataclass
-class EventImpactInputs:
-    event_type:            Optional[str] = None        # category string, matched case-insensitively
-    market_breadth:        Optional[float] = None       # 0-100, e.g. % of index advancing
-    economic_importance:   Optional[float] = None       # 0-100, keyword/severity based
-    companies_affected:    Optional[int] = None
-    sectors_affected:      Optional[int] = None
-    historical_impact:     Optional[float] = None       # 0-100, from historical_calibration()
-    news_volume:           Optional[int] = None         # count of related articles
-    source_quality:        Optional[float] = None       # 0-100 (govt/regulatory=high, generic RSS=low)
-    published_at:          Optional[datetime] = None    # for recency decay
-    ripple_result:         Optional[dict] = None         # from intelligence_graph_service.ripple_from_node
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. Event Impact Score — consumes app.services.feature_extraction.EventFeatures
+# ─────────────────────────────────────────────────────────────────────────────
 
-
-def _recency_score(published_at: Optional[datetime]) -> Optional[float]:
-    if not published_at:
-        return None
-    if published_at.tzinfo is None:
-        published_at = published_at.replace(tzinfo=timezone.utc)
-    hours = (datetime.now(timezone.utc) - published_at).total_seconds() / 3600.0
-    if hours < 0:
-        hours = 0
-    if hours <= 1:
-        return 100.0
-    if hours <= 6:
-        return 85.0
-    if hours <= 24:
-        return 65.0
-    if hours <= 72:
-        return 40.0
-    if hours <= 168:
-        return 20.0
-    return 8.0
-
-
-def score_event_impact(inp: EventImpactInputs) -> ScoreResult:
-    event_type_score = None
-    if inp.event_type:
-        event_type_score = _EVENT_TYPE_SEVERITY.get(inp.event_type.strip().lower())
-
-    ripple_score, ripple_breakdown, ripple_reasons = ripple_reach_score(inp.ripple_result)
-
-    companies_score = _clamp(inp.companies_affected * 12) if inp.companies_affected is not None else None
-    sectors_score = _clamp(inp.sectors_affected * 22) if inp.sectors_affected is not None else None
-    news_volume_score = _clamp(inp.news_volume * 6) if inp.news_volume is not None else None
-    recency = _recency_score(inp.published_at)
-
-    parts = {
-        "event_type":          (event_type_score,          12),
-        "market_breadth":      (inp.market_breadth,         10),
-        "economic_importance": (inp.economic_importance,    14),
-        "companies_affected":  (companies_score,            10),
-        "sector_coverage":     (sectors_score,               10),
-        "historical_impact":   (inp.historical_impact,       14),
-        "news_volume":         (news_volume_score,            8),
-        "source_quality":      (inp.source_quality,           8),
-        "recency":             (recency,                      6),
-        "ripple_reach":        (ripple_score,                 8),
-    }
-    score, breakdown, coverage = _weighted_composite(parts)
+def score_event_impact(features, version: Optional[str] = None) -> ScoreResult:
+    """`features` is an EventFeatures (or any object/dict with the same field names)."""
+    values = features.__dict__ if hasattr(features, "__dict__") else dict(features)
+    score, breakdown, coverage, contributors, formula_version = _compute(
+        "event_impact", "Event Impact", values, version
+    )
 
     if score is None or coverage < _MIN_COVERAGE:
         return _insufficient(
             "Not enough verified signals to compute an Event Impact Score "
             f"(only {round(coverage * 100)}% of the formula had real data).",
-            breakdown,
+            breakdown, formula_version,
         )
 
     reasoning = []
-    if event_type_score:
-        reasoning.append(f"Event category: {inp.event_type}")
-    if inp.companies_affected:
-        reasoning.append(f"{inp.companies_affected} listed companies affected")
-    if inp.sectors_affected:
-        reasoning.append(f"Spans {inp.sectors_affected} sector(s)")
-    if inp.historical_impact is not None:
-        reasoning.append(f"Historical precedent score: {inp.historical_impact:.0f}/100")
-    if inp.news_volume:
-        reasoning.append(f"{inp.news_volume} related news articles")
-    reasoning.extend(ripple_reasons)
+    if values.get("event_magnitude"):
+        reasoning.append(f"Event magnitude: {values['event_magnitude']:.0f}/100")
+    if values.get("company_count_raw"):
+        reasoning.append(f"{values['company_count_raw']} listed companies affected")
+    if values.get("sector_count_raw"):
+        reasoning.append(f"Spans {values['sector_count_raw']} sector(s)")
+    if values.get("historical_similarity") is not None:
+        reasoning.append(f"{values['historical_similarity']:.0f}% match to similar historical events")
+    if values.get("news_volume_raw"):
+        reasoning.append(f"{values['news_volume_raw']} related news articles")
+    if values.get("ripple_depth") is not None:
+        reasoning.append(f"Ripple reaches {values['ripple_depth']:.0f}/100 depth, {values.get('ripple_width', 0):.0f}/100 width")
     if not reasoning:
         reasoning.append(f"Composite of {len(breakdown)} verified signal(s)")
 
     return ScoreResult(
-        score=score,
-        confidence=round(coverage * 100, 1),
-        breakdown=breakdown,
-        reasoning=reasoning,
+        score=score, confidence=round(coverage * 100, 1), breakdown=breakdown,
+        top_contributors=contributors, reasoning=reasoning, version=formula_version,
     )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. Company Impact Score
+# 2. Company Impact Score — consumes feature_extraction.CompanyFeatures
 # ─────────────────────────────────────────────────────────────────────────────
 
-@dataclass
-class CompanyImpactInputs:
-    revenue_exposure:      Optional[float] = None   # 0-100, % of revenue tied to the affected theme/sector — not yet sourced from any provider
-    sector_exposure:       Optional[float] = None    # 0-100, how directly the company's sector matches the event's sectors
-    news_mentions:         Optional[int] = None       # count mentioning this symbol
-    market_cap:            Optional[float] = None      # absolute, for log-scaled weight
-    institutional_holding_pct: Optional[float] = None  # 0-100, real yfinance heldPercentInstitutions
-    order_book_growth:     Optional[float] = None      # 0-100 — not yet sourced (no structured order-book data feed)
-    volume:                Optional[float] = None
-    avg_volume:            Optional[float] = None
-    historical_sensitivity: Optional[float] = None     # 0-100, from historical_winners/losers match strength
-    ripple_result:          Optional[dict] = None       # graph impacts touching this company's node
-
-
-def _log_scale_market_cap(market_cap: Optional[float]) -> Optional[float]:
-    if not market_cap or market_cap <= 0:
-        return None
-    import math
-    # ₹5,000 Cr (small-cap floor) → ~20, ₹15L Cr (largest caps) → ~100
-    lo, hi = math.log10(5_000 * 1e7), math.log10(15_00_000 * 1e7)
-    v = math.log10(market_cap)
-    return _clamp(((v - lo) / (hi - lo)) * 100)
-
-
-def score_company_impact(inp: CompanyImpactInputs) -> ScoreResult:
-    market_cap_score = _log_scale_market_cap(inp.market_cap)
-    news_mentions_score = _clamp(inp.news_mentions * 10) if inp.news_mentions is not None else None
-    volume_score = None
-    if inp.volume is not None and inp.avg_volume:
-        volume_score = _clamp((inp.volume / inp.avg_volume) * 50)
-
-    ripple_score, _rb, ripple_reasons = ripple_reach_score(inp.ripple_result)
-
-    parts = {
-        "revenue_exposure":       (inp.revenue_exposure, 12),
-        "sector_exposure":        (inp.sector_exposure, 14),
-        "news_mentions":          (news_mentions_score, 10),
-        "market_cap_weight":      (market_cap_score, 10),
-        "institutional_interest": (inp.institutional_holding_pct, 12),
-        "order_book":             (inp.order_book_growth, 8),
-        "current_volume":         (volume_score, 10),
-        "historical_sensitivity": (inp.historical_sensitivity, 14),
-        "ripple_connections":     (ripple_score, 10),
-    }
-    score, breakdown, coverage = _weighted_composite(parts)
+def score_company_impact(features, version: Optional[str] = None) -> ScoreResult:
+    values = features.__dict__ if hasattr(features, "__dict__") else dict(features)
+    score, breakdown, coverage, contributors, formula_version = _compute(
+        "company_impact", "Company Impact", values, version
+    )
 
     if score is None or coverage < _MIN_COVERAGE:
         return _insufficient(
             "Not enough verified company-level signals to compute a Company Impact Score "
             f"(only {round(coverage * 100)}% of the formula had real data).",
-            breakdown,
+            breakdown, formula_version,
         )
 
     reasoning = []
-    if inp.sector_exposure:
-        reasoning.append(f"Sector exposure match: {inp.sector_exposure:.0f}/100")
-    if inp.institutional_holding_pct:
-        reasoning.append(f"{inp.institutional_holding_pct:.1f}% institutional holding")
-    if inp.news_mentions:
-        reasoning.append(f"Mentioned in {inp.news_mentions} related articles")
-    if inp.historical_sensitivity is not None:
-        reasoning.append(f"Historical sensitivity: {inp.historical_sensitivity:.0f}/100")
-    reasoning.extend(ripple_reasons)
+    if values.get("sector_exposure"):
+        reasoning.append(f"Sector exposure match: {values['sector_exposure']:.0f}/100")
+    if values.get("institutional_interest"):
+        reasoning.append(f"{values['institutional_interest']:.1f}% institutional holding")
+    if values.get("historical_sensitivity") is not None:
+        reasoning.append(f"Historical sensitivity: {values['historical_sensitivity']:.0f}/100")
+    if values.get("ripple_depth") is not None:
+        reasoning.append(f"Ripple reaches {values['ripple_depth']:.0f}/100 depth")
     if not reasoning:
         reasoning.append(f"Composite of {len(breakdown)} verified signal(s)")
 
-    return ScoreResult(score=score, confidence=round(coverage * 100, 1), breakdown=breakdown, reasoning=reasoning)
+    return ScoreResult(
+        score=score, confidence=round(coverage * 100, 1), breakdown=breakdown,
+        top_contributors=contributors, reasoning=reasoning, version=formula_version,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -373,36 +357,26 @@ def score_company_impact(inp: CompanyImpactInputs) -> ScoreResult:
 
 @dataclass
 class SectorStrengthInputs:
-    avg_company_performance: Optional[float] = None   # 0-100, avg pct_change of sector constituents rescaled
-    news_flow:                Optional[int] = None      # count of sector-tagged news
-    institutional_flow:       Optional[float] = None     # 0-100, avg institutional holding change/level
-    market_breadth:           Optional[float] = None
-    momentum:                 Optional[float] = None      # 0-100, short-term price momentum
-    relative_strength:        Optional[float] = None      # 0-100, sector return vs index return
-    economic_drivers:         Optional[float] = None      # 0-100, policy/macro tailwind score
-    historical_trend:         Optional[float] = None       # 0-100, from historical_calibration()
+    avg_company_performance: Optional[float] = None
+    news_flow:                 Optional[float] = None    # already scaled 0-100 by caller (news count -> signal)
+    institutional_flow:          Optional[float] = None
+    market_breadth:                Optional[float] = None
+    momentum:                        Optional[float] = None
+    relative_strength:                 Optional[float] = None
+    economic_drivers:                    Optional[float] = None
+    historical_trend:                      Optional[float] = None
 
 
-def score_sector_strength(inp: SectorStrengthInputs) -> ScoreResult:
-    news_flow_score = _clamp(inp.news_flow * 5) if inp.news_flow is not None else None
-
-    parts = {
-        "avg_company_performance": (inp.avg_company_performance, 18),
-        "news_flow":                (news_flow_score, 10),
-        "institutional_flow":       (inp.institutional_flow, 12),
-        "market_breadth":           (inp.market_breadth, 10),
-        "momentum":                 (inp.momentum, 16),
-        "relative_strength":        (inp.relative_strength, 14),
-        "economic_drivers":         (inp.economic_drivers, 10),
-        "historical_trend":         (inp.historical_trend, 10),
-    }
-    score, breakdown, coverage = _weighted_composite(parts)
+def score_sector_strength(inp: SectorStrengthInputs, version: Optional[str] = None) -> ScoreResult:
+    score, breakdown, coverage, contributors, formula_version = _compute(
+        "sector_strength", "Sector Strength", inp.__dict__, version
+    )
 
     if score is None or coverage < _MIN_COVERAGE:
         return _insufficient(
             "Not enough verified sector-level signals to compute a Sector Strength Score "
             f"(only {round(coverage * 100)}% of the formula had real data).",
-            breakdown,
+            breakdown, formula_version,
         )
 
     reasoning = []
@@ -410,12 +384,13 @@ def score_sector_strength(inp: SectorStrengthInputs) -> ScoreResult:
         reasoning.append(f"Momentum: {inp.momentum:.0f}/100")
     if inp.relative_strength is not None:
         reasoning.append(f"Relative strength vs index: {inp.relative_strength:.0f}/100")
-    if inp.news_flow:
-        reasoning.append(f"{inp.news_flow} sector-related news items")
     if not reasoning:
         reasoning.append(f"Composite of {len(breakdown)} verified signal(s)")
 
-    return ScoreResult(score=score, confidence=round(coverage * 100, 1), breakdown=breakdown, reasoning=reasoning)
+    return ScoreResult(
+        score=score, confidence=round(coverage * 100, 1), breakdown=breakdown,
+        top_contributors=contributors, reasoning=reasoning, version=formula_version,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -424,46 +399,36 @@ def score_sector_strength(inp: SectorStrengthInputs) -> ScoreResult:
 
 @dataclass
 class ThemeStrengthInputs:
-    related_events_count:    Optional[int] = None
-    company_participation:   Optional[int] = None     # distinct companies tagged to this theme
-    news_trend:               Optional[float] = None    # 0-100, momentum of article volume over time
-    government_support:       Optional[float] = None     # 0-100, presence/strength of real policy backing
-    global_trend:              Optional[float] = None      # 0-100, whether the theme is trending internationally
-    historical_momentum:       Optional[float] = None       # 0-100, from historical_calibration()
+    related_events:         Optional[float] = None    # already scaled 0-100 by caller
+    company_participation:    Optional[float] = None    # already scaled 0-100 by caller
+    news_trend:                 Optional[float] = None
+    government_support:           Optional[float] = None
+    global_trend:                    Optional[float] = None
+    historical_momentum:               Optional[float] = None
 
 
-def score_theme_strength(inp: ThemeStrengthInputs) -> ScoreResult:
-    events_score = _clamp(inp.related_events_count * 10) if inp.related_events_count is not None else None
-    participation_score = _clamp(inp.company_participation * 8) if inp.company_participation is not None else None
-
-    parts = {
-        "related_events":       (events_score, 20),
-        "company_participation": (participation_score, 20),
-        "news_trend":            (inp.news_trend, 18),
-        "government_support":    (inp.government_support, 16),
-        "global_trend":           (inp.global_trend, 12),
-        "historical_momentum":    (inp.historical_momentum, 14),
-    }
-    score, breakdown, coverage = _weighted_composite(parts)
+def score_theme_strength(inp: ThemeStrengthInputs, version: Optional[str] = None) -> ScoreResult:
+    score, breakdown, coverage, contributors, formula_version = _compute(
+        "theme_strength", "Theme Strength", inp.__dict__, version
+    )
 
     if score is None or coverage < _MIN_COVERAGE:
         return _insufficient(
             "Not enough verified signals to compute a Theme Strength Score "
             f"(only {round(coverage * 100)}% of the formula had real data).",
-            breakdown,
+            breakdown, formula_version,
         )
 
     reasoning = []
-    if inp.related_events_count:
-        reasoning.append(f"{inp.related_events_count} related events tracked")
-    if inp.company_participation:
-        reasoning.append(f"{inp.company_participation} companies participating")
     if inp.government_support:
         reasoning.append(f"Government support signal: {inp.government_support:.0f}/100")
     if not reasoning:
         reasoning.append(f"Composite of {len(breakdown)} verified signal(s)")
 
-    return ScoreResult(score=score, confidence=round(coverage * 100, 1), breakdown=breakdown, reasoning=reasoning)
+    return ScoreResult(
+        score=score, confidence=round(coverage * 100, 1), breakdown=breakdown,
+        top_contributors=contributors, reasoning=reasoning, version=formula_version,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -472,45 +437,39 @@ def score_theme_strength(inp: ThemeStrengthInputs) -> ScoreResult:
 
 @dataclass
 class OpportunityInputs:
-    positive_catalysts:  Optional[float] = None   # 0-100, count/strength of real bullish catalysts found
-    valuation:            Optional[float] = None    # 0-100, e.g. inverse percentile of PE vs sector peers
-    momentum:             Optional[float] = None
-    business_outlook:      Optional[float] = None    # 0-100, from real AI reasoning grounded in filings/news, not a guess
-    sector_strength:        Optional[float] = None     # feed from score_sector_strength(...).score
-    ai_conviction:           Optional[float] = None      # 0-100, must be derived from confidence_service, not self-rated by the LLM
-    historical_success_rate: Optional[float] = None       # 0-100, from historical_calibration() on similar past setups
+    positive_catalysts:  Optional[float] = None
+    valuation:             Optional[float] = None
+    momentum:                Optional[float] = None
+    business_outlook:          Optional[float] = None
+    sector_strength:              Optional[float] = None   # feed from score_sector_strength(...).score
+    ai_conviction:                  Optional[float] = None   # must come from confidence_service, not LLM self-rating
+    historical_success:               Optional[float] = None
 
 
-def score_opportunity(inp: OpportunityInputs) -> ScoreResult:
-    parts = {
-        "positive_catalysts":  (inp.positive_catalysts, 16),
-        "valuation":            (inp.valuation, 14),
-        "momentum":             (inp.momentum, 16),
-        "business_outlook":      (inp.business_outlook, 14),
-        "sector_strength":        (inp.sector_strength, 14),
-        "ai_conviction":           (inp.ai_conviction, 12),
-        "historical_success":       (inp.historical_success_rate, 14),
-    }
-    score, breakdown, coverage = _weighted_composite(parts)
+def score_opportunity(inp: OpportunityInputs, version: Optional[str] = None) -> ScoreResult:
+    score, breakdown, coverage, contributors, formula_version = _compute(
+        "opportunity", "Opportunity", inp.__dict__, version
+    )
 
     if score is None or coverage < _MIN_COVERAGE:
         return _insufficient(
             "Not enough verified signals to compute an Opportunity Score "
             f"(only {round(coverage * 100)}% of the formula had real data).",
-            breakdown,
+            breakdown, formula_version,
         )
 
     reasoning = []
     if inp.positive_catalysts is not None:
         reasoning.append(f"Positive catalyst strength: {inp.positive_catalysts:.0f}/100")
-    if inp.valuation is not None:
-        reasoning.append(f"Valuation attractiveness: {inp.valuation:.0f}/100")
-    if inp.historical_success_rate is not None:
-        reasoning.append(f"Historical success rate on similar setups: {inp.historical_success_rate:.0f}/100")
+    if inp.historical_success is not None:
+        reasoning.append(f"Historical success rate on similar setups: {inp.historical_success:.0f}/100")
     if not reasoning:
         reasoning.append(f"Composite of {len(breakdown)} verified signal(s)")
 
-    return ScoreResult(score=score, confidence=round(coverage * 100, 1), breakdown=breakdown, reasoning=reasoning)
+    return ScoreResult(
+        score=score, confidence=round(coverage * 100, 1), breakdown=breakdown,
+        top_contributors=contributors, reasoning=reasoning, version=formula_version,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -519,45 +478,39 @@ def score_opportunity(inp: OpportunityInputs) -> ScoreResult:
 
 @dataclass
 class RiskInputs:
-    macro_risk:          Optional[float] = None
-    policy_uncertainty:   Optional[float] = None
-    volatility:            Optional[float] = None    # 0-100, from VIX level / beta
-    geopolitical_risk:      Optional[float] = None
-    earnings_risk:           Optional[float] = None    # 0-100, e.g. earnings surprise dispersion / guidance cuts
-    liquidity_risk:           Optional[float] = None     # 0-100, inverse of volume/float
-    historical_downside:       Optional[float] = None      # 0-100, from historical_calibration() on risk_score field
+    macro_risk:            Optional[float] = None
+    policy_uncertainty:      Optional[float] = None
+    volatility:                Optional[float] = None
+    geopolitical_risk:           Optional[float] = None
+    earnings_risk:                 Optional[float] = None
+    liquidity_risk:                   Optional[float] = None
+    historical_downside:                Optional[float] = None
 
 
-def score_risk(inp: RiskInputs) -> ScoreResult:
-    parts = {
-        "macro_risk":          (inp.macro_risk, 16),
-        "policy_uncertainty":   (inp.policy_uncertainty, 14),
-        "volatility":            (inp.volatility, 18),
-        "geopolitical_risk":      (inp.geopolitical_risk, 12),
-        "earnings_risk":           (inp.earnings_risk, 14),
-        "liquidity_risk":           (inp.liquidity_risk, 12),
-        "historical_downside":       (inp.historical_downside, 14),
-    }
-    score, breakdown, coverage = _weighted_composite(parts)
+def score_risk(inp: RiskInputs, version: Optional[str] = None) -> ScoreResult:
+    score, breakdown, coverage, contributors, formula_version = _compute(
+        "risk", "Risk", inp.__dict__, version
+    )
 
     if score is None or coverage < _MIN_COVERAGE:
         return _insufficient(
             "Not enough verified signals to compute a Risk Score "
             f"(only {round(coverage * 100)}% of the formula had real data).",
-            breakdown,
+            breakdown, formula_version,
         )
 
     reasoning = []
     if inp.volatility is not None:
         reasoning.append(f"Volatility signal: {inp.volatility:.0f}/100")
-    if inp.geopolitical_risk is not None:
-        reasoning.append(f"Geopolitical risk: {inp.geopolitical_risk:.0f}/100")
     if inp.historical_downside is not None:
         reasoning.append(f"Historical downside precedent: {inp.historical_downside:.0f}/100")
     if not reasoning:
         reasoning.append(f"Composite of {len(breakdown)} verified signal(s)")
 
-    return ScoreResult(score=score, confidence=round(coverage * 100, 1), breakdown=breakdown, reasoning=reasoning)
+    return ScoreResult(
+        score=score, confidence=round(coverage * 100, 1), breakdown=breakdown,
+        top_contributors=contributors, reasoning=reasoning, version=formula_version,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -574,6 +527,8 @@ def score_ai_confidence(factors) -> ScoreResult:
     """
     from app.services.confidence_service import calculate_confidence
 
+    formula_version = f"AI Confidence {CURRENT_VERSION['ai_confidence']}"
+
     # Evidence check on the *raw* inputs, not the post-computed breakdown —
     # ConfidenceFactors() defaults company_sensitivity="medium" and
     # ai_certainty=5 even with zero real evidence, which would otherwise
@@ -586,31 +541,59 @@ def score_ai_confidence(factors) -> ScoreResult:
         or factors.macro_aligned
     )
     if not has_evidence:
-        return _insufficient("No verifiable evidence signals were available to assess confidence.")
+        return _insufficient("No verifiable evidence signals were available to assess confidence.", version=formula_version)
 
     result = calculate_confidence(factors)
+    breakdown = {k: v for k, v in result.breakdown.items() if k != "total"}
+
+    contributors = sorted(
+        (
+            {"label": _label(k), "value": v, "signed_contribution": v, "direction": "up" if v >= 0 else "down"}
+            for k, v in breakdown.items() if v
+        ),
+        key=lambda c: abs(c["signed_contribution"]), reverse=True,
+    )
 
     return ScoreResult(
         score=result.total_score,
         confidence=result.total_score,   # for this model score and confidence are the same measure by definition
-        breakdown={k: v for k, v in result.breakdown.items() if k != "total"},
+        breakdown=breakdown,
+        top_contributors=contributors,
         reasoning=result.reasons,
+        version=formula_version,
     )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 8. Ripple Strength Score
+# 8. Ripple Strength Score — consumes feature_extraction.extract_ripple_features()
 # ─────────────────────────────────────────────────────────────────────────────
 
-def score_ripple_strength(ripple_result: Optional[dict]) -> ScoreResult:
-    score, breakdown, reasoning = ripple_reach_score(ripple_result)
-    if score is None:
-        return _insufficient("No graph connections found to compute a Ripple Strength Score.")
+def score_ripple_strength(ripple_features: dict, version: Optional[str] = None) -> ScoreResult:
+    """`ripple_features` is the dict returned by feature_extraction.extract_ripple_features()."""
+    entities = ripple_features.get("entities_reached") or 0
+    entity_breadth = _clamp(entities * 8) if entities else None
 
-    # ripple_reach_score doesn't compute coverage (it's always fully-populated
-    # once a ripple_result exists), so confidence here reflects reach breadth
-    # instead — a ripple touching 1 node is real but thin evidence.
-    total_impacted = len(ripple_result.get("impacts", []))
-    confidence = round(_clamp(40 + total_impacted * 6), 1)
+    values = {
+        "ripple_depth": ripple_features.get("ripple_depth"),
+        "ripple_width": ripple_features.get("ripple_width"),
+        "entity_breadth": entity_breadth,
+    }
+    score, breakdown, coverage, contributors, formula_version = _compute(
+        "ripple_strength", "Ripple Strength", values, version
+    )
 
-    return ScoreResult(score=score, confidence=confidence, breakdown=breakdown, reasoning=reasoning)
+    if score is None or coverage < _MIN_COVERAGE:
+        return _insufficient("No graph connections found to compute a Ripple Strength Score.", breakdown, formula_version)
+
+    reasoning = [
+        f"Ripples reach {entities} connected entities",
+        f"Deepest chain: {ripple_features.get('max_depth_hops', 0)} hops",
+    ]
+    types = ripple_features.get("entity_types") or []
+    if types:
+        reasoning.append(f"Spans {len(types)} entity type(s): {', '.join(types)}")
+
+    return ScoreResult(
+        score=score, confidence=round(coverage * 100, 1), breakdown=breakdown,
+        top_contributors=contributors, reasoning=reasoning, version=formula_version,
+    )
