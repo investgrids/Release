@@ -20,6 +20,7 @@ from app.db.models.intelligence_graph import IGNode, IGEdge
 from app.db.models.predictions import PredictionRecord, PredictionEvaluation, CalibrationStat
 from app.db.models.company_announcements import CompanyAnnouncement
 from app.db.models.intelligence_article import IntelligenceArticle
+from app.db.models.score_history import ScoreHistory
 
 __all__ = [
     "Opportunity",
@@ -43,4 +44,5 @@ __all__ = [
     "CalibrationStat",
     "CompanyAnnouncement",
     "IntelligenceArticle",
+    "ScoreHistory",
 ]

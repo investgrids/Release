@@ -51,8 +51,9 @@ from app.db.models.event import Event
 from app.cache import delete, delete_pattern
 from app.services import feature_extraction, scoring_engine
 from app.services.enrichment_queue import CompanyCandidate, EnrichmentJob, get_enrichment_queue
-from app.services.intelligence.event_bus import get_broadcaster, ScoreUpdate
+from app.services.intelligence.event_bus import ScoreUpdate
 from app.services.intelligence_graph_service import make_node_id, ripple_from_node
+from app.services.score_history_service import publish_score_update
 
 log = structlog.get_logger(__name__)
 
@@ -141,8 +142,7 @@ async def on_event_scored(
     # company-level scoring) — broadcasting a fabricated score for them
     # would violate the same "never invent a number" rule the rest of the
     # engine enforces, so this only ever states the real ripple weight.
-    broadcaster = get_broadcaster()
-    await broadcaster.broadcast(ScoreUpdate(
+    await publish_score_update(ScoreUpdate(
         entity_type="event",
         entity_id=event.id,
         model="event_impact",
@@ -151,6 +151,7 @@ async def on_event_scored(
         confidence=final_score.confidence,
         status=final_score.status,
         version=final_score.version,
+        breakdown=final_score.breakdown,
         top_contributors=final_score.top_contributors,
         reasoning=final_score.reasoning,
         trigger="new_event",
@@ -162,7 +163,7 @@ async def on_event_scored(
             node = impact.get("node") or {}
             if not node.get("id"):
                 continue
-            await broadcaster.broadcast(ScoreUpdate(
+            await publish_score_update(ScoreUpdate(
                 entity_type=node.get("node_type", "entity"),
                 entity_id=node["id"],
                 model="ripple_propagation",

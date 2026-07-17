@@ -326,7 +326,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, scores  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -371,6 +371,8 @@ app.include_router(historical_memory.router, prefix="/api/historical", tags=["hi
 app.include_router(graph.router, prefix="/api/graph", tags=["graph"])
 # ── Prediction Learning Engine — tracks predictions vs reality over time ───────
 app.include_router(predictions.router, prefix="/api/predictions", tags=["predictions"])
+# ── Score History + Audit — Score History / Evidence Timeline / Confidence Evolution / Intelligence Audit Panel ──
+app.include_router(scores.router, prefix="/api/scores", tags=["scores"])
 # ── Universal Intelligence API — every page consumes from one intelligence layer
 app.include_router(intelligence_pages.router, prefix="/api/intelligence", tags=["intelligence"])
 # ── Company Announcements — BSE/NSE corporate filings feed ───────────────────

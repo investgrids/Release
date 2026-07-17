@@ -32,8 +32,9 @@ import structlog
 from app.cache import delete, delete_pattern
 from app.services import feature_extraction, scoring_engine
 from app.services.enrichment_queue import EnrichmentJob, get_enrichment_queue
-from app.services.intelligence.event_bus import get_broadcaster, ScoreUpdate
+from app.services.intelligence.event_bus import ScoreUpdate
 from app.services.market_data import get_stock_scoring_raw
+from app.services.score_history_service import publish_score_update
 
 log = structlog.get_logger(__name__)
 
@@ -83,7 +84,6 @@ async def _fetch_one(symbol: str, sem: asyncio.Semaphore) -> Optional[dict]:
 
 
 async def process_enrichment_job(job: EnrichmentJob) -> None:
-    broadcaster = get_broadcaster()
     sem = asyncio.Semaphore(_MAX_CONCURRENT_FETCHES)
 
     raw_results = await asyncio.gather(*[_fetch_one(c.symbol, sem) for c in job.companies])
@@ -148,21 +148,23 @@ async def process_enrichment_job(job: EnrichmentJob) -> None:
     await delete_pattern("dashboard:*")
 
     if event_score is not None and event_score.status == "ok":
-        await broadcaster.broadcast(ScoreUpdate(
+        await publish_score_update(ScoreUpdate(
             entity_type="event", entity_id=job.event_id, model="event_impact",
             score=event_score.score, previous_score=job.preliminary_score,
             confidence=event_score.confidence, status=event_score.status,
-            version=event_score.version, top_contributors=event_score.top_contributors,
+            version=event_score.version, breakdown=event_score.breakdown,
+            top_contributors=event_score.top_contributors,
             reasoning=event_score.reasoning, trigger="enrichment_complete",
             data_status="verified",
         ))
 
     for candidate, company_score in company_scores:
-        await broadcaster.broadcast(ScoreUpdate(
+        await publish_score_update(ScoreUpdate(
             entity_type="company", entity_id=candidate.symbol, model="company_impact",
             score=company_score.score, previous_score=None,
             confidence=company_score.confidence, status=company_score.status,
-            version=company_score.version, top_contributors=company_score.top_contributors,
+            version=company_score.version, breakdown=company_score.breakdown,
+            top_contributors=company_score.top_contributors,
             reasoning=company_score.reasoning, trigger="enrichment_complete",
             data_status="live",
         ))

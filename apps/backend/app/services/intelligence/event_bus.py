@@ -42,6 +42,7 @@ class ScoreUpdate:
     confidence: Optional[float]
     status: str                         # "ok" | "insufficient_data" | "ripple_signal"
     version: str
+    breakdown: dict = field(default_factory=dict)
     top_contributors: list = field(default_factory=list)
     reasoning: list = field(default_factory=list)
     trigger: str = "unknown"            # "new_event" | "new_news" | "earnings" | "market_close" | "policy_change" | "ripple_propagation"

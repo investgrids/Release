@@ -284,6 +284,32 @@ CURRENT_VERSION: dict = {
 }
 
 
+def get_formula_weights(model_key: str, version: Optional[str] = None) -> dict:
+    """
+    Normalized (sum-to-100) weight percentages for a model's formula —
+    powers the Intelligence Audit Panel ("Based on: Policy Magnitude 25%,
+    Ripple Reach 22%, ..."). This is the formula's *intended* weighting,
+    not a specific score's actual breakdown — a specific ScoreResult's
+    `breakdown` can differ when some components were missing and their
+    weight got redistributed (see _weighted_composite).
+    """
+    if model_key not in _WEIGHTS:
+        raise KeyError(f"Unknown scoring model '{model_key}'")
+    version = version or CURRENT_VERSION[model_key]
+    if version not in _WEIGHTS[model_key]:
+        raise KeyError(f"Unknown version '{version}' for model '{model_key}'")
+    weights = _WEIGHTS[model_key][version]
+    total = sum(weights.values()) or 1
+    return {
+        "model": model_key,
+        "version": version,
+        "weights": [
+            {"component": name, "label": _label(name), "weight_pct": round(w / total * 100, 1)}
+            for name, w in sorted(weights.items(), key=lambda kv: kv[1], reverse=True)
+        ],
+    }
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Event Impact Score — consumes app.services.feature_extraction.EventFeatures
 # ─────────────────────────────────────────────────────────────────────────────
