@@ -45,6 +45,11 @@ async def lifespan(app: FastAPI):
         await apply_schema_patches(conn)
     log.info("db.tables_ready")
 
+    # Separate from the transaction above on purpose — this migration
+    # toggles PRAGMA foreign_keys, which SQLite no-ops mid-transaction.
+    from app.db.schema_patches import relax_events_score_columns
+    await relax_events_score_columns(engine)
+
     # ── 2. Seed ───────────────────────────────────────────────────────────────
     from app.db.session import AsyncSessionLocal
     from app.db.seed import seed
