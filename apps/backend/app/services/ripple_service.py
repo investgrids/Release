@@ -56,6 +56,7 @@ async def _db_save(
     scenario_type: str = "event",
     scenario_input: str | None = None,
     db: AsyncSession | None = None,
+    source: str = "ai_generated",
 ) -> dict:
     rg = RippleGraph(
         event_id=event_id,
@@ -66,6 +67,7 @@ async def _db_save(
         event_impact=event_impact,
         graph_data=graph_data,
         insights=insights,
+        source=source,
     )
     if db:
         db.add(rg)
@@ -120,12 +122,14 @@ async def get_or_generate_ripple(
     if ai_result and ai_result.get("nodes"):
         graph_data = {"nodes": ai_result["nodes"], "edges": ai_result.get("edges", [])}
         insights = ai_result.get("insights", {})
+        source = "ai_generated"
         log.info("ripple.ai_generated", event_id=event_id, nodes=len(graph_data["nodes"]))
     else:
         log.info("ripple.fallback", event_id=event_id)
         fb = _build_fallback_graph(event_title, event_summary, event_type, event_impact, companies, sectors)
         graph_data = {"nodes": fb["nodes"], "edges": fb["edges"]}
         insights = fb.get("insights", {})
+        source = "fallback_template"
 
     result = {
         "event_id":    event_id,
@@ -133,6 +137,7 @@ async def get_or_generate_ripple(
         "event_impact": event_impact,
         "graph_data":  graph_data,
         "insights":    insights,
+        "source":      source,
     }
     try:
         saved = await _db_save(
@@ -143,6 +148,7 @@ async def get_or_generate_ripple(
             graph_data=graph_data,
             insights=insights,
             db=db,
+            source=source,
         )
         result = saved
     except Exception as exc:
@@ -173,10 +179,12 @@ async def generate_scenario_ripple(scenario_text: str, db: AsyncSession) -> dict
     if ai_result and ai_result.get("nodes"):
         graph_data = {"nodes": ai_result["nodes"], "edges": ai_result.get("edges", [])}
         insights = ai_result.get("insights", {})
+        source = "ai_generated"
     else:
         fb = _build_fallback_graph(f"Scenario: {scenario_text}", scenario_text, "scenario", 7.5, [], [])
         graph_data = {"nodes": fb["nodes"], "edges": fb["edges"]}
         insights = fb.get("insights", {})
+        source = "fallback_template"
 
     result = {
         "event_id":    None,
@@ -184,6 +192,7 @@ async def generate_scenario_ripple(scenario_text: str, db: AsyncSession) -> dict
         "event_impact": 7.5,
         "graph_data":  graph_data,
         "insights":    insights,
+        "source":      source,
     }
     try:
         saved = await _db_save(
@@ -196,6 +205,7 @@ async def generate_scenario_ripple(scenario_text: str, db: AsyncSession) -> dict
             scenario_type="scenario",
             scenario_input=scenario_text,
             db=db,
+            source=source,
         )
         result = saved
     except Exception as exc:

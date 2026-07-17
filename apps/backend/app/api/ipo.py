@@ -1,9 +1,34 @@
-"""IPO Hub — live IPO data with mock enrichment (real NSE API integration future scope)."""
+"""
+IPO Hub — PLACEHOLDER/MOCK data.
+
+Every record in `_IPOS` below (prices, GMP, subscription numbers, dates,
+"AI" ratings/summaries) is hand-written example data, not sourced from any
+live IPO feed. There is no real NSE/BSE IPO integration wired up yet. Every
+response is marked `is_mock: True` / `data_source: "placeholder"` so
+frontend consumers can — and must — surface that honestly instead of
+presenting it as live market data.
+
+Replace with a real IPO data provider before treating this endpoint as
+production-accurate.
+"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
+
+_MOCK_DATE_FIELDS = ("openDate", "closeDate", "allotmentDate", "refundDate", "creditDate", "listingDate")
+
+
+def _mark_mock(ipo: dict) -> dict:
+    """Attach the is_mock flag and replace the stale hardcoded 2025 dates
+    with an explicit placeholder label rather than letting them silently
+    drift further out of date."""
+    out = {**ipo, "is_mock": True}
+    for field in _MOCK_DATE_FIELDS:
+        if field in out:
+            out[field] = "Example date — placeholder"
+    return out
 
 _IPOS = [
     {
@@ -270,11 +295,13 @@ async def list_ipos(status: str | None = None):
     ongoing  = sum(1 for i in _IPOS if i["status"] == "Ongoing")
     listed   = sum(1 for i in _IPOS if i["status"] == "Listed")
     return {
-        "ipos":          ipos,
+        "ipos":          [_mark_mock(i) for i in ipos],
         "stats":         {"upcoming": upcoming, "ongoing": ongoing, "listed": listed, "avg_listing_gain": 18.6},
         "sector_trends": _SECTOR_TRENDS,
         "sentiment":     {"score": 78, "label": "Bullish", "retail": "High", "hni": "High", "volatility": "Moderate", "overall": "Bullish"},
         "ai_insight":    "High IPO activity this quarter driven by manufacturing, tech & renewable energy sectors. Investor sentiment is strong.",
+        "is_mock":       True,
+        "data_source":   "placeholder",
     }
 
 
@@ -283,4 +310,4 @@ async def get_ipo(ipo_id: str):
     ipo = next((i for i in _IPOS if i["id"] == ipo_id), None)
     if not ipo:
         raise HTTPException(status_code=404, detail="IPO not found")
-    return ipo
+    return _mark_mock(ipo)

@@ -6,12 +6,12 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Shield, Leaf, ClipboardList, BarChart2, X, Award } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, ReferenceLine,
 } from "recharts";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 // ── Company registry ──────────────────────────────────────────────────────────
 

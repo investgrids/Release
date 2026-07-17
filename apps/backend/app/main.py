@@ -41,6 +41,8 @@ async def lifespan(app: FastAPI):
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        from app.db.schema_patches import apply_schema_patches
+        await apply_schema_patches(conn)
     log.info("db.tables_ready")
 
     # ── 2. Seed ───────────────────────────────────────────────────────────────

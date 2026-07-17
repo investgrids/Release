@@ -15,6 +15,7 @@
  */
 
 import type { Quote, WSMessage, WSSubscribeCmd } from "./types";
+import { API_BASE_URL } from "@/lib/api";
 
 type QuoteHandler = (quote: Quote) => void;
 
@@ -36,11 +37,11 @@ class WebSocketManager {
   private constructor(private readonly baseUrl: string) {}
 
   static getInstance(baseUrl?: string): WebSocketManager {
-    const url = baseUrl ?? (
-      typeof window !== "undefined"
-        ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:8000`
-        : "ws://localhost:8000"
-    );
+    // Derive from the real backend URL (protocol swapped http→ws, https→wss)
+    // rather than assuming the backend shares the frontend's host on port
+    // 8000 — that assumption breaks once frontend (Vercel) and backend
+    // (Railway) are on separate hosts, which is the actual deployment setup.
+    const url = baseUrl ?? API_BASE_URL.replace(/^http/, "ws");
     if (!WebSocketManager._instance) {
       WebSocketManager._instance = new WebSocketManager(url);
     }

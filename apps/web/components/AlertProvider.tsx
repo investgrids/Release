@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const DISMISSED_KEY = "ig_dismissed_alerts";
 const FRESH_MS = 30 * 60 * 1000;
 

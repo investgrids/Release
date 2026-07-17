@@ -23,6 +23,11 @@ class RippleGraph(Base):
     graph_data     = Column(JSON, nullable=True)    # {nodes:[…], edges:[…]}
     insights       = Column(JSON, nullable=True)    # {summary, beneficiaries, losers, …}
     generated_at   = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # "ai_generated" | "fallback_template" — the fallback templates in ripple_service.py
+    # are hand-written placeholder data used only when real AI generation fails; this
+    # column is the only thing that lets a consumer tell the two apart, since both are
+    # otherwise returned/stored in the exact same shape.
+    source         = Column(String(20), nullable=False, default="ai_generated")
 
     def to_dict(self) -> dict:
         return {
@@ -35,4 +40,5 @@ class RippleGraph(Base):
             "graph_data":     self.graph_data or {"nodes": [], "edges": []},
             "insights":       self.insights or {},
             "generated_at":   self.generated_at.isoformat() if self.generated_at else None,
+            "source":         self.source or "ai_generated",
         }

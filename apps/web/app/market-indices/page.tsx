@@ -5,8 +5,8 @@ import Link from "next/link";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 interface IndexQuote {
   name: string; ticker: string; value: string; change: string;

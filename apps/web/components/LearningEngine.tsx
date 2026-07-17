@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_BASE_URL as API } from "@/lib/api";
 
 interface CalibrationRow {
   level: "Low" | "Medium" | "High" | "Very High";
@@ -26,7 +27,6 @@ const LEVEL_COLOR: Record<string, string> = {
   "Low":       "#ef4444",
 };
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 export function LearningEngine() {
   const [stats, setStats]     = useState<PredictionStats | null>(null);

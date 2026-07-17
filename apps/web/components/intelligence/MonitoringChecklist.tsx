@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ClipboardList, Loader2, RefreshCw, ChevronRight } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,10 +67,6 @@ function Skel({ w }: { w: string }) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-
-const API = typeof window !== "undefined"
-  ? (process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000")
-  : "http://localhost:8000";
 
 export function MonitoringChecklist({
   items: staticItems,

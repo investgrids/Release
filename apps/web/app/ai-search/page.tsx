@@ -9,8 +9,8 @@ import { Search, Newspaper, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Pl
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { DecisionIntelligencePanel, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface AnswerSection {

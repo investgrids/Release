@@ -8,9 +8,9 @@ import {
 } from "lucide-react";
 import { HomepageRefresher } from "@/components/homepage/HomepageRefresher";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
+import { API_BASE_URL as API } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 // ── Fetch helpers — single cached call per render ─────────────────────────────
 async function live<T = any>(url: string, ms = 7000): Promise<T | null> {

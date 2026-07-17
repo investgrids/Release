@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API  = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.com";
 
 export async function generateMetadata({

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 function Spark({ positive, seed }: { positive: boolean; seed: number }) {
   const pts: number[] = [];

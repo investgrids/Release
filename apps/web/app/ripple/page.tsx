@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Flame, Landmark, Building2, Repeat2, Telescope, Zap, Link2, BarChart2, Plane, Factory } from "lucide-react";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
+import { API_BASE_URL as API } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Ripple Engine — Market Dependency Graph | MarketRipple",
@@ -12,7 +13,6 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   geopolitical: { label: "Global Event",       cls: "border-rose-500/30 bg-rose-500/10 text-rose-400" },

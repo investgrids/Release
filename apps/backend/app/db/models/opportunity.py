@@ -36,6 +36,10 @@ class Opportunity(Base):
     sectors          = Column(JSON, nullable=False, default=list)
     # Structured AI summary: {matters, benefits, risks, invalidate, why_bullets}
     ai_summary       = Column(JSON, nullable=True)
+    # "pipeline" | "seed" — seed rows are hardcoded placeholder opportunities
+    # inserted once so the radar page isn't empty on first boot; this is the
+    # only thing distinguishing them from real pipeline-generated rows.
+    source           = Column(String(20), nullable=False, default="pipeline")
     created_at       = Column(DateTime(timezone=True), default=_now, nullable=False)
     updated_at       = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
 

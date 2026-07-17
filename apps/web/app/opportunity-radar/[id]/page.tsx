@@ -6,6 +6,7 @@ import { fixMojibake } from "@/lib/text";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import Link from "next/link";
 import { Lightbulb, Building2, AlertTriangle, Ban, Check } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
   PieChart, Pie, Cell,
@@ -39,7 +40,6 @@ interface OpportunityDetail {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const API = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 function riskColor(r: string) {
   const lo = r.toLowerCase();

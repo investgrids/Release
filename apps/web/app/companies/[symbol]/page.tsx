@@ -11,6 +11,8 @@ import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { NextSteps } from "@/components/NextSteps";
 import { RelatedContent } from "@/components/RelatedContent";
+import { API_BASE_URL as API } from "@/lib/api";
+import { scoreToColor, impactToStyle } from "@/lib/scoring";
 import {
   Star, Check, Sparkles, TrendingUp, IndianRupee, Target, Zap,
   BarChart2, ClipboardList, CheckCircle2, Rocket, Globe2, FlaskConical,
@@ -27,7 +29,6 @@ const RFlow  = dynamic(() => import("reactflow").then(m => m.default),    { ssr:
 const RFBg   = dynamic(() => import("reactflow").then(m => m.Background), { ssr: false });
 const RFCtrl = dynamic(() => import("reactflow").then(m => m.Controls),   { ssr: false });
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface StockEvent   { title: string; date: string }
@@ -76,15 +77,8 @@ const fadeUp = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const n2 = (v?: string | number) => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
-const scoreColor = (s: number) =>
-  s >= 75 ? "#22c55e" : s >= 50 ? "#38bdf8" : s >= 30 ? "#f59e0b" : "#f43f5e";
-
-function impactColor(score: number) {
-  if (score >= 75) return { text: "text-rose-400",    bg: "bg-rose-500/15",   ring: "#f43f5e", label: "Very High" };
-  if (score >= 55) return { text: "text-amber-400",   bg: "bg-amber-500/15",  ring: "#f59e0b", label: "High"      };
-  if (score >= 35) return { text: "text-sky-400",     bg: "bg-sky-500/15",    ring: "#38bdf8", label: "Medium"    };
-  return                  { text: "text-slate-400",   bg: "bg-slate-700/20",  ring: "#64748b", label: "Low"       };
-}
+const scoreColor = scoreToColor;
+const impactColor = impactToStyle;
 
 function metricColor(label: string, value: string) {
   const n = n2(value);
@@ -107,17 +101,28 @@ function deriveSegments(sector: string, symbol: string) {
   return base[sector] ?? [{ name: "Core Business", pct: 60, growth: "+12%", margin: "20%" }, { name: "Adjacent", pct: 25, growth: "+8%", margin: "15%" }, { name: "New Ventures", pct: 15, growth: "+25%", margin: "10%" }];
 }
 
-function deriveShareholding(gov_score: number) {
-  const promoter = gov_score > 70 ? 74 : gov_score > 40 ? 51 : 35;
-  const fii      = Math.round((100 - promoter) * 0.3);
-  const dii      = Math.round((100 - promoter) * 0.25);
-  const retail   = 100 - promoter - fii - dii;
+// Real, live shareholding split from yfinance (`held_institutions` /
+// `held_insiders`, already fetched in market_data.py from
+// info.heldPercentInstitutions / heldPercentInsiders). Only two of the
+// four SEBI categories are available from this data source — "Insiders"
+// approximates Promoters, "Institutions" approximates combined FII+DII —
+// so this is intentionally a 3-way split (Insiders / Institutions /
+// Public & Others), not a fabricated 4-way Promoter/FII/DII/Retail chart.
+// Returns null when yfinance has no holdings data for this stock, so the
+// UI can show an honest "unavailable" state instead of guessing.
+function deriveShareholding(stock: StockDetail) {
+  const insiders     = n2(stock.held_insiders);
+  const institutions = n2(stock.held_institutions);
+  const hasInsiders     = !!stock.held_insiders && stock.held_insiders !== "—";
+  const hasInstitutions = !!stock.held_institutions && stock.held_institutions !== "—";
+  if (!hasInsiders && !hasInstitutions) return null;
+
+  const other = Math.max(0, Math.round((100 - insiders - institutions) * 10) / 10);
   return [
-    { name: "Promoters",  value: promoter, color: "#6366f1" },
-    { name: "FIIs",       value: fii,      color: "#38bdf8" },
-    { name: "DIIs",       value: dii,      color: "#22c55e" },
-    { name: "Retail",     value: retail,   color: "#f59e0b" },
-  ];
+    { name: "Insiders (Promoters)",   value: Math.round(insiders * 10) / 10,     color: "#6366f1" },
+    { name: "Institutions (FII+DII)", value: Math.round(institutions * 10) / 10, color: "#38bdf8" },
+    { name: "Public & Others",        value: other,                              color: "#f59e0b" },
+  ].filter(d => d.value > 0);
 }
 
 function deriveGeography(sector: string) {
@@ -632,8 +637,11 @@ function KeyRatios({ stock }: { stock: StockDetail }) {
 }
 
 // ── Section 7: Event Timeline ─────────────────────────────────────────────────
+// Note: StockEvent only carries {title, date} — there is no real per-event
+// impact/sentiment score from the backend, so this intentionally does not
+// show an impact badge, sentiment badge, or score circle (a previous
+// version faked all three from a hardcoded cycling array).
 function EventTimeline({ stock, symbol }: { stock: StockDetail; symbol: string }) {
-  const mockScores = [85, 72, -35, 68, 45, 78];
   const events = stock.events.length > 0 ? stock.events : [];
   if (!events.length) return null;
   return (
@@ -641,30 +649,18 @@ function EventTimeline({ stock, symbol }: { stock: StockDetail; symbol: string }
       <Link href="/events" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All Events →</Link>
     }>
       <div className="mt-4 space-y-3">
-        {events.map((e, i) => {
-          const score = mockScores[i % mockScores.length];
-          const ic = impactColor(Math.abs(score));
-          const sentiment = score >= 0 ? "Positive" : "Negative";
-          return (
-            <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-              className="flex items-start gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 hover:border-sky-400/20 hover:bg-sky-400/[0.02] transition">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${ic.bg}`}>
-                <svg className={`h-5 w-5 ${ic.text}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                  <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${ic.text} border-current/20`}>{ic.label} Impact</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${score >= 0 ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"}`}>{sentiment}</span>
-                  <span className="text-[10px] text-slate-600">{e.date}</span>
-                </div>
-                <p className="text-[13px] font-semibold text-white line-clamp-1">{e.title}</p>
-              </div>
-              <ScoreCircle score={score} size={48}/>
-            </motion.div>
-          );
-        })}
+        {events.map((e, i) => (
+          <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
+            className="flex items-start gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 hover:border-sky-400/20 hover:bg-sky-400/[0.02] transition">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15">
+              <Clock className="h-5 w-5 text-sky-400"/>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-slate-600 mb-1">{e.date}</p>
+              <p className="text-[13px] font-semibold text-white line-clamp-1">{e.title}</p>
+            </div>
+          </motion.div>
+        ))}
       </div>
     </SectionCard>
   );
@@ -791,20 +787,23 @@ function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
 }
 
 // ── Section 10: News Impact ───────────────────────────────────────────────────
+// Note: only `impact_score` is real (deterministic, keyword-based, computed
+// server-side in news_fetcher.py). There is no real per-article sentiment
+// classification anywhere in the pipeline, so this intentionally does not
+// show a Positive/Negative/Neutral badge (a previous version faked both the
+// score and the sentiment from hardcoded cycling arrays).
 function NewsImpact({ stock, relatedNews }: { stock: StockDetail; relatedNews: any[] }) {
   const articles = relatedNews.length ? relatedNews : stock.news;
   if (!articles.length) return null;
-  const sentiments = ["Positive", "Positive", "Negative", "Neutral", "Positive"];
-  const scores     = [78, 65, -42, 55, 70];
   return (
     <SectionCard title="News Impact Analysis" action={
       <Link href="/news" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All News →</Link>
     }>
       <div className="mt-4 space-y-3">
         {articles.slice(0, 5).map((a: any, i: number) => {
-          const sentiment = sentiments[i % sentiments.length];
-          const score     = scores[i % scores.length];
-          const ic = impactColor(Math.abs(score));
+          const hasScore = typeof a.impact_score === "number";
+          const score = hasScore ? Math.round(a.impact_score * 10) : 0;
+          const ic = impactColor(score);
           return (
             <div key={i} className="flex items-start gap-3 rounded-2xl border border-white/[0.05] bg-white/[0.02] p-4 hover:border-sky-400/10 transition">
               {/* Thumbnail placeholder */}
@@ -813,15 +812,14 @@ function NewsImpact({ stock, relatedNews }: { stock: StockDetail; relatedNews: a
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                  <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${ic.text} border-current/20`}>{ic.label}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${sentiment === "Positive" ? "bg-emerald-500/15 text-emerald-300" : sentiment === "Negative" ? "bg-rose-500/15 text-rose-300" : "bg-amber-500/15 text-amber-300"}`}>{sentiment}</span>
+                  {hasScore && <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${ic.text} border-current/20`}>{ic.label}</span>}
                   <span className="text-[10px] text-slate-600">{a.source || "Source"}</span>
                   <span className="text-[10px] text-slate-600">{a.published_at?.slice(0, 10) || ""}</span>
                 </div>
                 <p className="text-[13px] font-semibold text-white line-clamp-2">{a.headline}</p>
                 {a.summary && <p className="mt-0.5 text-[11px] text-slate-500 line-clamp-1">{a.summary}</p>}
               </div>
-              <ScoreCircle score={score} size={44}/>
+              {hasScore && <ScoreCircle score={score} size={44}/>}
             </div>
           );
         })}
@@ -995,7 +993,14 @@ function OrderBook({ stock }: { stock: StockDetail }) {
 
 // ── Section 16: Shareholding ──────────────────────────────────────────────────
 function Shareholding({ stock }: { stock: StockDetail }) {
-  const data = useMemo(() => deriveShareholding(stock.gov_score), [stock.gov_score]);
+  const data = useMemo(() => deriveShareholding(stock), [stock.held_insiders, stock.held_institutions]);
+  if (!data) {
+    return (
+      <SectionCard title="Shareholding Pattern">
+        <p className="mt-4 text-[12px] text-slate-500">Shareholding data unavailable for this stock.</p>
+      </SectionCard>
+    );
+  }
   return (
     <SectionCard title="Shareholding Pattern">
       <div className="mt-4 grid grid-cols-2 gap-5">
@@ -1024,12 +1029,6 @@ function Shareholding({ stock }: { stock: StockDetail }) {
               </div>
             </div>
           ))}
-          {stock.held_institutions && stock.held_institutions !== "—" && (
-            <div className="mt-2 rounded-xl border border-white/[0.05] bg-white/[0.02] px-3 py-2">
-              <p className="text-[10px] text-slate-500">Institutional Hold</p>
-              <p className="text-[13px] font-bold text-white">{stock.held_institutions}</p>
-            </div>
-          )}
         </div>
       </div>
     </SectionCard>

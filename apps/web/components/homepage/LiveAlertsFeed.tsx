@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { TrendingUp, TrendingDown, Zap, AlertTriangle, Activity } from "lucide-react";
 import { useAlerts, type IntelligenceEvent } from "@/components/AlertProvider";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const POLL_MS = 60_000; // poll DB feed every 60 s as SSE fallback
 
 function timeAgo(iso: string) {

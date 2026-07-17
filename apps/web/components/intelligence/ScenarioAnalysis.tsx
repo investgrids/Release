@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BarChart2, Loader2, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -176,10 +177,6 @@ function ScenarioCard({ caseKey, data }: { caseKey: CaseKey; data: ScenarioBranc
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-
-const API = typeof window !== "undefined"
-  ? (process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000")
-  : "http://localhost:8000";
 
 export function ScenarioAnalysis({
   bull: staticBull,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   Activity, Zap, CheckCircle2, XCircle, Clock, RefreshCw,
   Eye, ChevronLeft, ChevronRight, AlertTriangle, Sparkles,
@@ -9,7 +10,6 @@ import {
   GitBranch, Shield, RotateCcw, Layers, FileText, Timer,
 } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface EngineStatus {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fixMojibake } from "@/lib/text";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   Target, TrendingUp, ShieldAlert, CheckCircle2,
   BookOpen, Zap, Clock, Loader2,
@@ -68,7 +69,6 @@ export interface InvestmentThesisCardProps {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 function strengthStyle(s: number) {
   if (s >= 75) return "text-emerald-400 border-emerald-500/30 bg-emerald-500/10";

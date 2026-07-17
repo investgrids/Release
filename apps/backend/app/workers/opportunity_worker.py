@@ -136,7 +136,7 @@ async def _seed_static_opportunities(db) -> None:
 
     for seed in STATIC_SEEDS:
         try:
-            opp = await generate_opportunity_from_events(db, seed["events"])
+            opp = await generate_opportunity_from_events(db, seed["events"], source="seed")
             if opp:
                 logger.info("Seeded opportunity: %s (id=%s)", seed["theme"], opp.id)
         except Exception as exc:

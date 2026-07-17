@@ -3,13 +3,13 @@
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAlerts } from "@/components/AlertProvider";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   TrendingUp, TrendingDown, Minus, ChevronDown, ChevronRight,
   Banknote, Monitor, Zap, Shield, Car, Pill, HardHat,
   ShoppingCart, Layers, Building2, LineChart, FlaskConical, BarChart2,
 } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type MarketStory = {

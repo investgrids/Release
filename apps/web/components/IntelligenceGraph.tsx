@@ -1,6 +1,7 @@
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   Zap, Landmark, BarChart2, Building2, Globe, Package, Lightbulb,
   TrendingUp, TrendingDown, ArrowLeftRight, Globe2, Activity,
@@ -61,7 +62,6 @@ const HIST_SCENARIOS=[
   {id:"tariff",   label:"Trump Tariffs",   sub:"Apr 2025",color:"#fb923c"},
 ];
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const RANK: Record<string,number> = { event:4, policy:3, theme:2, commodity:1 };
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────

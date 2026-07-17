@@ -6,6 +6,7 @@ import {
   AlertCircle, Building2, Layers, BookOpen, Clock, ExternalLink,
 } from "lucide-react";
 import MiniIntelligenceGraph from "@/components/MiniIntelligenceGraph";
+import { API_BASE_URL as API } from "@/lib/api";
 
 function makeNodeId(nodeType: string, label: string): string {
   const slug = label.toLowerCase().replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
@@ -14,7 +15,6 @@ function makeNodeId(nodeType: string, label: string): string {
 
 export const dynamic = "force-dynamic";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 // ── Data fetch ─────────────────────────────────────────────────────────────────
 async function fetchArticle(slug: string) {

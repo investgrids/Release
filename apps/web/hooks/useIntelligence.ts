@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { IntelligenceObject } from "@/components/intelligence/IntelligenceBlock";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 type ContextType = "home" | "company" | "event" | "theme" | "news" | "search";
 

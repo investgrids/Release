@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Landmark, TrendingUp, ShoppingCart, Factory, ClipboardList, DollarSign, FileText, Building2, Banknote, HardHat, Scale, CalendarDays, Clock } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 const IMPACT_MAP: Record<string, { label: string; color: string; dot: string }> = {
   "RBI":        { label: "High",   color: "text-rose-400 bg-rose-500/10 border-rose-500/20",   dot: "bg-rose-500"    },

@@ -40,8 +40,12 @@ class FyersProvider(MarketDataProvider):
         self,
         client_id:    str,
         access_token: str,
-        secret_key:   str  = "",
-        redirect_uri: str  = "https://127.0.0.1:8000/api/data/auth/callback",
+        secret_key:   str = "",
+        # No hardcoded default — every call site passes this explicitly,
+        # sourced from settings.fyers_redirect_uri (the single source of
+        # truth for this URL). A provider-level default here was just
+        # another copy of the same literal to keep in sync.
+        redirect_uri: str = "",
     ) -> None:
         self._client_id    = client_id
         self._access_token = access_token

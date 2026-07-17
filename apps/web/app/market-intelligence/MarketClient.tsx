@@ -13,6 +13,7 @@ import { AfterMarketTab }            from "@/components/market/tabs/AfterMarketT
 import { GlobalMarketsTab }          from "@/components/market/tabs/GlobalMarketsTab";
 import { EconomicCalendarTab }       from "@/components/market/tabs/EconomicCalendarTab";
 import { OverviewTab }               from "@/components/market/tabs/OverviewTab";
+import { API_BASE_URL as API } from "@/lib/api";
 
 type TabId = "overview" | "pre-market" | "live-market" | "after-market" | "global-markets" | "economic-calendar";
 
@@ -71,7 +72,6 @@ export function MarketClient({
   const [overview, setOverview] = useState<any>(initialOverview);
   const [overviewLoading, setOverviewLoading] = useState(true);
 
-  const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
   // Fetch overview client-side — it's slow (24 yfinance calls) so we don't block SSR with it
   useEffect(() => {

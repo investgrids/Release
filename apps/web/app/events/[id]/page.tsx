@@ -18,6 +18,7 @@ import { RelatedContent } from "@/components/RelatedContent";
 import { HistoricalMemory } from "@/components/HistoricalMemory";
 import { useIntelligence } from "@/hooks/useIntelligence";
 import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTip,
   ResponsiveContainer, PieChart, Pie, Cell,
@@ -27,7 +28,6 @@ const ReactFlow  = dynamic(() => import("reactflow").then(m => m.default),     {
 const Background = dynamic(() => import("reactflow").then(m => m.Background),  { ssr: false });
 const Controls   = dynamic(() => import("reactflow").then(m => m.Controls),    { ssr: false });
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Company  { symbol: string; name: string; impact_type: string; impact_score: number; reason: string }

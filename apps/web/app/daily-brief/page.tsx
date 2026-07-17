@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TrendingUp, AlertTriangle, Newspaper, Calendar, BarChart2, ArrowRight, Lightbulb } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_URL ?? "http://localhost:8000";
 
 export const dynamic   = "force-dynamic";
 export const revalidate = 0;

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   ArrowRight, Zap, Building2, BookOpen,
   Target, Activity, Search, ExternalLink,
   TrendingUp, Brain, Shield,
 } from "lucide-react";
 
-const API  = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.com";
 
 type EntityType = "event" | "company" | "story" | "opportunity" | "ripple" | "search";

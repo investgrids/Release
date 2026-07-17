@@ -366,7 +366,7 @@ async def _call_with_fallback(
       6. OpenRouter smaller models     — final fallback
     """
     or_headers = {
-        "HTTP-Referer": "https://investgrids.com",
+        "HTTP-Referer": settings.frontend_url or "https://investgrids.com",
         "X-Title": "InvestGrids Market Intelligence",
     }
 

@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Telescope } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 function StatCard({ label, value, positive, sub }: { label: string; value: string; positive?: boolean; sub?: string }) {
   return (

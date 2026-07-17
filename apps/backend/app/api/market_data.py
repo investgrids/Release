@@ -366,7 +366,7 @@ async def fyers_auth_url():
         auth = FyersAuthManager(
             client_id    = client_id,
             secret_key   = secret_key,
-            redirect_uri = getattr(settings, "fyers_redirect_uri", "https://127.0.0.1:8000/api/data/auth/callback"),
+            redirect_uri = settings.fyers_redirect_uri,
         )
         url = auth.get_auth_url()
         return {"auth_url": url, "instructions": "Visit auth_url in a browser to authorise Fyers."}
@@ -387,7 +387,7 @@ async def fyers_auth_callback(auth_code: str = Query(...)):
 
         client_id    = getattr(settings, "fyers_client_id",    "")
         secret_key   = getattr(settings, "fyers_secret_key",   "")
-        redirect_uri = getattr(settings, "fyers_redirect_uri", "https://127.0.0.1:8000/api/data/auth/callback")
+        redirect_uri = settings.fyers_redirect_uri
 
         if not client_id:
             raise HTTPException(status_code=503, detail="FYERS_CLIENT_ID not configured")

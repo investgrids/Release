@@ -146,9 +146,13 @@ def _parse_json_block(text: str) -> dict | None:
 async def generate_opportunity_from_events(
     db: AsyncSession,
     event_texts: list[dict],
+    source: str = "pipeline",
 ) -> Opportunity | None:
     """
     event_texts: list of {id, title, summary, published_at, category}
+    source: "pipeline" for real news-driven generation (default), "seed" for
+        the static placeholder opportunities inserted on first empty-DB boot
+        — kept distinguishable forever via Opportunity.source.
 
     Returns the created/updated Opportunity ORM object, or None on failure.
     """
@@ -271,6 +275,7 @@ Return:
         "time_horizon": horizon,
         "sectors": sectors,
         "ai_summary": ai_summary_data,
+        "source": source,
     })
 
     # 4. Metrics (heuristic)

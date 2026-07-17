@@ -8,6 +8,7 @@ import { useAlerts } from "@/components/AlertProvider";
 import { Bell, Search, ChevronDown, Menu, X, Bookmark } from "lucide-react";
 import { WatchlistDrawer } from "@/components/WatchlistDrawer";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { API_BASE_URL as API } from "@/lib/api";
 
 // Primary nav — always visible on desktop
 const NAV_PRIMARY = [
@@ -73,7 +74,6 @@ export function SiteHeader() {
 
   // Fetch Nifty value once on mount (lightweight, non-blocking)
   useEffect(() => {
-    const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
     fetch(`${API}/api/indices/`)
       .then(r => r.ok ? r.json() : null)
       .then((data: any[] | null) => {

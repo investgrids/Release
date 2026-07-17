@@ -52,7 +52,7 @@ def _build_provider() -> MarketDataProvider:
         client_id    = getattr(settings, "fyers_client_id",    "")
         access_token = getattr(settings, "fyers_access_token", "")
         secret_key   = getattr(settings, "fyers_secret_key",   "")
-        redirect_uri = getattr(settings, "fyers_redirect_uri", "https://127.0.0.1:8000/api/data/auth/callback")
+        redirect_uri = settings.fyers_redirect_uri
 
         if client_id:
             # If no token in env, try Redis (token stored there after TOTP auth / OAuth)

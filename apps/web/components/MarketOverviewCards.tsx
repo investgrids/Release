@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 const PERIODS = ["1D", "1W", "1M", "6M", "1Y", "3Y"] as const;
 type Period = typeof PERIODS[number];

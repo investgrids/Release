@@ -6,12 +6,12 @@ import Link from "next/link";
 import { Bot, Shield, Train, Leaf, Zap, FlaskConical, Flame, BarChart2 } from "lucide-react";
 import { useIntelligence } from "@/hooks/useIntelligence";
 import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   LineChart, Line, AreaChart, Area,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 /* ── Types ───────────────────────────────────────────────── */
 interface Beneficiary {

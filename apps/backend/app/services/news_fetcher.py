@@ -7,6 +7,7 @@ import asyncio
 import hashlib
 import re
 import time
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree as ET
 
@@ -73,9 +74,13 @@ RSS_FEEDS = [
     ),
 ]
 
-# Headline keyword → impact score
+# Headline keyword → impact score. The "budget <year>" keyword tracks the
+# current year automatically (evaluated at process start) instead of a
+# hardcoded year that silently stops matching once that year's budget cycle
+# passes — India's Union Budget lands early Feb, so "current year" is
+# correct for essentially the whole year.
 _IMPACT_RULES: list[tuple[float, list[str]]] = [
-    (9.5, ["repo rate", "rbi rate cut", "rbi rate hike", "budget 2026", "gdp growth", "recession"]),
+    (9.5, ["repo rate", "rbi rate cut", "rbi rate hike", f"budget {datetime.now(timezone.utc).year}", "gdp growth", "recession"]),
     (8.5, ["rbi", "sebi", "defence", "capex", "inflation", "fii", "sensex", "nifty",
            "rate cut", "rate hike", "fiscal deficit", "crude oil", "rupee", "foreign reserve"]),
     (7.5, ["results", "earnings", "profit", "revenue", "merger", "acquisition", "ipo",

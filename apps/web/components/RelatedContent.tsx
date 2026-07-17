@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { API_BASE_URL as API } from "@/lib/api";
 import {
   Zap, Building2, BookOpen, Target, Activity,
   TrendingUp, ArrowRight, Sparkles,
@@ -35,7 +36,6 @@ interface RelatedContentProps {
   className?: string;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 const TYPE_META: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
   events:       { icon: <Zap className="h-3.5 w-3.5" />,       label: "Related Events",       color: "violet" },

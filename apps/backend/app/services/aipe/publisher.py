@@ -26,6 +26,7 @@ from typing import Any
 
 import structlog
 
+from app.core.config import settings
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.session import AsyncSessionLocal
 from app.services.aipe.article_generator import compute_seo_score, generate_intelligence_article
@@ -115,7 +116,7 @@ async def _publish_new_article(
     now = datetime.now(timezone.utc)
     article_id = str(uuid.uuid4())
     slug = article_data.get("slug", article_id)
-    site_url = "https://marketripple.com"
+    site_url = settings.frontend_url or "https://investgrids.com"
 
     # Build JSON-LD (Article + FAQPage if FAQs present)
     json_ld: dict[str, Any] = {

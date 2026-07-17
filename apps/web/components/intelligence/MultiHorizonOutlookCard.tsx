@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ComponentType } from "react";
 import { ChevronDown, ChevronRight, Zap, RefreshCw, TrendingUp, TrendingDown, ArrowUp, ArrowDown, ArrowUpRight, Minus, Clock, Target, BarChart2, Globe } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -222,7 +223,7 @@ function HorizonSkeleton() {
 
 // ── API call ──────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE = API_BASE_URL;
 
 async function fetchHorizons(ctx: HorizonFetchContext): Promise<HorizonData[]> {
   const res = await fetch(`${API_BASE}/api/intelligence/horizon`, {

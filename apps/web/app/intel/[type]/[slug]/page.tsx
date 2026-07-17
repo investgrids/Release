@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, TrendingUp, AlertTriangle, Building2, Globe, Clock, BookOpen } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_URL ?? "http://localhost:8000";
 
 const VALID_TYPES = ["company", "event", "theme", "news"] as const;
 type IntelType = (typeof VALID_TYPES)[number];

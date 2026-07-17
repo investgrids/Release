@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { GraphCanvas } from "./GraphCanvas";
+import { API_BASE_URL as API } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Market Intelligence Map · InvestGrids",
@@ -8,7 +9,6 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 const TYPE_RANK: Record<string, number> = { event: 4, policy: 3, theme: 2, commodity: 1 };
 

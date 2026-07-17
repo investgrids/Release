@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { AreaChart, Area, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { ClipboardList } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 interface GmpPoint { label: string; value: number }
 interface IPO {

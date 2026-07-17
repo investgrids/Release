@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import Link from "next/link";
 import { Coins, Layers, Zap, Gem, Droplets, Flame, Gauge, Globe, Shield, TrendingUp, Package, Bot, BarChart2 } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 interface ChartPoint { label: string; value: number }
 interface Commodity {
