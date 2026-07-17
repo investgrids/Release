@@ -20,8 +20,8 @@ interface Event {
   id: string;
   title: string;
   summary: string;
-  impact_score: number;
-  confidence: number;
+  impact_score: number | null;
+  confidence: number | null;
   sectors: string[];
   companies: (string | { symbol: string; name: string })[];
   category: string;
@@ -75,18 +75,26 @@ const SECTOR_ICONS: Record<string, ReactNode> = {
 };
 
 // Backend stores 0-10; static fallback uses 0-100. Normalise to 0-100.
-function norm(s: number): number { return s <= 10 ? s * 10 : s; }
+// null means the Scoring Engine had insufficient real evidence — never
+// coerce that into 0/"Low", which would silently claim a real (low) score
+// where none was actually computed.
+function norm(s: number | null): number | null {
+  if (s === null || s === undefined) return null;
+  return s <= 10 ? s * 10 : s;
+}
 
-function impactLabel(s: number): string {
+function impactLabel(s: number | null): string {
   const n = norm(s);
+  if (n === null) return "Unscored";
   if (n >= 90) return "Very High";
   if (n >= 75) return "High";
   if (n >= 55) return "Medium";
   return "Low";
 }
 
-function impactStyle(s: number) {
+function impactStyle(s: number | null) {
   const n = norm(s);
+  if (n === null) return { circle: "border-slate-700 bg-slate-800/30 text-slate-500", pill: "bg-slate-800/30 text-slate-500 border-slate-700/40" };
   if (n >= 90) return { circle: "border-rose-500 bg-rose-500/20 text-rose-400",    pill: "bg-rose-500/15 text-rose-300 border-rose-500/30"    };
   if (n >= 75) return { circle: "border-amber-400 bg-amber-500/20 text-amber-400", pill: "bg-amber-500/15 text-amber-300 border-amber-500/30"  };
   if (n >= 55) return { circle: "border-sky-400 bg-sky-500/20 text-sky-400",       pill: "bg-sky-500/15 text-sky-300 border-sky-500/30"        };
@@ -134,9 +142,15 @@ function formatDateLabel(dateStr: string): string {
 }
 
 // ── Static fallback data (shown instantly; replaced silently by live API) ────
+// Fixed dates, not computed from Date.now() — this is fallback/seed content
+// shown only until the real fetch resolves, and React explicitly flags
+// Date.now()/new Date() at module scope as a hydration-mismatch source
+// (server module-eval time and client module-eval time are two different
+// instants, occasionally straddling a day boundary and changing these
+// truncated-to-date strings between the SSR pass and the client's first render).
 const STATIC_EVENTS: Event[] = [
   {
-    id: "s1", category: "RBI", date: new Date().toISOString().slice(0, 10), time: "10:00 AM",
+    id: "s1", category: "RBI", date: "2026-07-17", time: "10:00 AM",
     title: "RBI MPC Meeting: Rate Decision on Benchmark Repo Rate",
     summary: "The Monetary Policy Committee meets to deliberate on benchmark interest rates amid moderating inflation and steady GDP growth.",
     impact_score: 92, confidence: 0.91,
@@ -145,7 +159,7 @@ const STATIC_EVENTS: Event[] = [
     source: "RBI",
   },
   {
-    id: "s2", category: "Government", date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), time: "2:30 PM",
+    id: "s2", category: "Government", date: "2026-07-16", time: "2:30 PM",
     title: "Union Budget 2026-27: Infrastructure Allocation Surge to ₹11.11 Lakh Crore",
     summary: "Government announces record capex outlay targeting roads, railways and urban infrastructure for the coming fiscal year.",
     impact_score: 88, confidence: 0.87,
@@ -154,7 +168,7 @@ const STATIC_EVENTS: Event[] = [
     source: "PIB",
   },
   {
-    id: "s3", category: "Corporate", date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), time: "4:00 PM",
+    id: "s3", category: "Corporate", date: "2026-07-16", time: "4:00 PM",
     title: "Q4 Results: TCS Reports 8.4% YoY Revenue Growth with Strong Deal Wins",
     summary: "Tata Consultancy Services posts strong quarterly results with robust deal wins across BFSI and healthcare verticals.",
     impact_score: 79, confidence: 0.85,
@@ -163,7 +177,7 @@ const STATIC_EVENTS: Event[] = [
     source: "NSE",
   },
   {
-    id: "s4", category: "Policy", date: new Date(Date.now() - 172800000).toISOString().slice(0, 10), time: "11:00 AM",
+    id: "s4", category: "Policy", date: "2026-07-15", time: "11:00 AM",
     title: "SEBI Introduces New F&O Framework with Higher Margin Requirements",
     summary: "Markets regulator tightens derivatives rules with higher margin requirements and revised lot size changes for retail investors.",
     impact_score: 74, confidence: 0.82,
@@ -172,7 +186,7 @@ const STATIC_EVENTS: Event[] = [
     source: "BSE",
   },
   {
-    id: "s5", category: "Global", date: new Date(Date.now() - 172800000).toISOString().slice(0, 10), time: "6:00 PM",
+    id: "s5", category: "Global", date: "2026-07-15", time: "6:00 PM",
     title: "US Fed Holds Rates; Signals Two Cuts in H2 2026",
     summary: "Federal Reserve keeps policy rate unchanged but projects rate reductions in the second half of 2026, supporting EM flows.",
     impact_score: 85, confidence: 0.88,
@@ -183,7 +197,7 @@ const STATIC_EVENTS: Event[] = [
 ];
 
 // ── Impact trend from live events (last 7 days) ───────────────────────────────
-function buildTrendData(events: { date: string; impact_score: number }[]) {
+function buildTrendData(events: { date: string; impact_score: number | null }[]) {
   const today = new Date();
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
@@ -213,7 +227,8 @@ function buildTrendData(events: { date: string; impact_score: number }[]) {
 function EventCard({ ev }: { ev: Event }) {
   const catCfg = CATEGORY_COLOR[ev.category] ?? CATEGORY_COLOR["Macro"];
   const ist     = impactStyle(ev.impact_score);
-  const score   = Math.round(norm(ev.impact_score ?? 0));
+  const normScore = norm(ev.impact_score);
+  const score   = normScore === null ? null : Math.round(normScore);
   const icon    = CATEGORY_ICON[ev.category] ?? CATEGORY_ICON["Default"];
   const comps   = Array.isArray(ev.companies) ? ev.companies : [];
   const sects   = Array.isArray(ev.sectors)   ? ev.sectors   : [];
@@ -286,7 +301,7 @@ function EventCard({ ev }: { ev: Event }) {
       <div className="shrink-0 flex flex-col items-center gap-1 pt-1">
         <p className="text-[9px] uppercase tracking-wider text-slate-600">Impact</p>
         <div className={`flex h-14 w-14 flex-col items-center justify-center rounded-full border-2 ${ist.circle}`}>
-          <span className="text-[18px] font-black leading-none">{score}</span>
+          <span className="text-[18px] font-black leading-none">{score === null ? "—" : score}</span>
           <span className="text-[8px] font-medium">{impactLabel(ev.impact_score)}</span>
         </div>
         {/* Actions */}
@@ -315,7 +330,7 @@ function EventCard({ ev }: { ev: Event }) {
 // ── PriorityEventsBar ─────────────────────────────────────────────────────────
 function PriorityEventsBar({ events }: { events: Event[] }) {
   const top3 = [...events]
-    .sort((a, b) => norm(b.impact_score) - norm(a.impact_score))
+    .sort((a, b) => (norm(b.impact_score) ?? -1) - (norm(a.impact_score) ?? -1))
     .slice(0, 3);
 
   if (top3.length === 0) return null;
@@ -386,9 +401,9 @@ export default function EventsPage() {
   const grouped = groupByDate(filtered);
 
   const total    = events.length;
-  const veryHigh = events.filter(e => e.impact_score >= 90).length;
-  const high     = events.filter(e => e.impact_score >= 75 && e.impact_score < 90).length;
-  const medium   = events.filter(e => e.impact_score >= 55 && e.impact_score < 75).length;
+  const veryHigh = events.filter(e => e.impact_score !== null && e.impact_score >= 90).length;
+  const high     = events.filter(e => e.impact_score !== null && e.impact_score >= 75 && e.impact_score < 90).length;
+  const medium   = events.filter(e => e.impact_score !== null && e.impact_score >= 55 && e.impact_score < 75).length;
 
   // Sector counts
   const sectorCounts: Record<string, number> = {};
@@ -404,7 +419,7 @@ export default function EventsPage() {
 
   // Recent alerts (last 3 high-impact events)
   const recentAlerts = events
-    .filter(e => e.impact_score >= 75)
+    .filter(e => e.impact_score !== null && e.impact_score >= 75)
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 3);
 
@@ -637,7 +652,7 @@ export default function EventsPage() {
             ) : (
               <div className="space-y-2.5">
                 {recentAlerts.map((ev, i) => {
-                  const dot = ev.impact_score >= 90 ? "bg-rose-500" : ev.impact_score >= 75 ? "bg-amber-500" : "bg-emerald-500";
+                  const dot = ev.impact_score === null ? "bg-slate-600" : ev.impact_score >= 90 ? "bg-rose-500" : ev.impact_score >= 75 ? "bg-amber-500" : "bg-emerald-500";
                   return (
                     <div key={i} className="flex items-start gap-2">
                       <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`}/>
