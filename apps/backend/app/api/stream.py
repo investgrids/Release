@@ -2,10 +2,12 @@
 SSE broadcast endpoint — /api/stream/events
 
 Clients connect with EventSource and receive:
-  connected  — initial handshake
-  alert      — urgency >= 7 event
-  update     — urgency 4-6 event
-  heartbeat  — every 30 s keepalive
+  connected     — initial handshake
+  alert         — urgency >= 7 triaged event
+  update        — urgency 4-6 triaged event
+  score_update  — Intelligence Orchestrator recomputed a score (event/
+                   company/sector ripple-touched by a new event or trigger)
+  heartbeat     — every 30 s keepalive
 """
 from __future__ import annotations
 
@@ -16,13 +18,13 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from app.services.intelligence.event_bus import get_broadcaster, TriagedEvent
+from app.services.intelligence.event_bus import get_broadcaster, TriagedEvent, ScoreUpdate
 
 log = structlog.get_logger(__name__)
 router = APIRouter()
 
 
-def _serialize(event: TriagedEvent) -> str:
+def _serialize_triaged(event: TriagedEvent) -> str:
     return json.dumps({
         "id":               event.raw.id,
         "headline":         event.raw.headline,
@@ -41,13 +43,33 @@ def _serialize(event: TriagedEvent) -> str:
     })
 
 
+def _serialize_score_update(update: ScoreUpdate) -> str:
+    return json.dumps({
+        "entity_type":      update.entity_type,
+        "entity_id":        update.entity_id,
+        "model":            update.model,
+        "score":            update.score,
+        "previous_score":   update.previous_score,
+        "confidence":       update.confidence,
+        "status":           update.status,
+        "version":          update.version,
+        "top_contributors": update.top_contributors,
+        "reasoning":        update.reasoning,
+        "trigger":          update.trigger,
+        "ts":               update.timestamp.isoformat(),
+    })
+
+
 async def _generate(queue: asyncio.Queue):  # type: ignore[type-arg]
     yield "event: connected\ndata: {\"status\":\"connected\"}\n\n"
     while True:
         try:
-            event: TriagedEvent = await asyncio.wait_for(queue.get(), timeout=30.0)
-            etype = "alert" if event.urgency >= 7 else "update"
-            yield f"event: {etype}\ndata: {_serialize(event)}\n\n"
+            item = await asyncio.wait_for(queue.get(), timeout=30.0)
+            if isinstance(item, ScoreUpdate):
+                yield f"event: score_update\ndata: {_serialize_score_update(item)}\n\n"
+            else:
+                etype = "alert" if item.urgency >= 7 else "update"
+                yield f"event: {etype}\ndata: {_serialize_triaged(item)}\n\n"
             queue.task_done()
         except asyncio.TimeoutError:
             ts = datetime.now(timezone.utc).isoformat()

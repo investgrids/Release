@@ -22,7 +22,7 @@ from app.db.models.event import Event
 from app.repositories.event_repository import EventRepository
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
 from app.services.provider_factory import get_ai_provider
-from app.services import feature_extraction, scoring_engine
+from app.services import feature_extraction, scoring_engine, intelligence_orchestrator
 from app.services.historical_memory_service import find_similar_events
 
 logger = structlog.get_logger(__name__)
@@ -236,7 +236,26 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         # Final status (separate commit so it's not rolled back with data)
         await repo.mark_status(eid, "done")
 
-        logger.info("[Pipeline] Enrichment complete: event %s | score=%s", eid, impact.get("impact_score"))
+        logger.info(
+            "[Pipeline] Enrichment complete: event %s | score=%s", eid, event_score.score,
+        )
+
+        # Ripple propagation + cache invalidation + live broadcast. Best-effort:
+        # the event is already successfully enriched and committed above, so an
+        # orchestrator failure (graph lookup, cache, SSE fan-out) must never
+        # turn a successful enrichment into a failed one.
+        try:
+            await intelligence_orchestrator.on_event_scored(
+                event=event,
+                event_features=event_features,
+                event_score=event_score,
+                sector_names=sector_names,
+                company_symbols=[c["symbol"] for c in company_rows],
+                db=db,
+            )
+        except Exception as orch_exc:
+            logger.error("[Pipeline] Orchestrator step failed for %s: %s", eid, orch_exc, exc_info=True)
+
         return True
 
     except Exception as exc:

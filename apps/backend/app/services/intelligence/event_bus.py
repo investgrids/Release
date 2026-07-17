@@ -26,6 +26,29 @@ class RawEvent:
 
 
 @dataclass
+class ScoreUpdate:
+    """
+    Broadcast whenever the Intelligence Orchestrator (re)computes a score
+    for an entity — powers live score changes on the frontend (Homepage,
+    Companies, Themes, Events, ...) without a page refresh. Distinct from
+    TriagedEvent (a new raw news/event item); this is "a score changed",
+    which can fire with no new news at all (e.g. a ripple recompute).
+    """
+    entity_type: str                    # "event" | "company" | "sector" | "theme" | "opportunity" | "risk"
+    entity_id: str
+    model: str                          # "event_impact" | "company_impact" | "ripple_strength" | ...
+    score: Optional[float]
+    previous_score: Optional[float]
+    confidence: Optional[float]
+    status: str                         # "ok" | "insufficient_data" | "ripple_signal"
+    version: str
+    top_contributors: list = field(default_factory=list)
+    reasoning: list = field(default_factory=list)
+    trigger: str = "unknown"            # "new_event" | "new_news" | "earnings" | "market_close" | "policy_change" | "ripple_propagation"
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+@dataclass
 class TriagedEvent:
     """Event after AI triage — ready for broadcast or storage."""
     raw: RawEvent
@@ -86,7 +109,7 @@ class EventBroadcaster:
     def unsubscribe(self, q: asyncio.Queue) -> None:
         self._subscribers.discard(q)
 
-    async def broadcast(self, event: TriagedEvent) -> None:
+    async def broadcast(self, event: "TriagedEvent | ScoreUpdate") -> None:
         dead: set[asyncio.Queue] = set()
         for q in self._subscribers:
             try:
