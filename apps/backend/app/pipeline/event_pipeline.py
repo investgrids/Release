@@ -1,10 +1,10 @@
 """
-Event AI Pipeline â€” 10 sequential stages for enriching a single event.
+Event AI Pipeline — 10 sequential stages for enriching a single event.
 
 Flow:
-  classify â†’ summarize â†’ extract_companies â†’ extract_sectors
-  â†’ impact_analysis â†’ timeline â†’ similar_events â†’ graph
-  â†’ government_policies â†’ persist
+  classify → summarize → extract_companies → extract_sectors
+  → impact_analysis → timeline → similar_events → graph
+  → government_policies → persist
 
 Called exclusively by the event enrichment worker.
 Never called from API routes.
@@ -50,34 +50,34 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
     logger.info("[Pipeline] Starting event %s | %s", eid, title[:80])
 
     try:
-        # Stage 1 â€” Mark as processing so the worker doesn't re-pick it
+        # Stage 1 — Mark as processing so the worker doesn't re-pick it
         await repo.mark_status(eid, "processing")
 
-        # Stage 2 â€” Classify
+        # Stage 2 — Classify
         logger.debug("[Pipeline:%s] classify", eid)
         classification = await ai.classify_event(full_text)
         event_type = str(classification.get("category", "macro"))
 
-        # Stage 3 â€” Summarize
+        # Stage 3 — Summarize
         logger.debug("[Pipeline:%s] summarize", eid)
         ai_summary = await ai.summarize_event(title, full_text, source)
 
-        # Stage 4 â€” Extract companies (run concurrently with stage 5)
+        # Stage 4 — Extract companies (run concurrently with stage 5)
         logger.debug("[Pipeline:%s] extract companies + sectors", eid)
         companies_raw, sectors_raw = await asyncio.gather(
             ai.extract_companies(title, full_text),
             ai.extract_sectors(title, full_text),
         )
 
-        # Stage 5 â€” Impact analysis
+        # Stage 5 — Impact analysis
         logger.debug("[Pipeline:%s] impact analysis", eid)
         impact = await ai.generate_impact_analysis(title, full_text, companies_raw, sectors_raw)
 
-        # Stage 6 â€” Timeline
+        # Stage 6 — Timeline
         logger.debug("[Pipeline:%s] timeline", eid)
         timeline_raw = await ai.generate_timeline(title, full_text, event_type)
 
-        # Stage 7 â€” Similar events (DB lookup â†’ AI ranking)
+        # Stage 7 — Similar events (DB lookup → AI ranking)
         logger.debug("[Pipeline:%s] similar events", eid)
         sector_names = [s.get("sector", "") for s in sectors_raw if s.get("sector")]
         candidates = await repo.get_similar_by_sectors(sector_names, exclude_id=eid)
@@ -87,16 +87,16 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         ]
         similar_raw = await ai.find_similar_events(title, sector_names, candidate_dicts)
 
-        # Stage 8 â€” Network graph
+        # Stage 8 — Network graph
         logger.debug("[Pipeline:%s] graph", eid)
         graph_raw = await ai.generate_graph(title, companies_raw, sectors_raw)
 
-        # Stage 9 â€” Government policies (keyword search in DB)
+        # Stage 9 — Government policies (keyword search in DB)
         logger.debug("[Pipeline:%s] policies", eid)
         keywords = sector_names[:3] + title.split()[:4]
         policies = await policy_repo.search_by_keywords(keywords[:6], limit=5)
 
-        # â”€â”€ Stage 10: Persist everything atomically â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Stage 10: Persist everything atomically ──────────────────────────
         logger.debug("[Pipeline:%s] persist", eid)
 
         slug = _make_slug(title, suffix=eid[:8])
