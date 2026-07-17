@@ -22,6 +22,8 @@ from app.db.models.event import Event
 from app.repositories.event_repository import EventRepository
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
 from app.services.provider_factory import get_ai_provider
+from app.services import feature_extraction, scoring_engine
+from app.services.historical_memory_service import find_similar_events
 
 logger = structlog.get_logger(__name__)
 
@@ -69,9 +71,33 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
             ai.extract_sectors(title, full_text),
         )
 
-        # Stage 5 — Impact analysis
+        # Stage 5 — Impact analysis (AI's structured read: market_reaction, analysis,
+        # and per-entity impact_type/reason text — used for narrative, NOT for the
+        # published impact_score/confidence numbers anymore; those come from the
+        # Scoring Engine at stage 5b so they're never an LLM's self-rated guess).
         logger.debug("[Pipeline:%s] impact analysis", eid)
         impact = await ai.generate_impact_analysis(title, full_text, companies_raw, sectors_raw)
+
+        # Stage 5b — Feature extraction + centralized scoring (real signals only)
+        logger.debug("[Pipeline:%s] feature extraction + scoring", eid)
+        sector_names = [s.get("sector", "") for s in sectors_raw if s.get("sector")]
+        published_at = event.event_date or event.published_at
+        similar_for_scoring = await find_similar_events(
+            {"category": event_type, "sectors": sector_names}, limit=8, min_similarity=20.0,
+        )
+        event_features = feature_extraction.extract_event_features(
+            event_type=event_type,
+            source=source,
+            published_at=published_at,
+            companies_affected=[{"symbol": c["symbol"]} for c in companies_raw if c.get("symbol")],
+            sectors_affected=sector_names,
+            similar_historical_events=similar_for_scoring,
+        )
+        event_score = scoring_engine.score_event_impact(event_features)
+        logger.info(
+            "[Pipeline:%s] Event Impact Score: %s (status=%s, confidence=%s, %s)",
+            eid, event_score.score, event_score.status, event_score.confidence, event_score.version,
+        )
 
         # Stage 6 — Timeline
         logger.debug("[Pipeline:%s] timeline", eid)
@@ -79,7 +105,6 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
 
         # Stage 7 — Similar events (DB lookup → AI ranking)
         logger.debug("[Pipeline:%s] similar events", eid)
-        sector_names = [s.get("sector", "") for s in sectors_raw if s.get("sector")]
         candidates = await repo.get_similar_by_sectors(sector_names, exclude_id=eid)
         candidate_dicts = [
             {"id": e.id, "title": e.title, "sectors": e.sectors or []}
@@ -106,14 +131,21 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
             "classification": classification,
             "market_reaction": impact.get("market_reaction", {}),
             "analysis": impact.get("analysis", {}),
+            # Real, evidence-backed score — breakdown/top_contributors/reasoning/
+            # version travel with the event so the "why" UI (Phase 4/5) can read
+            # them straight from ai_summary without recomputing anything.
+            "score_engine": event_score.to_dict(),
         }
 
         await repo.update_core_fields(eid, {
             "slug": slug,
             "event_type": event_type,
             "ai_summary": merged_summary,
-            "impact_score": float(impact.get("impact_score", 60)),
-            "confidence": float(impact.get("confidence", 65)),
+            # None when the engine didn't have enough real signal — never a
+            # fabricated placeholder number. The old code defaulted a missing
+            # AI-guessed score to 60/65; that fallback is gone entirely.
+            "impact_score": event_score.score,
+            "confidence": event_score.confidence,
             "sectors": sector_names,
         })
 
