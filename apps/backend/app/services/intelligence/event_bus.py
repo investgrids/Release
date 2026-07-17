@@ -45,6 +45,7 @@ class ScoreUpdate:
     top_contributors: list = field(default_factory=list)
     reasoning: list = field(default_factory=list)
     trigger: str = "unknown"            # "new_event" | "new_news" | "earnings" | "market_close" | "policy_change" | "ripple_propagation"
+    data_status: str = "preliminary"    # "preliminary" | "verified" | "live" — evidence maturity, distinct from `status`
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 

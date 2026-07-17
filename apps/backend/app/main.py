@@ -67,13 +67,16 @@ async def lifespan(app: FastAPI):
     # ── 4. Fyers auto-auth (TOTP) — upgrades provider before cache warmup ────
     asyncio.create_task(_try_fyers_upgrade(), name="fyers-auto-auth")
 
-    # ── 5. Intelligence workers (TriageWorker + StoryEngine) ─────────────────
+    # ── 5. Intelligence workers (TriageWorker + StoryEngine + EnrichmentWorker) ──
     from app.services.intelligence.triage_worker import get_triage_worker
     from app.services.intelligence.story_engine import get_story_engine
+    from app.services.enrichment_worker import get_enrichment_worker
     _triage_worker = get_triage_worker()
     _story_engine  = get_story_engine()
+    _enrichment_worker = get_enrichment_worker()
     await _triage_worker.start()
     await _story_engine.start()
+    await _enrichment_worker.start()
 
     # ── 6. Warm caches (async, non-blocking) ─────────────────────────────────
     asyncio.create_task(_warm_dashboard_cache(), name="cache-warmup")
@@ -90,6 +93,7 @@ async def lifespan(app: FastAPI):
     # ── Shutdown ──────────────────────────────────────────────────────────────
     await _triage_worker.stop()
     await _story_engine.stop()
+    await _enrichment_worker.stop()
     await stop_scheduler()
     from app.core.redis import close_redis
     await close_redis()

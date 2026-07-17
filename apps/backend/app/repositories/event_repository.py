@@ -157,6 +157,19 @@ class EventRepository:
             update(Event).where(Event.id == event_id).values(**data)
         )
 
+    async def update_company_score(self, event_id: str, symbol: str, impact_score: Optional[float]) -> None:
+        """
+        Patch a single event-company row's impact_score in place — unlike
+        replace_companies(), this doesn't touch the other companies on the
+        same event, so the enrichment worker can update just the top-impact
+        symbols it actually fetched live data for.
+        """
+        await self._db.execute(
+            update(EventCompany)
+            .where(EventCompany.event_id == event_id, EventCompany.symbol == symbol)
+            .values(impact_score=impact_score)
+        )
+
     # â”€â”€ Writes (pipeline) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def replace_companies(self, event_id: str, items: list[dict]) -> None:

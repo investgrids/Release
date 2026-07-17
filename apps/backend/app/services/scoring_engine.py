@@ -57,9 +57,10 @@ class ScoreResult:
     breakdown:           dict
     reasoning:             list
     top_contributors:        list = field(default_factory=list)   # [{label, value, signed_contribution, direction}]
-    status:                    str = "ok"                          # "ok" | "insufficient_data"
-    updated_at:                   str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    version:                        str = ENGINE_VERSION
+    status:                    str = "ok"                          # "ok" | "insufficient_data" — CAN a number be computed at all
+    data_status:                 str = "preliminary"                 # "preliminary" | "verified" | "live" — HOW FRESH/backed is the evidence
+    updated_at:                    str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    version:                         str = ENGINE_VERSION
 
     def to_dict(self) -> dict:
         return {
@@ -69,18 +70,25 @@ class ScoreResult:
             "top_contributors": self.top_contributors,
             "reasoning": self.reasoning,
             "status": self.status,
+            "data_status": self.data_status,
             "updated_at": self.updated_at,
             "version": self.version,
         }
 
 
-def _insufficient(reason: str, partial_breakdown: Optional[dict] = None, version: str = ENGINE_VERSION) -> ScoreResult:
+def _insufficient(
+    reason: str,
+    partial_breakdown: Optional[dict] = None,
+    version: str = ENGINE_VERSION,
+    data_status: str = "preliminary",
+) -> ScoreResult:
     return ScoreResult(
         score=None,
         confidence=None,
         breakdown=partial_breakdown or {},
         reasoning=[reason],
         status="insufficient_data",
+        data_status=data_status,
         version=version,
     )
 
@@ -280,8 +288,18 @@ CURRENT_VERSION: dict = {
 # 1. Event Impact Score — consumes app.services.feature_extraction.EventFeatures
 # ─────────────────────────────────────────────────────────────────────────────
 
-def score_event_impact(features, version: Optional[str] = None) -> ScoreResult:
-    """`features` is an EventFeatures (or any object/dict with the same field names)."""
+def score_event_impact(features, version: Optional[str] = None, data_status: str = "preliminary") -> ScoreResult:
+    """
+    `features` is an EventFeatures (or any object/dict with the same field names).
+
+    `data_status` names how the caller obtained `features`, not anything this
+    function computes: "preliminary" (event_pipeline's synchronous first pass —
+    local evidence + graph ripple only, no live market-data fetch yet) or
+    "verified" (the Intelligence Orchestrator's bounded async enrichment folded
+    in real company market-cap/institutional data and recomputed). This value
+    is just stamped onto the result so downstream consumers/UI know which
+    stage produced it — see app/services/enrichment_worker.py.
+    """
     values = features.__dict__ if hasattr(features, "__dict__") else dict(features)
     score, breakdown, coverage, contributors, formula_version = _compute(
         "event_impact", "Event Impact", values, version
@@ -291,7 +309,7 @@ def score_event_impact(features, version: Optional[str] = None) -> ScoreResult:
         return _insufficient(
             "Not enough verified signals to compute an Event Impact Score "
             f"(only {round(coverage * 100)}% of the formula had real data).",
-            breakdown, formula_version,
+            breakdown, formula_version, data_status=data_status,
         )
 
     reasoning = []
@@ -313,6 +331,7 @@ def score_event_impact(features, version: Optional[str] = None) -> ScoreResult:
     return ScoreResult(
         score=score, confidence=round(coverage * 100, 1), breakdown=breakdown,
         top_contributors=contributors, reasoning=reasoning, version=formula_version,
+        data_status=data_status,
     )
 
 
@@ -320,7 +339,14 @@ def score_event_impact(features, version: Optional[str] = None) -> ScoreResult:
 # 2. Company Impact Score — consumes feature_extraction.CompanyFeatures
 # ─────────────────────────────────────────────────────────────────────────────
 
-def score_company_impact(features, version: Optional[str] = None) -> ScoreResult:
+def score_company_impact(features, version: Optional[str] = None, data_status: str = "live") -> ScoreResult:
+    """
+    Company Impact Score only exists once real market data (cap, institutional
+    holding, volume) has been fetched — there is no meaningful "preliminary"
+    version of this model, so results default to data_status="live" rather
+    than "preliminary": by construction, this model never runs without live
+    data behind it (see app/services/enrichment_worker.py).
+    """
     values = features.__dict__ if hasattr(features, "__dict__") else dict(features)
     score, breakdown, coverage, contributors, formula_version = _compute(
         "company_impact", "Company Impact", values, version
@@ -330,7 +356,7 @@ def score_company_impact(features, version: Optional[str] = None) -> ScoreResult
         return _insufficient(
             "Not enough verified company-level signals to compute a Company Impact Score "
             f"(only {round(coverage * 100)}% of the formula had real data).",
-            breakdown, formula_version,
+            breakdown, formula_version, data_status=data_status,
         )
 
     reasoning = []
@@ -348,6 +374,7 @@ def score_company_impact(features, version: Optional[str] = None) -> ScoreResult
     return ScoreResult(
         score=score, confidence=round(coverage * 100, 1), breakdown=breakdown,
         top_contributors=contributors, reasoning=reasoning, version=formula_version,
+        data_status=data_status,
     )
 
 

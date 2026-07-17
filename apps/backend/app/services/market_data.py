@@ -185,6 +185,50 @@ def _fmt_large(n) -> str:
     return f"{sign}₹{a / 1e5:.1f}L"
 
 
+async def get_stock_scoring_raw(symbol: str) -> Optional[dict]:
+    """
+    Raw numeric fields for the Scoring Engine — market_cap, institutional
+    holding %, volume, avg_volume, sector. Deliberately separate from
+    get_stock_detail(): that function formats every number for display
+    ("₹3,00,000 Cr", "45.2%"), which the scoring engine's feature
+    extraction would have to re-parse. This returns the underlying floats
+    directly so app/services/feature_extraction.py never touches a
+    display string. Returns None (not fabricated zeros) on fetch failure.
+    """
+    loop = asyncio.get_event_loop()
+    ns_ticker = f"{symbol.upper()}.NS"
+
+    def _fetch():
+        try:
+            t = yf.Ticker(ns_ticker)
+            info = t.info
+            fast = t.fast_info
+
+            try:
+                volume = float(fast.volume or 0) or None
+            except Exception:
+                volume = float(info.get("volume") or 0) or None
+            try:
+                avg_volume = float(fast.three_month_average_volume or 0) or None
+            except Exception:
+                avg_volume = float(info.get("averageVolume") or 0) or None
+
+            market_cap = info.get("marketCap")
+            held_inst_raw = info.get("heldPercentInstitutions")
+
+            return {
+                "market_cap": float(market_cap) if market_cap else None,
+                "held_institutions_pct": round(float(held_inst_raw) * 100, 1) if held_inst_raw is not None else None,
+                "volume": volume,
+                "avg_volume": avg_volume,
+                "sector": info.get("sector") or None,
+            }
+        except Exception:
+            return None
+
+    return await loop.run_in_executor(None, _fetch)
+
+
 async def get_stock_detail(symbol: str) -> Optional[dict]:
     """Fetch comprehensive stock data from yfinance for an NSE symbol."""
     loop = asyncio.get_event_loop()

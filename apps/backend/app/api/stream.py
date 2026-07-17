@@ -52,6 +52,7 @@ def _serialize_score_update(update: ScoreUpdate) -> str:
         "previous_score":   update.previous_score,
         "confidence":       update.confidence,
         "status":           update.status,
+        "data_status":      update.data_status,
         "version":          update.version,
         "top_contributors": update.top_contributors,
         "reasoning":        update.reasoning,

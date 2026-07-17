@@ -250,8 +250,9 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
                 event_features=event_features,
                 event_score=event_score,
                 sector_names=sector_names,
-                company_symbols=[c["symbol"] for c in company_rows],
+                companies=company_rows,
                 db=db,
+                similar_historical_events=similar_for_scoring,
             )
         except Exception as orch_exc:
             logger.error("[Pipeline] Orchestrator step failed for %s: %s", eid, orch_exc, exc_info=True)
