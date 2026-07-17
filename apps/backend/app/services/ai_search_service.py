@@ -1426,10 +1426,14 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     # general prompt so it never fabricates a placeholder "Asset A".
     if intent_data["is_comparison"] and intent not in ("list_picks", "portfolio_review", "news_reaction", "earnings_preview", "entry_timing"):
         prompt  = _build_decision_prompt(query, intent_data, events, news, policies, extra_context=extra_context)
-        max_tok = 4000
+        max_tok = 4500
     else:
         prompt  = _build_prompt(query, events, news, policies, intent_data=intent_data, extra_context=extra_context)
-        max_tok = 3500
+        # The JSON schema grew substantially this session (bottom_line,
+        # key_drivers, what_priced_in, per-sector explanation, etc.) — 3500
+        # was tight enough to truncate mid-JSON on some fallback models,
+        # which fails to parse and silently drops to the graceful default.
+        max_tok = 4500
     raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=max_tok)
     log.info("ai_search.raw_len", chars=len(raw) if raw else 0, starts=raw[:60] if raw else "")
 
