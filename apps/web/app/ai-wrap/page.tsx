@@ -4,7 +4,7 @@ import { Sparkles, BarChart2, Landmark, Globe, TrendingUp, ClipboardList } from 
 
 interface Event {
   id: string; title: string; summary: string;
-  impact_score: number; confidence: number;
+  impact_score: number | null; confidence: number | null;
   sectors: string[]; category: string; date: string;
 }
 
@@ -13,7 +13,8 @@ async function getEvents() {
   catch { return [] as Event[]; }
 }
 
-function scoreColor(s: number) {
+function scoreColor(s: number | null | undefined) {
+  if (s === null || s === undefined) return "text-slate-500 bg-slate-800/20 border-slate-700/30";
   if (s >= 9) return "text-emerald-300 bg-emerald-500/10 border-emerald-500/20";
   if (s >= 7) return "text-sky-300 bg-sky-500/10 border-sky-500/20";
   return "text-amber-300 bg-amber-500/10 border-amber-500/20";
@@ -96,13 +97,13 @@ export default async function AIWrapPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${scoreColor(e.impact_score)}`}>
-                            Impact {e.impact_score.toFixed(1)}
+                            Impact {e.impact_score === null || e.impact_score === undefined ? "Unscored" : e.impact_score.toFixed(1)}
                           </span>
                           <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-slate-400">
                             {e.category}
                           </span>
                           <span className="text-[11px] text-slate-600">
-                            Confidence {Math.round(e.confidence * 100)}%
+                            {e.confidence === null || e.confidence === undefined ? "Confidence unavailable" : `Confidence ${Math.round(e.confidence * 100)}%`}
                           </span>
                         </div>
                         <h3 className="mt-2 text-base font-semibold leading-snug text-white">{e.title}</h3>
