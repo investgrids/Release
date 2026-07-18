@@ -37,13 +37,31 @@ export interface IntelligenceEvent {
   ts: string;
 }
 
+/** A score change broadcast by the Intelligence Orchestrator — real, not simulated. */
+export interface ScoreUpdateEvent {
+  entity_type: string;
+  entity_id: string;
+  model: string;
+  score: number | null;
+  previous_score: number | null;
+  confidence: number | null;
+  status: string;
+  data_status: string;
+  version: string;
+  top_contributors: { label: string; value: number; signed_contribution: number; direction: string }[];
+  reasoning: string[];
+  trigger: string;
+  ts: string;
+}
+
 interface AlertCtx {
   alerts: BreakingAlert[];
   intelligenceEvents: IntelligenceEvent[];
+  scoreUpdates: ScoreUpdateEvent[];
   dismiss: (id: string) => void;
 }
 
-const Ctx = createContext<AlertCtx>({ alerts: [], intelligenceEvents: [], dismiss: () => {} });
+const Ctx = createContext<AlertCtx>({ alerts: [], intelligenceEvents: [], scoreUpdates: [], dismiss: () => {} });
 export const useAlerts = () => useContext(Ctx);
 
 function getDismissed(): string[] {
@@ -54,6 +72,7 @@ function getDismissed(): string[] {
 export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [alerts, setAlerts] = useState<BreakingAlert[]>([]);
   const [intelligenceEvents, setIntelligenceEvents] = useState<IntelligenceEvent[]>([]);
+  const [scoreUpdates, setScoreUpdates] = useState<ScoreUpdateEvent[]>([]);
   const dismissedRef = useRef<string[]>([]);
   const seenOnLoadRef = useRef<Set<string> | null>(null);
   const esRef = useRef<EventSource | null>(null);
@@ -135,6 +154,13 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       } catch { /* parse error */ }
     });
 
+    es.addEventListener("score_update", (e: MessageEvent) => {
+      try {
+        const evt: ScoreUpdateEvent = JSON.parse(e.data);
+        setScoreUpdates(prev => [evt, ...prev].slice(0, 30));
+      } catch { /* parse error */ }
+    });
+
     es.onerror = () => {
       es.close();
       esRef.current = null;
@@ -166,7 +192,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ alerts, intelligenceEvents, dismiss }}>
+    <Ctx.Provider value={{ alerts, intelligenceEvents, scoreUpdates, dismiss }}>
       {children}
     </Ctx.Provider>
   );

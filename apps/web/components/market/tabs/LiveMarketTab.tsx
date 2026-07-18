@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAlerts } from "@/components/AlertProvider";
+import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
 import { API_BASE_URL as API } from "@/lib/api";
 import {
   TrendingUp, TrendingDown, Minus, ChevronDown, ChevronRight,
@@ -685,70 +686,6 @@ function BreadthExplained({ breadth }: { breadth: any }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Live Intelligence Feed (SSE + DB)
-// ─────────────────────────────────────────────────────────────────────────────
-function LiveAlertFeed({ feed }: { feed: FeedItem[] }) {
-  const { intelligenceEvents } = useAlerts();
-
-  const sseItems: FeedItem[] = intelligenceEvents.slice(0, 6).map(e => ({
-    id: e.id, headline: e.headline, urgency: e.urgency,
-    sentiment: e.sentiment, direction: e.direction, one_liner: e.one_liner,
-    themes: e.themes, sectors: e.sectors, tickers: e.tickers,
-    source: e.source, triaged_at: e.ts,
-  }));
-
-  const combined = [
-    ...sseItems,
-    ...feed.filter(f => !sseItems.find(s => s.id === f.id)),
-  ].slice(0, 15);
-
-  if (!combined.length) return null;
-
-  return (
-    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <div className="mb-4 flex items-center gap-2">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">Live Intelligence Feed</h3>
-        <span className="ml-auto rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-semibold text-amber-400">
-          {combined.length} signals
-        </span>
-      </div>
-      <div className="space-y-2">
-        {combined.map((item) => {
-          const urg = item.urgency;
-          const urgCls =
-            urg >= 8 ? "bg-rose-500/15 text-rose-400 border-rose-500/25" :
-            urg >= 6 ? "bg-amber-500/15 text-amber-400 border-amber-500/25" :
-            "bg-slate-500/10 text-slate-400 border-slate-500/20";
-          return (
-            <div key={item.id} className="flex items-start gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] p-3">
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-[10px] font-black ${urgCls}`}>
-                {urg}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="line-clamp-1 text-[12px] font-semibold text-white">{item.headline}</p>
-                {item.one_liner && (
-                  <p className="mt-0.5 line-clamp-1 text-[10px] text-slate-500">{item.one_liner}</p>
-                )}
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  {item.sectors?.slice(0, 2).map(s => (
-                    <span key={s} className="rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[8px] text-violet-400">{s}</span>
-                  ))}
-                  {item.tickers?.slice(0, 2).map(t => (
-                    <span key={t} className="rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[8px] text-sky-400">{t}</span>
-                  ))}
-                </div>
-              </div>
-              <span className="shrink-0 text-[9px] text-slate-600">{timeAgo(item.triaged_at)}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Market Replay
 // ─────────────────────────────────────────────────────────────────────────────
 function MarketReplay() {
@@ -930,8 +867,8 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
       {/* 9 — Breadth Explained */}
       {breadth && <BreadthExplained breadth={breadth} />}
 
-      {/* 10 — Live Intelligence Feed */}
-      <LiveAlertFeed feed={feed} />
+      {/* 10 — Live Intelligence Feed (real SSE stream: every event, score update, and alert as it happens) */}
+      <LiveIntelligenceFeed />
 
       {/* 11 — Market Replay */}
       <MarketReplay />
