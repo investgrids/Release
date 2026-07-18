@@ -1184,7 +1184,7 @@ function AIForecast({ stock }: { stock: StockDetail }) {
             <p className="text-[11px] text-slate-500">AI Investment Rating</p>
             <p className="text-[22px] font-black text-white mt-0.5">Strong {isPos ? "Buy" : "Hold"}</p>
           </div>
-          <div className="text-[52px] font-black text-violet-400">{Math.round((n2(stock.roe) + stock.gov_score) / 2) || 74}</div>
+          <div className="text-[52px] font-black text-violet-400">{Math.round((n2(stock.roe) + stock.gov_score) / 2)}</div>
         </div>
       </div>
     </SectionCard>
