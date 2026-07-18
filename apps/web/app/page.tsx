@@ -9,6 +9,7 @@ import {
 import { HomepageRefresher } from "@/components/homepage/HomepageRefresher";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
 import { API_BASE_URL as API } from "@/lib/api";
+import { compareScoresDesc } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -293,13 +294,16 @@ async function AIExecutiveBrief({ session, greeting }: { session: string; greeti
 
   const toWatchItem = (e: any, label?: string) => ({
     title: e.title ?? e.event ?? "Market Event",
-    impact: label ?? e.impact ?? (e.impact_score >= 7 ? "HIGH IMPACT" : e.impact_score >= 4 ? "MEDIUM" : "LOW"),
+    impact: label ?? e.impact ?? (
+      e.impact_score === null || e.impact_score === undefined ? "UNSCORED" :
+      e.impact_score >= 7 ? "HIGH IMPACT" : e.impact_score >= 4 ? "MEDIUM" : "LOW"
+    ),
     sub: e.category ?? e.description?.split(/[.!?]/)[0]?.trim() ?? "",
   });
 
   const watchItems = calList
     .filter(e => { try { return new Date(e.date ?? e.event_date ?? e.datetime).toDateString() === todayStr; } catch { return false; } })
-    .sort((a: any, b: any) => (b.impact_score ?? 0) - (a.impact_score ?? 0))
+    .sort((a: any, b: any) => compareScoresDesc(a.impact_score, b.impact_score))
     .slice(0, 3)
     .map((e: any) => toWatchItem(e));
 
@@ -390,7 +394,7 @@ async function AIExecutiveBrief({ session, greeting }: { session: string; greeti
             <div className="flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-4 py-2 backdrop-blur-sm">
               <span className="h-2 w-2 rounded-full bg-violet-400" />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">AI Confidence</span>
-              <span className="text-[13px] font-black text-white">{conf ? `${conf}%` : "—"}</span>
+              <span className="text-[13px] font-black text-white">{conf !== null && conf !== undefined ? `${conf}%` : "—"}</span>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-4 py-2 backdrop-blur-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -687,14 +691,17 @@ async function WhyTodayMatters() {
   const todayStr = todayDateStr();
   const topEvt = ((cal ?? []) as any[])
     .filter(e => { try { return new Date(e.date ?? e.event_date ?? e.datetime).toDateString() === todayStr; } catch { return false; } })
-    .sort((a: any, b: any) => (b.impact_score ?? 0) - (a.impact_score ?? 0))[0];
+    .sort((a: any, b: any) => compareScoresDesc(a.impact_score, b.impact_score))[0];
   if (topEvt) {
     const title = topEvt.title ?? topEvt.event ?? "";
     cards.push({
       icon: <EventIcon title={title} />,
       label: "TODAY'S BIGGEST EVENT",
       value: title.split(" ").slice(0, 5).join(" "),
-      change: topEvt.impact ?? (topEvt.impact_score >= 7 ? "HIGH IMPACT" : "MEDIUM"),
+      change: topEvt.impact ?? (
+        topEvt.impact_score === null || topEvt.impact_score === undefined ? "UNSCORED" :
+        topEvt.impact_score >= 7 ? "HIGH IMPACT" : "MEDIUM"
+      ),
       up: null,
       why: topEvt.description?.split(/[.!?]/)[0]?.trim() ?? "This event may trigger significant market moves. Track closely.",
       chart: syntheticChart(title.slice(0, 8), true),
@@ -762,24 +769,34 @@ async function HighImpactEvents() {
   const todayStr = todayDateStr();
   const nowMs = Date.now();
 
-  const toEv = (e: any, tag?: string): Ev => ({
-    id: e.id ?? String(Math.random()),
-    title: e.title ?? e.headline ?? e.event ?? "Market Event",
-    time: e.time ? `${e.time} IST` : tag ?? "Today",
-    impact: e.impact ?? (
-      (e.impact_score ?? e.urgency ?? 60) >= 80 ? "HIGH IMPACT" :
-      (e.impact_score ?? e.urgency ?? 60) >= 60 ? "MEDIUM IMPACT" : "LOW"
-    ),
-    sectors: (e.sectors ?? e.affected_sectors ?? []).slice(0, 3),
-    companies: (e.companies ?? e.affected_companies ?? e.tickers ?? []).slice(0, 3),
-    href: e.id ? `/events/${e.id}` : "/events",
-    tag,
-  });
+  const toEv = (e: any, tag?: string): Ev => {
+    // impact_score is the Scoring Engine's field and may legitimately be
+    // null; urgency is a triage field that always has a real value. Only
+    // fall through to urgency when impact_score is genuinely absent —
+    // never invent a shared "60" baseline when both are missing.
+    const gradeSource = e.impact_score !== null && e.impact_score !== undefined ? e.impact_score
+      : e.urgency !== null && e.urgency !== undefined ? e.urgency
+      : null;
+    return {
+      id: e.id ?? String(Math.random()),
+      title: e.title ?? e.headline ?? e.event ?? "Market Event",
+      time: e.time ? `${e.time} IST` : tag ?? "Today",
+      impact: e.impact ?? (
+        gradeSource === null ? "UNSCORED" :
+        gradeSource >= 80 ? "HIGH IMPACT" :
+        gradeSource >= 60 ? "MEDIUM IMPACT" : "LOW"
+      ),
+      sectors: (e.sectors ?? e.affected_sectors ?? []).slice(0, 3),
+      companies: (e.companies ?? e.affected_companies ?? e.tickers ?? []).slice(0, 3),
+      href: e.id ? `/events/${e.id}` : "/events",
+      tag,
+    };
+  };
 
   // Tier 1 — today's calendar events
   const todayCalEvents: Ev[] = ((cal ?? []) as any[])
     .filter(e => { try { return new Date(e.date ?? e.event_date ?? e.datetime).toDateString() === todayStr; } catch { return false; } })
-    .sort((a: any, b: any) => (b.impact_score ?? 0) - (a.impact_score ?? 0))
+    .sort((a: any, b: any) => compareScoresDesc(a.impact_score, b.impact_score))
     .map(e => toEv(e, "Today"));
 
   // Tier 2 — MIE top_events (any urgency)
@@ -808,7 +825,7 @@ async function HighImpactEvents() {
       if (skipWords.some(w => title.toLowerCase().includes(w))) return false;
       return true;
     })
-    .sort((a: any, b: any) => (b.impact_score ?? 0) - (a.impact_score ?? 0))
+    .sort((a: any, b: any) => compareScoresDesc(a.impact_score, b.impact_score))
     .map((e: any) => {
       const d = new Date(e.date ?? e.datetime);
       const diffDays = Math.floor((nowMs - d.getTime()) / 86400000);
@@ -1002,7 +1019,7 @@ async function CompaniesToWatch() {
                   <span className="font-bold text-slate-400">Why: </span>{why}
                 </p>
 
-                {conf && (
+                {conf !== null && conf !== undefined && (
                   <p className="mt-2 text-[10px] text-slate-600">Confidence <span className="font-bold text-violet-400">{conf}</span></p>
                 )}
 
@@ -1027,16 +1044,21 @@ async function OpportunitiesAndRisks() {
   const feed     = (mie?.top_events ?? []) as any[];
   const radarItems = ((radar as any)?.items ?? []) as any[];
 
-  type OppRow = { name: string; why: string; conf: number; sectors: string[] };
+  type OppRow = { name: string; why: string; conf: number | null; sectors: string[] };
   type RiskRow = { name: string; why: string; level: string; sectors: string[] };
 
   const opps: OppRow[] = [];
   const risks: RiskRow[] = [];
 
   if (story?.opportunity)
-    opps.push({ name: "AI Market Signal", why: story.opportunity.split(/[.!?]/)[0]?.trim() ?? story.opportunity, conf: story.confidence ?? 78, sectors: [] });
+    opps.push({ name: "AI Market Signal", why: story.opportunity.split(/[.!?]/)[0]?.trim() ?? story.opportunity, conf: story.confidence ?? null, sectors: [] });
   radarItems.forEach((r: any) =>
-    opps.push({ name: r.title ?? r.theme, why: (r.summary ?? r.reason ?? "").split(/[.!?]/)[0]?.trim() || "", conf: Math.round(r.opportunity_score ?? 75), sectors: (r.sectors ?? []).slice(0, 2) }));
+    opps.push({
+      name: r.title ?? r.theme,
+      why: (r.summary ?? r.reason ?? "").split(/[.!?]/)[0]?.trim() || "",
+      conf: r.opportunity_score !== null && r.opportunity_score !== undefined ? Math.round(r.opportunity_score) : null,
+      sectors: (r.sectors ?? []).slice(0, 2),
+    }));
 
   if (story?.risk)
     risks.push({ name: "Market Risk", why: story.risk.split(/[.!?]/)[0]?.trim() ?? story.risk, level: "High", sectors: [] });
@@ -1060,7 +1082,7 @@ async function OpportunitiesAndRisks() {
             </Link>
           </div>
           <div className="space-y-2">
-            {(opps.length ? opps : [{ name: "Scanning markets…", why: "AI is identifying today's opportunities.", conf: 0, sectors: [] }]).slice(0, 4).map((o, i) => (
+            {(opps.length ? opps : [{ name: "Scanning markets…", why: "AI is identifying today's opportunities.", conf: null, sectors: [] }]).slice(0, 4).map((o, i) => (
               <Link key={i} href="/opportunity-radar"
                 className="flex items-start justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 transition hover:border-emerald-500/20 hover:bg-emerald-500/[0.03]">
                 <div className="min-w-0 flex-1">
@@ -1072,7 +1094,7 @@ async function OpportunitiesAndRisks() {
                   </div>
                   <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{o.why}</p>
                 </div>
-                {o.conf > 0 && (
+                {o.conf !== null && o.conf !== undefined && o.conf > 0 && (
                   <span className="shrink-0 text-[11px] tabular-nums">
                     <span className="text-slate-600">Conf. </span>
                     <span className="font-black text-emerald-400">{o.conf}%</span>
