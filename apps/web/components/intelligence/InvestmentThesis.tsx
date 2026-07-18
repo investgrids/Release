@@ -47,8 +47,8 @@ export interface InvestmentThesisCardProps {
   assumptions?: string[];
   /** Risk factors that could invalidate the thesis (collapsible) */
   riskFactors?: string[];
-  /** 0–100 thesis strength / AI confidence */
-  confidence?: number;
+  /** 0–100 thesis strength / AI confidence. null/undefined means unscored. */
+  confidence?: number | null;
   /** Investment time horizon e.g. "Medium-term (6–18 months)" */
   timeHorizon?: string;
   /** ISO date string or human-readable label */
@@ -83,6 +83,10 @@ function strengthLabel(s: number) {
   if (s >= 40) return "Developing";
   return "Speculative";
 }
+
+// strengthStyle/strengthLabel intentionally take a real number only —
+// callers gate on `effectiveStrength !== null` before invoking them,
+// so there is no "unscored" branch to fabricate here.
 
 function SectionLabel({ children, color = "text-slate-500" }: { children: React.ReactNode; color?: string }) {
   return (
@@ -164,7 +168,7 @@ export function InvestmentThesisCard({
   competitiveAdvantages = [],
   assumptions       = [],
   riskFactors       = [],
-  confidence        = 0,
+  confidence        = null,
   timeHorizon,
   lastUpdated,
   entityType,
@@ -203,7 +207,7 @@ export function InvestmentThesisCard({
   const effectiveEvidence     = supportingEvidence.length > 0 ? supportingEvidence : (fetched?.supporting_evidence  ?? []);
   const effectiveAdvantages   = competitiveAdvantages.length > 0 ? competitiveAdvantages : (fetched?.competitive_advantages ?? []);
   const effectiveRisks        = riskFactors.length  > 0 ? riskFactors      : (fetched?.key_risks         ?? []);
-  const effectiveStrength     = confidence          || fetched?.thesis_strength || 0;
+  const effectiveStrength     = confidence ?? fetched?.thesis_strength ?? null;
   const effectiveHorizon      = timeHorizon         ?? fetched?.time_horizon;
   const effectiveUpdated      = lastUpdated         ?? fetched?.last_updated;
 
@@ -254,7 +258,7 @@ export function InvestmentThesisCard({
               Analysing…
             </span>
           )}
-          {effectiveStrength > 0 && (
+          {effectiveStrength !== null && effectiveStrength !== undefined && effectiveStrength > 0 && (
             <span
               className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${strengthStyle(effectiveStrength)}`}
               aria-label={`Thesis strength: ${effectiveStrength}%`}

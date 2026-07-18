@@ -21,8 +21,8 @@ interface StoryDetail {
   description?: string;
   summary?: string;
   theme?: string;
-  opportunity_score?: number;
-  confidence?: number;
+  opportunity_score?: number | null;
+  confidence?: number | null;
   trend?: string;
   risk_level?: string;
   time_horizon?: string;
@@ -51,9 +51,9 @@ interface StoryDetail {
   companies?: {
     symbol?: string;
     company_name?: string;
-    impact_score?: number;
+    impact_score?: number | null;
     impact_label?: string;
-    confidence?: number;
+    confidence?: number | null;
     reason?: string;
   }[];
   key_drivers?: string[];
@@ -99,15 +99,17 @@ export default async function StoryPage({
 
   if (!story) notFound();
 
-  const score = story.opportunity_score ?? 0;
-  const confidence = story.confidence
-    ? story.confidence <= 1
+  const score = story.opportunity_score ?? null;
+  const confidence = story.confidence === null || story.confidence === undefined
+    ? null
+    : story.confidence <= 1
       ? Math.round(story.confidence * 100)
-      : story.confidence
-    : 70;
+      : story.confidence;
 
   const scoreColor =
-    score >= 80
+    score === null
+      ? "text-slate-500"
+      : score >= 80
       ? "text-emerald-400"
       : score >= 60
       ? "text-amber-400"
@@ -166,12 +168,12 @@ export default async function StoryPage({
             </div>
           </div>
           <div className="text-center shrink-0">
-            <div className={`text-4xl font-black ${scoreColor}`}>{score}</div>
+            <div className={`text-4xl font-black ${scoreColor}`}>{score === null ? "—" : score}</div>
             <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
               Opportunity Score
             </div>
             <div className="mt-2 text-xs text-slate-400">
-              Confidence: {confidence}%
+              {confidence === null ? "Confidence: Unscored" : `Confidence: ${confidence}%`}
             </div>
           </div>
         </div>
@@ -269,7 +271,7 @@ export default async function StoryPage({
             whyItMatters={story.ai_summary?.matters}
             confidence={typeof story.confidence === "number"
               ? Math.round(story.confidence <= 1 ? story.confidence * 100 : story.confidence)
-              : 70
+              : null
             }
             timeHorizon={story.time_horizon ?? "12–18 months"}
             keyDrivers={(story.key_drivers ?? []).slice(0, 4)}
@@ -292,16 +294,18 @@ export default async function StoryPage({
           <OpportunityLifecycleCard
             stage={(() => {
               const trend = story.trend ?? "stable";
-              const score = typeof story.opportunity_score === "number" ? story.opportunity_score : 50;
-              if (trend === "up" && score > 80) return "strong-momentum" as const;
-              if (trend === "up" && score > 60) return "developing" as const;
+              const oppScore = typeof story.opportunity_score === "number" ? story.opportunity_score : null;
+              if (oppScore !== null) {
+                if (trend === "up" && oppScore > 80) return "strong-momentum" as const;
+                if (trend === "up" && oppScore > 60) return "developing" as const;
+              }
               if (trend === "down") return "mature" as const;
               return "emerging" as const;
             })()}
             description={`${story.risk_level ?? "Moderate"} risk · ${story.time_horizon ?? "Medium-term"} horizon`}
             whyAssigned={story.ai_summary?.matters ?? `This theme scores ${story.opportunity_score ?? "N/A"}/100 on opportunity with a ${story.trend === "up" ? "rising" : "stable"} trend signal.`}
-            historicalComparison={`Similar investment themes in the ${story.sectors?.[0] ?? "market"} have historically taken 12–24 months to fully play out from the ${story.trend === "up" && (story.opportunity_score ?? 0) > 70 ? "developing" : "emerging"} stage.`}
-            confidence={typeof story.opportunity_score === "number" ? Math.min(90, Math.round(story.opportunity_score * 0.85)) : 55}
+            historicalComparison={`Similar investment themes in the ${story.sectors?.[0] ?? "market"} have historically taken 12–24 months to fully play out from the ${story.trend === "up" && typeof story.opportunity_score === "number" && story.opportunity_score > 70 ? "developing" : "emerging"} stage.`}
+            confidence={typeof story.opportunity_score === "number" ? Math.min(90, Math.round(story.opportunity_score * 0.85)) : null}
             expectedEvolution={story.ai_summary?.why_bullets?.[0] ?? `The theme is expected to ${story.trend === "up" ? "gain broader market recognition and institutional coverage" : "consolidate before the next major catalyst emerges"}.`}
             risks={[
               `Narrative risk: theme becomes consensus before price moves`,
@@ -359,7 +363,7 @@ export default async function StoryPage({
                           {c.impact_label}
                         </span>
                       )}
-                      {c.impact_score !== undefined && (
+                      {c.impact_score !== null && c.impact_score !== undefined && (
                         <span className="text-sm font-mono font-semibold text-emerald-400">
                           {c.impact_score}
                         </span>
