@@ -18,17 +18,17 @@ interface AnswerSection {
   immediate_impact: string; medium_term: string; long_term: string;
   what_priced_in: string;
   risks: string[]; opportunities: string[];
-  confidence: number; confidence_level?: string;
+  confidence: number | null; confidence_level?: string;
   sentiment: "bullish" | "bearish" | "neutral";
   sources_count: number;
 }
-interface KeyDriver    { icon: string; title: string; explanation: string; confidence: number; }
+interface KeyDriver    { icon: string; title: string; explanation: string; confidence: number | null; }
 interface Insight      { icon: string; title: string; summary: string; }
-interface Company      { symbol: string; name: string; price: string; change: string; positive: boolean; impact_type: string; impact_score: number; confidence: number; reason: string; chart: number[]; ripple_position?: string; why_it_matters?: string; }
-interface Sector       { name: string; score: number; confidence: number; outlook: string; positive: boolean; status?: string; time_horizon?: string; explanation?: string; }
-interface RelatedEvent { id: string; title: string; date: string; impact_score: number; confidence: number; category: string; }
-interface NewsItem     { id: string; headline: string; summary: string; source: string; published_at: string; impact_score: number; }
-interface Policy       { id: number; title: string; ministry: string; status: string; impact_score: number; }
+interface Company      { symbol: string; name: string; price: string; change: string; positive: boolean; impact_type: string; impact_score: number | null; confidence: number | null; reason: string; chart: number[]; ripple_position?: string; why_it_matters?: string; }
+interface Sector       { name: string; score: number | null; confidence: number | null; outlook: string; positive: boolean; status?: string; time_horizon?: string; explanation?: string; }
+interface RelatedEvent { id: string; title: string; date: string; impact_score: number | null; confidence: number | null; category: string; }
+interface NewsItem     { id: string; headline: string; summary: string; source: string; published_at: string; impact_score: number | null; }
+interface Policy       { id: number; title: string; ministry: string; status: string; impact_score: number | null; }
 interface Timeline     { date: string; title: string; description: string; }
 interface HistoricalMove       { symbol: string; name: string; return_1w?: number; return_1m?: number; reason: string; }
 interface HistoricalComparison {
@@ -40,13 +40,13 @@ interface HistoricalComparison {
 }
 interface RippleNode  { id: string; label: string; type: string; direction: string; weight: number; parent_id: string | null; }
 interface RippleLevel { depth: number; nodes: RippleNode[]; }
-interface Scenario      { probability: number; outcome: string; key_drivers: string[]; supporting_evidence: string; major_catalysts: string[]; expected_evolution: string; confidence: number; }
+interface Scenario      { probability: number; outcome: string; key_drivers: string[]; supporting_evidence: string; major_catalysts: string[]; expected_evolution: string; confidence: number | null; }
 interface Scenarios     { bull?: Scenario; base?: Scenario; bear?: Scenario; }
-interface MarketHorizon { horizon: string; window: string; confidence: number; direction: string; description: string; }
+interface MarketHorizon { horizon: string; window: string; confidence: number | null; direction: string; description: string; }
 interface MonitorItem   { title: string; why_it_matters: string; importance: string; frequency: string; }
 interface ReasoningMethod { label: string; used: boolean; }
-interface ConfidenceData  { level: string; score: number; reasons: string[]; breakdown: Record<string, number>; caveats: string[]; }
-interface InvestmentVerdict { rating: string; direction: string; confidence: number; horizon: string; top_picks: string[]; risks: string[]; catalysts: string[]; opportunity_score: number; risk_level?: string; suitable_for?: string; }
+interface ConfidenceData  { level: string; score: number | null; reasons: string[]; breakdown: Record<string, number>; caveats: string[]; }
+interface InvestmentVerdict { rating: string; direction: string; confidence: number | null; horizon: string; top_picks: string[]; risks: string[]; catalysts: string[]; opportunity_score: number | null; risk_level?: string; suitable_for?: string; }
 interface ChartSeries  { name: string; data: number[]; color: string; }
 interface MarketChart  { labels: string[]; series: ChartSeries[]; }
 interface GraphNode    { id: string; label: string; type: string; x: number; y: number; }
@@ -175,42 +175,48 @@ const OUTLOOK_DOT: Record<string, string> = {
 // ── Micro-components ──────────────────────────────────────────────────────────
 
 /** Large circular gauge SVG — used in right sidebar Investment Verdict */
-function BigGauge({ score, size = 120 }: { score: number; size?: number }) {
+function BigGauge({ score, size = 120 }: { score: number | null | undefined; size?: number }) {
+  const unscored = score === null || score === undefined;
   const r = size * 0.38;
   const cx = size / 2, cy = size / 2;
   const circ = 2 * Math.PI * r;
-  const dash = (score / 100) * circ;
-  const color = score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
+  const dash = unscored ? 0 : (score / 100) * circ;
+  const color = unscored ? "#64748b" : score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8"/>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="8"
-        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`}
-        style={{ transition: "stroke-dasharray 1s ease" }}/>
+      {!unscored && (
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="8"
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+          transform={`rotate(-90 ${cx} ${cy})`}
+          style={{ transition: "stroke-dasharray 1s ease" }}/>
+      )}
       <text x={cx} y={cy + 6} textAnchor="middle" fill="white"
-        fontSize={size * 0.22} fontWeight="800" fontFamily="inherit">
-        {score}%
+        fontSize={unscored ? size * 0.14 : size * 0.22} fontWeight="800" fontFamily="inherit">
+        {unscored ? "N/A" : `${score}%`}
       </text>
     </svg>
   );
 }
 
 /** Small ring used in company cards */
-function SmallRing({ score, size = 36 }: { score: number; size?: number }) {
+function SmallRing({ score, size = 36 }: { score: number | null | undefined; size?: number }) {
+  const unscored = score === null || score === undefined;
   const r = (size - 6) / 2;
   const circ = 2 * Math.PI * r;
-  const dash = (score / 100) * circ;
-  const color = score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
+  const dash = unscored ? 0 : (score / 100) * circ;
+  const color = unscored ? "#64748b" : score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3"/>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="3"
-        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        transform={`rotate(-90 ${size/2} ${size/2})`}/>
+      {!unscored && (
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="3"
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+          transform={`rotate(-90 ${size/2} ${size/2})`}/>
+      )}
       <text x={size/2} y={size/2 + 4} textAnchor="middle" fill={color}
-        fontSize={size * 0.25} fontWeight="700" fontFamily="inherit">
-        {score}
+        fontSize={unscored ? size * 0.18 : size * 0.25} fontWeight="700" fontFamily="inherit">
+        {unscored ? "N/A" : score}
       </text>
     </svg>
   );
@@ -263,7 +269,8 @@ function DirectionIcon({ direction, size = 56 }: { direction: string; size?: num
 }
 
 /** Derive risk level from confidence */
-function riskLevel(confidence: number): { label: string; color: string } {
+function riskLevel(confidence: number | null | undefined): { label: string; color: string } {
+  if (confidence === null || confidence === undefined) return { label: "Unscored", color: "text-slate-500 bg-slate-800/20 border-slate-700/30" };
   if (confidence >= 85) return { label: "Low", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" };
   if (confidence >= 65) return { label: "Medium", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" };
   return { label: "High", color: "text-rose-400 bg-rose-500/10 border-rose-500/20" };
@@ -400,7 +407,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         investment_verdict.risk_level === "Low" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
         : investment_verdict.risk_level === "Medium" ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
         : "text-rose-400 bg-rose-500/10 border-rose-500/20" }
-    : riskLevel(answer?.confidence ?? investment_verdict?.confidence ?? 70);
+    : riskLevel(answer?.confidence ?? investment_verdict?.confidence ?? null);
   const suitableForLabel = investment_verdict?.suitable_for || suitableFor(investment_verdict?.horizon || "");
 
   // Continue Your Research CTAs
@@ -499,7 +506,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: "Confidence", value: `${answer?.confidence ?? investment_verdict?.confidence ?? 0}%`, color: "text-emerald-400" },
+            { label: "Confidence", value: (answer?.confidence ?? investment_verdict?.confidence) != null ? `${answer?.confidence ?? investment_verdict?.confidence}%` : "Unscored", color: "text-emerald-400" },
             { label: "Time Horizon", value: investment_verdict?.horizon || "6–18 Months", color: "text-slate-200" },
             { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0] },
             { label: "Suitable For", value: suitableForLabel, color: "text-slate-200" },
@@ -536,9 +543,11 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                 <p className="text-[11px] text-slate-400 leading-relaxed mb-2">{kd.explanation}</p>
                 <div className="flex items-center gap-2">
                   <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-                    <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400" style={{ width: `${kd.confidence}%` }}/>
+                    {kd.confidence !== null && kd.confidence !== undefined && (
+                      <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400" style={{ width: `${kd.confidence}%` }}/>
+                    )}
                   </div>
-                  <p className="text-[10px] tabular-nums text-slate-500">{kd.confidence}%</p>
+                  <p className="text-[10px] tabular-nums text-slate-500">{kd.confidence === null || kd.confidence === undefined ? "Unscored" : `${kd.confidence}%`}</p>
                 </div>
               </div>
             ))}
@@ -650,7 +659,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                   {/* Footer */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <SmallRing score={Math.round(co.confidence ?? co.impact_score)} size={32}/>
+                      <SmallRing score={(() => { const v = co.confidence ?? co.impact_score; return v === null || v === undefined ? null : Math.round(v); })()} size={32}/>
                       <p className="text-[10px] text-slate-500">Confidence</p>
                     </div>
                     <Link href={`/companies/${co.symbol}`}
@@ -683,8 +692,8 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                   <div key={s.name}>
                     <div className="grid grid-cols-[1.3fr_0.6fr_0.7fr_1fr_0.8fr] gap-x-2 items-center">
                       <p className="text-[12px] font-medium text-slate-200 truncate">{s.name}</p>
-                      <p className="text-[12px] font-bold tabular-nums text-white">{(s.score / 10).toFixed(1)}</p>
-                      <p className="text-[11px] tabular-nums text-slate-400">{s.confidence}%</p>
+                      <p className="text-[12px] font-bold tabular-nums text-white">{s.score === null || s.score === undefined ? "—" : (s.score / 10).toFixed(1)}</p>
+                      <p className="text-[11px] tabular-nums text-slate-400">{s.confidence === null || s.confidence === undefined ? "—" : `${s.confidence}%`}</p>
                       <p className={`text-[11px] font-medium truncate ${SECTOR_STATUS_COLOR[s.status ?? ""] ?? "text-slate-300"}`}>{s.status || s.outlook || "—"}</p>
                       <p className="text-[10px] text-slate-500">{s.time_horizon || "—"}</p>
                     </div>
@@ -781,9 +790,11 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                   <p className="text-[9px] text-slate-500 mb-2">{h.window}</p>
                   <div className="flex items-center gap-2 mb-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-                      <div className={`h-full rounded-full bg-gradient-to-r ${barColor}`} style={{ width: `${h.confidence}%` }}/>
+                      {h.confidence !== null && h.confidence !== undefined && (
+                        <div className={`h-full rounded-full bg-gradient-to-r ${barColor}`} style={{ width: `${h.confidence}%` }}/>
+                      )}
                     </div>
-                    <p className={`text-[10px] font-semibold tabular-nums ${dirColor}`}>{h.confidence}%</p>
+                    <p className={`text-[10px] font-semibold tabular-nums ${dirColor}`}>{h.confidence === null || h.confidence === undefined ? "Unscored" : `${h.confidence}%`}</p>
                   </div>
                   <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-3">{h.description}</p>
                 </div>
@@ -1058,7 +1069,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
 
       {/* ── 14. AI Transparency + Disclaimer ──────────────────────────────────── */}
       <AITransparencyPanel
-        confidence={result.answer?.confidence ?? 70}
+        confidence={result.answer?.confidence ?? null}
         reasoning={methodologySummary}
         events={(result.related_events ?? []).slice(0, 5).map((e) => ({ title: e.title, href: `/events/${e.id}` }))}
         companies={(result.companies ?? []).slice(0, 5).map((c) => ({ name: c.name, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
@@ -1082,7 +1093,7 @@ function RightSidebar({ result, onAction }: {
   // never opportunity_score, which is a different metric (upside sizing,
   // not evidence confidence) and must never masquerade as a second
   // "confidence" percentage.
-  const score = result?.confidence_data?.score ?? result?.answer?.confidence ?? v?.confidence ?? 0;
+  const score = result?.confidence_data?.score ?? result?.answer?.confidence ?? v?.confidence ?? null;
   const verdictLabel = v?.rating || "Neutral";
   const verdictColor = OUTLOOK_COLOR[verdictLabel] ?? "text-amber-400";
   const riskInfo = result
@@ -1091,7 +1102,7 @@ function RightSidebar({ result, onAction }: {
             v.risk_level === "Low" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
             : v.risk_level === "Medium" ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
             : "text-rose-400 bg-rose-500/10 border-rose-500/20" }
-        : riskLevel(result.answer?.confidence ?? v?.confidence ?? 70))
+        : riskLevel(result.answer?.confidence ?? v?.confidence ?? null))
     : { label: "—", color: "text-slate-400" };
 
   const QUICK_ACTIONS = [
@@ -1149,7 +1160,7 @@ function RightSidebar({ result, onAction }: {
 
             {/* Big gauge */}
             <div className="flex justify-center my-2">
-              <BigGauge score={Math.round(score)} size={120}/>
+              <BigGauge score={score === null || score === undefined ? null : Math.round(score)} size={120}/>
             </div>
 
             {/* Bottom row: Time Horizon + Best For */}
@@ -1218,12 +1229,14 @@ function RightSidebar({ result, onAction }: {
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-[11px] text-slate-400">Confidence Score</p>
                 <p className="text-[12px] font-bold text-violet-300 tabular-nums">
-                  {result.answer?.confidence ?? v?.confidence ?? 0}%
+                  {(result.answer?.confidence ?? v?.confidence) != null ? `${result.answer?.confidence ?? v?.confidence}%` : "Unscored"}
                 </p>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400"
-                  style={{ width: `${result.answer?.confidence ?? v?.confidence ?? 0}%`, transition: "width 0.8s" }}/>
+                {(result.answer?.confidence ?? v?.confidence) != null && (
+                  <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400"
+                    style={{ width: `${result.answer?.confidence ?? v?.confidence}%`, transition: "width 0.8s" }}/>
+                )}
               </div>
             </div>
             <div className="mt-2.5 flex items-center justify-between">

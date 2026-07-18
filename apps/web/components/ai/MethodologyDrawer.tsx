@@ -11,7 +11,7 @@ interface MethodologyDrawerProps {
   onClose: () => void;
   title: string;
   reasoning: string;
-  confidence: number;
+  confidence: number | null;
   events?: { title: string; href?: string }[];
   companies?: { name: string; symbol?: string; href?: string }[];
   relationshipChain?: RelationshipStep[];
@@ -92,13 +92,15 @@ export function MethodologyDrawer({
             <div className="rounded-[12px] border border-white/8 bg-white/[0.03] p-3">
               <div className="flex items-center justify-between mb-2">
                 <ConfidenceBadge score={confidence} showLabel size="md" />
-                <span className="text-[20px] font-black text-white tabular-nums">{confidence}%</span>
+                <span className="text-[20px] font-black text-white tabular-nums">{confidence === null || confidence === undefined ? "—" : `${confidence}%`}</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.06]">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-sky-500 to-violet-500 transition-all duration-700"
-                  style={{ width: `${confidence}%` }}
-                />
+                {confidence !== null && confidence !== undefined && (
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-sky-500 to-violet-500 transition-all duration-700"
+                    style={{ width: `${confidence}%` }}
+                  />
+                )}
               </div>
               <p className="mt-2 text-[11px] text-slate-400">
                 Confidence reflects the strength of evidence supporting this analysis. It accounts for data completeness, historical precedent, and analytical consensus.

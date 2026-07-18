@@ -17,7 +17,7 @@ export interface RelationshipStep {
 }
 
 export interface AITransparencyProps {
-  confidence: number;
+  confidence: number | null;
   reasoning: string;
   summary?: string;
   events?: { title: string; href?: string }[];
