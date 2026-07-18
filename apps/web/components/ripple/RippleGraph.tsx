@@ -24,7 +24,7 @@ export interface RippleNodeData {
   label: string;
   type: "event" | "commodity" | "sector" | "company" | "currency" | "policy" | "indicator";
   impact: "positive" | "negative" | "neutral" | "mixed";
-  impact_strength: number;
+  impact_strength: number | null;
   depth: number;
   icon: string;
   change_direction: "up" | "down" | "neutral";
@@ -36,8 +36,8 @@ export interface RippleEdgeData {
   source: string;
   target: string;
   relationship: string;
-  impact_strength: number;
-  confidence: number;
+  impact_strength: number | null;
+  confidence: number | null;
   explanation: string;
   time_horizon: string;
 }
@@ -174,15 +174,17 @@ function StandardRippleNode({ data }: NodeProps<RippleNodeData>) {
           {arrow} {data.subtitle}
         </p>
       )}
-      {/* Impact bar */}
+      {/* Impact bar — omitted entirely when unscored, rather than drawn at a fabricated midpoint */}
       <div className="mt-2 h-0.5 rounded-full bg-white/5 overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all ${
-            data.impact === "positive" ? "bg-emerald-400" :
-            data.impact === "negative" ? "bg-rose-400" : "bg-slate-400"
-          }`}
-          style={{ width: `${(data.impact_strength || 0.5) * 100}%` }}
-        />
+        {data.impact_strength !== null && data.impact_strength !== undefined && (
+          <div
+            className={`h-full rounded-full transition-all ${
+              data.impact === "positive" ? "bg-emerald-400" :
+              data.impact === "negative" ? "bg-rose-400" : "bg-slate-400"
+            }`}
+            style={{ width: `${data.impact_strength * 100}%` }}
+          />
+        )}
       </div>
     </div>
   );

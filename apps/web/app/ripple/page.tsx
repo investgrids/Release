@@ -23,13 +23,15 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   commodity:    { label: "Raw Materials",      cls: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
 };
 
-function impactColor(score: number) {
+function impactColor(score: number | null | undefined) {
+  if (score === null || score === undefined) return "text-slate-500";
   if (score >= 8) return "text-rose-400";
   if (score >= 6) return "text-amber-400";
   return "text-emerald-400";
 }
 
-function impactLabel(score: number) {
+function impactLabel(score: number | null | undefined) {
+  if (score === null || score === undefined) return "Unscored";
   if (score >= 8) return "Very High";
   if (score >= 6) return "High";
   if (score >= 4) return "Medium";
@@ -161,7 +163,8 @@ export default async function RipplePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayEvents.map((ev: any) => {
             const badge = TYPE_BADGE[ev.event_type] || TYPE_BADGE.macro;
-            const score = ev.impact_score ?? 7;
+            const score: number | null | undefined = ev.impact_score;
+            const unscored = score === null || score === undefined;
             const cats = ev.categories || [];
             return (
               <Link
@@ -175,7 +178,7 @@ export default async function RipplePage() {
                     {badge.label}
                   </span>
                   <div className="flex items-center gap-1 shrink-0">
-                    <span className={`text-[18px] font-black leading-none tabular-nums ${impactColor(score)}`}>{score.toFixed(1)}</span>
+                    <span className={`text-[18px] font-black leading-none tabular-nums ${impactColor(score)}`}>{unscored ? "N/A" : score.toFixed(1)}</span>
                     <span className="text-[9px] text-slate-600">/10</span>
                   </div>
                 </div>

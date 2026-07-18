@@ -14,6 +14,7 @@ import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
+import { compareScoresDesc } from "@/lib/scoring";
 
 
 // Dynamic import — ReactFlow requires browser APIs
@@ -46,16 +47,16 @@ function GraphSkeleton() {
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface RippleNode {
   id: string; label: string; type: string; impact: string;
-  impact_strength: number; depth: number; icon: string;
+  impact_strength: number | null; depth: number; icon: string;
   change_direction: "up" | "down" | "neutral"; subtitle?: string;
 }
 interface RippleEdge {
   source: string; target: string; relationship: string;
-  impact_strength: number; confidence: number;
+  impact_strength: number | null; confidence: number | null;
   explanation: string; time_horizon: string;
 }
 interface Beneficiary {
-  name: string; ticker: string; confidence: number; impact: string; reason: string;
+  name: string; ticker: string; confidence: number | null; impact: string; reason: string;
 }
 interface Commodity {
   name: string; current_price: string; change_pct: number; positive: boolean;
@@ -76,7 +77,7 @@ interface RippleInsights {
 }
 interface RippleData {
   event_title: string;
-  event_impact: number;
+  event_impact: number | null;
   graph_data: { nodes: RippleNode[]; edges: RippleEdge[] };
   insights: RippleInsights;
 }
@@ -180,7 +181,7 @@ export default function RipplePage() {
   );
 
   const eventTitle   = data?.event_title || "Market Event";
-  const eventImpact  = data?.event_impact ?? 0;
+  const eventImpact  = data?.event_impact ?? null;
   const rs           = insights?.ripple_strength;
   const totalNodes   = graphData.nodes.filter(n => n.id !== "event_center").length;
 
@@ -229,7 +230,7 @@ export default function RipplePage() {
           {/* Scores */}
           <div className="shrink-0 flex items-center gap-3">
             <div className="text-center">
-              <p className="text-[28px] font-black text-rose-400 tabular-nums leading-none">{eventImpact?.toFixed(1)}</p>
+              <p className="text-[28px] font-black text-rose-400 tabular-nums leading-none">{eventImpact === null || eventImpact === undefined ? "—" : eventImpact.toFixed(1)}</p>
               <p className="text-[9px] text-slate-600 mt-0.5 uppercase tracking-wider">Impact Score</p>
             </div>
             {rs && (
@@ -366,7 +367,7 @@ export default function RipplePage() {
                   <tbody>
                     {[...graphData.nodes]
                       .filter(n => n.id !== "event_center")
-                      .sort((a, b) => (b.impact_strength ?? 0) - (a.impact_strength ?? 0))
+                      .sort((a, b) => compareScoresDesc(a.impact_strength, b.impact_strength))
                       .map(node => (
                         <tr key={node.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition">
                           <td className="px-5 py-3">
@@ -388,12 +389,14 @@ export default function RipplePage() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div className="w-20 h-1.5 rounded-full bg-white/[0.05]">
-                                <div className={`h-full rounded-full ${
-                                  node.impact === "positive" ? "bg-emerald-400" :
-                                  node.impact === "negative" ? "bg-rose-400" : "bg-slate-400"
-                                }`} style={{ width: `${(node.impact_strength || 0.5) * 100}%` }} />
+                                {node.impact_strength !== null && node.impact_strength !== undefined && (
+                                  <div className={`h-full rounded-full ${
+                                    node.impact === "positive" ? "bg-emerald-400" :
+                                    node.impact === "negative" ? "bg-rose-400" : "bg-slate-400"
+                                  }`} style={{ width: `${node.impact_strength * 100}%` }} />
+                                )}
                               </div>
-                              <span className="text-slate-500 tabular-nums">{Math.round((node.impact_strength || 0.5) * 100)}%</span>
+                              <span className="text-slate-500 tabular-nums">{node.impact_strength === null || node.impact_strength === undefined ? "Unscored" : `${Math.round(node.impact_strength * 100)}%`}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -480,7 +483,7 @@ export default function RipplePage() {
                             <span className="text-[11px] font-semibold text-white truncate">{tgtNode?.label || edge.target}</span>
                           </div>
                           <div className="shrink-0 text-right">
-                            <span className="text-[10px] text-slate-500 tabular-nums">{Math.round((edge.confidence || 0.8) * 100)}% conf.</span>
+                            <span className="text-[10px] text-slate-500 tabular-nums">{edge.confidence === null || edge.confidence === undefined ? "Unscored" : `${Math.round(edge.confidence * 100)}% conf.`}</span>
                             {edge.time_horizon && <span className="text-[9px] text-slate-600 mt-0.5 block">{edge.time_horizon}</span>}
                           </div>
                         </div>
@@ -514,15 +517,21 @@ export default function RipplePage() {
                 stage={(() => {
                   const strength = data?.insights?.ripple_strength;
                   const directStr = (strength?.direct ?? "").toLowerCase();
-                  const impact = data?.event_impact ?? 50;
-                  if (impact > 80 || directStr.includes("high")) return "strong-momentum" as const;
-                  if (impact > 60 || directStr.includes("medium")) return "developing" as const;
+                  const impact = data?.event_impact;
+                  if (impact !== null && impact !== undefined) {
+                    if (impact > 80 || directStr.includes("high")) return "strong-momentum" as const;
+                    if (impact > 60 || directStr.includes("medium")) return "developing" as const;
+                  } else if (directStr.includes("high")) {
+                    return "strong-momentum" as const;
+                  } else if (directStr.includes("medium")) {
+                    return "developing" as const;
+                  }
                   return "emerging" as const;
                 })()}
                 description={data?.insights?.ripple_timeline?.[0]?.description}
                 whyAssigned={`Ripple strength — Direct: ${data?.insights?.ripple_strength?.direct ?? "N/A"} · Indirect: ${data?.insights?.ripple_strength?.indirect ?? "N/A"} · Long-term: ${data?.insights?.ripple_strength?.long_term ?? "N/A"}`}
                 historicalComparison="Events with this ripple profile typically see sector-level re-pricing within 10–15 trading sessions followed by earnings guidance revisions in the next quarter."
-                confidence={data?.event_impact != null ? Math.min(90, Math.round(data.event_impact * 0.85)) : 55}
+                confidence={data?.event_impact != null ? Math.min(90, Math.round(data.event_impact * 0.85)) : null}
                 expectedEvolution={data?.insights?.ripple_timeline?.[data.insights.ripple_timeline.length - 1]?.description ?? "Expect ripple effects to peak in the near term and gradually dissipate as markets price in the new information."}
                 risks={[
                   `Volatility regime: ${data?.insights?.market_volatility ?? "Moderate"} — amplifies both upside and downside`,
@@ -703,7 +712,7 @@ export default function RipplePage() {
               </div>
               <p className="text-[12px] text-slate-300 leading-5">{insights.summary}</p>
               <AITransparencyPanel
-                confidence={data ? Math.min(100, Math.round((data.event_impact ?? 7) * 10)) : 70}
+                confidence={data?.event_impact !== null && data?.event_impact !== undefined ? Math.min(100, Math.round(data.event_impact * 10)) : null}
                 reasoning={data?.insights?.summary ?? "AI-generated ripple impact analysis based on event data and market relationships."}
                 events={data?.event_title ? [{ title: data.event_title }] : []}
               />
@@ -757,7 +766,7 @@ export default function RipplePage() {
                         <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold ${impactBadge(b.impact)}`}>
                           {b.impact}
                         </span>
-                        <p className="text-[8px] text-slate-700 mt-0.5 tabular-nums">{Math.round(b.confidence * 100)}%</p>
+                        <p className="text-[8px] text-slate-700 mt-0.5 tabular-nums">{b.confidence === null || b.confidence === undefined ? "Unscored" : `${Math.round(b.confidence * 100)}%`}</p>
                       </div>
                     </div>
                   ))}
@@ -784,7 +793,7 @@ export default function RipplePage() {
                         <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold ${impactBadge(b.impact)}`}>
                           {b.impact}
                         </span>
-                        <p className="text-[8px] text-slate-700 mt-0.5 tabular-nums">{Math.round(b.confidence * 100)}%</p>
+                        <p className="text-[8px] text-slate-700 mt-0.5 tabular-nums">{b.confidence === null || b.confidence === undefined ? "Unscored" : `${Math.round(b.confidence * 100)}%`}</p>
                       </div>
                     </div>
                   ))}

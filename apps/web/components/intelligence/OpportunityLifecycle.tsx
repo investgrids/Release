@@ -20,8 +20,8 @@ export interface OpportunityLifecycleCardProps {
   whyAssigned?: string;
   /** A comparable historical opportunity for context */
   historicalComparison?: string;
-  /** 0–100 AI confidence in the stage assignment */
-  confidence?: number;
+  /** 0–100 AI confidence in the stage assignment. null/undefined means unscored — never rendered as 0%. */
+  confidence?: number | null;
   /** What is expected to happen as the opportunity evolves */
   expectedEvolution?: string;
   /** Risks specific to this lifecycle stage */
@@ -132,12 +132,13 @@ export function OpportunityLifecycleCard({
   description,
   whyAssigned,
   historicalComparison,
-  confidence = 0,
+  confidence = null,
   expectedEvolution,
   risks = [],
 }: OpportunityLifecycleCardProps) {
   const currentIndex = STAGE_DEFS.findIndex(s => s.id === stage);
   const current = currentIndex >= 0 ? STAGE_DEFS[currentIndex] : null;
+  const hasConfidence = confidence !== null && confidence !== undefined && confidence > 0;
 
   return (
     <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.025] p-5 space-y-4">
@@ -153,8 +154,8 @@ export function OpportunityLifecycleCard({
             Opportunity Lifecycle
           </span>
         </div>
-        {confidence > 0 && (
-          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${confidenceCls(confidence)}`}
+        {hasConfidence && (
+          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${confidenceCls(confidence as number)}`}
             aria-label={`AI confidence: ${confidence}%`}>
             {confidence}% Confidence
           </span>
