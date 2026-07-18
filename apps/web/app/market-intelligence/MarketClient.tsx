@@ -204,16 +204,21 @@ export function MarketClient({
       </div>
 
       {/* ── RIGHT SIDEBAR ──────────────────────────────────────────────── */}
-      <aside className="hidden xl:flex xl:flex-col gap-0 min-w-0 sticky top-[88px] self-start max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-hide pb-16">
-        <MarketIntelligenceSidebar
-          session={sess}
-          countdown={countdown}
-          insights={initialInsights}
-          movers={initialMovers}
-          calendarEvents={initialCalendar}
-          news={initialNews}
-        />
-      </aside>
+      {/* Hidden on Live Market: that tab now carries its own Market Sentiment /
+          AI Confidence / Upcoming Today widgets (sourced from real endpoints)
+          in its own grid, so this sidebar would only duplicate them. */}
+      {activeTab !== "live-market" && (
+        <aside className="hidden xl:flex xl:flex-col gap-0 min-w-0 sticky top-[88px] self-start max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-hide pb-16">
+          <MarketIntelligenceSidebar
+            session={sess}
+            countdown={countdown}
+            insights={initialInsights}
+            movers={initialMovers}
+            calendarEvents={initialCalendar}
+            news={initialNews}
+          />
+        </aside>
+      )}
     </>
   );
 }
