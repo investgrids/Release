@@ -26,6 +26,7 @@ const NAV_MORE = [
   { label: "Policies",        href: "/policies" },
   { label: "Themes",          href: "/themes" },
   { label: "Graph",           href: "/graph" },
+  { label: "Learn",           href: "/learn" },
   { label: "Publishing",      href: "/operations/intelligence" },
 ];
 

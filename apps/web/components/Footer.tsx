@@ -23,6 +23,7 @@ const PRODUCT_LINKS = [
   { label: "Opportunity Radar",   href: "/opportunity-radar" },
   { label: "Ripple Intelligence", href: "/ripple" },
   { label: "AI Search",           href: "/ai-search" },
+  { label: "Knowledge Library",   href: "/learn" },
 ];
 
 export function Footer() {

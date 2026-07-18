@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 import { API_BASE_URL as API } from "@/lib/api";
+import { GLOSSARY } from "@/lib/glossary-data";
+import { GUIDES } from "@/lib/guides-data";
+import { ARTICLES } from "@/lib/articles-data";
 
 const base  = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.com";
 const now   = new Date().toISOString();
@@ -36,7 +39,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/whats-new`,                  lastModified: now, changeFrequency: "weekly", priority: 0.4 },
     { url: `${base}/legal`,                      lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/contact`,                    lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/learn`,                      lastModified: now, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${base}/learn/glossary`,             lastModified: now, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${base}/learn/guides`,               lastModified: now, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${base}/learn/articles`,             lastModified: now, changeFrequency: "weekly", priority: 0.6 },
   ];
+
+  const glossaryRoutes: MetadataRoute.Sitemap = GLOSSARY.map(t => ({
+    url: `${base}/learn/glossary/${t.slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.55,
+  }));
+
+  const guideRoutes: MetadataRoute.Sitemap = GUIDES.map(g => ({
+    url: `${base}/learn/guides/${g.slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.55,
+  }));
+
+  const articleRoutes: MetadataRoute.Sitemap = ARTICLES.map(a => ({
+    url: `${base}/learn/articles/${a.slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
 
   // Dynamic routes — best-effort; graceful fallback to static-only on error.
   // Each endpoint's real response shape and query-param limits (verified live,
@@ -101,5 +129,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.55,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...storyRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes];
+  return [...staticRoutes, ...eventRoutes, ...storyRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }
