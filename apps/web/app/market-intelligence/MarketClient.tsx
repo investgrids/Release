@@ -155,7 +155,7 @@ export function MarketClient({
             {/* Right: KPI mini cards */}
             <div className="shrink-0 grid grid-cols-2 gap-1.5">
               {[
-                { label: "AI Confidence", value: `${initialInsights?.confidence ?? 92}%`,   color: "text-violet-400" },
+                { label: "AI Confidence", value: initialInsights?.confidence != null ? `${initialInsights.confidence}%` : "—", color: "text-violet-400" },
                 { label: "Fear & Greed",  value: String(initialInsights?.fear_greed ?? 72),   color: "text-amber-400"  },
                 { label: "Events Today",  value: String(initialEvents?.length ?? 0),          color: "text-sky-400"    },
                 { label: "Opportunities", value: String(initialOpportunities?.length ?? 0),   color: "text-emerald-400"},

@@ -58,11 +58,12 @@ function FearGreedGauge({ value }: { value: number }) {
 }
 
 // ── AI Confidence Meter ───────────────────────────────────────────────────────
-function AIConfidenceMeter({ value }: { value: number }) {
-  const label = value >= 85 ? "Very High" : value >= 70 ? "High" : value >= 55 ? "Medium" : "Low";
+function AIConfidenceMeter({ value }: { value: number | null | undefined }) {
+  const unscored = value === null || value === undefined;
+  const label = unscored ? "Unscored" : value >= 85 ? "Very High" : value >= 70 ? "High" : value >= 55 ? "Medium" : "Low";
   const R = 32, CX = 38, CY = 38;
   const circ = 2 * Math.PI * R;
-  const offset = circ - (value / 100) * circ;
+  const offset = unscored ? circ : circ - (value / 100) * circ;
   return (
     <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-4">
       <p className="mb-1 text-[11px] font-bold text-white">AI Confidence Meter</p>
@@ -71,18 +72,19 @@ function AIConfidenceMeter({ value }: { value: number }) {
         <div className="relative shrink-0">
           <svg width="76" height="76" viewBox="0 0 76 76">
             <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7"/>
-            <circle cx={CX} cy={CY} r={R} fill="none" stroke="#a855f7" strokeWidth="7"
-              strokeDasharray={circ} strokeDashoffset={offset}
-              strokeLinecap="round" transform="rotate(-90,38,38)"/>
+            {!unscored && (
+              <circle cx={CX} cy={CY} r={R} fill="none" stroke="#a855f7" strokeWidth="7"
+                strokeDasharray={circ} strokeDashoffset={offset}
+                strokeLinecap="round" transform="rotate(-90,38,38)"/>
+            )}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-[14px] font-black text-white leading-none">{value}%</p>
+            <p className="text-[14px] font-black text-white leading-none">{unscored ? "—" : `${value}%`}</p>
             <p className="text-[7px] text-violet-400 font-semibold">{label}</p>
           </div>
         </div>
         <div className="space-y-1">
           {[
-            { l: "Accuracy", v: Math.min(98, value + 5) + "%" },
             { l: "Data Points", v: "1,240+" },
             { l: "Updated", v: "Live" },
           ].map(r => (
@@ -252,7 +254,7 @@ export function MarketIntelligenceSidebar({
     });
   }, []);
 
-  const conf      = liveInsights?.confidence ?? 86;
+  const conf      = liveInsights?.confidence ?? null;
   const fearGreed = liveInsights?.fear_greed ?? 72;
   const gainers   = liveMovers?.gainers ?? [];
 

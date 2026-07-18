@@ -16,10 +16,10 @@ type MarketStory = {
   text: string; mood: string; pulse: string; direction: string;
   opportunity: string; risk: string; trader_watch: string;
   investor_watch: string; sector_rotation: string;
-  confidence: number; generated_at: string;
+  confidence: number | null; generated_at: string;
 };
 type ThemeData = {
-  theme: string; score: number; momentum: string;
+  theme: string; score: number | null; momentum: string;
   top_stocks: string[]; news_count_24h: number; updated_at: string;
 };
 type FeedItem = {
@@ -125,7 +125,7 @@ function LiveStoryPanel({ story, loading }: { story: MarketStory | null; loading
                 Updated {timeAgo(story.generated_at)}
               </span>
               <span className="text-[10px] font-semibold text-violet-400">
-                {story.confidence}% confidence
+                {story.confidence === null || story.confidence === undefined ? "Confidence unscored" : `${story.confidence}% confidence`}
               </span>
             </div>
           )}
@@ -560,7 +560,9 @@ function ThemeIntelligence({ themes }: { themes: ThemeData[] }) {
                 {arrow} {t.momentum || "Stable"}
               </span>
               <div className="w-14 shrink-0 overflow-hidden rounded-full bg-white/[0.04]" style={{ height: 5 }}>
-                <div className={`h-full rounded-full ${barCls}`} style={{ width: `${Math.min(Math.max(t.score, 0), 100)}%` }} />
+                {t.score !== null && t.score !== undefined && (
+                  <div className={`h-full rounded-full ${barCls}`} style={{ width: `${Math.min(Math.max(t.score, 0), 100)}%` }} />
+                )}
               </div>
             </div>
           );
