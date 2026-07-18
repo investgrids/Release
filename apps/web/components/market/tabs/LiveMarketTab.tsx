@@ -220,8 +220,8 @@ function AIMarketBriefAndHealth({ story, storyLoading, themes, health, data, cal
             <div className="mb-4 grid grid-cols-2 gap-2">
               {drivers.map(d => (
                 <div key={d.label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2">
-                  <p className="truncate text-[10px] font-bold text-white">{d.label}</p>
-                  <p className={`mt-0.5 text-[9px] font-semibold ${d.up ? "text-emerald-400" : "text-amber-400"}`}>{d.status}</p>
+                  <p className="line-clamp-2 text-[10px] font-bold leading-tight text-white">{d.label}</p>
+                  <p className={`mt-1 text-[9px] font-semibold ${d.up ? "text-emerald-400" : "text-amber-400"}`}>{d.status}</p>
                 </div>
               ))}
             </div>
@@ -229,14 +229,14 @@ function AIMarketBriefAndHealth({ story, storyLoading, themes, health, data, cal
         )}
 
         {nextWatch.length > 0 && (
-          <p className="truncate border-t border-white/[0.06] pt-3 text-[10px] text-slate-500">
+          <p className="line-clamp-2 border-t border-white/[0.06] pt-3 text-[10px] leading-relaxed text-slate-500">
             <span className="font-bold text-slate-400">Next Watch: </span>{nextWatch.join(" · ")}
           </p>
         )}
       </div>
 
       {/* Health gauge */}
-      <div className="shrink-0 border-t border-white/[0.06] p-5 lg:w-[220px] lg:border-l lg:border-t-0">
+      <div className="shrink-0 border-t border-white/[0.06] p-5 lg:w-[195px] lg:border-l lg:border-t-0">
         <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500">Market Health</p>
         <div className="flex justify-center">
           <svg width="148" height="80" viewBox="0 0 148 80">
@@ -287,10 +287,10 @@ function TodaysTopMarketDrivers({ events, loading }: { events: any[]; loading: b
               <Link key={e.id} href={`/events/${e.id}` as any} className="group flex items-center gap-2.5 rounded-xl border border-white/[0.04] bg-white/[0.02] px-3 py-2 hover:border-violet-500/15 transition">
                 <span className="w-4 shrink-0 text-[10px] font-black tabular-nums text-slate-600">#{i + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11px] font-bold text-white group-hover:text-violet-200 transition">{e.title}</p>
-                  <p className="truncate text-[9px] text-slate-500">Driving: {(e.sectors ?? []).slice(0, 3).join(", ") || "—"}</p>
+                  <p className="line-clamp-2 text-[11px] font-bold leading-snug text-white group-hover:text-violet-200 transition">{e.title}</p>
+                  <p className="line-clamp-1 mt-0.5 text-[9px] text-slate-500">Driving: {(e.sectors ?? []).slice(0, 3).join(", ") || "—"}</p>
                 </div>
-                <span className={`shrink-0 text-[12px] font-black tabular-nums ${style.text}`}>{score10 ?? "—"}<span className="text-[9px] text-slate-600">/10</span></span>
+                <span className={`shrink-0 self-start text-[12px] font-black tabular-nums ${style.text}`}>{score10 ?? "—"}<span className="text-[9px] text-slate-600">/10</span></span>
               </Link>
             );
           })}
@@ -310,7 +310,7 @@ function OpportunitiesRisksCard({ story, opps, feed }: { story: MarketStory | nu
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <div className="grid flex-1 grid-cols-2 gap-3">
+      <div className="flex-1 space-y-4">
         <div>
           <div className="mb-2 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -323,16 +323,16 @@ function OpportunitiesRisksCard({ story, opps, feed }: { story: MarketStory | nu
               {story?.opportunity && (
                 <p className="line-clamp-2 text-[10px] leading-4 text-slate-400">{story.opportunity}</p>
               )}
-              {opps.slice(0, 3).map((o) => (
+              {opps.slice(0, 2).map((o) => (
                 <div key={o.id} className="rounded-lg border border-emerald-500/10 bg-emerald-500/[0.03] p-2">
-                  <p className="truncate text-[10px] font-bold text-white">{o.theme || o.title || "Opportunity"}</p>
-                  <p className="truncate text-[9px] text-slate-500">{o.reason || o.summary || ""}</p>
+                  <p className="line-clamp-1 text-[10px] font-bold text-white">{o.theme || o.title || "Opportunity"}</p>
+                  <p className="line-clamp-1 text-[9px] text-slate-500">{o.reason || o.summary || ""}</p>
                 </div>
               ))}
             </div>
           )}
         </div>
-        <div className="border-l border-white/[0.06] pl-3">
+        <div className="border-t border-white/[0.06] pt-3">
           <div className="mb-2 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
             <h3 className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Risks</h3>
@@ -346,8 +346,8 @@ function OpportunitiesRisksCard({ story, opps, feed }: { story: MarketStory | nu
               )}
               {risks.map((r) => (
                 <div key={r.id} className="rounded-lg border border-rose-500/10 bg-rose-500/[0.03] p-2">
-                  <p className="truncate text-[10px] font-bold text-white">{r.headline}</p>
-                  <p className="truncate text-[9px] text-slate-500">{r.one_liner}</p>
+                  <p className="line-clamp-1 text-[10px] font-bold text-white">{r.headline}</p>
+                  <p className="line-clamp-1 text-[9px] text-slate-500">{r.one_liner}</p>
                 </div>
               ))}
             </div>
@@ -442,9 +442,9 @@ function CompaniesThatMatterCard({ events, loading }: { events: any[]; loading: 
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[11px] font-bold text-white group-hover:text-violet-200 transition">{r.name} <span className="text-slate-600">({r.ticker})</span></p>
-                  <p className="truncate text-[9px] text-slate-500">{r.reason}</p>
+                  <p className="line-clamp-2 text-[9px] leading-snug text-slate-500">{r.reason}</p>
                 </div>
-                <span className={`shrink-0 text-[13px] font-black tabular-nums ${style.text}`}>{r.score != null ? (r.score / 10).toFixed(1) : "—"}</span>
+                <span className={`shrink-0 self-start text-[13px] font-black tabular-nums ${style.text}`}>{r.score != null ? (r.score / 10).toFixed(1) : "—"}</span>
               </Link>
             );
           })}
@@ -489,7 +489,7 @@ function MarketTimelineCard({ feed, loading }: { feed: FeedItem[]; loading: bool
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black tabular-nums text-white">{t}</span>
                     </div>
-                    <p className="truncate text-[11px] font-semibold text-slate-300">{f.one_liner || f.headline}</p>
+                    <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-slate-300">{f.one_liner || f.headline}</p>
                   </div>
                 </div>
               );
@@ -525,7 +525,7 @@ function RippleEffectsCard({ ripple, loading, eventId }: { ripple: any; loading:
             </span>
           )}
           <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2 text-center">
-            <p className="truncate text-[11px] font-bold text-white">{source.label}</p>
+            <p className="line-clamp-2 text-[11px] font-bold leading-snug text-white">{source.label}</p>
             {source.subtitle && <p className="text-[9px] text-violet-300">{source.subtitle}</p>}
           </div>
           {sectorNodes.length > 0 && (
@@ -761,10 +761,10 @@ function UpcomingTodayCard({ events, loading }: { events: any[]; loading: boolea
                   <CalendarClock className="h-3.5 w-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[10px] font-semibold text-white">{e.title}</p>
+                  <p className="line-clamp-2 text-[10px] font-semibold leading-snug text-white">{e.title}</p>
                   <p className="text-[9px] text-slate-600">{e.category ?? "Event"}</p>
                 </div>
-                <span className="shrink-0 text-[9px] font-semibold text-slate-500">{e.date}</span>
+                <span className="shrink-0 self-start text-[9px] font-semibold text-slate-500">{e.date}</span>
               </div>
             );
           })}
@@ -957,7 +957,7 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
       <MarketReplayPanel open={replayOpen} />
 
       {/* Row 1 — AI Market Brief+Health · Today's Top Market Drivers · Opportunities+Risks · Live Feed */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.9fr_1fr_1.2fr_1fr]">
         <AIMarketBriefAndHealth story={story} storyLoading={storyLoading} themes={themes} health={health} data={data} calendar={calendar} />
         <TodaysTopMarketDrivers events={events} loading={dataLoading} />
         <OpportunitiesRisksCard story={story} opps={opps} feed={feed} />

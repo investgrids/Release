@@ -90,10 +90,10 @@ export function LiveIntelligenceFeed({ compact = false, limit }: { compact?: boo
 
   return (
     <div className={`rounded-2xl border border-white/[0.07] bg-[#080c14] ${compact ? "p-4" : "p-5"}`}>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-y-1">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-          <h3 className="text-[12px] font-black uppercase tracking-[0.1em] text-white">Live Intelligence Feed</h3>
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-violet-400" />
+          <h3 className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.04em] text-white">Live Intelligence Feed</h3>
         </div>
         <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
           <Radio className="h-3 w-3 text-emerald-400" />
