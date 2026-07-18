@@ -9,7 +9,7 @@ import {
 import { HomepageRefresher } from "@/components/homepage/HomepageRefresher";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
 import { API_BASE_URL as API } from "@/lib/api";
-import { compareScoresDesc } from "@/lib/scoring";
+import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -452,6 +452,140 @@ async function AIExecutiveBrief({ session, greeting }: { session: string; greeti
             View all events <ChevronRight className="h-3 w-3" />
           </Link>
         </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 1.5 — Top Intelligence Items (real ranked data) + Live Market CTA
+// ═══════════════════════════════════════════════════════════════════════════════
+type IntelItem = {
+  id: string;
+  kind: "event" | "opportunity";
+  title: string;
+  sub: string;
+  score: number | null;
+  href: string;
+};
+
+const INTEL_KIND_META: Record<IntelItem["kind"], { label: string; cls: string }> = {
+  event:       { label: "EVENT",       cls: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
+  opportunity: { label: "OPPORTUNITY", cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+};
+
+async function TopIntelligenceItems() {
+  const [recentRaw, radar, cal, mie] = await Promise.all([getRecentEvents(), getRadar(), getCalendar(), getMIE()]);
+  const todayStr = todayDateStr();
+
+  const eventItems: IntelItem[] = ((recentRaw as any)?.results ?? (recentRaw as any) ?? [])
+    .filter((e: any) => {
+      const title = e.title ?? "";
+      if (/[ऀ-ॿ]/.test(title)) return false;
+      const skipWords = ["allotment", "dividend", "cessation", "appointment", "surety", "record date", "auditor", "insolvency"];
+      return !skipWords.some(w => title.toLowerCase().includes(w));
+    })
+    .map((e: any) => ({
+      id: `event-${e.id}`,
+      kind: "event" as const,
+      title: e.title ?? "Market Event",
+      sub: e.description?.split(/[.!?]/)[0]?.trim() ?? e.category ?? "",
+      score: e.impact_score ?? null,
+      href: e.id ? `/events/${e.id}` : "/events",
+    }));
+
+  const todayCalItems: IntelItem[] = ((cal ?? []) as any[])
+    .filter(e => { try { return new Date(e.date ?? e.event_date ?? e.datetime).toDateString() === todayStr; } catch { return false; } })
+    .map((e: any) => ({
+      id: `cal-${e.id ?? e.title}`,
+      kind: "event" as const,
+      title: e.title ?? e.event ?? "Market Event",
+      sub: e.description?.split(/[.!?]/)[0]?.trim() ?? e.category ?? "",
+      score: e.impact_score ?? null,
+      href: e.id ? `/events/${e.id}` : "/events",
+    }));
+
+  const oppItems: IntelItem[] = ((radar as any)?.items ?? [])
+    .map((r: any) => ({
+      id: `radar-${r.id ?? r.title ?? r.theme}`,
+      kind: "opportunity" as const,
+      title: r.title ?? r.theme ?? "Opportunity",
+      sub: (r.summary ?? r.reason ?? "").split(/[.!?]/)[0]?.trim() ?? "",
+      score: r.opportunity_score ?? null,
+      href: "/opportunity-radar",
+    }));
+
+  const seen = new Set<string>();
+  const merged: IntelItem[] = [];
+  for (const it of [...todayCalItems, ...eventItems, ...oppItems]) {
+    if (seen.has(it.id)) continue;
+    seen.add(it.id);
+    merged.push(it);
+  }
+  merged.sort((a, b) => compareScoresDesc(a.score, b.score));
+
+  const items = merged.slice(0, 8);
+
+  // Fill toward a minimum of 5 with live MIE signals if scoring-engine-backed
+  // sources came up short. These carry no numeric score field, so they
+  // render as unscored rather than fabricating a number for them.
+  if (items.length < 5) {
+    const mieFill: IntelItem[] = ((mie?.top_events ?? []) as any[])
+      .sort((a: any, b: any) => (b.urgency ?? 0) - (a.urgency ?? 0))
+      .map((e: any) => ({
+        id: `mie-${e.id ?? e.headline}`,
+        kind: "event" as const,
+        title: (e.headline ?? "").split(" ").slice(0, 8).join(" "),
+        sub: e.one_liner ?? "",
+        score: null,
+        href: "/market-intelligence",
+      }))
+      .filter(it => !seen.has(it.id));
+    for (const it of mieFill) {
+      if (items.length >= 8) break;
+      seen.add(it.id);
+      items.push(it);
+    }
+  }
+
+  if (!items.length) return null;
+
+  return (
+    <section>
+      <div className="mb-5 flex items-end justify-between">
+        <div>
+          <h2 className="text-[18px] font-black tracking-tight text-white">Top Intelligence Items</h2>
+          <p className="mt-0.5 text-[12px] text-slate-500">Ranked by real-time impact — ties never invented</p>
+        </div>
+        <Link href="/market-intelligence?tab=live-market"
+          className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-1.5 text-[11px] font-bold text-emerald-400 transition hover:bg-emerald-500/15">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          View Live Market <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+      <div className="divide-y divide-white/[0.05] rounded-2xl border border-white/[0.07] bg-[#060e1e] overflow-hidden">
+        {items.map((it, i) => {
+          const meta = INTEL_KIND_META[it.kind];
+          const style = impactToStyle(it.score);
+          return (
+            <Link key={it.id} href={it.href as any}
+              className="group flex items-center gap-4 px-5 py-3.5 transition hover:bg-white/[0.03]">
+              <span className="w-5 shrink-0 text-[12px] font-black tabular-nums text-slate-600">{i + 1}</span>
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-[10px] font-black tabular-nums ${style.circle}`}>
+                {it.score !== null && it.score !== undefined ? Math.round(it.score) : "—"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className={`rounded-full border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider ${meta.cls}`}>{meta.label}</span>
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${style.text}`}>{style.label}</span>
+                </div>
+                <p className="mt-0.5 truncate text-[13px] font-bold text-white group-hover:text-violet-200 transition">{it.title}</p>
+                {it.sub && <p className="truncate text-[11px] text-slate-500">{it.sub}</p>}
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-slate-700 group-hover:text-slate-400 transition" />
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
@@ -1239,6 +1373,11 @@ export default function HomePage() {
       {/* §1 — AI Executive Brief */}
       <Suspense fallback={<Sk h={320} />}>
         <AIExecutiveBrief session={session} greeting={greeting} />
+      </Suspense>
+
+      {/* §1.5 — Top Intelligence Items + View Live Market CTA */}
+      <Suspense fallback={<Sk h={260} />}>
+        <TopIntelligenceItems />
       </Suspense>
 
       {/* §2 — Today's Market Overview */}
