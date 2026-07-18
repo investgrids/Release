@@ -1017,7 +1017,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
               icon: <FileText size={15} strokeWidth={1.7}/>,
               label: `View ${topPol.title.length > 26 ? topPol.title.slice(0, 23) + "…" : topPol.title}`,
               sub: "Policy detail",
-              href: `/policies`,
+              href: `/calendar`,
             } : null,
             topFU ? {
               icon: <Sparkles size={15} strokeWidth={1.7}/>,

@@ -21,13 +21,12 @@ const NAV_PRIMARY = [
 
 // Secondary nav — shown in "More" dropdown and mobile drawer
 const NAV_MORE = [
-  { label: "Market Overview", href: "/markets" },
-  { label: "Calendar",        href: "/calendar" },
-  { label: "Policies",        href: "/policies" },
-  { label: "Themes",          href: "/themes" },
-  { label: "Graph",           href: "/graph" },
-  { label: "Learn",           href: "/learn" },
-  { label: "Publishing",      href: "/operations/intelligence" },
+  { label: "Market Overview",   href: "/markets" },
+  { label: "Policy & Calendar", href: "/calendar" },
+  { label: "Themes",            href: "/themes" },
+  { label: "Graph",             href: "/graph" },
+  { label: "Learn",             href: "/learn" },
+  { label: "Publishing",        href: "/operations/intelligence" },
 ];
 
 const NAV_ALL = [...NAV_PRIMARY, ...NAV_MORE];

@@ -1,17 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { ClipboardList } from "lucide-react";
-import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
-import { useIntelligence } from "@/hooks/useIntelligence";
-import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
-import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc } from "@/lib/scoring";
 
-
-interface Event {
+interface PolicyEvent {
   id: string; title: string; summary: string;
   impact_score: number | null; confidence: number | null;
   sectors: string[]; companies: { symbol: string; name: string; impact: string }[];
@@ -57,42 +51,12 @@ function impactLabel(score: number | null | undefined) {
   return "Low Impact";
 }
 
-export default function PoliciesPage() {
-  const [allEvents, setAllEvents] = useState<Event[]>([]);
+export function RecentPolicyEvents({ events: allEvents }: { events: PolicyEvent[] }) {
   const [activeFilter, setActiveFilter] = useState("");
-
-  const { data: intelligence } = useIntelligence("theme", "government-policy-rbi");
-
-  useEffect(() => {
-    fetch(`${API}/api/events/?limit=50`)
-      .then(r => r.ok ? r.json() : [])
-      .then(d => {
-        if (Array.isArray(d) && d.length) {
-          setAllEvents(d.filter((e: Event) => ["Government", "Policy", "RBI", "Macro"].includes(e.category)));
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   const filtered = activeFilter ? allEvents.filter(e => e.category === activeFilter) : allEvents;
 
   return (
-    <main className="min-w-0 space-y-6 pb-10">
-      <MarketContextStrip />
-      <div>
-        <p className="text-sm uppercase tracking-[0.24em] text-sky-300">Intelligence</p>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">Government Policies</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Policy and regulatory decisions often move entire sectors — not individual stocks. Watch these to understand the direction of the market.
-        </p>
-      </div>
-
-      {/* Intelligence Block */}
-      {intelligence && (
-        <IntelligenceBlock data={intelligence} label="Policy & Regulatory Intelligence" compact={true} />
-      )}
-
-      {/* Filter chips — functional */}
+    <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
         {FILTER_CHIPS.map(chip => (
           <button key={chip.value}
@@ -107,13 +71,11 @@ export default function PoliciesPage() {
         ))}
       </div>
 
-      {/* Events list */}
       {filtered.length > 0 ? (
         <div className="space-y-4">
           {filtered.map((e) => (
             <article key={e.id}
               className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 transition hover:-translate-y-0.5 hover:border-white/20">
-              {/* Top row */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${CAT_COLORS[e.category] ?? "border-white/10 bg-white/5 text-slate-300"}`}>
                   {CATEGORY_PLAIN[e.category] ?? e.category}
@@ -129,7 +91,6 @@ export default function PoliciesPage() {
               <h3 className="mt-3 text-base font-semibold leading-snug text-white">{e.title}</h3>
               <p className="mt-2 text-sm leading-6 text-slate-400">{e.summary}</p>
 
-              {/* Companies affected */}
               {e.companies?.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <p className="w-full text-[10px] uppercase tracking-widest text-slate-500">Companies Affected</p>
@@ -142,7 +103,6 @@ export default function PoliciesPage() {
                 </div>
               )}
 
-              {/* Sectors */}
               {e.sectors?.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {e.sectors.map((s) => (
@@ -151,7 +111,6 @@ export default function PoliciesPage() {
                 </div>
               )}
 
-              {/* Ask AI */}
               <div className="mt-3 pt-2.5 border-t border-white/[0.05]">
                 <Link href={`/ai-search?q=${encodeURIComponent(e.title)}`}
                   className="text-[12px] font-medium text-violet-400 hover:text-violet-300 transition">
@@ -162,12 +121,11 @@ export default function PoliciesPage() {
           ))}
         </div>
       ) : (
-        <div className="flex items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.03] py-20">
-          <p className="text-slate-500">{allEvents.length === 0 ? "Start the backend to load policy events." : "No events match this filter."}</p>
+        <div className="flex items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.03] py-16">
+          <p className="text-slate-500">{allEvents.length === 0 ? "No recent policy events." : "No events match this filter."}</p>
         </div>
       )}
 
-      {/* Intelligent guidance — derived from top policy event */}
       {filtered.length > 0 && (() => {
         const top       = [...filtered].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score))[0];
         const q         = (s: string) => encodeURIComponent(s);
@@ -220,14 +178,6 @@ export default function PoliciesPage() {
           }} />
         );
       })()}
-
-      <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/[0.04] p-4">
-        <p className="text-xs text-amber-300">
-          <ClipboardList className="inline h-3.5 w-3.5 mr-1 align-text-bottom" /> <strong>Live Policy Feed:</strong> Real-time government notifications require{" "}
-          <strong>SEBI Circular API</strong>, <strong>RBI Press Release RSS</strong>, and{" "}
-          <strong>PIB (Press Information Bureau) API</strong>.
-        </p>
-      </div>
-    </main>
+    </div>
   );
 }
