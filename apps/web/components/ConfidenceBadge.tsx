@@ -4,7 +4,7 @@ import { useState } from "react";
 
 export interface ConfidenceData {
   level:      "Low" | "Medium" | "High" | "Very High";
-  score:      number;
+  score:      number | null;
   reasons:    string[];
   breakdown?: Record<string, number>;
 }
@@ -42,6 +42,7 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
   if (!data) return null;
 
   const style = LEVEL[data.level] ?? LEVEL["Medium"];
+  const hasScore = data.score !== null && data.score !== undefined;
 
   return (
     <div className="relative inline-block">
@@ -51,7 +52,7 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
       >
         <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
         {data.level}
-        <span className="tabular-nums opacity-70">{data.score}%</span>
+        <span className="tabular-nums opacity-70">{hasScore ? `${data.score}%` : "—"}</span>
       </button>
 
       {open && data.reasons.length > 0 && (
@@ -63,13 +64,15 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
           <div className="mb-2.5">
             <div className="mb-1 flex items-center justify-between text-[10px]">
               <span className="font-semibold text-slate-400">Confidence Score</span>
-              <span className={`font-bold tabular-nums ${style.text}`}>{data.score}%</span>
+              <span className={`font-bold tabular-nums ${style.text}`}>{hasScore ? `${data.score}%` : "Unscored"}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className={`h-full rounded-full transition-all ${style.dot}`}
-                style={{ width: `${data.score}%` }}
-              />
+              {hasScore && (
+                <div
+                  className={`h-full rounded-full transition-all ${style.dot}`}
+                  style={{ width: `${data.score}%` }}
+                />
+              )}
             </div>
           </div>
 

@@ -131,8 +131,8 @@ function NewsPreview({ news }: { news: any[] }) {
             <Link key={n.id} href={`/news/${n.id}`}
               className="flex items-start gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] p-3 hover:border-sky-500/10 transition">
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-black ${
-                n.impact_score >= 80 ? "bg-emerald-500/15 text-emerald-400" : "bg-sky-500/15 text-sky-400"
-              }`}>{n.impact_score ?? 0}</div>
+                n.impact_score !== null && n.impact_score !== undefined && n.impact_score >= 80 ? "bg-emerald-500/15 text-emerald-400" : "bg-sky-500/15 text-sky-400"
+              }`}>{n.impact_score === null || n.impact_score === undefined ? "—" : n.impact_score}</div>
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-white line-clamp-2 leading-snug">{n.headline}</p>
                 <p className="mt-0.5 text-[10px] text-slate-600">{n.source}</p>
@@ -215,28 +215,36 @@ export function OverviewTab({ data, loading = false, events: rawEvents, news: ra
   const sectors = data?.sectors   ?? [];
   const movers  = data?.movers;
 
-  const topEvents = events.map((e: any, i: number) => ({
-    id:        String(e.id),
-    score:     Math.round(e.impact_score ?? 0),
-    title:     e.title,
-    tags:      [e.category ?? "Macro", ...(e.sectors ?? []).slice(0, 1)],
-    companies: (e.companies ?? []).map((c: any) => {
-      const s = typeof c === "string" ? c : (c?.symbol ?? c?.name ?? c?.ticker ?? "");
-      return s.slice(0, 4).toUpperCase();
-    }).filter(Boolean),
-    sector:    (e.sectors ?? ["Market"])[0] ?? "Market",
-    time:      e.published_at ? (e.published_at.match(/T(\d{2}:\d{2})/) ?? [])[1] ?? e.published_at.slice(0, 5) : `${9 + i}:30`,
-    trend:     ((e.impact_score ?? 0) >= 70 ? "up" : "stable") as "up" | "stable",
-  }));
+  const topEvents = events.map((e: any, i: number) => {
+    const rawScore = e.impact_score;
+    const hasScore = rawScore !== null && rawScore !== undefined;
+    return {
+      id:        String(e.id),
+      score:     hasScore ? Math.round(rawScore) : null,
+      title:     e.title,
+      tags:      [e.category ?? "Macro", ...(e.sectors ?? []).slice(0, 1)],
+      companies: (e.companies ?? []).map((c: any) => {
+        const s = typeof c === "string" ? c : (c?.symbol ?? c?.name ?? c?.ticker ?? "");
+        return s.slice(0, 4).toUpperCase();
+      }).filter(Boolean),
+      sector:    (e.sectors ?? ["Market"])[0] ?? "Market",
+      time:      e.published_at ? (e.published_at.match(/T(\d{2}:\d{2})/) ?? [])[1] ?? e.published_at.slice(0, 5) : `${9 + i}:30`,
+      trend:     (hasScore && rawScore >= 70 ? "up" : "stable") as "up" | "stable",
+    };
+  });
 
-  const radarItems = opps.slice(0, 6).map((r: any) => ({
-    id:       String(r.id ?? r.slug),
-    score:    Math.round(r.score ?? r.opportunity_score ?? 0),
-    theme:    r.theme ?? r.title,
-    reason:   r.reason ?? r.summary ?? "",
-    category: (r.beneficiaries ?? [])[0] ?? "General",
-    trend:    ((r.score ?? 0) >= 70 ? "up" : "stable") as "up" | "stable",
-  }));
+  const radarItems = opps.slice(0, 6).map((r: any) => {
+    const rawScore = r.score ?? r.opportunity_score;
+    const hasScore = rawScore !== null && rawScore !== undefined;
+    return {
+      id:       String(r.id ?? r.slug),
+      score:    hasScore ? Math.round(rawScore) : null,
+      theme:    r.theme ?? r.title,
+      reason:   r.reason ?? r.summary ?? "",
+      category: (r.beneficiaries ?? [])[0] ?? "General",
+      trend:    (hasScore && rawScore >= 70 ? "up" : "stable") as "up" | "stable",
+    };
+  });
 
   return (
     <div className="space-y-5">

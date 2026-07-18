@@ -3,7 +3,7 @@ import { Target } from "lucide-react";
 
 interface OpportunityRow {
   id: string;
-  score: number;
+  score: number | null;
   theme: string;
   reason: string;
   category: string;
@@ -28,20 +28,22 @@ function TrendSparkline({ trend, seed }: { trend: string; seed: number }) {
   );
 }
 
-function ScoreCircle({ score }: { score: number }) {
-  const color =
+function ScoreCircle({ score }: { score: number | null | undefined }) {
+  const unscored = score === null || score === undefined;
+  const color = unscored ? "text-slate-500 ring-slate-700/30 bg-slate-800/20" :
     score >= 85 ? "text-emerald-300 ring-emerald-500/30 bg-emerald-500/10" :
     score >= 70 ? "text-sky-300 ring-sky-500/30 bg-sky-500/10" :
     "text-amber-300 ring-amber-500/30 bg-amber-500/10";
   return (
     <div className={`flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-full ring-1 ${color} text-[13px] font-black`}>
-      {score}
+      {unscored ? <span className="text-[9px]">N/A</span> : score}
     </div>
   );
 }
 
 const LEVEL_LABEL: Record<number, string> = {};
-function trendLabel(score: number) {
+function trendLabel(score: number | null | undefined) {
+  if (score === null || score === undefined) return "Unscored";
   return score >= 85 ? "Very High" : score >= 70 ? "High" : "Medium";
 }
 
@@ -86,7 +88,7 @@ export function AIOpportunitySection({ items }: { items: OpportunityRow[] }) {
               <p className="text-[12px] font-semibold text-white line-clamp-1">{item.theme}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="rounded-full bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-slate-500">{item.category}</span>
-                <span className={`text-[9px] font-medium ${item.score >= 85 ? "text-emerald-400" : item.score >= 70 ? "text-sky-400" : "text-amber-400"}`}>
+                <span className={`text-[9px] font-medium ${item.score === null || item.score === undefined ? "text-slate-500" : item.score >= 85 ? "text-emerald-400" : item.score >= 70 ? "text-sky-400" : "text-amber-400"}`}>
                   {trendLabel(item.score)}
                 </span>
               </div>

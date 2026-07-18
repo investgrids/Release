@@ -6,7 +6,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 
 interface PredictionData {
   direction:           string;
-  confidence:          number;
+  confidence:          number | null;
   range_low:           number;
   range_high:          number;
   primary_drivers:     string[];
@@ -97,15 +97,18 @@ function EventPill({ title, category }: { title: string; category: string }) {
   );
 }
 
-function ConfidenceBar({ value }: { value: number }) {
-  const color = value >= 70 ? "#22c55e" : value >= 55 ? "#f59e0b" : "#f43f5e";
+function ConfidenceBar({ value }: { value: number | null | undefined }) {
+  const unscored = value === null || value === undefined;
+  const color = unscored ? "#64748b" : value >= 70 ? "#22c55e" : value >= 55 ? "#f59e0b" : "#f43f5e";
   return (
     <div className="flex items-center gap-2">
       <div className="relative h-1.5 flex-1 rounded-full bg-white/6 overflow-hidden">
-        <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
-          style={{ width: `${value}%`, background: color }} />
+        {!unscored && (
+          <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
+            style={{ width: `${value}%`, background: color }} />
+        )}
       </div>
-      <span className="text-[11px] font-black" style={{ color }}>{value}%</span>
+      <span className="text-[11px] font-black" style={{ color }}>{unscored ? "Unscored" : `${value}%`}</span>
     </div>
   );
 }

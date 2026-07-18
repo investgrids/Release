@@ -4,26 +4,27 @@ import { ClipboardList } from "lucide-react";
 interface EventRow {
   id: string;
   title: string;
-  score: number;
+  score: number | null;
   tags: string[];
   companies: string[];
   sector: string;
   time: string;
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const color =
+function ScoreBadge({ score }: { score: number | null | undefined }) {
+  const unscored = score === null || score === undefined;
+  const color = unscored ? "text-slate-500 bg-slate-800/20 ring-slate-700/30" :
     score >= 80 ? "text-rose-300 bg-rose-500/15 ring-rose-500/30" :
     score >= 65 ? "text-amber-300 bg-amber-500/15 ring-amber-500/30" :
     score >= 45 ? "text-sky-300 bg-sky-500/15 ring-sky-500/30" :
     "text-slate-400 bg-white/5 ring-white/10";
-  const label =
+  const label = unscored ? "Unscored" :
     score >= 80 ? "Very High" :
     score >= 65 ? "High" :
     score >= 45 ? "Medium" : "Low";
   return (
     <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl ring-1 shrink-0 ${color}`}>
-      <span className="text-[14px] font-black leading-none">{score}</span>
+      <span className="text-[14px] font-black leading-none">{unscored ? "—" : score}</span>
       <span className="text-[8px] font-medium leading-none mt-0.5">{label}</span>
     </div>
   );

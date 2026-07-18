@@ -13,7 +13,7 @@ export interface IntelligenceOpportunity {
   description: string;
   companies:   string[];
   horizon:     "short" | "medium" | "long";
-  confidence:  number;
+  confidence:  number | null;
 }
 
 export interface IntelligenceRisk {
@@ -27,13 +27,13 @@ export interface IntelligenceCompany {
   name:       string;
   stance:     "bullish" | "bearish" | "neutral";
   reason:     string;
-  confidence: number;
+  confidence: number | null;
 }
 
 export interface IntelligenceSector {
   name:    string;
   outlook: "positive" | "negative" | "neutral";
-  score:   number;
+  score:   number | null;
   reason:  string;
 }
 
@@ -158,7 +158,7 @@ function CompanyPill({ co }: { co: IntelligenceCompany }) {
       <div className="mb-1 flex items-center gap-1.5">
         <span className={s.cls}>{s.icon}</span>
         <span className="text-[11px] font-bold text-white">{co.symbol}</span>
-        <span className="ml-auto text-[10px] tabular-nums text-slate-600">{co.confidence}%</span>
+        <span className="ml-auto text-[10px] tabular-nums text-slate-600">{co.confidence === null || co.confidence === undefined ? "—" : `${co.confidence}%`}</span>
       </div>
       <p className="text-[10px] text-slate-400 leading-snug">{co.reason}</p>
     </div>
@@ -172,15 +172,17 @@ function SectorBar({ sec }: { sec: IntelligenceSector }) {
       <div className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
       <span className="min-w-0 flex-1 truncate text-[11px] text-slate-300">{sec.name}</span>
       <div className="h-1 w-20 overflow-hidden rounded-full bg-white/[0.06]">
-        <div
-          className={`h-full rounded-full transition-all ${
-            sec.outlook === "positive" ? "bg-emerald-500/70" :
-            sec.outlook === "negative" ? "bg-rose-500/70" : "bg-slate-500/50"
-          }`}
-          style={{ width: `${sec.score}%` }}
-        />
+        {sec.score !== null && sec.score !== undefined && (
+          <div
+            className={`h-full rounded-full transition-all ${
+              sec.outlook === "positive" ? "bg-emerald-500/70" :
+              sec.outlook === "negative" ? "bg-rose-500/70" : "bg-slate-500/50"
+            }`}
+            style={{ width: `${sec.score}%` }}
+          />
+        )}
       </div>
-      <span className="w-8 shrink-0 text-right text-[10px] tabular-nums text-slate-600">{sec.score}</span>
+      <span className="w-8 shrink-0 text-right text-[10px] tabular-nums text-slate-600">{sec.score === null || sec.score === undefined ? "—" : sec.score}</span>
     </div>
   );
 }

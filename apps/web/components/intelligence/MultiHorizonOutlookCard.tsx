@@ -16,7 +16,7 @@ export interface HorizonData {
   icon:          string;
   outlook:       string;
   outlook_level: OutlookLevel;
-  confidence:    number;
+  confidence:    number | null;
   reason:        string;
   catalysts:     string[];
   risks:         string[];
@@ -81,17 +81,20 @@ function outlookLevel(level: number): OutlookLevel {
 
 // ── Confidence bar ────────────────────────────────────────────────────────────
 
-function ConfidenceBar({ value, level }: { value: number; level: OutlookLevel }) {
+function ConfidenceBar({ value, level }: { value: number | null | undefined; level: OutlookLevel }) {
   const cfg = LEVEL_CONFIG[level];
+  const hasValue = value !== null && value !== undefined;
   return (
     <div className="flex items-center gap-2 mt-1">
       <div className="h-1 flex-1 rounded-full bg-white/[0.06] overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${cfg.dot}`}
-          style={{ width: `${value}%` }}
-        />
+        {hasValue && (
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${cfg.dot}`}
+            style={{ width: `${value}%` }}
+          />
+        )}
       </div>
-      <span className={`text-[10px] font-bold tabular-nums ${cfg.label}`}>{value}%</span>
+      <span className={`text-[10px] font-bold tabular-nums ${cfg.label}`}>{hasValue ? `${value}%` : "Unscored"}</span>
     </div>
   );
 }

@@ -8,13 +8,13 @@ import { API_BASE_URL as API } from "@/lib/api";
 
 export interface HistoricalPattern {
   historical_match:   string;
-  similarity_score:   number;
+  similarity_score:   number | null;
   historical_outcome: string;
   average_duration?:  string;
-  success_rate?:      number;
+  success_rate?:      number | null;
   key_differences?:   string;
   lessons_learned?:   string;
-  confidence?:        number;
+  confidence?:        number | null;
 }
 
 export type PatternEntityType =
@@ -35,19 +35,22 @@ export interface PatternIntelligenceProps {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function scoreColor(score: number): string {
+function scoreColor(score: number | null | undefined): string {
+  if (score === null || score === undefined) return "text-slate-600";
   if (score >= 75) return "text-emerald-400";
   if (score >= 55) return "text-amber-400";
   return "text-slate-500";
 }
 
-function scoreBarColor(score: number): string {
+function scoreBarColor(score: number | null | undefined): string {
+  if (score === null || score === undefined) return "bg-slate-700";
   if (score >= 75) return "bg-emerald-500";
   if (score >= 55) return "bg-amber-500";
   return "bg-slate-600";
 }
 
-function scoreLabel(score: number): string {
+function scoreLabel(score: number | null | undefined): string {
+  if (score === null || score === undefined) return "Unscored";
   if (score >= 80) return "Very Similar";
   if (score >= 65) return "Similar";
   if (score >= 50) return "Moderate";
@@ -74,7 +77,7 @@ function PatternCard({ pattern, index }: { pattern: HistoricalPattern; index: nu
         </div>
         <div className="shrink-0 text-right">
           <span className={`text-[11px] font-black ${scoreColor(pattern.similarity_score)}`}>
-            {pattern.similarity_score}%
+            {pattern.similarity_score === null || pattern.similarity_score === undefined ? "Unscored" : `${pattern.similarity_score}%`}
           </span>
           <p className="text-[9px] text-slate-600">{scoreLabel(pattern.similarity_score)}</p>
         </div>
@@ -82,10 +85,12 @@ function PatternCard({ pattern, index }: { pattern: HistoricalPattern; index: nu
 
       {/* Similarity bar */}
       <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${scoreBarColor(pattern.similarity_score)}`}
-          style={{ width: `${pattern.similarity_score}%` }}
-        />
+        {pattern.similarity_score !== null && pattern.similarity_score !== undefined && (
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${scoreBarColor(pattern.similarity_score)}`}
+            style={{ width: `${pattern.similarity_score}%` }}
+          />
+        )}
       </div>
 
       {/* Historical outcome */}
