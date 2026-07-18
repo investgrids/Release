@@ -8,11 +8,12 @@ import { NextSteps } from "@/components/NextSteps";
 import { useIntelligence } from "@/hooks/useIntelligence";
 import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
 import { API_BASE_URL as API } from "@/lib/api";
+import { compareScoresDesc } from "@/lib/scoring";
 
 
 interface Event {
   id: string; title: string; summary: string;
-  impact_score: number; confidence: number;
+  impact_score: number | null; confidence: number | null;
   sectors: string[]; companies: { symbol: string; name: string; impact: string }[];
   category: string; date: string;
 }
@@ -47,7 +48,8 @@ const FILTER_CHIPS = [
   { label: "Economy",      value: "Macro" },
 ];
 
-function impactLabel(score: number) {
+function impactLabel(score: number | null | undefined) {
+  if (score === null || score === undefined) return "Unscored";
   const n = score <= 10 ? score * 10 : score;
   if (n >= 90) return "Very High Impact";
   if (n >= 75) return "High Impact";
@@ -167,7 +169,7 @@ export default function PoliciesPage() {
 
       {/* Intelligent guidance — derived from top policy event */}
       {filtered.length > 0 && (() => {
-        const top       = [...filtered].sort((a, b) => (b.impact_score ?? 0) - (a.impact_score ?? 0))[0];
+        const top       = [...filtered].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score))[0];
         const q         = (s: string) => encodeURIComponent(s);
         const firstCo   = top?.companies?.[0];
         const topSector = top?.sectors?.[0];
