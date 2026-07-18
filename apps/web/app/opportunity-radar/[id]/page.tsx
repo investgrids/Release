@@ -16,7 +16,7 @@ import {
 interface MetricSchema { revenue_potential: string; expected_cagr: string; eps_growth: string; investment_cycle: string; market_size: string; }
 interface TimelineStep  { order: number; phase: string; date_label: string; title: string; description: string; status: string; }
 interface EventSchema   { event_id: string; title: string; event_date: string; tag: string; description: string; importance: number; }
-interface CompanySchema { symbol: string; company_name: string; impact_score: number; impact_label: string; trend: string; confidence: number; reason: string; }
+interface CompanySchema { symbol: string; company_name: string; impact_score: number | null; impact_label: string; trend: string; confidence: number | null; reason: string; }
 interface NewsSchema    { news_id: string; headline: string; source: string; published_at: string; url: string; }
 interface SectorDist   { sector: string; percentage: number; color: string; }
 interface GraphNode    { node_id: string; label: string; node_type: string; metadata: Record<string, any>; }
@@ -25,7 +25,7 @@ interface AISummary    { matters: string; benefits: string; risks: string[]; inv
 
 interface OpportunityDetail {
   id: number; slug: string; title: string; summary: string;
-  opportunity_score: number; confidence: number;
+  opportunity_score: number | null; confidence: number | null;
   trend: string; risk_level: string; time_horizon: string;
   sectors: string[];
   ai_summary: AISummary | null;
@@ -64,7 +64,12 @@ const CHIP_COLORS = [
   "bg-rose-500/20 text-rose-200 border-rose-500/25",
 ];
 
-function buildScoreHistory(score: number) {
+// Returns [] (not a fabricated flat/synthetic line) when there's no real
+// score to build a trend around — Score History should come from
+// app/services/score_history_service.py once this page is wired to it;
+// until then, a null score means no chart, not an invented one.
+function buildScoreHistory(score: number | null): { month: string; value: number }[] {
+  if (score === null || score === undefined) return [];
   const months = ["Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
   const n = 6;
   const start = Math.max(30, score - 40);
@@ -145,8 +150,8 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
   );
 
   const d = detail;
-  const score = Math.round(d.opportunity_score);
-  const confidence = Math.round(d.confidence * 100);
+  const score = d.opportunity_score !== null && d.opportunity_score !== undefined ? Math.round(d.opportunity_score) : null;
+  const confidence = d.confidence !== null && d.confidence !== undefined ? Math.round(d.confidence * 100) : null;
   const scoreHistory = buildScoreHistory(score);
   const historySliced = period === "3M" ? scoreHistory.slice(-3)
     : period === "6M" ? scoreHistory.slice(-6)
@@ -159,7 +164,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="min-w-0 pb-12">
-      <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={`Score ${Math.round(d.opportunity_score)}`} href={`/opportunity-radar/${d.slug ?? d.id}`} />
+      <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={score !== null ? `Score ${score}` : "Unscored"} href={`/opportunity-radar/${d.slug ?? d.id}`} />
       {/* Breadcrumb */}
       <div className="mb-5 flex items-center gap-2 text-[12px] text-slate-500">
         <Link href="/opportunity-radar" className="hover:text-slate-300 transition">Opportunity Radar</Link>
@@ -177,13 +182,26 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">
                 <div className="shrink-0 text-center">
-                  <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/10 border border-emerald-500/30">
-                    <span className="text-3xl font-black text-emerald-400">{score}</span>
-                    <span className="text-[9px] text-slate-500">/100</span>
-                  </div>
-                  <p className="mt-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-400">
-                    {score >= 90 ? "Excellent" : score >= 80 ? "Strong" : "Good"} Opportunity
-                  </p>
+                  {score !== null ? (
+                    <>
+                      <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/10 border border-emerald-500/30">
+                        <span className="text-3xl font-black text-emerald-400">{score}</span>
+                        <span className="text-[9px] text-slate-500">/100</span>
+                      </div>
+                      <p className="mt-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-400">
+                        {score >= 90 ? "Excellent" : score >= 80 ? "Strong" : "Good"} Opportunity
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full border border-slate-700 bg-slate-800/30">
+                        <span className="text-[11px] font-medium text-slate-500">N/A</span>
+                      </div>
+                      <p className="mt-1.5 rounded-full border border-slate-700/50 bg-slate-800/30 px-2 py-0.5 text-[9px] font-semibold text-slate-500">
+                        Insufficient Data
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-white">{d.title}</h1>
@@ -207,7 +225,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             <div className="mt-5 grid grid-cols-4 gap-3">
-              <StatCard label="Confidence Score" value={`${confidence}%`} sub="Confidence" valueClass="text-sky-400"/>
+              <StatCard label="Confidence Score" value={confidence !== null ? `${confidence}%` : "—"} sub={confidence !== null ? "Confidence" : "Unscored"} valueClass="text-sky-400"/>
               <StatCard label="Time Horizon"     value={fixMojibake(d.time_horizon)}/>
               <StatCard label="Risk Level"       value={d.risk_level}   valueClass={riskColor(d.risk_level)}/>
               <StatCard label="Trend"            value={d.trend}        valueClass={trendColor(d.trend)}/>
@@ -240,20 +258,24 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
                 ))}
               </div>
               <div className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={historySliced} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%"   stopColor="#22c55e" stopOpacity={0.35}/>
-                        <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="month" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false}/>
-                    <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false}/>
-                    <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} itemStyle={{ color: "#22c55e" }} labelStyle={{ color: "#94a3b8" }}/>
-                    <Area type="monotone" dataKey="value" stroke="#22c55e" fill="url(#scoreGrad)" strokeWidth={2} dot={{ fill: "#22c55e", r: 3 }}/>
-                  </AreaChart>
-                </ResponsiveContainer>
+                {historySliced.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={historySliced} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%"   stopColor="#22c55e" stopOpacity={0.35}/>
+                          <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="month" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false}/>
+                      <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false}/>
+                      <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} itemStyle={{ color: "#22c55e" }} labelStyle={{ color: "#94a3b8" }}/>
+                      <Area type="monotone" dataKey="value" stroke="#22c55e" fill="url(#scoreGrad)" strokeWidth={2} dot={{ fill: "#22c55e", r: 3 }}/>
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[12px] text-slate-500">No score history available yet.</div>
+                )}
               </div>
             </SectionCard>
           </div>
@@ -285,7 +307,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
                               <span className="text-slate-200">{c.company_name || c.symbol}</span>
                             </Link>
                           </td>
-                          <td className="py-2.5 text-center font-semibold text-white">{Math.round(c.impact_score)}</td>
+                          <td className="py-2.5 text-center font-semibold text-white">{c.impact_score !== null && c.impact_score !== undefined ? Math.round(c.impact_score) : "—"}</td>
                           <td className={`py-2.5 text-center font-medium ${impactColor(c.impact_label)}`}>{c.impact_label}</td>
                           <td className="py-2.5 text-center">
                             <span className={c.trend === "up" ? "text-emerald-400" : c.trend === "down" ? "text-rose-400" : "text-slate-400"}>

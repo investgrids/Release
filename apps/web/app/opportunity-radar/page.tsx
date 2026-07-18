@@ -10,9 +10,9 @@ import { API_BASE_URL as API } from "@/lib/api";
 interface RadarItem {
   id: string | number;
   theme: string;
-  score: number;
+  score: number | null;
   reason: string;
-  confidence: number;
+  confidence: number | null;
   beneficiaries: string[];
   sectors?: string[];
 }
@@ -51,14 +51,16 @@ const CHIP_COLORS = [
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function confidenceColor(c: number) {
+function confidenceColor(c: number | null | undefined) {
+  if (c === null || c === undefined) return { ring: "ring-slate-600/40", text: "text-slate-500", fill: "stroke-slate-600" };
   if (c >= 0.9) return { ring: "ring-emerald-500/40", text: "text-emerald-400", fill: "stroke-emerald-500" };
   if (c >= 0.8) return { ring: "ring-sky-500/40",     text: "text-sky-400",     fill: "stroke-sky-500"     };
   return               { ring: "ring-amber-500/40",   text: "text-amber-400",   fill: "stroke-amber-500"   };
 }
 
-function ConfidenceCircle({ value, size = 64 }: { value: number; size?: number }) {
-  const pct = Math.round(value * 100);
+function ConfidenceCircle({ value, size = 64 }: { value: number | null | undefined; size?: number }) {
+  const unscored = value === null || value === undefined;
+  const pct = unscored ? 0 : Math.round(value * 100);
   const r   = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
@@ -67,22 +69,26 @@ function ConfidenceCircle({ value, size = 64 }: { value: number; size?: number }
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
         <circle cx={size/2} cy={size/2} r={r} stroke="rgba(255,255,255,0.06)" strokeWidth={4} fill="none"/>
-        <circle cx={size/2} cy={size/2} r={r} stroke="currentColor" className={cc.fill} strokeWidth={4} fill="none" strokeLinecap="round" strokeDasharray={`${dash} ${circ}`}/>
+        {!unscored && (
+          <circle cx={size/2} cy={size/2} r={r} stroke="currentColor" className={cc.fill} strokeWidth={4} fill="none" strokeLinecap="round" strokeDasharray={`${dash} ${circ}`}/>
+        )}
       </svg>
       <div className="absolute text-center">
-        <div className={`text-[11px] font-bold ${cc.text}`}>{pct}%</div>
+        <div className={`text-[11px] font-bold ${cc.text}`}>{unscored ? "N/A" : `${pct}%`}</div>
       </div>
     </div>
   );
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const bg = score >= 90 ? "from-emerald-500 to-teal-400"
+function ScoreBadge({ score }: { score: number | null | undefined }) {
+  const unscored = score === null || score === undefined;
+  const bg = unscored ? "from-slate-700 to-slate-600"
+           : score >= 90 ? "from-emerald-500 to-teal-400"
            : score >= 80 ? "from-sky-500 to-blue-400"
            : "from-amber-500 to-yellow-400";
   return (
     <div className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${bg} shadow-lg`}>
-      <span className="text-xl font-black text-white">{score}</span>
+      <span className={`font-black text-white ${unscored ? "text-[9px]" : "text-xl"}`}>{unscored ? "N/A" : score}</span>
     </div>
   );
 }
@@ -102,22 +108,29 @@ function OpportunitiesTab() {
       .then(d => {
         const raw = Array.isArray(d) ? d : (d?.items ?? []);
         if (raw.length === 0) return;
-        const mapped: RadarItem[] = raw.map((o: any) => ({
-          id:           o.id,
-          theme:        o.title,
-          score:        Math.round(o.opportunity_score ?? o.score ?? 0),
-          reason:       o.summary ?? o.reason ?? "",
-          confidence:   typeof o.confidence === "number" ? (o.confidence > 1 ? o.confidence / 100 : o.confidence) : 0.85,
-          beneficiaries: (o.companies ?? []).map((c: any) => typeof c === "string" ? c : c.symbol),
-          sectors:      o.sectors ?? [],
-        }));
+        const mapped: RadarItem[] = raw.map((o: any) => {
+          const rawScore = o.opportunity_score ?? o.score;
+          const rawConf = o.confidence;
+          return {
+            id:           o.id,
+            theme:        o.title,
+            score:        rawScore === null || rawScore === undefined ? null : Math.round(rawScore),
+            reason:       o.summary ?? o.reason ?? "",
+            confidence:   typeof rawConf === "number" ? (rawConf > 1 ? rawConf / 100 : rawConf) : null,
+            beneficiaries: (o.companies ?? []).map((c: any) => typeof c === "string" ? c : c.symbol),
+            sectors:      o.sectors ?? [],
+          };
+        });
         setItems(mapped);
       })
       .catch(() => {});
   }, []);
 
   const displayed = items.filter(i => {
-    if (i.score < minScore) return false;
+    // An unscored item can never be confirmed to meet a positive minimum
+    // score threshold, so it's excluded whenever a real filter is active
+    // — but it's never hidden by the default (no filter) state.
+    if (minScore > 0 && (i.score === null || i.score === undefined || i.score < minScore)) return false;
     if (sectorFilter !== "All Sectors" && !(i.sectors ?? []).some(s => s.toLowerCase().includes(sectorFilter.toLowerCase()))) return false;
     if (themeFilter !== "All Themes" && !i.theme.toLowerCase().includes(themeFilter.toLowerCase().replace("ai & automation", "ai").replace("green energy", "energy"))) return false;
     return true;
@@ -158,7 +171,8 @@ function OpportunitiesTab() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {displayed.map((item) => {
-              const conf = item.confidence ?? 0.9;
+              const conf = item.confidence;
+              const unscoredConf = conf === null || conf === undefined;
               const cc   = confidenceColor(conf);
               const beneficiaries = Array.isArray(item.beneficiaries) ? item.beneficiaries : [];
               const sectors = Array.isArray(item.sectors) ? item.sectors : [];
@@ -175,11 +189,13 @@ function OpportunitiesTab() {
                     <ConfidenceCircle value={conf} size={52}/>
                     <div className="min-w-0">
                       <p className="text-[10px] text-slate-500">Confidence</p>
-                      <p className={`text-base font-bold ${cc.text}`}>{Math.round(conf * 100)}%</p>
+                      <p className={`text-base font-bold ${cc.text}`}>{unscoredConf ? "Unscored" : `${Math.round(conf * 100)}%`}</p>
                     </div>
                     <div className="flex-1">
                       <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                        <div className={`h-full rounded-full ${cc.ring.replace("ring-","bg-").replace("/40","")}`} style={{ width: `${Math.round(conf * 100)}%` }}/>
+                        {!unscoredConf && (
+                          <div className={`h-full rounded-full ${cc.ring.replace("ring-","bg-").replace("/40","")}`} style={{ width: `${Math.round(conf * 100)}%` }}/>
+                        )}
                       </div>
                     </div>
                   </div>
