@@ -7,6 +7,7 @@ import { Bot, Shield, Train, Leaf, Zap, FlaskConical, Flame, BarChart2 } from "l
 import { useIntelligence } from "@/hooks/useIntelligence";
 import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
 import { API_BASE_URL as API } from "@/lib/api";
+import { averageScores } from "@/lib/scoring";
 import {
   LineChart, Line, AreaChart, Area,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -25,8 +26,8 @@ interface Theme {
   id: number; title: string; slug: string;
   badge: "Hot" | "High" | "Medium";
   description: string;
-  opportunity_score: number; vs_yesterday: number;
-  ai_confidence: number;
+  opportunity_score: number | null; vs_yesterday: number;
+  ai_confidence: number | null;
   market_impact: string; trend: string;
   companies: number; events: number; news: number;
   sectors: string[];
@@ -307,16 +308,18 @@ function ThemeCard({ t, selected, onClick }: { t: Theme; selected: boolean; onCl
         <div>
           <p className="text-[10px] text-slate-500">Opportunity Score</p>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-white">{t.opportunity_score}</span>
+            <span className="text-2xl font-bold text-white">{t.opportunity_score === null || t.opportunity_score === undefined ? "—" : t.opportunity_score}</span>
             <span className="text-[10px] text-emerald-400">+{t.vs_yesterday} (vs yesterday)</span>
           </div>
           {/* AI Confidence bar */}
           <div className="mt-1.5 flex items-center gap-2">
             <div className="h-1 w-20 overflow-hidden rounded-full bg-white/5">
-              <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500"
-                style={{ width: `${t.ai_confidence}%` }} />
+              {t.ai_confidence !== null && t.ai_confidence !== undefined && (
+                <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500"
+                  style={{ width: `${t.ai_confidence}%` }} />
+              )}
             </div>
-            <span className="text-[10px] text-slate-500">AI {t.ai_confidence}%</span>
+            <span className="text-[10px] text-slate-500">{t.ai_confidence === null || t.ai_confidence === undefined ? "AI Unscored" : `AI ${t.ai_confidence}%`}</span>
           </div>
           <p className={`mt-1 text-[10px] font-medium ${IMPACT_COLOR[t.market_impact] ?? "text-slate-400"}`}>
             Impact: {t.market_impact}
@@ -384,8 +387,8 @@ function ThemeDetail({ t, onBack }: { t: Theme; onBack: () => void }) {
       {/* Metrics row */}
       <div className="grid grid-cols-4 gap-px border-t border-b border-white/8 bg-white/5 mx-5 rounded-[14px] overflow-hidden mb-3">
         {[
-          { label: "Opportunity Score", value: `${t.opportunity_score}/100`, color: "text-violet-300", up: true },
-          { label: "AI Confidence",     value: `${t.ai_confidence}%`,       color: "text-sky-300",    up: true },
+          { label: "Opportunity Score", value: t.opportunity_score === null || t.opportunity_score === undefined ? "Unscored" : `${t.opportunity_score}/100`, color: "text-violet-300", up: true },
+          { label: "AI Confidence",     value: t.ai_confidence === null || t.ai_confidence === undefined ? "Unscored" : `${t.ai_confidence}%`, color: "text-sky-300", up: true },
           { label: "Market Impact",     value: t.market_impact,             color: IMPACT_COLOR[t.market_impact] ?? "text-slate-300", up: true },
           { label: "Trend",             value: t.trend,                     color: "text-emerald-400", up: true },
         ].map(m => (
@@ -560,17 +563,22 @@ function OverviewTab({ t }: { t: Theme }) {
 
 /* ── Stats bar ───────────────────────────────────────────── */
 function StatsBar({ themes }: { themes: Theme[] }) {
-  const avgScore = Math.round(themes.reduce((a, t) => a + t.opportunity_score, 0) / themes.length);
+  // averageScores ignores unscored themes rather than treating a null
+  // score as 0, which would silently drag the sitewide average down
+  // every time a theme's score is still being computed.
+  const avgScoreReal = averageScores(themes.map(t => t.opportunity_score));
+  const avgScore = avgScoreReal === null ? null : Math.round(avgScoreReal);
   const totalEvents = themes.reduce((a, t) => a + t.events, 0);
-  const avgConf = Math.round(themes.reduce((a, t) => a + t.ai_confidence, 0) / themes.length);
+  const avgConfReal = averageScores(themes.map(t => t.ai_confidence));
+  const avgConf = avgConfReal === null ? null : Math.round(avgConfReal);
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
       {[
         { label: "Active Themes",       value: themes.length, sub: "+3 new today",        color: "text-white" },
-        { label: "Avg. Opportunity Score", value: avgScore,   sub: "High ↑",             color: "text-emerald-400" },
+        { label: "Avg. Opportunity Score", value: avgScore ?? "—", sub: avgScore === null ? "No scored themes yet" : "High ↑", color: "text-emerald-400" },
         { label: "Total Events",        value: totalEvents,   sub: "+28 today",           color: "text-white" },
-        { label: "AI Confidence",       value: `${avgConf}%`, sub: "Very High",           color: "text-violet-300" },
+        { label: "AI Confidence",       value: avgConf === null ? "—" : `${avgConf}%`, sub: avgConf === null ? "No scored themes yet" : "Very High", color: "text-violet-300" },
         { label: "Market Impact",       value: "High",        sub: "Broad Based",        color: "text-sky-300" },
       ].map(s => (
         <div key={s.label} className="rounded-[18px] border border-white/8 bg-white/[0.025] px-4 py-3">
@@ -599,12 +607,19 @@ export default function ThemesPage() {
           const merged = THEMES.map((fb, i) => {
             const be = d.items[i];
             if (!be) return fb;
+            // be represents real live data for this theme — a null score
+            // here means the Scoring Engine had insufficient evidence for
+            // THIS theme specifically. Never substitute the static demo
+            // seed's number in that case; that would show a plausible but
+            // entirely fabricated "live" score.
             return {
               ...fb,
               title: be.title ?? fb.title,
               description: be.summary ?? fb.description,
-              opportunity_score: Math.round(be.opportunity_score ?? fb.opportunity_score),
-              ai_confidence: Math.round((be.confidence ?? fb.ai_confidence / 100) * 100),
+              opportunity_score: be.opportunity_score === null || be.opportunity_score === undefined
+                ? null : Math.round(be.opportunity_score),
+              ai_confidence: be.confidence === null || be.confidence === undefined
+                ? null : Math.round(be.confidence * 100),
               sectors: be.sectors ?? fb.sectors,
             };
           });
