@@ -96,7 +96,7 @@ function GiftNiftyHero({ data }: { data: any }) {
   const tc = pos ? "text-emerald-400" : "text-rose-400";
   const bc = pos ? "border-emerald-500/20" : "border-rose-500/20";
   return (
-    <div className={`rounded-xl border ${bc} bg-[#0a0d16] p-4`}>
+    <div className={`rounded-xl border ${bc} bg-[#080c14] p-4`}>
 
       <div className="mb-2.5 flex items-start justify-between">
         <div>
@@ -155,7 +155,7 @@ function BankNiftyCard({ data }: { data: any }) {
   const bc = pos ? "border-emerald-500/15" : "border-rose-500/15";
 
   return (
-    <div className={`relative overflow-hidden rounded-xl border ${bc} bg-[#0a0d16] p-4`}>
+    <div className={`relative overflow-hidden rounded-xl border ${bc} bg-[#080c14] p-4`}>
       <div className="mb-2.5 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ function IndiaVIXCard({ data }: { data: any }) {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0a0d16] p-4">
+    <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#080c14] p-4">
       <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">India VIX</span>
         <MiniChart chart={data.chart} positive={!pos} />
@@ -256,7 +256,7 @@ function FIIDIICard({ data }: { data: any }) {
   }
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-[#0a0d16] px-5 py-4">
+    <div className="rounded-[20px] border border-white/[0.07] bg-[#080c14] px-5 py-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">FII / DII Flows</span>
@@ -431,7 +431,7 @@ function AIPrediction({ data, pcr }: { data: any; pcr?: any }) {
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+    <div className="flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/20 text-violet-400"><svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg></span>
@@ -523,7 +523,7 @@ function AIPrediction({ data, pcr }: { data: any; pcr?: any }) {
 function StocksToWatch({ stocks }: { stocks: any[] }) {
   if (!stocks?.length) return null;
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-[13px] font-bold text-white">Stocks to Watch Today</h3>
         <Link href="/stocks" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
@@ -537,7 +537,7 @@ function StocksToWatch({ stocks }: { stocks: any[] }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[12px] font-bold text-white">{s.ticker}</p>
-              <p className="text-[10px] text-slate-500 truncate">{s.reason}</p>
+              <p className="line-clamp-2 text-[10px] leading-snug text-slate-500">{s.reason}</p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <span className="text-[9px] rounded-full bg-white/[0.04] px-2 py-0.5 text-slate-500">{s.sector}</span>
@@ -564,7 +564,7 @@ function PreMarketMovers({ movers }: { movers: any }) {
   const [tab, setTab] = useState<"gainers" | "losers" | "active">("gainers");
   const rows = movers?.[tab] ?? [];
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-[13px] font-bold text-white">Pre-Market Movers</h3>
         <Link href="/stocks" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
@@ -661,7 +661,7 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
       </div>
 
       {/* ── Section 1: Nifty Futures | Bank Nifty | India VIX ────────────── */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <GiftNiftyHero  data={data?.gift_nifty} />
         <BankNiftyCard  data={data?.banknifty_futures} />
         <IndiaVIXCard   data={data?.india_vix} />
@@ -672,7 +672,7 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
 
       {/* ── Section 2: US Futures ─────────────────────────────────────────── */}
       {data?.us_futures?.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+        <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-base">🇺🇸</span>
@@ -683,16 +683,16 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
               Live
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {data.us_futures.map((f: any) => <USFutureCard key={f.name} item={f} />)}
           </div>
         </div>
       )}
 
       {/* ── Section 3: Global Markets (Asian + European) ──────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {data?.asian?.length > 0 && (
-          <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+          <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
             <div className="mb-3 flex items-center gap-2">
               <span className="text-base">🌏</span>
               <h3 className="text-[13px] font-bold text-white">Asian Markets</h3>
@@ -703,7 +703,7 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
           </div>
         )}
         {data?.european?.length > 0 && (
-          <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+          <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
             <div className="mb-3 flex items-center gap-2">
               <Globe size={14} strokeWidth={1.8} className="text-slate-400"/>
               <h3 className="text-[13px] font-bold text-white">European Markets</h3>
@@ -717,23 +717,23 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
 
       {/* ── Indian ADRs ───────────────────────────────────────────────────── */}
       {adrs.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+        <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
           <div className="mb-3 flex items-center gap-2">
             <span className="text-base">🗽</span>
             <h3 className="text-[13px] font-bold text-white">Indian ADRs</h3>
             <span className="text-[10px] text-slate-500">· NYSE / NASDAQ overnight</span>
             <span className="ml-auto text-[9px] text-slate-600">↑ Premium = gap-up expected on NSE</span>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {adrs.map((a: any) => <ADRCard key={a.ticker} item={a} />)}
           </div>
         </div>
       )}
 
       {/* ── Section 4: Currencies + Commodities ──────────────────────────── */}
-      <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+      <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
         <h3 className="mb-4 text-[13px] font-bold text-white">Currencies & Commodities</h3>
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div>
             <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-slate-600">
               Currency Pairs · Higher = Rupee weakens
@@ -744,7 +744,7 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
           </div>
           <div>
             <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-slate-600">Commodities</p>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
               {(data?.commodities ?? []).map((c: any) => <CommodityCard key={c.name} item={c} />)}
             </div>
           </div>
@@ -755,7 +755,7 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
       <OpeningPrediction />
 
       {/* ── Section 6: Stocks + AI + Movers ──────────────────────────────── */}
-      <div className="grid grid-cols-[1fr_320px] gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
         <StocksToWatch stocks={data?.stocks_to_watch ?? []} />
         <div className="space-y-5">
           <AIPrediction data={data?.ai_prediction} pcr={data?.pcr} />

@@ -5,17 +5,26 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, Zap, Target, BarChart2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { CountdownTimer }            from "@/components/market/CountdownTimer";
 import { MarketIntelligenceSidebar } from "@/components/market/MarketIntelligenceSidebar";
-import { PreMarketTab }              from "@/components/market/tabs/PreMarketTab";
-import { LiveMarketTab }             from "@/components/market/tabs/LiveMarketTab";
-import { AfterMarketTab }            from "@/components/market/tabs/AfterMarketTab";
-import { GlobalMarketsTab }          from "@/components/market/tabs/GlobalMarketsTab";
-import { EconomicCalendarTab }       from "@/components/market/tabs/EconomicCalendarTab";
 import { OverviewTab }               from "@/components/market/tabs/OverviewTab";
 import { API_BASE_URL as API } from "@/lib/api";
 
-type TabId = "overview" | "pre-market" | "live-market" | "after-market" | "global-markets" | "economic-calendar";
+// Non-default tabs are code-split — their JS (and the data fetches inside
+// them) only loads once the user actually clicks that tab, instead of all
+// five tabs' bundles loading up front on every /market-intelligence visit.
+const TabSkeleton = () => (
+  <div className="space-y-5">
+    {[1, 2, 3].map(i => <div key={i} className="h-36 animate-pulse rounded-2xl border border-white/[0.05] bg-white/[0.02]" />)}
+  </div>
+);
+const PreMarketTab     = dynamic(() => import("@/components/market/tabs/PreMarketTab").then(m => m.PreMarketTab),         { loading: TabSkeleton });
+const LiveMarketTab    = dynamic(() => import("@/components/market/tabs/LiveMarketTab").then(m => m.LiveMarketTab),       { loading: TabSkeleton });
+const AfterMarketTab   = dynamic(() => import("@/components/market/tabs/AfterMarketTab").then(m => m.AfterMarketTab),     { loading: TabSkeleton });
+const GlobalMarketsTab = dynamic(() => import("@/components/market/tabs/GlobalMarketsTab").then(m => m.GlobalMarketsTab), { loading: TabSkeleton });
+
+type TabId = "overview" | "pre-market" | "live-market" | "after-market" | "global-markets";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview",           label: "Overview"          },
@@ -23,7 +32,6 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "live-market",        label: "Live Market"       },
   { id: "after-market",       label: "After Market"      },
   { id: "global-markets",     label: "Global Markets"    },
-  { id: "economic-calendar",  label: "Economic Calendar" },
 ];
 
 const SESSION_COLORS: Record<string, string> = {
@@ -64,9 +72,11 @@ export function MarketClient({
   initialMovers:        any;
 }) {
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab") as TabId | null;
+  const VALID_TABS = new Set(TABS.map(t => t.id));
+  const isTabId = (v: string | null): v is TabId => !!v && VALID_TABS.has(v as TabId);
+  const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<TabId>(
-    tabParam ?? (initialSession?.active_tab as TabId) ?? "overview"
+    (isTabId(tabParam) ? tabParam : null) ?? (isTabId(initialSession?.active_tab) ? initialSession.active_tab : null) ?? "overview"
   );
   const [session,  setSession]  = useState<any>(initialSession);
   const [overview, setOverview] = useState<any>(initialOverview);
@@ -199,7 +209,6 @@ export function MarketClient({
           {activeTab === "live-market"       && <LiveMarketTab initialData={overview}/>}
           {activeTab === "after-market"      && <AfterMarketTab initialData={overview}/>}
           {activeTab === "global-markets"    && <GlobalMarketsTab/>}
-          {activeTab === "economic-calendar" && <EconomicCalendarTab initialEvents={initialCalendar}/>}
         </div>
       </div>
 

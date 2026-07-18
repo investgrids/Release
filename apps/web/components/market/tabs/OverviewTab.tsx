@@ -1,41 +1,43 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BarChart2, Bot, Zap, Target, Newspaper, CalendarDays, Sparkles } from "lucide-react";
 import { AIOpportunitySection } from "@/components/AIOpportunitySection";
 import { TopEventsSection }     from "@/components/TopEventsSection";
+import { API_BASE_URL as API } from "@/lib/api";
 
 // ── AI Executive Summary ──────────────────────────────────────────────────────
-function AIExecutiveSummary({ data }: { data: any }) {
-  const score = data?.sentiment_score ?? 72;
-  const label = score >= 65 ? "Bullish" : score >= 45 ? "Neutral" : "Bearish";
-  const color = score >= 65 ? "text-emerald-400" : score >= 45 ? "text-amber-400" : "text-rose-400";
+function AIExecutiveSummary({ data, storyConfidence, storyText }: { data: any; storyConfidence: number | null; storyText: string | null }) {
+  const score = data?.sentiment_score ?? null;
+  const unscored = score === null || score === undefined;
+  const label = unscored ? "Unscored" : score >= 65 ? "Bullish" : score >= 45 ? "Neutral" : "Bearish";
+  const color = unscored ? "text-slate-400" : score >= 65 ? "text-emerald-400" : score >= 45 ? "text-amber-400" : "text-rose-400";
   return (
-    <div className="rounded-xl border border-sky-500/10 bg-[#080c14] px-4 py-3.5">
-      <div className="relative flex items-start gap-5">
-        <div className="flex-1 min-w-0">
+    <div className="rounded-2xl border border-sky-500/10 bg-[#080c14] p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center gap-2">
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400"><Sparkles className="h-3 w-3" /></span>
             <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-400">AI Executive Summary</span>
           </div>
-          <h2 className="text-[14px] font-black text-white mb-1.5 leading-snug">
+          <h2 className="mb-1.5 text-[14px] font-black leading-snug text-white">
             Market Sentiment: <span className={color}>{label}</span>
           </h2>
           <p className="text-[12px] leading-5 text-slate-400">
-            Indian markets are showing {label.toLowerCase()} momentum with {score >= 65 ? "strong" : "mixed"} institutional participation.
-            Infrastructure, banking, and defence sectors are in focus with multiple high-impact events scheduled.
+            {storyText || `Indian markets are showing ${label.toLowerCase()} momentum${!unscored ? ` with ${score >= 65 ? "strong" : "mixed"} institutional participation` : ""}.`}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 shrink-0">
+        <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
           {([
-            { label: "Sentiment Score", value: `${score}%`,  color: color,            icon: <BarChart2 className="h-3.5 w-3.5" /> },
-            { label: "AI Confidence",   value: "92%",        color: "text-violet-400", icon: <Bot className="h-3.5 w-3.5" /> },
-            { label: "Events Today",    value: (data?.events?.length ?? 0) + "",        color: "text-amber-400",  icon: <Zap className="h-3.5 w-3.5" /> },
-            { label: "Opportunities",   value: (data?.opportunities?.length ?? 0) + "", color: "text-emerald-400",icon: <Target className="h-3.5 w-3.5" /> },
+            { label: "Sentiment Score", value: unscored ? "—" : `${score}%`, color,                    icon: <BarChart2 className="h-3.5 w-3.5" /> },
+            { label: "AI Confidence",   value: storyConfidence != null ? `${storyConfidence}%` : "—", color: "text-violet-400", icon: <Bot className="h-3.5 w-3.5" /> },
+            { label: "Events Today",    value: String(data?.events?.length ?? 0),        color: "text-amber-400",  icon: <Zap className="h-3.5 w-3.5" /> },
+            { label: "Opportunities",   value: String(data?.opportunities?.length ?? 0), color: "text-emerald-400", icon: <Target className="h-3.5 w-3.5" /> },
           ] as { label: string; value: string; color: string; icon: ReactNode }[]).map(s => (
-            <div key={s.label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2 min-w-[90px]">
-              <span className="text-slate-400 mb-0.5 block">{s.icon}</span>
+            <div key={s.label} className="min-w-[90px] rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2">
+              <span className="mb-0.5 block text-slate-400">{s.icon}</span>
               <p className={`text-[14px] font-black ${s.color}`}>{s.value}</p>
               <p className="text-[9px] text-slate-500">{s.label}</p>
             </div>
@@ -53,30 +55,34 @@ function SectorOverview({ sectors }: { sectors: any[] }) {
     Math.abs(parseFloat(a.value?.replace(/[^0-9.-]/g, "") ?? "0"))
   );
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[14px] font-bold text-white">Sector Performance</h3>
-        <Link href="/sectors" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <h3 className="text-[13px] font-bold text-white">Sector Performance</h3>
+        <Link href="/themes" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
       </div>
-      <div className="space-y-2.5">
-        {sorted.slice(0, 8).map((s) => {
-          const val = parseFloat(s.value?.replace(/[^0-9.-]/g, "") ?? "0");
-          const pos = s.positive !== false;
-          const maxAbs = Math.max(...sorted.map(x => Math.abs(parseFloat(x.value?.replace(/[^0-9.-]/g, "") ?? "0"))), 2);
-          const pct = Math.min(Math.abs(val) / maxAbs, 1) * 100;
-          const display = s.value?.startsWith("+") || s.value?.startsWith("-") ? s.value : `${pos ? "+" : ""}${s.value}%`;
-          return (
-            <div key={s.id ?? s.name} className="flex items-center gap-3">
-              <div className={`h-2 w-2 rounded-full shrink-0 ${pos ? "bg-emerald-400" : "bg-rose-400"}`}/>
-              <p className="w-28 shrink-0 text-[11px] text-slate-300 truncate">{s.name}</p>
-              <div className="flex-1 h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
-                <div className={`h-full rounded-full transition-all duration-700 ${pos ? "bg-emerald-500" : "bg-rose-500"}`} style={{ width: `${pct}%` }}/>
+      {sorted.length === 0 ? (
+        <p className="py-6 text-center text-[12px] text-slate-600">Sector data unavailable.</p>
+      ) : (
+        <div className="space-y-2.5">
+          {sorted.slice(0, 8).map((s) => {
+            const val = parseFloat(s.value?.replace(/[^0-9.-]/g, "") ?? "0");
+            const pos = s.positive !== false;
+            const maxAbs = Math.max(...sorted.map(x => Math.abs(parseFloat(x.value?.replace(/[^0-9.-]/g, "") ?? "0"))), 2);
+            const pct = Math.min(Math.abs(val) / maxAbs, 1) * 100;
+            const display = s.value?.startsWith("+") || s.value?.startsWith("-") ? s.value : `${pos ? "+" : ""}${s.value}%`;
+            return (
+              <div key={s.id ?? s.name} className="flex items-center gap-3">
+                <div className={`h-2 w-2 shrink-0 rounded-full ${pos ? "bg-emerald-400" : "bg-rose-400"}`}/>
+                <p className="w-24 shrink-0 truncate text-[11px] text-slate-300 sm:w-28">{s.name}</p>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
+                  <div className={`h-full rounded-full transition-all duration-700 ${pos ? "bg-emerald-500" : "bg-rose-500"}`} style={{ width: `${pct}%` }}/>
+                </div>
+                <span className={`w-12 shrink-0 text-right text-[11px] font-semibold ${pos ? "text-emerald-400" : "text-rose-400"}`}>{display}</span>
               </div>
-              <span className={`w-12 text-right text-[11px] font-semibold shrink-0 ${pos ? "text-emerald-400" : "text-rose-400"}`}>{display}</span>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -84,12 +90,12 @@ function SectorOverview({ sectors }: { sectors: any[] }) {
 // ── Top Movers ────────────────────────────────────────────────────────────────
 function TopMoversOverview({ movers }: { movers: any }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[14px] font-bold text-white">Top Movers</h3>
-        <Link href="/stocks" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <h3 className="text-[13px] font-bold text-white">Top Movers</h3>
+        <Link href="/companies" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {[
           { key: "gainers", label: "Top Gainers", color: "emerald" },
           { key: "losers",  label: "Top Losers",  color: "rose"    },
@@ -104,6 +110,9 @@ function TopMoversOverview({ movers }: { movers: any }) {
                   <p className={`text-[11px] font-bold text-${color}-400`}>{r.value}</p>
                 </Link>
               ))}
+              {(movers?.[key] ?? []).length === 0 && (
+                <p className="py-2 text-center text-[10px] text-slate-600">Loading…</p>
+              )}
             </div>
           </div>
         ))}
@@ -115,14 +124,14 @@ function TopMoversOverview({ movers }: { movers: any }) {
 // ── Latest News Preview ───────────────────────────────────────────────────────
 function NewsPreview({ news }: { news: any[] }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[14px] font-bold text-white">Latest News</h3>
+        <h3 className="text-[13px] font-bold text-white">Latest News</h3>
         <Link href="/news" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
       </div>
       {news.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <Newspaper className="h-7 w-7 text-slate-500 mb-2" />
+          <Newspaper className="mb-2 h-7 w-7 text-slate-500" />
           <p className="text-[12px] text-slate-500">No news at the moment. Check back soon.</p>
         </div>
       ) : (
@@ -134,7 +143,7 @@ function NewsPreview({ news }: { news: any[] }) {
                 n.impact_score !== null && n.impact_score !== undefined && n.impact_score >= 80 ? "bg-emerald-500/15 text-emerald-400" : "bg-sky-500/15 text-sky-400"
               }`}>{n.impact_score === null || n.impact_score === undefined ? "—" : n.impact_score}</div>
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold text-white line-clamp-2 leading-snug">{n.headline}</p>
+                <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-white">{n.headline}</p>
                 <p className="mt-0.5 text-[10px] text-slate-600">{n.source}</p>
               </div>
             </Link>
@@ -148,14 +157,14 @@ function NewsPreview({ news }: { news: any[] }) {
 // ── Upcoming Economic Events ──────────────────────────────────────────────────
 function UpcomingEvents({ events }: { events: any[] }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5">
+    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[14px] font-bold text-white">Upcoming Economic Events</h3>
+        <h3 className="text-[13px] font-bold text-white">Upcoming Economic Events</h3>
         <Link href="/calendar" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
       </div>
       {events.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <CalendarDays className="h-7 w-7 text-slate-500 mb-2" />
+          <CalendarDays className="mb-2 h-7 w-7 text-slate-500" />
           <p className="text-[12px] text-slate-500">No events scheduled.</p>
         </div>
       ) : (
@@ -164,13 +173,13 @@ function UpcomingEvents({ events }: { events: any[] }) {
             const imp = e.impact?.toLowerCase() ?? "medium";
             const col = imp === "high" ? "text-rose-400 bg-rose-500/10" : imp === "medium" ? "text-amber-400 bg-amber-500/10" : "text-sky-400 bg-sky-500/10";
             return (
-              <div key={e.id} className="flex items-center gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] px-3 py-2.5">
+              <div key={e.id} className="flex items-start gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] px-3 py-2.5">
                 <div className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-bold uppercase ${col}`}>{imp}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-semibold text-white truncate">{e.title}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-white">{e.title}</p>
                   <p className="text-[9px] text-slate-600">{e.category}</p>
                 </div>
-                <p className="text-[10px] text-slate-500 shrink-0">{e.date}</p>
+                <p className="shrink-0 text-[10px] text-slate-500">{e.date}</p>
               </div>
             );
           })}
@@ -187,7 +196,7 @@ function Skeleton({ className }: { className?: string }) {
 
 function OverviewSkeleton() {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-5 space-y-3">
+    <div className="space-y-3 rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <Skeleton className="h-4 w-40"/>
       <Skeleton className="h-3 w-full"/>
       <Skeleton className="h-3 w-5/6"/>
@@ -214,6 +223,19 @@ export function OverviewTab({ data, loading = false, events: rawEvents, news: ra
   const calEvts = calendarEvents  ?? [];
   const sectors = data?.sectors   ?? [];
   const movers  = data?.movers;
+
+  // Real story confidence/text — replaces a previously hardcoded "92%" stat
+  const [storyConfidence, setStoryConfidence] = useState<number | null>(null);
+  const [storyText, setStoryText] = useState<string | null>(null);
+  useEffect(() => {
+    fetch(`${API}/api/intelligence/market/story`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.story?.confidence != null) setStoryConfidence(d.story.confidence);
+        if (d?.story?.text) setStoryText(d.story.text);
+      })
+      .catch(() => {});
+  }, []);
 
   const topEvents = events.map((e: any, i: number) => {
     const rawScore = e.impact_score;
@@ -248,19 +270,19 @@ export function OverviewTab({ data, loading = false, events: rawEvents, news: ra
 
   return (
     <div className="space-y-5">
-      {loading ? <OverviewSkeleton /> : <AIExecutiveSummary data={{ ...data, events, opportunities: opps }}/>}
+      {loading ? <OverviewSkeleton /> : <AIExecutiveSummary data={{ ...data, events, opportunities: opps }} storyConfidence={storyConfidence} storyText={storyText} />}
 
-      <div className="grid grid-cols-[1fr_300px] gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
         <TopEventsSection events={topEvents}/>
         <AIOpportunitySection items={radarItems}/>
       </div>
 
-      <div className="grid grid-cols-[1fr_280px] gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
         {loading ? <OverviewSkeleton /> : <TopMoversOverview movers={movers}/>}
         {loading ? <OverviewSkeleton /> : <SectorOverview sectors={sectors}/>}
       </div>
 
-      <div className="grid grid-cols-[1fr_280px] gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
         <NewsPreview news={news}/>
         <UpcomingEvents events={calEvts}/>
       </div>

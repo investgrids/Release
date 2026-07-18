@@ -560,7 +560,7 @@ async function WatchTomorrowCard() {
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-      <CardHeader title="Watch Tomorrow" href="/market-intelligence?tab=economic-calendar" />
+      <CardHeader title="Watch Tomorrow" href="/market-intelligence?tab=live-market" />
       {items.length === 0 ? (
         <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No upcoming events in the next 7 days.</p>
       ) : (

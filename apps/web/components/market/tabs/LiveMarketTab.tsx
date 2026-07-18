@@ -746,7 +746,7 @@ function AIConfidenceMeterCard({ confidence, accuracy, tracked, updatedAt }: {
 function UpcomingTodayCard({ events, loading }: { events: any[]; loading: boolean }) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <CardHeader title="Upcoming Today" sub="Key events & earnings" href="/market-intelligence?tab=economic-calendar" linkLabel="View Calendar" />
+      <CardHeader title="Upcoming Today" sub="Key events & earnings" href="/calendar" linkLabel="View Calendar" />
       {loading ? (
         <div className="flex-1 space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-8 animate-pulse rounded-lg bg-white/[0.03]" />)}</div>
       ) : events.length === 0 ? (
