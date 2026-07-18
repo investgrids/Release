@@ -163,15 +163,16 @@ export function MarketClient({
             )}
 
             {/* Right: KPI mini cards */}
-            <div className="shrink-0 grid grid-cols-2 gap-1.5">
+            <div className="shrink-0 grid grid-cols-3 gap-1.5">
               {[
+                { label: "Market Status", value: sessLabel, color: sess === "open" ? "text-emerald-400" : sess === "weekend" ? "text-violet-400" : "text-amber-400", small: true },
                 { label: "AI Confidence", value: initialInsights?.confidence != null ? `${initialInsights.confidence}%` : "—", color: "text-violet-400" },
                 { label: "Fear & Greed",  value: String(initialInsights?.fear_greed ?? 72),   color: "text-amber-400"  },
                 { label: "Events Today",  value: String(initialEvents?.length ?? 0),          color: "text-sky-400"    },
                 { label: "Opportunities", value: String(initialOpportunities?.length ?? 0),   color: "text-emerald-400"},
               ].map(k => (
                 <div key={k.label} className="rounded-lg border border-white/[0.06] bg-[#0d1120] px-2.5 py-2 min-w-[78px]">
-                  <p className={`text-[15px] font-black leading-none tabular-nums ${k.color}`}>{k.value}</p>
+                  <p className={`${k.small ? "text-[12px]" : "text-[15px]"} font-black leading-none tabular-nums truncate ${k.color}`}>{k.value}</p>
                   <p className="text-[9px] text-slate-600 mt-0.5 uppercase tracking-wider">{k.label}</p>
                 </div>
               ))}
@@ -219,8 +220,6 @@ export function MarketClient({
       {activeTab !== "live-market" && (
         <aside className="hidden xl:flex xl:flex-col gap-0 min-w-0 sticky top-[88px] self-start max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-hide pb-16">
           <MarketIntelligenceSidebar
-            session={sess}
-            countdown={countdown}
             insights={initialInsights}
             movers={initialMovers}
             calendarEvents={initialCalendar}

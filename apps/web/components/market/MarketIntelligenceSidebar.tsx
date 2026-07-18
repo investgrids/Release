@@ -99,48 +99,6 @@ function AIConfidenceMeter({ value }: { value: number | null | undefined }) {
   );
 }
 
-// ── Market Status ─────────────────────────────────────────────────────────────
-function MarketStatusCard({ session, countdown }: { session: string; countdown: number | null }) {
-  const [secs, setSecs] = useState(countdown ?? 0);
-  useEffect(() => {
-    if (!countdown || countdown <= 0) return;
-    const id = setInterval(() => setSecs(s => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(id);
-  }, [countdown]);
-
-  const isOpen = session === "open";
-  const label =
-    session === "pre_market" ? "Pre-Market" :
-    session === "pre_open"   ? "Pre-Open"   :
-    session === "open"       ? "Market Open" :
-    session === "after_market"? "After Market" : "Market Closed";
-
-  const nextLabel =
-    session === "pre_market" || session === "pre_open" ? "Opens in" :
-    session === "open"                                  ? "Closes in" : "";
-
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = secs % 60;
-  const pad = (n: number) => String(n).padStart(2, "0");
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-4">
-      <p className="mb-2 text-[11px] font-bold text-white">Market Status</p>
-      <div className="flex items-center gap-2">
-        <div className={`h-2 w-2 rounded-full ${isOpen ? "bg-emerald-400 shadow-[0_0_6px_rgba(34,197,94,0.6)]" : "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.5)]"} animate-pulse`}/>
-        <span className="text-[12px] font-bold text-white">{label}</span>
-      </div>
-      {nextLabel && secs > 0 && (
-        <div className="mt-2 rounded-xl bg-white/[0.03] p-2 text-center">
-          <p className="text-[9px] text-slate-600 uppercase tracking-wider mb-0.5">{nextLabel}</p>
-          <p className="text-[16px] font-black text-white tabular-nums">{pad(h)}:{pad(m)}:{pad(s)}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Pre-Market Top Movers ─────────────────────────────────────────────────────
 function TopMoversPanel({ gainers }: { gainers: any[] }) {
   return (
@@ -227,15 +185,11 @@ function BreakingNewsPanel({ news }: { news: any[] }) {
 
 // ── Main Sidebar ──────────────────────────────────────────────────────────────
 export function MarketIntelligenceSidebar({
-  session,
-  countdown,
   insights,
   movers,
   calendarEvents,
   news,
 }: {
-  session: string;
-  countdown: number | null;
   insights: any;
   movers: any;
   calendarEvents: any[];
@@ -260,7 +214,6 @@ export function MarketIntelligenceSidebar({
 
   return (
     <div className="space-y-3">
-      <MarketStatusCard session={session} countdown={countdown}/>
       <TopMoversPanel gainers={gainers}/>
       <UpcomingEventsPanel events={calendarEvents}/>
       <FearGreedGauge value={fearGreed}/>
