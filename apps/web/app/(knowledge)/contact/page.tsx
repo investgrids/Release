@@ -26,12 +26,16 @@ export const metadata: Metadata = {
 
 // ── Contact categories ─────────────────────────────────────────────────────────
 
+// Every category routes to the same support inbox — the subject line lets
+// the team triage internally instead of splitting across multiple addresses.
+const SUPPORT_EMAIL = "support@marketripple.in";
+
 const CATEGORIES = [
   {
     icon: LifeBuoy,
     title: "Support",
     desc: "Having trouble with the platform? Our support team will help you resolve any technical issue or usage question.",
-    contact: "support@marketripple.in",
+    subject: "Support Request",
     isEmail: true,
     accent: "border-sky-500/20 bg-sky-500/[0.05]",
     iconColor: "text-sky-400",
@@ -41,7 +45,7 @@ const CATEGORIES = [
     icon: MessageSquare,
     title: "Feedback",
     desc: "Share your experience, suggest improvements, or tell us what you wish MarketRipple did differently. All feedback shapes the roadmap.",
-    contact: "feedback@marketripple.in",
+    subject: "Feedback",
     isEmail: true,
     accent: "border-violet-500/20 bg-violet-500/[0.05]",
     iconColor: "text-violet-400",
@@ -51,7 +55,7 @@ const CATEGORIES = [
     icon: Briefcase,
     title: "Business Enquiries",
     desc: "Interested in enterprise solutions, white-label intelligence feeds, or professional subscription plans for your organisation?",
-    contact: "business@marketripple.in",
+    subject: "Business Enquiry",
     isEmail: true,
     accent: "border-emerald-500/20 bg-emerald-500/[0.05]",
     iconColor: "text-emerald-400",
@@ -61,7 +65,7 @@ const CATEGORIES = [
     icon: Handshake,
     title: "Partnerships",
     desc: "Data providers, financial media, exchanges, fintech platforms, and financial institutions — explore partnership opportunities.",
-    contact: "partnerships@marketripple.in",
+    subject: "Partnership Enquiry",
     isEmail: true,
     accent: "border-amber-500/20 bg-amber-500/[0.05]",
     iconColor: "text-amber-400",
@@ -71,7 +75,7 @@ const CATEGORIES = [
     icon: Newspaper,
     title: "Media",
     desc: "Journalists and editors seeking press coverage, data quotes, interviews, or commentary from the MarketRipple team.",
-    contact: "media@marketripple.in",
+    subject: "Media Enquiry",
     isEmail: true,
     accent: "border-rose-500/20 bg-rose-500/[0.05]",
     iconColor: "text-rose-400",
@@ -169,15 +173,15 @@ export default function ContactPage() {
                 <div className="mt-4">
                   {cat.isEmail ? (
                     <a
-                      href={`mailto:${cat.contact}`}
+                      href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(cat.subject!)}`}
                       className={`inline-flex items-center gap-1.5 text-[13px] font-medium ${cat.iconColor} underline-offset-2 hover:underline`}
                     >
                       <Mail className="h-3.5 w-3.5" />
-                      {cat.contact}
+                      {SUPPORT_EMAIL}
                     </a>
                   ) : (
                     <Link
-                      href={cat.contact}
+                      href={(cat.contact ?? "/faq") as any}
                       className={`inline-flex items-center gap-1.5 text-[13px] font-medium ${cat.iconColor} underline-offset-2 hover:underline`}
                     >
                       See FAQ for bug reports
@@ -213,10 +217,10 @@ export default function ContactPage() {
               are prioritised on our public roadmap. To submit a feature request,
               write to{" "}
               <a
-                href="mailto:feedback@marketripple.in?subject=Feature Request"
+                href="mailto:support@marketripple.in?subject=Feature Request"
                 className="font-medium text-violet-400 underline-offset-2 hover:underline"
               >
-                feedback@marketripple.in
+                support@marketripple.in
               </a>{" "}
               with{" "}
               <span className="rounded-md border border-white/[0.08] bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-slate-300">

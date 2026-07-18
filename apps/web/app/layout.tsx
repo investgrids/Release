@@ -69,6 +69,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             name: "MarketRipple",
             url: SITE_URL,
             description: "AI-powered market intelligence platform for Indian equity markets.",
+            email: "support@marketripple.in",
+            contactPoint: {
+              "@type": "ContactPoint",
+              email: "support@marketripple.in",
+              contactType: "customer support",
+              areaServed: "IN",
+              availableLanguage: ["English"],
+            },
             sameAs: [],
           }) }}
         />

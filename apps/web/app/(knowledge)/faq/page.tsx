@@ -158,7 +158,7 @@ const SECTIONS = [
       },
       {
         q: "How do I report a bug or request a feature?",
-        a: "Use the Contact page to get in touch. For bugs, select 'Bug Reports' and describe what you were doing, what you expected to happen, and what actually happened — screenshots are very helpful. For feature requests, write to feedback@marketripple.in with 'Feature Request' in the subject line and describe the problem you want solved and how you imagine a solution might work. All bug reports and feature requests are reviewed by the team. Critical bugs affecting core functionality are addressed within 24 hours on business days.",
+        a: "Use the Contact page to get in touch. For bugs, select 'Bug Reports' and describe what you were doing, what you expected to happen, and what actually happened — screenshots are very helpful. For feature requests, write to support@marketripple.in with 'Feature Request' in the subject line and describe the problem you want solved and how you imagine a solution might work. All bug reports and feature requests are reviewed by the team. Critical bugs affecting core functionality are addressed within 24 hours on business days.",
       },
       {
         q: "What are the upcoming premium features?",
