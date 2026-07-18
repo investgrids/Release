@@ -6,6 +6,7 @@ import Link from "next/link";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
 import { API_BASE_URL as API } from "@/lib/api";
+import { compareScoresDesc } from "@/lib/scoring";
 
 
 interface NewsArticle {
@@ -15,7 +16,7 @@ interface NewsArticle {
   source: string;
   published_at: string;
   companies: string[];
-  impact_score: number;
+  impact_score: number | null;
   url?: string;
 }
 
@@ -71,7 +72,8 @@ function classifyArticle(headline: string, summary: string): string {
   return "Market";
 }
 
-function impactBadge(s: number) {
+function impactBadge(s: number | null | undefined) {
+  if (s === null || s === undefined) return { label: "Unscored", cls: "text-slate-500 bg-slate-800/20 border-slate-700/30" };
   if (s >= 9) return { label: "High Impact",   cls: "text-rose-300 bg-rose-500/10 border-rose-500/25"     };
   if (s >= 7) return { label: "Medium Impact", cls: "text-amber-300 bg-amber-500/10 border-amber-500/25"  };
   return        { label: "Low Impact",    cls: "text-slate-300 bg-slate-700/40 border-slate-500/25"  };
@@ -151,7 +153,7 @@ export default function NewsPage() {
   );
 
   const popular = useMemo(
-    () => [...articles].sort((a, b) => b.impact_score - a.impact_score).slice(0, 5),
+    () => [...articles].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score)).slice(0, 5),
     [articles]
   );
 
@@ -272,7 +274,7 @@ export default function NewsPage() {
                     {/* Impact indicator */}
                     <div className="shrink-0 text-right">
                       <div className={`flex h-8 w-8 items-center justify-center rounded-full text-[9px] font-black border ${imp.cls}`}>
-                        {a.impact_score >= 9 ? "HI" : a.impact_score >= 7 ? "MID" : "LO"}
+                        {a.impact_score === null || a.impact_score === undefined ? "—" : a.impact_score >= 9 ? "HI" : a.impact_score >= 7 ? "MID" : "LO"}
                       </div>
                     </div>
                   </Link>

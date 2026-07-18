@@ -15,18 +15,19 @@ import {
 import { useIntelligence } from "@/hooks/useIntelligence";
 import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
 import { API_BASE_URL as API } from "@/lib/api";
+import { compareScoresDesc } from "@/lib/scoring";
 
 const PALETTE = ["#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#06b6d4", "#f43f5e"];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface NewsArticle {
   id: string; headline: string; summary: string; source: string;
-  published_at: string; companies: string[]; impact_score: number;
+  published_at: string; companies: string[]; impact_score: number | null;
   url?: string; sectors: string[];
 }
 interface StockInfo { price: string; pct_change: number; sector?: string; }
 interface Event {
-  id: string; title: string; summary: string; impact_score: number;
+  id: string; title: string; summary: string; impact_score: number | null;
   sectors: string[]; companies: (string | { symbol: string; name: string })[];
   category: string; date: string; source?: string;
 }
@@ -154,7 +155,8 @@ const SECTOR_RISKS: Record<string, string[]> = {
 };
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
-function impactLabel(s: number) {
+function impactLabel(s: number | null | undefined) {
+  if (s === null || s === undefined) return { label: "Unscored", color: "text-slate-500 bg-slate-800/10 border-slate-700/20", ring: "stroke-slate-600", bar: "from-slate-600 to-slate-500" };
   if (s >= 85) return { label: "Very High Impact", color: "text-rose-300 bg-rose-500/10 border-rose-500/20",   ring: "stroke-rose-500",    bar: "from-rose-500 to-rose-400"    };
   if (s >= 70) return { label: "High Impact",      color: "text-amber-300 bg-amber-500/10 border-amber-500/20", ring: "stroke-amber-500",   bar: "from-amber-500 to-yellow-400"  };
   if (s >= 50) return { label: "Medium Impact",    color: "text-sky-300 bg-sky-500/10 border-sky-500/20",       ring: "stroke-sky-500",     bar: "from-sky-500 to-cyan-400"     };
@@ -165,7 +167,7 @@ function deriveSentiment(article: NewsArticle): "Bullish" | "Neutral" | "Bearish
   const text = ((article.headline ?? "") + " " + (article.summary ?? "")).toLowerCase();
   const bs = BULLISH_WORDS.filter(w => text.includes(w)).length;
   const br = BEARISH_WORDS.filter(w => text.includes(w)).length;
-  if (article.impact_score >= 75 && bs > br) return "Bullish";
+  if (article.impact_score !== null && article.impact_score !== undefined && article.impact_score >= 75 && bs > br) return "Bullish";
   if (br > bs + 1) return "Bearish";
   return "Neutral";
 }
@@ -177,7 +179,7 @@ function deriveAIInsights(article: NewsArticle) {
   const score = article.impact_score;
 
   const shortTerm = sentiment === "Bullish"
-    ? `Positive near-term momentum expected in ${primarySector} as market digests ${score >= 80 ? "this high-impact" : "this"} development.`
+    ? `Positive near-term momentum expected in ${primarySector} as market digests ${score !== null && score !== undefined && score >= 80 ? "this high-impact" : "this"} development.`
     : sentiment === "Bearish"
     ? `Near-term pressure anticipated in ${primarySector}. Caution advised as market reassesses risk.`
     : `Moderate near-term volatility expected while markets assess implications for ${primarySector}.`;
@@ -186,7 +188,7 @@ function deriveAIInsights(article: NewsArticle) {
     ? `Long-term outlook remains positive — government capex and policy push create multi-year tailwinds.`
     : sectors.includes("Technology") || sectors.includes("Pharmaceuticals")
     ? `Structural growth story intact. Monitor quarterly execution; long-term fundamentals supportive.`
-    : score >= 80
+    : score !== null && score !== undefined && score >= 80
     ? `Sustained impact likely if policy/trend confirmed. Structural re-rating possible over 12–24 months.`
     : `Long-term outlook depends on macro stability and sector-specific execution over next few quarters.`;
 
@@ -229,12 +231,17 @@ function Spinner() {
   );
 }
 
-function ScoreRing({ score, size = 96 }: { score: number; size?: number }) {
+function ScoreRing({ score, size = 96 }: { score: number | null | undefined; size?: number }) {
+  const unscored = score === null || score === undefined;
   const imp = impactLabel(score);
   const r = (size - 10) / 2;
   const circ = 2 * Math.PI * r;
   const [dash, setDash] = useState(0);
-  useEffect(() => { const t = setTimeout(() => setDash((score / 100) * circ), 120); return () => clearTimeout(t); }, [score, circ]);
+  useEffect(() => {
+    if (unscored) { setDash(0); return; }
+    const t = setTimeout(() => setDash((score / 100) * circ), 120);
+    return () => clearTimeout(t);
+  }, [score, circ, unscored]);
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
@@ -243,8 +250,8 @@ function ScoreRing({ score, size = 96 }: { score: number; size?: number }) {
           strokeLinecap="round" strokeDasharray={`${dash} ${circ}`} style={{ transition: "stroke-dasharray 1s ease" }} />
       </svg>
       <div className="absolute text-center">
-        <div className="text-2xl font-black text-white leading-none">{Math.round(score)}</div>
-        <div className="text-[9px] text-slate-500 mt-0.5">/ 100</div>
+        <div className="text-2xl font-black text-white leading-none">{unscored ? "N/A" : Math.round(score)}</div>
+        <div className="text-[9px] text-slate-500 mt-0.5">{unscored ? "Unscored" : "/ 100"}</div>
       </div>
     </div>
   );
@@ -337,8 +344,10 @@ function CompanyCard({ name, stockInfo, idx, sentiment }: { name: string; stockI
 
 function RelatedEventCard({ ev }: { ev: Event }) {
   const ICONS: Record<string, ReactNode> = { Government: <Building2 className="h-4 w-4" />, Policy: <ClipboardList className="h-4 w-4" />, Corporate: <Building2 className="h-4 w-4" />, RBI: <Landmark className="h-4 w-4" />, Macro: <Globe className="h-4 w-4" />, Global: <Globe2 className="h-4 w-4" />, Results: <BarChart2 className="h-4 w-4" /> };
-  const score = Math.round(ev.impact_score ?? 0);
-  const scoreColor = score >= 85 ? "border-rose-500 bg-rose-500/10 text-rose-400" : score >= 70 ? "border-amber-400 bg-amber-500/10 text-amber-400" : "border-sky-400 bg-sky-500/10 text-sky-400";
+  const rawImpact = ev.impact_score;
+  const unscored = rawImpact === null || rawImpact === undefined;
+  const score = unscored ? null : Math.round(rawImpact);
+  const scoreColor = unscored ? "border-slate-600 bg-slate-800/20 text-slate-500" : score! >= 85 ? "border-rose-500 bg-rose-500/10 text-rose-400" : score! >= 70 ? "border-amber-400 bg-amber-500/10 text-amber-400" : "border-sky-400 bg-sky-500/10 text-sky-400";
   return (
     <div className="flex gap-3 rounded-[16px] border border-white/8 bg-white/[0.02] p-3 hover:border-white/15 hover:bg-white/[0.035] transition">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-slate-400">
@@ -353,7 +362,7 @@ function RelatedEventCard({ ev }: { ev: Event }) {
         </div>
       </div>
       <div className={`flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-full border ${scoreColor}`}>
-        <span className="text-[12px] font-black leading-none">{score}</span>
+        <span className="text-[12px] font-black leading-none">{unscored ? "—" : score}</span>
       </div>
     </div>
   );
@@ -405,7 +414,7 @@ function OverviewTab({ article, relatedEvents }: { article: NewsArticle; related
             {[
               { label: "Source",       value: article.source },
               { label: "Published",    value: article.published_at },
-              { label: "Impact Score", value: `${Math.round(article.impact_score)} / 100` },
+              { label: "Impact Score", value: article.impact_score === null || article.impact_score === undefined ? "Unscored" : `${Math.round(article.impact_score)} / 100` },
               { label: "Category",     value: (article.sectors ?? [])[0] ?? "Indian Markets" },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
@@ -489,7 +498,9 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
     ? "FII caution expected; possible short-term outflows"
     : "FII activity neutral; sector-specific positioning likely";
 
-  const breadth = score >= 80
+  const breadth = score === null || score === undefined
+    ? "Impact breadth is still being analysed."
+    : score >= 80
     ? "Broad market impact expected — affects multiple sectors and indices"
     : score >= 60
     ? "Moderate impact — primarily sector-specific, limited index-level effect"
@@ -655,7 +666,7 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
             <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
               <p className="text-[10px] text-slate-500 mb-1">Impact Duration</p>
               <p className="text-[12px] text-slate-300">
-                {score >= 85 ? "Multi-day sustained impact likely" : score >= 65 ? "1–2 session immediate reaction" : "Intraday effect, normalises quickly"}
+                {score === null || score === undefined ? "Impact duration is still being analysed." : score >= 85 ? "Multi-day sustained impact likely" : score >= 65 ? "1–2 session immediate reaction" : "Intraday effect, normalises quickly"}
               </p>
             </div>
           </div>
@@ -734,12 +745,12 @@ function RelatedEventsTab({ events, article }: { events: Event[]; article: NewsA
         (ev.sectors ?? []).some(es => es.toLowerCase().includes(s.toLowerCase().split(" ")[0]))
       );
       return compMatch || sectMatch;
-    }).sort((a, b) => b.impact_score - a.impact_score).slice(0, 8);
+    }).sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score)).slice(0, 8);
 
     if (matched.length > 0) return { related: matched, isFallback: false };
 
     // Fallback: show top events by impact score so tab is never empty
-    const fallback = [...events].sort((a, b) => b.impact_score - a.impact_score).slice(0, 5);
+    const fallback = [...events].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score)).slice(0, 5);
     return { related: fallback, isFallback: true };
   }, [events, article]);
 
@@ -759,13 +770,15 @@ function RelatedEventsTab({ events, article }: { events: Event[]; article: NewsA
 function AIAnalysisTab({ article }: { article: NewsArticle }) {
   const ins = deriveAIInsights(article);
   const score = article.impact_score;
+  const hasScore = score !== null && score !== undefined;
 
-  // Sentiment breakdown
-  const bullPct = ins.sentiment === "Bullish" ? Math.round(score * 0.7) : ins.sentiment === "Bearish" ? Math.round(score * 0.15) : Math.round(score * 0.35);
-  const bearPct = ins.sentiment === "Bearish" ? Math.round(score * 0.65) : Math.round(score * 0.15);
-  const neutPct = Math.max(0, 100 - bullPct - bearPct);
+  // Sentiment breakdown — only meaningful once there's a real score to
+  // split; an unscored article has no basis for a fabricated percentage mix.
+  const bullPct = !hasScore ? 0 : ins.sentiment === "Bullish" ? Math.round(score * 0.7) : ins.sentiment === "Bearish" ? Math.round(score * 0.15) : Math.round(score * 0.35);
+  const bearPct = !hasScore ? 0 : ins.sentiment === "Bearish" ? Math.round(score * 0.65) : Math.round(score * 0.15);
+  const neutPct = !hasScore ? 0 : Math.max(0, 100 - bullPct - bearPct);
 
-  const action = score >= 80 ? "Research" : score >= 60 ? "Watch" : "Monitor";
+  const action = !hasScore ? "Monitor" : score >= 80 ? "Research" : score >= 60 ? "Watch" : "Monitor";
   const actionColor = action === "Research" ? "text-emerald-300 bg-emerald-500/15 border-emerald-500/30"
                     : action === "Watch"    ? "text-amber-300 bg-amber-500/15 border-amber-500/30"
                     : "text-sky-300 bg-sky-500/15 border-sky-500/30";
@@ -779,29 +792,35 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
             <SentimentBadge sentiment={ins.sentiment} />
             <div className="flex-1">
               <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                <span>Confidence</span><span>{Math.round(score)}%</span>
+                <span>Confidence</span><span>{hasScore ? `${Math.round(score)}%` : "Unscored"}</span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400"
-                  style={{ width: `${score}%`, transition: "width 0.8s ease" }} />
+                {hasScore && (
+                  <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400"
+                    style={{ width: `${score}%`, transition: "width 0.8s ease" }} />
+                )}
               </div>
             </div>
           </div>
-          <div className="space-y-2">
-            {[
-              { label: "Bullish", pct: bullPct, color: "bg-emerald-500" },
-              { label: "Neutral", pct: neutPct, color: "bg-amber-500" },
-              { label: "Bearish", pct: bearPct, color: "bg-rose-500" },
-            ].map(s => (
-              <div key={s.label} className="flex items-center gap-2">
-                <span className="w-12 text-[11px] text-slate-400">{s.label}</span>
-                <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                  <div className={`h-full rounded-full ${s.color}`} style={{ width: `${s.pct}%`, transition: "width 0.8s ease" }} />
+          {hasScore ? (
+            <div className="space-y-2">
+              {[
+                { label: "Bullish", pct: bullPct, color: "bg-emerald-500" },
+                { label: "Neutral", pct: neutPct, color: "bg-amber-500" },
+                { label: "Bearish", pct: bearPct, color: "bg-rose-500" },
+              ].map(s => (
+                <div key={s.label} className="flex items-center gap-2">
+                  <span className="w-12 text-[11px] text-slate-400">{s.label}</span>
+                  <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className={`h-full rounded-full ${s.color}`} style={{ width: `${s.pct}%`, transition: "width 0.8s ease" }} />
+                  </div>
+                  <span className="w-7 text-right text-[11px] font-semibold text-white">{s.pct}%</span>
                 </div>
-                <span className="w-7 text-right text-[11px] font-semibold text-white">{s.pct}%</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-slate-500">Sentiment breakdown requires a computed impact score.</p>
+          )}
         </Card>
 
         {ins.bullishFactors.length > 0 && (
@@ -931,7 +950,7 @@ export default function NewsDetailPage() {
         (ev.sectors ?? []).some((es: string) => es.toLowerCase().includes(s.toLowerCase().split(" ")[0]))
       );
       return compMatch || sectMatch;
-    }).sort((a, b) => b.impact_score - a.impact_score).slice(0, 8);
+    }).sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score)).slice(0, 8);
   }, [events, article]);
 
   // ── Render states ──
