@@ -148,7 +148,7 @@ export default async function DailyBriefPage() {
             </span>
             {intel?.confidence?.level && (
               <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${
-                intel.confidence.score >= 75
+                intel.confidence.score !== null && intel.confidence.score !== undefined && intel.confidence.score >= 75
                   ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-400"
                   : "border-amber-500/25 bg-amber-500/10 text-amber-400"
               }`}>
