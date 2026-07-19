@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
+import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
+import { mieClient } from "@/services/intelligence/mie-client";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { API_BASE_URL as API } from "@/lib/api";
 import {
@@ -840,9 +842,14 @@ function MarketReplayPanel({ open }: { open: boolean }) {
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
 export function LiveMarketTab({ initialData }: { initialData?: any }) {
+  // Story, themes, and market health come from the shared MarketIntelligenceProvider
+  // (one 60s-refreshed fetch + SSE-driven live updates, reused across every page)
+  // instead of this component polling its own /api/intelligence/market/* endpoints.
+  const { state: mie, loading: storyLoading } = useMarketIntelligence();
+  const story  = (mie?.story ?? null) as MarketStory | null;
+  const themes = (mie?.themes ?? []) as unknown as ThemeData[];
+
   const [data,         setData]         = useState<any>(initialData ?? null);
-  const [story,        setStory]        = useState<MarketStory | null>(null);
-  const [themes,       setThemes]       = useState<ThemeData[]>([]);
   const [feed,         setFeed]         = useState<FeedItem[]>([]);
   const [opps,         setOpps]         = useState<any[]>([]);
   const [events,       setEvents]       = useState<any[]>([]);
@@ -855,16 +862,15 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
   const [rippleLoading,setRippleLoading]= useState(true);
   const [replayOpen,   setReplayOpen]   = useState(false);
   const [dataLoading,  setDataLoading]  = useState(!initialData);
-  const [storyLoading, setStoryLoading] = useState(true);
 
   const safe = <T,>(p: Promise<T>) => p.catch(() => null);
 
-  // Main fast fetches
+  // Main fast fetches — story/themes come from useMarketIntelligence() above,
+  // not fetched here. Live feed goes through the shared mieClient (same
+  // cache/dedup the rest of the app uses) instead of a page-local fetch.
   useEffect(() => {
     const base: Promise<any>[] = [
-      safe(fetch(`${API}/api/intelligence/market/story`).then(r => r.ok ? r.json() : null)),
-      safe(fetch(`${API}/api/intelligence/market/themes`).then(r => r.ok ? r.json() : null)),
-      safe(fetch(`${API}/api/intelligence/market/feed?limit=30`).then(r => r.ok ? r.json() : null)),
+      safe(mieClient.getLiveFeed({ limit: 30 })),
       safe(fetch(`${API}/api/market/opportunities?limit=4`).then(r => r.ok ? r.json() : null)),
       safe(fetch(`${API}/api/events/?sort_by=impact_score&page_size=10`).then(r => r.ok ? r.json() : null)),
       safe(fetch(`${API}/api/calendar/`).then(r => r.ok ? r.json() : null)),
@@ -873,10 +879,8 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
     ];
     if (!initialData) base.push(safe(fetch(`${API}/api/market/live`).then(r => r.ok ? r.json() : null)));
 
-    Promise.all(base).then(([storyRes, themesRes, feedRes, oppsRes, eventsRes, calRes, idxRes, predStatsRes, liveRes]) => {
-      if (storyRes?.story) setStory(storyRes.story);
-      if (themesRes?.themes) setThemes(themesRes.themes);
-      if (feedRes?.feed) setFeed(feedRes.feed);
+    Promise.all(base).then(([feedRes, oppsRes, eventsRes, calRes, idxRes, predStatsRes, liveRes]) => {
+      if ((feedRes as any)?.feed) setFeed((feedRes as any).feed);
       if (oppsRes?.opportunities) setOpps(oppsRes.opportunities);
       const evs = (eventsRes as any)?.results ?? eventsRes ?? [];
       if (Array.isArray(evs)) setEvents(evs);
@@ -884,19 +888,8 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
       if (Array.isArray(idxRes)) setIndices(idxRes);
       if (predStatsRes) setPredStats({ overall_accuracy: predStatsRes.overall_accuracy ?? null, total_predictions: predStatsRes.total_predictions ?? null });
       if (liveRes) setData(liveRes);
-    }).finally(() => { setDataLoading(false); setStoryLoading(false); });
+    }).finally(() => { setDataLoading(false); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Refresh story every 5 min
-  useEffect(() => {
-    const id = setInterval(() => {
-      fetch(`${API}/api/intelligence/market/story`)
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d?.story) setStory(d.story); })
-        .catch(() => {});
-    }, 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, []);
 
   // Tomorrow Outlook — slow, cached server-side for 30 min, fetched independently
   useEffect(() => {
@@ -931,7 +924,10 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
 
   const sectors = data?.sectors ?? [];
   const breadth = data?.breadth ?? null;
-  const health  = computeHealthScore(data, story);
+  // Prefer the canonical backend-computed market_health from the MIE state —
+  // computeHealthScore() is now only a fallback for the brief window before
+  // the Provider's first fetch resolves.
+  const health  = mie?.market_health?.score ?? computeHealthScore(data, story);
   // Same real formula the backend uses for /api/market/overview's sentiment_score,
   // computed here from the indices we already have — /api/market/live has no such field.
   const sentimentScore = indices.length

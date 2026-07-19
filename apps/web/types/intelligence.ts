@@ -53,7 +53,11 @@ export interface MIEEvent {
   themes:        string[];
   tickers:       string[];
   broadcast:     boolean;
+  source:        string;
   triaged_at:    string | null;
+  // Intelligence Priority Queue — see app.services.intelligence.engine._compute_priority.
+  priority_score: number;   // 0-100
+  priority_tier:  "Critical" | "High" | "Medium" | "Low";
 }
 
 // ── Signals (synthesised by engine) ───────────────────────────────────────────
@@ -73,9 +77,57 @@ export interface MIESignals {
   structural_shifts: number;
 }
 
+// ── Newsroom-style summary fields ──────────────────────────────────────────────
+
+export interface MIEOpportunity {
+  id:                string;
+  slug:              string;
+  title:             string;
+  summary:           string;
+  opportunity_score: number | null;
+  confidence:        number | null;
+  trend:             string | null;
+  risk_level:        string | null;
+  sectors:           string[];
+}
+
+export interface MIERisk {
+  headline:   string | null;
+  reason:     string;
+  sectors:    string[];
+  tickers:    string[];
+  confidence: number | null;
+}
+
+export interface MIECompanyToWatch {
+  ticker:     string;
+  why:        string;
+  impact:     number | null;   // priority_score of the driving event
+  confidence: number | null;
+}
+
+export interface MIEMarketDriver {
+  headline: string;
+  urgency:  number;
+}
+
+export interface MIEMarketHealth {
+  score: number;   // 0-100
+  label: "Healthy" | "Mixed" | "Weak" | "Stressed";
+}
+
+export interface MIECalendarEvent {
+  id:          string;
+  category:    string;
+  title:       string;
+  date:        string;
+  description: string;
+}
+
 // ── Full intelligence state ────────────────────────────────────────────────────
 
 export interface MarketIntelligenceState {
+  version:        string;
   generated_at:   string;
   market_session: "pre_market" | "live" | "post_market" | "weekend";
   is_market_open: boolean;
@@ -85,6 +137,17 @@ export interface MarketIntelligenceState {
   signals:        MIESignals;
   sector_themes:  { name: string; score: number; momentum: string }[];
   event_sectors:  { name: string; event_count: number }[];
+
+  market_bias:         string;
+  market_health:       MIEMarketHealth;
+  ai_summary:           string | null;
+  biggest_opportunity: MIEOpportunity | null;
+  biggest_risk:        MIERisk | null;
+  companies_to_watch:  MIECompanyToWatch[];
+  market_drivers:      MIEMarketDriver[];
+  strongest_themes:    MIETheme[];
+  weakest_themes:      MIETheme[];
+  tomorrow_watch:      MIECalendarEvent[];
 }
 
 // ── Symbol context ─────────────────────────────────────────────────────────────
@@ -103,20 +166,9 @@ export interface SymbolIntelligenceContext {
 
 // ── Feed item ─────────────────────────────────────────────────────────────────
 
-export interface MIEFeedItem {
-  id:            string;
-  headline:      string;
-  one_liner:     string | null;
-  urgency:       number;
-  sentiment:     string;
-  market_impact: string;
-  direction:     string;
-  sectors:       string[];
-  tickers:       string[];
-  is_structural: boolean;
-  broadcast:     boolean;
-  triaged_at:    string | null;
-}
+// The feed is now backed by the same reader as MIEEvent (engine.read_top_events)
+// — both /api/mie/feed and /api/intelligence/market/feed return this shape.
+export type MIEFeedItem = MIEEvent;
 
 export interface MIEFeed {
   feed:           MIEFeedItem[];
@@ -130,10 +182,12 @@ export interface MIEFeed {
 
 export interface MIEStatus {
   engine:            string;
+  version:           string | null;
   market_session:    string;
   redis_connected:   boolean;
   state_cached:      boolean;
   state_age_seconds: number | null;
+  events_processed:  number;
   state_session:     string | null;
   is_fresh:          boolean;
 }

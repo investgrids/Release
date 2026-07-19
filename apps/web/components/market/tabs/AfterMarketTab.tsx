@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Telescope, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { API_BASE_URL as API } from "@/lib/api";
+import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
 
 
 function StatCard({ label, value, positive, sub }: { label: string; value: string; positive?: boolean; sub?: string }) {
@@ -43,8 +44,11 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
   const [data, setData]       = useState<any>(derived ?? null);
   const [loading, setLoading] = useState(!derived);
 
-  // Real market story (replaces a previously templated boilerplate summary)
-  const [story, setStory]           = useState<any>(null);
+  // Real market story from the shared MarketIntelligenceProvider — replaces
+  // both a previously templated boilerplate summary and this component's
+  // own fetch to /api/intelligence/market/story.
+  const { state: mie } = useMarketIntelligence();
+  const story = mie?.story ?? null;
   const [recentEvents, setEvents]   = useState<any[]>([]);
   const [openingPred, setOpeningPred] = useState<any>(null);
   const [predLoading, setPredLoading] = useState(true);
@@ -59,15 +63,13 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const safe = (p: Promise<any>) => p.catch(() => null);
-    Promise.all([
-      safe(fetch(`${API}/api/intelligence/market/story`).then(r => r.ok ? r.json() : null)),
-      safe(fetch(`${API}/api/events/?sort_by=impact_score&page_size=10`).then(r => r.ok ? r.json() : null)),
-    ]).then(([storyRes, eventsRes]) => {
-      if (storyRes?.story) setStory(storyRes.story);
-      const evs = eventsRes?.results ?? eventsRes ?? [];
-      if (Array.isArray(evs)) setEvents(evs);
-    });
+    fetch(`${API}/api/events/?sort_by=impact_score&page_size=10`)
+      .then(r => r.ok ? r.json() : null)
+      .then(eventsRes => {
+        const evs = eventsRes?.results ?? eventsRes ?? [];
+        if (Array.isArray(evs)) setEvents(evs);
+      })
+      .catch(() => {});
 
     const ac = new AbortController();
     const t = setTimeout(() => ac.abort(), 90_000);

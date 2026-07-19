@@ -7,6 +7,7 @@ import { Footer }             from "@/components/Footer";
 import { NavigationProgress } from "@/components/NavigationProgress";
 import { NavLoadingProvider } from "@/components/NavLoadingProvider";
 import { AlertProvider }      from "@/components/AlertProvider";
+import { MarketIntelligenceProvider } from "@/components/MarketIntelligenceProvider";
 import { BreakingNewsAlert }  from "@/components/BreakingNewsAlert";
 
 // next/font downloads Inter at build time, self-hosts it, and injects an
@@ -82,13 +83,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <NavigationProgress />
         <AlertProvider>
-          <NavLoadingProvider>
-            <SiteHeader />
-            <main className="min-h-[calc(100vh-72px)]">
-              {children}
-            </main>
-            <BreakingNewsAlert />
-          </NavLoadingProvider>
+          <MarketIntelligenceProvider>
+            <NavLoadingProvider>
+              <SiteHeader />
+              <main className="min-h-[calc(100vh-72px)]">
+                {children}
+              </main>
+              <BreakingNewsAlert />
+            </NavLoadingProvider>
+          </MarketIntelligenceProvider>
         </AlertProvider>
         <Footer />
       </body>

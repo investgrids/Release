@@ -2,44 +2,39 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_BASE_URL as API } from "@/lib/api";
+import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
 
-const INTERVAL = 5 * 60 * 1000; // 5 minutes
-
+/**
+ * Watches the shared MarketIntelligenceProvider state (already refreshed
+ * every 60s, and sooner on live SSE signal) for a change and re-runs the
+ * homepage's server-rendered sections. No longer polls its own endpoint —
+ * see MarketIntelligenceProvider for the actual refresh/SSE logic.
+ */
 export function HomepageRefresher() {
-  const router    = useRouter();
-  const hashRef   = useRef<string | null>(null);
+  const router  = useRouter();
+  const { state } = useMarketIntelligence();
+  const seenRef = useRef<string | null>(null);
   const [toast, setToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    let toastTimer: ReturnType<typeof setTimeout>;
+    const marker = state?.story?.generated_at ?? null;
+    if (!marker) return;
 
-    const check = async () => {
-      try {
-        const r = await fetch(`${API}/api/intelligence/market/story`, { cache: "no-store" });
-        if (!r.ok) return;
-        const data = await r.json();
-        const hash = data?.story?.story_hash as string | undefined;
-        if (!hash) return;
+    if (seenRef.current === null) {
+      seenRef.current = marker;
+      return;
+    }
+    if (marker !== seenRef.current) {
+      seenRef.current = marker;
+      router.refresh();
+      setToast(true);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setToast(false), 4_000);
+    }
+  }, [state?.story?.generated_at, router]);
 
-        if (hashRef.current === null) {
-          hashRef.current = hash;
-          return;
-        }
-        if (hash !== hashRef.current) {
-          hashRef.current = hash;
-          router.refresh();
-          setToast(true);
-          clearTimeout(toastTimer);
-          toastTimer = setTimeout(() => setToast(false), 4_000);
-        }
-      } catch { /* backend offline */ }
-    };
-
-    check();
-    const id = setInterval(check, INTERVAL);
-    return () => { clearInterval(id); clearTimeout(toastTimer); };
-  }, [router]);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
 
   if (!toast) return null;
 

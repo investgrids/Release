@@ -1,17 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { API_BASE_URL as API } from "@/lib/api";
-
-
-interface Story {
-  text: string;
-  mood: string;
-  direction: string;
-  confidence: number;
-  pulse?: string;
-}
+import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
 
 function moodIcon(mood: string) {
   const m = (mood ?? "").toLowerCase();
@@ -30,14 +20,8 @@ function moodTheme(mood: string) {
 }
 
 export function MarketContextStrip() {
-  const [story, setStory] = useState<Story | null>(null);
-
-  useEffect(() => {
-    fetch(`${API}/api/intelligence/market/story`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (d?.story) setStory(d.story); })
-      .catch(() => {});
-  }, []);
+  const { state } = useMarketIntelligence();
+  const story = state?.story;
 
   if (!story) return null;
 

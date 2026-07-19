@@ -5,29 +5,15 @@
  * (AlertProvider -> /api/stream/events), not mocked or simulated: every
  * row here is a real `alert`/`update` (TriagedEvent) or `score_update`
  * (ScoreUpdate) the backend's Intelligence Orchestrator broadcast when it
- * happened. Reuses the single shared connection AlertProvider already
- * maintains app-wide instead of opening a second EventSource.
+ * happened. The merge/format logic lives in hooks/useMarketIntelligence.ts
+ * (useLiveFeed) so every consumer gets identical entries — this component
+ * is presentation only.
  */
 
-import { useMemo } from "react";
 import Link from "next/link";
 import { Radio, Sparkles } from "lucide-react";
-import { useAlerts, type IntelligenceEvent, type ScoreUpdateEvent } from "@/components/AlertProvider";
+import { useLiveFeed } from "@/hooks/useMarketIntelligence";
 import { scoreToColor } from "@/lib/scoring";
-
-type FeedKind = "alert" | "update" | "score_update";
-
-interface FeedEntry {
-  key: string;
-  kind: FeedKind;
-  ts: string;
-  headline: string;
-  sub?: string;
-  href?: string;
-  badge: { label: string; cls: string };
-  score?: number | null;
-  scoreLabel?: string;
-}
 
 function timeLabel(iso: string): string {
   try {
@@ -37,56 +23,8 @@ function timeLabel(iso: string): string {
   }
 }
 
-function triagedToEntry(evt: IntelligenceEvent): FeedEntry {
-  const isAlert = evt.urgency >= 7;
-  return {
-    key: `triaged-${evt.id}-${evt.ts}`,
-    kind: isAlert ? "alert" : "update",
-    ts: evt.ts,
-    headline: evt.one_liner || evt.headline,
-    sub: [...(evt.sectors ?? []), ...(evt.tickers ?? [])].slice(0, 3).join(" · ") || evt.source,
-    href: evt.tickers?.[0] ? `/companies/${evt.tickers[0]}` : undefined,
-    badge: isAlert
-      ? { label: "ALERT", cls: "bg-rose-500/15 text-rose-300 border-rose-500/30" }
-      : { label: "UPDATE", cls: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
-  };
-}
-
-const STATUS_CLS: Record<string, string> = {
-  preliminary: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  verified: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  live: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-};
-
-function scoreUpdateToEntry(evt: ScoreUpdateEvent): FeedEntry {
-  const entityLabel = evt.entity_type ? evt.entity_type.charAt(0).toUpperCase() + evt.entity_type.slice(1) : "Entity";
-  const unscored = evt.score === null || evt.score === undefined;
-  const delta = !unscored && evt.previous_score !== null && evt.previous_score !== undefined
-    ? (evt.score as number) - evt.previous_score
-    : null;
-  return {
-    key: `score-${evt.entity_type}-${evt.entity_id}-${evt.ts}`,
-    kind: "score_update",
-    ts: evt.ts,
-    headline: `${entityLabel} score ${unscored ? "unscored" : delta !== null ? (delta >= 0 ? "increased" : "decreased") : "updated"}${!unscored && delta !== null ? ` (${delta >= 0 ? "+" : ""}${delta.toFixed(1)})` : ""}`,
-    sub: evt.reasoning?.[0] ?? evt.entity_id,
-    badge: { label: (evt.data_status ?? "score").toUpperCase(), cls: STATUS_CLS[evt.data_status] ?? "bg-violet-500/15 text-violet-300 border-violet-500/30" },
-    score: evt.score,
-    scoreLabel: unscored ? "Unscored" : `${Math.round(evt.score as number)}`,
-  };
-}
-
 export function LiveIntelligenceFeed({ compact = false, limit }: { compact?: boolean; limit?: number }) {
-  const { intelligenceEvents, scoreUpdates } = useAlerts();
-
-  const entries = useMemo(() => {
-    const merged: FeedEntry[] = [
-      ...intelligenceEvents.map(triagedToEntry),
-      ...scoreUpdates.map(scoreUpdateToEntry),
-    ];
-    merged.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
-    return limit ? merged.slice(0, limit) : merged.slice(0, 40);
-  }, [intelligenceEvents, scoreUpdates, limit]);
+  const entries = useLiveFeed(limit);
 
   return (
     <div className={`rounded-2xl border border-white/[0.07] bg-[#080c14] ${compact ? "p-4" : "p-5"}`}>

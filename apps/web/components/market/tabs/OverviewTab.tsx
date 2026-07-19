@@ -1,12 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BarChart2, Bot, Zap, Target, Newspaper, CalendarDays, Sparkles } from "lucide-react";
 import { AIOpportunitySection } from "@/components/AIOpportunitySection";
 import { TopEventsSection }     from "@/components/TopEventsSection";
-import { API_BASE_URL as API } from "@/lib/api";
+import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
 
 // ── AI Executive Summary ──────────────────────────────────────────────────────
 function AIExecutiveSummary({ data, storyConfidence, storyText }: { data: any; storyConfidence: number | null; storyText: string | null }) {
@@ -224,18 +223,12 @@ export function OverviewTab({ data, loading = false, events: rawEvents, news: ra
   const sectors = data?.sectors   ?? [];
   const movers  = data?.movers;
 
-  // Real story confidence/text — replaces a previously hardcoded "92%" stat
-  const [storyConfidence, setStoryConfidence] = useState<number | null>(null);
-  const [storyText, setStoryText] = useState<string | null>(null);
-  useEffect(() => {
-    fetch(`${API}/api/intelligence/market/story`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.story?.confidence != null) setStoryConfidence(d.story.confidence);
-        if (d?.story?.text) setStoryText(d.story.text);
-      })
-      .catch(() => {});
-  }, []);
+  // Real story confidence/text from the shared MarketIntelligenceProvider —
+  // replaces both a previously hardcoded "92%" stat and this component's own
+  // fetch to /api/intelligence/market/story.
+  const { state: mie } = useMarketIntelligence();
+  const storyConfidence = mie?.story?.confidence ?? null;
+  const storyText = mie?.story?.text ?? null;
 
   const topEvents = events.map((e: any, i: number) => {
     const rawScore = e.impact_score;
