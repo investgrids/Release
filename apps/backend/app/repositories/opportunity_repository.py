@@ -1,5 +1,5 @@
 """
-OpportunityRepository â€” all DB reads for the Opportunity Details page.
+OpportunityRepository — all DB reads for the Opportunity Details page.
 Single responsibility: query, never transform business logic.
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ class OpportunityRepository:
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
-    # â”€â”€ Core â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Core ─────────────────────────────────────────────────────────────────
 
     async def get_by_id(self, opportunity_id: int) -> Optional[Opportunity]:
         result = await self._db.execute(
@@ -109,7 +109,7 @@ class OpportunityRepository:
         return {row[0]: row[1] for row in result.all()}
 
 
-    # â”€â”€ Related data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Related data ─────────────────────────────────────────────────────────
 
     async def get_metrics(self, opportunity_id: int) -> Optional[OpportunityMetric]:
         result = await self._db.execute(
@@ -186,7 +186,7 @@ class OpportunityRepository:
         )
         return nodes_q.scalars().all(), edges_q.scalars().all()
 
-    # â”€â”€ Writes (used by workers) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Writes (used by workers) ──────────────────────────────────────────────
 
     async def upsert_opportunity(self, data: dict) -> Opportunity:
         slug = data["slug"]

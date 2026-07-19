@@ -396,7 +396,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
                         {t.status === "done" ? <Check className="h-3 w-3" /> : i + 1}
                       </div>
                       <p className="mt-2 text-[11px] font-semibold leading-4 text-white">{t.phase}</p>
-                      {t.date_label && <p className="text-[10px] text-slate-500">{t.date_label}</p>}
+                      {t.date_label && <p className="text-[10px] text-slate-500">{fixMojibake(t.date_label)}</p>}
                       <p className="mt-1 text-[10px] leading-4 text-slate-500">{t.description}</p>
                     </div>
                   </div>
@@ -407,7 +407,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
 
           {/* Financial Impact */}
           {metrics && (
-            <SectionCard title={`Financial Impact (Next ${d.time_horizon})`}>
+            <SectionCard title={`Financial Impact (Next ${fixMojibake(d.time_horizon)})`}>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: "Revenue Potential",    value: metrics.revenue_potential  },
@@ -417,7 +417,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
                 ].map(f => (
                   <div key={f.label} className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
                     <p className="text-[10px] text-slate-500">{f.label}</p>
-                    <p className="mt-1 text-[15px] font-bold text-sky-400">{f.value || "—"}</p>
+                    <p className="mt-1 text-[15px] font-bold text-sky-400">{fixMojibake(f.value) || "—"}</p>
                   </div>
                 ))}
               </div>

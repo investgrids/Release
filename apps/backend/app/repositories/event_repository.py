@@ -1,5 +1,5 @@
 """
-EventRepository â€” single responsibility: all database I/O for event detail data.
+EventRepository — single responsibility: all database I/O for event detail data.
 No business logic, no AI calls, no transformations beyond raw ORM queries.
 """
 from __future__ import annotations
@@ -29,7 +29,7 @@ class EventRepository:
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
-    # â”€â”€ Core reads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Core reads ────────────────────────────────────────────────────────────
 
     async def get_by_id(self, event_id: str) -> Optional[Event]:
         result = await self._db.execute(
@@ -78,7 +78,7 @@ class EventRepository:
         )
         return list(result.scalars().all())
 
-    # â”€â”€ Related data reads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Related data reads ────────────────────────────────────────────────────
 
     async def get_companies(self, event_id: str) -> list[EventCompany]:
         result = await self._db.execute(
@@ -144,7 +144,7 @@ class EventRepository:
         )
         return list(result.scalars().all())
 
-    # â”€â”€ Status updates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Status updates ────────────────────────────────────────────────────────
 
     async def mark_status(self, event_id: str, status: str) -> None:
         await self._db.execute(
@@ -170,7 +170,7 @@ class EventRepository:
             .values(impact_score=impact_score)
         )
 
-    # â”€â”€ Writes (pipeline) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Writes (pipeline) ────────────────────────────────────────────────────
 
     async def replace_companies(self, event_id: str, items: list[dict]) -> None:
         await self._db.execute(

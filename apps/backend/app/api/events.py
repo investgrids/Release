@@ -1,5 +1,5 @@
 """
-Events API â€” list + detail + market-data + market-chart endpoints.
+Events API — list + detail + market-data + market-chart endpoints.
 """
 from __future__ import annotations
 

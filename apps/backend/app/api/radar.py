@@ -1,7 +1,7 @@
 """
 Radar API
-  GET /api/radar/           â€” paginated opportunity list (from DB)
-  GET /api/radar/{id}       â€” full opportunity detail (from DB, cached via Redis)
+  GET /api/radar/           — paginated opportunity list (from DB)
+  GET /api/radar/{id}       — full opportunity detail (from DB, cached via Redis)
 
 No AI inference happens here. All data is pre-computed by background workers.
 """
@@ -25,7 +25,7 @@ def _get_service(db: AsyncSession = Depends(get_db)) -> OpportunityService:
     return OpportunityService(db)
 
 
-# â”€â”€ Detail â€” must be declared BEFORE list so /{id} doesn't swallow GET / â”€â”€â”€â”€â”€
+# ── Detail — must be declared BEFORE list so /{id} doesn't swallow GET / ─────
 
 @router.get("/{opportunity_id}", response_model=OpportunityDetailResponse)
 async def get_opportunity_detail(

@@ -1,5 +1,5 @@
 """
-GovernmentPolicyRepository â€” DB reads/writes for the government_policies table.
+GovernmentPolicyRepository — DB reads/writes for the government_policies table.
 """
 from __future__ import annotations
 

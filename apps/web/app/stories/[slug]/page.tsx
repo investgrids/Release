@@ -12,6 +12,7 @@ import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
+import { fixMojibake } from "@/lib/text";
 
 
 interface StoryDetail {
@@ -189,7 +190,7 @@ export default async function StoryPage({
           {story.time_horizon && (
             <span className="flex items-center gap-1.5 text-xs text-slate-400">
               <Calendar className="h-3.5 w-3.5 text-sky-400" />
-              {story.time_horizon}
+              {fixMojibake(story.time_horizon)}
             </span>
           )}
           {story.trend && (
@@ -442,7 +443,7 @@ export default async function StoryPage({
                       <span className="text-xs text-slate-400 capitalize">
                         {k.replace(/_/g, " ")}
                       </span>
-                      <span className="text-sm font-semibold text-white">{v as string}</span>
+                      <span className="text-sm font-semibold text-white">{fixMojibake(v as string)}</span>
                     </div>
                   ))}
               </div>

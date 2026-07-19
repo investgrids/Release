@@ -10,6 +10,7 @@ import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { DecisionIntelligencePanel, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
 import { API_BASE_URL as API } from "@/lib/api";
+import { fixMojibake } from "@/lib/text";
 
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -695,7 +696,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                       <p className="text-[12px] font-bold tabular-nums text-white">{s.score === null || s.score === undefined ? "—" : (s.score / 10).toFixed(1)}</p>
                       <p className="text-[11px] tabular-nums text-slate-400">{s.confidence === null || s.confidence === undefined ? "—" : `${s.confidence}%`}</p>
                       <p className={`text-[11px] font-medium truncate ${SECTOR_STATUS_COLOR[s.status ?? ""] ?? "text-slate-300"}`}>{s.status || s.outlook || "—"}</p>
-                      <p className="text-[10px] text-slate-500">{s.time_horizon || "—"}</p>
+                      <p className="text-[10px] text-slate-500">{fixMojibake(s.time_horizon) || "—"}</p>
                     </div>
                     {s.explanation && (
                       <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5 line-clamp-1">{s.explanation}</p>

@@ -1,5 +1,5 @@
 """
-EventService â€” aggregates all event-related repository calls into a single
+EventService — aggregates all event-related repository calls into a single
 fully-populated API response. Handles Redis caching at the service boundary.
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ from app.repositories.government_policy_repository import GovernmentPolicyReposi
 
 logger = structlog.get_logger(__name__)
 
-_CACHE_TTL = 900  # 15 minutes â€” matches the user's spec
+_CACHE_TTL = 900  # 15 minutes — matches the user's spec
 
 
 class EventService:
@@ -29,7 +29,7 @@ class EventService:
         self._events = EventRepository(db)
         self._policies = GovernmentPolicyRepository(db)
 
-    # â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Public API ────────────────────────────────────────────────────────────
 
     async def get_event_detail(self, event_id: str) -> Optional[Dict[str, Any]]:
         cache_key = f"event:{event_id}"
@@ -74,7 +74,7 @@ class EventService:
             self._policies.get_by_ids(policy_ids),
         )
 
-        # â”€â”€ Fallbacks when junction tables are empty (seeded events) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Fallbacks when junction tables are empty (seeded events) ──────────
 
         # Companies: fall back to Event.companies JSON field
         if not companies and event.companies:
@@ -137,7 +137,7 @@ class EventService:
             _opps         = ai_s_tmp.get("opportunities", [])
 
             tl_items: list[_FakeTimeline] = []
-            # Step 1 â€” always show event trigger
+            # Step 1 — always show event trigger
             tl_items.append(_FakeTimeline(0, "Event Announced", _summary_text[:120]))
 
             # Middle steps from bullets
@@ -304,7 +304,7 @@ class EventService:
         await cache_set(cache_key, result, ttl=_CACHE_TTL)
         return result
 
-    # â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Private helpers ───────────────────────────────────────────────────────
 
     async def _fetch_news_articles(self, news_ids: list[str]) -> list[Dict]:
         if not news_ids:

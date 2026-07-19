@@ -1,5 +1,5 @@
 """
-Event classifier â€” maps raw text to sector, category, and company symbols.
+Event classifier — maps raw text to sector, category, and company symbols.
 Uses keyword heuristics as primary path; falls back to AI when key is set.
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
-# â”€â”€ Sector keyword map â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Sector keyword map ────────────────────────────────────────────────────────
 
 _SECTOR_KEYWORDS: dict[str, list[str]] = {
     "Infrastructure": ["infrastructure", "capex", "roads", "highways", "ports", "airport", "metro", "data center"],
@@ -39,7 +39,7 @@ _CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "Global":        ["us", "fed", "global", "china", "europe", "crude", "dollar", "import", "export"],
 }
 
-# NSE symbol â†’ company name
+# NSE symbol → company name
 _COMPANY_MAP: dict[str, list[str]] = {
     "RELIANCE":   ["reliance"],
     "TCS":        ["tata consultancy", " tcs "],
@@ -143,7 +143,7 @@ Return JSON:
                 import json
                 return json.loads(match.group())
     except Exception as exc:
-        logger.warning("AI classifier failed: %s â€” falling back to keywords", exc)
+        logger.warning("AI classifier failed: %s — falling back to keywords", exc)
 
     return classify_text(text)
 

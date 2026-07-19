@@ -1,14 +1,14 @@
 """
-Opportunity Generator â€” full AI pipeline.
+Opportunity Generator — full AI pipeline.
 
 Flow:
   Incoming events
-    â†’ classify
-    â†’ group by sector/theme
-    â†’ generate opportunity (AI or heuristic)
-    â†’ score
-    â†’ generate timeline, graph, companies
-    â†’ store in PostgreSQL via repository
+    → classify
+    → group by sector/theme
+    → generate opportunity (AI or heuristic)
+    → score
+    → generate timeline, graph, companies
+    → store in PostgreSQL via repository
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from app.repositories.opportunity_repository import OpportunityRepository
 
 logger = structlog.get_logger(__name__)
 
-# â”€â”€ Sector colour palette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Sector colour palette ─────────────────────────────────────────────────────
 
 _SECTOR_COLORS: dict[str, str] = {
     "Infrastructure": "#6366f1",
@@ -45,7 +45,7 @@ _SECTOR_COLORS: dict[str, str] = {
     "Real Estate":    "#ec4899",
 }
 
-# â”€â”€ Company metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Company metadata ──────────────────────────────────────────────────────────
 
 _COMPANY_META: dict[str, dict] = {
     "NTPC":       {"name": "NTPC",                "sector": "Energy"},
@@ -71,7 +71,7 @@ _COMPANY_META: dict[str, dict] = {
 }
 
 
-# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _slug(title: str, suffix: str = "") -> str:
     base = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:160]
@@ -141,7 +141,7 @@ def _parse_json_block(text: str) -> dict | None:
     return None
 
 
-# â”€â”€ Core pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Core pipeline ─────────────────────────────────────────────────────────────
 
 async def generate_opportunity_from_events(
     db: AsyncSession,
@@ -187,7 +187,7 @@ async def generate_opportunity_from_events(
 
     ai_prompt = f"""You are an Indian equity market analyst.
 Based on these recent events, identify ONE investment opportunity theme.
-Return ONLY valid JSON â€” no markdown, no explanation.
+Return ONLY valid JSON — no markdown, no explanation.
 
 EVENTS:
 {combined_text[:1500]}
@@ -252,7 +252,7 @@ Return:
     if "risk" not in locals():
         risk = "Medium"
     if "horizon" not in locals():
-        horizon = "3 â€“ 5 Years"
+        horizon = "3 – 5 Years"
 
     score = _score_opportunity(event_texts, companies, sectors)
     confidence = min(0.95, score / 110)
@@ -280,19 +280,19 @@ Return:
 
     # 4. Metrics (heuristic)
     await repo.replace_metrics(opp.id, {
-        "revenue_potential": f"â‚¹{round(score * 0.3, 1)} â€“ {round(score * 0.5, 1)} Lakh Cr",
-        "expected_cagr": f"{round(score * 0.18, 0):.0f}% â€“ {round(score * 0.25, 0):.0f}% CAGR",
-        "eps_growth": f"{round(score * 0.2, 0):.0f}% â€“ {round(score * 0.28, 0):.0f}% CAGR",
+        "revenue_potential": f"₹{round(score * 0.3, 1)} – {round(score * 0.5, 1)} Lakh Cr",
+        "expected_cagr": f"{round(score * 0.18, 0):.0f}% – {round(score * 0.25, 0):.0f}% CAGR",
+        "eps_growth": f"{round(score * 0.2, 0):.0f}% – {round(score * 0.28, 0):.0f}% CAGR",
         "investment_cycle": "Multi-year",
         "market_size": f"{round(score * 0.2, 0):.0f}%+ CAGR",
     })
 
     # 5. Timeline (4 phases)
     await repo.replace_timeline(opp.id, [
-        {"order": 0, "phase": "Policy & Announcement", "date_label": "0 â€“ 6 Months", "title": "Initial Phase",  "description": "Policy approvals & early investments",  "status": "done"   },
-        {"order": 1, "phase": "Capex Ramp-up",          "date_label": "6 â€“ 18 Months","title": "Growth Phase",   "description": "Project execution & procurement surge", "status": "active" },
-        {"order": 2, "phase": "Execution",               "date_label": "18 â€“ 36 Months","title": "Scale Phase",  "description": "Capacity expansion & adoption scale",   "status": "pending"},
-        {"order": 3, "phase": "Maturity",                "date_label": "3 â€“ 5 Years",  "title": "Revenue Phase", "description": "Revenue realisation & strong cash flows","status": "pending"},
+        {"order": 0, "phase": "Policy & Announcement", "date_label": "0 – 6 Months", "title": "Initial Phase",  "description": "Policy approvals & early investments",  "status": "done"   },
+        {"order": 1, "phase": "Capex Ramp-up",          "date_label": "6 – 18 Months","title": "Growth Phase",   "description": "Project execution & procurement surge", "status": "active" },
+        {"order": 2, "phase": "Execution",               "date_label": "18 – 36 Months","title": "Scale Phase",  "description": "Capacity expansion & adoption scale",   "status": "pending"},
+        {"order": 3, "phase": "Maturity",                "date_label": "3 – 5 Years",  "title": "Revenue Phase", "description": "Revenue realisation & strong cash flows","status": "pending"},
     ])
 
     # 6. Beneficiary companies

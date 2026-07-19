@@ -13,6 +13,7 @@ import { useIntelligence } from "@/hooks/useIntelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent } from "@/components/RelatedContent";
+import { fixMojibake } from "@/lib/text";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc } from "@/lib/scoring";
 
@@ -484,7 +485,7 @@ export default function RipplePage() {
                           </div>
                           <div className="shrink-0 text-right">
                             <span className="text-[10px] text-slate-500 tabular-nums">{edge.confidence === null || edge.confidence === undefined ? "Unscored" : `${Math.round(edge.confidence * 100)}% conf.`}</span>
-                            {edge.time_horizon && <span className="text-[9px] text-slate-600 mt-0.5 block">{edge.time_horizon}</span>}
+                            {edge.time_horizon && <span className="text-[9px] text-slate-600 mt-0.5 block">{fixMojibake(edge.time_horizon)}</span>}
                           </div>
                         </div>
                         {edge.explanation && (

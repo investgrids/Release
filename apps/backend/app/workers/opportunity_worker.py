@@ -1,5 +1,5 @@
 """
-Opportunity Worker â€” runs daily.
+Opportunity Worker — runs daily.
 
 Pipeline:
   1. Pull recent unprocessed news_articles from DB
@@ -144,7 +144,7 @@ async def _seed_static_opportunities(db) -> None:
 
 
 async def run_opportunity_worker(seed_on_empty: bool = False) -> None:
-    """Daily AI pipeline â€” groups recent news into opportunities."""
+    """Daily AI pipeline — groups recent news into opportunities."""
     logger.info("Opportunity worker started (seed_on_empty=%s)", seed_on_empty)
 
     first_run = True
@@ -154,7 +154,7 @@ async def run_opportunity_worker(seed_on_empty: bool = False) -> None:
                 if first_run and seed_on_empty:
                     exists = await _opportunities_exist(db)
                     if not exists:
-                        logger.info("Opportunities table empty â€” seeding static data")
+                        logger.info("Opportunities table empty — seeding static data")
                         await _seed_static_opportunities(db)
                     first_run = False
 

@@ -1,5 +1,5 @@
 """
-DeepSeekProvider â€” production implementation using DeepSeek's OpenAI-compatible API.
+DeepSeekProvider — production implementation using DeepSeek's OpenAI-compatible API.
 All calls are async (httpx). JSON is extracted from responses with a markdown-strip helper.
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ class DeepSeekProvider(AIProvider):
             "Content-Type": "application/json",
         }
 
-    # â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Internal helpers ──────────────────────────────────────────────────────
 
     @retry(
         stop=stop_after_attempt(3),
@@ -81,7 +81,7 @@ class DeepSeekProvider(AIProvider):
             logger.warning("AI call failed (%s): %s", type(exc).__name__, exc)
             return fallback
 
-    # â”€â”€ Legacy pipeline methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Legacy pipeline methods ───────────────────────────────────────────────
 
     async def classify_event(self, text: str) -> Dict[str, Any]:
         return await self._safe_json_call(
@@ -132,7 +132,7 @@ class DeepSeekProvider(AIProvider):
             fallback={"theme": "Market Opportunity", "score": 70, "reason": "Analysis unavailable", "time_horizon": "medium"},
         )
 
-    # â”€â”€ Event detail pipeline methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Event detail pipeline methods ─────────────────────────────────────────
 
     async def summarize_event(
         self, title: str, text: str, source: str

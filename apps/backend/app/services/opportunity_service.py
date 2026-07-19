@@ -1,5 +1,5 @@
 """
-OpportunityService â€” aggregates all repository data into a single DTO.
+OpportunityService — aggregates all repository data into a single DTO.
 No AI inference happens here. Reads only pre-computed PostgreSQL data.
 """
 from __future__ import annotations
@@ -39,7 +39,7 @@ class OpportunityService:
     def __init__(self, db: AsyncSession) -> None:
         self._repo = OpportunityRepository(db)
 
-    # â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Public API ────────────────────────────────────────────────────────────
 
     async def list_by_sector_or_theme(self, terms: list[str], limit: int = 10) -> list[dict]:
         """Lightweight summaries for sector/theme-scoped queries — no nested-join DTO needed here."""
