@@ -20,6 +20,7 @@ Each story is a living document that evolves throughout the day.
 from __future__ import annotations
 
 import asyncio
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -30,7 +31,7 @@ from app.core.config import settings
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.session import AsyncSessionLocal
 from app.services.aipe.article_generator import compute_seo_score, generate_intelligence_article
-from app.services.aipe.content_planner import select_article_type, should_generate_today
+from app.services.aipe.content_planner import plan_extra_angles, select_article_type, should_generate_today
 from app.services.aipe.continuous_updater import run_continuous_update_cycle
 from app.services.aipe.duplicate_detector import (
     count_today_articles,
@@ -67,7 +68,11 @@ _STATS: dict[str, Any] = {
     "_total_published":    0,
 }
 
-_MAX_PER_DAY = 8
+_MAX_PER_DAY = 20
+# Raised from 8 now that one qualifying event can fan out into a primary
+# article plus up to _MAX_ANGLES_PER_EVENT sibling angles (see
+# content_planner.plan_extra_angles) instead of always exactly one article.
+_MAX_ANGLES_PER_EVENT = 3
 
 
 def get_engine_stats() -> dict[str, Any]:
@@ -85,6 +90,9 @@ async def _publish_new_article(
     mie_context: dict[str, Any],
     article_type: str,
     story_id: str,
+    angle: str = "primary",
+    angle_entity: str | None = None,
+    parent_event_group_id: str | None = None,
 ) -> IntelligenceArticle | None:
     """Generate, validate, and persist a new intelligence article."""
     start = datetime.now(timezone.utc)
@@ -129,6 +137,14 @@ async def _publish_new_article(
         "author": {"@type": "Organization", "name": "MarketRipple AI Intelligence Engine"},
         "publisher": {"@type": "Organization", "name": "MarketRipple"},
         "mainEntityOfPage": f"{site_url}/insights/{slug}",
+        "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "MarketRipple", "item": site_url},
+                {"@type": "ListItem", "position": 2, "name": "Insights", "item": f"{site_url}/insights"},
+                {"@type": "ListItem", "position": 3, "name": article_data.get("headline", ""), "item": f"{site_url}/insights/{slug}"},
+            ],
+        },
     }
     faqs = article_data.get("faqs") or []
     if faqs:
@@ -197,6 +213,10 @@ async def _publish_new_article(
         status=status,
         update_count=0,
         update_history=[],
+        angle=angle,
+        angle_entity=angle_entity,
+        parent_event_group_id=parent_event_group_id or triage_event.get("event_id"),
+        is_evergreen=(angle == "evergreen"),
         # Content
         headline=article_data.get("headline", triage_event.get("headline", "Intelligence")),
         executive_summary=article_data.get("executive_summary"),
@@ -258,6 +278,9 @@ async def _publish_new_article(
     await db.commit()
     await db.refresh(article)
 
+    if passed:
+        await _link_event_siblings(db, article)
+
     # Update timing stats
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     _STATS["_total_publish_time"] = _STATS.get("_total_publish_time", 0) + elapsed
@@ -279,6 +302,36 @@ async def _publish_new_article(
         log.warning("publisher.validation_failed", slug=slug, results=results)
 
     return article
+
+
+async def _link_event_siblings(db, article: IntelligenceArticle) -> None:
+    """
+    Bidirectionally backfill related_article_ids for every published article
+    sharing this one's parent_event_group_id (the primary + its per_company /
+    sector_rollup angles). Previously this column was hardcoded to `[]` at
+    creation with no code path anywhere that ever populated it.
+    """
+    if not article.parent_event_group_id:
+        return
+    from sqlalchemy import select as sa_select
+    result = await db.execute(
+        sa_select(IntelligenceArticle)
+        .where(IntelligenceArticle.parent_event_group_id == article.parent_event_group_id)
+        .where(IntelligenceArticle.id != article.id)
+        .where(IntelligenceArticle.status == "published")
+    )
+    siblings = result.scalars().all()
+    if not siblings:
+        return
+
+    article.related_article_ids = [s.id for s in siblings]
+    db.add(article)
+    for s in siblings:
+        existing = list(s.related_article_ids or [])
+        if article.id not in existing:
+            s.related_article_ids = existing + [article.id]
+            db.add(s)
+    await db.commit()
 
 
 async def _store_article_predictions(
@@ -512,12 +565,49 @@ async def run_aipe_cycle() -> None:
                         log.info("aipe.cycle.updated_duplicate", story_id=story_id)
                     else:
                         # Create new article
+                        event_group_id = triage_event.get("event_id") or story_id
                         article = await _publish_new_article(
-                            db, triage_event, mie_context, article_type, story_id
+                            db, triage_event, mie_context, article_type, story_id,
+                            parent_event_group_id=event_group_id,
                         )
                         if article and article.status == "published":
                             daily_count += 1
                             today_story_ids.add(story_id)
+
+                            # ── Fan out: spin off per-company / sector-rollup
+                            # angles from the same event instead of stopping
+                            # at one article (see content_planner.plan_extra_angles).
+                            angle_plans = plan_extra_angles(
+                                article_type, story_id,
+                                article.companies_affected, article.sectors_affected,
+                                max_companies=_MAX_ANGLES_PER_EVENT,
+                            )[:_MAX_ANGLES_PER_EVENT]
+                            for angle_type, angle_story_id, angle, angle_entity in angle_plans:
+                                if daily_count >= _MAX_PER_DAY:
+                                    break
+                                await asyncio.sleep(2)
+                                angle_event = dict(triage_event)
+                                if angle == "per_company":
+                                    angle_event["tickers"] = [angle_entity]
+                                elif angle == "sector_rollup":
+                                    angle_event["sectors"] = [angle_entity]
+                                angle_dup = await find_duplicate(
+                                    db, story_id=angle_story_id, article_type=angle_type,
+                                    headline=f"{headline} — {angle_entity}",
+                                    trigger_event_id=triage_event.get("event_id"),
+                                    angle=angle, angle_entity=angle_entity,
+                                )
+                                if angle_dup:
+                                    continue
+                                angle_article = await _publish_new_article(
+                                    db, angle_event, mie_context, angle_type, angle_story_id,
+                                    angle=angle, angle_entity=angle_entity,
+                                    parent_event_group_id=event_group_id,
+                                )
+                                if angle_article and angle_article.status == "published":
+                                    daily_count += 1
+                                    today_story_ids.add(angle_story_id)
+                                    log.info("aipe.cycle.angle_published", angle=angle, entity=angle_entity, story_id=angle_story_id)
 
                     # Rate limit between AI calls
                     await asyncio.sleep(2)
@@ -556,3 +646,102 @@ async def run_aipe_cycle() -> None:
     finally:
         _STATS["running"] = False
         _STATS["scheduler_status"] = "idle"
+
+
+# ── Evergreen content ─────────────────────────────────────────────────────────
+# `educational_intelligence` (content_templates.py) was a fully-built template
+# that `select_article_type()` never actually routed to — no keyword branch
+# returned it, so it was dead code, unreachable by the live triage-driven
+# cycle. Evergreen topics ("What is Repo Rate?") also don't have a triggering
+# event by nature, so they need their own non-event-driven entry point rather
+# than being squeezed into run_aipe_cycle()'s triage loop.
+
+_EVERGREEN_TOPICS: list[dict[str, Any]] = [
+    {"headline": "What is Repo Rate?", "summary": "The interest rate at which the RBI lends money to commercial banks, and why it moves loan EMIs and stock markets.", "sectors": ["Banking"]},
+    {"headline": "What is Inflation and How Does It Affect Your Investments?", "summary": "Why rising prices erode returns, and how Indian investors should think about inflation-adjusted growth.", "sectors": ["Macro"]},
+    {"headline": "What is P/E Ratio?", "summary": "The price-to-earnings ratio, how to read it, and why a 'cheap' stock isn't always cheap.", "sectors": []},
+    {"headline": "What is a Mutual Fund?", "summary": "How pooled investment vehicles work, and the difference between active and passive funds in India.", "sectors": []},
+    {"headline": "What is an IPO and How Does Listing Work?", "summary": "How companies go public on NSE/BSE, and what retail investors should check before applying.", "sectors": []},
+    {"headline": "What is Market Capitalisation?", "summary": "How large-cap, mid-cap, and small-cap classifications work in Indian markets and what they mean for risk.", "sectors": []},
+    {"headline": "What is FII and DII Activity?", "summary": "How Foreign and Domestic Institutional Investor flows move the Nifty and Sensex.", "sectors": []},
+    {"headline": "What is a Circuit Breaker in Stock Markets?", "summary": "Why exchanges halt trading on extreme moves, and what upper/lower circuits mean for a stock you hold.", "sectors": []},
+    {"headline": "What is GDP and Why Do Markets React to It?", "summary": "How India's quarterly GDP prints influence sector rotation and market sentiment.", "sectors": ["Macro"]},
+    {"headline": "What is a Dividend and How Is It Different From Capital Gains?", "summary": "How dividend payouts work, ex-dividend dates, and dividend yield as an investing signal.", "sectors": []},
+]
+
+_MAX_EVERGREEN_PER_DAY = 2
+
+
+async def run_evergreen_cycle() -> None:
+    """
+    Non-event-driven companion to run_aipe_cycle(): generates timeless
+    "explainer" articles from a fixed seed list, capped at a few per day,
+    independent of live triage. Safe to call on its own schedule.
+    """
+    try:
+        async with AsyncSessionLocal() as db:
+            today_evergreen = await count_today_evergreen(db)
+            if today_evergreen >= _MAX_EVERGREEN_PER_DAY:
+                return
+
+            covered = await get_covered_evergreen_slugs(db)
+            mie_context = await get_mie_context()
+
+            generated = 0
+            for topic in _EVERGREEN_TOPICS:
+                if today_evergreen + generated >= _MAX_EVERGREEN_PER_DAY:
+                    break
+                slug = re.sub(r"[^a-z0-9]+", "-", topic["headline"].lower())[:40].strip("-")
+                story_id = f"evergreen-{slug}"
+                if slug in covered:
+                    continue
+
+                event = {
+                    "event_id":   story_id,
+                    "headline":   topic["headline"],
+                    "one_liner":  topic["summary"],
+                    "sectors":    topic["sectors"],
+                    "tickers":    [],
+                    "urgency":    5,
+                    "importance": 5,
+                    "is_structural": False,
+                }
+                dup = await find_duplicate(
+                    db, story_id=story_id, article_type="educational_intelligence",
+                    headline=topic["headline"], trigger_event_id=story_id,
+                    angle="evergreen", angle_entity=None,
+                )
+                if dup:
+                    continue
+
+                article = await _publish_new_article(
+                    db, event, mie_context, "educational_intelligence", story_id,
+                    angle="evergreen", parent_event_group_id=story_id,
+                )
+                if article and article.status == "published":
+                    generated += 1
+                    log.info("aipe.evergreen.published", story_id=story_id)
+                await asyncio.sleep(2)
+    except Exception as exc:
+        log.error("aipe.evergreen.error", error=str(exc))
+
+
+async def count_today_evergreen(db) -> int:
+    from sqlalchemy import func, select as sa_select
+    today_utc = datetime.now(_IST).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    result = await db.execute(
+        sa_select(func.count()).select_from(IntelligenceArticle)
+        .where(IntelligenceArticle.is_evergreen.is_(True))
+        .where(IntelligenceArticle.published_at >= today_utc)
+    )
+    return result.scalar() or 0
+
+
+async def get_covered_evergreen_slugs(db) -> set[str]:
+    from sqlalchemy import select as sa_select
+    result = await db.execute(
+        sa_select(IntelligenceArticle.story_id)
+        .where(IntelligenceArticle.is_evergreen.is_(True))
+        .where(IntelligenceArticle.status == "published")
+    )
+    return {(row[0] or "").replace("evergreen-", "") for row in result.all()}

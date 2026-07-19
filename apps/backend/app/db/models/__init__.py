@@ -21,6 +21,7 @@ from app.db.models.predictions import PredictionRecord, PredictionEvaluation, Ca
 from app.db.models.company_announcements import CompanyAnnouncement
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.score_history import ScoreHistory
+from app.db.models.feedback import FeedbackSubmission
 
 __all__ = [
     "Opportunity",
@@ -45,4 +46,5 @@ __all__ = [
     "CompanyAnnouncement",
     "IntelligenceArticle",
     "ScoreHistory",
+    "FeedbackSubmission",
 ]

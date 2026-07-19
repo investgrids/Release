@@ -10,7 +10,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 // ── Article type metadata ────────────────────────────────────────────────────
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
-  breaking:               { label: "Breaking Intelligence",  color: "text-rose-400 border-rose-500/30 bg-rose-500/10" },
+  breaking_intelligence:  { label: "Breaking Intelligence",  color: "text-rose-400 border-rose-500/30 bg-rose-500/10" },
   morning_intelligence:   { label: "Morning Intelligence",    color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
   company_intelligence:   { label: "Company Intelligence",    color: "text-sky-400 border-sky-500/30 bg-sky-500/10" },
   sector_intelligence:    { label: "Sector Intelligence",     color: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
@@ -33,6 +33,7 @@ interface HistoricalEvent { event?: string; date?: string; category?: string; ou
 interface Faq { question: string; answer: string; }
 interface RelatedCompany { symbol: string; name: string; link: string; }
 interface RelatedTheme { theme: string; link: string; }
+interface RelatedArticle { slug: string; headline: string; angle: string; angle_entity?: string | null; article_type: string; }
 
 interface InsightDetail {
   id: string; slug: string; article_type: string;
@@ -48,6 +49,9 @@ interface InsightDetail {
   sources: string[];
   related_companies: RelatedCompany[];
   related_themes: RelatedTheme[];
+  related_articles: RelatedArticle[];
+  angle: string;
+  angle_entity?: string | null;
   confidence_score?: number;
   canonical_url?: string;
   json_ld?: Record<string, unknown>;
@@ -130,6 +134,7 @@ export default async function InsightPage(
   const faqs = article.faqs ?? [];
   const relatedCompanies = article.related_companies ?? [];
   const relatedThemes = article.related_themes ?? [];
+  const relatedArticles = article.related_articles ?? [];
   const sources = article.sources ?? [];
 
   return (
@@ -154,9 +159,16 @@ export default async function InsightPage(
 
         {/* Header */}
         <div className="mb-8">
-          <span className={`mb-3 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${meta.color}`}>
-            <BookOpen className="h-2.5 w-2.5" /> {meta.label}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${meta.color}`}>
+              <BookOpen className="h-2.5 w-2.5" /> {meta.label}
+            </span>
+            {article.angle_entity && article.angle !== "primary" && (
+              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-medium text-slate-400">
+                Focused on {article.angle_entity}
+              </span>
+            )}
+          </div>
           <h1 className="mt-2 text-[28px] font-black leading-tight text-white">
             {article.headline}
           </h1>
@@ -339,6 +351,26 @@ export default async function InsightPage(
                   </summary>
                   <p className="mt-2 text-[12px] leading-6 text-slate-400">{f.answer}</p>
                 </details>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Other angles on this story */}
+        {relatedArticles.length > 0 && (
+          <section className="mb-7">
+            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-slate-500">More Angles on This Story</h2>
+            <div className="space-y-2">
+              {relatedArticles.map((r, i) => (
+                <Link key={i} href={`/insights/${r.slug}`}
+                  className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 hover:border-white/20 transition">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-600">
+                      {r.angle === "per_company" ? r.angle_entity : r.angle === "sector_rollup" ? `${r.angle_entity} Sector` : (TYPE_META[r.article_type] ?? DEFAULT_TYPE_META).label}
+                    </span>
+                    <p className="text-[12px] font-medium text-slate-300">{r.headline}</p>
+                  </div>
+                </Link>
               ))}
             </div>
           </section>

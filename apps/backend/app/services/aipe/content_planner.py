@@ -140,6 +140,51 @@ def select_article_type(
     return "breaking_intelligence", f"intel-{event_id[:16]}-{today}", 6
 
 
+def plan_extra_angles(
+    primary_article_type: str,
+    primary_story_id: str,
+    companies_affected: list[dict[str, Any]],
+    sectors_affected: list[dict[str, Any]],
+    max_companies: int = 2,
+) -> list[tuple[str, str, str, str | None]]:
+    """
+    Given the just-published primary article's own AI-vetted companies/sectors,
+    decide which additional angle-specific articles to spin off from the same
+    event — turning one event into several search-intent-targeted pages
+    (e.g. RBI policy → primary overview + HDFC angle + ICICI angle + Banking
+    sector rollup) instead of exactly one article.
+
+    Returns a list of (article_type, story_id, angle, angle_entity) tuples.
+    Skips an angle that would just duplicate what the primary article already is.
+    """
+    plans: list[tuple[str, str, str, str | None]] = []
+
+    companies = [c for c in (companies_affected or []) if c.get("symbol")]
+    for c in companies[:max_companies]:
+        symbol = str(c["symbol"]).upper()
+        if primary_article_type == "company_intelligence" and symbol in primary_story_id.upper():
+            continue  # primary already IS this company's angle
+        plans.append((
+            "company_intelligence",
+            f"{primary_story_id}-co-{symbol}",
+            "per_company",
+            symbol,
+        ))
+
+    sectors = [s for s in (sectors_affected or []) if s.get("name")]
+    if len(sectors) >= 2 and primary_article_type != "sector_intelligence":
+        top_sector = str(sectors[0]["name"])
+        sector_slug = re.sub(r"[^a-z0-9]+", "-", top_sector.lower())[:20].strip("-")
+        plans.append((
+            "sector_intelligence",
+            f"{primary_story_id}-sector-{sector_slug}",
+            "sector_rollup",
+            top_sector,
+        ))
+
+    return plans
+
+
 def should_generate_today(
     article_type: str,
     story_id: str,

@@ -27,7 +27,7 @@ interface InsightCard {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  breaking:                 "Breaking",
+  breaking_intelligence:    "Breaking",
   morning_intelligence:     "Morning Brief",
   company_intelligence:     "Company",
   sector_intelligence:      "Sector",

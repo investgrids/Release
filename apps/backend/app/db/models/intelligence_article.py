@@ -42,6 +42,20 @@ class IntelligenceArticle(Base):
     parent_story_id = Column(String, nullable=True, index=True)
     # If this is an update, parent_story_id = original article id
 
+    # ── Multi-angle fan-out ────────────────────────────────────────────────────
+    # One triggering event can spawn several angle-specific articles (the
+    # "primary" overview plus per-company / sector-rollup / evergreen spinoffs).
+    # angle + angle_entity keep those siblings distinct in the duplicate
+    # detector (which otherwise collapses same-event/same-type/similar-headline
+    # rows); parent_event_group_id lets the frontend cluster all angles that
+    # came from the same underlying event.
+    angle               = Column(String(32), nullable=False, default="primary", index=True)
+    # "primary" | "per_company" | "sector_rollup" | "evergreen"
+    angle_entity        = Column(String(64), nullable=True)
+    # company symbol (per_company) or sector name (sector_rollup); null otherwise
+    parent_event_group_id = Column(String(64), nullable=True, index=True)
+    is_evergreen        = Column(Boolean, nullable=False, default=False)
+
     # ── Lifecycle ─────────────────────────────────────────────────────────────
     lifecycle_status = Column(String(16), nullable=False, default="generated", index=True)
     # generated → validated → published → updated → merged | archived | failed

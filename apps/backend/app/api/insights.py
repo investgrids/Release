@@ -28,6 +28,9 @@ def _list_row(a: IntelligenceArticle) -> dict:
         "id":                 a.id,
         "slug":               a.slug,
         "article_type":       a.article_type,
+        "angle":              a.angle,
+        "angle_entity":       a.angle_entity,
+        "is_evergreen":       a.is_evergreen,
         "headline":           a.headline,
         "key_takeaway":       a.key_takeaway,
         "executive_summary":  a.executive_summary,
@@ -59,6 +62,8 @@ def _detail_row(a: IntelligenceArticle) -> dict:
         "related_themes":      a.related_themes,
         "canonical_url":       a.canonical_url,
         "json_ld":             a.json_ld,
+        "parent_event_group_id": a.parent_event_group_id,
+        "related_articles":    [],  # filled in by get_insight() — needs a DB lookup
     })
     return base
 
@@ -105,4 +110,26 @@ async def get_insight(slug: str, db: AsyncSession = Depends(get_db)):
     art = result.scalar_one_or_none()
     if not art:
         raise HTTPException(status_code=404, detail="Article not found")
-    return _detail_row(art)
+
+    row = _detail_row(art)
+
+    # Other angles on the same underlying event (primary + per-company +
+    # sector-rollup siblings) — only set on articles published after the
+    # multi-angle fan-out shipped, so older articles simply have none.
+    if art.parent_event_group_id:
+        sib_result = await db.execute(
+            select(IntelligenceArticle)
+            .where(IntelligenceArticle.parent_event_group_id == art.parent_event_group_id)
+            .where(IntelligenceArticle.id != art.id)
+            .where(IntelligenceArticle.status == "published")
+        )
+        siblings = sib_result.scalars().all()
+        row["related_articles"] = [
+            {
+                "slug": s.slug, "headline": s.headline, "angle": s.angle,
+                "angle_entity": s.angle_entity, "article_type": s.article_type,
+            }
+            for s in siblings
+        ]
+
+    return row

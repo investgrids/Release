@@ -21,6 +21,10 @@ log = structlog.get_logger(__name__)
 _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("ripple_graphs", "source", "VARCHAR(20) NOT NULL DEFAULT 'ai_generated'"),
     ("opportunities", "source", "VARCHAR(20) NOT NULL DEFAULT 'pipeline'"),
+    ("intelligence_articles", "angle",                  "VARCHAR(32) NOT NULL DEFAULT 'primary'"),
+    ("intelligence_articles", "angle_entity",            "VARCHAR(64)"),
+    ("intelligence_articles", "parent_event_group_id",   "VARCHAR(64)"),
+    ("intelligence_articles", "is_evergreen",            "BOOLEAN NOT NULL DEFAULT 0"),
 ]
 
 

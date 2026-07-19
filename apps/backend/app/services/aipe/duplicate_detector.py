@@ -54,13 +54,23 @@ async def find_duplicate(
     article_type: str,
     headline: str,
     trigger_event_id: str | None,
+    angle: str = "primary",
+    angle_entity: str | None = None,
 ) -> IntelligenceArticle | None:
     """
     Returns the existing article if a duplicate is found, otherwise None.
+
+    angle/angle_entity scope every check to the SAME angle — otherwise the
+    per-company/sector-rollup siblings spun off from one event (same
+    trigger_event_id, same article_type, near-identical headline vocabulary)
+    would collapse into a single "duplicate" and only one page would ever
+    get created, defeating the point of the fan-out.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_LOOKBACK_HOURS)
 
-    # 1. Exact story_id match (same story, same day)
+    # 1. Exact story_id match (same story, same day) — story_id already
+    #    encodes the angle (see content_planner.plan_extra_angles), so this
+    #    check is angle-safe without extra filtering.
     if story_id:
         result = await db.execute(
             select(IntelligenceArticle)
@@ -75,25 +85,31 @@ async def find_duplicate(
             log.info("duplicate.story_id_match", story_id=story_id, existing_id=existing.id)
             return existing
 
-    # 2. Same trigger event + same type
+    # 2. Same trigger event + same type + same angle/entity
     if trigger_event_id:
         result = await db.execute(
             select(IntelligenceArticle)
             .where(IntelligenceArticle.trigger_event_id == trigger_event_id)
             .where(IntelligenceArticle.article_type == article_type)
+            .where(IntelligenceArticle.angle == angle)
+            .where(IntelligenceArticle.angle_entity == angle_entity)
             .where(IntelligenceArticle.created_at >= cutoff)
             .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged"]))
             .limit(1)
         )
         existing = result.scalar_one_or_none()
         if existing:
-            log.info("duplicate.event_type_match", event_id=trigger_event_id, type=article_type)
+            log.info("duplicate.event_type_match", event_id=trigger_event_id, type=article_type, angle=angle)
             return existing
 
-    # 3. Headline similarity
+    # 3. Headline similarity — scoped to the same angle/entity too, otherwise
+    #    "...Means For HDFC Bank Investors" and "...Means For ICICI Bank
+    #    Investors" share enough vocabulary to Jaccard-match each other.
     result = await db.execute(
         select(IntelligenceArticle)
         .where(IntelligenceArticle.article_type == article_type)
+        .where(IntelligenceArticle.angle == angle)
+        .where(IntelligenceArticle.angle_entity == angle_entity)
         .where(IntelligenceArticle.created_at >= cutoff)
         .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged"]))
         .order_by(IntelligenceArticle.created_at.desc())
