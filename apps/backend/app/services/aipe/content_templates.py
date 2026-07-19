@@ -16,6 +16,7 @@ Template variables available (all optional — use what's relevant):
   {historical}      — verified historical events (JSON-formatted)
   {nifty_change}    — today's Nifty % change
   {session}         — pre_market | live | post_market
+  {question}        — (QUESTION_INTELLIGENCE only) the literal investor question being answered
 """
 from __future__ import annotations
 
@@ -405,6 +406,71 @@ Avoid jargon. If you must use a term, define it immediately.
 """ + _BASE_SECTIONS
 
 
+# ── 13. Question Intelligence ─────────────────────────────────────────────────
+QUESTION_INTELLIGENCE = """You are answering a specific, high-intent investor question that people are
+actively typing into Google right now. This is NOT a news summary — it is a direct answer page.
+
+QUESTION TO ANSWER (use this exact phrasing as the headline basis):
+{question}
+
+TRIGGERING EVENT:
+{headline}
+{summary}
+
+Companies: {companies}
+Sectors: {sectors}
+Market Context: {market_context}
+
+HISTORICAL PRECEDENT (verified — use these, do not hallucinate others):
+{historical}
+
+Your job: Give a direct, well-reasoned answer to the question itself — don't just describe the event
+and leave the reader to figure out the answer themselves.
+
+Focus on:
+1. A direct, upfront verdict in the first sentence of executive_summary (yes / no / it depends — and why)
+2. The specific reasoning behind that verdict, grounded in the event and real data provided
+3. The strongest counter-argument — what would change this view
+4. Risk/reward framing for someone considering acting on this now
+5. Time horizon — is this a short-term trade thesis or a long-term view? Say so explicitly
+6. What a NEW investor should take away vs. what a more experienced investor should take away
+
+The "headline" field MUST be the question itself, phrased naturally the way an investor would type or
+say it (e.g. "Should I Buy HDFC Bank After RBI's Rate Hold?", "Is the Repo Rate Hold Good or Bad for
+Banking Stocks?") — not a rephrased statement.
+
+""" + _BASE_SECTIONS
+
+
+# ── 14. Historical Intelligence ───────────────────────────────────────────────
+HISTORICAL_INTELLIGENCE = """You are writing a Historical Intelligence deep-dive — analysing a PATTERN across
+multiple past market events, not a single event. These pages have a long SEO life because the pattern
+they describe stays relevant long after any one event fades from the news cycle.
+
+TOPIC: {headline}
+{summary}
+
+VERIFIED HISTORICAL EVENTS (use ONLY this data — do not invent additional history or events not listed):
+{historical}
+
+Your job: Answer "What does history actually show about this pattern, and what should an investor learn from it?"
+
+Focus on:
+1. The common pattern across these events — what typically happens to Nifty/the sector in the days and
+   weeks after this type of event, based only on the data provided
+2. Which of the listed events were outliers, and what made them different
+3. Which stocks/sectors consistently won or lost across these events (use only the winners/losers data given)
+4. The single most important, honest lesson an investor should take from this history
+5. How reliable is this pattern? Be explicit about sample size — do not overstate confidence from a handful
+   of data points
+6. What would make the NEXT similar event play out differently from the historical pattern
+
+Do not fabricate events, numbers, or outcomes beyond what is explicitly listed above. If the sample is
+small, say so plainly rather than implying a stronger pattern than the data supports.
+
+""" + _BASE_SECTIONS
+
+
 # ── Template registry ─────────────────────────────────────────────────────────
 TEMPLATES: dict[str, str] = {
     "morning_intelligence":      MORNING_INTELLIGENCE,
@@ -419,6 +485,8 @@ TEMPLATES: dict[str, str] = {
     "weekly_intelligence":       WEEKLY_INTELLIGENCE,
     "monthly_intelligence":      MONTHLY_INTELLIGENCE,
     "educational_intelligence":  EDUCATIONAL_INTELLIGENCE,
+    "question_intelligence":     QUESTION_INTELLIGENCE,
+    "historical_intelligence":   HISTORICAL_INTELLIGENCE,
 }
 
 

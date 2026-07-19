@@ -28,6 +28,7 @@ async def generate_intelligence_article(
     event: dict[str, Any],
     mie_context: dict[str, Any],
     historical: list[dict[str, Any]],
+    question: str = "",
 ) -> dict[str, Any] | None:
     """
     Generate a structured intelligence article using the appropriate template.
@@ -57,7 +58,7 @@ async def generate_intelligence_article(
         companies_str = ", ".join(str(t) for t in tickers[:6]) or "Multiple companies"
 
     themes_str = ", ".join(mie_context.get("themes") or []) or "Markets"
-    historical_str = _format_historical(historical)
+    historical_str = _format_historical(historical, limit=10 if article_type == "historical_intelligence" else 4)
 
     nifty_chg = mie_context.get("nifty_chg")
     nifty_change_str = f"{nifty_chg:+.2f}%" if nifty_chg is not None else "data unavailable"
@@ -76,6 +77,7 @@ async def generate_intelligence_article(
         historical=historical_str,
         nifty_change=nifty_change_str,
         session=mie_context.get("session", "live"),
+        question=question,
     )
 
     try:
@@ -106,24 +108,47 @@ def _format_market_context(ctx: dict[str, Any]) -> str:
     return " | ".join(parts) if parts else "Market context not available"
 
 
-def _format_historical(historical: list[dict[str, Any]]) -> str:
+def _format_historical(historical: list[dict[str, Any]], limit: int = 4) -> str:
     """
     Format verified historical events for the prompt.
     Explicitly marks them as real — AI must not add others.
+
+    Accepts the terse {event, date, outcome, sentiment, sectors} shape used
+    everywhere, and transparently uses richer fields (nifty_1w/1m, winners,
+    losers, key_lesson) when present — used by Historical Intelligence pages,
+    which need more than a one-line-per-event summary to synthesize a pattern
+    across many events rather than ground one.
     """
     if not historical:
         return "No verified historical precedents available for this event type."
 
-    lines = ["VERIFIED HISTORICAL DATA (use only these — do not add others):"]
-    for h in historical[:4]:
-        line = f"- {h.get('event', 'Unknown event')} ({h.get('date', '—')})"
+    lines = [f"VERIFIED HISTORICAL DATA — {min(len(historical), limit)} events (use only these — do not add others):"]
+    for h in historical[:limit]:
+        line = f"- {h.get('event', 'Unknown event')} ({h.get('date', '—')}{', ' + h['category'] if h.get('category') else ''})"
+        moves = []
         if h.get("outcome") is not None:
-            line += f" → Nifty 1-day: {h['outcome']:+.1f}%"
+            moves.append(f"1D: {h['outcome']:+.1f}%")
+        if h.get("nifty_1w") is not None:
+            moves.append(f"1W: {h['nifty_1w']:+.1f}%")
+        if h.get("nifty_1m") is not None:
+            moves.append(f"1M: {h['nifty_1m']:+.1f}%")
+        if moves:
+            line += " → Nifty " + ", ".join(moves)
         if h.get("sentiment"):
             line += f" | Sentiment: {h['sentiment']}"
         if h.get("sectors"):
             line += f" | Sectors: {', '.join(h['sectors'][:3])}"
         lines.append(line)
+        if h.get("winners"):
+            w = ", ".join(f"{x.get('symbol', '?')} ({x.get('return_1m')}% 1M)" for x in h["winners"][:3] if isinstance(x, dict))
+            if w:
+                lines.append(f"    Winners: {w}")
+        if h.get("losers"):
+            l = ", ".join(str(x.get("symbol", "?")) if isinstance(x, dict) else str(x) for x in h["losers"][:3])
+            if l:
+                lines.append(f"    Losers: {l}")
+        if h.get("key_lesson"):
+            lines.append(f"    Lesson: {h['key_lesson']}")
     return "\n".join(lines)
 
 

@@ -22,6 +22,8 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
   weekly_intelligence:     { label: "Weekly Intelligence",    color: "text-sky-400 border-sky-500/30 bg-sky-500/10" },
   monthly_intelligence:    { label: "Monthly Intelligence",   color: "text-sky-400 border-sky-500/30 bg-sky-500/10" },
   educational_intelligence:{ label: "Investor Education",     color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
+  question_intelligence:   { label: "Investor Q&A",           color: "text-pink-400 border-pink-500/30 bg-pink-500/10" },
+  historical_intelligence: { label: "Historical Intelligence", color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
 };
 const DEFAULT_TYPE_META = { label: "Market Intelligence", color: "text-slate-400 border-white/20 bg-white/5" };
 
@@ -366,7 +368,11 @@ export default async function InsightPage(
                   className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 hover:border-white/20 transition">
                   <div>
                     <span className="text-[10px] uppercase tracking-wider text-slate-600">
-                      {r.angle === "per_company" ? r.angle_entity : r.angle === "sector_rollup" ? `${r.angle_entity} Sector` : (TYPE_META[r.article_type] ?? DEFAULT_TYPE_META).label}
+                      {r.angle === "per_company" ? r.angle_entity
+                        : r.angle === "sector_rollup" ? `${r.angle_entity} Sector`
+                        : r.angle === "theme" ? `${r.angle_entity} Theme`
+                        : r.angle === "question" ? "Q&A"
+                        : (TYPE_META[r.article_type] ?? DEFAULT_TYPE_META).label}
                     </span>
                     <p className="text-[12px] font-medium text-slate-300">{r.headline}</p>
                   </div>

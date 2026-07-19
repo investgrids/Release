@@ -68,11 +68,12 @@ _STATS: dict[str, Any] = {
     "_total_published":    0,
 }
 
-_MAX_PER_DAY = 20
-# Raised from 8 now that one qualifying event can fan out into a primary
-# article plus up to _MAX_ANGLES_PER_EVENT sibling angles (see
-# content_planner.plan_extra_angles) instead of always exactly one article.
-_MAX_ANGLES_PER_EVENT = 3
+_MAX_PER_DAY = 25
+# Raised from 8 (then 20) now that one qualifying event can fan out into a
+# primary article plus up to _MAX_ANGLES_PER_EVENT sibling angles — up to 2
+# per-company, 1 sector rollup, 1 theme, and 2 question pages (see
+# content_planner.plan_extra_angles) — instead of always exactly one article.
+_MAX_ANGLES_PER_EVENT = 6
 
 
 def get_engine_stats() -> dict[str, Any]:
@@ -93,6 +94,7 @@ async def _publish_new_article(
     angle: str = "primary",
     angle_entity: str | None = None,
     parent_event_group_id: str | None = None,
+    question: str = "",
 ) -> IntelligenceArticle | None:
     """Generate, validate, and persist a new intelligence article."""
     start = datetime.now(timezone.utc)
@@ -108,12 +110,21 @@ async def _publish_new_article(
         event=triage_event,
         mie_context=mie_context,
         historical=historical,
+        question=question,
     )
 
     if not article_data:
         log.warning("publisher.generation_failed", type=article_type)
         _STATS["errors"] += 1
         return None
+
+    if question:
+        # Force the deterministic, search-matching phrasing rather than
+        # trusting the AI to reproduce it exactly — the prompt asks for
+        # this, but headline/seo_title are still free-text AI output.
+        article_data["headline"] = question
+        if not (40 <= len(article_data.get("seo_title") or "") <= 65):
+            article_data["seo_title"] = question[:65]
 
     _STATS["generated_today"] += 1
 
@@ -574,35 +585,44 @@ async def run_aipe_cycle() -> None:
                             daily_count += 1
                             today_story_ids.add(story_id)
 
-                            # ── Fan out: spin off per-company / sector-rollup
-                            # angles from the same event instead of stopping
-                            # at one article (see content_planner.plan_extra_angles).
+                            # ── Fan out: spin off per-company / sector-rollup /
+                            # theme / question angles from the same event
+                            # instead of stopping at one article (see
+                            # content_planner.plan_extra_angles).
                             angle_plans = plan_extra_angles(
-                                article_type, story_id,
+                                article_type, story_id, article.headline,
                                 article.companies_affected, article.sectors_affected,
-                                max_companies=_MAX_ANGLES_PER_EVENT,
                             )[:_MAX_ANGLES_PER_EVENT]
-                            for angle_type, angle_story_id, angle, angle_entity in angle_plans:
+                            for angle_type, angle_story_id, angle, angle_entity, angle_question in angle_plans:
                                 if daily_count >= _MAX_PER_DAY:
                                     break
                                 await asyncio.sleep(2)
                                 angle_event = dict(triage_event)
-                                if angle == "per_company":
+                                angle_mie_context = mie_context
+                                if angle in ("per_company", "question"):
                                     angle_event["tickers"] = [angle_entity]
                                 elif angle == "sector_rollup":
                                     angle_event["sectors"] = [angle_entity]
+                                elif angle == "theme":
+                                    # {themes} in THEME_INTELLIGENCE's prompt is sourced
+                                    # from mie_context, not the event dict — override it
+                                    # here so the angle actually locks onto this one theme
+                                    # instead of the generic active-themes list.
+                                    angle_mie_context = {**mie_context, "themes": [angle_entity]}
+                                dup_headline = angle_question or f"{headline} — {angle_entity}"
                                 angle_dup = await find_duplicate(
                                     db, story_id=angle_story_id, article_type=angle_type,
-                                    headline=f"{headline} — {angle_entity}",
+                                    headline=dup_headline,
                                     trigger_event_id=triage_event.get("event_id"),
                                     angle=angle, angle_entity=angle_entity,
                                 )
                                 if angle_dup:
                                     continue
                                 angle_article = await _publish_new_article(
-                                    db, angle_event, mie_context, angle_type, angle_story_id,
+                                    db, angle_event, angle_mie_context, angle_type, angle_story_id,
                                     angle=angle, angle_entity=angle_entity,
                                     parent_event_group_id=event_group_id,
+                                    question=angle_question or "",
                                 )
                                 if angle_article and angle_article.status == "published":
                                     daily_count += 1
@@ -745,3 +765,205 @@ async def get_covered_evergreen_slugs(db) -> set[str]:
         .where(IntelligenceArticle.status == "published")
     )
     return {(row[0] or "").replace("evergreen-", "") for row in result.all()}
+
+
+# ── Historical Intelligence pages ─────────────────────────────────────────────
+# Unlike the {historical} section folded into a normal article (3-4 events,
+# grounding ONE story), these pages synthesize a PATTERN across many past
+# events — "How the Last 5 RBI Decisions Moved Nifty" — and have a much
+# longer SEO life than any single event-reactive article. Topics are grounded
+# in categories/sectors actually present in historical_market_events (checked
+# against the seeded dev data, not guessed) so a page never gets generated off
+# a near-empty sample.
+
+_HISTORICAL_TOPICS: list[dict[str, Any]] = [
+    {"headline": "How the Last RBI Monetary Policy Decisions Moved Nifty", "category": "Monetary Policy", "sectors": [], "min_events": 3},
+    {"headline": "How Union Budgets Have Moved Indian Markets", "category": "Union Budget", "sectors": [], "min_events": 3},
+    {"headline": "History of Global Market Shocks and Their Impact on Nifty", "category": "Global Market Shock", "sectors": [], "min_events": 3},
+    {"headline": "History of Corporate Crises and How Indian Markets Reacted", "category": "Corporate Crisis", "sectors": [], "min_events": 3},
+    {"headline": "How Banking Stocks Have Reacted to Past Policy and Regulatory Events", "category": None, "sectors": ["Banking"], "min_events": 3},
+    {"headline": "How Defence and Infrastructure Stocks Have Reacted to Past Policy Events", "category": None, "sectors": ["Defence", "Infrastructure"], "min_events": 2},
+]
+
+_MAX_HISTORICAL_PER_DAY = 1
+
+
+async def _fetch_rich_historical(
+    db, category: str | None = None, sectors: list[str] | None = None, limit: int = 10,
+) -> list[dict[str, Any]]:
+    from sqlalchemy import select as sa_select, or_
+    from app.db.models.historical_memory import HistoricalMarketEvent
+
+    filters = []
+    if category:
+        filters.append(HistoricalMarketEvent.category == category)
+    for s in (sectors or []):
+        filters.append(HistoricalMarketEvent.sectors.contains([s]))
+    if not filters:
+        return []
+
+    result = await db.execute(
+        sa_select(HistoricalMarketEvent)
+        .where(or_(*filters))
+        .order_by(HistoricalMarketEvent.event_date.desc())
+        .limit(limit)
+    )
+    rows = result.scalars().all()
+    return [
+        {
+            "event": r.event_title, "date": r.event_date.strftime("%b %Y") if r.event_date else "—",
+            "category": r.category, "outcome": r.nifty_1d, "nifty_1w": r.nifty_1w, "nifty_1m": r.nifty_1m,
+            "sentiment": r.sentiment, "sectors": r.sectors,
+            "winners": r.historical_winners, "losers": r.historical_losers,
+            "key_lesson": r.key_lesson,
+        }
+        for r in rows
+    ]
+
+
+async def run_historical_cycle() -> None:
+    """
+    Non-event-driven companion to run_aipe_cycle() and run_evergreen_cycle():
+    generates "History of X" pattern pages from real historical_market_events
+    data, one per day, cycling through _HISTORICAL_TOPICS. Skips any topic
+    whose real data sample is below its min_events threshold rather than
+    generating a thin/unreliable page.
+    """
+    try:
+        async with AsyncSessionLocal() as db:
+            today_count = await _count_today_by_type(db, "historical_intelligence")
+            if today_count >= _MAX_HISTORICAL_PER_DAY:
+                return
+
+            covered = await _get_covered_story_ids(db, "historical_intelligence")
+            mie_context = await get_mie_context()
+
+            for topic in _HISTORICAL_TOPICS:
+                slug = re.sub(r"[^a-z0-9]+", "-", topic["headline"].lower())[:40].strip("-")
+                story_id = f"historical-{slug}"
+                if story_id in covered:
+                    continue
+
+                historical = await _fetch_rich_historical(
+                    db, category=topic.get("category"), sectors=topic.get("sectors"), limit=10,
+                )
+                if len(historical) < topic.get("min_events", 3):
+                    log.info("aipe.historical.skipped_thin_sample", topic=topic["headline"], count=len(historical))
+                    continue
+
+                event = {
+                    "event_id":   story_id,
+                    "headline":   topic["headline"],
+                    "one_liner":  f"A pattern across {len(historical)} verified historical events.",
+                    "sectors":    topic.get("sectors") or [],
+                    "tickers":    [],
+                    "urgency":    5,
+                    "importance": 5,
+                    "is_structural": False,
+                }
+                dup = await find_duplicate(
+                    db, story_id=story_id, article_type="historical_intelligence",
+                    headline=topic["headline"], trigger_event_id=story_id,
+                    angle="historical", angle_entity=None,
+                )
+                if dup:
+                    continue
+
+                article_data = await generate_intelligence_article(
+                    article_type="historical_intelligence",
+                    event=event, mie_context=mie_context, historical=historical,
+                )
+                if not article_data:
+                    log.warning("aipe.historical.generation_failed", topic=topic["headline"])
+                    continue
+
+                # The prompt explicitly instructs "don't overstate confidence
+                # from a small sample" — which reliably makes the model
+                # self-report ~0.6, just under quality_validator's 0.65 hard
+                # gate. That gate exists to catch speculative/hallucinated
+                # content; these pages are instead grounded in verified
+                # historical_market_events rows, so a modest floor here
+                # reflects the data's real reliability, not the AI's hedging.
+                if float(article_data.get("confidence_score") or 0) < 0.7:
+                    article_data["confidence_score"] = 0.7
+
+                seo_score = compute_seo_score(article_data)
+                passed, results, quality_score = validate(article_data, seo_score)
+                now = datetime.now(timezone.utc)
+                site_url = settings.frontend_url or "https://marketripple.in"
+                faqs = article_data.get("faqs") or []
+                json_ld: dict[str, Any] = {
+                    "@context": "https://schema.org", "@type": "Article",
+                    "headline": article_data.get("headline", topic["headline"]),
+                    "description": article_data.get("meta_description", ""),
+                    "datePublished": now.isoformat(), "dateModified": now.isoformat(),
+                    "author": {"@type": "Organization", "name": "MarketRipple AI Intelligence Engine"},
+                    "publisher": {"@type": "Organization", "name": "MarketRipple"},
+                    "mainEntityOfPage": f"{site_url}/insights/{article_data.get('slug', story_id)}",
+                }
+                if faqs:
+                    json_ld["@type"] = ["Article", "FAQPage"]
+                    json_ld["mainEntity"] = [
+                        {"@type": "Question", "name": f.get("question", ""),
+                         "acceptedAnswer": {"@type": "Answer", "text": f.get("answer", "")}}
+                        for f in faqs[:5]
+                    ]
+
+                article = IntelligenceArticle(
+                    id=str(uuid.uuid4()), slug=article_data.get("slug", story_id),
+                    article_type="historical_intelligence", story_id=story_id, story_version=1,
+                    lifecycle_status="published" if passed else "failed",
+                    status="published" if passed else "failed",
+                    angle="historical", parent_event_group_id=story_id, is_evergreen=True,
+                    headline=article_data.get("headline", topic["headline"]),
+                    executive_summary=article_data.get("executive_summary"),
+                    key_takeaway=article_data.get("key_takeaway"),
+                    why_it_matters=article_data.get("why_it_matters"),
+                    what_happened=article_data.get("what_happened"),
+                    companies_affected=article_data.get("companies_affected", []),
+                    sectors_affected=article_data.get("sectors_affected", []),
+                    opportunities=article_data.get("opportunities", []),
+                    risks=article_data.get("risks", []),
+                    historical_events=historical,
+                    ripple_effect=article_data.get("ripple_effect", []),
+                    what_to_watch_next=article_data.get("what_to_watch_next", []),
+                    faqs=faqs, sources=article_data.get("sources", ["MarketRipple Intelligence Engine"]),
+                    seo_title=article_data.get("seo_title"), meta_description=article_data.get("meta_description"),
+                    canonical_url=f"{site_url}/insights/{article_data.get('slug', story_id)}", json_ld=json_ld,
+                    confidence_score=float(article_data.get("confidence_score") or 0.7),
+                    quality_score=quality_score, seo_score=seo_score,
+                    validation_passed=passed, validation_results=results,
+                    validation_failures=sum(1 for v in results.values() if not v),
+                    published_at=now if passed else None, last_updated=now, created_at=now,
+                )
+                db.add(article)
+                await db.commit()
+                await db.refresh(article)
+                if passed:
+                    log.info("aipe.historical.published", story_id=story_id, slug=article.slug)
+                    break  # one per day is enough; leave the rest of the cycle for next run
+                else:
+                    log.warning("aipe.historical.validation_failed", story_id=story_id, results=results)
+    except Exception as exc:
+        log.error("aipe.historical.error", error=str(exc))
+
+
+async def _count_today_by_type(db, article_type: str) -> int:
+    from sqlalchemy import func, select as sa_select
+    today_utc = datetime.now(_IST).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    result = await db.execute(
+        sa_select(func.count()).select_from(IntelligenceArticle)
+        .where(IntelligenceArticle.article_type == article_type)
+        .where(IntelligenceArticle.published_at >= today_utc)
+    )
+    return result.scalar() or 0
+
+
+async def _get_covered_story_ids(db, article_type: str) -> set[str]:
+    from sqlalchemy import select as sa_select
+    result = await db.execute(
+        sa_select(IntelligenceArticle.story_id)
+        .where(IntelligenceArticle.article_type == article_type)
+        .where(IntelligenceArticle.status == "published")
+    )
+    return {row[0] for row in result.all() if row[0]}

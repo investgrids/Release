@@ -181,7 +181,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
     )
 
     # ── AIPE — Autonomous Intelligence Publishing Engine — every 5 minutes ──────
-    from app.services.aipe.publisher import run_aipe_cycle, run_evergreen_cycle
+    from app.services.aipe.publisher import run_aipe_cycle, run_evergreen_cycle, run_historical_cycle
     scheduler.add_job(
         run_aipe_cycle,
         IntervalTrigger(seconds=300),
@@ -196,6 +196,16 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         run_evergreen_cycle,
         CronTrigger(hour=9, minute=0, timezone=_IST),
         id="aipe_evergreen_cycle",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
+    )
+
+    # ── AIPE Historical Intelligence — pattern pages, one per day — 9:30 AM IST ─
+    scheduler.add_job(
+        run_historical_cycle,
+        CronTrigger(hour=9, minute=30, timezone=_IST),
+        id="aipe_historical_cycle",
         max_instances=1,
         coalesce=True,
         misfire_grace_time=1800,

@@ -140,24 +140,58 @@ def select_article_type(
     return "breaking_intelligence", f"intel-{event_id[:16]}-{today}", 6
 
 
+# Canonical theme baskets, shared with the Theme Engine's scoring worker so
+# a "theme" angle always names one of the same 12 themes the rest of the
+# app already tracks (theme_worker.THEMES), rather than inventing new ones.
+def _theme_engine_baskets() -> dict[str, list[str]]:
+    from app.services.intelligence.theme_worker import THEMES
+    return THEMES
+
+
+def _match_theme(companies_affected: list[dict[str, Any]], sectors_affected: list[dict[str, Any]]) -> str | None:
+    themes = _theme_engine_baskets()
+    tickers = {str(c.get("symbol", "")).upper() for c in (companies_affected or []) if c.get("symbol")}
+    for theme_name, basket in themes.items():
+        if tickers & set(basket):
+            return theme_name
+    sector_names = [str(s.get("name", "")) for s in (sectors_affected or []) if s.get("name")]
+    for theme_name in themes:
+        head = theme_name.split(" & ")[0].lower()
+        if any(head in s.lower() or s.lower() in theme_name.lower() for s in sector_names):
+            return theme_name
+    return None
+
+
+_QUESTION_TEMPLATES = [
+    "Should I Buy {company} After {event_phrase}?",
+    "Is {event_phrase} Good or Bad for {company} Investors?",
+]
+
+
 def plan_extra_angles(
     primary_article_type: str,
     primary_story_id: str,
+    primary_headline: str,
     companies_affected: list[dict[str, Any]],
     sectors_affected: list[dict[str, Any]],
     max_companies: int = 2,
-) -> list[tuple[str, str, str, str | None]]:
+    max_questions: int = 2,
+) -> list[tuple[str, str, str, str | None, str | None]]:
     """
     Given the just-published primary article's own AI-vetted companies/sectors,
     decide which additional angle-specific articles to spin off from the same
     event — turning one event into several search-intent-targeted pages
     (e.g. RBI policy → primary overview + HDFC angle + ICICI angle + Banking
-    sector rollup) instead of exactly one article.
+    sector rollup + Banking theme + "Should I Buy HDFC?" question) instead of
+    exactly one article.
 
-    Returns a list of (article_type, story_id, angle, angle_entity) tuples.
+    Returns a list of (article_type, story_id, angle, angle_entity, question_text)
+    tuples — question_text is only set for "question" angles (used both as the
+    {question} prompt variable and to force a deterministic, search-matching
+    headline rather than trusting the AI to phrase it exactly right).
     Skips an angle that would just duplicate what the primary article already is.
     """
-    plans: list[tuple[str, str, str, str | None]] = []
+    plans: list[tuple[str, str, str, str | None, str | None]] = []
 
     companies = [c for c in (companies_affected or []) if c.get("symbol")]
     for c in companies[:max_companies]:
@@ -169,6 +203,7 @@ def plan_extra_angles(
             f"{primary_story_id}-co-{symbol}",
             "per_company",
             symbol,
+            None,
         ))
 
     sectors = [s for s in (sectors_affected or []) if s.get("name")]
@@ -180,6 +215,36 @@ def plan_extra_angles(
             f"{primary_story_id}-sector-{sector_slug}",
             "sector_rollup",
             top_sector,
+            None,
+        ))
+
+    if primary_article_type != "theme_intelligence":
+        theme = _match_theme(companies_affected, sectors_affected)
+        if theme:
+            theme_slug = re.sub(r"[^a-z0-9]+", "-", theme.lower())[:20].strip("-")
+            plans.append((
+                "theme_intelligence",
+                f"{primary_story_id}-theme-{theme_slug}",
+                "theme",
+                theme,
+                None,
+            ))
+
+    event_phrase = re.sub(r"\s+", " ", primary_headline).strip()
+    if len(event_phrase) > 60:
+        event_phrase = event_phrase[:57].rsplit(" ", 1)[0] + "..."
+    for i, c in enumerate(companies[:max_questions]):
+        company_name = str(c.get("name") or c["symbol"])
+        symbol = str(c["symbol"]).upper()
+        q_template = _QUESTION_TEMPLATES[i % len(_QUESTION_TEMPLATES)]
+        question_text = q_template.format(company=company_name, event_phrase=event_phrase)
+        q_slug = re.sub(r"[^a-z0-9]+", "-", question_text.lower())[:40].strip("-")
+        plans.append((
+            "question_intelligence",
+            f"{primary_story_id}-q-{symbol}-{q_slug[:20]}",
+            "question",
+            symbol,
+            question_text,
         ))
 
     return plans

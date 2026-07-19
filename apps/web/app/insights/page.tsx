@@ -39,6 +39,8 @@ const TYPE_LABEL: Record<string, string> = {
   weekly_intelligence:      "Weekly",
   monthly_intelligence:     "Monthly",
   educational_intelligence: "Education",
+  question_intelligence:    "Q&A",
+  historical_intelligence:  "Historical",
 };
 
 const PAGE_SIZE = 20;
