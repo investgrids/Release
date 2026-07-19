@@ -18,6 +18,7 @@ Update tracking on each article:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -39,12 +40,87 @@ _UPDATE_WINDOW_HOURS = 12
 # Minimum time between updates for the same article (avoid thrashing)
 _MIN_UPDATE_GAP_MINUTES = 45
 
+# A move at or beyond this magnitude on the article's own relevant index/
+# sector — regardless of whether the MIE story-hash changed — is itself a
+# reason to refresh ("Bank Nifty +2%" should update an RBI/banking article
+# even if the overall market narrative text hasn't changed).
+_MARKET_MOVE_THRESHOLD_PCT = 1.5
+
+# article sectors_affected name (lowercased, substring match) -> tracked
+# sector-performance id from market_data_service.get_sector_performance()
+_SECTOR_MOVE_MAP: dict[str, str] = {
+    "bank": "Banking", "financial": "Banking", "nbfc": "Banking", "housing finance": "Banking",
+    "it": "IT", "technology": "IT", "software": "IT",
+    "pharma": "Pharma", "healthcare": "Pharma",
+    "auto": "Auto",
+    "energy": "Energy", "power": "Energy", "oil": "Energy",
+    "fmcg": "FMCG", "consumer": "FMCG",
+    "infra": "Infra", "infrastructure": "Infra", "capital goods": "Infra",
+    "metal": "Metal", "mining": "Metal",
+    "realty": "Realty", "real estate": "Realty",
+}
+
+
+async def get_market_moves() -> dict[str, float]:
+    """
+    Fetch today's % change for every tracked sector plus the broad Nifty 50
+    index. Best-effort — returns {} on any provider error so a market-data
+    hiccup never blocks the (still-valid) story-hash-based update path.
+    """
+    try:
+        from app.services.market_data_service import market_data_service
+        sectors, indices = await asyncio.gather(
+            market_data_service.get_sector_performance(),
+            market_data_service.get_indices(),
+            return_exceptions=True,
+        )
+        moves: dict[str, float] = {}
+        if isinstance(sectors, list):
+            for s in sectors:
+                moves[s.name] = s.change_percent
+        if isinstance(indices, list):
+            for i in indices:
+                if i.name == "NIFTY 50":
+                    moves["NIFTY 50"] = i.change_percent
+        return moves
+    except Exception as exc:
+        log.warning("continuous_updater.market_moves_fetch_failed", error=str(exc))
+        return {}
+
+
+def _relevant_market_move(article: IntelligenceArticle, moves: dict[str, float]) -> tuple[bool, str | None]:
+    """Does this article's own sector/the broad market move enough today to justify a refresh?"""
+    if not moves:
+        return False, None
+    sector_names = [
+        str(s.get("name", "")) if isinstance(s, dict) else str(s)
+        for s in (article.sectors_affected or [])
+    ]
+    for sector_name in sector_names:
+        low = sector_name.lower()
+        for kw, tracked_name in _SECTOR_MOVE_MAP.items():
+            if kw in low and tracked_name in moves:
+                pct = moves[tracked_name]
+                if abs(pct) >= _MARKET_MOVE_THRESHOLD_PCT:
+                    return True, f"{tracked_name} moved {pct:+.1f}% today"
+    nifty = moves.get("NIFTY 50")
+    if nifty is not None and abs(nifty) >= _MARKET_MOVE_THRESHOLD_PCT:
+        return True, f"Nifty 50 moved {nifty:+.1f}% today"
+    return False, None
+
 
 async def find_updatable_articles(
     db: AsyncSession,
     current_mie_hash: str,
-) -> list[IntelligenceArticle]:
-    """Return published articles from today that should receive an update."""
+    market_moves: dict[str, float] | None = None,
+) -> list[tuple[IntelligenceArticle, str | None]]:
+    """
+    Return (article, market_move_reason) pairs for published articles from
+    today that should receive an update — either because the MIE story-hash
+    changed, or because the article's own relevant sector/the broad market
+    moved beyond _MARKET_MOVE_THRESHOLD_PCT today (market_move_reason is set
+    in that case, None when it's a story-hash-only trigger).
+    """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_UPDATE_WINDOW_HOURS)
     min_gap = datetime.now(timezone.utc) - timedelta(minutes=_MIN_UPDATE_GAP_MINUTES)
 
@@ -62,11 +138,15 @@ async def find_updatable_articles(
     )
     articles = result.scalars().all()
 
-    # Filter to those whose MIE hash has changed
-    return [
-        a for a in articles
-        if a.mie_story_hash != current_mie_hash
-    ]
+    out: list[tuple[IntelligenceArticle, str | None]] = []
+    for a in articles:
+        if a.mie_story_hash != current_mie_hash:
+            out.append((a, None))
+            continue
+        moved, reason = _relevant_market_move(a, market_moves or {})
+        if moved:
+            out.append((a, reason))
+    return out
 
 
 async def update_article(
@@ -74,6 +154,7 @@ async def update_article(
     article: IntelligenceArticle,
     mie_context: dict[str, Any],
     new_triage_events: list[dict[str, Any]],
+    market_move_reason: str | None = None,
 ) -> bool:
     """
     Update an article's dynamic sections with fresh market context.
@@ -84,6 +165,8 @@ async def update_article(
 
     # Build update reason
     reasons = []
+    if market_move_reason:
+        reasons.append(market_move_reason)
     if mie_context.get("story"):
         reasons.append(f"Market narrative updated: {mie_context['mood']}")
     if new_triage_events:
@@ -203,20 +286,22 @@ async def run_continuous_update_cycle(
     if not current_hash:
         return 0
 
-    articles = await find_updatable_articles(db, current_hash)
-    if not articles:
+    market_moves = await get_market_moves()
+    candidates = await find_updatable_articles(db, current_hash, market_moves)
+    if not candidates:
         return 0
 
     updated = 0
     # Only update articles related to the new events' sectors/tickers
+    # (market-move-triggered candidates skip this check — the move itself
+    # is already a sector-specific relevance signal).
     relevant_sectors = set()
     relevant_tickers = set()
     for ev in new_triage_events:
         relevant_sectors.update(ev.get("sectors") or [])
         relevant_tickers.update(ev.get("tickers") or [])
 
-    for article in articles[:3]:  # Cap at 3 updates per cycle
-        # Check if this article is relevant to new events
+    for article, market_move_reason in candidates[:3]:  # Cap at 3 updates per cycle
         art_sectors = {s.get("name", s) if isinstance(s, dict) else s
                        for s in (article.sectors_affected or [])}
         art_companies = {c.get("symbol", c) if isinstance(c, dict) else c
@@ -225,8 +310,8 @@ async def run_continuous_update_cycle(
         sector_overlap = relevant_sectors & art_sectors
         company_overlap = relevant_tickers & art_companies
 
-        if sector_overlap or company_overlap or mie_context.get("story_hash") != article.mie_story_hash:
-            ok = await update_article(db, article, mie_context, new_triage_events)
+        if market_move_reason or sector_overlap or company_overlap or mie_context.get("story_hash") != article.mie_story_hash:
+            ok = await update_article(db, article, mie_context, new_triage_events, market_move_reason)
             if ok:
                 updated += 1
 
