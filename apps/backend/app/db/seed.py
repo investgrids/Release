@@ -2,7 +2,13 @@
 Populate the database with initial content data.
 Only inserts rows that don't already exist (idempotent).
 """
+from datetime import datetime, timezone
+
 from app.db import models_legacy as models
+
+
+def _dt(y: int, m: int, d: int, h: int = 9, mi: int = 30) -> datetime:
+    return datetime(y, m, d, h, mi, tzinfo=timezone.utc)
 
 
 EVENTS = [
@@ -19,6 +25,7 @@ EVENTS = [
             {"symbol": "SBIN", "name": "SBI", "impact": "Neutral"},
         ],
         category="Macro",
+        published_at=_dt(2026, 6, 18),
     ),
     models.Event(
         id="evt-defence-budget-2026",
@@ -33,6 +40,7 @@ EVENTS = [
             {"symbol": "BHARATFORG", "name": "Bharat Forge", "impact": "Positive"},
         ],
         category="Government",
+        published_at=_dt(2026, 7, 8),
     ),
     models.Event(
         id="evt-solar-capacity-2026",
@@ -47,6 +55,7 @@ EVENTS = [
             {"symbol": "SUZLON", "name": "Suzlon Energy", "impact": "Positive"},
         ],
         category="Policy",
+        published_at=_dt(2026, 7, 14),
     ),
     models.Event(
         id="evt-it-deal-slowdown-2026",
@@ -61,6 +70,7 @@ EVENTS = [
             {"symbol": "WIPRO", "name": "Wipro", "impact": "Negative"},
         ],
         category="Global",
+        published_at=_dt(2026, 7, 10),
     ),
     models.Event(
         id="evt-semiconductor-plc-2026",
@@ -74,6 +84,7 @@ EVENTS = [
             {"symbol": "KAYNES", "name": "Kaynes Technology", "impact": "Positive"},
         ],
         category="Policy",
+        published_at=_dt(2026, 6, 25),
     ),
 ]
 
@@ -344,18 +355,19 @@ async def seed_missing_calendar(db):
 
 async def seed_missing_events(db):
     """Upsert EVENTS entries, restoring authoritative scores that the pipeline may overwrite."""
-    from datetime import datetime, timezone
     from sqlalchemy import select
-    now = datetime.now(timezone.utc)
     for event in EVENTS:
         existing = (await db.execute(select(models.Event).where(models.Event.id == event.id))).scalar_one_or_none()
         if existing:
-            # Restore curated scores the pipeline overwrites, and bump published_at to now
-            # so seed events always appear as recent (they're evergreen market intelligence)
+            # Restore curated scores the pipeline overwrites. Deliberately does NOT
+            # touch published_at anymore — it used to get bumped to datetime.now()
+            # on every single server restart, which stamped every seed event with
+            # the exact same microsecond-precision "just now" timestamp instead of
+            # its real curated date (see EVENTS list above), making the Events page
+            # show garbled dates and collapsing the 7-day impact trend onto one day.
             existing.impact_score = event.impact_score
             existing.confidence   = event.confidence
             existing.category     = event.category
-            existing.published_at = now
             if event.sectors:
                 existing.sectors = event.sectors
             if event.companies:
@@ -370,6 +382,6 @@ async def seed_missing_events(db):
                 sectors=event.sectors,
                 companies=event.companies,
                 category=event.category,
-                published_at=now,
+                published_at=event.published_at,
             ))
     await db.commit()
