@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { ContactForm } from "@/components/ContactForm";
 import {
   LifeBuoy,
   MessageSquare,
@@ -193,6 +195,19 @@ export default function ContactPage() {
             );
           })}
         </div>
+      </section>
+
+      {/* Direct message form */}
+      <section aria-labelledby="contact-form" className="mt-10">
+        <h2
+          id="contact-form"
+          className="mb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500"
+        >
+          Or Send Us a Message Directly
+        </h2>
+        <Suspense fallback={<div className="h-[420px] rounded-xl border border-white/[0.08] bg-white/[0.02]" />}>
+          <ContactForm />
+        </Suspense>
       </section>
 
       {/* Feature Requests */}
