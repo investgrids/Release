@@ -8,7 +8,7 @@ import {
   TrendingUp, Brain, Shield,
 } from "lucide-react";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.com";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.in";
 
 type EntityType = "event" | "company" | "story" | "opportunity" | "ripple" | "search";
 

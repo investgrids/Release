@@ -35,7 +35,7 @@ interface ShareInsightCardProps {
 
 const SITE = typeof window !== "undefined"
   ? window.location.origin
-  : (process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.com");
+  : (process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in");
 
 function buildShareUrl(entityType: ShareInsightType, entityId: string): string {
   const path = `${SITE}/share/${entityType}/${entityId}`;

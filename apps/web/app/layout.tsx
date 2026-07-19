@@ -21,7 +21,7 @@ const inter = Inter({
   preload: true,
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.com";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

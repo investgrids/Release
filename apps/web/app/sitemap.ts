@@ -4,7 +4,7 @@ import { GLOSSARY } from "@/lib/glossary-data";
 import { GUIDES } from "@/lib/guides-data";
 import { ARTICLES } from "@/lib/articles-data";
 
-const base  = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.com";
+const base  = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.in";
 const now   = new Date().toISOString();
 
 async function safeJson<T>(url: string, fallback: T): Promise<T> {
