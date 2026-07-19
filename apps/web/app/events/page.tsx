@@ -278,7 +278,7 @@ function EventCard({ ev }: { ev: Event }) {
 
         {/* Action row */}
         <div className="mt-3 pt-2.5 border-t border-white/[0.05] flex items-center gap-3 flex-wrap">
-          <Link href={`/insights/${ev.id}`}
+          <Link href={`/intel/event/${ev.id}`}
             className="flex items-center gap-1 text-[12px] font-bold text-violet-400 hover:text-violet-300 transition">
             Intelligence Report →
           </Link>

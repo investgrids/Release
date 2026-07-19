@@ -334,11 +334,9 @@ export default async function IntelPage(
           <section className="mb-7">
             <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-slate-500">Related Intelligence</h2>
             <div className="space-y-2">
-              {related.slice(0, 5).map((r: any, i: number) => {
+              {related.filter((r: any) => VALID_TYPES.includes(r.type as IntelType)).slice(0, 5).map((r: any, i: number) => {
                 const relType = r.type as IntelType;
-                const href = VALID_TYPES.includes(relType)
-                  ? `/intel/${relType}/${r.id}`
-                  : "#";
+                const href = `/intel/${relType}/${r.id}`;
                 return (
                   <Link key={i} href={href}
                     className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 hover:border-white/20 transition">

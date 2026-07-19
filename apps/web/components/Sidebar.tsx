@@ -74,9 +74,12 @@ export function Sidebar() {
             <p className="text-sm font-semibold text-white">Upgrade to Pro</p>
           </div>
           <p className="text-xs leading-5 text-slate-400">Unlock deeper AI insights, custom reports, advanced filters, and real-time alerts.</p>
-          <button className="mt-3 w-full rounded-[14px] bg-gradient-to-r from-violet-600 to-sky-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg transition hover:opacity-90">
-            Upgrade Now
-          </button>
+          <Link
+            href="/contact?topic=pro"
+            className="mt-3 block w-full rounded-[14px] bg-gradient-to-r from-violet-600 to-sky-500 px-4 py-2.5 text-center text-xs font-semibold text-white shadow-lg transition hover:opacity-90"
+          >
+            Notify Me
+          </Link>
         </div>
       </div>
     </aside>

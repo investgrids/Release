@@ -46,7 +46,6 @@ function getISTSession() {
 export function SiteHeader() {
   const pathname    = usePathname();
   const { start }   = useNavLoading();
-  const { alerts }  = useAlerts();
   const [session, setSession]   = useState(getISTSession);
   const [nifty, setNifty]       = useState<{ value: string; change: string; positive: boolean } | null>(null);
   const [mobileOpen, setMobile]       = useState(false);
@@ -55,12 +54,16 @@ export function SiteHeader() {
   const [watchlistOpen, setWatchlist] = useState(false);
   const { count: watchlistCount }     = useWatchlist();
   const [query, setQuery]       = useState("");
+  const [notifOpen, setNotif]   = useState(false);
   const moreRef                 = useRef<HTMLDivElement>(null);
+  const notifRef                = useRef<HTMLDivElement>(null);
+  const { alerts, dismiss }     = useAlerts();
 
   // Close "More" dropdown on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMore(false);
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotif(false);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -199,19 +202,62 @@ export function SiteHeader() {
             </div>
 
             {/* Notifications */}
-            <div className="relative">
-              <button className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-slate-400 transition hover:bg-white/[0.07] hover:text-white">
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotif(o => !o)}
+                aria-label="Notifications"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-slate-400 transition hover:bg-white/[0.07] hover:text-white"
+              >
                 <Bell className="h-4 w-4" />
               </button>
               {alerts.length > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[8px] font-black text-white">
-                  {alerts.length}
+                  {alerts.length > 9 ? "9+" : alerts.length}
                 </span>
+              )}
+              {notifOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-white/[0.10] bg-[#0a0f1e]/98 backdrop-blur-xl shadow-2xl z-50 overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+                    <span className="text-[12px] font-bold text-white">Notifications</span>
+                    {alerts.length > 0 && (
+                      <span className="text-[10px] font-semibold text-slate-500">{alerts.length} active</span>
+                    )}
+                  </div>
+                  {alerts.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-[12px] text-slate-500">No active alerts right now.</p>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto">
+                      {alerts.slice(0, 8).map(a => (
+                        <div key={a.id} className="flex items-start gap-2.5 border-b border-white/[0.04] px-4 py-3 last:border-0 hover:bg-white/[0.03]">
+                          <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${a.urgency === "critical" ? "bg-rose-500" : "bg-amber-500"}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[12px] font-semibold leading-snug text-slate-200 line-clamp-2">{a.headline}</p>
+                            <p className="mt-0.5 text-[10px] text-slate-500 line-clamp-1">{a.summary}</p>
+                          </div>
+                          <button
+                            onClick={() => dismiss(a.id)}
+                            aria-label="Dismiss"
+                            className="shrink-0 rounded-full p-1 text-slate-600 hover:bg-white/[0.06] hover:text-slate-300 transition"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Link
+                    href="/market-intelligence"
+                    onClick={() => setNotif(false)}
+                    className="block border-t border-white/[0.06] px-4 py-2.5 text-center text-[11px] font-semibold text-violet-400 hover:text-violet-300 transition"
+                  >
+                    View Market Intelligence →
+                  </Link>
+                </div>
               )}
             </div>
 
             {/* Profile */}
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-sky-500 text-[12px] font-black text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-sky-500 text-[12px] font-black text-white" title="Guest">
               VS
             </div>
 

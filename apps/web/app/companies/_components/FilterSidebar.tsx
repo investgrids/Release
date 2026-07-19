@@ -51,21 +51,6 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
         </button>
       </div>
 
-      {/* Exchange */}
-      <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Exchange</p>
-        <label className="mb-2 flex cursor-pointer items-center gap-2 text-[12px] text-slate-300">
-          <div className="flex h-4 w-4 items-center justify-center rounded border border-indigo-500 bg-indigo-500/20">
-            <div className="h-2 w-2 rounded-sm bg-indigo-400" />
-          </div>
-          NSE
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-slate-500">
-          <div className="h-4 w-4 rounded border border-white/10 bg-white/[0.03]" />
-          BSE
-        </label>
-      </div>
-
       {/* Sector */}
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sector</p>
