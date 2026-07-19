@@ -182,12 +182,17 @@ async def update_article(
     new_takeaway = _generate_updated_takeaway(article, mie_context, new_triage_events)
     new_watch_next = _generate_watch_next(mie_context, new_triage_events)
 
-    # Update history entry
+    # Update history entry — captures a before/after AI-opinion snapshot
+    # (not just the reason) so the frontend can show "Original AI Opinion ->
+    # Current AI Opinion" evolution, not just a changelog of reasons.
     history_entry = {
-        "at":      now.isoformat(),
-        "version": new_version,
-        "reason":  update_reason,
-        "summary": f"Updated: {mie_context.get('mood', 'market conditions changed')}",
+        "at":               now.isoformat(),
+        "version":          new_version,
+        "reason":           update_reason,
+        "summary":          f"Updated: {mie_context.get('mood', 'market conditions changed')}",
+        "previous_takeaway": article.key_takeaway,
+        "new_takeaway":      new_takeaway or article.key_takeaway,
+        "confidence":        article.confidence_score,
     }
 
     current_history = article.update_history or []

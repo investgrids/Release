@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, TrendingUp, AlertTriangle, Building2, Clock,
-  BookOpen, HelpCircle, Eye, ListChecks,
+  BookOpen, HelpCircle, Eye, ListChecks, Activity, Shield,
+  Brain, Layers, MessageCircleQuestion, GitCommit, RadioTower,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 
@@ -36,6 +37,10 @@ interface Faq { question: string; answer: string; }
 interface RelatedCompany { symbol: string; name: string; link: string; }
 interface RelatedTheme { theme: string; link: string; }
 interface RelatedArticle { slug: string; headline: string; angle: string; angle_entity?: string | null; article_type: string; }
+interface UpdateEntry {
+  at: string; version: number; reason: string; summary: string;
+  previous_takeaway?: string | null; new_takeaway?: string | null; confidence?: number;
+}
 
 interface InsightDetail {
   id: string; slug: string; article_type: string;
@@ -54,11 +59,16 @@ interface InsightDetail {
   related_articles: RelatedArticle[];
   angle: string;
   angle_entity?: string | null;
+  is_evergreen?: boolean;
   confidence_score?: number;
   canonical_url?: string;
   json_ld?: Record<string, unknown>;
   published_at?: string;
   last_updated?: string;
+  created_at?: string;
+  story_version?: number;
+  update_count?: number;
+  update_history?: UpdateEntry[];
 }
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
@@ -85,6 +95,21 @@ const IMPACT_STYLE: Record<string, string> = {
   negative: "border-rose-500/25 bg-rose-500/10 text-rose-400",
   neutral:  "border-white/10 bg-white/5 text-slate-400",
 };
+
+// Event Evolution — derived from real timestamps, not a stored field:
+// Active = touched in the last 24h, Monitoring = within 7 days, Resolved =
+// older than that but still a live event type, Historical = evergreen/
+// historical content by nature (never "resolves", it's timeless by design).
+function deriveEventStatus(article: { article_type: string; is_evergreen?: boolean; last_updated?: string; published_at?: string }): { label: string; color: string; icon: typeof Activity } {
+  if (article.is_evergreen || article.article_type === "historical_intelligence" || article.article_type === "educational_intelligence") {
+    return { label: "Historical", color: "text-slate-400 border-white/15 bg-white/5", icon: BookOpen };
+  }
+  const anchor = article.last_updated || article.published_at;
+  const hoursSince = anchor ? (Date.now() - new Date(anchor).getTime()) / 3_600_000 : Infinity;
+  if (hoursSince <= 24) return { label: "Active", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10", icon: RadioTower };
+  if (hoursSince <= 24 * 7) return { label: "Monitoring", color: "text-amber-400 border-amber-500/30 bg-amber-500/10", icon: Activity };
+  return { label: "Resolved", color: "text-sky-400 border-sky-500/30 bg-sky-500/10", icon: GitCommit };
+}
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
@@ -138,6 +163,11 @@ export default async function InsightPage(
   const relatedThemes = article.related_themes ?? [];
   const relatedArticles = article.related_articles ?? [];
   const sources = article.sources ?? [];
+  const questionSiblings = relatedArticles.filter(r => r.angle === "question");
+  const updateHistory = article.update_history ?? [];
+  const campaignCompanies = relatedArticles.filter(r => r.angle === "per_company").length;
+  const campaignSectors = relatedArticles.filter(r => r.angle === "sector_rollup").length;
+  const campaignThemes = relatedArticles.filter(r => r.angle === "theme").length;
 
   return (
     <main className="min-h-screen bg-[#040810] text-white">
@@ -165,6 +195,15 @@ export default async function InsightPage(
             <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${meta.color}`}>
               <BookOpen className="h-2.5 w-2.5" /> {meta.label}
             </span>
+            {(() => {
+              const status = deriveEventStatus(article);
+              const StatusIcon = status.icon;
+              return (
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.color}`}>
+                  <StatusIcon className="h-2.5 w-2.5" /> {status.label}
+                </span>
+              );
+            })()}
             {article.angle_entity && article.angle !== "primary" && (
               <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-medium text-slate-400">
                 Focused on {article.angle_entity}
@@ -192,6 +231,34 @@ export default async function InsightPage(
             )}
           </div>
         </div>
+
+        {/* Intelligence Scorecard */}
+        <section className="mb-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {[
+            {
+              label: "Confidence",
+              value: article.confidence_score != null ? `${Math.round(article.confidence_score * 100)}%` : "—",
+              icon: Shield,
+            },
+            { label: "Sources", value: String(sources.length || "—"), icon: BookOpen },
+            { label: "Updated", value: `${article.update_count ?? 0}×`, icon: GitCommit },
+            {
+              label: "Evidence",
+              value: historical.length > 0 ? `${historical.length} events` : (article.companies_affected?.length ? `${article.companies_affected.length} cos.` : "—"),
+              icon: Layers,
+            },
+          ].map((s) => {
+            const Icon = s.icon;
+            return (
+              <div key={s.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+                <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">
+                  <Icon className="h-3 w-3" /> {s.label}
+                </div>
+                <p className="mt-1 text-[15px] font-bold text-white">{s.value}</p>
+              </div>
+            );
+          })}
+        </section>
 
         {/* TLDR */}
         {article.key_takeaway && (
@@ -358,10 +425,89 @@ export default async function InsightPage(
           </section>
         )}
 
-        {/* Other angles on this story */}
+        {/* People Also Asked — sibling question-angle pages from the same event */}
+        {questionSiblings.length > 0 && (
+          <section className="mb-7">
+            <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-slate-500">
+              <MessageCircleQuestion className="h-3.5 w-3.5 text-pink-400" /> People Also Asked
+            </h2>
+            <div className="space-y-2">
+              {questionSiblings.map((r, i) => (
+                <Link key={i} href={`/insights/${r.slug}`}
+                  className="flex items-center justify-between rounded-xl border border-pink-500/15 bg-pink-500/[0.03] px-4 py-3 hover:border-pink-500/30 transition">
+                  <p className="text-[13px] font-medium text-slate-200">{r.headline}</p>
+                  <ArrowLeft className="h-3.5 w-3.5 shrink-0 rotate-180 text-pink-400" />
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Article Timeline — living-document history, not a one-time publish */}
+        {updateHistory.length > 0 && (
+          <section className="mb-7">
+            <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-slate-500">
+              <Activity className="h-3.5 w-3.5 text-emerald-400" /> Article Timeline
+            </h2>
+            <div className="space-y-0">
+              <div className="relative pl-6 pb-5">
+                <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-sky-500" />
+                <span className="absolute left-[5px] top-4 bottom-0 w-px bg-white/10" />
+                <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
+                  {fmtDate(article.created_at || article.published_at)}
+                </p>
+                <p className="text-[13px] font-semibold text-white">Published</p>
+                {article.key_takeaway && <p className="mt-0.5 text-[12px] text-slate-500 line-clamp-2">{article.key_takeaway}</p>}
+              </div>
+              {updateHistory.map((u, i) => (
+                <div key={i} className="relative pl-6 pb-5">
+                  <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-emerald-500" />
+                  {i < updateHistory.length - 1 && <span className="absolute left-[5px] top-4 bottom-0 w-px bg-white/10" />}
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">{fmtDate(u.at)} · v{u.version}</p>
+                  <p className="text-[13px] font-semibold text-white">{u.reason}</p>
+                  {u.new_takeaway && u.new_takeaway !== u.previous_takeaway && (
+                    <p className="mt-0.5 text-[12px] text-slate-500 line-clamp-2">{u.new_takeaway}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* AI Summary Evolution — original opinion vs. current, side by side */}
+        {updateHistory.length > 0 && updateHistory[updateHistory.length - 1].previous_takeaway && (
+          <section className="mb-7 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+            <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-slate-500">
+              <Brain className="h-3.5 w-3.5 text-violet-400" /> AI Summary Evolution
+            </h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Original — {fmtDate(article.created_at || article.published_at)}</p>
+                <p className="mt-1.5 text-[12px] leading-5 text-slate-400">{updateHistory[0].previous_takeaway}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-3.5">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-500">Current — {fmtDate(article.last_updated)}</p>
+                <p className="mt-1.5 text-[12px] leading-5 text-slate-300">{article.key_takeaway}</p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Related Campaign — every angle spawned from the same underlying event */}
         {relatedArticles.length > 0 && (
           <section className="mb-7">
-            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-slate-500">More Angles on This Story</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-slate-500">
+                <Layers className="h-3.5 w-3.5 text-violet-400" /> Related Campaign
+              </h2>
+              <span className="text-[10px] text-slate-600">{relatedArticles.length + 1} articles</span>
+            </div>
+            <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] text-slate-500">
+              {campaignCompanies > 0 && <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{campaignCompanies} {campaignCompanies === 1 ? "company" : "companies"}</span>}
+              {campaignSectors > 0 && <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{campaignSectors} sector</span>}
+              {campaignThemes > 0 && <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{campaignThemes} theme</span>}
+              {questionSiblings.length > 0 && <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{questionSiblings.length} Q&amp;A</span>}
+            </div>
             <div className="space-y-2">
               {relatedArticles.map((r, i) => (
                 <Link key={i} href={`/insights/${r.slug}`}
