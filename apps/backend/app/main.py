@@ -326,7 +326,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, scores  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, scores  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -379,6 +379,8 @@ app.include_router(intelligence_pages.router, prefix="/api/intelligence", tags=[
 app.include_router(announcements.router, prefix="/api/announcements", tags=["announcements"])
 # ── AIPE Publishing Engine — autonomous intelligence article publishing ────────
 app.include_router(publishing.router, prefix="/api/publishing", tags=["publishing"])
+# ── Public Insights — read-only published-article surface for /insights pages ──
+app.include_router(insights.router, prefix="/api/insights", tags=["insights"])
 
 
 @app.get("/health")

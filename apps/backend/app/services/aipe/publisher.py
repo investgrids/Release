@@ -208,7 +208,7 @@ async def _publish_new_article(
         sectors_affected=article_data.get("sectors_affected", []),
         opportunities=article_data.get("opportunities", []),
         risks=article_data.get("risks", []),
-        historical_events=article_data.get("historical_similar_events", []),
+        historical_events=historical,
         ripple_effect=article_data.get("ripple_effect", []),
         what_to_watch_next=article_data.get("what_to_watch_next", []),
         faqs=faqs,

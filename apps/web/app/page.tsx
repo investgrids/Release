@@ -43,6 +43,7 @@ const getLive         = cache(() => live(`${API}/api/market/live`));
 const getSession      = cache(() => live(`${API}/api/market/session`));
 const getRadar        = cache(() => revalidate(`${API}/api/radar/?page=1&page_size=4`, 120));
 const getRecentEvents = cache(() => revalidate(`${API}/api/events/?sort_by=impact_score&page_size=10`, 300));
+const getInsights     = cache(() => revalidate(`${API}/api/insights/?limit=4`, 300));
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 function todayDateStr() {
@@ -581,6 +582,30 @@ async function WatchTomorrowCard() {
   );
 }
 
+async function LatestIntelligenceRow() {
+  const insights = await getInsights();
+  const items = (((insights as any)?.items ?? []) as any[]).slice(0, 4);
+  if (items.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
+      <CardHeader title="Latest Market Intelligence" href="/insights" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {items.map((a: any) => (
+          <Link key={a.slug} href={`/insights/${a.slug}`} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:border-white/20 hover:bg-white/[0.04]">
+            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+              {(a.article_type ?? "intelligence").replace(/_/g, " ")}
+            </span>
+            <p className="mt-2 text-[12px] font-bold leading-snug text-white group-hover:text-sky-200 transition line-clamp-3">
+              {a.headline}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROOT PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -614,6 +639,11 @@ export default function HomePage() {
         <Suspense fallback={<Sk h={280} />}><AIMarketWrapCard /></Suspense>
         <Suspense fallback={<Sk h={280} />}><WatchTomorrowCard /></Suspense>
       </div>
+
+      {/* Row 4 — Latest Market Intelligence (AIPE published articles) */}
+      <Suspense fallback={<Sk h={180} />}>
+        <LatestIntelligenceRow />
+      </Suspense>
 
       {/* Background: 5-min story-hash poller + SSE session gate */}
       <HomepageRefresher />

@@ -37,7 +37,7 @@ The JSON must exactly match the schema specified in the user prompt."""
 _BASE_SECTIONS = """
 Return this JSON schema (include ALL fields — use null for missing data, never omit keys):
 {{
-  "headline": "(string) Attention-grabbing SEO headline — 10-15 words, specific and informative",
+  "headline": "(string) 10-15 words. MUST follow an investor-benefit pattern — start with 'What'/'How'/'Why' and NAME the affected companies or sector, not just describe the news event. Required style, follow exactly: 'What RBI Holding Rates Means For SBI, HDFC Bank, ICICI Bank Investors' | 'How the India-US Trade Deal Changes the Outlook For IT Stocks' | 'Why CEAT's 96% Profit Drop Is a Warning Sign For Tyre Sector Investors'. Do NOT write a generic news-summary headline like 'RBI Governor Flags Middle East War' — always frame around what the event MEANS FOR investors or specific companies.",
   "executive_summary": "(string) 2-3 sentences: what happened, why it matters, what investors should know",
   "key_takeaway": "(string) ONE sentence — the single most important action/insight for investors right now",
   "why_it_matters": "(string) 2-3 paragraphs explaining the full investor significance",
@@ -63,7 +63,7 @@ Return this JSON schema (include ALL fields — use null for missing data, never
   "faqs": [
     {{"question": "Common investor question?", "answer": "Clear, helpful answer in plain English"}}
   ],
-  "seo_title": "(string) 50-65 chars — optimised page title",
+  "seo_title": "(string) 50-65 chars — must follow the same investor-benefit pattern as headline, e.g. 'What RBI's Rate Hold Means For SBI, HDFC Bank Investors'",
   "meta_description": "(string) 145-158 chars — compelling search snippet",
   "slug": "(string) url-safe-slug-with-hyphens, max 80 chars",
   "confidence_score": (float 0.0-1.0),

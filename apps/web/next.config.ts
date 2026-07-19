@@ -15,8 +15,6 @@ const nextConfig: NextConfig = {
       // /radar → /opportunity-radar (canonical)
       { source: "/radar",              destination: "/opportunity-radar",       permanent: true },
       { source: "/radar/:path*",       destination: "/opportunity-radar/:path*",permanent: true },
-      // Old article IDs → stories list (slug format changed)
-      { source: "/insights/:id*",      destination: "/stories",                permanent: true },
       // /policies merged into /calendar as "Recent Policy Events" section
       { source: "/policies",           destination: "/calendar",               permanent: true },
       // Admin redirect

@@ -40,6 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/legal`,                      lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/contact`,                    lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/calendar`,                   lastModified: now, changeFrequency: "daily",  priority: 0.5 },
+    { url: `${base}/insights`,                   lastModified: now, changeFrequency: "hourly", priority: 0.9 },
     { url: `${base}/learn`,                      lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/learn/glossary`,             lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/learn/guides`,               lastModified: now, changeFrequency: "weekly", priority: 0.6 },
@@ -76,12 +77,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   //   /api/radar/   -> { items: [...] }; /opportunity-radar/[id] uses the numeric `id`
   //   /api/companies/ -> { companies: [...], total_pages }, keyed by `symbol`
   //   /api/news/    -> bare array of news items, keyed by `id`
-  const [events, stories, radar, companiesPage1, news] = await Promise.all([
+  const [events, stories, radar, companiesPage1, news, insights] = await Promise.all([
     safeJson<Array<{ id: string; date?: string }>>(`${API}/api/events/?limit=100`, []),
     safeJson<Array<{ id: string }>>(`${API}/api/stories/?limit=100`, []),
     safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
     safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
+    safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string }> }>(`${API}/api/insights/?limit=100`, {}),
   ]);
 
   // Companies list is paginated server-side (60/page) — fetch the remaining
@@ -130,5 +132,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.55,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...storyRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  const insightRoutes: MetadataRoute.Sitemap = (insights.items ?? []).map(a => ({
+    url: `${base}/insights/${a.slug}`,
+    lastModified: a.last_updated ?? a.published_at ?? now,
+    changeFrequency: "weekly",
+    priority: 0.85,
+  }));
+
+  return [...staticRoutes, ...eventRoutes, ...storyRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }
