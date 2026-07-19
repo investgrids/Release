@@ -20,7 +20,6 @@ from app.services.intelligence.engine import (
     get_intelligence_state,
     get_symbol_context,
     refresh_mie_state,
-    _read_top_events,
     _market_session,
 )
 
@@ -98,6 +97,21 @@ async def mie_symbol_context(symbol: str):
         raise HTTPException(status_code=503, detail=f"Context unavailable: {e}")
 
 
+@router.get("/company/{symbol}")
+async def mie_company_context(symbol: str):
+    """
+    Alias of /context/{symbol} under the route name used elsewhere in the
+    platform spec. Same cached, no-extra-AI-call symbol context — deliberately
+    not a second implementation, just the other spelling of the same call.
+    """
+    if not symbol or not symbol.strip():
+        raise HTTPException(status_code=400, detail="Symbol required")
+    try:
+        return await get_symbol_context(symbol.strip().upper())
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Context unavailable: {e}")
+
+
 # ── Live intelligence feed ─────────────────────────────────────────────────────
 
 @router.get("/feed")
@@ -119,40 +133,11 @@ async def mie_feed(
       • Breaking Market Alert banner
     """
     try:
-        from datetime import datetime, timezone, timedelta
-        from app.db.session import AsyncSessionLocal
-        from app.db.models.intelligence import EventTriage
-        from sqlalchemy import select
-
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-        async with AsyncSessionLocal() as db:
-            rows = (await db.execute(
-                select(EventTriage)
-                .where(EventTriage.triaged_at >= cutoff)
-                .where(EventTriage.urgency >= min_urgency)
-                .order_by(EventTriage.urgency.desc(), EventTriage.triaged_at.desc())
-                .limit(limit)
-            )).scalars().all()
-
+        from app.services.intelligence.engine import read_top_events
+        feed = await read_top_events(limit=limit, min_urgency=min_urgency, hours=hours)
         return {
-            "feed": [
-                {
-                    "id":            r.event_id,
-                    "headline":      r.headline,
-                    "one_liner":     r.one_liner,
-                    "urgency":       r.urgency,
-                    "sentiment":     r.sentiment,
-                    "market_impact": r.market_impact,
-                    "direction":     r.direction,
-                    "sectors":       r.sectors or [],
-                    "tickers":       r.tickers or [],
-                    "is_structural": r.is_structural,
-                    "broadcast":     r.broadcast,
-                    "triaged_at":    r.triaged_at.isoformat() if r.triaged_at else None,
-                }
-                for r in rows
-            ],
-            "count":       len(rows),
+            "feed":        feed,
+            "count":       len(feed),
             "min_urgency": min_urgency,
             "hours":       hours,
             "market_session": _market_session(),
@@ -175,6 +160,8 @@ async def mie_status():
     redis_ok = False
     state_age_seconds: int | None = None
     state_session: str | None = None
+    events_processed: int = 0
+    version: str | None = None
 
     try:
         r = await get_redis()
@@ -191,15 +178,19 @@ async def mie_status():
                 dt  = datetime.fromisoformat(gen.replace("Z", "+00:00"))
                 state_age_seconds = int((datetime.now(timezone.utc) - dt).total_seconds())
             state_session = cached.get("market_session")
+            events_processed = cached.get("signals", {}).get("total_events", 0)
+            version = cached.get("version")
     except Exception:
         pass
 
     return {
         "engine":             "Market Intelligence Engine v1",
+        "version":            version,
         "market_session":     _market_session(),
         "redis_connected":    redis_ok,
         "state_cached":       state_age_seconds is not None,
         "state_age_seconds":  state_age_seconds,
+        "events_processed":   events_processed,
         "state_session":      state_session,
         "is_fresh":           (state_age_seconds or 9999) < 360,
     }

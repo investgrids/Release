@@ -70,13 +70,10 @@ def _story_hash(story_text: str) -> str:
 
 async def get_mie_context() -> dict[str, Any]:
     """Fetch current MIE state: story, themes, top triage events."""
-    from app.core.redis import cache_get
+    from app.services.intelligence.engine import read_story, read_themes
 
-    story_raw = await cache_get("market:story:latest")
-    themes_raw = await cache_get("market:themes:ranked")
-
-    story: dict = story_raw if isinstance(story_raw, dict) else {}
-    themes: list = themes_raw if isinstance(themes_raw, list) else []
+    story = await read_story() or {}
+    themes = await read_themes()
 
     return {
         "story":     story.get("text", ""),
@@ -101,8 +98,15 @@ async def get_high_urgency_triage(
     min_urgency: int = 6,
     hours: int = 3,
 ) -> list[dict[str, Any]]:
-    """Fetch recent high-urgency triage events from the DB."""
+    """
+    Fetch recent high-urgency triage events from the DB, restricted to the
+    Intelligence Priority Queue's Critical/High tiers — the publishing engine
+    should only auto-generate articles from homepage-grade signal, matching
+    the same filter applied to the MIE state's top_events (see
+    app.services.intelligence.engine.compute_intelligence_state).
+    """
     from app.db.models.intelligence import EventTriage
+    from app.services.intelligence.engine import compute_priority
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     result = await db.execute(
@@ -113,8 +117,12 @@ async def get_high_urgency_triage(
         .limit(20)
     )
     rows = result.scalars().all()
-    return [
-        {
+    events = []
+    for r in rows:
+        _, priority_tier = compute_priority(r.urgency, r.importance, None, r.headline)
+        if priority_tier not in ("Critical", "High"):
+            continue
+        events.append({
             "event_id":     r.event_id,
             "headline":     r.headline,
             "urgency":      r.urgency,
@@ -128,9 +136,9 @@ async def get_high_urgency_triage(
             "tickers":      r.tickers or [],
             "themes":       r.themes or [],
             "triaged_at":   r.triaged_at.isoformat() if r.triaged_at else None,
-        }
-        for r in rows
-    ]
+            "priority_tier": priority_tier,
+        })
+    return events
 
 
 async def has_mie_changed(db: AsyncSession, current_hash: str) -> bool:

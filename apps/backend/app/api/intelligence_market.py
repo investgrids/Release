@@ -23,83 +23,22 @@ router = APIRouter()
 @router.get("/story")
 async def get_market_story():
     """Latest AI-generated market narrative (5-min conditional refresh)."""
+    from app.services.intelligence.engine import read_story
     try:
-        from app.core.redis import cache_get
-        cached = await cache_get("market:story:latest")
-        if cached:
-            return {"story": cached, "source": "cache"}
-    except Exception:
-        pass
-
-    try:
-        from app.db.session import AsyncSessionLocal
-        from app.db.models.intelligence import MarketStory
-        from sqlalchemy import select, desc
-
-        async with AsyncSessionLocal() as db:
-            row = (await db.execute(
-                select(MarketStory).order_by(desc(MarketStory.generated_at)).limit(1)
-            )).scalar_one_or_none()
-
-        if row:
-            return {
-                "story": {
-                    "text":           row.story,
-                    "mood":           row.mood,
-                    "pulse":          row.pulse,
-                    "direction":      row.direction,
-                    "opportunity":    row.opportunity,
-                    "risk":           row.risk,
-                    "trader_watch":   row.trader_watch,
-                    "investor_watch": row.investor_watch,
-                    "sector_rotation": row.sector_rotation,
-                    "confidence":     row.confidence,
-                    "generated_at":   row.generated_at.isoformat(),
-                    "story_hash":     row.story_hash,
-                },
-                "source": "db",
-            }
+        story = await read_story()
+        return {"story": story, "source": "cache" if story else "none"}
     except Exception as exc:
         log.warning("intelligence.story_error", error=str(exc))
-
-    return {"story": None, "source": "none"}
+        return {"story": None, "source": "none"}
 
 
 @router.get("/themes")
 async def get_theme_scores():
     """All 12 theme scores ranked by composite score."""
+    from app.services.intelligence.engine import read_themes
     try:
-        from app.core.redis import cache_get
-        cached = await cache_get("market:themes:ranked")
-        if cached:
-            return {"themes": cached, "source": "cache"}
-    except Exception:
-        pass
-
-    try:
-        from app.db.session import AsyncSessionLocal
-        from app.db.models.intelligence import ThemeState
-        from sqlalchemy import select
-
-        async with AsyncSessionLocal() as db:
-            rows = (await db.execute(
-                select(ThemeState).order_by(ThemeState.score.desc())
-            )).scalars().all()
-
-        return {
-            "themes": [
-                {
-                    "theme":         t.theme,
-                    "score":         t.score,
-                    "momentum":      t.momentum,
-                    "top_stocks":    t.top_stocks,
-                    "news_count_24h": t.news_count_24h,
-                    "updated_at":    t.updated_at.isoformat() if t.updated_at else None,
-                }
-                for t in rows
-            ],
-            "source": "db",
-        }
+        themes = await read_themes()
+        return {"themes": themes, "source": "cache" if themes else "error"}
     except Exception as exc:
         log.warning("intelligence.themes_error", error=str(exc))
         return {"themes": [], "source": "error"}
@@ -108,40 +47,10 @@ async def get_theme_scores():
 @router.get("/feed")
 async def get_intelligence_feed(limit: int = Query(default=20, le=50)):
     """Recent intelligence feed — triage results for the alert panel."""
+    from app.services.intelligence.engine import read_top_events
     try:
-        from app.db.session import AsyncSessionLocal
-        from app.db.models.intelligence import EventTriage
-        from sqlalchemy import select, desc
-
-        since = datetime.now(timezone.utc) - timedelta(hours=8)
-        async with AsyncSessionLocal() as db:
-            rows = (await db.execute(
-                select(EventTriage)
-                .where(EventTriage.triaged_at >= since)
-                .where(EventTriage.urgency >= 4)
-                .order_by(desc(EventTriage.urgency), desc(EventTriage.triaged_at))
-                .limit(limit)
-            )).scalars().all()
-
-        return {
-            "feed": [
-                {
-                    "id":          r.id,
-                    "headline":    r.headline,
-                    "urgency":     r.urgency,
-                    "importance":  r.importance,
-                    "sentiment":   r.sentiment,
-                    "direction":   r.direction,
-                    "one_liner":   r.one_liner,
-                    "themes":      r.themes,
-                    "sectors":     r.sectors,
-                    "tickers":     r.tickers,
-                    "source":      r.source,
-                    "triaged_at":  r.triaged_at.isoformat(),
-                }
-                for r in rows
-            ]
-        }
+        feed = await read_top_events(limit=limit, min_urgency=4, hours=8)
+        return {"feed": feed}
     except Exception as exc:
         log.warning("intelligence.feed_error", error=str(exc))
         return {"feed": []}
