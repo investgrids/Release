@@ -32,6 +32,16 @@ interface Article {
   published_at: string | null; last_updated: string | null; created_at: string | null;
 }
 
+interface CampaignArticle {
+  slug: string; headline: string; article_type: string; angle: string;
+  angle_entity: string | null; status: string; update_count: number; published_at: string | null;
+}
+interface Campaign {
+  event_group_id: string; headline: string; article_type: string;
+  article_count: number; published_count: number; failed_count: number;
+  created_at: string | null; last_updated: string | null; articles: CampaignArticle[];
+}
+
 /* ─── Label maps ─────────────────────────────────────────── */
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   morning_intelligence:     { label: "Morning",     color: "bg-amber-500/15 text-amber-400 border-amber-500/25" },
@@ -111,9 +121,16 @@ function SeoRing({ score }: { score: number }) {
 }
 
 /* ─── Main page ──────────────────────────────────────────── */
+const ANGLE_LABELS: Record<string, string> = {
+  primary: "Primary", per_company: "Company", sector_rollup: "Sector",
+  theme: "Theme", question: "Q&A", evergreen: "Evergreen", historical: "Historical",
+};
+
 export default function OperationsIntelligence() {
   const [status, setStatus]     = useState<EngineStatus | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignsTotal, setCampaignsTotal] = useState(0);
   const [total, setTotal]       = useState(0);
   const [page, setPage]         = useState(1);
   const [tab, setTab]           = useState("published");
@@ -144,13 +161,32 @@ export default function OperationsIntelligence() {
     }
   }, [page, tab]);
 
-  useEffect(() => {
-    loadStatus(); loadArticles();
-    const id = setInterval(() => { loadStatus(); loadArticles(); }, 30_000);
-    return () => clearInterval(id);
-  }, [loadStatus, loadArticles]);
+  const loadCampaigns = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API}/api/publishing/campaigns?limit=${PAGE}&offset=${(page - 1) * PAGE}`);
+      if (r.ok) {
+        const d = await r.json();
+        setCampaigns(d.campaigns || []);
+        setCampaignsTotal(d.total || 0);
+      }
+    } catch {} finally {
+      setLoading(false);
+      setLast(new Date());
+    }
+  }, [page]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE));
+  useEffect(() => {
+    loadStatus();
+    if (tab === "campaigns") loadCampaigns(); else loadArticles();
+    const id = setInterval(() => {
+      loadStatus();
+      if (tab === "campaigns") loadCampaigns(); else loadArticles();
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [loadStatus, loadArticles, loadCampaigns, tab]);
+
+  const totalPages = Math.max(1, Math.ceil((tab === "campaigns" ? campaignsTotal : total) / PAGE));
   const engineRunning = status?.engine.running ?? false;
 
   return (
@@ -248,9 +284,11 @@ export default function OperationsIntelligence() {
             <section className="rounded-2xl border border-white/[0.07] bg-white/[0.015] overflow-hidden">
               {/* Table header */}
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-white/[0.02]">
-                <span className="text-[13px] font-bold text-white">Intelligence Articles</span>
+                <span className="text-[13px] font-bold text-white">
+                  {tab === "campaigns" ? "Publishing Campaigns" : "Intelligence Articles"}
+                </span>
                 <div className="flex items-center gap-1">
-                  {(["published", "updated", "failed", "all"] as const).map(t => (
+                  {(["published", "updated", "failed", "all", "campaigns"] as const).map(t => (
                     <button key={t} onClick={() => { setTab(t); setPage(1); }}
                       className={`rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize transition-all ${
                         tab === t ? "bg-violet-600 text-white" : "text-slate-500 hover:text-white hover:bg-white/[0.05]"
@@ -259,6 +297,73 @@ export default function OperationsIntelligence() {
                 </div>
               </div>
 
+              {tab === "campaigns" ? (
+                <>
+                  {loading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="animate-pulse px-5 py-4 border-b border-white/[0.03]">
+                        <div className="h-3 w-2/3 rounded-full bg-white/[0.05] mb-2" />
+                        <div className="h-2 w-1/3 rounded-full bg-white/[0.03]" />
+                      </div>
+                    ))
+                  ) : campaigns.length === 0 ? (
+                    <div className="py-20 text-center">
+                      <GitBranch className="h-8 w-8 text-slate-700 mx-auto mb-3" />
+                      <div className="text-[13px] text-slate-600">
+                        No campaigns yet — a campaign forms once an event fans out into multiple angle articles.
+                      </div>
+                    </div>
+                  ) : campaigns.map((c, i) => (
+                    <div key={c.event_group_id}
+                      className={`px-5 py-4 ${i < campaigns.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <Layers className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+                            <span className="text-[13px] font-semibold text-white leading-snug">{c.headline}</span>
+                          </div>
+                          <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-600">
+                            <span className="font-mono">{c.event_group_id}</span>
+                            {c.last_updated && (
+                              <span>Last updated {new Date(c.last_updated).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                            {c.published_count} published
+                          </span>
+                          {c.failed_count > 0 && (
+                            <span className="rounded-full border border-rose-500/25 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-400">
+                              {c.failed_count} failed
+                            </span>
+                          )}
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                            {c.article_count} total
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {c.articles.map(a => (
+                          <Link
+                            key={a.slug}
+                            href={a.status === "published" ? (`/insights/${a.slug}` as any) : (`/intelligence/${a.slug}` as any)}
+                            target="_blank"
+                            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium transition ${
+                              a.status === "published"
+                                ? "border-white/10 bg-white/[0.03] text-slate-300 hover:border-violet-500/30 hover:text-violet-300"
+                                : "border-rose-500/20 bg-rose-500/5 text-rose-500/70"
+                            }`}
+                          >
+                            {ANGLE_LABELS[a.angle] ?? a.angle}{a.angle_entity ? `: ${a.angle_entity}` : ""}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : (
+              <>
               {/* Column labels */}
               <div className="grid items-center gap-2 px-5 py-2 border-b border-white/[0.04] bg-white/[0.01]"
                 style={{ gridTemplateColumns: "1fr 110px 110px 50px 50px 40px 100px 44px" }}>
@@ -357,12 +462,16 @@ export default function OperationsIntelligence() {
                   </div>
                 );
               })}
+              </>
+              )}
 
               {/* Pagination */}
-              {total > PAGE && (
+              {(tab === "campaigns" ? campaignsTotal : total) > PAGE && (() => {
+                const t = tab === "campaigns" ? campaignsTotal : total;
+                return (
                 <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.05] bg-white/[0.01]">
                   <span className="text-[10px] text-slate-600">
-                    {Math.min((page - 1) * PAGE + 1, total)}–{Math.min(page * PAGE, total)} of {total}
+                    {Math.min((page - 1) * PAGE + 1, t)}–{Math.min(page * PAGE, t)} of {t}
                   </span>
                   <div className="flex items-center gap-1">
                     <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
@@ -381,7 +490,8 @@ export default function OperationsIntelligence() {
                     </button>
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </section>
           </div>
 

@@ -279,6 +279,80 @@ async def market_coverage(db: AsyncSession = Depends(get_db)):
     }
 
 
+# ── Campaigns ──────────────────────────────────────────────────────────────────
+# A "campaign" is every article sharing one parent_event_group_id — the
+# primary overview plus whatever per-company / sector / theme / question /
+# historical siblings were fanned out from the same triggering event (see
+# content_planner.plan_extra_angles). Grouped here rather than stored as its
+# own table since the group membership is already fully derivable from
+# existing rows.
+
+@router.get("/campaigns")
+async def list_campaigns(
+    limit:  int = Query(20, le=100),
+    offset: int = Query(0),
+    db: AsyncSession = Depends(get_db),
+):
+    group_r = await db.execute(
+        select(IntelligenceArticle.parent_event_group_id, func.count(), func.max(IntelligenceArticle.last_updated))
+        .where(IntelligenceArticle.parent_event_group_id.isnot(None))
+        .group_by(IntelligenceArticle.parent_event_group_id)
+        .order_by(func.max(IntelligenceArticle.last_updated).desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    groups = group_r.all()
+    group_ids = [g[0] for g in groups]
+
+    total_r = await db.execute(
+        select(func.count(func.distinct(IntelligenceArticle.parent_event_group_id)))
+        .where(IntelligenceArticle.parent_event_group_id.isnot(None))
+    )
+    total = total_r.scalar() or 0
+
+    if not group_ids:
+        return {"total": total, "offset": offset, "limit": limit, "campaigns": []}
+
+    articles_r = await db.execute(
+        select(IntelligenceArticle)
+        .where(IntelligenceArticle.parent_event_group_id.in_(group_ids))
+        .order_by(IntelligenceArticle.created_at.asc())
+    )
+    by_group: dict[str, list[IntelligenceArticle]] = {}
+    for a in articles_r.scalars().all():
+        by_group.setdefault(a.parent_event_group_id, []).append(a)
+
+    campaigns = []
+    for group_id, count, last_updated in groups:
+        members = by_group.get(group_id, [])
+        primary = next((a for a in members if a.angle == "primary"), members[0] if members else None)
+        if not primary:
+            continue
+        published = sum(1 for a in members if a.status == "published")
+        failed = sum(1 for a in members if a.status == "failed")
+        campaigns.append({
+            "event_group_id": group_id,
+            "headline":        primary.headline,
+            "article_type":    primary.article_type,
+            "article_count":   count,
+            "published_count": published,
+            "failed_count":    failed,
+            "created_at":      min((a.created_at for a in members if a.created_at), default=None),
+            "last_updated":    last_updated.isoformat() if last_updated else None,
+            "articles": [
+                {
+                    "slug": a.slug, "headline": a.headline, "article_type": a.article_type,
+                    "angle": a.angle, "angle_entity": a.angle_entity, "status": a.status,
+                    "update_count": a.update_count,
+                    "published_at": a.published_at.isoformat() if a.published_at else None,
+                }
+                for a in sorted(members, key=lambda x: 0 if x.angle == "primary" else 1)
+            ],
+        })
+
+    return {"total": total, "offset": offset, "limit": limit, "campaigns": campaigns}
+
+
 # ── Serializers ────────────────────────────────────────────────────────────────
 
 def _list_row(a: IntelligenceArticle) -> dict:

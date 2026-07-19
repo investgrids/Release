@@ -1192,25 +1192,94 @@ function AIForecast({ stock }: { stock: StockDetail }) {
 }
 
 // ── Section 20: Related Stories ────────────────────────────────────────────────
+interface CompanyInsightArticle {
+  slug: string; headline: string; article_type: string; angle: string;
+  key_takeaway: string | null; published_at: string | null;
+}
+interface CompanyInsightHistorical {
+  event: string; date: string | null; category: string | null;
+  outcome: number | null; key_lesson: string | null;
+}
+
+const ARTICLE_TYPE_TAG: Record<string, string> = {
+  company_intelligence: "Company", sector_intelligence: "Sector", theme_intelligence: "Theme",
+  policy_intelligence: "Policy", question_intelligence: "Q&A", market_wrap: "Market Wrap",
+  morning_intelligence: "Morning Brief", breaking_intelligence: "Breaking",
+  historical_intelligence: "Historical", educational_intelligence: "Guide",
+};
+
 function RelatedStories({ stock }: { stock: StockDetail }) {
-  const stories: { title: string; tag: string; icon: React.ReactNode; grad: string }[] = [
-    { title: `${stock.sector} Boom 2025`, tag: stock.sector, icon: <HardHat className="h-7 w-7" />, grad: "from-sky-500/20 to-violet-500/10" },
-    { title: "Defence Indigenisation",    tag: "Defence",    icon: <Shield className="h-7 w-7" />,  grad: "from-emerald-500/20 to-teal-500/10" },
-    { title: "Green Energy Transition",   tag: "Energy",     icon: <Leaf className="h-7 w-7" />,    grad: "from-amber-500/20 to-orange-500/10" },
-    { title: "AI Infrastructure Push",    tag: "Technology", icon: <Bot className="h-7 w-7" />,     grad: "from-rose-500/20 to-pink-500/10" },
-  ];
+  const [articles, setArticles] = useState<CompanyInsightArticle[]>([]);
+  const [historical, setHistorical] = useState<CompanyInsightHistorical[]>([]);
+  const [campaignCount, setCampaignCount] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    // This page already opens ~18 concurrent same-origin requests plus the
+    // app-wide SSE connection (AlertProvider) that never releases its slot —
+    // under HTTP/1.1's 6-connections-per-origin cap in dev, a fetch queued
+    // this late can starve indefinitely. Bound it so the section fails soft
+    // (renders nothing) instead of showing a permanent loading skeleton.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    fetch(`${API}/api/insights/company/${stock.symbol}?limit=6`, { signal: controller.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (cancelled || !d) return;
+        setArticles(d.articles || []);
+        setHistorical(d.historical_events || []);
+        setCampaignCount(d.campaign_count || 0);
+      })
+      .catch(() => {})
+      .finally(() => { clearTimeout(timeout); if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; clearTimeout(timeout); controller.abort(); };
+  }, [stock.symbol]);
+
+  if (loaded && articles.length === 0 && historical.length === 0) return null;
+
   return (
-    <SectionCard title="Related Stories" action={<Link href="/stories" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>}>
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {stories.map((s, i) => (
-          <Link key={i} href="/stories"
-            className={`group relative flex h-32 flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br ${s.grad} border border-white/[0.06] p-4 hover:-translate-y-0.5 hover:border-sky-400/20 transition-all`}>
-            <span className="absolute right-3 top-3 text-slate-400">{s.icon}</span>
-            <span className="text-[9px] uppercase tracking-widest text-slate-500 mb-1">{s.tag}</span>
-            <p className="text-[12px] font-bold text-white leading-snug line-clamp-2">{s.title}</p>
-          </Link>
-        ))}
-      </div>
+    <SectionCard title="Latest Intelligence" action={<Link href="/insights" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>}>
+      {!loaded ? (
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {[1, 2, 3].map(i => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/[0.03]" />)}
+        </div>
+      ) : (
+        <>
+          {campaignCount > 0 && (
+            <p className="mt-3 text-[11px] text-slate-500">
+              {stock.symbol} is covered across {campaignCount} publishing {campaignCount === 1 ? "campaign" : "campaigns"}.
+            </p>
+          )}
+          {articles.length > 0 && (
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {articles.map(a => (
+                <Link key={a.slug} href={`/insights/${a.slug}` as any}
+                  className="group flex flex-col justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 hover:-translate-y-0.5 hover:border-sky-400/20 transition-all">
+                  <div>
+                    <span className="text-[9px] uppercase tracking-widest text-slate-500">{ARTICLE_TYPE_TAG[a.article_type] ?? a.article_type}</span>
+                    <p className="mt-1 text-[13px] font-bold leading-snug text-white line-clamp-2 group-hover:text-sky-200 transition">{a.headline}</p>
+                  </div>
+                  {a.key_takeaway && <p className="mt-2 text-[11px] text-slate-500 line-clamp-2">{a.key_takeaway}</p>}
+                </Link>
+              ))}
+            </div>
+          )}
+          {historical.length > 0 && (
+            <div className="mt-4 border-t border-white/[0.05] pt-4">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-600">Historical Coverage</p>
+              <div className="space-y-1.5">
+                {historical.slice(0, 4).map((h, i) => (
+                  <div key={i} className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 line-clamp-1">{h.event}</span>
+                    <span className="shrink-0 text-slate-600 ml-2">{h.date}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </SectionCard>
   );
 }

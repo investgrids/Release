@@ -100,6 +100,67 @@ async def list_insights(
     }
 
 
+@router.get("/company/{symbol}")
+async def get_company_insights(
+    symbol: str,
+    limit: int = Query(10, le=30),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Company Intelligence Hub feed: real AIPE articles mentioning this
+    company (as a primary companies_affected entry or a related_companies
+    cross-link) plus real historical_market_events coverage — backs the
+    "Latest Intelligence" section on /companies/{symbol}, replacing what
+    used to be hardcoded placeholder story cards there.
+    """
+    symbol = symbol.strip().upper()
+
+    result = await db.execute(
+        select(IntelligenceArticle)
+        .where(IntelligenceArticle.status == "published")
+        .order_by(IntelligenceArticle.published_at.desc())
+        .limit(300)
+    )
+    all_articles = result.scalars().all()
+
+    def _mentions(a: IntelligenceArticle) -> bool:
+        for c in (a.companies_affected or []):
+            if isinstance(c, dict) and str(c.get("symbol", "")).upper() == symbol:
+                return True
+        for c in (a.related_companies or []):
+            if isinstance(c, dict) and str(c.get("symbol", "")).upper() == symbol:
+                return True
+        return False
+
+    matched = [a for a in all_articles if _mentions(a)][:limit]
+    group_ids = {a.parent_event_group_id for a in matched if a.parent_event_group_id}
+
+    from app.db.models.historical_memory import HistoricalMarketEvent
+    hist_result = await db.execute(
+        select(HistoricalMarketEvent)
+        .where(HistoricalMarketEvent.companies.contains([symbol]))
+        .order_by(HistoricalMarketEvent.event_date.desc())
+        .limit(8)
+    )
+    historical = hist_result.scalars().all()
+
+    return {
+        "symbol": symbol,
+        "articles": [_list_row(a) for a in matched],
+        "campaign_count": len(group_ids),
+        "historical_events": [
+            {
+                "event": h.event_title,
+                "date": h.event_date.strftime("%b %Y") if h.event_date else None,
+                "category": h.category,
+                "outcome": h.nifty_1d,
+                "key_lesson": h.key_lesson,
+            }
+            for h in historical
+        ],
+    }
+
+
 @router.get("/{slug}")
 async def get_insight(slug: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
