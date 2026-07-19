@@ -23,11 +23,29 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     const isDev = process.env.NODE_ENV === "development";
+    // CSP built from the actual origins this app talks to — the backend API
+    // (for fetch + the SSE EventSource stream) plus 'self'. 'unsafe-inline'
+    // on script-src is required because Next.js hydration and our own
+    // JSON-LD <script type="application/ld+json"> tags are inline with no
+    // nonce plumbing today; still a large improvement over no CSP at all.
+    const apiOrigin = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      `connect-src 'self' ${apiOrigin}`,
+      "frame-ancestors 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
     return [
       {
         // Baseline security headers on every response.
         source: "/:path*",
         headers: [
+          { key: "Content-Security-Policy",   value: csp },
           { key: "X-Frame-Options",           value: "SAMEORIGIN" },
           { key: "X-Content-Type-Options",    value: "nosniff" },
           { key: "Referrer-Policy",           value: "strict-origin-when-cross-origin" },

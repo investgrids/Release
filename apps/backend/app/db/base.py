@@ -17,3 +17,5 @@ import app.db.models.intelligence_graph  # noqa: F401 E402  — registers market
 import app.db.models.predictions        # noqa: F401 E402  — registers prediction learning engine tables
 import app.db.models.company_announcements  # noqa: F401 E402  — registers company announcements table
 import app.db.models.intelligence_article   # noqa: F401 E402  — registers AIPE intelligence articles table
+import app.db.models.score_history   # noqa: F401 E402  — registers score history table
+import app.db.models.feedback        # noqa: F401 E402  — registers feedback_submissions table

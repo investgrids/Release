@@ -8,10 +8,11 @@ from __future__ import annotations
 import re
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.limiter import limiter
 from app.db.models.feedback import FeedbackSubmission
 from app.db.session import get_db
 
@@ -61,7 +62,8 @@ class FeedbackIn(BaseModel):
 
 
 @router.post("/")
-async def submit_feedback(body: FeedbackIn, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def submit_feedback(request: Request, body: FeedbackIn, db: AsyncSession = Depends(get_db)):
     submission = FeedbackSubmission(
         name=body.name,
         email=body.email,

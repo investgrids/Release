@@ -10,7 +10,8 @@ Results are cached 60 minutes so the AI is not called on every page view.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
+from app.core.limiter import limiter
 from app.services.ai_service import generate_investment_thesis
 
 router = APIRouter()
@@ -19,7 +20,9 @@ _VALID_TYPES = {"event", "company", "story", "opportunity", "ripple", "search"}
 
 
 @router.get("/{entity_type}/{entity_id}")
+@limiter.limit("20/minute")
 async def get_thesis(
+    request: Request,
     entity_type: str,
     entity_id: str,
     title: str       = Query(default="", max_length=200),
