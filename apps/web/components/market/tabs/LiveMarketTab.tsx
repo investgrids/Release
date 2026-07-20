@@ -880,7 +880,18 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
     if (!initialData) base.push(safe(fetch(`${API}/api/market/live`).then(r => r.ok ? r.json() : null)));
 
     Promise.all(base).then(([feedRes, oppsRes, eventsRes, calRes, idxRes, predStatsRes, liveRes]) => {
-      if ((feedRes as any)?.feed) setFeed((feedRes as any).feed);
+      if ((feedRes as any)?.feed) {
+        // The backend feed can contain the same triaged event twice (e.g. an
+        // RSS item re-triaged within the window) — dedupe by id so React keys
+        // stay unique across every card that renders this list.
+        const seenIds = new Set<string>();
+        const deduped = ((feedRes as any).feed as FeedItem[]).filter(f => {
+          if (seenIds.has(f.id)) return false;
+          seenIds.add(f.id);
+          return true;
+        });
+        setFeed(deduped);
+      }
       if (oppsRes?.opportunities) setOpps(oppsRes.opportunities);
       const evs = (eventsRes as any)?.results ?? eventsRes ?? [];
       if (Array.isArray(evs)) setEvents(evs);
