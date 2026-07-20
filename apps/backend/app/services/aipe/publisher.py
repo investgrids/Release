@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -47,6 +48,7 @@ from app.services.aipe.market_story_engine import (
     has_mie_changed,
 )
 from app.services.aipe.quality_validator import validate
+from app.services.aipe import perf_stats
 
 log = structlog.get_logger(__name__)
 
@@ -130,7 +132,8 @@ async def _publish_new_article(
 
     # SEO + validation
     seo_score = compute_seo_score(article_data)
-    passed, results, quality_score = validate(article_data, seo_score)
+    with perf_stats.timed("validation"):
+        passed, results, quality_score = validate(article_data, seo_score)
 
     now = datetime.now(timezone.utc)
     article_id = str(uuid.uuid4())
@@ -517,6 +520,7 @@ async def run_aipe_cycle() -> None:
     _STATS["running"] = True
     _STATS["scheduler_status"] = "running"
     _STATS["last_run"] = datetime.now(timezone.utc).isoformat()
+    _cycle_start = time.monotonic()
 
     try:
         async with AsyncSessionLocal() as db:
@@ -593,41 +597,42 @@ async def run_aipe_cycle() -> None:
                                 article_type, story_id, article.headline,
                                 article.companies_affected, article.sectors_affected,
                             )[:_MAX_ANGLES_PER_EVENT]
-                            for angle_type, angle_story_id, angle, angle_entity, angle_question in angle_plans:
-                                if daily_count >= _MAX_PER_DAY:
-                                    break
-                                await asyncio.sleep(2)
-                                angle_event = dict(triage_event)
-                                angle_mie_context = mie_context
-                                if angle in ("per_company", "question"):
-                                    angle_event["tickers"] = [angle_entity]
-                                elif angle == "sector_rollup":
-                                    angle_event["sectors"] = [angle_entity]
-                                elif angle == "theme":
-                                    # {themes} in THEME_INTELLIGENCE's prompt is sourced
-                                    # from mie_context, not the event dict — override it
-                                    # here so the angle actually locks onto this one theme
-                                    # instead of the generic active-themes list.
-                                    angle_mie_context = {**mie_context, "themes": [angle_entity]}
-                                dup_headline = angle_question or f"{headline} — {angle_entity}"
-                                angle_dup = await find_duplicate(
-                                    db, story_id=angle_story_id, article_type=angle_type,
-                                    headline=dup_headline,
-                                    trigger_event_id=triage_event.get("event_id"),
-                                    angle=angle, angle_entity=angle_entity,
-                                )
-                                if angle_dup:
-                                    continue
-                                angle_article = await _publish_new_article(
-                                    db, angle_event, angle_mie_context, angle_type, angle_story_id,
-                                    angle=angle, angle_entity=angle_entity,
-                                    parent_event_group_id=event_group_id,
-                                    question=angle_question or "",
-                                )
-                                if angle_article and angle_article.status == "published":
-                                    daily_count += 1
-                                    today_story_ids.add(angle_story_id)
-                                    log.info("aipe.cycle.angle_published", angle=angle, entity=angle_entity, story_id=angle_story_id)
+                            with perf_stats.timed("campaign"):
+                                for angle_type, angle_story_id, angle, angle_entity, angle_question in angle_plans:
+                                    if daily_count >= _MAX_PER_DAY:
+                                        break
+                                    await asyncio.sleep(2)
+                                    angle_event = dict(triage_event)
+                                    angle_mie_context = mie_context
+                                    if angle in ("per_company", "question"):
+                                        angle_event["tickers"] = [angle_entity]
+                                    elif angle == "sector_rollup":
+                                        angle_event["sectors"] = [angle_entity]
+                                    elif angle == "theme":
+                                        # {themes} in THEME_INTELLIGENCE's prompt is sourced
+                                        # from mie_context, not the event dict — override it
+                                        # here so the angle actually locks onto this one theme
+                                        # instead of the generic active-themes list.
+                                        angle_mie_context = {**mie_context, "themes": [angle_entity]}
+                                    dup_headline = angle_question or f"{headline} — {angle_entity}"
+                                    angle_dup = await find_duplicate(
+                                        db, story_id=angle_story_id, article_type=angle_type,
+                                        headline=dup_headline,
+                                        trigger_event_id=triage_event.get("event_id"),
+                                        angle=angle, angle_entity=angle_entity,
+                                    )
+                                    if angle_dup:
+                                        continue
+                                    angle_article = await _publish_new_article(
+                                        db, angle_event, angle_mie_context, angle_type, angle_story_id,
+                                        angle=angle, angle_entity=angle_entity,
+                                        parent_event_group_id=event_group_id,
+                                        question=angle_question or "",
+                                    )
+                                    if angle_article and angle_article.status == "published":
+                                        daily_count += 1
+                                        today_story_ids.add(angle_story_id)
+                                        log.info("aipe.cycle.angle_published", angle=angle, entity=angle_entity, story_id=angle_story_id)
 
                     # Rate limit between AI calls
                     await asyncio.sleep(2)
@@ -663,6 +668,9 @@ async def run_aipe_cycle() -> None:
     except Exception as exc:
         log.error("aipe.cycle.error", error=str(exc))
         _STATS["errors"] += 1
+        perf_stats.mark_engine_run("Publishing Engine", success=False, error=str(exc)[:200], duration_s=time.monotonic() - _cycle_start)
+    else:
+        perf_stats.mark_engine_run("Publishing Engine", success=True, duration_s=time.monotonic() - _cycle_start)
     finally:
         _STATS["running"] = False
         _STATS["scheduler_status"] = "idle"
@@ -698,6 +706,7 @@ async def run_evergreen_cycle() -> None:
     "explainer" articles from a fixed seed list, capped at a few per day,
     independent of live triage. Safe to call on its own schedule.
     """
+    _cycle_start = time.monotonic()
     try:
         async with AsyncSessionLocal() as db:
             today_evergreen = await count_today_evergreen(db)
@@ -744,6 +753,9 @@ async def run_evergreen_cycle() -> None:
                 await asyncio.sleep(2)
     except Exception as exc:
         log.error("aipe.evergreen.error", error=str(exc))
+        perf_stats.mark_engine_run("Evergreen Engine", success=False, error=str(exc)[:200], duration_s=time.monotonic() - _cycle_start)
+    else:
+        perf_stats.mark_engine_run("Evergreen Engine", success=True, duration_s=time.monotonic() - _cycle_start)
 
 
 async def count_today_evergreen(db) -> int:
@@ -829,6 +841,7 @@ async def run_historical_cycle() -> None:
     whose real data sample is below its min_events threshold rather than
     generating a thin/unreliable page.
     """
+    _cycle_start = time.monotonic()
     try:
         async with AsyncSessionLocal() as db:
             today_count = await _count_today_by_type(db, "historical_intelligence")
@@ -888,7 +901,8 @@ async def run_historical_cycle() -> None:
                     article_data["confidence_score"] = 0.7
 
                 seo_score = compute_seo_score(article_data)
-                passed, results, quality_score = validate(article_data, seo_score)
+                with perf_stats.timed("validation"):
+                    passed, results, quality_score = validate(article_data, seo_score)
                 now = datetime.now(timezone.utc)
                 site_url = settings.frontend_url or "https://marketripple.in"
                 faqs = article_data.get("faqs") or []
@@ -946,6 +960,9 @@ async def run_historical_cycle() -> None:
                     log.warning("aipe.historical.validation_failed", story_id=story_id, results=results)
     except Exception as exc:
         log.error("aipe.historical.error", error=str(exc))
+        perf_stats.mark_engine_run("Historical Engine", success=False, error=str(exc)[:200], duration_s=time.monotonic() - _cycle_start)
+    else:
+        perf_stats.mark_engine_run("Historical Engine", success=True, duration_s=time.monotonic() - _cycle_start)
 
 
 async def _count_today_by_type(db, article_type: str) -> int:

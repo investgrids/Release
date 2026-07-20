@@ -17,6 +17,7 @@ import time
 import httpx
 import structlog
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from app.core.config import settings
 from app.core.redis import cache_get, cache_set
 
@@ -31,6 +32,46 @@ _NVIDIA_PATH  = "/chat/completions"   # appended to settings.nvidia_base_url
 
 # Models that have returned 429 (rate exhausted) — skipped until process restart
 _EXHAUSTED: set[str] = set()
+
+# Lightweight in-process AI usage counters for the Ops Dashboard — same
+# "resets on deploy, not a DB table" pattern as publisher.py's _STATS.
+# Populated at the single choke-point every AI call passes through
+# (_call_provider), so it covers every caller in the app, not just AIPE.
+_AI_USAGE: dict = {
+    "calls_total": 0, "calls_success": 0, "calls_failed": 0, "fallback_invocations": 0,
+    "tokens_total": 0, "latency_ms_total": 0.0, "cache_hits": 0, "cache_misses": 0,
+    "timeouts": 0, "last_call_at": None, "last_success_at": None,
+    "last_error_at": None, "last_error": None, "last_provider": None,
+}
+
+
+def get_ai_usage_stats() -> dict:
+    total = _AI_USAGE["calls_total"] or 1
+    cache_total = (_AI_USAGE["cache_hits"] + _AI_USAGE["cache_misses"]) or 1
+    # A "retry" is any provider call beyond the first attempt within one
+    # logical _call_with_fallback() invocation — i.e. the fallback chain
+    # had to move to a second/third/... model to get an answer.
+    retries = max(0, int(_AI_USAGE["calls_total"] - _AI_USAGE["fallback_invocations"]))
+    success_rate = round(_AI_USAGE["calls_success"] / total * 100, 1) if _AI_USAGE["calls_total"] else None
+    return {
+        "llm_calls":        int(_AI_USAGE["calls_total"]),
+        "tokens_used":      int(_AI_USAGE["tokens_total"]),
+        "avg_response_ms":  round(_AI_USAGE["latency_ms_total"] / total, 0),
+        "cache_hit_rate":   round(_AI_USAGE["cache_hits"] / cache_total * 100, 1),
+        "failures":         int(_AI_USAGE["calls_failed"]),
+        "timeouts":         int(_AI_USAGE["timeouts"]),
+        "retries":          retries,
+        "success_rate":     success_rate,
+        "last_call_at":     _AI_USAGE["last_call_at"],
+        "last_success_at":  _AI_USAGE["last_success_at"],
+        "last_error_at":    _AI_USAGE["last_error_at"],
+        "last_error":       _AI_USAGE["last_error"],
+        "last_provider":    _AI_USAGE["last_provider"],
+        # All providers in the fallback chain (Gemini/Groq/OpenRouter free
+        # tier/Cerebras free tier) are free-tier — real spend is $0, not an
+        # estimate to fabricate.
+        "cost_usd":         0.0,
+    }
 
 
 # ── NVIDIA "best effort" resilience layer ───────────────────────────────────
@@ -231,25 +272,49 @@ async def _call_provider(
         "max_tokens": max_tokens,
         "temperature": 0.4,
     }
+    _PROVIDER_BY_URL = {
+        _OR_URL: "openrouter", _GROQ_URL: "groq",
+        _CEREBRAS_URL: "cerebras", _GEMINI_URL: "gemini",
+    }
+    provider_name = _PROVIDER_BY_URL.get(base_url, "unknown")
+
+    _AI_USAGE["calls_total"] += 1
+    _AI_USAGE["last_call_at"] = datetime.now(timezone.utc).isoformat()
+    _t0 = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(base_url, json=payload, headers=headers)
             if r.status_code == 429:
                 _EXHAUSTED.add(model)
                 log.warning("ai.exhausted", model=model, status=429)
+                _AI_USAGE["calls_failed"] += 1
                 return ""
             if r.status_code in (402, 503, 529):
                 log.warning("ai.rate_limited", model=model, status=r.status_code)
+                _AI_USAGE["calls_failed"] += 1
                 return ""
             r.raise_for_status()
             data = r.json()
             if "error" in data:
                 log.warning("ai.api_error", model=model, err=str(data["error"])[:120])
+                _AI_USAGE["calls_failed"] += 1
                 return ""
             content = data["choices"][0]["message"]["content"]
+            _AI_USAGE["latency_ms_total"] += (time.monotonic() - _t0) * 1000
+            _AI_USAGE["calls_success"] += 1
+            _AI_USAGE["last_success_at"] = datetime.now(timezone.utc).isoformat()
+            _AI_USAGE["last_provider"] = provider_name
+            usage = data.get("usage") or {}
+            if usage.get("total_tokens"):
+                _AI_USAGE["tokens_total"] += usage["total_tokens"]
             return content.strip() if content else ""
     except Exception as exc:
         log.warning("ai.exception", model=model, exc=str(exc)[:120])
+        _AI_USAGE["calls_failed"] += 1
+        _AI_USAGE["last_error_at"] = datetime.now(timezone.utc).isoformat()
+        _AI_USAGE["last_error"] = str(exc)[:200]
+        if isinstance(exc, httpx.TimeoutException) or "timeout" in str(exc).lower():
+            _AI_USAGE["timeouts"] += 1
         return ""
 
 
@@ -365,6 +430,7 @@ async def _call_with_fallback(
       5. Cerebras                      — 10,000 req/day, ultra-fast
       6. OpenRouter smaller models     — final fallback
     """
+    _AI_USAGE["fallback_invocations"] += 1
     or_headers = {
         "HTTP-Referer": settings.frontend_url or "https://investgrids.com",
         "X-Title": "InvestGrids Market Intelligence",
@@ -645,7 +711,9 @@ async def generate_investment_thesis(
     cache_key = f"thesis:{entity_type}:{entity_id}"
     hit = await cache_get(cache_key)
     if hit and isinstance(hit, dict) and hit.get("executive_summary"):
+        _AI_USAGE["cache_hits"] += 1
         return hit
+    _AI_USAGE["cache_misses"] += 1
 
     system = (
         "You are a senior Indian equity market investment analyst. "
@@ -786,7 +854,9 @@ async def generate_monitoring_checklist(
     cache_key = f"checklist:{entity_type}:{entity_id}"
     hit = await cache_get(cache_key)
     if hit and isinstance(hit, dict) and hit.get("items"):
+        _AI_USAGE["cache_hits"] += 1
         return hit
+    _AI_USAGE["cache_misses"] += 1
 
     system = (
         "You are a senior Indian equity market analyst. "
@@ -884,7 +954,9 @@ async def generate_scenario_analysis(
     cache_key = f"scenario:{entity_type}:{entity_id}"
     hit = await cache_get(cache_key)
     if hit and isinstance(hit, dict) and hit.get("bull"):
+        _AI_USAGE["cache_hits"] += 1
         return hit
+    _AI_USAGE["cache_misses"] += 1
 
     system = (
         "You are a senior Indian equity market analyst. "
@@ -1010,7 +1082,9 @@ async def generate_pattern_intelligence(
     cache_key = f"pattern:{entity_type}:{entity_id}"
     hit = await cache_get(cache_key)
     if hit and isinstance(hit, dict) and hit.get("patterns"):
+        _AI_USAGE["cache_hits"] += 1
         return hit
+    _AI_USAGE["cache_misses"] += 1
 
     system = (
         "You are a senior Indian equity market historian and analyst. "

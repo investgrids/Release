@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -29,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.services.aipe.market_story_engine import get_mie_context, _story_hash
+from app.services.aipe import perf_stats
 
 log = structlog.get_logger(__name__)
 
@@ -177,6 +179,7 @@ async def update_article(
         return False
 
     update_reason = " | ".join(reasons)
+    _update_start = time.monotonic()
 
     # Regenerate dynamic sections
     new_takeaway = _generate_updated_takeaway(article, mie_context, new_triage_events)
@@ -217,6 +220,7 @@ async def update_article(
 
     db.add(article)
     await db.commit()
+    perf_stats.record("update", time.monotonic() - _update_start)
 
     log.info(
         "continuous_updater.updated",
@@ -291,9 +295,15 @@ async def run_continuous_update_cycle(
     if not current_hash:
         return 0
 
-    market_moves = await get_market_moves()
-    candidates = await find_updatable_articles(db, current_hash, market_moves)
+    _cycle_start = time.monotonic()
+    try:
+        market_moves = await get_market_moves()
+        candidates = await find_updatable_articles(db, current_hash, market_moves)
+    except Exception as exc:
+        perf_stats.mark_engine_run("Continuous Updater", success=False, error=str(exc)[:200], duration_s=time.monotonic() - _cycle_start)
+        raise
     if not candidates:
+        perf_stats.mark_engine_run("Continuous Updater", success=True, duration_s=time.monotonic() - _cycle_start)
         return 0
 
     updated = 0
@@ -320,4 +330,5 @@ async def run_continuous_update_cycle(
             if ok:
                 updated += 1
 
+    perf_stats.mark_engine_run("Continuous Updater", success=True, duration_s=time.monotonic() - _cycle_start)
     return updated

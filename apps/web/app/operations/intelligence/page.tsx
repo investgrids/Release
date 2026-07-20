@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { API_BASE_URL as API } from "@/lib/api";
+import { useAlerts } from "@/components/AlertProvider";
 import {
   Activity, Zap, CheckCircle2, XCircle, Clock, RefreshCw,
   Eye, ChevronLeft, ChevronRight, AlertTriangle, Sparkles,
   BarChart3, Brain, Database, Network, BookOpen, TrendingUp,
   GitBranch, Shield, RotateCcw, Layers, FileText, Timer,
+  Search, X, DollarSign, Server, Radio, ListChecks, Users,
+  Newspaper, CalendarClock, PlayCircle, AlertOctagon, ExternalLink,
 } from "lucide-react";
 
 
@@ -42,6 +45,53 @@ interface Campaign {
   created_at: string | null; last_updated: string | null; articles: CampaignArticle[];
 }
 
+interface EngineHealthRow {
+  name: string;
+  health_status: "healthy" | "degraded" | "busy" | "critical" | "offline";
+  health_label: string; health_score: number; success_rate: number | null;
+  last_execution: string | null; last_success: string | null;
+  errors: number; queue_size: number; latency_ms: number | null; version: string;
+}
+interface TodaysCampaign {
+  event_group_id: string; headline: string; article_count: number;
+  companies: number; sectors: number; status: string; published: number; failed: number;
+}
+interface OpsOverview {
+  generated_at: string;
+  engine_health: EngineHealthRow[];
+  coverage_today: {
+    events_processed: number; companies_covered: number; sectors_covered: number;
+    themes_generated: number; articles_published: number; campaigns_generated: number;
+    historical_pages_updated: number; evergreen_pages_updated: number; ai_searches_served: number;
+  };
+  todays_campaigns: TodaysCampaign[];
+  queue: {
+    events_waiting: number; articles_waiting: number; campaign_queue: number;
+    historical_queue: number; retry_queue: number; failed_queue: number;
+  };
+  database_health: {
+    published_articles: number; historical_pages: number; campaigns: number;
+    events: number; opportunities: number; historical_events: number;
+    score_history: number; queue_size: number;
+  };
+  ai_usage_today: {
+    llm_calls: number; tokens_used: number; avg_response_ms: number;
+    cache_hit_rate: number; failures: number; retries: number; cost_usd: number;
+  };
+  ai_search_metrics: {
+    total_searches_today: number; cache_hit_rate: number; avg_tokens: number;
+    avg_llm_time_ms: number; provider_used: string | null; timeout_count: number;
+    retry_count: number; success_rate: number | null;
+  };
+  performance: {
+    avg_validation_time_s: number; avg_campaign_time_s: number;
+    avg_update_time_s: number; avg_publish_time_s: number;
+  };
+  scheduler_jobs: { id: string; name: string; running: boolean; trigger: string; next_run: string | null }[];
+  recent_activity: { at: string | null; type: string; label: string; slug: string | null; angle: string }[];
+  failures: { id: string; headline: string; article_type: string; created_at: string | null; validation_failures: number; validation_results: any }[];
+}
+
 /* ─── Label maps ─────────────────────────────────────────── */
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   morning_intelligence:     { label: "Morning",     color: "bg-amber-500/15 text-amber-400 border-amber-500/25" },
@@ -56,6 +106,7 @@ const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   weekly_intelligence:      { label: "Weekly",      color: "bg-purple-500/15 text-purple-400 border-purple-500/25" },
   monthly_intelligence:     { label: "Monthly",     color: "bg-cyan-500/15 text-cyan-400 border-cyan-500/25" },
   educational_intelligence: { label: "Education",   color: "bg-slate-500/15 text-slate-400 border-slate-600/30" },
+  historical_intelligence:  { label: "Historical",  color: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/25" },
 };
 
 const LC_CFG: Record<string, { icon: React.ElementType; color: string; label: string }> = {
@@ -67,6 +118,48 @@ const LC_CFG: Record<string, { icon: React.ElementType; color: string; label: st
   merged:     { icon: GitBranch,    color: "text-amber-400",    label: "Merged" },
   archived:   { icon: Layers,       color: "text-slate-500",    label: "Archived" },
 };
+
+const FILTER_TABS: { key: string; label: string; params: Record<string, string> }[] = [
+  { key: "published", label: "Published",  params: { lifecycle: "published" } },
+  { key: "updated",   label: "Updated",    params: { lifecycle: "updated" } },
+  { key: "generated", label: "Generating", params: { lifecycle: "generated" } },
+  { key: "failed",    label: "Failed",     params: { status: "failed" } },
+  { key: "historical",label: "Historical", params: { article_type: "historical_intelligence" } },
+  { key: "archived",  label: "Archived",   params: { lifecycle: "archived" } },
+  { key: "all",       label: "All",        params: {} },
+  { key: "campaigns", label: "Campaigns",  params: {} },
+];
+
+const ANGLE_LABELS: Record<string, string> = {
+  primary: "Primary", per_company: "Company", sector_rollup: "Sector",
+  theme: "Theme", question: "Q&A", evergreen: "Evergreen", historical: "Historical",
+};
+const ANGLE_SECTION_ORDER = ["primary", "per_company", "sector_rollup", "theme", "historical", "question", "evergreen"];
+const ANGLE_SECTION_LABELS: Record<string, string> = {
+  primary: "Parent Event", per_company: "Company Articles", sector_rollup: "Sector Articles",
+  theme: "Theme Articles", historical: "Historical Pages", question: "Questions Answered", evergreen: "Evergreen Pages",
+};
+
+/* ─── Time helpers ───────────────────────────────────────── */
+// Backend timestamps are frequently naive ISO strings (SQLite storage) that
+// represent UTC without an explicit offset — treat any offset-less string as
+// UTC so client-side "time ago" math matches the server's own _age_minutes().
+function parseTs(iso: string | null): number | null {
+  if (!iso) return null;
+  const hasOffset = /[zZ]|[+-]\d\d:\d\d$/.test(iso);
+  const t = new Date(hasOffset ? iso : iso + "Z").getTime();
+  return Number.isNaN(t) ? null : t;
+}
+function relTime(iso: string | null): string {
+  const t = parseTs(iso);
+  if (t === null) return "—";
+  const diffMin = Math.floor((Date.now() - t) / 60000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const hr = Math.floor(diffMin / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+}
 
 /* ─── Sub-components ─────────────────────────────────────── */
 function StatusDot({ active }: { active: boolean }) {
@@ -84,20 +177,44 @@ function MetricPill({ label, value, warn = false }: { label: string; value: stri
   );
 }
 
-function SubsystemRow({ name, status }: { name: string; status: string }) {
-  const icons: Record<string, React.ElementType> = {
-    knowledge_graph: Network, historical_memory: Database, learning_engine: Brain,
-    mie: Activity, duplicate_detector: GitBranch,
-  };
-  const Icon = icons[name] || Shield;
-  const ok = status === "active";
+// Datadog/k8s-style operational states — never a binary healthy/error flag.
+// The backend computes health_status from multiple weighted signals
+// (success rate, queue, latency, retries, heartbeat, provider availability);
+// the frontend only renders what it's told, it never recomputes health.
+const HEALTH_CFG: Record<string, { color: string; dot: string; border: string; bg: string; emoji: string }> = {
+  healthy:  { color: "text-emerald-400", dot: "bg-emerald-400", border: "border-emerald-500/20", bg: "bg-emerald-500/[0.03]", emoji: "🟢" },
+  degraded: { color: "text-amber-400",   dot: "bg-amber-400",   border: "border-amber-500/20",   bg: "bg-amber-500/[0.03]",   emoji: "🟡" },
+  busy:     { color: "text-orange-400",  dot: "bg-orange-400",  border: "border-orange-500/25",  bg: "bg-orange-500/[0.03]",  emoji: "🟠" },
+  critical: { color: "text-rose-400",    dot: "bg-rose-400",    border: "border-rose-500/30",    bg: "bg-rose-500/[0.04]",    emoji: "🔴" },
+  offline:  { color: "text-slate-500",   dot: "bg-slate-600",   border: "border-white/[0.06]",   bg: "",                      emoji: "⚫" },
+};
+
+function HealthPill({ status, label }: { status: string; label: string }) {
+  const cfg = HEALTH_CFG[status] ?? HEALTH_CFG.offline;
   return (
-    <div className="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
-      <div className="flex items-center gap-2">
-        <Icon className={`h-3.5 w-3.5 ${ok ? "text-slate-400" : "text-rose-400"}`} />
-        <span className="text-[12px] text-slate-400 capitalize">{name.replace(/_/g, " ")}</span>
+    <span className={`flex items-center gap-1.5 rounded-full border ${cfg.border} bg-white/[0.02] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${cfg.color}`}>
+      <span aria-hidden>{cfg.emoji}</span>
+      {label}
+    </span>
+  );
+}
+
+function EngineHealthCard({ e }: { e: EngineHealthRow }) {
+  const cfg = HEALTH_CFG[e.health_status] ?? HEALTH_CFG.offline;
+  return (
+    <div className={`rounded-2xl border ${cfg.border} ${cfg.bg} bg-white/[0.02] p-4`}>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="text-[12px] font-bold text-white leading-tight">{e.name}</span>
+        <HealthPill status={e.health_status} label={e.health_label} />
       </div>
-      <span className={`text-[10px] font-bold uppercase ${ok ? "text-emerald-400" : "text-rose-400"}`}>{status}</span>
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[10px]">
+        <div className="text-slate-600">Success Rate <span className="block text-slate-300 font-medium tabular-nums">{e.success_rate != null ? `${e.success_rate}%` : "—"}</span></div>
+        <div className="text-slate-600">Queue <span className={`block font-medium tabular-nums ${e.health_status === "busy" ? "text-orange-400" : "text-slate-300"}`}>{e.queue_size}</span></div>
+        <div className="text-slate-600">Latency <span className="block text-slate-300 font-medium tabular-nums">{e.latency_ms != null ? `${Math.round(e.latency_ms)}ms` : "—"}</span></div>
+        <div className="text-slate-600">Last Run <span className="block text-slate-300 font-medium">{relTime(e.last_execution)}</span></div>
+        <div className="text-slate-600">Errors Today <span className={`block font-medium tabular-nums ${e.errors > 0 ? "text-rose-400" : "text-slate-300"}`}>{e.errors}</span></div>
+        <div className="text-slate-600">Version <span className="block text-slate-300 font-medium">{e.version}</span></div>
+      </div>
     </div>
   );
 }
@@ -120,14 +237,83 @@ function SeoRing({ score }: { score: number }) {
   );
 }
 
-/* ─── Main page ──────────────────────────────────────────── */
-const ANGLE_LABELS: Record<string, string> = {
-  primary: "Primary", per_company: "Company", sector_rollup: "Sector",
-  theme: "Theme", question: "Q&A", evergreen: "Evergreen", historical: "Historical",
-};
+function PerfBar({ label, value, max }: { label: string; value: number; max: number }) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[11px] text-slate-400">{label}</span>
+        <span className="text-[11px] font-bold text-white tabular-nums">{value.toFixed(2)}s</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+        <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
 
+function campaignStatusColor(status: string) {
+  if (status === "Completed") return "border-emerald-500/25 bg-emerald-500/10 text-emerald-400";
+  if (status === "Partial Failure") return "border-rose-500/25 bg-rose-500/10 text-rose-400";
+  return "border-violet-500/25 bg-violet-500/10 text-violet-400";
+}
+
+/* ─── Campaign drill-down modal ──────────────────────────── */
+function CampaignDrilldown({ campaign, onClose }: { campaign: Campaign; onClose: () => void }) {
+  const grouped: Record<string, CampaignArticle[]> = {};
+  for (const a of campaign.articles) {
+    (grouped[a.angle] ??= []).push(a);
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 backdrop-blur-sm px-4 py-10" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-2xl border border-white/[0.1] bg-[#0a0e1a] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-1">Campaign Relationship Graph</div>
+            <h2 className="text-[16px] font-bold text-white leading-snug">{campaign.headline}</h2>
+            <div className="mt-1 text-[10px] font-mono text-slate-600">{campaign.event_group_id}</div>
+          </div>
+          <button onClick={onClose} className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] text-slate-500 hover:text-white transition">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {ANGLE_SECTION_ORDER.filter(k => grouped[k]?.length).map(key => (
+            <div key={key}>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-2">
+                {ANGLE_SECTION_LABELS[key]} <span className="text-slate-700">({grouped[key].length})</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {grouped[key].map(a => (
+                  <Link
+                    key={a.slug}
+                    href={a.status === "published" ? (`/insights/${a.slug}` as any) : (`/intelligence/${a.slug}` as any)}
+                    target="_blank"
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                      a.status === "published"
+                        ? "border-white/10 bg-white/[0.03] text-slate-300 hover:border-violet-500/30 hover:text-violet-300"
+                        : "border-rose-500/20 bg-rose-500/5 text-rose-500/70"
+                    }`}
+                  >
+                    {a.angle_entity && <span className="font-semibold">{a.angle_entity}:</span>}
+                    <span className="line-clamp-1 max-w-[220px]">{a.headline}</span>
+                    <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-60" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main page ──────────────────────────────────────────── */
 export default function OperationsIntelligence() {
   const [status, setStatus]     = useState<EngineStatus | null>(null);
+  const [ops, setOps]           = useState<OpsOverview | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignsTotal, setCampaignsTotal] = useState(0);
@@ -136,7 +322,18 @@ export default function OperationsIntelligence() {
   const [tab, setTab]           = useState("published");
   const [loading, setLoading]   = useState(true);
   const [lastRefresh, setLast]  = useState<Date | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [drilldown, setDrilldown] = useState<Campaign | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
   const PAGE = 12;
+
+  const { intelligenceEvents, scoreUpdates } = useAlerts();
+
+  useEffect(() => {
+    const t = setTimeout(() => { setSearchQuery(searchInput.trim()); setPage(1); }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -145,11 +342,21 @@ export default function OperationsIntelligence() {
     } catch {}
   }, []);
 
+  const loadOps = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/api/publishing/ops-overview`);
+      if (r.ok) setOps(await r.json());
+    } catch {}
+  }, []);
+
   const loadArticles = useCallback(async () => {
     setLoading(true);
     try {
-      const lc = tab !== "all" ? `&lifecycle=${tab}` : "";
-      const r = await fetch(`${API}/api/publishing/articles?limit=${PAGE}&offset=${(page - 1) * PAGE}${lc}`);
+      const cfg = FILTER_TABS.find(t => t.key === tab);
+      const qp = new URLSearchParams({ limit: String(PAGE), offset: String((page - 1) * PAGE) });
+      Object.entries(cfg?.params ?? {}).forEach(([k, v]) => qp.set(k, v));
+      if (searchQuery) qp.set("search", searchQuery);
+      const r = await fetch(`${API}/api/publishing/articles?${qp.toString()}`);
       if (r.ok) {
         const d = await r.json();
         setArticles(d.articles || []);
@@ -159,7 +366,7 @@ export default function OperationsIntelligence() {
       setLoading(false);
       setLast(new Date());
     }
-  }, [page, tab]);
+  }, [page, tab, searchQuery]);
 
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
@@ -176,43 +383,102 @@ export default function OperationsIntelligence() {
     }
   }, [page]);
 
-  useEffect(() => {
-    loadStatus();
+  const refreshAll = useCallback(() => {
+    loadStatus(); loadOps();
     if (tab === "campaigns") loadCampaigns(); else loadArticles();
-    const id = setInterval(() => {
-      loadStatus();
-      if (tab === "campaigns") loadCampaigns(); else loadArticles();
-    }, 30_000);
+  }, [loadStatus, loadOps, loadCampaigns, loadArticles, tab]);
+
+  useEffect(() => {
+    refreshAll();
+    const id = setInterval(refreshAll, 30_000);
     return () => clearInterval(id);
-  }, [loadStatus, loadArticles, loadCampaigns, tab]);
+  }, [refreshAll]);
+
+  // Live updating — reuse the app-wide SSE connection (AlertProvider) instead
+  // of opening a second EventSource; any new intelligence/score event means
+  // real state changed, so refresh immediately rather than waiting for the
+  // 30s poll.
+  const seenEventCount = useRef(0);
+  useEffect(() => {
+    const count = intelligenceEvents.length + scoreUpdates.length;
+    if (count > seenEventCount.current) {
+      seenEventCount.current = count;
+      refreshAll();
+    }
+  }, [intelligenceEvents.length, scoreUpdates.length, refreshAll]);
+
+  const openCampaignDrilldown = useCallback(async (eventGroupId: string) => {
+    const existing = campaigns.find(c => c.event_group_id === eventGroupId);
+    if (existing) { setDrilldown(existing); return; }
+    try {
+      const r = await fetch(`${API}/api/publishing/campaigns?limit=50`);
+      if (r.ok) {
+        const d = await r.json();
+        const found = (d.campaigns || []).find((c: Campaign) => c.event_group_id === eventGroupId);
+        if (found) setDrilldown(found);
+      }
+    } catch {}
+  }, [campaigns]);
+
+  const handleRetry = useCallback(async (id: string) => {
+    setRetrying(id);
+    try {
+      const r = await fetch(`${API}/api/publishing/articles/${id}/retry`, { method: "POST" });
+      if (r.ok) refreshAll();
+    } catch {} finally {
+      setRetrying(null);
+    }
+  }, [refreshAll]);
 
   const totalPages = Math.max(1, Math.ceil((tab === "campaigns" ? campaignsTotal : total) / PAGE));
   const engineRunning = status?.engine.running ?? false;
+  const perfMax = ops ? Math.max(
+    ops.performance.avg_validation_time_s, ops.performance.avg_campaign_time_s,
+    ops.performance.avg_update_time_s, ops.performance.avg_publish_time_s, 0.01,
+  ) : 1;
 
   return (
     <div className="min-h-screen bg-[#020617] pb-16">
+      {drilldown && <CampaignDrilldown campaign={drilldown} onClose={() => setDrilldown(null)} />}
       <div className="mx-auto max-w-[1440px] px-6 py-8">
 
         {/* ── Header ────────────────────────────────────────────────────────── */}
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/25">
                 <Brain className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-[20px] font-bold text-white leading-tight">Operations · Intelligence</h1>
-                <p className="text-[11px] text-slate-500">Autonomous Market Intelligence Publishing Engine — Phase 8</p>
+                <h1 className="text-[20px] font-bold text-white leading-tight">AI Operations Control Center</h1>
+                <p className="text-[11px] text-slate-500">Internal only — health, throughput &amp; status of the intelligence platform</p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-600" />
+              <input
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                placeholder="Search events, companies, sectors, themes…"
+                className="w-64 rounded-xl border border-white/[0.08] bg-white/[0.02] py-2 pl-9 pr-8 text-[11px] text-white placeholder:text-slate-600 outline-none focus:border-violet-500/40"
+              />
+              {searchInput && (
+                <button onClick={() => setSearchInput("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
             {lastRefresh && (
               <span className="text-[10px] text-slate-600">
                 {lastRefresh.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               </span>
             )}
+            <div className="flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-3 py-1.5 text-[11px] font-semibold text-sky-400">
+              <Radio className="h-3 w-3 animate-pulse" /> Live
+            </div>
             <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
               engineRunning
                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
@@ -221,78 +487,224 @@ export default function OperationsIntelligence() {
               <StatusDot active={engineRunning} />
               {engineRunning ? "Engine Running" : "Engine Idle"}
             </div>
-            <button onClick={() => { loadStatus(); loadArticles(); }}
+            <button onClick={refreshAll}
               className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2 text-[11px] text-slate-400 hover:text-white transition">
               <RefreshCw className="h-3.5 w-3.5" /> Refresh
             </button>
           </div>
         </div>
 
+        {/* ── Engine Health ─────────────────────────────────────────────────── */}
+        <section className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Server className="h-4 w-4 text-slate-500" />
+            <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Engine Health</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {ops
+              ? ops.engine_health.map(e => <EngineHealthCard key={e.name} e={e} />)
+              : Array.from({ length: 9 }).map((_, i) => (
+                  <div key={i} className="animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 h-[110px]" />
+                ))
+            }
+          </div>
+
+          {/* AI Search is user-facing, so it gets extra detail beyond the generic engine card */}
+          {ops && (
+            <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.015] p-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-3">AI Search — Special Metrics</div>
+              <div className="flex flex-wrap gap-3">
+                <MetricPill label="Searches Today" value={ops.ai_search_metrics.total_searches_today} />
+                <MetricPill label="Avg Tokens"     value={ops.ai_search_metrics.avg_tokens} />
+                <MetricPill label="Avg LLM Time"   value={`${Math.round(ops.ai_search_metrics.avg_llm_time_ms)}ms`} />
+                <MetricPill label="Cache Hit Rate" value={`${ops.ai_search_metrics.cache_hit_rate}%`} />
+                <MetricPill label="Provider Used"  value={ops.ai_search_metrics.provider_used ?? "—"} />
+                <MetricPill label="Timeouts"       value={ops.ai_search_metrics.timeout_count} warn={ops.ai_search_metrics.timeout_count > 0} />
+                <MetricPill label="Retries"        value={ops.ai_search_metrics.retry_count} warn={ops.ai_search_metrics.retry_count > 0} />
+                <MetricPill label="Success Rate"   value={ops.ai_search_metrics.success_rate != null ? `${ops.ai_search_metrics.success_rate}%` : "—"} />
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ── Today's Intelligence Coverage ────────────────────────────────── */}
+        <section className="mb-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="h-4 w-4 text-slate-500" />
+            <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Today's Intelligence Coverage</span>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <MetricPill label="Events Processed"      value={ops?.coverage_today.events_processed ?? "—"} />
+            <MetricPill label="Companies Covered"     value={ops?.coverage_today.companies_covered ?? "—"} />
+            <MetricPill label="Sectors Covered"       value={ops?.coverage_today.sectors_covered ?? "—"} />
+            <MetricPill label="Themes Generated"      value={ops?.coverage_today.themes_generated ?? "—"} />
+            <MetricPill label="Articles Published"    value={ops?.coverage_today.articles_published ?? "—"} />
+            <MetricPill label="Campaigns Generated"   value={ops?.coverage_today.campaigns_generated ?? "—"} />
+            <MetricPill label="Historical Updated"    value={ops?.coverage_today.historical_pages_updated ?? "—"} />
+            <MetricPill label="Evergreen Updated"     value={ops?.coverage_today.evergreen_pages_updated ?? "—"} />
+            <MetricPill label="AI Searches Served"    value={ops?.coverage_today.ai_searches_served ?? "—"} />
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
           {/* ── Left — main monitoring area ─────────────────────────────────── */}
           <div className="space-y-6">
 
-            {/* Publishing Engine Status */}
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Activity className="h-4 w-4 text-slate-500" />
-                <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Publishing Engine</span>
-              </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <MetricPill label="Published Today" value={status?.today.published ?? "—"} />
-                <MetricPill label="Updated Today"   value={status?.today.updated ?? "—"} />
-                <MetricPill label="Generated"       value={status?.today.generated ?? "—"} />
-                <MetricPill label="Val. Failures"   value={status?.today.validation_failures ?? "—"} warn={(status?.today.validation_failures ?? 0) > 0} />
-                <MetricPill label="Slots Remaining" value={status?.today.remaining_slots ?? "—"} />
-                <MetricPill label="Waiting"         value={status?.engine.articles_waiting ?? "—"} />
-
-                <div className="ml-auto flex flex-col gap-2 text-right">
-                  <div>
-                    <div className="text-[10px] text-slate-600 uppercase tracking-widest">Avg Publish Time</div>
-                    <div className="text-[18px] font-bold text-white tabular-nums">{status?.engine.avg_publish_time_s ?? "—"}s</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-slate-600 uppercase tracking-widest">Errors</div>
-                    <div className={`text-[18px] font-bold tabular-nums ${(status?.engine.errors ?? 0) > 0 ? "text-rose-400" : "text-slate-400"}`}>{status?.engine.errors ?? 0}</div>
-                  </div>
+            {/* Today's Campaigns + Queue Monitor */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_260px]">
+              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.015] overflow-hidden">
+                <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.06] bg-white/[0.02]">
+                  <Zap className="h-3.5 w-3.5 text-slate-500" />
+                  <span className="text-[12px] font-bold text-white">Today's Campaigns</span>
                 </div>
-              </div>
-            </section>
+                <div className="max-h-[340px] overflow-y-auto">
+                  {!ops ? (
+                    <div className="px-5 py-8 text-center text-[11px] text-slate-600">Loading…</div>
+                  ) : ops.todays_campaigns.length === 0 ? (
+                    <div className="px-5 py-8 text-center text-[11px] text-slate-600">No campaigns generated yet today.</div>
+                  ) : ops.todays_campaigns.map((c, i) => (
+                    <button key={c.event_group_id} onClick={() => openCampaignDrilldown(c.event_group_id)}
+                      className={`w-full text-left px-5 py-3.5 hover:bg-white/[0.02] transition-colors ${i < ops.todays_campaigns.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-[12px] font-semibold text-white leading-snug line-clamp-1">{c.headline}</span>
+                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold ${campaignStatusColor(c.status)}`}>{c.status}</span>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-3 text-[10px] text-slate-600">
+                        <span>{c.article_count} articles</span>
+                        <span className="flex items-center gap-1"><Users className="h-2.5 w-2.5" /> {c.companies} companies</span>
+                        <span>{c.sectors} sectors</span>
+                        {c.failed > 0 && <span className="text-rose-400">{c.failed} failed</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
 
-            {/* Market Story + Quality */}
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {[
-                { label: "Market Story",    value: status?.market_story.status ?? "—",            icon: TrendingUp,  color: "text-violet-400" },
-                { label: "Avg Confidence",  value: `${status?.quality.avg_confidence ?? 0}%`,      icon: Brain,       color: "text-sky-400" },
-                { label: "Total Published", value: String(status?.totals.published ?? "—"),         icon: BookOpen,    color: "text-emerald-400" },
-                { label: "Last Run",        value: status?.engine.last_run ? new Date(status.engine.last_run).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—", icon: Timer, color: "text-amber-400" },
-              ].map(m => {
-                const Icon = m.icon;
-                return (
-                  <div key={m.label} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">{m.label}</span>
-                      <Icon className={`h-4 w-4 ${m.color}`} />
+              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <ListChecks className="h-3.5 w-3.5 text-slate-500" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Queue Monitor</span>
+                  <span className="ml-auto flex items-center gap-1 text-[9px] text-emerald-400"><Radio className="h-2.5 w-2.5 animate-pulse" />Live</span>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    ["Events Waiting",   ops?.queue.events_waiting],
+                    ["Articles Waiting", ops?.queue.articles_waiting],
+                    ["Campaign Queue",   ops?.queue.campaign_queue],
+                    ["Historical Queue", ops?.queue.historical_queue],
+                    ["Retry Queue",      ops?.queue.retry_queue],
+                    ["Failed Queue",     ops?.queue.failed_queue],
+                  ].map(([label, val]) => (
+                    <div key={label as string} className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">{label}</span>
+                      <span className={`text-[12px] font-bold tabular-nums ${(val as number) > 0 ? "text-amber-400" : "text-slate-300"}`}>{val ?? "—"}</span>
                     </div>
-                    <div className={`text-[18px] font-bold ${m.color}`}>{m.value}</div>
-                  </div>
-                );
-              })}
+                  ))}
+                </div>
+              </section>
             </div>
 
-            {/* Articles table */}
+            {/* AI Usage + Engine Performance */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles className="h-4 w-4 text-slate-500" />
+                  <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Today's AI Usage</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <MetricPill label="LLM Calls"       value={ops?.ai_usage_today.llm_calls ?? "—"} />
+                  <MetricPill label="Tokens Used"     value={ops?.ai_usage_today.tokens_used ?? "—"} />
+                  <MetricPill label="Avg Response"    value={ops ? `${ops.ai_usage_today.avg_response_ms}ms` : "—"} />
+                  <MetricPill label="Cache Hit Rate"  value={ops ? `${ops.ai_usage_today.cache_hit_rate}%` : "—"} />
+                  <MetricPill label="Cost"            value={ops ? `$${ops.ai_usage_today.cost_usd.toFixed(2)}` : "—"} />
+                  <MetricPill label="Failures"        value={ops?.ai_usage_today.failures ?? "—"} warn={(ops?.ai_usage_today.failures ?? 0) > 0} />
+                </div>
+                <div className="mt-2 text-[9px] text-slate-700">Free-tier providers (Gemini / Groq / OpenRouter / Cerebras) — real spend is $0.</div>
+              </section>
+
+              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Timer className="h-4 w-4 text-slate-500" />
+                  <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Engine Performance</span>
+                </div>
+                <div className="space-y-3.5">
+                  <PerfBar label="Publish"    value={ops?.performance.avg_publish_time_s ?? 0}    max={perfMax} />
+                  <PerfBar label="Validation" value={ops?.performance.avg_validation_time_s ?? 0} max={perfMax} />
+                  <PerfBar label="Campaign"   value={ops?.performance.avg_campaign_time_s ?? 0}   max={perfMax} />
+                  <PerfBar label="Update"     value={ops?.performance.avg_update_time_s ?? 0}     max={perfMax} />
+                </div>
+              </section>
+            </div>
+
+            {/* Recent Activity + Failure Center */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <CalendarClock className="h-4 w-4 text-slate-500" />
+                  <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Recent Activity</span>
+                </div>
+                <div className="space-y-0 max-h-[280px] overflow-y-auto">
+                  {!ops || ops.recent_activity.length === 0 ? (
+                    <div className="text-[11px] text-slate-600">No activity in the last 6 hours.</div>
+                  ) : ops.recent_activity.map((ev, i) => (
+                    <div key={i} className="relative flex gap-3 pb-4 last:pb-0">
+                      <div className="flex flex-col items-center">
+                        <span className={`h-2 w-2 rounded-full shrink-0 mt-1 ${ev.type === "published" ? "bg-emerald-400" : "bg-rose-400"}`} />
+                        {i < ops.recent_activity.length - 1 && <span className="w-px flex-1 bg-white/[0.06] mt-1" />}
+                      </div>
+                      <div className="min-w-0 pb-0.5">
+                        <div className="text-[11px] text-slate-300 leading-snug line-clamp-2">{ev.label}</div>
+                        <div className="text-[9px] text-slate-600 mt-0.5">{relTime(ev.at)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertOctagon className="h-4 w-4 text-rose-500/70" />
+                  <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Failure Center</span>
+                </div>
+                <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                  {!ops || ops.failures.length === 0 ? (
+                    <div className="text-[11px] text-slate-600">No recent failures.</div>
+                  ) : ops.failures.map(f => (
+                    <div key={f.id} className="flex items-start justify-between gap-2 rounded-xl border border-rose-500/10 bg-rose-500/[0.03] px-3 py-2.5">
+                      <div className="min-w-0">
+                        <div className="text-[11px] text-slate-300 leading-snug line-clamp-2">{f.headline}</div>
+                        <div className="mt-1 flex items-center gap-2 text-[9px] text-slate-600">
+                          <span>{relTime(f.created_at)}</span>
+                          <span className="text-rose-500">{f.validation_failures} validation failure(s)</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRetry(f.id)}
+                        disabled={retrying === f.id}
+                        className="shrink-0 flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[10px] font-semibold text-slate-300 hover:border-violet-500/30 hover:text-violet-300 transition disabled:opacity-40"
+                      >
+                        {retrying === f.id ? <RotateCcw className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3 w-3" />}
+                        Retry
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            {/* Articles / Campaigns table */}
             <section className="rounded-2xl border border-white/[0.07] bg-white/[0.015] overflow-hidden">
               {/* Table header */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-white/[0.02]">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-white/[0.02] flex-wrap gap-2">
                 <span className="text-[13px] font-bold text-white">
                   {tab === "campaigns" ? "Publishing Campaigns" : "Intelligence Articles"}
                 </span>
-                <div className="flex items-center gap-1">
-                  {(["published", "updated", "failed", "all", "campaigns"] as const).map(t => (
-                    <button key={t} onClick={() => { setTab(t); setPage(1); }}
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize transition-all ${
-                        tab === t ? "bg-violet-600 text-white" : "text-slate-500 hover:text-white hover:bg-white/[0.05]"
-                      }`}>{t}</button>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {FILTER_TABS.map(t => (
+                    <button key={t.key} onClick={() => { setTab(t.key); setPage(1); }}
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
+                        tab === t.key ? "bg-violet-600 text-white" : "text-slate-500 hover:text-white hover:bg-white/[0.05]"
+                      }`}>{t.label}</button>
                   ))}
                 </div>
               </div>
@@ -314,8 +726,8 @@ export default function OperationsIntelligence() {
                       </div>
                     </div>
                   ) : campaigns.map((c, i) => (
-                    <div key={c.event_group_id}
-                      className={`px-5 py-4 ${i < campaigns.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
+                    <button key={c.event_group_id} onClick={() => setDrilldown(c)}
+                      className={`w-full text-left px-5 py-4 hover:bg-white/[0.02] transition-colors ${i < campaigns.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
@@ -345,21 +757,19 @@ export default function OperationsIntelligence() {
                       </div>
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {c.articles.map(a => (
-                          <Link
+                          <span
                             key={a.slug}
-                            href={a.status === "published" ? (`/insights/${a.slug}` as any) : (`/intelligence/${a.slug}` as any)}
-                            target="_blank"
-                            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium transition ${
+                            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${
                               a.status === "published"
-                                ? "border-white/10 bg-white/[0.03] text-slate-300 hover:border-violet-500/30 hover:text-violet-300"
+                                ? "border-white/10 bg-white/[0.03] text-slate-300"
                                 : "border-rose-500/20 bg-rose-500/5 text-rose-500/70"
                             }`}
                           >
                             {ANGLE_LABELS[a.angle] ?? a.angle}{a.angle_entity ? `: ${a.angle_entity}` : ""}
-                          </Link>
+                          </span>
                         ))}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </>
               ) : (
@@ -385,7 +795,7 @@ export default function OperationsIntelligence() {
                 <div className="py-20 text-center">
                   <Brain className="h-8 w-8 text-slate-700 mx-auto mb-3" />
                   <div className="text-[13px] text-slate-600">
-                    No intelligence articles yet. The engine runs every 5 minutes.
+                    {searchQuery ? `No articles matching "${searchQuery}".` : "No intelligence articles yet. The engine runs every 5 minutes."}
                   </div>
                 </div>
               ) : articles.map((art, i) => {
@@ -449,7 +859,14 @@ export default function OperationsIntelligence() {
                     <div className="text-[10px] text-slate-500 leading-snug">
                       {art.published_at
                         ? new Date(art.published_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-                        : <span className="text-rose-500">—</span>}
+                        : art.status === "failed"
+                          ? (
+                            <button onClick={() => handleRetry(art.id)} disabled={retrying === art.id}
+                              className="text-violet-400 hover:text-violet-300 disabled:opacity-40">
+                              {retrying === art.id ? "Retrying…" : "Retry"}
+                            </button>
+                          )
+                          : <span className="text-rose-500">—</span>}
                     </div>
 
                     {/* View */}
@@ -500,31 +917,31 @@ export default function OperationsIntelligence() {
 
             {/* Scheduler Status */}
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-3">Scheduler</div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-slate-400">Status</span>
-                  <span className={`text-[11px] font-bold ${engineRunning ? "text-emerald-400" : "text-slate-400"}`}>
-                    {status?.engine.status ?? "—"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-slate-400">Cycle interval</span>
-                  <span className="text-[11px] font-bold text-white">5 min</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-slate-400">Max per day</span>
-                  <span className="text-[11px] font-bold text-white">3–8 stories</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-slate-400">Slots used</span>
-                  <span className="text-[11px] font-bold text-violet-400">
-                    {status?.today.published ?? 0}/{status?.today.max_per_day ?? 8}
-                  </span>
-                </div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-3">Scheduler Status</div>
+              <div className="space-y-2 max-h-[420px] overflow-y-auto">
+                {!ops || ops.scheduler_jobs.length === 0 ? (
+                  <div className="text-[11px] text-slate-600">Loading…</div>
+                ) : ops.scheduler_jobs.map(job => (
+                  <div key={job.id} className="flex items-start justify-between gap-2 py-1.5 border-b border-white/[0.04] last:border-0">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <StatusDot active={job.running} />
+                        <span className="text-[11px] text-slate-300 leading-snug truncate">{job.name}</span>
+                      </div>
+                      <div className="text-[9px] text-slate-600 mt-0.5 truncate">{job.trigger}</div>
+                    </div>
+                    <span className="shrink-0 text-[9px] text-slate-500 text-right">
+                      {job.next_run ? new Date(job.next_run).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
+                    </span>
+                  </div>
+                ))}
               </div>
-              {/* Slot bar */}
-              <div className="mt-3">
+              {/* Legacy slot bar — daily publish quota */}
+              <div className="mt-3 pt-3 border-t border-white/[0.04]">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] text-slate-500">Slots used today</span>
+                  <span className="text-[10px] font-bold text-violet-400">{status?.today.published ?? 0}/{status?.today.max_per_day ?? 8}</span>
+                </div>
                 <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
                   <div className="h-full rounded-full bg-violet-500 transition-all"
                     style={{ width: `${((status?.today.published ?? 0) / (status?.today.max_per_day ?? 8)) * 100}%` }} />
@@ -532,53 +949,26 @@ export default function OperationsIntelligence() {
               </div>
             </div>
 
-            {/* Subsystems */}
+            {/* Database Health */}
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-3">Subsystems</div>
-              {status?.subsystems
-                ? Object.entries(status.subsystems).map(([name, st]) => (
-                    <SubsystemRow key={name} name={name} status={st} />
-                  ))
-                : <div className="text-[11px] text-slate-600">Loading…</div>
-              }
-            </div>
-
-            {/* Market Coverage */}
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-3">Today's Coverage</div>
-              <div className="space-y-2">
-                {articles.filter(a => a.status === "published").slice(0, 6).map(art => {
-                  const tc = TYPE_LABELS[art.article_type] ?? { label: art.article_type, color: "bg-slate-700/40 text-slate-400 border-slate-600/30" };
-                  return (
-                    <div key={art.id} className="flex items-start gap-2">
-                      <span className={`mt-0.5 shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-bold ${tc.color}`}>{tc.label}</span>
-                      <span className="text-[11px] text-slate-400 line-clamp-2 leading-snug">{art.headline}</span>
-                    </div>
-                  );
-                })}
-                {articles.filter(a => a.status === "published").length === 0 && (
-                  <div className="text-[11px] text-slate-600">No published articles today.</div>
-                )}
+              <div className="flex items-center gap-2 mb-3">
+                <Database className="h-3.5 w-3.5 text-slate-500" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Database Health</span>
               </div>
-            </div>
-
-            {/* Pipeline */}
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-3">Pipeline</div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {[
-                  ["MIE Context",         "violet"],
-                  ["Intelligence Filter", "sky"],
-                  ["Content Planner",     "teal"],
-                  ["Duplicate Detector",  "amber"],
-                  ["Article Generator",   "emerald"],
-                  ["Quality Validator",   "orange"],
-                  ["Auto Publisher",      "rose"],
-                  ["Continuous Updater",  "indigo"],
-                ].map(([step, color]) => (
-                  <div key={step} className="flex items-center gap-2">
-                    <div className={`h-1.5 w-1.5 rounded-full bg-${color}-500`} />
-                    <span className="text-[11px] text-slate-500">{step}</span>
+                  ["Published Articles", ops?.database_health.published_articles],
+                  ["Historical Pages",   ops?.database_health.historical_pages],
+                  ["Campaigns",          ops?.database_health.campaigns],
+                  ["Events",             ops?.database_health.events],
+                  ["Opportunities",      ops?.database_health.opportunities],
+                  ["Historical Events",  ops?.database_health.historical_events],
+                  ["Score History",      ops?.database_health.score_history],
+                  ["Queue Size",         ops?.database_health.queue_size],
+                ].map(([label, val]) => (
+                  <div key={label as string} className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">{label}</span>
+                    <span className="text-[11px] font-bold text-white tabular-nums">{val ?? "—"}</span>
                   </div>
                 ))}
               </div>
