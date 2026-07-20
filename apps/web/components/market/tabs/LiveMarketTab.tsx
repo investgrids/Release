@@ -894,7 +894,11 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
       }
       if (oppsRes?.opportunities) setOpps(oppsRes.opportunities);
       const evs = (eventsRes as any)?.results ?? eventsRes ?? [];
-      if (Array.isArray(evs)) setEvents(evs);
+      // A real impact_score of 0 is noise, not a genuine market driver —
+      // exclude it here so every card fed by `events` (Top Market Drivers,
+      // Companies That Matter, ripple selection) skips it consistently.
+      // Unscored (null) events are left alone; that's a different, honest state.
+      if (Array.isArray(evs)) setEvents(evs.filter((e: any) => e.impact_score !== 0));
       if (Array.isArray(calRes)) setCalendar(calRes);
       if (Array.isArray(idxRes)) setIndices(idxRes);
       if (predStatsRes) setPredStats({ overall_accuracy: predStatsRes.overall_accuracy ?? null, total_predictions: predStatsRes.total_predictions ?? null });
