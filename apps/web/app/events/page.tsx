@@ -141,61 +141,6 @@ function formatDateLabel(dateStr: string): string {
   } catch { return dateStr; }
 }
 
-// ── Static fallback data (shown instantly; replaced silently by live API) ────
-// Fixed dates, not computed from Date.now() — this is fallback/seed content
-// shown only until the real fetch resolves, and React explicitly flags
-// Date.now()/new Date() at module scope as a hydration-mismatch source
-// (server module-eval time and client module-eval time are two different
-// instants, occasionally straddling a day boundary and changing these
-// truncated-to-date strings between the SSR pass and the client's first render).
-const STATIC_EVENTS: Event[] = [
-  {
-    id: "s1", category: "RBI", date: "2026-07-17", time: "10:00 AM",
-    title: "RBI MPC Meeting: Rate Decision on Benchmark Repo Rate",
-    summary: "The Monetary Policy Committee meets to deliberate on benchmark interest rates amid moderating inflation and steady GDP growth.",
-    impact_score: 92, confidence: 0.91,
-    sectors: ["Banking & Finance", "Monetary Policy"],
-    companies: [{ symbol: "HDFCBANK", name: "HDFC Bank" }, { symbol: "SBIN", name: "SBI" }],
-    source: "RBI",
-  },
-  {
-    id: "s2", category: "Government", date: "2026-07-16", time: "2:30 PM",
-    title: "Union Budget 2026-27: Infrastructure Allocation Surge to ₹11.11 Lakh Crore",
-    summary: "Government announces record capex outlay targeting roads, railways and urban infrastructure for the coming fiscal year.",
-    impact_score: 88, confidence: 0.87,
-    sectors: ["Infrastructure", "Economy"],
-    companies: [{ symbol: "LT", name: "L&T" }, { symbol: "RVNL", name: "RVNL" }],
-    source: "PIB",
-  },
-  {
-    id: "s3", category: "Corporate", date: "2026-07-16", time: "4:00 PM",
-    title: "Q4 Results: TCS Reports 8.4% YoY Revenue Growth with Strong Deal Wins",
-    summary: "Tata Consultancy Services posts strong quarterly results with robust deal wins across BFSI and healthcare verticals.",
-    impact_score: 79, confidence: 0.85,
-    sectors: ["Technology"],
-    companies: [{ symbol: "TCS", name: "TCS" }, { symbol: "INFY", name: "Infosys" }],
-    source: "NSE",
-  },
-  {
-    id: "s4", category: "Policy", date: "2026-07-15", time: "11:00 AM",
-    title: "SEBI Introduces New F&O Framework with Higher Margin Requirements",
-    summary: "Markets regulator tightens derivatives rules with higher margin requirements and revised lot size changes for retail investors.",
-    impact_score: 74, confidence: 0.82,
-    sectors: ["Capital Markets"],
-    companies: [],
-    source: "BSE",
-  },
-  {
-    id: "s5", category: "Global", date: "2026-07-15", time: "6:00 PM",
-    title: "US Fed Holds Rates; Signals Two Cuts in H2 2026",
-    summary: "Federal Reserve keeps policy rate unchanged but projects rate reductions in the second half of 2026, supporting EM flows.",
-    impact_score: 85, confidence: 0.88,
-    sectors: ["Economy", "Banking & Finance"],
-    companies: [],
-    source: "Reuters",
-  },
-];
-
 // ── Impact trend from live events (last 7 days) ───────────────────────────────
 function buildTrendData(events: { date: string; impact_score: number | null }[]) {
   const today = new Date();
@@ -372,7 +317,11 @@ function PriorityEventsBar({ events }: { events: Event[] }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function EventsPage() {
-  const [events, setEvents]         = useState<Event[]>(STATIC_EVENTS);
+  // Starts empty (not fabricated fallback events) so the server's first
+  // render and the client's pre-hydration render are always identical —
+  // real events replace this the moment the fetch below resolves.
+  const [events, setEvents]         = useState<Event[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [query, setQuery]           = useState("");
   const [view, setView]             = useState<"timeline" | "list">("timeline");
   const [impactFilter, setImpactFilter] = useState("All");
@@ -384,8 +333,9 @@ export default function EventsPage() {
   useEffect(() => {
     fetch(`${API}/api/events/?sort_by=impact_score&limit=${limit}`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : [])
-      .then(d => { if (Array.isArray(d) && d.length) setEvents(d); })
-      .catch(() => {});
+      .then(d => { if (Array.isArray(d)) setEvents(d); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [limit]);
 
   const filtered = events.filter(ev => {
@@ -512,7 +462,13 @@ export default function EventsPage() {
           </div>
 
           {/* Events */}
-          {filtered.length === 0 ? (
+          {loading && events.length === 0 ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-24 animate-pulse rounded-[18px] border border-white/[0.06] bg-white/[0.02]" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.03] py-20">
               <p className="text-sm text-slate-500">No events match the filter.</p>
             </div>
