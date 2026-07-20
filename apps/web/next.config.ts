@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
       // /policies merged into /calendar as "Recent Policy Events" section
       { source: "/policies",           destination: "/calendar",               permanent: true },
       // Admin redirect
-      { source: "/admin/insights",     destination: "/operations/intelligence", permanent: true },
+      { source: "/admin/insights",     destination: "/admin/operations",        permanent: true },
     ];
   },
   async headers() {
