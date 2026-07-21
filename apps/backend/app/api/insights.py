@@ -22,6 +22,19 @@ from app.db.session import get_db
 
 router = APIRouter()
 
+_WORDS_PER_MINUTE = 200
+
+
+def _read_time_minutes(a: IntelligenceArticle) -> int:
+    """Real word count across the article's own body fields, not a fabricated
+    estimate — read_time is never invented, just derived from actual content
+    already on the row (including fields _list_row doesn't otherwise expose)."""
+    text = " ".join(filter(None, [
+        a.executive_summary, a.key_takeaway, a.why_it_matters, a.what_happened,
+    ]))
+    words = len(text.split())
+    return max(1, round(words / _WORDS_PER_MINUTE))
+
 
 def _list_row(a: IntelligenceArticle) -> dict:
     return {
@@ -39,6 +52,11 @@ def _list_row(a: IntelligenceArticle) -> dict:
         "companies_affected": a.companies_affected,
         "sectors_affected":   a.sectors_affected,
         "confidence_score":   a.confidence_score,
+        # event_score is already the same real 0-100 relevance score the rest
+        # of the app calls "impact_score" (Events, etc.) — aliased here for
+        # naming consistency across the homepage's article and event cards.
+        "impact_score":       a.event_score,
+        "read_time_minutes":  _read_time_minutes(a),
         "update_count":       a.update_count,
         "published_at":       a.published_at.isoformat() if a.published_at else None,
         "last_updated":       a.last_updated.isoformat() if a.last_updated else None,

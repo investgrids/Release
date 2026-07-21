@@ -231,9 +231,44 @@ async function AIMarketBriefCard() {
 
       {description && <p className="mb-4 text-[12px] leading-[1.6] text-slate-400 line-clamp-3">{description}</p>}
 
+      {(top?.sectors?.length > 0 || top?.companies?.length > 0) && (
+        <div className="mb-4 space-y-2.5">
+          {top?.sectors?.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">Affected Sectors</p>
+              <div className="flex flex-wrap gap-1.5">
+                {top.sectors.slice(0, 5).map((s: string) => (
+                  <span key={s} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-slate-300">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {top?.companies?.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">Affected Companies</p>
+              <div className="flex flex-wrap gap-1.5">
+                {top.companies.slice(0, 5).map((c: any) => {
+                  const sym = typeof c === "string" ? c : c.symbol ?? c.name;
+                  const imp = (typeof c === "object" ? c.impact : null)?.toLowerCase?.();
+                  const cls = imp === "positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                    : imp === "negative" ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
+                    : "border-white/10 bg-white/[0.04] text-slate-300";
+                  return (
+                    <Link key={sym} href={`/companies/${sym}` as any}
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition hover:brightness-125 ${cls}`}>
+                      {sym}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <Link href="/market-intelligence"
         className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
-        View Full Intelligence <ArrowRight className="h-3 w-3" />
+        Read Full Intelligence <ArrowRight className="h-3 w-3" />
       </Link>
 
       <div className="mt-auto grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-4 sm:grid-cols-4">
@@ -523,39 +558,8 @@ async function ThemeStrengthCard() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ROW 3 — Live Feed · AI Market Wrap (Morning) · Watch Tomorrow
+// SUPPORTING ROW — Key Risks · Market Snapshot · Watch Tomorrow
 // ═══════════════════════════════════════════════════════════════════════════════
-async function AIMarketWrapCard() {
-  const mie = await getMIE();
-  const story = mie?.story;
-  if (!story?.text) {
-    return (
-      <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-        <CardHeader title="AI Market Wrap" />
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">AI is preparing today's wrap.</p>
-      </div>
-    );
-  }
-  const isMorning = new Date(Date.now() + 5.5 * 3600_000).getUTCHours() < 12;
-
-  return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-violet-400" />
-          <h3 className="text-[13px] font-black text-white">AI Market Wrap {isMorning ? "(Morning)" : ""}</h3>
-        </div>
-        {story.generated_at && <span className="text-[10px] text-slate-600">Updated {timeAgo(story.generated_at)}</span>}
-      </div>
-      <p className="flex-1 text-[12px] leading-[1.7] text-slate-400 line-clamp-6">{story.text}</p>
-      <Link href="/market-intelligence"
-        className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.04] px-4 py-2 text-[11px] font-bold text-white transition hover:bg-white/[0.08]">
-        Read Full Wrap <ArrowRight className="h-3 w-3" />
-      </Link>
-    </div>
-  );
-}
-
 async function WatchTomorrowCard() {
   const cal = await getCalendar();
   // Calendar dates are day-only ("Jul 21, 2026"), which parse to midnight —
@@ -599,18 +603,32 @@ async function LatestIntelligenceRow() {
 
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-      <CardHeader title="Latest Market Intelligence" href="/insights" />
+      <CardHeader title="Latest Intelligence Articles" href="/insights" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {items.map((a: any) => (
-          <Link key={a.slug} href={`/insights/${a.slug}`} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:border-white/20 hover:bg-white/[0.04]">
-            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
-              {(a.article_type ?? "intelligence").replace(/_/g, " ")}
-            </span>
-            <p className="mt-2 text-[12px] font-bold leading-snug text-white group-hover:text-sky-200 transition line-clamp-3">
-              {a.headline}
-            </p>
-          </Link>
-        ))}
+        {items.map((a: any) => {
+          const publishedLabel = a.published_at
+            ? new Date(a.published_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })
+            : null;
+          return (
+            <Link key={a.slug} href={`/insights/${a.slug}`} className="group flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:border-white/20 hover:bg-white/[0.04]">
+              <span className="w-fit rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                {(a.article_type ?? "intelligence").replace(/_/g, " ")}
+              </span>
+              <p className="mt-2 flex-1 text-[12px] font-bold leading-snug text-white group-hover:text-sky-200 transition line-clamp-3">
+                {a.headline}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-white/[0.05] pt-2.5 text-[9px] text-slate-500">
+                {publishedLabel && <span>Published {publishedLabel}</span>}
+                <span>{a.read_time_minutes ?? 1} min read</span>
+                {a.confidence_score != null && <span className="text-sky-400 font-semibold">{Math.round(a.confidence_score * 100)}% confidence</span>}
+                {a.impact_score != null && <span className="text-violet-400 font-semibold">Impact {Math.round(a.impact_score)}</span>}
+              </div>
+              <span className="mt-2 flex items-center gap-1 text-[10px] font-bold text-violet-400 group-hover:text-violet-300 transition">
+                Read <ArrowRight className="h-2.5 w-2.5" />
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -628,32 +646,33 @@ export default function HomePage() {
         <TickerStrip />
       </Suspense>
 
-      {/* Row 1 — AI Market Brief · Today's Biggest Events · Live Feed */}
+      {/* Row 1 — AI Market Brief (hero) · Today's Biggest Events · Live Feed */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr_1fr]">
         <Suspense fallback={<Sk h={420} />}><AIMarketBriefCard /></Suspense>
         <Suspense fallback={<Sk h={420} />}><TodaysBiggestEventsCard /></Suspense>
         <LiveIntelligenceFeed compact limit={4} />
       </div>
 
-      {/* Row 2 — Companies to Watch · Top Opportunities · Key Risks · Theme Strength */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <Suspense fallback={<Sk h={340} />}><CompaniesToWatchTable /></Suspense>
+      {/* Row 2 — Today's Opportunities · Companies to Watch · Theme Strength */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Suspense fallback={<Sk h={340} />}><TopOpportunitiesCard /></Suspense>
-        <Suspense fallback={<Sk h={340} />}><KeyRisksCard /></Suspense>
+        <Suspense fallback={<Sk h={340} />}><CompaniesToWatchTable /></Suspense>
         <Suspense fallback={<Sk h={340} />}><ThemeStrengthCard /></Suspense>
       </div>
 
-      {/* Row 3 — Market Snapshot · AI Market Wrap (Morning) · Watch Tomorrow */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <Suspense fallback={<Sk h={280} />}><MarketSnapshotCard /></Suspense>
-        <Suspense fallback={<Sk h={280} />}><AIMarketWrapCard /></Suspense>
-        <Suspense fallback={<Sk h={280} />}><WatchTomorrowCard /></Suspense>
-      </div>
-
-      {/* Row 4 — Latest Market Intelligence (AIPE published articles) */}
+      {/* Row 3 — Latest Intelligence Articles (AIPE published articles, incl.
+          the morning wrap — as a real article, not a duplicate homepage card) */}
       <Suspense fallback={<Sk h={180} />}>
         <LatestIntelligenceRow />
       </Suspense>
+
+      {/* Supporting row — Key Risks · Market Snapshot · Watch Tomorrow.
+          Real data, just not part of the primary read-this-first flow above. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <Suspense fallback={<Sk h={280} />}><KeyRisksCard /></Suspense>
+        <Suspense fallback={<Sk h={280} />}><MarketSnapshotCard /></Suspense>
+        <Suspense fallback={<Sk h={280} />}><WatchTomorrowCard /></Suspense>
+      </div>
 
       {/* Background: 5-min story-hash poller + SSE session gate */}
       <HomepageRefresher />
