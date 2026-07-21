@@ -265,11 +265,16 @@ async function AIMarketBriefCard() {
 async function TodaysBiggestEventsCard() {
   const recentRaw = await getRecentEvents();
   const events = ((recentRaw as any)?.results ?? (recentRaw as any) ?? []) as any[];
+  const todayStr = todayDateStr();
 
   const seen = new Set<string>();
   const merged: any[] = [];
   for (const e of events) {
     if (!e.id || seen.has(e.id)) continue;
+    // "Today's" Biggest Events means today — an old high-impact event
+    // outranking today's real news by score alone is exactly the bug this
+    // filter exists to prevent.
+    if (!e.date || new Date(e.date).toDateString() !== todayStr) continue;
     seen.add(e.id);
     merged.push(e);
   }
@@ -553,9 +558,14 @@ async function AIMarketWrapCard() {
 
 async function WatchTomorrowCard() {
   const cal = await getCalendar();
-  const nowMs = Date.now();
+  // Calendar dates are day-only ("Jul 21, 2026"), which parse to midnight —
+  // comparing against the exact current instant would wrongly exclude
+  // today's own events every time. Compare against start-of-day instead.
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startMs = startOfToday.getTime();
   const items = ((cal ?? []) as any[])
-    .filter(e => { try { const d = new Date(e.date ?? e.event_date ?? e.datetime).getTime(); return d > nowMs && d <= nowMs + 7 * 86400_000; } catch { return false; } })
+    .filter(e => { try { const d = new Date(e.date ?? e.event_date ?? e.datetime).getTime(); return d >= startMs && d <= startMs + 7 * 86400_000; } catch { return false; } })
     .sort((a: any, b: any) => new Date(a.date ?? a.event_date ?? a.datetime).getTime() - new Date(b.date ?? b.event_date ?? b.datetime).getTime())
     .slice(0, 3);
 
@@ -618,11 +628,11 @@ export default function HomePage() {
         <TickerStrip />
       </Suspense>
 
-      {/* Row 1 — AI Market Brief · Today's Biggest Events · Market Snapshot */}
+      {/* Row 1 — AI Market Brief · Today's Biggest Events · Live Feed */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr_1fr]">
         <Suspense fallback={<Sk h={420} />}><AIMarketBriefCard /></Suspense>
         <Suspense fallback={<Sk h={420} />}><TodaysBiggestEventsCard /></Suspense>
-        <Suspense fallback={<Sk h={420} />}><MarketSnapshotCard /></Suspense>
+        <LiveIntelligenceFeed compact limit={4} />
       </div>
 
       {/* Row 2 — Companies to Watch · Top Opportunities · Key Risks · Theme Strength */}
@@ -633,9 +643,9 @@ export default function HomePage() {
         <Suspense fallback={<Sk h={340} />}><ThemeStrengthCard /></Suspense>
       </div>
 
-      {/* Row 3 — Live Feed · AI Market Wrap (Morning) · Watch Tomorrow */}
+      {/* Row 3 — Market Snapshot · AI Market Wrap (Morning) · Watch Tomorrow */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <LiveIntelligenceFeed compact limit={4} />
+        <Suspense fallback={<Sk h={280} />}><MarketSnapshotCard /></Suspense>
         <Suspense fallback={<Sk h={280} />}><AIMarketWrapCard /></Suspense>
         <Suspense fallback={<Sk h={280} />}><WatchTomorrowCard /></Suspense>
       </div>

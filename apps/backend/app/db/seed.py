@@ -2,13 +2,23 @@
 Populate the database with initial content data.
 Only inserts rows that don't already exist (idempotent).
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.db import models_legacy as models
 
 
 def _dt(y: int, m: int, d: int, h: int = 9, mi: int = 30) -> datetime:
     return datetime(y, m, d, h, mi, tzinfo=timezone.utc)
+
+
+# CalendarEvent.date is a display string ("Jul 21, 2026"), not a real
+# datetime column — computed relative to whenever this module is first
+# imported (once per process start, same as every other module-level
+# constant here) so a freshly-seeded dev DB always shows genuinely
+# upcoming demo dates instead of a fixed calendar date that goes stale
+# the moment real time passes it.
+def _cal_date(days_from_now: int) -> str:
+    return (datetime.now(timezone.utc) + timedelta(days=days_from_now)).strftime("%b %d, %Y")
 
 
 EVENTS = [
@@ -132,70 +142,70 @@ CALENDAR = [
         id="cal-wpi-jul-2026",
         category="Macro",
         title="June WPI Inflation Data Release",
-        date="Jul 13, 2026",
+        date=_cal_date(4),
         description="Wholesale Price Index reading for June - key input for RBI's inflation assessment and rate outlook.",
     ),
     models.CalendarEvent(
         id="cal-tcs-q1-2026",
         category="Results",
         title="TCS Q1 FY27 Earnings Result",
-        date="Jul 13, 2026",
+        date=_cal_date(4),
         description="Tata Consultancy Services quarterly result - bellwether for India's IT sector and US demand outlook.",
     ),
     models.CalendarEvent(
         id="cal-rbi-aug-2026",
         category="RBI",
         title="Monetary Policy Committee Meeting",
-        date="Jul 31, 2026",
+        date=_cal_date(18),
         description="Key repo rate decision and forward guidance on growth-inflation balance.",
     ),
     models.CalendarEvent(
         id="cal-q1-results-2026",
         category="Results",
         title="Q1 FY27 Earnings Season Begins",
-        date="Aug 08, 2026",
+        date=_cal_date(25),
         description="Major banks, IT majors and FMCG companies start reporting Q1 FY27 earnings.",
     ),
     models.CalendarEvent(
         id="cal-cpi-jul-2026",
         category="Macro",
         title="June CPI Inflation Data Release",
-        date="Jul 12, 2026",
+        date=_cal_date(2),
         description="Consumer Price Index reading - critical for RBI's inflation trajectory.",
     ),
     models.CalendarEvent(
         id="cal-iip-jun-2026",
         category="Macro",
         title="May Industrial Production (IIP)",
-        date="Jul 11, 2026",
+        date=_cal_date(3),
         description="Industrial output data reflects manufacturing momentum ahead of earnings.",
     ),
     models.CalendarEvent(
         id="cal-budget-session-2026",
         category="Government",
         title="Parliament Budget Session Resumes",
-        date="Jul 21, 2026",
+        date=_cal_date(7),
         description="Key policy bills and supplementary demands for grants to be tabled.",
     ),
     models.CalendarEvent(
         id="cal-hcltech-q1-2026",
         category="Results",
         title="HCL Technologies Q1 FY27 Results",
-        date="Jul 14, 2026",
+        date=_cal_date(5),
         description="HCL Tech quarterly earnings - second major IT result of the season, key for sector sentiment.",
     ),
     models.CalendarEvent(
         id="cal-uswpi-jul-2026",
         category="Global",
         title="US Producer Price Index (PPI)",
-        date="Jul 15, 2026",
+        date=_cal_date(6),
         description="US producer inflation data - impacts Fed rate expectations and USD/INR pair.",
     ),
     models.CalendarEvent(
         id="cal-infy-q1-2026",
         category="Results",
         title="Infosys Q1 FY27 Earnings & Guidance",
-        date="Jul 17, 2026",
+        date=_cal_date(9),
         description="Infosys Q1 result and FY27 revenue guidance revision - closely tracked for US tech demand signals.",
     ),
 ]
