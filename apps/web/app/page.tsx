@@ -11,7 +11,6 @@ import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { cleanText } from "@/lib/text";
-import { MarketSentimentGauge } from "@/components/MarketSentimentGauge";
 
 export const dynamic = "force-dynamic";
 
@@ -61,15 +60,6 @@ const getMorningBrief = cache(async () => {
   const slug = list?.items?.[0]?.slug;
   if (!slug) return null;
   return revalidate<any>(`${API}/api/insights/${slug}`, 300);
-});
-
-// Same real market_health/market_bias score shown on the Newsroom sentiment
-// gauge — one computed signal, reused here rather than a second, possibly
-// disagreeing number.
-const getMarketHealth = cache(async () => {
-  return revalidate<{ market_bias?: string; market_health?: { score: number; label: string } }>(
-    `${API}/api/mie/state`, 300,
-  );
 });
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -225,16 +215,30 @@ async function TickerStrip() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROW 1 — AI Market Brief · Today's Biggest Events · Market Snapshot
 // ═══════════════════════════════════════════════════════════════════════════════
+function ImpactDot({ impact }: { impact?: string }) {
+  const i = (impact ?? "").toLowerCase();
+  const color = i === "positive" ? "bg-emerald-400" : i === "negative" ? "bg-rose-400" : "bg-amber-400";
+  return <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${color}`} />;
+}
+
 async function AIMarketBriefCard() {
   // Real AIPE morning_intelligence article — single source of truth for
-  // "what does the AI say about today," replacing the old MIE-sourced
-  // mie.story (a separate, competing narrative pipeline that could — and
-  // did — disagree with what the AI Newsroom shows for the same day).
-  const [brief, health] = await Promise.all([getMorningBrief(), getMarketHealth()]);
+  // everything on this card, including the structured sections below.
+  // Deliberately not blending in MIE or any other pipeline here: that's the
+  // exact "two sources disagreeing on the same day" problem this card was
+  // rewritten to avoid earlier — opportunities/risks/sectors/companies all
+  // come from this one article object, nothing else.
+  const brief = await getMorningBrief();
   if (!brief) return null;
 
-  const summary = cleanText(brief.key_takeaway ?? brief.executive_summary ?? "");
   const confPct = brief.confidence_score != null ? Math.round(brief.confidence_score * 100) : null;
+  const drivers = [
+    ...(brief.opportunities ?? []).slice(0, 3).map((o: any) => ({ text: o.title, impact: "positive" })),
+    ...(brief.risks ?? []).slice(0, 2).map((r: any) => ({ text: r.title, impact: "negative" })),
+  ].slice(0, 5);
+  const sectors = (brief.sectors_affected ?? []).slice(0, 5);
+  const companies = (brief.companies_affected ?? []).slice(0, 5);
+  const topRisk = (brief.risks ?? [])[0];
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
@@ -246,30 +250,71 @@ async function AIMarketBriefCard() {
         {brief.published_at && <span className="text-[10px] text-slate-600">{briefTimeLabel(brief.published_at)}</span>}
       </div>
 
-      {confPct != null && (
-        <div className="mb-3 flex items-center gap-2">
-          <span className="text-[11px] font-bold text-slate-400">{confPct}% Confidence</span>
-        </div>
-      )}
-
+      {/* 1. Headline */}
       <p className="mb-2 text-[15px] font-semibold leading-snug text-white line-clamp-2">{cleanText(brief.headline)}</p>
-      {summary && (
-        <p className="mb-4 line-clamp-3 text-[12.5px] leading-5 text-slate-400">{summary}</p>
+
+      {/* 2. Executive summary */}
+      {brief.executive_summary && (
+        <p className="mb-3 line-clamp-3 text-[12px] leading-5 text-slate-400">{cleanText(brief.executive_summary)}</p>
       )}
 
-      {health?.market_bias && health.market_health && (
-        <div className="mb-4 flex flex-1 flex-col items-center justify-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] py-3">
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">Today&apos;s Market Score</p>
-          <MarketSentimentGauge
-            score={health.market_health.score}
-            bias={health.market_bias}
-            label={health.market_health.label}
-          />
-        </div>
-      )}
+      <div className="space-y-2.5 border-t border-white/[0.06] pt-3">
+        {/* 3. Key drivers */}
+        {drivers.length > 0 && (
+          <div>
+            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">Key Drivers</p>
+            <ul className="space-y-1">
+              {drivers.map((d, i) => (
+                <li key={i} className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300">
+                  <span className="mt-1"><ImpactDot impact={d.impact} /></span>
+                  <span className="line-clamp-1">{cleanText(d.text)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* 4. Sectors to watch */}
+        {sectors.length > 0 && (
+          <div>
+            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">Sectors to Watch</p>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {sectors.map((s: any, i: number) => (
+                <span key={i} className="flex items-center gap-1 text-[11px] text-slate-300">
+                  <ImpactDot impact={s.impact} /> {cleanText(s.name)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 5. Companies to watch */}
+        {companies.length > 0 && (
+          <div>
+            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">Companies to Watch</p>
+            <p className="text-[11px] text-slate-300">
+              {companies.map((c: any) => c.symbol || c.name).join(" · ")}
+            </p>
+          </div>
+        )}
+
+        {/* 6. Key risk */}
+        {topRisk && (
+          <div>
+            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">Key Risk</p>
+            <p className="line-clamp-2 text-[11px] leading-snug text-rose-300/90">{cleanText(topRisk.description ?? topRisk.title)}</p>
+          </div>
+        )}
+      </div>
+
+      {/* 7. Confidence & freshness */}
+      <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3 text-[10px] text-slate-500">
+        {confPct != null && <span className="font-bold text-slate-400">AI Confidence: {confPct}%</span>}
+        {brief.published_at && <span>{briefTimeLabel(brief.published_at)}</span>}
+      </div>
 
       <Link href="/newsroom/daily-brief"
-        className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
+        className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
         Read Full Brief <ArrowRight className="h-3 w-3" />
       </Link>
     </div>
