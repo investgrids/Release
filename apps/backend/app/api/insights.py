@@ -3,20 +3,27 @@ Public Intelligence Insights API — read-only, published articles only.
 
 Serves the public /insights pages (SEO article surface). This is distinct
 from /api/publishing, which is the internal ops/monitoring dashboard API
-and exposes ops-only fields (views, validation internals, trigger data)
-that must never be shown to end users.
+and exposes ops-only fields (validation internals, trigger data) that stay
+internal. `views` is public — it's a real engaged-read counter, incremented
+via POST /{slug}/view (see below), not an ops metric.
 
-GET /api/insights/        -> paginated list of published articles
-GET /api/insights/{slug}  -> full public detail for one article
+GET  /api/insights/            -> paginated list of published articles
+GET  /api/insights/{slug}      -> full public detail for one article
+POST /api/insights/{slug}/view -> record one engaged read (deduped per
+                                   visitor per day via Redis)
+POST /api/insights/{slug}/share -> record one share-channel click (no dedup)
 """
 from __future__ import annotations
 
+import hashlib
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from slowapi.util import get_remote_address
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.redis import cache_get, cache_set
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.session import get_db
 
@@ -57,6 +64,8 @@ def _list_row(a: IntelligenceArticle) -> dict:
         # naming consistency across the homepage's article and event cards.
         "impact_score":       a.event_score,
         "read_time_minutes":  _read_time_minutes(a),
+        "views":              a.views,
+        "share_count":        a.share_count,
         "update_count":       a.update_count,
         "published_at":       a.published_at.isoformat() if a.published_at else None,
         "last_updated":       a.last_updated.isoformat() if a.last_updated else None,
@@ -215,3 +224,58 @@ async def get_insight(slug: str, db: AsyncSession = Depends(get_db)):
         ]
 
     return row
+
+
+@router.post("/{slug}/view")
+async def record_view(slug: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Record one engaged read. Called by the frontend after a reader has
+    actually spent time with the article (not fired on page load — a bounce
+    shouldn't count), so this is a real "people who read at least part of
+    this" counter, not a raw hit counter.
+
+    Deduped per visitor per article per day via Redis so reloading the same
+    article doesn't inflate the count — returns counted=False (current
+    count, unchanged) on a repeat within the window rather than erroring,
+    since the caller doesn't need to treat that as a failure.
+    """
+    result = await db.execute(
+        select(IntelligenceArticle)
+        .where(IntelligenceArticle.slug == slug)
+        .where(IntelligenceArticle.status == "published")
+    )
+    art = result.scalar_one_or_none()
+    if not art:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    visitor_hash = hashlib.sha256(f"{get_remote_address(request)}:{slug}".encode()).hexdigest()[:16]
+    dedup_key = f"article_view:{visitor_hash}"
+    if await cache_get(dedup_key):
+        return {"views": art.views, "counted": False}
+
+    art.views += 1
+    await db.commit()
+    await cache_set(dedup_key, "1", ttl=86400)
+    return {"views": art.views, "counted": True}
+
+
+@router.post("/{slug}/share")
+async def record_share(slug: str, db: AsyncSession = Depends(get_db)):
+    """
+    Record one share action — called each time a reader actually clicks a
+    share channel or copies the link (not when the share popover merely
+    opens). No dedup: unlike a view, sharing to three platforms in one
+    visit is genuinely three shares, not an inflated count of one.
+    """
+    result = await db.execute(
+        select(IntelligenceArticle)
+        .where(IntelligenceArticle.slug == slug)
+        .where(IntelligenceArticle.status == "published")
+    )
+    art = result.scalar_one_or_none()
+    if not art:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    art.share_count += 1
+    await db.commit()
+    return {"share_count": art.share_count}

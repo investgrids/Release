@@ -261,11 +261,6 @@ export function SiteHeader() {
               )}
             </div>
 
-            {/* Profile */}
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-sky-500 text-[12px] font-black text-white" title="Guest">
-              VS
-            </div>
-
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMobile(o => !o)}

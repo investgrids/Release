@@ -11,6 +11,7 @@ import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { cleanText } from "@/lib/text";
+import { MarketSentimentGauge } from "@/components/MarketSentimentGauge";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,15 @@ const getMorningBrief = cache(async () => {
   const slug = list?.items?.[0]?.slug;
   if (!slug) return null;
   return revalidate<any>(`${API}/api/insights/${slug}`, 300);
+});
+
+// Same real market_health/market_bias score shown on the Newsroom sentiment
+// gauge — one computed signal, reused here rather than a second, possibly
+// disagreeing number.
+const getMarketHealth = cache(async () => {
+  return revalidate<{ market_bias?: string; market_health?: { score: number; label: string } }>(
+    `${API}/api/mie/state`, 300,
+  );
 });
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -220,7 +230,7 @@ async function AIMarketBriefCard() {
   // "what does the AI say about today," replacing the old MIE-sourced
   // mie.story (a separate, competing narrative pipeline that could — and
   // did — disagree with what the AI Newsroom shows for the same day).
-  const brief = await getMorningBrief();
+  const [brief, health] = await Promise.all([getMorningBrief(), getMarketHealth()]);
   if (!brief) return null;
 
   const summary = cleanText(brief.key_takeaway ?? brief.executive_summary ?? "");
@@ -245,6 +255,17 @@ async function AIMarketBriefCard() {
       <p className="mb-2 text-[15px] font-semibold leading-snug text-white line-clamp-2">{cleanText(brief.headline)}</p>
       {summary && (
         <p className="mb-4 line-clamp-3 text-[12.5px] leading-5 text-slate-400">{summary}</p>
+      )}
+
+      {health?.market_bias && health.market_health && (
+        <div className="mb-4 flex flex-1 flex-col items-center justify-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] py-3">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">Today&apos;s Market Score</p>
+          <MarketSentimentGauge
+            score={health.market_health.score}
+            bias={health.market_bias}
+            label={health.market_health.label}
+          />
+        </div>
       )}
 
       <Link href="/newsroom/daily-brief"

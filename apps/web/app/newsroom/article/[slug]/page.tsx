@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText } from "@/lib/text";
+import { ShareInsightCard } from "@/components/ShareInsightCard";
+import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 
 // ── Article type metadata ────────────────────────────────────────────────────
 
@@ -75,6 +77,8 @@ interface InsightDetail {
   created_at?: string;
   story_version?: number;
   update_count?: number;
+  views?: number;
+  share_count?: number;
   update_history?: UpdateEntry[];
   parent_event_group_id?: string | null;
 }
@@ -303,14 +307,26 @@ export default async function ArticlePage(
 
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
 
+        <ArticleViewTracker slug={article.slug} />
+
         {/* Breadcrumb */}
-        <nav className="mb-6 flex items-center gap-2 text-[11px] text-slate-600">
-          <Link href="/" className="hover:text-slate-400 transition">MarketRipple</Link>
-          <span>/</span>
-          <Link href="/newsroom" className="hover:text-slate-400 transition">AI Newsroom</Link>
-          <span>/</span>
-          <span className="truncate text-slate-400">{article.headline}</span>
-        </nav>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <nav className="flex min-w-0 items-center gap-2 text-[11px] text-slate-600">
+            <Link href="/" className="hover:text-slate-400 transition">MarketRipple</Link>
+            <span>/</span>
+            <Link href="/newsroom" className="hover:text-slate-400 transition">AI Newsroom</Link>
+            <span>/</span>
+            <span className="truncate text-slate-400">{article.headline}</span>
+          </nav>
+          <ShareInsightCard
+            entityType="article"
+            entityId={article.slug}
+            title={article.headline}
+            summary={article.key_takeaway ?? article.executive_summary}
+            shareCount={article.share_count}
+            className="shrink-0"
+          />
+        </div>
 
         {/* ══════════ 1. HERO ══════════ */}
         <div className="mb-8">
@@ -341,6 +357,9 @@ export default async function ArticlePage(
                 <Eye className="h-3 w-3" /> Updated {article.update_count}× · last {fmtRelative(article.last_updated)}
               </span>
             )}
+            <span className="flex items-center gap-1 text-[11px] text-slate-500">
+              <Eye className="h-3 w-3" /> {(article.views ?? 0).toLocaleString("en-IN")} read this
+            </span>
             {article.parent_event_group_id && (
               <span className="flex items-center gap-1 text-[11px] text-violet-400">
                 <Layers className="h-3 w-3" /> Part of a {relatedArticles.length + 1}-article campaign

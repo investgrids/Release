@@ -132,6 +132,7 @@ class IntelligenceArticle(Base):
 
     # ── Analytics ─────────────────────────────────────────────────────────────
     views            = Column(Integer, nullable=False, default=0)
+    share_count      = Column(Integer, nullable=False, default=0)
     avg_time_on_page = Column(Float, nullable=True)
     organic_traffic  = Column(Integer, nullable=False, default=0)
     ctr              = Column(Float, nullable=True)

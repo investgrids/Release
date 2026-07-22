@@ -25,6 +25,7 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("intelligence_articles", "angle_entity",            "VARCHAR(64)"),
     ("intelligence_articles", "parent_event_group_id",   "VARCHAR(64)"),
     ("intelligence_articles", "is_evergreen",            "BOOLEAN NOT NULL DEFAULT 0"),
+    ("intelligence_articles", "share_count",              "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

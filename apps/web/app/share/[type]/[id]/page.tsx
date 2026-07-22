@@ -10,9 +10,9 @@ import {
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.in";
 
-type EntityType = "event" | "company" | "story" | "opportunity" | "ripple" | "search";
+type EntityType = "event" | "company" | "story" | "opportunity" | "ripple" | "search" | "article";
 
-const VALID_TYPES = new Set<EntityType>(["event", "company", "story", "opportunity", "ripple", "search"]);
+const VALID_TYPES = new Set<EntityType>(["event", "company", "story", "opportunity", "ripple", "search", "article"]);
 
 function isValid(t: string): t is EntityType { return VALID_TYPES.has(t as EntityType); }
 
@@ -107,6 +107,19 @@ async function fetchEntity(type: EntityType, id: string): Promise<EntityData | n
           type,
         };
       }
+      case "article": {
+        const r = await fetch(`${API}/api/insights/${id}`, { next: { revalidate: 1800 } });
+        if (!r.ok) return null;
+        const d = await r.json();
+        return {
+          title:       d.headline ?? "Market Intelligence",
+          description: d.key_takeaway ?? d.executive_summary ?? "",
+          sector:      d.sectors_affected?.[0]?.name,
+          confidence:  d.confidence_score,
+          href:        `/newsroom/article/${id}`,
+          type,
+        };
+      }
     }
   } catch { return null; }
 }
@@ -118,6 +131,7 @@ const TYPE_ICON: Record<EntityType, React.ReactNode> = {
   opportunity: <Target className="h-5 w-5" />,
   ripple:      <Activity className="h-5 w-5" />,
   search:      <Search className="h-5 w-5" />,
+  article:     <Brain className="h-5 w-5" />,
 };
 
 const TYPE_COLOR: Record<EntityType, string> = {
@@ -127,6 +141,7 @@ const TYPE_COLOR: Record<EntityType, string> = {
   opportunity: "from-emerald-600 to-teal-700",
   ripple:      "from-rose-600 to-rose-800",
   search:      "from-indigo-600 to-indigo-800",
+  article:     "from-fuchsia-600 to-purple-800",
 };
 
 const TYPE_LABEL: Record<EntityType, string> = {
@@ -136,6 +151,7 @@ const TYPE_LABEL: Record<EntityType, string> = {
   opportunity: "Investment Opportunity",
   ripple:      "Ripple Intelligence",
   search:      "AI Market Search",
+  article:     "AI Newsroom",
 };
 
 // ── generateMetadata ──────────────────────────────────────────────────────────

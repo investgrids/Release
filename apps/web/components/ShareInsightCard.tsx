@@ -5,6 +5,7 @@ import {
   Share2, X, Copy, Check,
   MessageCircle, Send, Link as LinkIcon,
 } from "lucide-react";
+import { API_BASE_URL as API } from "@/lib/api";
 
 /* Inline SVG icons for platforms not in this lucide-react version */
 const XIcon = () => (
@@ -19,7 +20,7 @@ const LinkedInIcon = () => (
 );
 
 export type ShareInsightType =
-  | "event" | "company" | "story" | "opportunity" | "ripple" | "search";
+  | "event" | "company" | "story" | "opportunity" | "ripple" | "search" | "article";
 
 interface ShareInsightCardProps {
   title:       string;
@@ -31,6 +32,8 @@ interface ShareInsightCardProps {
   /** Extra label shown on the trigger button */
   label?:      string;
   className?:  string;
+  /** Initial count to show in the popover — omit to hide the count entirely */
+  shareCount?: number;
 }
 
 const SITE = typeof window !== "undefined"
@@ -45,11 +48,22 @@ function buildShareUrl(entityType: ShareInsightType, entityId: string): string {
 function encode(s: string) { return encodeURIComponent(s); }
 
 export function ShareInsightCard({
-  title, summary, entityType, entityId, shareUrl, label, className = "",
+  title, summary, entityType, entityId, shareUrl, label, className = "", shareCount,
 }: ShareInsightCardProps) {
   const [open,    setOpen]    = useState(false);
   const [copied,  setCopied]  = useState(false);
+  const [count,   setCount]   = useState(shareCount);
   const dialogRef             = useRef<HTMLDivElement>(null);
+
+  // Backend tracking only exists for articles today (POST /api/insights/{slug}/share)
+  // — other entity types render this same component but aren't wired up yet.
+  const trackShare = useCallback(() => {
+    if (entityType !== "article") return;
+    fetch(`${API}/api/insights/${entityId}/share`, { method: "POST" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.share_count != null) setCount(d.share_count); })
+      .catch(() => {});
+  }, [entityType, entityId]);
 
   const url  = shareUrl ?? buildShareUrl(entityType, entityId);
   const text = summary
@@ -89,12 +103,16 @@ export function ShareInsightCard({
   ] as const;
 
   const handleCopy = useCallback(async () => {
+    // Track on the click itself, not gated on the clipboard write succeeding
+    // — a browser blocking clipboard access doesn't mean the reader didn't
+    // intend to share (the URL is still right there in the popover).
+    trackShare();
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch { /* clipboard unavailable */ }
-  }, [url]);
+    } catch { /* clipboard unavailable — count still recorded above */ }
+  }, [url, trackShare]);
 
   // Close on outside click
   useEffect(() => {
@@ -127,6 +145,7 @@ export function ShareInsightCard({
       >
         <Share2 className="h-3.5 w-3.5" />
         {label ?? "Share"}
+        {count != null && <span className="text-slate-500">· {count.toLocaleString("en-IN")}</span>}
       </button>
 
       {/* Popover */}
@@ -161,7 +180,7 @@ export function ShareInsightCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-white transition ${ch.color}`}
-                onClick={() => setOpen(false)}
+                onClick={() => { trackShare(); setOpen(false); }}
               >
                 {ch.icon}
                 {ch.label}

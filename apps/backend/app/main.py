@@ -322,6 +322,11 @@ _cors_origins = list({*_default_cors(), *settings.backend_cors_origins})
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    # `next dev` picks a different port whenever the default is already in
+    # use (3001, 3002, ...) — a fixed localhost:3000 entry silently breaks
+    # every client-side fetch the moment that happens. Loopback-only, so
+    # this doesn't loosen anything for real origins.
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1):\d+$",
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
