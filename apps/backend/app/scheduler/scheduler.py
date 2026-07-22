@@ -43,6 +43,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_seed_opportunities,
         job_warm_premarket,
         job_evaluate_predictions,
+        job_backup_database,
     )
     from app.services.intelligence.theme_worker import run_theme_scoring
     from app.services.intelligence.price_monitor import run_price_monitor_cycle
@@ -136,6 +137,16 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         misfire_grace_time=3600,
     )
 
+    # ── Database backup — 2:00 AM IST (off-peak) ─────────────────────────────
+    scheduler.add_job(
+        job_backup_database,
+        CronTrigger(hour=2, minute=0, timezone=_IST),
+        id="backup_database",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+    )
+
     # ── Theme scoring — every 10 minutes ─────────────────────────────────────
     scheduler.add_job(
         run_theme_scoring,
@@ -219,10 +230,19 @@ async def start_scheduler() -> AsyncIOScheduler:
     scheduler = get_scheduler()
 
     # Seed opportunities on startup if table is empty (one-time only)
-    from app.tasks.daily_tasks import job_seed_opportunities
+    from app.tasks.daily_tasks import job_seed_opportunities, job_backup_database
     scheduler.add_job(
         job_seed_opportunities,
         id="seed_opportunities_startup",
+        max_instances=1,
+        trigger="date",  # runs once immediately
+    )
+
+    # First backup shortly after boot too, so a fresh deploy doesn't wait
+    # until 2 AM for its first snapshot.
+    scheduler.add_job(
+        job_backup_database,
+        id="backup_database_startup",
         max_instances=1,
         trigger="date",  # runs once immediately
     )

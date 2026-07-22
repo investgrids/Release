@@ -291,3 +291,16 @@ async def job_seed_opportunities() -> None:
     async with AsyncSessionLocal() as db:
         await _seed_static_opportunities(db)
     log.info("job.seed_opportunities.done")
+
+
+# ── 2:00 AM IST — Backup the database ────────────────────────────────────────
+
+async def job_backup_database() -> None:
+    """Snapshot the database to the persistent volume. Off-peak hour so the
+    (brief) SQLite backup-API lock doesn't compete with live traffic."""
+    import asyncio
+    from app.db.backup import backup_database
+
+    log.info("job.backup_database.start")
+    result = await asyncio.to_thread(backup_database)
+    log.info("job.backup_database.done", **result)
