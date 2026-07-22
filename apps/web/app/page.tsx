@@ -76,6 +76,21 @@ function timeAgo(iso: string | null | undefined): string {
   return mins < 1 ? "just now" : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
 }
 
+// The backend only ever creates a morning_intelligence article in one of two
+// windows: the normal 06:00-11:59 IST run, or the noon+ one-time late
+// backfill (see publisher.py's _scheduled_article_due). published_at's IST
+// hour is therefore a reliable signal for which one happened — no separate
+// "generated_late" field needs to round-trip through the API for this.
+function briefTimeLabel(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const ist = new Date(new Date(iso).getTime() + 5.5 * 3600_000);
+  const hour = ist.getUTCHours();
+  if (hour < 12) return `Updated ${timeAgo(iso)}`;
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  const mins = ist.getUTCMinutes().toString().padStart(2, "0");
+  return `Generated at ${h12}:${mins} ${hour >= 12 ? "PM" : "AM"}`;
+}
+
 // ── Mini sparkline (fed real index chart points — never synthetic) ────────────
 function MiniSparkline({ data, positive, w = 64, h = 28 }: { data: number[]; positive: boolean; w?: number; h?: number }) {
   if (!data || data.length < 2) return null;
@@ -218,7 +233,7 @@ async function AIMarketBriefCard() {
           <Sparkles className="h-4 w-4 text-violet-400" />
           <h3 className="text-[13px] font-black text-white">AI Market Brief</h3>
         </div>
-        {brief.published_at && <span className="text-[10px] text-slate-600">Updated {timeAgo(brief.published_at)}</span>}
+        {brief.published_at && <span className="text-[10px] text-slate-600">{briefTimeLabel(brief.published_at)}</span>}
       </div>
 
       {confPct != null && (

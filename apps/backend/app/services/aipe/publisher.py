@@ -272,6 +272,7 @@ async def _publish_new_article(
             "headline": triage_event.get("headline"),
             "urgency":  triage_event.get("urgency"),
             "sectors":  sectors[:4],
+            **({"generated_late": True} if triage_event.get("generated_late") else {}),
         },
         # Scores
         event_score=float(triage_event.get("urgency") or 0) * 10,
@@ -462,7 +463,12 @@ async def _build_scheduled_event(db, session: str) -> dict[str, Any] | None:
             companies.append({"name": c, "symbol": ""})
 
     article_type = "morning_intelligence" if session in ("pre_open", "pre_market", "live") else "market_wrap"
-    today = datetime.now(_IST).strftime("%Y-%m-%d")
+    now_ist = datetime.now(_IST)
+    today = now_ist.strftime("%Y-%m-%d")
+    # A morning_intelligence generated at/after noon is the late-backfill
+    # path, not the normal window — flagged in trigger_data so the frontend
+    # can show "Generated at 2:15 PM" instead of implying it ran on time.
+    generated_late = article_type == "morning_intelligence" and now_ist.hour >= 12
 
     return {
         "event_id":      f"scheduled-{article_type}-{today}",
@@ -481,21 +487,24 @@ async def _build_scheduled_event(db, session: str) -> dict[str, Any] | None:
         "triaged_at":    datetime.now(timezone.utc).isoformat(),
         "_scheduled":    True,
         "_article_type": article_type,
+        "generated_late": generated_late,
     }
 
 
 async def _scheduled_article_due(db, session: str, today_story_ids: set) -> bool:
     """
     True when a scheduled (time-based) article hasn't been generated today.
-    morning_intelligence → due in pre_open / pre_market / live (before noon)
-    market_wrap          → due in post_market / closed (after 15:30 IST)
+    morning_intelligence → due any time the market hasn't closed yet (session
+      still pre_open/pre_market/live), not just before noon. Normally this
+      resolves in the 06:00-11:59 IST window; the noon+ case is the one-time
+      late-backfill path (see _build_scheduled_event) — it exists so a
+      redeploy, DB recovery, or AI-provider outage that eats the morning
+      window doesn't leave the homepage's brief card empty for the rest of
+      the trading day. Still runs at most once (today_story_ids dedup).
+    market_wrap           → due in post_market / closed (after 15:30 IST)
     """
     today = datetime.now(_IST).strftime("%Y-%m-%d")
     if session in ("pre_open", "pre_market", "live"):
-        ist_now = datetime.now(_IST)
-        # Only generate morning piece before noon
-        if ist_now.hour >= 12:
-            return False
         story_id = f"morning-{today}"
         return story_id not in today_story_ids
 
