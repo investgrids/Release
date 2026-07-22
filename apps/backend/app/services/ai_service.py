@@ -178,16 +178,18 @@ def get_nvidia_metrics() -> dict:
     return {**_nvidia_metrics.snapshot(), "circuit_state": _nvidia_circuit.state}
 
 # ── Tier 1: OpenRouter HIGH-QUALITY large free models (best reasoning, tried first)
+#
+# 2026-07-22: verified live against OpenRouter directly. Several entries here
+# were returning HTTP 404 "unavailable for free" / "no endpoints found" on
+# every single call — OpenRouter had quietly moved them to paid-only or
+# removed them, and every AIPE cycle was burning ~9 wasted round-trips on
+# this tier alone before ever reaching a model that actually answers. Only
+# currently-live free slugs are listed; re-verify before adding more.
 _OR_HIGH_QUALITY = [
     "nvidia/nemotron-3-ultra-550b-a55b:free",       # 550B — largest free model
-    "nousresearch/hermes-3-llama-3.1-405b:free",    # 405B — excellent instruction following
-    "openai/gpt-oss-120b:free",                     # 120B — GPT-class quality
     "nvidia/nemotron-3-super-120b-a12b:free",        # 120B — NVIDIA quality
-    "meta-llama/llama-3.3-70b-instruct:free",       # 70B  — reliable 70B
-    "qwen/qwen3-next-80b-a3b-instruct:free",        # 80B  — Qwen large
     "google/gemma-4-31b-it:free",                   # 31B  — Google quality
     "openai/gpt-oss-20b:free",                      # 20B  — GPT OSS mid
-    "qwen/qwen3-coder:free",                        # large coder — good JSON
 ]
 
 # ── Tier 2: Gemini (1,500 req/day — high quality, very reliable)
@@ -197,12 +199,14 @@ _GEMINI_MODELS = [
 ]
 
 # ── Tier 3: Groq HIGH-QUALITY (best Groq models, 1,000 req/day each)
+#
+# 2026-07-22: qwen/qwen3-32b and the llama-4-scout slug both verified 404
+# ("model does not exist") against Groq directly — deprecated/renamed on
+# Groq's side. Removed rather than left to fail every cycle.
 _GROQ_HIGH = [
     "openai/gpt-oss-120b",                       # 1,000 req/day — highest quality on Groq
     "llama-3.3-70b-versatile",                   # 1,000 req/day — strong 70B
     "openai/gpt-oss-20b",                        # 1,000 req/day — solid mid-tier
-    "qwen/qwen3-32b",                            # 1,000 req/day — good reasoning
-    "meta-llama/llama-4-scout-17b-16e-instruct", # 1,000 req/day — highest TPM on Groq
 ]
 
 # ── Tier 4: Groq FAST (14,400 req/day — high volume workhorse when quality tiers exhaust)
@@ -220,18 +224,17 @@ _CEREBRAS_MODELS = [
 ]
 
 # ── Tier 6: OpenRouter smaller free models (final fallback)
+#
+# 2026-07-22: same live-verification pass as Tier 1 — laguna-xs.2, the
+# llama-3.2-3b slug, dolphin-mistral, and both liquid/lfm-2.5 entries all
+# 404'd (deprecated / no endpoints). Removed.
 _OR_SMALL = [
     "nvidia/nemotron-3-nano-30b-a3b:free",
     "nvidia/nemotron-nano-12b-v2-vl:free",
     "nvidia/nemotron-nano-9b-v2:free",
     "poolside/laguna-m.1:free",
-    "poolside/laguna-xs.2:free",
     "google/gemma-4-26b-a4b-it:free",
-    "meta-llama/llama-3.2-3b-instruct:free",
     "cohere/north-mini-code:free",
-    "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-    "liquid/lfm-2.5-1.2b-thinking:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
 
