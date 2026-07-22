@@ -3,11 +3,12 @@ AI service — multi-provider free-tier AI with automatic fallback.
 
 Provider chain (highest quality first, auto-skips exhausted providers):
   1. OpenRouter large  — 550B, 405B, 120B, 70B free models (~50 req/day each)
-  2. Gemini            — gemini-2.0-flash, 1,500 req/day / 4M tokens free
-  3. Groq high-quality — gpt-oss-120b, llama-3.3-70b, 1,000 req/day each
-  4. Groq fast         — llama-3.1-8b-instant, 14,400 req/day (high-volume workhorse)
-  5. Cerebras          — llama3.1-70b/8b, 10,000 req/day, ultra-fast
-  6. OpenRouter small  — remaining free models as final fallback
+  2. Mistral           — mistral-small/open-mistral-nemo, La Plateforme
+  3. Gemini            — gemini-2.0-flash, 1,500 req/day / 4M tokens free
+  4. Groq high-quality — gpt-oss-120b, llama-3.3-70b, 1,000 req/day each
+  5. Groq fast         — llama-3.1-8b-instant, 14,400 req/day (high-volume workhorse)
+  6. Cerebras          — llama3.1-70b/8b, 10,000 req/day, ultra-fast
+  7. OpenRouter small  — remaining free models as final fallback
 
 Each model that returns HTTP 429 (rate-limited) is remembered in _EXHAUSTED
 for the lifetime of the process and skipped on all future calls — no wasted
@@ -28,6 +29,7 @@ _OR_URL       = "https://openrouter.ai/api/v1/chat/completions"
 _GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 _CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions"
 _GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+_MISTRAL_URL  = "https://api.mistral.ai/v1/chat/completions"
 _NVIDIA_PATH  = "/chat/completions"   # appended to settings.nvidia_base_url
 
 # Models that have returned 429 (rate exhausted) — skipped until process restart
@@ -192,6 +194,12 @@ _OR_HIGH_QUALITY = [
     "openai/gpt-oss-20b:free",                      # 20B  — GPT OSS mid
 ]
 
+# ── Tier 1.5: Mistral La Plateforme — verified live 2026-07-22
+_MISTRAL_MODELS = [
+    "mistral-small-latest",
+    "open-mistral-nemo",
+]
+
 # ── Tier 2: Gemini (1,500 req/day — high quality, very reliable)
 #
 # 2026-07-22: gemini-1.5-flash confirmed 404 (deprecated on Google's side).
@@ -284,6 +292,7 @@ async def _call_provider(
     _PROVIDER_BY_URL = {
         _OR_URL: "openrouter", _GROQ_URL: "groq",
         _CEREBRAS_URL: "cerebras", _GEMINI_URL: "gemini",
+        _MISTRAL_URL: "mistral",
     }
     provider_name = _PROVIDER_BY_URL.get(base_url, "unknown")
 
@@ -453,6 +462,16 @@ async def _call_with_fallback(
             result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers)
             if result:
                 log.info("ai.success", provider="openrouter-hq", model=model)
+                return result
+
+    # ── Tier 1.5: Mistral La Plateforme ──────────────────────────────────────
+    if settings.mistral_api_key:
+        for model in _MISTRAL_MODELS:
+            if model in _EXHAUSTED:
+                continue
+            result = await _call_provider(_MISTRAL_URL, settings.mistral_api_key, model, prompt, system, max_tokens)
+            if result:
+                log.info("ai.success", provider="mistral", model=model)
                 return result
 
     # ── Tier 2: Gemini — reliable, 1,500 req/day ─────────────────────────────

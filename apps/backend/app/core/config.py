@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
 
+    # Mistral — La Plateforme (console.mistral.ai)
+    mistral_api_key: str = ""
+
     # OpenRouter — free tier fallback (openrouter.ai)
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
