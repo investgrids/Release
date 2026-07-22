@@ -9,6 +9,17 @@ def _default_cors() -> List[str]:
     origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        # release-web (apps/web) — the actual production Vercel project.
+        # marketripple.in isn't purchased yet, so release-web-pi.vercel.app
+        # is the real, currently-used prod URL; kept alongside the other
+        # stable aliases (railway alias ls) and the future custom domain so
+        # this doesn't regress again once the domain is bought.
+        "https://marketripple.in",
+        "https://www.marketripple.in",
+        "https://release-web-pi.vercel.app",
+        "https://release-web-investgrids-3322s-projects.vercel.app",
+        "https://release-web-investgrids-3322-investgrids-3322s-projects.vercel.app",
+        "https://release-web-git-main-investgrids-3322s-projects.vercel.app",
     ]
     # Allow any Vercel preview/production deployment automatically
     vercel_url = os.environ.get("VERCEL_URL", "")
@@ -23,7 +34,7 @@ def _default_cors() -> List[str]:
 class Settings(BaseSettings):
     app_name: str = "IG Market Intelligence"
     backend_cors_origins: List[str] = []
-    frontend_url: str = ""    # set on Railway: https://web-khaki-seven-98.vercel.app
+    frontend_url: str = ""    # set on Railway: https://release-web-pi.vercel.app (real prod domain not purchased yet)
     log_level: str = "INFO"
     json_logs: bool = False          # True in production for structured JSON
 
