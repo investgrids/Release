@@ -8,7 +8,6 @@ import {
   Compass, ListChecks, History, Newspaper, Sparkles,
   ChevronRight, Gauge,
 } from "lucide-react";
-import OpeningPrediction from "@/components/market/OpeningPrediction";
 import { API_BASE_URL as API } from "@/lib/api";
 
 
@@ -1018,8 +1017,6 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
               </div>
             </div>
           </div>
-
-          <OpeningPrediction />
         </div>
       </Section>
 

@@ -20,6 +20,7 @@ interface KeyDriver { label: string; level: string }
 interface CommodityData {
   metals: Commodity[]; energy: Commodity[];
   insights: {
+    degraded?: boolean;
     metals: InsightGroup; energy: InsightGroup;
     key_drivers_metals: KeyDriver[]; key_drivers_energy: KeyDriver[];
     daily_summary: string;
@@ -40,52 +41,6 @@ const ICONS: Record<string, ReactNode> = {
   wti:      <Droplets className="h-5 w-5 text-blue-300" />,
   natgas:   <Flame className="h-5 w-5 text-violet-400" />,
   petrol:   <Gauge className="h-5 w-5 text-emerald-400" />,
-};
-
-const mkChart = (base: number, pts = 7, vol = 0.006): ChartPoint[] =>
-  Array.from({ length: pts }, (_, i) => ({
-    label: `D${i}`,
-    value: parseFloat((base * (1 + (Math.random() - 0.48) * vol * (i + 1))).toFixed(2)),
-  }));
-
-const FB_METALS: Commodity[] = [
-  { id:"gold",     name:"Gold",     unit:"USD / oz",  price:"2,427.50", change:"+28.40", pct: 1.18, positive:true,  high:"2,438.70", low:"2,392.10", chart:mkChart(2395) },
-  { id:"silver",   name:"Silver",   unit:"USD / oz",  price:"28.65",    change:"+0.42",  pct: 1.49, positive:true,  high:"28.74",    low:"28.10",    chart:mkChart(28.2) },
-  { id:"copper",   name:"Copper",   unit:"USD / lb",  price:"4.68",     change:"+0.07",  pct: 1.52, positive:true,  high:"4.71",     low:"4.59",     chart:mkChart(4.6) },
-  { id:"platinum", name:"Platinum", unit:"USD / oz",  price:"1,045.30", change:"+9.10",  pct: 0.88, positive:true,  high:"1,051.80", low:"1,028.40", chart:mkChart(1030) },
-];
-const FB_ENERGY: Commodity[] = [
-  { id:"brent",  name:"Crude Oil (Brent)",     unit:"USD / bbl",   price:"83.47",  change:"+2.34", pct: 2.89, positive:true,  high:"83.92",  low:"80.95",  chart:mkChart(80.8) },
-  { id:"wti",    name:"Crude Oil (WTI)",        unit:"USD / bbl",   price:"79.68",  change:"+2.11", pct: 2.72, positive:true,  high:"80.12",  low:"77.32",  chart:mkChart(77.4) },
-  { id:"natgas", name:"Natural Gas",            unit:"USD / MMBtu", price:"2.56",   change:"+0.05", pct: 2.00, positive:true,  high:"2.58",   low:"2.47",   chart:mkChart(2.5) },
-  { id:"petrol", name:"India Petrol (Retail)", unit:"INR / Litre", price:"103.19", change:"-0.28", pct:-0.27, positive:false, high:"103.45", low:"102.85", chart:mkChart(103.3) },
-];
-const FB_INSIGHTS: CommodityData["insights"] = {
-  metals: {
-    impact: "High Impact",
-    items: [
-      { text: "Gold is up due to safe-haven demand amid escalating geopolitical tensions.", impact: "Bullish" },
-      { text: "Silver and Platinum are gaining as industrial demand remains strong despite global uncertainties.", impact: "Moderately Bullish" },
-      { text: "Copper prices rising due to supply concerns and strong demand from China.", impact: "Bullish" },
-    ],
-  },
-  energy: {
-    impact: "Very High Impact",
-    items: [
-      { text: "Crude oil prices are up sharply due to supply risks from geopolitical tensions in the Middle East.", impact: "Very Bullish" },
-      { text: "Petrol and diesel prices likely to remain elevated in the short term. Monitor OPEC+ decisions.", impact: "Bullish" },
-      { text: "Natural gas prices inch higher as US inventory falls and summer demand expectations rise.", impact: "Moderately Bullish" },
-    ],
-  },
-  key_drivers_metals: [
-    { label:"Middle East Tensions", level:"High" }, { label:"US Dollar Index", level:"Moderate" },
-    { label:"China Manufacturing Data", level:"Moderate" }, { label:"Interest Rate Outlook", level:"Low" },
-  ],
-  key_drivers_energy: [
-    { label:"OPEC+ Decisions", level:"High" }, { label:"Geopolitical Risk", level:"High" },
-    { label:"US Crude Inventory", level:"Moderate" }, { label:"Summer Demand", level:"Moderate" },
-  ],
-  daily_summary: "War-related tensions continue to support safe-haven assets like gold. Crude oil remains volatile with upside risk. Monitor geopolitical news, OPEC+ updates, and USD movement for short-term price direction.",
 };
 
 const IMPACT_BADGE: Record<string, string> = {
@@ -156,30 +111,38 @@ function CommodityCard({ c }: { c: Commodity }) {
   );
 }
 
-function InsightsPanel({ insights, label }: { insights: InsightGroup; label: string }) {
+function InsightsPanel({ insights, label, degraded }: { insights: InsightGroup; label: string; degraded?: boolean }) {
   return (
     <div className="rounded-[20px] border border-violet-500/20 bg-violet-500/[0.04] p-4">
       <div className="flex items-start justify-between gap-2 mb-4">
         <p className="text-[10px] font-bold tracking-[0.18em] text-violet-300 uppercase leading-tight">
           AI Insights — {label}
         </p>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${IMPACT_BADGE[insights.impact] ?? "bg-rose-500/10 text-rose-300"}`}>
-          {insights.impact}
-        </span>
+        {!degraded && (
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${IMPACT_BADGE[insights.impact] ?? "bg-rose-500/10 text-rose-300"}`}>
+            {insights.impact}
+          </span>
+        )}
       </div>
-      <div className="space-y-3.5">
-        {insights.items.map((item, i) => (
-          <div key={i} className="flex gap-2.5">
-            <span className="mt-0.5 shrink-0 text-slate-400">{INSIGHT_ICONS[i] ?? <span>•</span>}</span>
-            <div>
-              <p className="text-xs text-slate-300 leading-relaxed">{item.text}</p>
-              <span className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${SENTIMENT_BADGE[item.impact] ?? "bg-slate-500/10 text-slate-400"}`}>
-                Impact: {item.impact}
-              </span>
+      {degraded ? (
+        <p className="text-xs text-slate-500 leading-relaxed">
+          AI commentary isn&apos;t available right now — the prices above are still live. Try again shortly.
+        </p>
+      ) : (
+        <div className="space-y-3.5">
+          {insights.items.map((item, i) => (
+            <div key={i} className="flex gap-2.5">
+              <span className="mt-0.5 shrink-0 text-slate-400">{INSIGHT_ICONS[i] ?? <span>•</span>}</span>
+              <div>
+                <p className="text-xs text-slate-300 leading-relaxed">{item.text}</p>
+                <span className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${SENTIMENT_BADGE[item.impact] ?? "bg-slate-500/10 text-slate-400"}`}>
+                  Impact: {item.impact}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       <Link href="/ai-search"
         className="mt-4 flex items-center gap-1 text-[11px] text-violet-400 hover:text-violet-300 transition">
         View Detailed Analysis <span aria-hidden>→</span>
@@ -204,10 +167,10 @@ function KeyDrivers({ drivers }: { drivers: KeyDriver[] }) {
 
 function CommoditySection({
   title, icon, subtitle, viewHref, viewLabel,
-  commodities, insights, drivers,
+  commodities, insights, drivers, degraded,
 }: {
   title: string; icon: ReactNode; subtitle: string; viewHref: string; viewLabel: string;
-  commodities: Commodity[]; insights: InsightGroup; drivers: KeyDriver[];
+  commodities: Commodity[]; insights: InsightGroup; drivers: KeyDriver[]; degraded?: boolean;
 }) {
   return (
     <div className="rounded-[24px] border border-violet-500/15 bg-[#0A0B0F]/80 p-5">
@@ -228,18 +191,16 @@ function CommoditySection({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {commodities.map(c => <CommodityCard key={c.id} c={c} />)}
         </div>
-        <InsightsPanel insights={insights} label={title} />
+        <InsightsPanel insights={insights} label={title} degraded={degraded} />
       </div>
 
-      <KeyDrivers drivers={drivers} />
+      {!degraded && <KeyDrivers drivers={drivers} />}
     </div>
   );
 }
 
 export default function MarketsPage() {
-  const [data, setData] = useState<CommodityData>({
-    metals: FB_METALS, energy: FB_ENERGY, insights: FB_INSIGHTS, updated: "—",
-  });
+  const [data, setData]       = useState<CommodityData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -249,6 +210,23 @@ export default function MarketsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  if (loading) {
+    return (
+      <main className="min-w-0 space-y-5 pb-10">
+        <div className="h-16 animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
+        {[1, 2].map(i => <div key={i} className="h-64 animate-pulse rounded-[24px] border border-white/[0.06] bg-white/[0.02]" />)}
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="flex min-w-0 flex-col items-center justify-center gap-3 py-24 text-center">
+        <p className="text-sm text-slate-500">Commodity data isn&apos;t available right now.</p>
+      </main>
+    );
+  }
 
   const { metals, energy, insights } = data;
 
@@ -274,7 +252,7 @@ export default function MarketsPage() {
             <div className="hidden sm:block">
               <p className="text-[10px] font-semibold text-violet-300 uppercase tracking-widest">AI Daily Insight</p>
               <p className="mt-0.5 max-w-xs text-xs text-slate-400 leading-relaxed line-clamp-2">
-                {insights.daily_summary}
+                {insights.degraded ? "Not available right now." : insights.daily_summary}
               </p>
             </div>
           </div>
@@ -291,6 +269,7 @@ export default function MarketsPage() {
         commodities={metals}
         insights={insights.metals}
         drivers={insights.key_drivers_metals}
+        degraded={insights.degraded}
       />
 
       {/* Energy section */}
@@ -303,6 +282,7 @@ export default function MarketsPage() {
         commodities={energy}
         insights={insights.energy}
         drivers={insights.key_drivers_energy}
+        degraded={insights.degraded}
       />
 
       {/* AI Daily Market Summary footer */}
@@ -314,7 +294,7 @@ export default function MarketsPage() {
           <div className="min-w-0">
             <p className="text-xs font-semibold text-white">AI Daily Market Summary</p>
             <p className="mt-0.5 text-xs text-slate-400 leading-relaxed line-clamp-2">
-              {insights.daily_summary}
+              {insights.degraded ? "AI summary isn't available right now — prices above are still live." : insights.daily_summary}
             </p>
           </div>
         </div>

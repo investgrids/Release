@@ -331,55 +331,7 @@ The what_to_watch_next should be exactly 3 specific things for tomorrow.
 """ + _BASE_SECTIONS
 
 
-# ── 10. Weekly Intelligence ───────────────────────────────────────────────────
-WEEKLY_INTELLIGENCE = """You are writing the Weekly Intelligence — a synthesis of the week's market story.
-
-THIS WEEK'S DATA:
-{summary}
-
-Week's Market Narrative: {market_context}
-Active Themes: {themes}
-
-Your job: Answer "What defined this week in Indian markets and what should investors know for next week?"
-
-Focus on:
-1. The week's central theme — what was the market's dominant story?
-2. Sector rotation — which sectors gained/lost the most? Why?
-3. Key events that moved the market this week
-4. FII/DII cumulative activity this week and what it signals
-5. Theme performance: which investment themes advanced or retreated?
-6. How does this week compare to the prior week and recent pattern?
-7. Next week outlook: what are the biggest scheduled catalysts?
-8. 3 stocks that stood out this week and why
-
-""" + _BASE_SECTIONS
-
-
-# ── 11. Monthly Intelligence ──────────────────────────────────────────────────
-MONTHLY_INTELLIGENCE = """You are writing the Monthly Intelligence — the definitive month-in-review.
-
-THIS MONTH'S DATA:
-{summary}
-
-Month's Narrative: {market_context}
-Active Themes: {themes}
-
-Your job: Answer "What was the investment story of this month and how should investors position for next month?"
-
-Focus on:
-1. Month's performance vs market expectations at the month's start
-2. The 2-3 most important events that defined the month
-3. Best and worst performing sectors — and WHY (not just the numbers)
-4. Theme tracking: which megatrends advanced? Which stalled?
-5. Macro developments: inflation, IIP, FII flows, RBI stance
-6. Portfolio implications: what should long-term investors have learned?
-7. Next month preview: key data releases, events, potential catalysts
-8. Confidence assessment: is the medium-term market outlook improving or deteriorating?
-
-""" + _BASE_SECTIONS
-
-
-# ── 12. Educational Intelligence ─────────────────────────────────────────────
+# ── 10. Educational Intelligence ─────────────────────────────────────────────
 EDUCATIONAL_INTELLIGENCE = """You are writing Educational Intelligence — explaining a market concept,
 mechanism, or event in plain English for investors who want to understand, not just react.
 
@@ -406,7 +358,7 @@ Avoid jargon. If you must use a term, define it immediately.
 """ + _BASE_SECTIONS
 
 
-# ── 13. Question Intelligence ─────────────────────────────────────────────────
+# ── 11. Question Intelligence ─────────────────────────────────────────────────
 QUESTION_INTELLIGENCE = """You are answering a specific, high-intent investor question that people are
 actively typing into Google right now. This is NOT a news summary — it is a direct answer page.
 
@@ -442,7 +394,7 @@ Banking Stocks?") — not a rephrased statement.
 """ + _BASE_SECTIONS
 
 
-# ── 14. Historical Intelligence ───────────────────────────────────────────────
+# ── 12. Historical Intelligence ───────────────────────────────────────────────
 HISTORICAL_INTELLIGENCE = """You are writing a Historical Intelligence deep-dive — analysing a PATTERN across
 multiple past market events, not a single event. These pages have a long SEO life because the pattern
 they describe stays relevant long after any one event fades from the news cycle.
@@ -482,8 +434,6 @@ TEMPLATES: dict[str, str] = {
     "ripple_intelligence":       RIPPLE_INTELLIGENCE,
     "opportunity_intelligence":  OPPORTUNITY_INTELLIGENCE,
     "market_wrap":               MARKET_WRAP,
-    "weekly_intelligence":       WEEKLY_INTELLIGENCE,
-    "monthly_intelligence":      MONTHLY_INTELLIGENCE,
     "educational_intelligence":  EDUCATIONAL_INTELLIGENCE,
     "question_intelligence":     QUESTION_INTELLIGENCE,
     "historical_intelligence":   HISTORICAL_INTELLIGENCE,

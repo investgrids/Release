@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMarketIntelligenceContext } from "@/components/MarketIntelligenceProvider";
 import { useAlerts, type IntelligenceEvent, type ScoreUpdateEvent } from "@/components/AlertProvider";
 import { mieClient } from "@/services/intelligence/mie-client";
+import { API_BASE_URL as API } from "@/lib/api";
 import type { SymbolIntelligenceContext, MIEStatus } from "@/types/intelligence";
 
 // ── useMarketIntelligence ───────────────────────────────────────────────────────
@@ -31,6 +32,16 @@ export function useMarketIntelligence() {
 
 type FeedKind = "alert" | "update" | "score_update";
 
+// Shared badge colors for EventTriage's priority_tier (Critical/High/Medium/Low
+// — see _compute_priority() in engine.py) so every consumer (homepage,
+// Live Market) renders the same tier the same way.
+export const PRIORITY_TIER_CLS: Record<string, string> = {
+  Critical: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  High:     "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  Medium:   "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  Low:      "bg-slate-500/15 text-slate-400 border-slate-500/30",
+};
+
 export interface FeedEntry {
   key: string;
   kind: FeedKind;
@@ -41,6 +52,16 @@ export interface FeedEntry {
   badge: { label: string; cls: string };
   score?: number | null;
   scoreLabel?: string;
+  // Richer fields carried through for consumers that want more than the
+  // compact homepage card (e.g. the Live Market tab's own card design) —
+  // all sourced from EventTriage, nothing synthesized.
+  headlineRaw?: string;
+  oneLiner?: string;
+  confidence?: number | null;
+  marketImpact?: string | null;
+  priorityTier?: string;
+  sectors?: string[];
+  tickers?: string[];
 }
 
 function triagedToEntry(evt: IntelligenceEvent): FeedEntry {
@@ -51,10 +72,32 @@ function triagedToEntry(evt: IntelligenceEvent): FeedEntry {
     ts: evt.ts,
     headline: evt.one_liner || evt.headline,
     sub: [...(evt.sectors ?? []), ...(evt.tickers ?? [])].slice(0, 3).join(" · ") || evt.source,
-    href: evt.tickers?.[0] ? `/companies/${evt.tickers[0]}` : undefined,
-    badge: isAlert
-      ? { label: "ALERT", cls: "bg-rose-500/15 text-rose-300 border-rose-500/30" }
-      : { label: "UPDATE", cls: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
+    // Not every triaged event has a row in the events table: NSE/BSE items
+    // (id prefix "nse-"/"bse-") and all policy items do — see
+    // ingest_tasks.py's _create_events — but RSS items ("RSS items do NOT
+    // become Events (too generic)", same file) and synthetic price-move /
+    // story-update ids (uuid4 / "story-update") don't, and would 404 at
+    // /events/{id}. "rss-" is the one prefix confirmed non-event-backed;
+    // everything else that isn't real is caught by the id format below.
+    href: (evt.id && !evt.id.startsWith("rss-") && (evt.source === "news" || evt.source === "policy"))
+      ? `/events/${evt.id}`
+      : evt.tickers?.[0] ? `/companies/${evt.tickers[0]}` : undefined,
+    // priority_tier (Critical/High/Medium/Low) is the more meaningful signal
+    // — it's what homepage filters on — so prefer it for the badge; fall
+    // back to the urgency-based ALERT/UPDATE split only if a tier is
+    // somehow missing (e.g. an older cached SSE payload).
+    badge: evt.priority_tier
+      ? { label: evt.priority_tier, cls: PRIORITY_TIER_CLS[evt.priority_tier] ?? PRIORITY_TIER_CLS.Low }
+      : isAlert
+        ? { label: "ALERT", cls: "bg-rose-500/15 text-rose-300 border-rose-500/30" }
+        : { label: "UPDATE", cls: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
+    headlineRaw: evt.headline,
+    oneLiner: evt.one_liner,
+    confidence: evt.confidence,
+    marketImpact: evt.market_impact,
+    priorityTier: evt.priority_tier,
+    sectors: evt.sectors ?? [],
+    tickers: evt.tickers ?? [],
   };
 }
 
@@ -82,16 +125,57 @@ function scoreUpdateToEntry(evt: ScoreUpdateEvent): FeedEntry {
   };
 }
 
-export function useLiveFeed(limit?: number): FeedEntry[] {
+export function useLiveFeed(limit?: number, opts?: { criticalHighOnly?: boolean }): FeedEntry[] {
   const { intelligenceEvents, scoreUpdates } = useAlerts();
+  const criticalHighOnly = opts?.criticalHighOnly ?? false;
+
+  // The SSE stream (AlertProvider) only pushes events that happen *after*
+  // the connection opens — a quiet news cycle can leave it empty for a long
+  // time even though the backend already has plenty of real recent triaged
+  // events. Seed once from the same real feed (/api/mie/feed, the endpoint
+  // this widget was built for — see mie.py's docstring) so the feed shows
+  // real history immediately; live SSE items merge on top as they arrive.
+  // When filtering to Critical/High only, fetch a wider raw window since
+  // most triaged events land in Medium/Low and would otherwise get filtered
+  // down to near-nothing.
+  const fetchLimit = criticalHighOnly ? Math.max(50, (limit ?? 10) * 6) : (limit ?? 40);
+  const [seed, setSeed] = useState<IntelligenceEvent[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API}/api/mie/feed?limit=${fetchLimit}&min_urgency=4&hours=24`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (cancelled || !Array.isArray(d?.feed)) return;
+        setSeed(d.feed.map((f: any): IntelligenceEvent => ({
+          id: f.id, headline: f.headline, urgency: f.urgency,
+          importance: f.importance, confidence: f.confidence,
+          sentiment: f.sentiment, horizon: f.horizon, market_impact: f.market_impact,
+          is_structural: f.is_structural, direction: f.direction, one_liner: f.one_liner,
+          themes: f.themes ?? [], sectors: f.sectors ?? [], tickers: f.tickers ?? [],
+          refresh_homepage: false, source: f.source, ts: f.triaged_at,
+          priority_score: f.priority_score, priority_tier: f.priority_tier,
+        })));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [fetchLimit]);
+
   return useMemo(() => {
-    const merged: FeedEntry[] = [
+    const liveIds = new Set(intelligenceEvents.map(e => e.id));
+    let merged: FeedEntry[] = [
       ...intelligenceEvents.map(triagedToEntry),
+      ...seed.filter(e => !liveIds.has(e.id)).map(triagedToEntry),
       ...scoreUpdates.map(scoreUpdateToEntry),
     ];
+    if (criticalHighOnly) {
+      // score_update entries carry no priority_tier — they're a different
+      // signal type (score changes, not triaged news) and are excluded from
+      // the "high impact only" view rather than guessed into a tier.
+      merged = merged.filter(e => e.priorityTier === "Critical" || e.priorityTier === "High");
+    }
     merged.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
     return limit ? merged.slice(0, limit) : merged.slice(0, 40);
-  }, [intelligenceEvents, scoreUpdates, limit]);
+  }, [intelligenceEvents, scoreUpdates, seed, limit, criticalHighOnly]);
 }
 
 // ── useCompanyIntelligence ──────────────────────────────────────────────────────

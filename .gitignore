@@ -36,3 +36,6 @@ fyersRequests.log
 
 # Temp projects
 omniroute-temp/
+
+.env*
+.vercel

@@ -142,8 +142,11 @@ async def ai_search(
     _SEARCH_STATS["latency_ms_total"] += (time.monotonic() - _t0) * 1000
     _SEARCH_STATS["last_success_at"] = datetime.now(timezone.utc).isoformat()
 
-    # Store in Redis (30 min) — best-effort, non-blocking
-    await _redis_set(cache_key, result, ttl=1800)
+    # Store in Redis (30 min) — best-effort, non-blocking. Skip caching a
+    # degraded (LLM-synthesis-failed) result so a retry shortly after can
+    # get a real answer instead of the same fallback for 30 more minutes.
+    if not result.get("synthesis_incomplete"):
+        await _redis_set(cache_key, result, ttl=1800)
 
     return SearchResponse(query=query, cached=False, result=result)
 

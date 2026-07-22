@@ -6,8 +6,10 @@ import time
 from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from app.core.security import require_admin_key
 
 log = structlog.get_logger(__name__)
 router = APIRouter()
@@ -285,7 +287,7 @@ class EdgeIn(BaseModel):
     auto_added: bool = False
 
 
-@router.post("/node")
+@router.post("/node", dependencies=[Depends(require_admin_key)])
 async def upsert_node_endpoint(body: NodeIn):
     from app.services.intelligence_graph_service import upsert_node, NODE_TYPES
     if body.node_type not in NODE_TYPES:
@@ -297,7 +299,7 @@ async def upsert_node_endpoint(body: NodeIn):
     return {"id": node_id}
 
 
-@router.post("/edge")
+@router.post("/edge", dependencies=[Depends(require_admin_key)])
 async def upsert_edge_endpoint(body: EdgeIn):
     from app.services.intelligence_graph_service import upsert_edge, EDGE_TYPES
     if body.edge_type not in EDGE_TYPES:

@@ -7,11 +7,12 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-# Import all models so Alembic can detect them
+# app.db.base already imports every real model module (models_legacy plus
+# every app.db.models.* table) so its metadata is complete — importing
+# app.db.models directly here (the orphaned duplicate flagged as dead code,
+# see app/db/models.py) would register the same __tablename__s twice and
+# either crash Alembic or silently diff against the wrong model definitions.
 from app.db.base import Base
-import app.db.models  # noqa: F401
-import app.db.models.opportunity  # noqa: F401
-import app.db.models.event  # noqa: F401
 
 from app.core.config import settings
 
@@ -33,13 +34,21 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=url.startswith("sqlite"),
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    # SQLite has no ALTER COLUMN / DROP COLUMN — batch mode has Alembic
+    # recreate the table under the hood instead. render_as_batch is a no-op
+    # on Postgres/MySQL, so this stays correct across both engines.
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        render_as_batch=connection.dialect.name == "sqlite",
+    )
     with context.begin_transaction():
         context.run_migrations()
 

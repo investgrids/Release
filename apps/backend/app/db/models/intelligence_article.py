@@ -31,8 +31,8 @@ class IntelligenceArticle(Base):
     article_type = Column(String(32), nullable=False, default="event_analysis")
     # breaking | morning_intelligence | company_intelligence | sector_intelligence
     # theme_intelligence | policy_intelligence | ripple_intelligence
-    # opportunity_intelligence | market_wrap | weekly_intelligence
-    # monthly_intelligence | educational_intelligence
+    # opportunity_intelligence | market_wrap | educational_intelligence
+    # question_intelligence | historical_intelligence
 
     # ── Story grouping (multiple versions = same story) ───────────────────────
     story_id       = Column(String(64), nullable=True, index=True)

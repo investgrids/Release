@@ -42,7 +42,7 @@ interface HistoricalComparison {
 interface RippleNode  { id: string; label: string; type: string; direction: string; weight: number; parent_id: string | null; }
 interface RippleLevel { depth: number; nodes: RippleNode[]; }
 interface Scenario      { probability: number; outcome: string; key_drivers: string[]; supporting_evidence: string; major_catalysts: string[]; expected_evolution: string; confidence: number | null; }
-interface Scenarios     { bull?: Scenario; base?: Scenario; bear?: Scenario; }
+interface Scenarios     { bull?: Scenario; base?: Scenario; bear?: Scenario; degraded?: boolean; }
 interface MarketHorizon { horizon: string; window: string; confidence: number | null; direction: string; description: string; }
 interface MonitorItem   { title: string; why_it_matters: string; importance: string; frequency: string; }
 interface ReasoningMethod { label: string; used: boolean; }
@@ -54,7 +54,8 @@ interface GraphNode    { id: string; label: string; type: string; x: number; y: 
 interface GraphEdge    { id: string; source: string; target: string; label: string; }
 
 interface SearchResult {
-  query: string; answer: AnswerSection; key_drivers: KeyDriver[]; insights: Insight[];
+  type?: "search";
+  query: string; synthesis_incomplete?: boolean; answer: AnswerSection; key_drivers: KeyDriver[]; insights: Insight[];
   companies: Company[]; sectors: Sector[]; related_events: RelatedEvent[];
   news: NewsItem[]; policies: Policy[]; timeline: Timeline[];
   historical_comparison: HistoricalComparison[];
@@ -69,6 +70,47 @@ interface SearchResult {
   citations: string[];
   decision_intelligence: DecisionIntelligence | null;
   confidence_data?: ConfidenceData;
+}
+
+// ── Market Pulse types ───────────────────────────────────────────────────────
+// A distinct response shape for "which stocks performed well" / "best
+// sector" / "market summary" style queries — real market data fetched
+// before any LLM call (market_intelligence_service.py), the model only
+// explains it. Never merged into SearchResult: the two answer different
+// questions and mixing their rendering would blur that distinction.
+interface VerifiedDriver {
+  driver: string; driver_type: string; confidence_tier: "High" | "Medium" | "Low";
+  evidence: string; related_event_ids: string[]; confidence_score: number | null;
+  // Phase 2 — Market Intelligence Scoring Engine. driver_strength is always
+  // real (market_scoring_engine.score_driver_strength); theme_strength only
+  // appears on sector_theme drivers (a direct passthrough of the real,
+  // live Theme Engine score — never recomputed on the frontend).
+  driver_strength: number; theme_strength?: number;
+}
+interface PulseMover {
+  company: string; ticker: string; value: string; subtitle: string; positive: boolean;
+  change_pct: number; verified_drivers: VerifiedDriver[]; narrative: string; isVolume?: boolean;
+  evidence_strength: number;
+}
+interface PulseSector { id: string; name: string; value: string; positive: boolean; momentum_score: number; }
+interface PulseIndex  { name: string; ticker: string; value: string; change: string; pct: number; positive: boolean; }
+interface PulseCalendarItem { id: string; category: string; title: string; date: string; description: string; }
+interface MarketConfidenceScore { score: number; level: string; reasons: string[]; breakdown: Record<string, number>; }
+interface PulseScores {
+  opportunity_score: number | null; risk_score: number;
+  market_confidence: MarketConfidenceScore; catalyst_score: number;
+}
+interface MarketPulseResult {
+  type: "market_pulse"; query: string; synthesis_incomplete: boolean; generated_at: string | null;
+  market_status: { is_open?: boolean; status?: string; time_ist?: string; date?: string };
+  indices: PulseIndex[]; market_mood: string | null; market_direction: string | null;
+  market_summary: string; sector_narrative: string;
+  leading_sectors: PulseSector[]; lagging_sectors: PulseSector[];
+  top_gainers: PulseMover[]; top_losers: PulseMover[]; most_active: PulseMover[];
+  biggest_opportunity: { id: string; slug?: string; title: string; summary?: string } | null;
+  biggest_risk: { headline: string | null; reason: string } | null;
+  ai_conclusion: string; what_to_watch_next: PulseCalendarItem[]; what_to_watch_summary: string;
+  scores: PulseScores;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -269,6 +311,17 @@ function DirectionIcon({ direction, size = 56 }: { direction: string; size?: num
   );
 }
 
+/** Single canonical confidence number for a SearchResult — every display on
+ *  this page (main stats, sidebar gauge, sidebar bar, transparency panel)
+ *  must go through this, not re-derive its own fallback chain. Order:
+ *  confidence_data.score (the real evidence-based total) is authoritative
+ *  when present; answer.confidence and investment_verdict.confidence are
+ *  older/narrower fallbacks kept only for results computed before
+ *  confidence_data existed. */
+function displayConfidence(result: Pick<SearchResult, "confidence_data" | "answer" | "investment_verdict"> | null | undefined): number | null {
+  return result?.confidence_data?.score ?? result?.answer?.confidence ?? result?.investment_verdict?.confidence ?? null;
+}
+
 /** Derive risk level from confidence */
 function riskLevel(confidence: number | null | undefined): { label: string; color: string } {
   if (confidence === null || confidence === undefined) return { label: "Unscored", color: "text-slate-500 bg-slate-800/20 border-slate-700/30" };
@@ -376,6 +429,290 @@ function EmptyState({ onSearch }: { onSearch: (q: string) => void }) {
 }
 
 // ── Search Results ─────────────────────────────────────────────────────────────
+// ── Market Pulse Results ─────────────────────────────────────────────────────
+// Hierarchy: Market Summary → Leading Sectors → Top Performing Stocks (each
+// with real verified-driver chips) → AI Conclusion → What to Watch Next.
+// Every number here came from market_intelligence_service.py before the LLM
+// ever ran — this component only formats it. The LLM contributed exactly
+// four things: market_summary, sector_narrative, each mover's narrative
+// sentence, ai_conclusion, and what_to_watch_summary — never the lists
+// themselves.
+const TIER_CLS: Record<string, string> = {
+  High:   "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  Medium: "border-sky-500/30 bg-sky-500/10 text-sky-300",
+  Low:    "border-slate-500/30 bg-slate-500/10 text-slate-400",
+};
+
+// Multi-line chart for MarketChart — real data (yfinance-backed, built server
+// side from the query's own companies/indices), computed on every request
+// but never rendered anywhere on this page until now. A plain inline SVG,
+// consistent with this codebase's existing sparkline pattern elsewhere —
+// no charting library needed for a handful of normalized %-change lines.
+function MultiLineChart({ chart, height = 160 }: { chart: MarketChart; height?: number }) {
+  const width = 600;
+  const series = (chart.series ?? []).filter(s => s.data?.length > 1);
+  if (series.length === 0) return null;
+  const allVals = series.flatMap(s => s.data);
+  const min = Math.min(...allVals, 0), max = Math.max(...allVals, 0);
+  const range = max - min || 1;
+  const pad = 8;
+  const n = series[0].data.length;
+  const x = (i: number) => pad + (i / (n - 1)) * (width - pad * 2);
+  const y = (v: number) => pad + (height - pad * 2) - ((v - min) / range) * (height - pad * 2);
+  const zeroY = y(0);
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ height }}>
+        <line x1={pad} y1={zeroY} x2={width - pad} y2={zeroY} stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
+        {series.map((s, si) => (
+          <polyline key={si} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
+            points={s.data.map((v, i) => `${x(i)},${y(v)}`).join(" ")}/>
+        ))}
+      </svg>
+      <div className="flex flex-wrap gap-3 mt-1">
+        {series.map((s, si) => {
+          const last = s.data[s.data.length - 1];
+          return (
+            <span key={si} className="flex items-center gap-1.5 text-[10px] text-slate-400">
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }}/>
+              {s.name} <span className={`tabular-nums font-semibold ${last >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{last >= 0 ? "+" : ""}{last.toFixed(2)}%</span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Shared degraded-mode indicator — a synthesis_incomplete answer must look
+// visibly different everywhere it appears, not just behind one banner near
+// the top of the page that a user can easily scroll past.
+const DEGRADED_CARD_CLS = "border-amber-500/30 bg-amber-500/[0.04]";
+function DegradedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
+      <AlertTriangle className="h-2.5 w-2.5"/>
+      Generic Analysis
+    </span>
+  );
+}
+
+function VerifiedDriverChip({ d }: { d: VerifiedDriver }) {
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${TIER_CLS[d.confidence_tier] ?? TIER_CLS.Medium}`} title={d.evidence}>
+      <CheckCircle2 className="h-3 w-3"/>
+      {d.driver}
+      <span className="opacity-70 tabular-nums">· {Math.round(d.driver_strength)}%</span>
+      {d.theme_strength != null && (
+        <span className="opacity-70 tabular-nums">· Theme {(d.theme_strength / 10).toFixed(1)}/10</span>
+      )}
+    </span>
+  );
+}
+
+function PulseMoverCard({ m }: { m: PulseMover }) {
+  return (
+    <div className="rounded-[16px] border border-white/[0.07] bg-white/[0.03] p-4">
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <div>
+          <p className="text-[13px] font-bold text-white">{m.company}</p>
+          <p className="text-[10px] text-slate-500">{m.ticker} · {m.subtitle}</p>
+        </div>
+        <span className={`text-[14px] font-black tabular-nums ${m.positive ? "text-emerald-400" : "text-rose-400"}`}>{m.value}</span>
+      </div>
+      {m.verified_drivers.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 mb-1.5">
+          {m.verified_drivers.map((d, i) => <VerifiedDriverChip key={i} d={d}/>)}
+        </div>
+      ) : (
+        <span className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-500 mb-1.5">
+          <AlertTriangle className="h-3 w-3"/>
+          No verified driver identified
+        </span>
+      )}
+      <p className="mb-2 text-[9px] uppercase tracking-wider text-slate-600">Evidence Strength <span className="tabular-nums text-slate-500">{Math.round(m.evidence_strength)}%</span></p>
+      <p className="text-[11.5px] leading-5 text-slate-400">{m.narrative}</p>
+    </div>
+  );
+}
+
+function MarketPulseResults({ result }: { result: MarketPulseResult }) {
+  const moodColor = /bull/i.test(result.market_mood || "") ? "text-emerald-400"
+    : /bear/i.test(result.market_mood || "") ? "text-rose-400" : "text-amber-400";
+
+  return (
+    <div className="space-y-4 pb-36">
+      {/* Query header */}
+      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] px-5 py-4">
+        <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5">Market Pulse</p>
+        <h1 className="text-[18px] font-bold text-white leading-snug">{result.query}</h1>
+        <p className="mt-1 text-[11px] text-slate-500">
+          {result.market_status?.status ? `Market ${result.market_status.status.replace("_", " ")}` : ""}
+          {result.market_status?.time_ist ? ` · ${result.market_status.time_ist} IST` : ""}
+        </p>
+      </div>
+
+      {result.synthesis_incomplete && (
+        <div className="flex items-start gap-3 rounded-[16px] border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400"/>
+          <p className="text-[12.5px] leading-5 text-amber-200/90">
+            <span className="font-semibold text-amber-300">AI narrative couldn&apos;t be generated for this query.</span>{" "}
+            Every number below is still real, live market data — only the written explanations are unavailable right now.
+          </p>
+        </div>
+      )}
+
+      {/* 1. Market Summary */}
+      <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-violet-500/20 bg-gradient-to-br from-violet-500/[0.06] to-transparent"}`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] uppercase tracking-wider text-violet-400 font-semibold">Market Summary</p>
+            {result.synthesis_incomplete && <DegradedBadge/>}
+          </div>
+          {result.market_mood && <span className={`text-[12px] font-bold ${moodColor}`}>{result.market_mood}</span>}
+        </div>
+        <p className="text-[14px] text-white leading-relaxed mb-3">{result.market_summary}</p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold text-slate-300">
+            Market Confidence <span className="tabular-nums text-white">{Math.round(result.scores.market_confidence.score)}%</span> · {result.scores.market_confidence.level}
+          </span>
+          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold text-slate-300">
+            Catalyst Score <span className="tabular-nums text-white">{Math.round(result.scores.catalyst_score)}%</span>
+          </span>
+        </div>
+        {result.indices.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {result.indices.map(idx => (
+              <div key={idx.ticker} className="rounded-[12px] border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                <p className="text-[9px] uppercase tracking-wider text-slate-500">{idx.name}</p>
+                <p className="text-[12px] font-bold text-white">{idx.value}</p>
+                <p className={`text-[10px] font-semibold ${idx.positive ? "text-emerald-400" : "text-rose-400"}`}>{idx.change}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 2. Sector Rotation */}
+      {(result.leading_sectors.length > 0 || result.lagging_sectors.length > 0) && (
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-white mb-1">Sector Rotation</p>
+          {result.sector_narrative && <p className="text-[12px] text-slate-400 mb-3">{result.sector_narrative}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-[9px] uppercase tracking-wider text-emerald-400 font-semibold mb-1.5">Leading</p>
+              <div className="space-y-1.5">
+                {result.leading_sectors.map(s => (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
+                    <span className="text-[11px] font-semibold text-white">{s.name}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className={`text-[11px] font-black tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.value}</span>
+                      <span className="text-[9px] tabular-nums text-slate-600">({Math.round(s.momentum_score)})</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[9px] uppercase tracking-wider text-rose-400 font-semibold mb-1.5">Lagging</p>
+              <div className="space-y-1.5">
+                {result.lagging_sectors.map(s => (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
+                    <span className="text-[11px] font-semibold text-white">{s.name}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className={`text-[11px] font-black tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.value}</span>
+                      <span className="text-[9px] tabular-nums text-slate-600">({Math.round(s.momentum_score)})</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Top Performing Stocks */}
+      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <p className="text-[13px] font-semibold text-white mb-3">Top Performing Stocks</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          {result.top_gainers.map(m => <PulseMoverCard key={m.ticker} m={m}/>)}
+        </div>
+        {result.top_losers.length > 0 && (
+          <>
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-2 mt-4">Biggest Losers</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {result.top_losers.map(m => <PulseMoverCard key={m.ticker} m={m}/>)}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Opportunity / Risk on record */}
+      {(result.biggest_opportunity || result.biggest_risk) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {result.biggest_opportunity && (
+            <div className="rounded-[16px] border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">Biggest Opportunity on Record</p>
+                {result.scores.opportunity_score != null && (
+                  <span className="text-[11px] font-black tabular-nums text-emerald-400">{Math.round(result.scores.opportunity_score)}%</span>
+                )}
+              </div>
+              <p className="text-[13px] font-bold text-white">{result.biggest_opportunity.title}</p>
+              {result.biggest_opportunity.summary && <p className="text-[11px] text-slate-400 mt-1">{result.biggest_opportunity.summary}</p>}
+            </div>
+          )}
+          {result.biggest_risk && (
+            <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/[0.04] p-4">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] uppercase tracking-wider text-rose-400 font-semibold">Biggest Risk on Record</p>
+                <span className="text-[11px] font-black tabular-nums text-rose-400">{Math.round(result.scores.risk_score)}%</span>
+              </div>
+              <p className="text-[13px] font-bold text-white">{result.biggest_risk.headline || result.biggest_risk.reason}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. AI Conclusion */}
+      {result.ai_conclusion && (
+        <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-white/[0.07] bg-white/[0.03]"}`}>
+          <div className="flex items-center gap-2 mb-2">
+            <Bot className="h-4 w-4 text-violet-400"/>
+            <p className="text-[13px] font-semibold text-white">AI Conclusion</p>
+            {result.synthesis_incomplete && <DegradedBadge/>}
+          </div>
+          <p className="text-[13px] leading-6 text-slate-300">{result.ai_conclusion}</p>
+        </div>
+      )}
+
+      {/* 5. What to Watch Next */}
+      {result.what_to_watch_next.length > 0 && (
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-white mb-1">What to Watch Next</p>
+          {result.what_to_watch_summary && <p className="text-[12px] text-slate-400 mb-3">{result.what_to_watch_summary}</p>}
+          <div className="space-y-2">
+            {result.what_to_watch_next.map(w => (
+              <div key={w.id} className="flex items-start gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2">
+                <Clock className="h-3.5 w-3.5 shrink-0 mt-0.5 text-slate-500"/>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-white">{w.title}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-slate-500">{w.category}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500">{w.date}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <AIDisclaimer/>
+    </div>
+  );
+}
+
 function SearchResults({ result, onFollowUp, resultTime }: {
   result: SearchResult;
   onFollowUp: (q: string) => void;
@@ -388,7 +725,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
   const { answer, key_drivers, companies, sectors, related_events, news, policies,
           investment_verdict, historical_comparison,
           ripple_chain, scenarios, market_impact_horizons, what_to_monitor,
-          ai_reasoning_methods, confidence_data,
+          ai_reasoning_methods, confidence_data, market_chart,
           follow_up_questions, decision_intelligence } = result;
 
   const isDecision = !!decision_intelligence?.intent && decision_intelligence.intent !== "general";
@@ -403,12 +740,13 @@ function SearchResults({ result, onFollowUp, resultTime }: {
   const isBear = dir === "bearish";
   const outlookLabel = investment_verdict?.rating || "Neutral";
   const verdictColor = OUTLOOK_COLOR[outlookLabel] ?? (isBull ? "text-emerald-400" : isBear ? "text-rose-400" : "text-amber-400");
+  const conf = displayConfidence(result);
   const risk = investment_verdict?.risk_level
     ? { label: investment_verdict.risk_level, color:
         investment_verdict.risk_level === "Low" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
         : investment_verdict.risk_level === "Medium" ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
         : "text-rose-400 bg-rose-500/10 border-rose-500/20" }
-    : riskLevel(answer?.confidence ?? investment_verdict?.confidence ?? null);
+    : riskLevel(conf);
   const suitableForLabel = investment_verdict?.suitable_for || suitableFor(investment_verdict?.horizon || "");
 
   // Continue Your Research CTAs
@@ -419,6 +757,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
   const topSec  = sectors?.[0];
   const topPol  = policies?.[0];
   const hasRipple = (ripple_chain?.length ?? 0) > 1;
+  const hasContinueResearchCta = !!(topCo || hasRipple || (topCo && topCo2) || topEv || topSec || topPol || topFU);
 
   // Distinct from the Executive Summary — describes HOW the answer was
   // built (source mix + methodology), never restates WHAT it concluded.
@@ -484,16 +823,37 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         </div>
       </div>
 
+      {/* ── Degraded-synthesis notice ──────────────────────────────────────────
+          The AI model didn't return a usable response for this query (provider
+          quota exhausted, timeout, etc). The sections below still reflect the
+          real events/news/sources gathered, but the "verdict" content (Research
+          Outlook, Scenarios) is a generic template, not analysis of this query
+          — say so plainly rather than presenting it as a completed AI answer. */}
+      {result.synthesis_incomplete && (
+        <div className="flex items-start gap-3 rounded-[16px] border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400"/>
+          <p className="text-[12.5px] leading-5 text-amber-200/90">
+            <span className="font-semibold text-amber-300">Full AI analysis wasn&apos;t available for this query.</span>{" "}
+            The events, news, and sources below are real and were used to inform confidence scoring — but the AI
+            reasoning, scenarios, and verdict couldn&apos;t be generated right now. Try again shortly, or rephrase your question.
+          </p>
+        </div>
+      )}
+
       {/* ── Decision Intelligence Panel ───────────────────────────────────────── */}
       {isDecision && decision_intelligence && (
-        <DecisionIntelligencePanel di={decision_intelligence} query={result.query} onRefine={onFollowUp}/>
+        <div className={result.synthesis_incomplete ? `rounded-[20px] border ${DEGRADED_CARD_CLS} p-1` : ""}>
+          {result.synthesis_incomplete && <div className="px-4 pt-3 pb-1"><DegradedBadge/></div>}
+          <DecisionIntelligencePanel di={decision_intelligence} query={result.query} onRefine={onFollowUp}/>
+        </div>
       )}
 
       {/* ── 1. Research Outlook ───────────────────────────────────────────────── */}
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+      <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-white/[0.07] bg-white/[0.03]"}`}>
         <div className="flex items-center gap-2 mb-4">
           <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-0.5 text-[10px] font-bold text-violet-300 uppercase tracking-wider">Research Outlook</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5 text-[10px] font-medium text-slate-400">Not investment advice</span>
+          {result.synthesis_incomplete && <DegradedBadge/>}
         </div>
 
         <div className="flex items-center gap-4 mb-4">
@@ -507,8 +867,8 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: "Confidence", value: (answer?.confidence ?? investment_verdict?.confidence) != null ? `${answer?.confidence ?? investment_verdict?.confidence}%` : "Unscored", color: "text-emerald-400" },
-            { label: "Time Horizon", value: investment_verdict?.horizon || "6–18 Months", color: "text-slate-200" },
+            { label: "Confidence", value: conf != null ? `${conf}%` : "Unscored", color: "text-emerald-400" },
+            { label: "Time Horizon", value: investment_verdict?.horizon || "Not specified", color: investment_verdict?.horizon ? "text-slate-200" : "text-slate-500" },
             { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0] },
             { label: "Suitable For", value: suitableForLabel, color: "text-slate-200" },
           ].map(s => (
@@ -521,8 +881,11 @@ function SearchResults({ result, onFollowUp, resultTime }: {
       </div>
 
       {/* ── 2. Executive Summary ──────────────────────────────────────────────── */}
-      <div className="rounded-[20px] border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.06] to-transparent p-5">
-        <p className="text-[11px] uppercase tracking-wider text-violet-400 mb-2 font-semibold">Executive Summary</p>
+      <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-violet-500/20 bg-gradient-to-br from-violet-500/[0.06] to-transparent"}`}>
+        <div className="flex items-center gap-2 mb-2">
+          <p className="text-[11px] uppercase tracking-wider text-violet-400 font-semibold">Executive Summary</p>
+          {result.synthesis_incomplete && <DegradedBadge/>}
+        </div>
         <p className="text-[14px] text-white leading-relaxed">
           {answer?.bottom_line || answer?.summary || "No direct answer generated for this query."}
         </p>
@@ -541,18 +904,26 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                   </div>
                   <p className="text-[12px] font-semibold text-white leading-tight">{kd.title}</p>
                 </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed mb-2">{kd.explanation}</p>
-                <div className="flex items-center gap-2">
-                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-                    {kd.confidence !== null && kd.confidence !== undefined && (
-                      <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400" style={{ width: `${kd.confidence}%` }}/>
-                    )}
-                  </div>
-                  <p className="text-[10px] tabular-nums text-slate-500">{kd.confidence === null || kd.confidence === undefined ? "Unscored" : `${kd.confidence}%`}</p>
-                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">{kd.explanation}</p>
+                {/* No per-driver confidence % shown here — unlike Market
+                    Pulse's driver_strength (a real formula over driver_type +
+                    event urgency), this card's kd.confidence is the model's
+                    own unscored guess with no formula behind it. Showing a
+                    precise-looking bar/percentage for that would be the
+                    exact anti-pattern this app is built to avoid. */}
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── 3b. Market Chart — real price/index data, computed every request but
+          previously never rendered anywhere on this page. ────────────────── */}
+      {market_chart?.series?.length > 0 && (
+        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <p className="text-[15px] font-semibold text-white mb-1">Price Movement</p>
+          <p className="text-[10px] text-slate-500 mb-3">Normalized % change — real intraday data for the companies/indices this query concerns.</p>
+          <MultiLineChart chart={market_chart}/>
         </div>
       )}
 
@@ -814,9 +1185,20 @@ function SearchResults({ result, onFollowUp, resultTime }: {
               <div key={i} className="rounded-[14px] border border-white/[0.07] bg-white/[0.02] p-4">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-[12px] font-medium text-violet-300">{h.event_title}</p>
-                  <span className="shrink-0 rounded bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-violet-400">{Math.round(h.similarity)}% match score</span>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                    h.similarity >= 60 ? "bg-violet-500/15 text-violet-300"
+                    : h.similarity >= 40 ? "bg-amber-500/15 text-amber-300"
+                    : "bg-rose-500/15 text-rose-300"
+                  }`}>
+                    {Math.round(h.similarity)}% match{h.similarity < 40 ? " — weak" : ""}
+                  </span>
                 </div>
                 <p className="text-[9px] text-slate-500 mb-2">{h.event_date}</p>
+                {h.similarity < 40 && (
+                  <p className="mb-2 text-[9.5px] leading-4 text-amber-300/80">
+                    Low similarity score — treat this as a loose reference, not a strong precedent.
+                  </p>
+                )}
 
                 {/* Outcome — real index returns, honestly labeled by the actual window available */}
                 {(h.nifty_1w != null || h.nifty_1m != null) && (
@@ -882,7 +1264,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
       </div>
 
       {/* ── 10. Scenarios: Bull / Base / Bear ─────────────────────────────────── */}
-      {scenarios && (scenarios.bull || scenarios.base || scenarios.bear) && (
+      {scenarios && !scenarios.degraded && (scenarios.bull || scenarios.base || scenarios.bear) && (
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
           <p className="text-[15px] font-semibold text-white mb-4">Scenarios</p>
           <div className="grid grid-cols-3 gap-3">
@@ -924,6 +1306,9 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                 <RiskSeverity text={r}/>
               </div>
             ))}
+            {!(answer?.risks?.length || investment_verdict?.risks?.length) && (
+              <p className="text-[11px] text-slate-500">No specific risks identified for this query.</p>
+            )}
           </div>
         </div>
 
@@ -965,6 +1350,9 @@ function SearchResults({ result, onFollowUp, resultTime }: {
                 <p className={`text-[10.5px] leading-tight ${m.used ? "text-slate-300" : "text-slate-600"}`}>{m.label}</p>
               </div>
             ))}
+            {!ai_reasoning_methods?.length && (
+              <p className="text-[11px] text-slate-500">No reasoning-source breakdown available for this query.</p>
+            )}
           </div>
           {(confidence_data?.caveats?.length ?? 0) > 0 && (
             <div className="mt-3 pt-3 border-t border-white/[0.06]">
@@ -979,7 +1367,11 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         </div>
       </div>
 
-      {/* ── 12. Continue Your Research ────────────────────────────────────────── */}
+      {/* ── 12. Continue Your Research ──────────────────────────────────────────
+          Hidden entirely when nothing applies, rather than showing an empty
+          "nothing to continue with" card — there's no useful message to give
+          a user here beyond just not showing the section. */}
+      {hasContinueResearchCta && (
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
         <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-3">Continue Your Research</p>
         <div className="grid grid-cols-3 gap-3">
@@ -1051,6 +1443,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
           ))}
         </div>
       </div>
+      )}
 
       {/* ── 13. Follow-up Questions ───────────────────────────────────────────── */}
       {follow_up_questions?.length > 0 && (
@@ -1070,12 +1463,13 @@ function SearchResults({ result, onFollowUp, resultTime }: {
 
       {/* ── 14. AI Transparency + Disclaimer ──────────────────────────────────── */}
       <AITransparencyPanel
-        confidence={result.answer?.confidence ?? null}
+        confidence={conf}
         reasoning={methodologySummary}
         events={(result.related_events ?? []).slice(0, 5).map((e) => ({ title: e.title, href: `/events/${e.id}` }))}
         companies={(result.companies ?? []).slice(0, 5).map((c) => ({ name: c.name, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
         assumptions={confidence_data?.reasons ?? []}
         limitations={confidence_data?.caveats ?? []}
+        confidenceBreakdown={confidence_data?.breakdown}
       />
       <AIDisclaimer />
     </div>
@@ -1093,8 +1487,10 @@ function RightSidebar({ result, onAction }: {
   // Single canonical confidence number, shown everywhere on the page —
   // never opportunity_score, which is a different metric (upside sizing,
   // not evidence confidence) and must never masquerade as a second
-  // "confidence" percentage.
-  const score = result?.confidence_data?.score ?? result?.answer?.confidence ?? v?.confidence ?? null;
+  // "confidence" percentage. Goes through the same displayConfidence()
+  // every other confidence display on this page uses — see its definition
+  // for the fallback order.
+  const score = displayConfidence(result);
   const verdictLabel = v?.rating || "Neutral";
   const verdictColor = OUTLOOK_COLOR[verdictLabel] ?? "text-amber-400";
   const riskInfo = result
@@ -1103,7 +1499,7 @@ function RightSidebar({ result, onAction }: {
             v.risk_level === "Low" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
             : v.risk_level === "Medium" ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
             : "text-rose-400 bg-rose-500/10 border-rose-500/20" }
-        : riskLevel(result.answer?.confidence ?? v?.confidence ?? null))
+        : riskLevel(score))
     : { label: "—", color: "text-slate-400" };
 
   const QUICK_ACTIONS = [
@@ -1168,7 +1564,7 @@ function RightSidebar({ result, onAction }: {
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div>
                 <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Time Horizon</p>
-                <p className="text-[12px] font-semibold text-white">{v?.horizon || "6–18 Months"}</p>
+                <p className={`text-[12px] font-semibold ${v?.horizon ? "text-white" : "text-slate-500"}`}>{v?.horizon || "Not specified"}</p>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Best For</p>
@@ -1182,8 +1578,9 @@ function RightSidebar({ result, onAction }: {
             </p>
           </>
         ) : (
-          <div className="flex justify-center my-6">
-            <BigGauge score={0} size={120}/>
+          <div className="flex flex-col items-center justify-center my-6 gap-2">
+            <BigGauge score={null} size={120}/>
+            <p className="text-[10px] uppercase tracking-wider text-slate-500">Awaiting Analysis</p>
           </div>
         )}
       </div>
@@ -1230,13 +1627,13 @@ function RightSidebar({ result, onAction }: {
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-[11px] text-slate-400">Confidence Score</p>
                 <p className="text-[12px] font-bold text-violet-300 tabular-nums">
-                  {(result.answer?.confidence ?? v?.confidence) != null ? `${result.answer?.confidence ?? v?.confidence}%` : "Unscored"}
+                  {score != null ? `${score}%` : "Unscored"}
                 </p>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                {(result.answer?.confidence ?? v?.confidence) != null && (
+                {score != null && (
                   <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400"
-                    style={{ width: `${result.answer?.confidence ?? v?.confidence}%`, transition: "width 0.8s" }}/>
+                    style={{ width: `${score}%`, transition: "width 0.8s" }}/>
                 )}
               </div>
             </div>
@@ -1288,7 +1685,7 @@ function RightSidebar({ result, onAction }: {
 function AISearchInner() {
   const [query, setQuery]         = useState("");
   const [input, setInput]         = useState("");
-  const [result, setResult]       = useState<SearchResult | null>(null);
+  const [result, setResult]       = useState<SearchResult | MarketPulseResult | null>(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [history, setHistory]     = useState<string[]>([]);
@@ -1443,7 +1840,9 @@ function AISearchInner() {
             </motion.div>
           ) : result ? (
             <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              <SearchResults result={result} onFollowUp={runSearch} resultTime={resultTime}/>
+              {result.type === "market_pulse"
+                ? <MarketPulseResults result={result}/>
+                : <SearchResults result={result} onFollowUp={runSearch} resultTime={resultTime}/>}
             </motion.div>
           ) : (
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -1454,7 +1853,7 @@ function AISearchInner() {
       </div>
 
       {/* ── Right sidebar ────────────────────────────────────────────────────── */}
-      <RightSidebar result={result} onAction={handleSidebarAction}/>
+      <RightSidebar result={result?.type === "market_pulse" ? null : result} onAction={handleSidebarAction}/>
       </div>{/* end flex container */}
 
       {/* ── Fixed bottom follow-up bar ───────────────────────────────────────── */}
@@ -1471,9 +1870,9 @@ function AISearchInner() {
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
               </button>
             </form>
-            {result?.follow_up_questions?.length && (
+            {result && result.type !== "market_pulse" && result.follow_up_questions?.length && (
               <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {result.follow_up_questions.slice(0, 4).map(q => (
+                {result.follow_up_questions.slice(0, 4).map((q: string) => (
                   <button key={q} onClick={() => { setFollowUp(q); runSearch(q); }}
                     className="rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1 text-[11px] text-slate-500 transition hover:border-violet-500/30 hover:text-violet-300">
                     {q.length > 55 ? q.slice(0, 52) + "…" : q}

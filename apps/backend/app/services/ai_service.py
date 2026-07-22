@@ -912,8 +912,10 @@ async def generate_monitoring_checklist(
                 except Exception:
                     pass
 
-    if not result or not result.get("items"):
+    ai_generated = bool(result and result.get("items"))
+    if not ai_generated:
         result = {
+            "degraded": True,  # generic template, not real analysis — caller must not present this as personalized
             "items": [
                 {"label": "Quarterly Earnings vs Consensus", "status": "pending", "importance": "critical", "why_it_matters": "Validates revenue and earnings trajectory.", "frequency": "Every 3 months"},
                 {"label": "Revenue Growth Trajectory", "status": "pending", "importance": "critical", "why_it_matters": "Confirms topline momentum and pricing power.", "frequency": "Quarterly"},
@@ -929,7 +931,8 @@ async def generate_monitoring_checklist(
         }
 
     result["last_updated"] = datetime.now(timezone.utc).isoformat()
-    await cache_set(cache_key, result, 21600)
+    if ai_generated:
+        await cache_set(cache_key, result, 21600)
     return result
 
 
@@ -1025,8 +1028,10 @@ async def generate_scenario_analysis(
                 except Exception:
                     pass
 
-    if not result or not result.get("bull"):
+    ai_generated = bool(result and result.get("bull"))
+    if not ai_generated:
         result = {
+            "degraded": True,  # generic template, not real analysis — caller must not present this as personalized
             "bull": {
                 "probability": 30,
                 "outcome": f"Strong performance for {title or entity_id} driven by favourable macro conditions, sector tailwinds, and above-consensus delivery.",
@@ -1057,7 +1062,11 @@ async def generate_scenario_analysis(
         }
 
     result["last_updated"] = datetime.now(timezone.utc).isoformat()
-    await cache_set(cache_key, result, 7200)
+    if ai_generated:
+        # Don't cache the generic fallback template — a provider recovering a
+        # minute later should regenerate real analysis, not serve the same
+        # boilerplate "Strong performance for X..." text for 2 more hours.
+        await cache_set(cache_key, result, 7200)
     return result
 
 
@@ -1144,8 +1153,10 @@ async def generate_pattern_intelligence(
                 except Exception:
                     pass
 
-    if not result or not result.get("patterns"):
+    ai_generated = bool(result and result.get("patterns"))
+    if not ai_generated:
         result = {
+            "degraded": True,  # generic template, not real analysis — caller must not present this as personalized
             "patterns": [
                 {
                     "historical_match": "Indian Infrastructure Capex Cycle (2003–2008)",
@@ -1182,5 +1193,6 @@ async def generate_pattern_intelligence(
         }
 
     result["last_updated"] = datetime.now(timezone.utc).isoformat()
-    await cache_set(cache_key, result, 21600)
+    if ai_generated:
+        await cache_set(cache_key, result, 21600)
     return result

@@ -2,14 +2,14 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
+import { LiveMarketIntelligence } from "@/components/market/LiveMarketIntelligence";
 import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
 import { mieClient } from "@/services/intelligence/mie-client";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { API_BASE_URL as API } from "@/lib/api";
 import {
   TrendingUp, TrendingDown, Minus, ChevronRight,
-  CalendarClock, CheckCircle2, XCircle,
+  CalendarClock,
 } from "lucide-react";
 
 
@@ -20,15 +20,14 @@ type MarketStory = {
   investor_watch: string; sector_rotation: string;
   confidence: number | null; generated_at: string;
 };
-type ThemeData = {
-  theme: string; score: number | null; momentum: string;
-  top_stocks: string[]; news_count_24h: number; updated_at: string;
-};
 type FeedItem = {
   id: string; headline: string; urgency: number;
   sentiment: string; direction: string; one_liner: string;
   themes: string[]; sectors: string[]; tickers: string[];
   source: string; triaged_at: string;
+  // Already returned by /api/mie/feed (see mie.py) — not previously declared
+  // here because nothing consumed them yet.
+  market_impact?: string;
 };
 type ReplayEntry = {
   generated_at: string; mood: string; pulse: string;
@@ -161,25 +160,76 @@ function pulseDisplay(p: string): { label: string; cls: string } {
   return              { label: "Neutral", cls: "text-amber-400"  };
 }
 
-function AIMarketBriefAndHealth({ story, storyLoading, themes, health, data, calendar }: {
-  story: MarketStory | null; storyLoading: boolean; themes: ThemeData[]; health: number; data: any; calendar: any[];
+function AIMarketIntelligenceHero({ story, storyLoading, drivers, opportunity, risk }: {
+  story: MarketStory | null; storyLoading: boolean;
+  drivers: { headline: string; urgency: number }[];
+  opportunity: { id: string; title: string } | null;
+  risk: { headline: string | null; reason: string } | null;
 }) {
   const pulse = story ? pulseDisplay(story.pulse) : null;
   const meta  = moodMeta(story?.mood ?? "");
+  const topDrivers = drivers.slice(0, 3);
 
-  // Key Drivers — top 4 real themes by score, momentum-derived status word (never fabricated)
-  const drivers = [...themes]
-    .filter(t => t.score !== null && t.score !== undefined)
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-    .slice(0, 4)
-    .map(t => ({
-      label: t.theme,
-      status: /rising|up|strong|gaining/i.test(t.momentum ?? "") ? "Positive" : /falling|down|weak|losing/i.test(t.momentum ?? "") ? "Weakening" : "Steady",
-      up: /rising|up|strong|gaining/i.test(t.momentum ?? ""),
-    }));
+  return (
+    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="flex h-1.5 w-1.5 rounded-full bg-violet-400 animate-pulse" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-violet-400">AI Market Intelligence</span>
+      </div>
+      {storyLoading ? (
+        <div className="space-y-2">{[1, 0.8].map((w, i) => <div key={i} className="h-4 animate-pulse rounded bg-white/[0.04]" style={{ width: `${w * 100}%` }} />)}</div>
+      ) : story ? (
+        <>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className={`text-[22px] font-black ${meta.cls}`}>{pulse?.label ?? story.mood}</span>
+            <span className="rounded-full border border-white/[0.1] bg-white/[0.04] px-2 py-0.5 text-[10px] font-bold text-slate-300">
+              {story.confidence !== null && story.confidence !== undefined ? `${story.confidence}% Confidence` : "Confidence unscored"}
+            </span>
+          </div>
+          <p className="mb-4 text-[12px] leading-[1.7] text-slate-300 line-clamp-3">{story.text}</p>
+        </>
+      ) : (
+        <p className="mb-4 text-[12px] italic text-slate-500">Market narrative will appear here during trading hours.</p>
+      )}
 
-  const nextWatch = calendar.slice(0, 3).map((e: any) => e.title).filter(Boolean);
+      {topDrivers.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-slate-600">Top Drivers</p>
+          <div className="space-y-1.5">
+            {topDrivers.map((d, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2">
+                <span className="w-4 shrink-0 text-[10px] font-black tabular-nums text-slate-600">#{i + 1}</span>
+                <p className="line-clamp-1 text-[11px] font-semibold text-slate-200">{d.headline}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
+      {(opportunity || risk) && (
+        <div className="mt-auto grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-3">
+          {opportunity && (
+            <div>
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">Biggest Opportunity</p>
+              <Link href={`/opportunity-radar/${opportunity.id}` as any} className="line-clamp-2 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition">
+                {opportunity.title}
+              </Link>
+            </div>
+          )}
+          {risk && (
+            <div>
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">Biggest Risk</p>
+              <p className="line-clamp-2 text-[11px] font-bold text-rose-400">{risk.headline || risk.reason}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MarketHealthCard({ story, health, data }: { story: MarketStory | null; health: number; data: any }) {
+  const meta = moodMeta(story?.mood ?? "");
   const scoreColor = health >= 70 ? "#34d399" : health >= 50 ? "#fbbf24" : "#f43f5e";
   const label      = health >= 70 ? "Healthy" : health >= 50 ? "Mixed" : health >= 30 ? "Weak" : "Stressed";
   const r = 54, cx = 74, cy = 68;
@@ -193,74 +243,28 @@ function AIMarketBriefAndHealth({ story, storyLoading, themes, health, data, cal
   const b = data?.breadth;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-[#080c14] lg:flex-row">
-      {/* Brief */}
-      <div className="min-w-0 flex-1 p-5">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="flex h-1.5 w-1.5 rounded-full bg-violet-400 animate-pulse" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-violet-400">AI Market Brief</span>
-        </div>
-        {storyLoading ? (
-          <div className="space-y-2">{[1, 0.8].map((w, i) => <div key={i} className="h-4 animate-pulse rounded bg-white/[0.04]" style={{ width: `${w * 100}%` }} />)}</div>
-        ) : story ? (
-          <>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className={`text-[22px] font-black ${meta.cls}`}>{pulse?.label ?? story.mood}</span>
-              <span className="rounded-full border border-white/[0.1] bg-white/[0.04] px-2 py-0.5 text-[10px] font-bold text-slate-300">
-                {story.confidence !== null && story.confidence !== undefined ? `${story.confidence}% Confidence` : "Confidence unscored"}
-              </span>
-            </div>
-            <p className="mb-4 text-[12px] leading-[1.7] text-slate-300 line-clamp-3">{story.text}</p>
-          </>
-        ) : (
-          <p className="mb-4 text-[12px] italic text-slate-500">Market narrative will appear here during trading hours.</p>
-        )}
-
-        {drivers.length > 0 && (
-          <>
-            <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-slate-600">Key Drivers</p>
-            <div className="mb-4 grid grid-cols-2 gap-2">
-              {drivers.map(d => (
-                <div key={d.label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2">
-                  <p className="line-clamp-2 text-[10px] font-bold leading-tight text-white">{d.label}</p>
-                  <p className={`mt-1 text-[9px] font-semibold ${d.up ? "text-emerald-400" : "text-amber-400"}`}>{d.status}</p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {nextWatch.length > 0 && (
-          <p className="line-clamp-2 border-t border-white/[0.06] pt-3 text-[10px] leading-relaxed text-slate-500">
-            <span className="font-bold text-slate-400">Next Watch: </span>{nextWatch.join(" · ")}
-          </p>
-        )}
+    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+      <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500">Market Health</p>
+      <div className="flex justify-center">
+        <svg width="148" height="80" viewBox="0 0 148 80">
+          <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="9" strokeLinecap="round" />
+          {health > 0 && <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`} fill="none" stroke={scoreColor} strokeWidth="9" strokeLinecap="round" />}
+          <text x={cx} y={cy + 2} textAnchor="middle" fill="white" fontSize="22" fontWeight="900">{health}</text>
+          <text x={cx} y={cy + 17} textAnchor="middle" fill="#475569" fontSize="9">{label}</text>
+        </svg>
       </div>
-
-      {/* Health gauge */}
-      <div className="shrink-0 border-t border-white/[0.06] p-5 lg:w-[195px] lg:border-l lg:border-t-0">
-        <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500">Market Health</p>
-        <div className="flex justify-center">
-          <svg width="148" height="80" viewBox="0 0 148 80">
-            <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="9" strokeLinecap="round" />
-            {health > 0 && <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`} fill="none" stroke={scoreColor} strokeWidth="9" strokeLinecap="round" />}
-            <text x={cx} y={cy + 2} textAnchor="middle" fill="white" fontSize="22" fontWeight="900">{health}</text>
-            <text x={cx} y={cy + 17} textAnchor="middle" fill="#475569" fontSize="9">{label}</text>
-          </svg>
+      <div className="mt-1 space-y-1.5">
+        <div className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
+          <span className="text-[10px] text-slate-500">Trend (Today)</span>
+          <span className={`text-[11px] font-bold ${niftyPos ? "text-emerald-400" : "text-rose-400"}`}>{niftyPos ? "+" : ""}{niftyChg.toFixed(2)}%</span>
         </div>
-        <div className="mt-1 space-y-1.5">
-          <div className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-            <span className="text-[10px] text-slate-500">Trend (Today)</span>
-            <span className={`text-[11px] font-bold ${niftyPos ? "text-emerald-400" : "text-rose-400"}`}>{niftyPos ? "+" : ""}{niftyChg.toFixed(2)}%</span>
-          </div>
-          <div className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-            <span className="text-[10px] text-slate-500">Market Breadth</span>
-            <span className="text-[11px] font-bold text-slate-300">{b ? `${b.advances}↑ ${b.unchanged ?? 0}→ ${b.declines}↓` : "—"}</span>
-          </div>
-          <div className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-            <span className="text-[10px] text-slate-500">Market Mood</span>
-            <span className={`text-[11px] font-bold ${meta.cls}`}>{story?.mood ?? "—"}</span>
-          </div>
+        <div className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
+          <span className="text-[10px] text-slate-500">Market Breadth</span>
+          <span className="text-[11px] font-bold text-slate-300">{b ? `${b.advances}↑ ${b.unchanged ?? 0}→ ${b.declines}↓` : "—"}</span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
+          <span className="text-[10px] text-slate-500">Market Mood</span>
+          <span className={`text-[11px] font-bold ${meta.cls}`}>{story?.mood ?? "—"}</span>
         </div>
       </div>
     </div>
@@ -268,32 +272,45 @@ function AIMarketBriefAndHealth({ story, storyLoading, themes, health, data, cal
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Today's Top Market Drivers — real scored events, /10 scale
+// Live Market Drivers — Driver / Impact / Effect table, sourced from the same
+// triaged feed (EventTriage) as the rest of the page: market_impact (high/
+// medium/low) is the real "Impact" column, sentiment (bullish/bearish/
+// neutral) is the real "Effect" column — nothing here is inferred/fabricated.
 // ─────────────────────────────────────────────────────────────────────────────
-function TodaysTopMarketDrivers({ events, loading }: { events: any[]; loading: boolean }) {
-  const sorted = [...events].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score)).slice(0, 5);
+function effectFromSentiment(sentiment: string): { label: string; cls: string } {
+  const s = (sentiment ?? "").toLowerCase();
+  if (s === "bullish") return { label: "Positive", cls: "text-emerald-400" };
+  if (s === "bearish") return { label: "Negative", cls: "text-rose-400" };
+  return { label: "Neutral", cls: "text-slate-400" };
+}
+
+function LiveMarketDriversCard({ feed, loading }: { feed: FeedItem[]; loading: boolean }) {
+  const sorted = [...feed].sort((a, b) => b.urgency - a.urgency).slice(0, 6);
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <CardHeader title="Today's Top Market Drivers" sub="Who is moving the market" href="/events" />
+      <CardHeader title="Live Market Drivers" sub="Why the market is moving" href="/events" />
       {loading ? (
-        <div className="flex-1 space-y-2.5">{[1, 2, 3].map(i => <div key={i} className="h-10 animate-pulse rounded-xl bg-white/[0.03]" />)}</div>
+        <div className="flex-1 space-y-2.5">{[1, 2, 3].map(i => <div key={i} className="h-9 animate-pulse rounded-xl bg-white/[0.03]" />)}</div>
       ) : sorted.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No scored events yet today.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No live drivers yet today.</p>
       ) : (
-        <div className="flex-1 space-y-2">
-          {sorted.map((e, i) => {
-            const style = impactToStyle(e.impact_score);
-            const score10 = e.impact_score != null ? (e.impact_score / 10).toFixed(1) : null;
+        <div className="flex-1 space-y-1">
+          <div className="grid grid-cols-[1fr_60px_60px] gap-2 px-1 pb-1 text-[8px] font-bold uppercase tracking-wider text-slate-600">
+            <span>Driver</span><span className="text-right">Impact</span><span className="text-right">Effect</span>
+          </div>
+          {sorted.map(f => {
+            const effect = effectFromSentiment(f.sentiment);
+            const impactLabel = f.market_impact ? f.market_impact.charAt(0).toUpperCase() + f.market_impact.slice(1) : "—";
             return (
-              <Link key={e.id} href={`/events/${e.id}` as any} className="group flex items-center gap-2.5 rounded-xl border border-white/[0.04] bg-white/[0.02] px-3 py-2 hover:border-violet-500/15 transition">
-                <span className="w-4 shrink-0 text-[10px] font-black tabular-nums text-slate-600">#{i + 1}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-[11px] font-bold leading-snug text-white group-hover:text-violet-200 transition">{e.title}</p>
-                  <p className="line-clamp-1 mt-0.5 text-[9px] text-slate-500">Driving: {(e.sectors ?? []).slice(0, 3).join(", ") || "—"}</p>
-                </div>
-                <span className={`shrink-0 self-start text-[12px] font-black tabular-nums ${style.text}`}>{score10 ?? "—"}<span className="text-[9px] text-slate-600">/10</span></span>
-              </Link>
+              <div key={f.id} className="grid grid-cols-[1fr_60px_60px] items-center gap-2 rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
+                <p className="line-clamp-1 text-[11px] font-semibold text-slate-200">{f.one_liner || f.headline}</p>
+                <span className={`flex items-center justify-end gap-1 text-[10px] font-bold ${effect.cls}`}>
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+                  {impactLabel}
+                </span>
+                <span className={`text-right text-[10px] font-bold ${effect.cls}`}>{effect.label}</span>
+              </div>
             );
           })}
         </div>
@@ -316,7 +333,7 @@ function OpportunitiesRisksCard({ story, opps, feed }: { story: MarketStory | nu
         <div>
           <div className="mb-2 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Opportunities</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Today's AI Opportunities</h3>
           </div>
           {!hasOpps ? (
             <p className="text-[10px] text-slate-600">Scanning for opportunities…</p>
@@ -337,7 +354,7 @@ function OpportunitiesRisksCard({ story, opps, feed }: { story: MarketStory | nu
         <div className="border-t border-white/[0.06] pt-3">
           <div className="mb-2 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Risks</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Today's AI Risks</h3>
           </div>
           {!hasRisks ? (
             <p className="text-[10px] text-slate-600">No elevated risk signals.</p>
@@ -378,24 +395,39 @@ function getSectorStatus(val: number): SectorStatus {
   return              { label: "Declining",  cls: "text-rose-300",    bg: "bg-rose-500/12",    border: "border-rose-500/25" };
 }
 
+// Money-flow bar width is a direct, capped mapping of the real % move — not
+// a separate "flow" metric (the app has no distinct volume/flow signal per
+// sector), just a visual encoding of the same number already shown as text.
+// 3% is treated as a "full bar" since sector-level daily moves rarely exceed it.
+const SECTOR_BAR_CAP = 3.0;
+
 function SectorRotationCard({ sectors }: { sectors: any[] }) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <CardHeader title="Sector Rotation" sub="Live sector performance" />
+      <CardHeader title="Sector Rotation" sub="Live money flow by sector" />
       {sectors.length === 0 ? (
         <p className="flex-1 py-6 text-center text-[12px] text-slate-600">Sector data unavailable.</p>
       ) : (
-        <div className="flex-1 space-y-1.5">
+        <div className="flex-1 space-y-2">
           {sectors.slice(0, 8).map((s) => {
             const raw = parseFloat(s.value?.replace(/[^0-9.-]/g, "") ?? "0");
             const val = s.positive === false ? -raw : raw;
             const st  = getSectorStatus(val);
+            const barPct = Math.min(Math.abs(val) / SECTOR_BAR_CAP, 1) * 100;
             return (
-              <div key={s.name} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-                <span className="text-[11px] font-semibold text-white">{s.name}</span>
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold ${st.bg} ${st.cls}`}>{st.label}</span>
-                  <span className={`w-12 text-right text-[11px] font-black tabular-nums ${st.cls}`}>{val >= 0 ? "+" : ""}{val.toFixed(2)}%</span>
+              <div key={s.name} className="rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1 text-[11px] font-semibold text-white">
+                    {val >= 0 ? <TrendingUp className="h-3 w-3 text-emerald-400" /> : <TrendingDown className="h-3 w-3 text-rose-400" />}
+                    {s.name}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold ${st.bg} ${st.cls}`}>{st.label}</span>
+                    <span className={`w-12 text-right text-[11px] font-black tabular-nums ${st.cls}`}>{val >= 0 ? "+" : ""}{val.toFixed(2)}%</span>
+                  </div>
+                </div>
+                <div className="h-1 overflow-hidden rounded-full bg-white/[0.04]">
+                  <div className={`h-full rounded-full ${val >= 0 ? "bg-emerald-400" : "bg-rose-400"}`} style={{ width: `${barPct}%` }} />
                 </div>
               </div>
             );
@@ -554,62 +586,6 @@ function RippleEffectsCard({ ripple, loading, eventId }: { ripple: any; loading:
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tomorrow Outlook — real 5-layer prediction service
-// ─────────────────────────────────────────────────────────────────────────────
-function TomorrowOutlookCard({ pred, loading }: { pred: any; loading: boolean }) {
-  const p = pred?.prediction;
-  const dirUp = p?.direction === "Positive";
-  const dirDown = p?.direction === "Negative";
-  const label = dirUp ? "Bullish" : dirDown ? "Bearish" : "Neutral";
-  const cls   = dirUp ? "text-emerald-400" : dirDown ? "text-rose-400" : "text-amber-400";
-
-  return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <CardHeader title="Tomorrow Outlook" sub="Tomorrow's probability" />
-      {loading ? (
-        <div className="flex-1 space-y-2">{[1, 2].map(i => <div key={i} className="h-6 animate-pulse rounded bg-white/[0.03]" />)}</div>
-      ) : !p ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">Outlook unavailable.</p>
-      ) : (
-        <div className="flex-1">
-          <p className={`text-[30px] font-black leading-none ${cls}`}>{p.confidence}%</p>
-          <p className={`mt-1 text-[13px] font-bold ${cls}`}>{label}</p>
-          {p.ai_generated === false && <p className="mt-0.5 text-[9px] text-slate-600">Signal-based estimate</p>}
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div>
-              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">Main Drivers</p>
-              <div className="space-y-1">
-                {(p.primary_drivers ?? []).slice(0, 3).map((d: string, i: number) => (
-                  <div key={i} className="flex items-start gap-1">
-                    <CheckCircle2 className="mt-0.5 h-2.5 w-2.5 shrink-0 text-emerald-400" />
-                    <span className="text-[9px] leading-tight text-slate-400">{d}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">Key Risks</p>
-              <div className="space-y-1">
-                {(p.risks ?? []).slice(0, 3).map((d: string, i: number) => (
-                  <div key={i} className="flex items-start gap-1">
-                    <XCircle className="mt-0.5 h-2.5 w-2.5 shrink-0 text-rose-400" />
-                    <span className="text-[9px] leading-tight text-slate-400">{d}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      <Link href="/market-intelligence" className="mt-4 flex items-center justify-center gap-1 rounded-xl border border-white/[0.07] bg-white/[0.02] py-1.5 text-[10px] font-semibold text-slate-400 hover:text-white transition">
-        Full Market Outlook <ChevronRight className="h-3 w-3" />
-      </Link>
     </div>
   );
 }
@@ -846,8 +822,7 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
   // (one 60s-refreshed fetch + SSE-driven live updates, reused across every page)
   // instead of this component polling its own /api/intelligence/market/* endpoints.
   const { state: mie, loading: storyLoading } = useMarketIntelligence();
-  const story  = (mie?.story ?? null) as MarketStory | null;
-  const themes = (mie?.themes ?? []) as unknown as ThemeData[];
+  const story = (mie?.story ?? null) as MarketStory | null;
 
   const [data,         setData]         = useState<any>(initialData ?? null);
   const [feed,         setFeed]         = useState<FeedItem[]>([]);
@@ -856,8 +831,6 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
   const [calendar,     setCalendar]     = useState<any[]>([]);
   const [indices,      setIndices]      = useState<IndexItem[]>([]);
   const [predStats,    setPredStats]    = useState<{ overall_accuracy: number | null; total_predictions: number | null }>({ overall_accuracy: null, total_predictions: null });
-  const [openingPred,  setOpeningPred]  = useState<any>(null);
-  const [predLoading,  setPredLoading]  = useState(true);
   const [ripple,       setRipple]       = useState<any>(null);
   const [rippleLoading,setRippleLoading]= useState(true);
   const [replayOpen,   setReplayOpen]   = useState(false);
@@ -905,19 +878,6 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
       if (liveRes) setData(liveRes);
     }).finally(() => { setDataLoading(false); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Tomorrow Outlook — slow, cached server-side for 30 min, fetched independently
-  useEffect(() => {
-    setPredLoading(true);
-    const ac = new AbortController();
-    const t = setTimeout(() => ac.abort(), 90_000);
-    fetch(`${API}/api/market/opening-prediction`, { signal: ac.signal })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setOpeningPred(d); })
-      .catch(() => {})
-      .finally(() => { clearTimeout(t); setPredLoading(false); });
-    return () => { clearTimeout(t); ac.abort(); };
-  }, []);
 
   // Ripple Effects — fetched once we know today's top event id
   const topEventId = events.length
@@ -967,25 +927,37 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
       )}
       <MarketReplayPanel open={replayOpen} />
 
-      {/* Row 1 — AI Market Brief+Health · Today's Top Market Drivers · Opportunities+Risks · Live Feed */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.9fr_1fr_1.2fr_1fr]">
-        <AIMarketBriefAndHealth story={story} storyLoading={storyLoading} themes={themes} health={health} data={data} calendar={calendar} />
-        <TodaysTopMarketDrivers events={events} loading={dataLoading} />
-        <OpportunitiesRisksCard story={story} opps={opps} feed={feed} />
-        <LiveIntelligenceFeed limit={8} />
+      {/* Row 1 — AI Market Intelligence (hero, executive summary only) · Market Health */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2.1fr_1fr]">
+        <AIMarketIntelligenceHero
+          story={story} storyLoading={storyLoading}
+          drivers={mie?.market_drivers ?? []}
+          opportunity={mie?.biggest_opportunity ?? null}
+          risk={mie?.biggest_risk ?? null}
+        />
+        <MarketHealthCard story={story} health={health} data={data} />
       </div>
 
-      {/* Row 2 — Sector Rotation · Companies That Matter · Market Timeline · Ripple Effects */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Row 2 — Live Market Drivers · Sector Rotation · Opportunities+Risks · Live Market Intelligence feed */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_1fr_1fr_1.1fr]">
+        <LiveMarketDriversCard feed={feed} loading={dataLoading} />
         <SectorRotationCard sectors={sectors} />
+        <OpportunitiesRisksCard story={story} opps={opps} feed={feed} />
+        <LiveMarketIntelligence limit={20} />
+      </div>
+
+      {/* Row 3 — Companies That Matter · Market Timeline · Ripple Effects */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <CompaniesThatMatterCard events={events} loading={dataLoading} />
         <MarketTimelineCard feed={feed} loading={dataLoading} />
         <RippleEffectsCard ripple={ripple} loading={rippleLoading} eventId={topEventId} />
       </div>
 
-      {/* Row 3 — Tomorrow Outlook · Market Breadth · Market Sentiment · AI Confidence · Upcoming Today */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-[1.3fr_1.3fr_0.9fr_1fr_1.3fr]">
-        <TomorrowOutlookCard pred={openingPred} loading={predLoading} />
+      {/* Row 4 — Market Breadth · Market Sentiment · AI Confidence · Upcoming Today
+          Tomorrow's opening prediction lives only in After Market, where a
+          same-day prediction is actually meaningful — Live Market showing it
+          alongside intraday data implied a forecast this tab doesn't own. */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.9fr_1fr_1.3fr]">
         <MarketBreadthCard breadth={breadth} />
         <MarketSentimentCard value={sentimentScore} />
         <AIConfidenceMeterCard

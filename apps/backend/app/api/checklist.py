@@ -7,7 +7,8 @@ GET /api/checklist/{entity_type}/{entity_id}
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
+from app.core.limiter import limiter
 from app.services.ai_service import generate_monitoring_checklist
 
 router = APIRouter()
@@ -16,7 +17,9 @@ _VALID_TYPES = {"event", "company", "story", "opportunity", "ripple", "search"}
 
 
 @router.get("/{entity_type}/{entity_id}")
+@limiter.limit("20/minute")
 async def get_checklist(
+    request: Request,
     entity_type: str,
     entity_id: str,
     title: str       = Query(default="", max_length=200),

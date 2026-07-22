@@ -46,6 +46,7 @@ _FB_ENERGY = [
 ]
 
 _FB_INSIGHTS = {
+    "degraded": True,  # generic template, not real analysis — caller must not present this as personalized
     "metals": {
         "impact": "High Impact",
         "items": [
@@ -191,7 +192,9 @@ async def _get_insights(metals: list[dict], energy: list[dict]) -> dict:
         except Exception:
             pass
 
-    await cache_set("commodities:insights:v3", _FB_INSIGHTS, _INSIGHTS_TTL)
+    # Don't cache the generic fallback — a provider recovering a minute later
+    # should get real insights on the next request, not the same canned
+    # "geopolitical tensions" text for another 30 minutes.
     return _FB_INSIGHTS
 
 

@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import cast, func, select, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import require_admin_key
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.session import get_db
 from app.services.aipe.publisher import get_engine_stats
@@ -583,7 +584,7 @@ async def ops_overview(db: AsyncSession = Depends(get_db)):
 # with the failed row's own stored trigger_data as the event context. Does not
 # change how generation/validation/publishing works, only re-runs it.
 
-@router.post("/articles/{article_id}/retry")
+@router.post("/articles/{article_id}/retry", dependencies=[Depends(require_admin_key)])
 async def retry_failed_article(article_id: str, db: AsyncSession = Depends(get_db)):
     from app.services.aipe.publisher import _publish_new_article
     from app.services.aipe.market_story_engine import get_mie_context

@@ -76,7 +76,12 @@ async def find_duplicate(
             select(IntelligenceArticle)
             .where(IntelligenceArticle.story_id == story_id)
             .where(IntelligenceArticle.created_at >= cutoff)
-            .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged"]))
+            # "failed" rows must not count as an existing article — otherwise
+            # every future cycle for this story/angle finds the failed row as
+            # a "duplicate" and either updates it (never restoring status
+            # back to "published") or skips it in the angle fan-out loop,
+            # permanently dropping that angle instead of retrying it.
+            .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged", "failed"]))
             .order_by(IntelligenceArticle.created_at.desc())
             .limit(1)
         )
@@ -94,7 +99,7 @@ async def find_duplicate(
             .where(IntelligenceArticle.angle == angle)
             .where(IntelligenceArticle.angle_entity == angle_entity)
             .where(IntelligenceArticle.created_at >= cutoff)
-            .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged"]))
+            .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged", "failed"]))
             .limit(1)
         )
         existing = result.scalar_one_or_none()
@@ -111,7 +116,7 @@ async def find_duplicate(
         .where(IntelligenceArticle.angle == angle)
         .where(IntelligenceArticle.angle_entity == angle_entity)
         .where(IntelligenceArticle.created_at >= cutoff)
-        .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged"]))
+        .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged", "failed"]))
         .order_by(IntelligenceArticle.created_at.desc())
         .limit(20)
     )

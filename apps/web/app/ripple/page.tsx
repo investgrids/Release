@@ -23,18 +23,20 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   commodity:    { label: "Raw Materials",      cls: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
 };
 
+// Same 0–100 scale + thresholds used everywhere else in the app (Events,
+// LiveMarketTab, etc.) — impact_score from the API is 0–100, not 0–10.
 function impactColor(score: number | null | undefined) {
   if (score === null || score === undefined) return "text-slate-500";
-  if (score >= 8) return "text-rose-400";
-  if (score >= 6) return "text-amber-400";
+  if (score >= 90) return "text-rose-400";
+  if (score >= 75) return "text-amber-400";
   return "text-emerald-400";
 }
 
 function impactLabel(score: number | null | undefined) {
   if (score === null || score === undefined) return "Unscored";
-  if (score >= 8) return "Very High";
-  if (score >= 6) return "High";
-  if (score >= 4) return "Medium";
+  if (score >= 90) return "Very High";
+  if (score >= 75) return "High";
+  if (score >= 55) return "Medium";
   return "Low";
 }
 
@@ -46,19 +48,12 @@ async function fetchFeatured() {
   return [];
 }
 
-// Static examples shown when no events are in DB
-const STATIC_EXAMPLES = [
-  { id: 1,  title: "India-Pakistan Military Tensions",   summary: "Cross-border conflict escalation triggers defence sector rally and risk-off sentiment in Indian markets.", event_type: "geopolitical", impact_score: 9.2, categories: ["Defence", "Energy", "Aviation"] },
-  { id: 2,  title: "RBI Emergency Rate Cut — 50 bps",   summary: "Surprise rate cut to stimulate growth sends banking sector NIM lower and real estate stocks surging.", event_type: "monetary",     impact_score: 8.7, categories: ["Banking", "Real Estate", "NBFCs"] },
-  { id: 3,  title: "Union Budget 2026 — Capex Surge",   summary: "Government announces ₹15 lakh crore infrastructure capex, largest ever allocation for railways and defence.", event_type: "fiscal",       impact_score: 8.1, categories: ["Infrastructure", "Defence", "Cement"] },
-  { id: 4,  title: "OPEC+ Cuts Production by 2M bbl/d", summary: "Saudi-led supply cut drives Brent crude above $90, triggering aviation and logistics sector sell-off.", event_type: "commodity",     impact_score: 8.5, categories: ["Energy", "Aviation", "Chemicals"] },
-  { id: 5,  title: "FII Record Inflows — ₹45,000Cr",    summary: "Largest ever single-month FII inflow into Indian equities triggers broad-based mid-cap rally.", event_type: "macro",        impact_score: 7.8, categories: ["Banking", "IT", "Mid-caps"] },
-  { id: 6,  title: "India GDP Growth Hits 8.4% Q2",     summary: "Strong Q2 GDP print above estimates triggers rate expectation reset and broad market re-rating.", event_type: "macro",        impact_score: 7.3, categories: ["Consumer", "Banking", "Infra"] },
-];
-
 export default async function RipplePage() {
   const events: any[] = await fetchFeatured();
-  const displayEvents = events.length > 0 ? events : STATIC_EXAMPLES;
+  // impact_score === 0 means "not yet scored", not "lowest impact" — same
+  // convention as Events/LiveMarketTab. Never show fabricated examples when
+  // the API has nothing; an honest empty state below handles that instead.
+  const displayEvents = events.filter((e: any) => e.impact_score !== 0);
 
   return (
     <div className="min-h-screen space-y-8 pb-16">
@@ -97,8 +92,10 @@ export default async function RipplePage() {
               ))}
             </div>
           </div>
-          {/* Mini graph teaser */}
-          <div className="hidden lg:flex flex-col items-center gap-2 shrink-0">
+          {/* Mini graph teaser — links to the real interactive graph at /graph
+              rather than standing alone as a decorative mockup implying live
+              data it doesn't have. */}
+          <Link href="/graph" className="hidden lg:flex flex-col items-center gap-2 shrink-0 group">
             <div className="relative w-[200px] h-[180px]">
               {/* Concentric rings */}
               {[180, 140, 100, 60].map((s, i) => (
@@ -124,8 +121,8 @@ export default async function RipplePage() {
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-slate-600 text-center">Interactive force-directed graph</p>
-          </div>
+            <p className="text-[10px] text-slate-600 text-center group-hover:text-indigo-400 transition-colors">Open the interactive graph →</p>
+          </Link>
         </div>
       </div>
 
@@ -160,6 +157,11 @@ export default async function RipplePage() {
           </Link>
         </div>
 
+        {displayEvents.length === 0 ? (
+          <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] py-16 text-center">
+            <p className="text-sm text-slate-500">No scored ripple events right now — check back shortly.</p>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayEvents.map((ev: any) => {
             const badge = TYPE_BADGE[ev.event_type] || TYPE_BADGE.macro;
@@ -178,8 +180,8 @@ export default async function RipplePage() {
                     {badge.label}
                   </span>
                   <div className="flex items-center gap-1 shrink-0">
-                    <span className={`text-[18px] font-black leading-none tabular-nums ${impactColor(score)}`}>{unscored ? "N/A" : score.toFixed(1)}</span>
-                    <span className="text-[9px] text-slate-600">/10</span>
+                    <span className={`text-[18px] font-black leading-none tabular-nums ${impactColor(score)}`}>{unscored ? "N/A" : Math.round(score)}</span>
+                    {!unscored && <span className="text-[9px] text-slate-600">/100</span>}
                   </div>
                 </div>
                 {/* Title */}
@@ -213,6 +215,7 @@ export default async function RipplePage() {
             );
           })}
         </div>
+        )}
       </div>
 
       {/* ── Stat strip ───────────────────────────────────────────────────── */}

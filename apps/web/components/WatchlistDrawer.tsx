@@ -49,13 +49,18 @@ export function WatchlistDrawer({ open, onClose }: Props) {
   };
 
   return (
-    <>
+    // Slid-out-of-view via transform (not unmounted) so the close animation
+    // can play — but a transformed element's post-transform box still counts
+    // toward the document's scrollable overflow, so it silently added ~360px
+    // of horizontal scroll on every page. Clipping it to the viewport here
+    // (rather than on every page individually) fixes it everywhere at once.
+    <div style={{ position: "fixed", inset: 0, zIndex: 199, overflow: "hidden", pointerEvents: "none" }}>
       {/* Backdrop */}
       <div
         ref={overlayRef}
         onClick={onClose}
         style={{
-          position: "fixed", inset: 0, zIndex: 199,
+          position: "absolute", inset: 0,
           background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)",
           opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none",
           transition: "opacity 0.2s",
@@ -64,13 +69,14 @@ export function WatchlistDrawer({ open, onClose }: Props) {
 
       {/* Drawer */}
       <div style={{
-        position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 200,
+        position: "absolute", top: 0, right: 0, bottom: 0, zIndex: 200,
         width: 360, background: "#0a0f1c",
         borderLeft: "1px solid rgba(255,255,255,0.07)",
         display: "flex", flexDirection: "column",
         transform: open ? "translateX(0)" : "translateX(100%)",
         transition: "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
         boxShadow: "-20px 0 60px rgba(0,0,0,0.5)",
+        pointerEvents: open ? "auto" : "none",
       }}>
 
         {/* Header */}
@@ -172,6 +178,6 @@ export function WatchlistDrawer({ open, onClose }: Props) {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

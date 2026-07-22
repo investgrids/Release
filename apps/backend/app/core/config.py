@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     json_logs: bool = False          # True in production for structured JSON
 
+    # ── Admin / internal endpoints ───────────────────────────────────────────
+    # Shared secret for write/ops endpoints (graph mutations, publishing
+    # retry, etc). Set on Railway; unset locally disables those endpoints
+    # rather than leaving them open.
+    admin_api_key: str = ""
+
     # ── Database ──────────────────────────────────────────────────────────────
     # On Railway: set DATABASE_URL to sqlite+aiosqlite:////data/ig.db
     # (note 4 slashes = absolute path /data/ig.db on the mounted volume)

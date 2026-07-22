@@ -136,7 +136,7 @@ export function SiteHeader() {
                 More <ChevronDown className={`h-3.5 w-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
               </button>
               {moreOpen && (
-                <div className="absolute left-0 top-full mt-2 w-48 rounded-2xl border border-white/[0.10] bg-[#0a0f1e]/98 backdrop-blur-xl shadow-2xl p-2 z-50">
+                <div className="absolute left-0 top-full mt-2 w-48 rounded-2xl border border-white/[0.10] bg-[#0a0f1e] shadow-2xl p-2 z-50">
                   {NAV_MORE.map(item => (
                     <Link
                       key={item.href}

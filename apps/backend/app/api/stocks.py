@@ -88,7 +88,11 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
     if isinstance(fh_peers, Exception): fh_peers = []
     if isinstance(fh_news,  Exception): fh_news  = []
 
-    if yf_data is None and fh_quote is None:
+    # Finnhub's /quote never 404s for an unknown symbol — it returns c=0 (and
+    # every other field null/0) instead of raising, so a falsy `c` has to be
+    # treated the same as "no Finnhub data" or a bogus symbol like "ZZZFAKE"
+    # falls through to a fully fabricated placeholder profile below.
+    if yf_data is None and not (fh_quote and fh_quote.get("c")):
         raise HTTPException(status_code=404, detail=f"Symbol {sym_upper} not found on NSE")
 
     # ── Price: prefer Finnhub real-time, fallback to yfinance ───────────────

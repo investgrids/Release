@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { API_BASE_URL as API } from "@/lib/api";
 
@@ -17,27 +17,15 @@ interface RadarItem {
   sectors?: string[];
 }
 
-// ── Static fallback data ──────────────────────────────────────────────────────
+// ── Filter option lists (UI chrome, not market data) ───────────────────────────
 
 const SECTORS_FILTER = ["All Sectors", "Infrastructure", "Energy", "Technology", "Banking", "Manufacturing", "Healthcare", "FMCG"];
 const THEMES_FILTER  = ["All Themes", "AI & Automation", "Green Energy", "Infrastructure", "Defence", "EV", "Pharma"];
 const HORIZONS       = ["All", "Short Term", "Medium Term", "Long Term"];
 
-const STATIC_RADAR: RadarItem[] = [
-  { id: "r1", theme: "AI Infrastructure Boom",    score: 95, reason: "Surging demand for AI data centres and capacity expansion driving massive investments", confidence: 0.92, beneficiaries: ["TATASTEEL","RVNL","LT","BEML","IRCON"], sectors: ["Infrastructure","Technology"]  },
-  { id: "r2", theme: "Railway Modernization",     score: 94, reason: "Government focus on railway modernisation and capacity expansion driving massive investments", confidence: 0.91, beneficiaries: ["RVNL","IRCON","LT","BEML","TATASTEEL"], sectors: ["Railways","Infrastructure"] },
-  { id: "r3", theme: "Green Energy Transition",   score: 92, reason: "Renewable energy adoption and green hydrogen initiatives driving clean energy revolution", confidence: 0.88, beneficiaries: ["ADANI","TATA","NTPC","RPOWER","SJVN"],    sectors: ["Energy","Sustainability"]   },
-  { id: "r4", theme: "Defence Manufacturing",     score: 89, reason: "India's push for defence indigenisation creating multi-year tailwinds for manufacturers", confidence: 0.86, beneficiaries: ["HAL","BEL","BHEL","MIL","GRSE"],          sectors: ["Defence","Aerospace"]       },
-  { id: "r5", theme: "Digital Banking Wave",      score: 87, reason: "Rapid digitalisation of banking creating structural growth opportunities for fintech", confidence: 0.84, beneficiaries: ["HDFCBANK","ICICIBANK","SBIN","AXIS","KOTAKBANK"], sectors: ["Banking","FinTech"]          },
-  { id: "r6", theme: "EV Supply Chain Build-out", score: 85, reason: "Electric vehicle adoption driving demand across the entire EV supply chain ecosystem", confidence: 0.82, beneficiaries: ["TATAMOTORS","MM","HERO","BAJAJ","MARUTI"],   sectors: ["Automotive","Energy"]       },
-];
-
-const TOP_SECTORS = [
-  { name: "Infrastructure", score: 95, color: "from-violet-500 to-indigo-500" },
-  { name: "Energy",         score: 92, color: "from-sky-500 to-blue-500"     },
-  { name: "Technology",     score: 90, color: "from-blue-500 to-cyan-500"    },
-  { name: "Manufacturing",  score: 88, color: "from-emerald-500 to-teal-500" },
-  { name: "Healthcare",     score: 85, color: "from-amber-500 to-orange-500" },
+const SECTOR_BAR_COLORS = [
+  "from-violet-500 to-indigo-500", "from-sky-500 to-blue-500", "from-blue-500 to-cyan-500",
+  "from-emerald-500 to-teal-500", "from-amber-500 to-orange-500",
 ];
 
 const CHIP_COLORS = [
@@ -96,7 +84,8 @@ function ScoreBadge({ score }: { score: number | null | undefined }) {
 // ── Opportunities ─────────────────────────────────────────────────────────────
 
 function OpportunitiesTab() {
-  const [items, setItems] = useState<RadarItem[]>(STATIC_RADAR);
+  const [items, setItems]     = useState<RadarItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sectorFilter, setSectorFilter] = useState("All Sectors");
   const [themeFilter, setThemeFilter]   = useState("All Themes");
   const [horizon, setHorizon]           = useState("All");
@@ -107,7 +96,6 @@ function OpportunitiesTab() {
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         const raw = Array.isArray(d) ? d : (d?.items ?? []);
-        if (raw.length === 0) return;
         const mapped: RadarItem[] = raw.map((o: any) => {
           const rawScore = o.opportunity_score ?? o.score;
           const rawConf = o.confidence;
@@ -123,8 +111,29 @@ function OpportunitiesTab() {
         });
         setItems(mapped);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
+
+  // Real, derived from the actual items on screen — not a fabricated fixed
+  // list. Averages each sector's opportunity_score across every item that
+  // names it, so it moves with real data instead of being hardcoded.
+  const topSectors = useMemo(() => {
+    const bySector = new Map<string, { total: number; count: number }>();
+    for (const item of items) {
+      if (item.score === null) continue;
+      for (const s of item.sectors ?? []) {
+        const cur = bySector.get(s) ?? { total: 0, count: 0 };
+        cur.total += item.score;
+        cur.count += 1;
+        bySector.set(s, cur);
+      }
+    }
+    return Array.from(bySector.entries())
+      .map(([name, { total, count }]) => ({ name, score: Math.round(total / count) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+  }, [items]);
 
   const displayed = items.filter(i => {
     // An unscored item can never be confirmed to meet a positive minimum
@@ -159,7 +168,11 @@ function OpportunitiesTab() {
 
       {/* 2-col: cards + sidebar */}
       <div className="grid grid-cols-[1fr_220px] gap-5 items-start">
-        {displayed.length === 0 ? (
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="h-[280px] animate-pulse rounded-[20px] border border-white/[0.06] bg-white/[0.02]" />)}
+          </div>
+        ) : displayed.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.03] py-20 text-center">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-8 w-8 text-slate-500"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <p className="mt-3 text-sm font-semibold text-white">No opportunities match these filters</p>
@@ -214,14 +227,10 @@ function OpportunitiesTab() {
                     </div>
                   )}
                   <div className="mt-auto pt-2 border-t border-white/5">
-                    {typeof item.id === "number" ? (
-                      <Link href={`/opportunity-radar/${item.id}`} className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-300 transition">
-                        View Details
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
-                      </Link>
-                    ) : (
-                      <p className="text-[11px] text-slate-600">Sample data — connect backend for live opportunities</p>
-                    )}
+                    <Link href={`/opportunity-radar/${item.id}`} className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-300 transition">
+                      View Details
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+                    </Link>
                   </div>
                 </div>
               );
@@ -232,33 +241,23 @@ function OpportunitiesTab() {
         {/* Sidebar */}
         <aside className="sticky top-[84px] rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
           <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Top Sectors</h3>
-          <div className="space-y-3.5">
-            {TOP_SECTORS.map(s => (
-              <div key={s.name}>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-[13px] font-medium text-slate-200">{s.name}</span>
-                  <span className="text-[13px] font-bold text-white">{s.score}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
-                  <div className={`h-full rounded-full bg-gradient-to-r ${s.color}`} style={{ width: `${s.score}%` }}/>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 border-t border-white/5 pt-4">
-            <p className="mb-3 text-[9px] uppercase tracking-widest text-slate-500">AI Signal Strength</p>
-            <div className="space-y-2">
-              {[{ label: "Bullish", pct: 72, color: "bg-emerald-500" }, { label: "Neutral", pct: 18, color: "bg-amber-500" }, { label: "Bearish", pct: 10, color: "bg-rose-500" }].map(s => (
-                <div key={s.label} className="flex items-center gap-2">
-                  <span className="w-12 text-[11px] text-slate-400">{s.label}</span>
-                  <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                    <div className={`h-full rounded-full ${s.color}`} style={{ width: `${s.pct}%` }}/>
+          {topSectors.length === 0 ? (
+            <p className="text-[11px] text-slate-500">Not enough scored opportunities yet to rank sectors.</p>
+          ) : (
+            <div className="space-y-3.5">
+              {topSectors.map((s, i) => (
+                <div key={s.name}>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-[13px] font-medium text-slate-200">{s.name}</span>
+                    <span className="text-[13px] font-bold text-white">{s.score}</span>
                   </div>
-                  <span className="w-7 text-right text-[11px] font-semibold text-white">{s.pct}%</span>
+                  <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className={`h-full rounded-full bg-gradient-to-r ${SECTOR_BAR_COLORS[i % SECTOR_BAR_COLORS.length]}`} style={{ width: `${s.score}%` }}/>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
+          )}
           <div className="mt-6 border-t border-white/5 pt-4">
             <Link href="/ai-search?q=top investment opportunities India"
               className="block w-full rounded-xl bg-gradient-to-r from-violet-600/80 to-sky-500/80 py-2 text-center text-[12px] font-semibold text-white hover:opacity-90 transition">

@@ -1,0 +1,68 @@
+name: AI Search Regression Suite
+
+# Two tiers, matching apps/backend/tests/services/test_ai_search_*.py:
+#
+#   routing-tests   — Tier 1: offline, no DB/network/LLM, ~3s. Runs on
+#                      every push/PR so a routing regression is caught
+#                      before merge, not at release time.
+#
+#   release-e2e      — Tier 2: live, through the real run_ai_search()
+#                      pipeline (real DB, real market-data calls, real LLM
+#                      provider chain), ~30-180s per query. Runs only
+#                      before a release (see `on:` below) — not on every
+#                      push, since it's slow and costs real LLM-provider
+#                      calls. Requires the LLM_* secrets configured in the
+#                      repo/environment settings; add whichever of
+#                      GROQ_API_KEY / CEREBRAS_API_KEY / GEMINI_API_KEY /
+#                      OPENROUTER_API_KEY the fallback chain needs — see
+#                      apps/backend/app/core/config.py for the full list.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/backend/**"
+  pull_request:
+    paths:
+      - "apps/backend/**"
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+jobs:
+  routing-tests:
+    name: Tier 1 — routing & entity extraction (offline)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/services/test_ai_search_routing.py -v -m "not live_e2e"
+
+  release-e2e:
+    name: Tier 2 — live end-to-end (pre-release gate)
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Run live end-to-end regression suite
+        run: pytest tests/services/test_ai_search_engines_live.py -v -m live_e2e --maxfail=3
+      - name: Also re-run Tier 1 for a full picture in the release log
+        run: pytest tests/services/test_ai_search_routing.py -v -m "not live_e2e"

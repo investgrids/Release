@@ -43,12 +43,12 @@ class Event(Base):
 
     # Dates
     event_date = Column(DateTime(timezone=True), nullable=True, index=True)
-    published_at = Column(DateTime(timezone=True), default=_now)
+    published_at = Column(DateTime(timezone=True), default=_now, index=True)
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
 
     # Scores
-    impact_score = Column(Float, nullable=True, default=0.0)
+    impact_score = Column(Float, nullable=True, default=0.0, index=True)
     confidence = Column(Float, nullable=True, default=0.0)
 
     # AI output
@@ -70,7 +70,7 @@ class EventCompany(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     event_id = Column(String, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
-    symbol = Column(String(32), nullable=False)
+    symbol = Column(String(32), nullable=False, index=True)
     name = Column(String(256), nullable=True)
     impact_type = Column(String(32), nullable=False, default="neutral")  # beneficiary|loser|neutral
     impact_score = Column(Float, nullable=True, default=5.0)

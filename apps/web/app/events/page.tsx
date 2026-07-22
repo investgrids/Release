@@ -31,7 +31,7 @@ interface Event {
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const IMPACT_PILLS  = ["All", "Very High", "High", "Medium", "Low"];
+const IMPACT_PILLS  = ["All", "Very High", "High", "Medium"];
 const CATEGORY_PILLS = [
   { label: "All",          value: "" },
   { label: "Central Bank", value: "RBI" },
@@ -208,7 +208,7 @@ function EventCard({ ev }: { ev: Event }) {
 
         {/* Companies row */}
         {comps.length > 0 && (
-          <div className="mt-2.5 flex items-center gap-2">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
             {comps.slice(0, 5).map((c, ci) => {
               const sym = companySymbol(c);
               return (
@@ -333,7 +333,14 @@ export default function EventsPage() {
   useEffect(() => {
     fetch(`${API}/api/events/?sort_by=impact_score&limit=${limit}`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : [])
-      .then(d => { if (Array.isArray(d)) setEvents(d); })
+      // impact_score === 0 means the scoring engine hasn't actually scored
+      // this event (distinct from a real low score) — showing it ranked
+      // alongside real scores misrepresents it as "lowest impact" rather
+      // than "not yet scored". Same fix as LiveMarketTab's driver cards.
+      // Real "Low" impact events (score 1-54) are excluded too — this page
+      // is meant to surface events worth an investor's attention, and
+      // routine/low-signal events just add noise.
+      .then(d => { if (Array.isArray(d)) setEvents(d.filter((e: Event) => e.impact_score !== 0 && impactLabel(e.impact_score) !== "Low")); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [limit]);
@@ -488,7 +495,7 @@ export default function EventsPage() {
                     </div>
 
                     {/* Events for this date */}
-                    <div className="flex-1 space-y-3 border-l border-white/[0.06] pl-5">
+                    <div className="flex-1 min-w-0 space-y-3 border-l border-white/[0.06] pl-5">
                       {evts.map(ev => <EventCard key={ev.id} ev={ev} />)}
                     </div>
                   </div>

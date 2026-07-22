@@ -72,6 +72,16 @@ class OpportunityRepository:
         if not terms:
             return []
         terms_lower = [t.lower() for t in terms]
+        # Title matching is a plain substring test, so short/common terms
+        # produce false positives regardless of what the caller passed in —
+        # found live: an unfiltered "me" (from "give ME top 5...") matched
+        # inside every "X Invest-ME-nt Opportunity" title. The sector match
+        # above is list-membership (exact equality against a known short
+        # list of real sector names), not substring, so it's unaffected and
+        # stays open to short terms like "IT". Only gate the title branch,
+        # and gate it here so every caller is protected, not just the one
+        # that already learned to pre-filter its terms.
+        title_terms = [t for t in terms_lower if len(t) >= 4]
         candidates_q = await self._db.execute(
             select(Opportunity).order_by(Opportunity.opportunity_score.desc()).limit(200)
         )
@@ -82,7 +92,7 @@ class OpportunityRepository:
             if any(t in opp_sectors for t in terms_lower):
                 return True
             title_lower = (opp.title or "").lower()
-            return any(t in title_lower for t in terms_lower)
+            return any(t in title_lower for t in title_terms)
 
         return [o for o in candidates if _matches(o)][:limit]
 

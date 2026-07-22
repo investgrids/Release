@@ -72,58 +72,28 @@ function classifyArticle(headline: string, summary: string): string {
   return "Market";
 }
 
+// Same 0–100 scale used everywhere else in the app (Events, Ripple, etc.) —
+// impact_score from the API is 0–100, not 0–10.
 function impactBadge(s: number | null | undefined) {
   if (s === null || s === undefined) return { label: "Unscored", cls: "text-slate-500 bg-slate-800/20 border-slate-700/30" };
-  if (s >= 9) return { label: "High Impact",   cls: "text-rose-300 bg-rose-500/10 border-rose-500/25"     };
-  if (s >= 7) return { label: "Medium Impact", cls: "text-amber-300 bg-amber-500/10 border-amber-500/25"  };
+  if (s >= 90) return { label: "High Impact",   cls: "text-rose-300 bg-rose-500/10 border-rose-500/25"     };
+  if (s >= 75) return { label: "Medium Impact", cls: "text-amber-300 bg-amber-500/10 border-amber-500/25"  };
   return        { label: "Low Impact",    cls: "text-slate-300 bg-slate-700/40 border-slate-500/25"  };
 }
-
-// ── Static fallback data (shown instantly; replaced silently by live API) ────
-const STATIC_NEWS: NewsArticle[] = [
-  {
-    id: "n1", source: "Economic Times",
-    headline: "Nifty 50 scales 24,500 as FII buying accelerates in banking and IT stocks",
-    summary: "Foreign institutional investors turned net buyers for the fifth straight session, pumping ₹4,200 crore into Indian equities led by banking and technology stocks.",
-    published_at: "Today", companies: ["HDFC Bank", "ICICI Bank", "TCS"], impact_score: 8.5,
-  },
-  {
-    id: "n2", source: "Business Standard",
-    headline: "RBI keeps repo rate unchanged at 6.5%, maintains accommodative stance",
-    summary: "The Monetary Policy Committee voted 5-1 to hold rates, citing a balanced inflation-growth outlook and resilient domestic demand.",
-    published_at: "Today", companies: ["HDFC Bank", "SBI", "Axis Bank"], impact_score: 9.2,
-  },
-  {
-    id: "n3", source: "Mint",
-    headline: "Adani Green Energy secures $1.2 bn loan for 1,500 MW solar project in Rajasthan",
-    summary: "Adani Green has secured a $1.2 billion project finance loan from a consortium of international banks for a large-scale solar power facility.",
-    published_at: "Yesterday", companies: ["Adani Green"], impact_score: 7.8,
-  },
-  {
-    id: "n4", source: "Moneycontrol",
-    headline: "Maruti Suzuki reports record monthly sales; EV segment crosses 10,000 units milestone",
-    summary: "India's largest car maker clocked total wholesale volumes of 2.31 lakh units in the month, up 14% year-on-year.",
-    published_at: "Yesterday", companies: ["Maruti Suzuki"], impact_score: 7.2,
-  },
-  {
-    id: "n5", source: "Reuters",
-    headline: "IMF raises India's GDP growth forecast to 7.2% for FY27 on strong domestic demand",
-    summary: "The International Monetary Fund upgraded India's growth outlook, citing strong domestic consumption and a sustained government infrastructure push.",
-    published_at: "2 days ago", companies: [], impact_score: 8.1,
-  },
-];
 
 
 export default function NewsPage() {
   const router = useRouter();
-  const [articles, setArticles] = useState<NewsArticle[]>(STATIC_NEWS);
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [loading, setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState("All");
 
   useEffect(() => {
     fetch(`${API}/api/news`)
       .then(r => r.ok ? r.json() : [])
-      .then(d => { if (Array.isArray(d) && d.length) setArticles(d); })
-      .catch(() => {});
+      .then(d => { if (Array.isArray(d)) setArticles(d); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const tabbed = useMemo(
@@ -221,7 +191,13 @@ export default function NewsPage() {
           </div>
 
           {/* Article cards */}
-          {tabbed.length === 0
+          {loading
+            ? (
+              <div className="space-y-4">
+                {[1,2,3,4].map(i => <div key={i} className="h-28 animate-pulse rounded-[18px] border border-white/[0.06] bg-white/[0.02]" />)}
+              </div>
+            )
+            : tabbed.length === 0
             ? (
               <div className="flex items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.03] py-16 text-sm text-slate-500">
                 No articles in this category.
@@ -274,7 +250,7 @@ export default function NewsPage() {
                     {/* Impact indicator */}
                     <div className="shrink-0 text-right">
                       <div className={`flex h-8 w-8 items-center justify-center rounded-full text-[9px] font-black border ${imp.cls}`}>
-                        {a.impact_score === null || a.impact_score === undefined ? "—" : a.impact_score >= 9 ? "HI" : a.impact_score >= 7 ? "MID" : "LO"}
+                        {a.impact_score === null || a.impact_score === undefined ? "—" : a.impact_score >= 90 ? "HI" : a.impact_score >= 75 ? "MID" : "LO"}
                       </div>
                     </div>
                   </Link>

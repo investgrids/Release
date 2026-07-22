@@ -22,10 +22,10 @@ export function FloatingAISearch({ className = "" }: FloatingAISearchProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 24, x: "-50%" }}
+      animate={{ opacity: 1, y: 0, x: "-50%" }}
       transition={{ duration: 0.5 }}
-      className={`fixed left-1/2 z-50 w-[min(92vw,680px)] -translate-x-1/2 ${className}`}
+      className={`fixed left-1/2 z-50 w-[min(92vw,680px)] ${className}`}
     >
       <form onSubmit={handleSubmit}>
         <div className="flex items-center gap-3 rounded-full border border-white/10 bg-slate-950/95 px-2 py-2 shadow-[0_8px_60px_rgba(56,189,248,0.2)] backdrop-blur-xl">

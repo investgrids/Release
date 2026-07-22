@@ -62,3 +62,6 @@ build-backend = "setuptools.build_meta"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+  "live_e2e: hits real DB/network/LLM, 30-180s per test — run explicitly with `-m live_e2e`, not on every commit",
+]

@@ -66,6 +66,13 @@ function moodColor(mood: string) {
   return "text-amber-400";
 }
 
+function moodPillCls(mood: string) {
+  const m = (mood ?? "").toLowerCase();
+  if (/bull|positive|strong|optimis/.test(m)) return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
+  if (/bear|negative|weak|pessim/.test(m))   return "bg-rose-500/15 text-rose-300 border-rose-500/30";
+  return "bg-amber-500/15 text-amber-300 border-amber-500/30";
+}
+
 // ── Mini sparkline (fed real index chart points — never synthetic) ────────────
 function MiniSparkline({ data, positive, w = 64, h = 28 }: { data: number[]; positive: boolean; w?: number; h?: number }) {
   if (!data || data.length < 2) return null;
@@ -191,21 +198,22 @@ async function TickerStrip() {
 // ROW 1 — AI Market Brief · Today's Biggest Events · Market Snapshot
 // ═══════════════════════════════════════════════════════════════════════════════
 async function AIMarketBriefCard() {
-  const [recentRaw, mie] = await Promise.all([getRecentEvents(), getMIE()]);
-  const events = ((recentRaw as any)?.results ?? (recentRaw as any) ?? []) as any[];
-  const top = [...events].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score))[0];
+  const mie = await getMIE();
   const story = mie?.story;
+  const drivers = (mie?.market_drivers ?? []).slice(0, 4) as { headline: string; urgency: number }[];
+  const opportunity = mie?.biggest_opportunity;
+  const risk = mie?.biggest_risk;
 
-  if (!top && !story) return null;
+  if (!story && drivers.length === 0 && !opportunity && !risk) return null;
 
-  const headline    = top?.title ?? story?.text?.split(/(?<=[.!?])\s+/)[0] ?? "AI is monitoring the market.";
-  const description = top?.summary ?? story?.text ?? "";
-  const style        = impactToStyle(top?.impact_score ?? null);
-  const confPct = top?.confidence !== null && top?.confidence !== undefined
-    ? Math.round(top.confidence * 100)
-    : (story?.confidence ?? null);
-  const mood     = story?.mood ?? "Neutral";
-  const category = top?.category ?? "Market";
+  // "Today's market in one sentence" — the brief is meant to be a 30-60s
+  // read (see AIMarketBriefAndHealth on the Live Market tab for the deep,
+  // continuously-updating version of the same story), so take just the
+  // first sentence of the real AI-generated narrative rather than the
+  // full paragraph.
+  const oneSentence = story?.text?.split(/(?<=[.!?])\s+/)[0] ?? "AI is monitoring the market.";
+  const mood = story?.mood ?? mie?.signals?.mood ?? "Neutral";
+  const confPct = story?.confidence ?? mie?.signals?.confidence ?? null;
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
@@ -217,82 +225,52 @@ async function AIMarketBriefCard() {
         {story?.generated_at && <span className="text-[10px] text-slate-600">Updated {timeAgo(story.generated_at)}</span>}
       </div>
 
-      <div className="mb-3 flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <h4 className="text-[17px] font-black leading-snug text-white">{headline}</h4>
-          {top && (
-            <span className={`mt-1.5 inline-block rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-wider ${style.pill}`}>
-              {style.label} Impact
-            </span>
-          )}
-        </div>
-        <EventIcon title={headline} category={category} />
+      <div className="mb-3 flex items-center gap-2">
+        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${moodPillCls(mood)}`}>
+          {mood}
+        </span>
+        {confPct != null && <span className="text-[11px] font-bold text-slate-400">{Math.round(confPct)}% Confidence</span>}
       </div>
 
-      {description && <p className="mb-4 text-[12px] leading-[1.6] text-slate-400 line-clamp-3">{description}</p>}
+      <p className="mb-4 text-[15px] font-semibold leading-snug text-white">{oneSentence}</p>
 
-      {(top?.sectors?.length > 0 || top?.companies?.length > 0) && (
-        <div className="mb-4 space-y-2.5">
-          {top?.sectors?.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">Affected Sectors</p>
-              <div className="flex flex-wrap gap-1.5">
-                {top.sectors.slice(0, 5).map((s: string) => (
-                  <span key={s} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-slate-300">{s}</span>
-                ))}
+      {drivers.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">Top Drivers</p>
+          <div className="space-y-1.5">
+            {drivers.map((d, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <EventIcon title={d.headline} />
+                <p className="line-clamp-1 text-[11.5px] text-slate-300">{d.headline}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(opportunity || risk) && (
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          {opportunity && (
+            <div>
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">Biggest Opportunity</p>
+              <Link href={opportunity.id ? `/opportunity-radar/${opportunity.id}` as any : "/opportunity-radar"} className="text-[12px] font-bold text-emerald-400 hover:text-emerald-300 line-clamp-2">
+                {opportunity.title}
+              </Link>
             </div>
           )}
-          {top?.companies?.length > 0 && (
+          {risk && (
             <div>
-              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">Affected Companies</p>
-              <div className="flex flex-wrap gap-1.5">
-                {top.companies.slice(0, 5).map((c: any) => {
-                  const sym = typeof c === "string" ? c : c.symbol ?? c.name;
-                  const imp = (typeof c === "object" ? c.impact : null)?.toLowerCase?.();
-                  const cls = imp === "positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
-                    : imp === "negative" ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
-                    : "border-white/10 bg-white/[0.04] text-slate-300";
-                  return (
-                    <Link key={sym} href={`/companies/${sym}` as any}
-                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition hover:brightness-125 ${cls}`}>
-                      {sym}
-                    </Link>
-                  );
-                })}
-              </div>
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">Biggest Risk</p>
+              <p className="text-[12px] font-bold text-rose-400 line-clamp-2">{risk.headline || risk.reason}</p>
             </div>
           )}
         </div>
       )}
 
       <Link href="/market-intelligence"
-        className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
-        Read Full Intelligence <ArrowRight className="h-3 w-3" />
+        className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
+        Read Full Market Intelligence <ArrowRight className="h-3 w-3" />
       </Link>
-
-      <div className="mt-auto grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-4 sm:grid-cols-4">
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Impact Score</p>
-          <p className="text-[15px] font-black text-white">{top?.impact_score != null ? `${Math.round(top.impact_score)}/100` : "—"}</p>
-          <p className={`text-[10px] font-semibold ${style.text}`}>{style.label}</p>
-        </div>
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Confidence</p>
-          <p className="text-[15px] font-black text-white">{confPct != null ? `${confPct}%` : "—"}</p>
-          <p className="text-[10px] font-semibold text-sky-400">{confPct != null ? (confPct >= 75 ? "High" : confPct >= 50 ? "Moderate" : "Low") : "—"}</p>
-        </div>
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Market Sentiment</p>
-          <p className={`text-[15px] font-black ${moodColor(mood)}`}>{mood}</p>
-          <p className="text-[10px] font-semibold text-slate-500">{story?.direction === "up" ? "Improving" : story?.direction === "down" ? "Weakening" : "Steady"}</p>
-        </div>
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Category</p>
-          <p className="text-[15px] font-black text-white truncate">{category}</p>
-          <p className="text-[10px] font-semibold text-slate-500 truncate">{top?.event_type ?? "—"}</p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -302,36 +280,48 @@ async function TodaysBiggestEventsCard() {
   const events = ((recentRaw as any)?.results ?? (recentRaw as any) ?? []) as any[];
   const todayStr = todayDateStr();
 
+  // impact_score === 0 means "not yet scored" (e.g. routine NSE compliance
+  // filings that were enriched but genuinely carry no market signal), not a
+  // real low score — same convention as Events/LiveMarketTab. Real news that
+  // happened today can still be sitting unscored while a truly significant
+  // event from a few days ago has a real score; showing nothing in that case
+  // (the old "must be dated exactly today" rule) reads as "broken" when
+  // there's genuinely nothing scored yet today. So: prefer today's own real
+  // events, but fall back to the most recent scored events otherwise —
+  // every item's own timestamp is shown, so it's never mislabeled as today's.
   const seen = new Set<string>();
-  const merged: any[] = [];
+  const scored: any[] = [];
   for (const e of events) {
-    if (!e.id || seen.has(e.id)) continue;
-    // "Today's" Biggest Events means today — an old high-impact event
-    // outranking today's real news by score alone is exactly the bug this
-    // filter exists to prevent.
-    if (!e.date || new Date(e.date).toDateString() !== todayStr) continue;
+    if (!e.id || seen.has(e.id) || e.impact_score === 0 || e.impact_score == null) continue;
     seen.add(e.id);
-    merged.push(e);
+    scored.push(e);
   }
-  merged.sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score));
-  const items = merged.slice(0, 3);
+  scored.sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score));
+  const fromToday = scored.filter(e => e.date && new Date(e.date).toDateString() === todayStr);
+  const items = (fromToday.length > 0 ? fromToday : scored).slice(0, 3);
+  const allFromToday = items.length > 0 && items.every(e => e.date && new Date(e.date).toDateString() === todayStr);
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-      <CardHeader title="Today's Biggest Events" href="/events" />
+      <CardHeader title={allFromToday ? "Today's Biggest Events" : "Latest Biggest Events"} href="/events" />
       {items.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No high-impact events yet today.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No scored events available right now.</p>
       ) : (
         <div className="flex-1 space-y-3.5">
           {items.map((e, i) => {
             const style = impactToStyle(e.impact_score);
+            const eventIsToday = e.date && new Date(e.date).toDateString() === todayStr;
             return (
               <Link key={e.id} href={`/events/${e.id}` as any} className="group flex items-start gap-3">
                 <div className="mt-0.5 flex w-11 shrink-0 flex-col items-start gap-1">
                   <span className="text-[9px] font-bold tabular-nums text-slate-600">
-                    {e.date ? new Date(e.date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : ""}
+                    {e.date
+                      ? eventIsToday
+                        ? new Date(e.date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+                        : new Date(e.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
+                      : ""}
                   </span>
-                  {i === 0 && <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[7px] font-black text-rose-400">LIVE</span>}
+                  {i === 0 && eventIsToday && <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[7px] font-black text-rose-400">LIVE</span>}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-bold leading-snug text-white group-hover:text-violet-200 transition line-clamp-2">{e.title}</p>
@@ -646,11 +636,11 @@ export default function HomePage() {
         <TickerStrip />
       </Suspense>
 
-      {/* Row 1 — AI Market Brief (hero) · Today's Biggest Events · Live Feed */}
+      {/* Row 1 — AI Market Brief (hero) · Today's Biggest Events · Live Intelligence */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr_1fr]">
         <Suspense fallback={<Sk h={420} />}><AIMarketBriefCard /></Suspense>
         <Suspense fallback={<Sk h={420} />}><TodaysBiggestEventsCard /></Suspense>
-        <LiveIntelligenceFeed compact limit={4} />
+        <LiveIntelligenceFeed compact limit={8} />
       </div>
 
       {/* Row 2 — Today's Opportunities · Companies to Watch · Theme Strength */}

@@ -26,7 +26,12 @@ export interface IntelligenceEvent {
   id: string;
   headline: string;
   urgency: number;
+  importance?: number;
+  confidence?: number | null;
   sentiment: string;
+  horizon?: string | null;
+  market_impact?: string | null;
+  is_structural?: boolean;
   direction: string;
   one_liner: string;
   themes: string[];
@@ -35,6 +40,8 @@ export interface IntelligenceEvent {
   refresh_homepage: boolean;
   source: string;
   ts: string;
+  priority_score?: number;
+  priority_tier?: string;
 }
 
 /** A score change broadcast by the Intelligence Orchestrator — real, not simulated. */

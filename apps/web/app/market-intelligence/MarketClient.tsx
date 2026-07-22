@@ -119,7 +119,7 @@ export function MarketClient({
         {/* Hero header card */}
         <div className="rounded-xl border border-white/[0.08] bg-[#080c14] px-5 py-4">
 
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             {/* Left: title + greeting + summary */}
             <div className="flex-1 min-w-0">
               <div className="mb-2 flex items-center gap-2.5">

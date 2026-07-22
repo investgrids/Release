@@ -27,6 +27,12 @@ export interface AITransparencyProps {
   relationshipChain?: RelationshipStep[];
   assumptions?: string[];
   limitations?: string[];
+  /** Raw confidence_service.py breakdown (sources, historical, market_confirmation,
+   *  company_sensitivity, sector_confirmation, macro_alignment, ai_certainty,
+   *  volatility, total) — ai_certainty is the ONLY component that's the model
+   *  grading its own certainty rather than a real observable signal, so it's
+   *  called out separately here instead of blending invisibly into "confidence". */
+  confidenceBreakdown?: Record<string, number>;
   updatedAt?: string;
   title?: string;
   whyReason?: string;
@@ -49,6 +55,7 @@ export function AITransparencyPanel({
   relationshipChain = [],
   assumptions = [],
   limitations = [],
+  confidenceBreakdown,
   updatedAt,
   title = "AI Analysis",
   whyReason,
@@ -134,6 +141,45 @@ export function AITransparencyPanel({
 
             {/* Confidence meter */}
             <ConfidenceMeter score={confidence} />
+
+            {/* Confidence breakdown — separates real evidence signals from the
+                model's own self-rating, so "confidence" never reads as more
+                objective than it is. */}
+            {confidenceBreakdown && (() => {
+              const { ai_certainty, total, ...evidenceSignals } = confidenceBreakdown;
+              const evidenceTotal = Object.values(evidenceSignals).reduce((a, b) => a + b, 0);
+              const LABELS: Record<string, string> = {
+                sources: "News & event sources", historical: "Historical precedent",
+                market_confirmation: "Market confirmation", company_sensitivity: "Company sensitivity",
+                sector_confirmation: "Sector confirmation", macro_alignment: "Macro alignment",
+                volatility: "Volatility adjustment",
+              };
+              return (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-2">
+                    Confidence Breakdown
+                  </p>
+                  <div className="space-y-1 mb-2">
+                    {Object.entries(evidenceSignals).filter(([, v]) => v !== 0).map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-400">{LABELS[k] ?? k}</span>
+                        <span className="text-slate-300 tabular-nums">{v > 0 ? "+" : ""}{v}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between text-[11px] font-semibold pt-1 border-t border-white/5">
+                      <span className="text-slate-300">Evidence-based subtotal</span>
+                      <span className="text-emerald-400 tabular-nums">{evidenceTotal}</span>
+                    </div>
+                  </div>
+                  {ai_certainty != null && (
+                    <div className="flex items-center justify-between text-[11px] rounded-lg bg-amber-500/[0.06] border border-amber-500/15 px-2 py-1.5">
+                      <span className="text-amber-300/90">AI self-assessed certainty <span className="text-amber-300/60">(not observed evidence)</span></span>
+                      <span className="text-amber-300 tabular-nums font-semibold">+{ai_certainty}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Evidence cards */}
             {evidence.length > 0 && (

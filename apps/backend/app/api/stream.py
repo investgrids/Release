@@ -25,12 +25,22 @@ router = APIRouter()
 
 
 def _serialize_triaged(event: TriagedEvent) -> str:
+    # REST (/mie/feed) already returns confidence/market_impact/priority_tier —
+    # the live SSE push was missing them, so a freshly-arrived alert would
+    # render blank/stale until the next 60s refresh backfilled it. Compute the
+    # same priority_score/tier here so live pushes match the REST shape exactly.
+    from app.services.intelligence.engine import _compute_priority
+    priority_score, priority_tier = _compute_priority(event.urgency, event.importance, None, event.raw.headline)
     return json.dumps({
         "id":               event.raw.id,
         "headline":         event.raw.headline,
         "urgency":          event.urgency,
         "importance":       event.importance,
+        "confidence":       event.confidence,
         "sentiment":        event.sentiment,
+        "horizon":          event.horizon,
+        "market_impact":    event.market_impact,
+        "is_structural":    event.is_structural,
         "direction":        event.direction,
         "one_liner":        event.one_liner,
         "themes":           event.themes,
@@ -40,6 +50,8 @@ def _serialize_triaged(event: TriagedEvent) -> str:
         "refresh_homepage": event.refresh_homepage,
         "source":           event.raw.source,
         "ts":               event.raw.timestamp.isoformat(),
+        "priority_score":   priority_score,
+        "priority_tier":    priority_tier,
     })
 
 
