@@ -193,9 +193,15 @@ _OR_HIGH_QUALITY = [
 ]
 
 # ── Tier 2: Gemini (1,500 req/day — high quality, very reliable)
+#
+# 2026-07-22: gemini-1.5-flash confirmed 404 (deprecated on Google's side).
+# Replaced with gemini-2.0-flash-001 (verified live via ListModels).
+# Separately, the configured GEMINI_API_KEY currently reports free-tier
+# quota limit=0 from Google — a project/key eligibility issue, not
+# something this list can fix. This tier is a no-op until that's resolved.
 _GEMINI_MODELS = [
     "gemini-2.0-flash",
-    "gemini-1.5-flash",
+    "gemini-2.0-flash-001",
 ]
 
 # ── Tier 3: Groq HIGH-QUALITY (best Groq models, 1,000 req/day each)
