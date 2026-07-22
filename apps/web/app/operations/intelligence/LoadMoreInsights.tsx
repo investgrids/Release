@@ -36,7 +36,7 @@ export function LoadMoreInsights({ initialItems, startOffset, total }: { initial
           {items.map(a => (
             <Link
               key={a.slug}
-              href={`/insights/${a.slug}` as any}
+              href={`/newsroom/article/${a.slug}` as any}
               className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 transition hover:border-white/20 hover:bg-white/[0.04]"
             >
               <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">

@@ -434,7 +434,7 @@ function SectorRotationCard({ sectors }: { sectors: any[] }) {
           })}
         </div>
       )}
-      <Link href="/themes" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-white/[0.07] bg-white/[0.02] py-1.5 text-[10px] font-semibold text-slate-400 hover:text-white transition">
+      <Link href="/newsroom/themes" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-white/[0.07] bg-white/[0.02] py-1.5 text-[10px] font-semibold text-slate-400 hover:text-white transition">
         Sector Heatmap
       </Link>
     </div>

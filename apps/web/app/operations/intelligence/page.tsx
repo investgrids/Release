@@ -251,7 +251,7 @@ export default async function MarketIntelligenceShowcase() {
         {featured && (
           <section id="featured" className="pt-20 sm:pt-24">
             <SectionHeader eyebrow="Today's Featured Intelligence" title="The story moving markets right now" />
-            <Link href={`/insights/${featured.slug}` as any} className="group block">
+            <Link href={`/newsroom/article/${featured.slug}` as any} className="group block">
               <GlassCard className="relative overflow-hidden p-8 transition hover:border-violet-500/30 sm:p-12">
                 <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-600/20 blur-[100px]" />
                 <div className="relative grid grid-cols-1 gap-8 lg:grid-cols-[1fr_280px]">
@@ -369,7 +369,7 @@ export default async function MarketIntelligenceShowcase() {
                     )}
 
                     {primary && (
-                      <Link href={`/insights/${primary.slug}` as any} className="mt-5 flex items-center gap-1.5 text-[12px] font-bold text-violet-300 hover:text-violet-200 transition">
+                      <Link href={`/newsroom/article/${primary.slug}` as any} className="mt-5 flex items-center gap-1.5 text-[12px] font-bold text-violet-300 hover:text-violet-200 transition">
                         Explore Campaign <ArrowRight className="h-3.5 w-3.5" />
                       </Link>
                     )}
@@ -383,11 +383,11 @@ export default async function MarketIntelligenceShowcase() {
         {/* ══════════════════════ LATEST PUBLISHED ARTICLES (TIMELINE) ══════════════════════ */}
         {timelineArticles.length > 0 && (
           <section className="pt-20 sm:pt-24">
-            <SectionHeader eyebrow="As It Happens" title="Latest Published Articles" href="/insights" cta="View all insights" />
+            <SectionHeader eyebrow="As It Happens" title="Latest Published Articles" href="/newsroom" cta="View all insights" />
             <div className="relative space-y-0">
               <div className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-violet-500/40 via-white/10 to-transparent sm:left-[19px]" />
               {timelineArticles.map((a, i) => (
-                <Link key={a.slug} href={`/insights/${a.slug}` as any} className="group relative flex gap-5 pb-7 last:pb-0">
+                <Link key={a.slug} href={`/newsroom/article/${a.slug}` as any} className="group relative flex gap-5 pb-7 last:pb-0">
                   <div className="relative z-10 mt-1.5 flex h-[30px] w-[30px] shrink-0 items-center justify-center sm:h-[38px] sm:w-[38px]">
                     <span className={`h-3 w-3 rounded-full ${a.update_count > 0 ? "bg-sky-400" : "bg-violet-400"} ring-4 ring-[#040711]`} />
                   </div>
@@ -423,7 +423,7 @@ export default async function MarketIntelligenceShowcase() {
         {/* ══════════════════════ MARKET THEMES ══════════════════════ */}
         {themeStats.length > 0 && (
           <section className="pt-20 sm:pt-24">
-            <SectionHeader eyebrow="Thematic Intelligence" title="Market Themes" href="/themes" cta="Explore all themes" />
+            <SectionHeader eyebrow="Thematic Intelligence" title="Market Themes" href="/newsroom/themes" cta="Explore all themes" />
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {themeStats.map(t => {
                 const Icon = MOMENTUM_ICON[t.momentum] ?? Minus;
@@ -548,7 +548,7 @@ export default async function MarketIntelligenceShowcase() {
             <SectionHeader eyebrow="Investor Questions" title="People Are Asking" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {questions.items.map(q => (
-                <Link key={q.slug} href={`/insights/${q.slug}` as any} className="group">
+                <Link key={q.slug} href={`/newsroom/article/${q.slug}` as any} className="group">
                   <GlassCard className="h-full p-5 transition group-hover:border-violet-500/25">
                     <HelpCircle className="h-4 w-4 text-violet-400" />
                     <h3 className="mt-3 text-[14px] font-bold leading-snug text-white group-hover:text-violet-100 transition">{q.headline}</h3>
@@ -602,7 +602,7 @@ export default async function MarketIntelligenceShowcase() {
               MarketRipple's AI is monitoring markets right now — every event, every ripple, analyzed the moment it happens.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/insights" className="rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-7 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_30px_rgba(124,58,237,0.35)] transition hover:-translate-y-0.5">
+              <Link href="/newsroom" className="rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-7 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_30px_rgba(124,58,237,0.35)] transition hover:-translate-y-0.5">
                 Explore Today's Market Intelligence
               </Link>
               <Link href="/ai-search" className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-slate-200 transition hover:border-white/30">

@@ -3,13 +3,14 @@ import Link from "next/link";
 import {
   ArrowRight, ChevronRight, Calendar, Building2, BarChart3,
   Landmark, Droplets, Shield, Cloud, DollarSign, FlameKindling, Cpu, Wheat,
-  Sparkles, TrendingUp, TrendingDown, Minus,
+  Sparkles, TrendingUp,
 } from "lucide-react";
 import { HomepageRefresher } from "@/components/homepage/HomepageRefresher";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
 import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
+import { cleanText } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,9 @@ async function revalidate<T = any>(url: string, sec = 60, ms = 5000): Promise<T 
 }
 
 // One call each — deduplicated within a render via cache()
-const getMIE          = cache(() => live(`${API}/api/mie/state`));
+// (getMIE removed — no homepage card reads MIE directly anymore; the
+// three cards that used to now read the real AIPE/Opportunity Engine
+// sources instead. MIE itself is untouched and still powers other pages.)
 const getPremarket    = cache(() => live(`${API}/api/market/premarket`));
 const getTopMovers    = cache(() => live(`${API}/api/market/top-movers`));
 const getCalendar     = cache(() => live(`${API}/api/calendar/`));
@@ -44,6 +47,20 @@ const getSession      = cache(() => live(`${API}/api/market/session`));
 const getRadar        = cache(() => revalidate(`${API}/api/radar/?page=1&page_size=4`, 120));
 const getRecentEvents = cache(() => revalidate(`${API}/api/events/?sort_by=impact_score&page_size=10`, 300));
 const getInsights     = cache(() => revalidate(`${API}/api/insights/?limit=4`, 300));
+
+// Real AIPE Daily Brief — single source of truth for "what does the AI say
+// about today," replacing the old MIE-sourced mie.story. Two calls (list
+// then detail) because the list row doesn't carry the structured risks[]
+// field Key Risks needs; cache() dedupes this across AIMarketBriefCard and
+// KeyRisksCard so it only actually fetches once per render.
+const getMorningBrief = cache(async () => {
+  const list = await revalidate<{ items: { slug: string }[] }>(
+    `${API}/api/insights/?article_type=morning_intelligence&limit=1`, 300,
+  );
+  const slug = list?.items?.[0]?.slug;
+  if (!slug) return null;
+  return revalidate<any>(`${API}/api/insights/${slug}`, 300);
+});
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 function todayDateStr() {
@@ -57,20 +74,6 @@ function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "";
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   return mins < 1 ? "just now" : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
-}
-
-function moodColor(mood: string) {
-  const m = (mood ?? "").toLowerCase();
-  if (/bull|positive|strong|optimis/.test(m)) return "text-emerald-400";
-  if (/bear|negative|weak|pessim/.test(m))   return "text-rose-400";
-  return "text-amber-400";
-}
-
-function moodPillCls(mood: string) {
-  const m = (mood ?? "").toLowerCase();
-  if (/bull|positive|strong|optimis/.test(m)) return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
-  if (/bear|negative|weak|pessim/.test(m))   return "bg-rose-500/15 text-rose-300 border-rose-500/30";
-  return "bg-amber-500/15 text-amber-300 border-amber-500/30";
 }
 
 // ── Mini sparkline (fed real index chart points — never synthetic) ────────────
@@ -198,22 +201,15 @@ async function TickerStrip() {
 // ROW 1 — AI Market Brief · Today's Biggest Events · Market Snapshot
 // ═══════════════════════════════════════════════════════════════════════════════
 async function AIMarketBriefCard() {
-  const mie = await getMIE();
-  const story = mie?.story;
-  const drivers = (mie?.market_drivers ?? []).slice(0, 4) as { headline: string; urgency: number }[];
-  const opportunity = mie?.biggest_opportunity;
-  const risk = mie?.biggest_risk;
+  // Real AIPE morning_intelligence article — single source of truth for
+  // "what does the AI say about today," replacing the old MIE-sourced
+  // mie.story (a separate, competing narrative pipeline that could — and
+  // did — disagree with what the AI Newsroom shows for the same day).
+  const brief = await getMorningBrief();
+  if (!brief) return null;
 
-  if (!story && drivers.length === 0 && !opportunity && !risk) return null;
-
-  // "Today's market in one sentence" — the brief is meant to be a 30-60s
-  // read (see AIMarketBriefAndHealth on the Live Market tab for the deep,
-  // continuously-updating version of the same story), so take just the
-  // first sentence of the real AI-generated narrative rather than the
-  // full paragraph.
-  const oneSentence = story?.text?.split(/(?<=[.!?])\s+/)[0] ?? "AI is monitoring the market.";
-  const mood = story?.mood ?? mie?.signals?.mood ?? "Neutral";
-  const confPct = story?.confidence ?? mie?.signals?.confidence ?? null;
+  const summary = cleanText(brief.key_takeaway ?? brief.executive_summary ?? "");
+  const confPct = brief.confidence_score != null ? Math.round(brief.confidence_score * 100) : null;
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
@@ -222,54 +218,23 @@ async function AIMarketBriefCard() {
           <Sparkles className="h-4 w-4 text-violet-400" />
           <h3 className="text-[13px] font-black text-white">AI Market Brief</h3>
         </div>
-        {story?.generated_at && <span className="text-[10px] text-slate-600">Updated {timeAgo(story.generated_at)}</span>}
+        {brief.published_at && <span className="text-[10px] text-slate-600">Updated {timeAgo(brief.published_at)}</span>}
       </div>
 
-      <div className="mb-3 flex items-center gap-2">
-        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${moodPillCls(mood)}`}>
-          {mood}
-        </span>
-        {confPct != null && <span className="text-[11px] font-bold text-slate-400">{Math.round(confPct)}% Confidence</span>}
-      </div>
-
-      <p className="mb-4 text-[15px] font-semibold leading-snug text-white">{oneSentence}</p>
-
-      {drivers.length > 0 && (
-        <div className="mb-4">
-          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">Top Drivers</p>
-          <div className="space-y-1.5">
-            {drivers.map((d, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <EventIcon title={d.headline} />
-                <p className="line-clamp-1 text-[11.5px] text-slate-300">{d.headline}</p>
-              </div>
-            ))}
-          </div>
+      {confPct != null && (
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-[11px] font-bold text-slate-400">{confPct}% Confidence</span>
         </div>
       )}
 
-      {(opportunity || risk) && (
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          {opportunity && (
-            <div>
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">Biggest Opportunity</p>
-              <Link href={opportunity.id ? `/opportunity-radar/${opportunity.id}` as any : "/opportunity-radar"} className="text-[12px] font-bold text-emerald-400 hover:text-emerald-300 line-clamp-2">
-                {opportunity.title}
-              </Link>
-            </div>
-          )}
-          {risk && (
-            <div>
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">Biggest Risk</p>
-              <p className="text-[12px] font-bold text-rose-400 line-clamp-2">{risk.headline || risk.reason}</p>
-            </div>
-          )}
-        </div>
+      <p className="mb-2 text-[15px] font-semibold leading-snug text-white line-clamp-2">{cleanText(brief.headline)}</p>
+      {summary && (
+        <p className="mb-4 line-clamp-3 text-[12.5px] leading-5 text-slate-400">{summary}</p>
       )}
 
-      <Link href="/market-intelligence"
+      <Link href="/newsroom/daily-brief"
         className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
-        Read Full Market Intelligence <ArrowRight className="h-3 w-3" />
+        Read Full Brief <ArrowRight className="h-3 w-3" />
       </Link>
     </div>
   );
@@ -324,7 +289,7 @@ async function TodaysBiggestEventsCard() {
                   {i === 0 && eventIsToday && <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[7px] font-black text-rose-400">LIVE</span>}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-bold leading-snug text-white group-hover:text-violet-200 transition line-clamp-2">{e.title}</p>
+                  <p className="text-[12px] font-bold leading-snug text-white group-hover:text-violet-200 transition line-clamp-2">{cleanText(e.title)}</p>
                   <p className="mt-0.5 text-[10px] text-slate-500">{e.category ?? "Market"} · {style.label} Impact</p>
                 </div>
                 <span className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-black tabular-nums ${style.circle}`}>
@@ -424,8 +389,8 @@ async function CompaniesToWatchTable() {
                       {r.ticker.slice(0, 2)}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-[11px] font-bold text-white group-hover:text-violet-200 transition">{r.name}</p>
-                      <p className="truncate text-[9px] text-slate-500">{r.reason}</p>
+                      <p className="truncate text-[11px] font-bold text-white group-hover:text-violet-200 transition">{cleanText(r.name)}</p>
+                      <p className="truncate text-[9px] text-slate-500">{cleanText(r.reason)}</p>
                     </div>
                   </div>
                   <span className={`text-right text-[12px] font-black tabular-nums ${style.text}`}>
@@ -458,8 +423,8 @@ async function TopOpportunitiesCard() {
                 <TrendingUp className="h-4 w-4 text-emerald-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-bold leading-snug text-white group-hover:text-emerald-200 transition line-clamp-1">{r.title}</p>
-                <p className="mt-0.5 text-[10px] text-slate-500 line-clamp-1">{r.summary}</p>
+                <p className="text-[12px] font-bold leading-snug text-white group-hover:text-emerald-200 transition line-clamp-1">{cleanText(r.title)}</p>
+                <p className="mt-0.5 text-[10px] text-slate-500 line-clamp-1">{cleanText(r.summary)}</p>
               </div>
               <span className="shrink-0 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-black tabular-nums text-emerald-400">
                 {r.opportunity_score != null ? Math.round(r.opportunity_score) : "—"}
@@ -473,35 +438,36 @@ async function TopOpportunitiesCard() {
 }
 
 async function KeyRisksCard() {
-  const mie = await getMIE();
-  const story = mie?.story;
-  const feed  = (mie?.top_events ?? []) as any[];
-
-  type RiskRow = { name: string; why: string; level: string };
-  const risks: RiskRow[] = [];
-  if (story?.risk) risks.push({ name: "Market Risk", why: story.risk.split(/[.!?]/)[0]?.trim() ?? story.risk, level: "High" });
-  feed.filter((f: any) => f.urgency >= 5).slice(0, 2).forEach((f: any) =>
-    risks.push({ name: f.headline.split(" ").slice(0, 6).join(" "), why: f.one_liner || f.headline, level: f.urgency >= 7 ? "High" : "Medium" }));
+  // Real structured risks[] from the AIPE Daily Brief — not a second,
+  // independently-generated risk narrative from MIE. Same article
+  // AIMarketBriefCard uses; cache() means this doesn't double-fetch.
+  const brief = await getMorningBrief();
+  const risks = (brief?.risks ?? []) as { title: string; description: string; severity?: string }[];
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-      <CardHeader title="Key Risks" href="/market-intelligence" />
+      <CardHeader title="Key Risks" href="/newsroom/daily-brief" />
       {risks.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No elevated risks detected.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No elevated risks in today's brief.</p>
       ) : (
         <div className="flex-1 space-y-3">
-          {risks.slice(0, 3).map((r, i) => (
-            <Link key={i} href="/market-intelligence" className="group flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/15">
-                <Building2 className="h-4 w-4 text-rose-400" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-bold leading-snug text-white group-hover:text-rose-200 transition line-clamp-1">{r.name}</p>
-                <p className="mt-0.5 text-[10px] text-slate-500 line-clamp-1">{r.why}</p>
-              </div>
-              <span className={`shrink-0 text-[11px] font-black ${r.level === "High" ? "text-rose-400" : "text-amber-400"}`}>{r.level}</span>
-            </Link>
-          ))}
+          {risks.slice(0, 3).map((r, i) => {
+            const level = (r.severity ?? "medium").toLowerCase();
+            return (
+              <Link key={i} href="/newsroom/daily-brief" className="group flex items-start gap-3">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/15">
+                  <Building2 className="h-4 w-4 text-rose-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-bold leading-snug text-white group-hover:text-rose-200 transition line-clamp-1">{cleanText(r.title)}</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500 line-clamp-1">{cleanText(r.description)}</p>
+                </div>
+                <span className={`shrink-0 text-[11px] font-black ${level === "high" ? "text-rose-400" : "text-amber-400"}`}>
+                  {level === "high" ? "High" : level === "low" ? "Low" : "Medium"}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
@@ -509,36 +475,36 @@ async function KeyRisksCard() {
 }
 
 async function ThemeStrengthCard() {
-  const mie = await getMIE();
-  const themes = ((mie?.sector_themes ?? []) as any[])
-    .filter((t: any) => t.score !== null && t.score !== undefined)
-    .sort((a: any, b: any) => b.score - a.score)
-    .slice(0, 5);
+  // Real Opportunity Engine (/api/radar) — same source and same numbers as
+  // Top Opportunities and the AI Newsroom's Theme Intelligence, not MIE's
+  // separate sector_themes scoring (which could, and did, disagree).
+  const radar = await getRadar();
+  const themes = (((radar as any)?.items ?? []) as any[]).slice(0, 5);
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-      <CardHeader title="Theme Strength" href="/themes" />
+      <CardHeader title="Theme Strength" href="/newsroom/themes" />
       {themes.length === 0 ? (
         <p className="flex-1 py-6 text-center text-[12px] text-slate-600">Theme data is loading.</p>
       ) : (
         <div className="flex-1 space-y-3">
           {themes.map((t: any) => {
-            const MomentumIcon = t.momentum === "rising" ? TrendingUp : t.momentum === "falling" ? TrendingDown : Minus;
-            const momentumCls  = t.momentum === "rising" ? "text-emerald-400" : t.momentum === "falling" ? "text-rose-400" : "text-slate-500";
-            const barColor     = t.score >= 75 ? "bg-emerald-500" : t.score >= 50 ? "bg-sky-500" : t.score >= 30 ? "bg-amber-500" : "bg-rose-500";
+            const score = t.opportunity_score ?? 0;
+            const barColor = score >= 75 ? "bg-emerald-500" : score >= 50 ? "bg-sky-500" : score >= 30 ? "bg-amber-500" : "bg-rose-500";
             return (
-              <div key={t.name}>
+              <Link key={t.id} href={`/newsroom/themes/${t.slug}`} className="group block">
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-300">
-                    <MomentumIcon className={`h-3 w-3 ${momentumCls}`} />
-                    {t.name}
-                  </span>
-                  <span className="text-[11px] font-black tabular-nums text-white">{Math.round(t.score)}</span>
+                  <span className="line-clamp-1 text-[11px] font-semibold text-slate-300 group-hover:text-white transition">{cleanText(t.title)}</span>
+                  <span className="shrink-0 text-[11px] font-black tabular-nums text-white">{Math.round(score)}</span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
-                  <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, Math.max(0, t.score))}%` }} />
+                  <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
                 </div>
-              </div>
+                <div className="mt-1 flex items-center gap-2 text-[9.5px] text-slate-600">
+                  <span>{Math.round((t.confidence ?? 0) * 100)}% confidence</span>
+                  {t.risk_level && <span>· {t.risk_level} risk</span>}
+                </div>
+              </Link>
             );
           })}
         </div>
@@ -593,14 +559,14 @@ async function LatestIntelligenceRow() {
 
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-      <CardHeader title="Latest Intelligence Articles" href="/insights" />
+      <CardHeader title="Latest Intelligence Articles" href="/newsroom" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((a: any) => {
           const publishedLabel = a.published_at
             ? new Date(a.published_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })
             : null;
           return (
-            <Link key={a.slug} href={`/insights/${a.slug}`} className="group flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:border-white/20 hover:bg-white/[0.04]">
+            <Link key={a.slug} href={`/newsroom/article/${a.slug}`} className="group flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:border-white/20 hover:bg-white/[0.04]">
               <span className="w-fit rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
                 {(a.article_type ?? "intelligence").replace(/_/g, " ")}
               </span>

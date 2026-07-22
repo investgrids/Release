@@ -1239,7 +1239,7 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
   if (loaded && articles.length === 0 && historical.length === 0) return null;
 
   return (
-    <SectionCard title="Latest Intelligence" action={<Link href="/insights" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>}>
+    <SectionCard title="Latest Intelligence" action={<Link href="/newsroom" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>}>
       {!loaded ? (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[1, 2, 3].map(i => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/[0.03]" />)}
@@ -1254,7 +1254,7 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
           {articles.length > 0 && (
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {articles.map(a => (
-                <Link key={a.slug} href={`/insights/${a.slug}` as any}
+                <Link key={a.slug} href={`/newsroom/article/${a.slug}` as any}
                   className="group flex flex-col justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 hover:-translate-y-0.5 hover:border-sky-400/20 transition-all">
                   <div>
                     <span className="text-[9px] uppercase tracking-widest text-slate-500">{ARTICLE_TYPE_TAG[a.article_type] ?? a.article_type}</span>

@@ -39,3 +39,24 @@ export function fixMojibake(s?: string | null): string {
     return s; // invalid UTF-8 byte sequence — leave as-is
   }
 }
+
+// Some ingested headlines (e.g. scraped "Stocks in news: ... L&amp;T ...")
+// carry literal HTML entities instead of the decoded character — a real,
+// separate data-quality issue from mojibake (unambiguous to fix: entity
+// decoding has no false-positive risk the way mojibake byte-guessing does).
+// Small, fixed table rather than a full HTML-entity library — covers what's
+// actually shown up in real ingested text.
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": "\"",
+  "&#39;": "'", "&apos;": "'", "&nbsp;": " ",
+};
+export function decodeEntities(s?: string | null): string {
+  if (!s) return "";
+  return s.replace(/&(?:amp|lt|gt|quot|#39|apos|nbsp);/g, (m) => HTML_ENTITIES[m] ?? m);
+}
+
+// The combined, safe-to-apply-everywhere cleanup for any AIPE/Opportunity
+// Engine text field — fixes both known real data-quality issues in one call.
+export function cleanText(s?: string | null): string {
+  return decodeEntities(fixMojibake(s));
+}

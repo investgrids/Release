@@ -57,7 +57,7 @@ function SectorOverview({ sectors }: { sectors: any[] }) {
     <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-[13px] font-bold text-white">Sector Performance</h3>
-        <Link href="/themes" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <Link href="/newsroom/themes" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
       </div>
       {sorted.length === 0 ? (
         <p className="py-6 text-center text-[12px] text-slate-600">Sector data unavailable.</p>

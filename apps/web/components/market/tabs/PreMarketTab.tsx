@@ -824,7 +824,7 @@ function LatestIntelligence({ items }: { items: any[] }) {
     <Section icon={Newspaper} title="Latest Intelligence">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((a: any) => (
-          <Link key={a.slug} href={`/insights/${a.slug}`}
+          <Link key={a.slug} href={`/newsroom/article/${a.slug}`}
             className="group rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 transition hover:border-violet-500/25 hover:bg-white/[0.05]">
             <h3 className="text-[13px] font-bold leading-snug text-white line-clamp-2 group-hover:text-violet-200 transition">{a.headline}</h3>
             {(a.key_takeaway || a.executive_summary) && (

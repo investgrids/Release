@@ -8,6 +8,7 @@ import {
   Sparkles, Target, Radio, ChevronRight, Compass, Database,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { cleanText } from "@/lib/text";
 
 // ── Article type metadata ────────────────────────────────────────────────────
 
@@ -80,11 +81,45 @@ interface InsightDetail {
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 
+// Cleans every real AIPE-authored text field once, at the data layer,
+// rather than sprinkling cleanText() through ~800 lines of JSX below — the
+// mojibake/HTML-entity issue (see lib/text.ts) can appear in any of these
+// fields since they're all real ingested/generated text. This page didn't
+// have the fix at all before relocating here, despite being the most-read
+// content page in the app.
+function cleanArticle(a: InsightDetail): InsightDetail {
+  return {
+    ...a,
+    headline: cleanText(a.headline),
+    key_takeaway: a.key_takeaway ? cleanText(a.key_takeaway) : a.key_takeaway,
+    executive_summary: a.executive_summary ? cleanText(a.executive_summary) : a.executive_summary,
+    why_it_matters: a.why_it_matters ? cleanText(a.why_it_matters) : a.why_it_matters,
+    what_happened: a.what_happened ? cleanText(a.what_happened) : a.what_happened,
+    companies_affected: (a.companies_affected ?? []).map(c => ({ ...c, name: cleanText(c.name), reason: c.reason ? cleanText(c.reason) : c.reason })),
+    sectors_affected: (a.sectors_affected ?? []).map(s => ({ ...s, name: cleanText(s.name), reason: s.reason ? cleanText(s.reason) : s.reason })),
+    opportunities: (a.opportunities ?? []).map(o => ({ ...o, title: cleanText(o.title), description: cleanText(o.description) })),
+    risks: (a.risks ?? []).map(r => ({ ...r, title: cleanText(r.title), description: cleanText(r.description), mitigation: r.mitigation ? cleanText(r.mitigation) : r.mitigation })),
+    historical_events: (a.historical_events ?? []).map(h => ({ ...h, event: h.event ? cleanText(h.event) : h.event })),
+    ripple_effect: (a.ripple_effect ?? []).map(r => ({ ...r, from_entity: cleanText(r.from_entity), to_entity: cleanText(r.to_entity), mechanism: cleanText(r.mechanism) })),
+    what_to_watch_next: (a.what_to_watch_next ?? []).map(cleanText),
+    faqs: (a.faqs ?? []).map(f => ({ question: cleanText(f.question), answer: cleanText(f.answer) })),
+    related_companies: (a.related_companies ?? []).map(c => ({ ...c, name: cleanText(c.name) })),
+    related_themes: (a.related_themes ?? []).map(t => ({ ...t, theme: cleanText(t.theme) })),
+    related_articles: (a.related_articles ?? []).map(r => ({ ...r, headline: cleanText(r.headline) })),
+    update_history: (a.update_history ?? []).map(u => ({
+      ...u, reason: cleanText(u.reason),
+      previous_takeaway: u.previous_takeaway ? cleanText(u.previous_takeaway) : u.previous_takeaway,
+      new_takeaway: u.new_takeaway ? cleanText(u.new_takeaway) : u.new_takeaway,
+    })),
+  };
+}
+
 async function fetchInsight(slug: string): Promise<InsightDetail | null> {
   try {
     const res = await fetch(`${API}/api/insights/${slug}`, { next: { revalidate: 1800 } });
     if (!res.ok) return null;
-    return res.json();
+    const raw: InsightDetail = await res.json();
+    return cleanArticle(raw);
   } catch {
     return null;
   }
@@ -176,7 +211,7 @@ export async function generateMetadata(
   const description = article.meta_description || article.executive_summary || article.key_takeaway || "";
 
   return {
-    title: `${title} | MarketRipple`,
+    title,
     description,
     openGraph: {
       title,
@@ -190,7 +225,7 @@ export async function generateMetadata(
       description,
     },
     alternates: {
-      canonical: article.canonical_url || `/insights/${slug}`,
+      canonical: article.canonical_url || `/newsroom/article/${slug}`,
     },
   };
 }
@@ -210,7 +245,7 @@ function Eyebrow({ icon: Icon, children }: { icon: typeof Activity; children: Re
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function InsightPage(
+export default async function ArticlePage(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
@@ -272,7 +307,7 @@ export default async function InsightPage(
         <nav className="mb-6 flex items-center gap-2 text-[11px] text-slate-600">
           <Link href="/" className="hover:text-slate-400 transition">MarketRipple</Link>
           <span>/</span>
-          <Link href="/insights" className="hover:text-slate-400 transition">Insights</Link>
+          <Link href="/newsroom" className="hover:text-slate-400 transition">AI Newsroom</Link>
           <span>/</span>
           <span className="truncate text-slate-400">{article.headline}</span>
         </nav>
@@ -718,7 +753,7 @@ export default async function InsightPage(
             <Eyebrow icon={MessageCircleQuestion}>People Also Asked</Eyebrow>
             <div className="space-y-2">
               {questionSiblings.map((r, i) => (
-                <Link key={i} href={`/insights/${r.slug}`}
+                <Link key={i} href={`/newsroom/article/${r.slug}`}
                   className="flex items-center justify-between rounded-xl border border-pink-500/15 bg-pink-500/[0.03] px-4 py-3 hover:border-pink-500/30 transition">
                   <p className="text-[13px] font-medium text-slate-200">{r.headline}</p>
                   <ArrowLeft className="h-3.5 w-3.5 shrink-0 rotate-180 text-pink-400" />
@@ -760,7 +795,7 @@ export default async function InsightPage(
             </div>
             <div className="space-y-2">
               {relatedArticles.map((r, i) => (
-                <Link key={i} href={`/insights/${r.slug}`}
+                <Link key={i} href={`/newsroom/article/${r.slug}`}
                   className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 hover:border-white/20 transition">
                   <div>
                     <span className="text-[10px] uppercase tracking-wider text-slate-600">
@@ -848,9 +883,9 @@ export default async function InsightPage(
               className="rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-[12px] font-semibold text-violet-300 hover:bg-violet-500/15 transition">
               Ask AI →
             </Link>
-            <Link href="/insights"
+            <Link href="/newsroom"
               className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-medium text-slate-300 hover:text-white transition">
-              <ArrowLeft className="inline h-3 w-3 mr-1" /> More Insights
+              <ArrowLeft className="inline h-3 w-3 mr-1" /> Back to AI Newsroom
             </Link>
           </div>
         </div>

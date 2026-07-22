@@ -19,6 +19,26 @@ const nextConfig: NextConfig = {
       { source: "/policies",           destination: "/calendar",               permanent: true },
       // Admin redirect
       { source: "/admin/insights",     destination: "/admin/operations",        permanent: true },
+
+      // AI Newsroom consolidation — /insights, /daily-brief, /themes, and
+      // /stories were separate pages/products that either duplicated AIPE
+      // content via a different pipeline (MIE-sourced /daily-brief) or were
+      // confirmed dead (/stories, backed only by seed data). All real
+      // content now lives under /newsroom as views over one
+      // IntelligenceArticle/Opportunity model. /intelligence/:slug is
+      // deliberately NOT redirected here — it's kept as an internal-only
+      // ops preview (can show unpublished drafts via /api/publishing,
+      // which the public route can't).
+      { source: "/insights",           destination: "/newsroom",                permanent: true },
+      { source: "/insights/:slug",     destination: "/newsroom/article/:slug",  permanent: true },
+      { source: "/daily-brief",        destination: "/newsroom/daily-brief",    permanent: true },
+      { source: "/themes",             destination: "/newsroom/themes",         permanent: true },
+      { source: "/themes/:slug",       destination: "/newsroom/themes/:slug",   permanent: true },
+      { source: "/stories",            destination: "/newsroom/themes",         permanent: true },
+      // No reliable slug mapping exists between the old (dead, seed-only)
+      // Story model and the real Opportunity model — send to the list
+      // rather than guessing a matching detail page.
+      { source: "/stories/:slug",      destination: "/newsroom/themes",         permanent: true },
     ];
   },
   async headers() {

@@ -288,7 +288,7 @@ function CampaignDrilldown({ campaign, onClose }: { campaign: Campaign; onClose:
                 {grouped[key].map(a => (
                   <Link
                     key={a.slug}
-                    href={a.status === "published" ? (`/insights/${a.slug}` as any) : (`/intelligence/${a.slug}` as any)}
+                    href={a.status === "published" ? (`/newsroom/article/${a.slug}` as any) : (`/intelligence/${a.slug}` as any)}
                     target="_blank"
                     className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
                       a.status === "published"

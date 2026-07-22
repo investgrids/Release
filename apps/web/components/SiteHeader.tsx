@@ -13,6 +13,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 // Primary nav — always visible on desktop
 const NAV_PRIMARY = [
   { label: "Home",        href: "/" },
+  { label: "AI Newsroom", href: "/newsroom" },
   { label: "Intelligence",href: "/market-intelligence" },
   { label: "Events",      href: "/events" },
   { label: "Companies",   href: "/companies" },
@@ -20,13 +21,17 @@ const NAV_PRIMARY = [
 ];
 
 // Secondary nav — shown in "More" dropdown and mobile drawer
+// "Publishing" removed: it pointed at the internal ops/monitoring dashboard
+// (validation stats, retry queue — not reader content), which next to the
+// new public "AI Newsroom" primary nav item read as two destinations for
+// the same thing. The ops dashboard itself is untouched, just no longer
+// linked from public nav — reachable directly by URL for staff.
 const NAV_MORE = [
   { label: "Market Overview",   href: "/markets" },
   { label: "Policy & Calendar", href: "/calendar" },
-  { label: "Themes",            href: "/themes" },
+  { label: "Themes",            href: "/newsroom/themes" },
   { label: "Graph",             href: "/graph" },
   { label: "Learn",             href: "/learn" },
-  { label: "Publishing",        href: "/operations/intelligence" },
 ];
 
 const NAV_ALL = [...NAV_PRIMARY, ...NAV_MORE];
