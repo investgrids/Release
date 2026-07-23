@@ -52,7 +52,7 @@ export function LiveIntelligenceFeed({ compact = false, limit = 20 }: { compact?
         // stretches the card to (siblings can be much taller) instead of a
         // fixed max-h that either clips the last row or leaves dead space
         // below it depending on sibling height.
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+        <div className="sidebar-scroll min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
           {entries.map(entry => (
             <div key={entry.key} className="flex items-start gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] p-2.5 hover:border-white/[0.1] transition">
               <span className="w-11 shrink-0 pt-0.5 text-[10px] tabular-nums text-slate-600">{timeLabel(entry.ts)}</span>

@@ -52,38 +52,43 @@ export default async function LiveSourcesPage() {
           No live sources fetched right now — check back soon.
         </p>
       ) : (
+        // Attribution, not navigation: the row itself isn't a link — only
+        // the small "View original" text is, so leaving MarketRipple is an
+        // explicit, secondary choice rather than what clicking the headline
+        // does by default.
         <ul className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.07] bg-white/[0.02]">
-          {news.map((n) => {
-            const Wrapper = n.url ? "a" : "div";
-            return (
-              <li key={n.id}>
-                <Wrapper
-                  {...(n.url ? { href: n.url, target: "_blank", rel: "noopener noreferrer" } : {})}
-                  className="flex items-start justify-between gap-4 px-5 py-3.5 transition hover:bg-white/[0.03]"
-                >
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-medium leading-5 text-slate-200">{cleanText(n.headline)}</p>
-                    {n.summary && (
-                      <p className="mt-1 line-clamp-1 text-[12px] leading-5 text-slate-500">{cleanText(n.summary)}</p>
-                    )}
-                    {n.sectors?.length > 0 && (
-                      <div className="mt-1.5 flex flex-wrap gap-1">
-                        {n.sectors.slice(0, 3).map((s, i) => (
-                          <span key={i} className="rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-slate-500">
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+          {news.map((n) => (
+            <li key={n.id} className="flex items-start justify-between gap-4 px-5 py-3.5">
+              <div className="min-w-0">
+                <p className="text-[13.5px] font-medium leading-5 text-slate-200">{cleanText(n.headline)}</p>
+                {n.summary && (
+                  <p className="mt-1 line-clamp-1 text-[12px] leading-5 text-slate-500">{cleanText(n.summary)}</p>
+                )}
+                {n.sectors?.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {n.sectors.slice(0, 3).map((s, i) => (
+                      <span key={i} className="rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-slate-500">
+                        {s}
+                      </span>
+                    ))}
                   </div>
-                  <span className="flex shrink-0 items-center gap-1 text-[11px] text-slate-600">
-                    {n.source} · {n.published_at}
-                    {n.url && <ExternalLink className="h-3 w-3" />}
-                  </span>
-                </Wrapper>
-              </li>
-            );
-          })}
+                )}
+                {n.url && (
+                  <a
+                    href={n.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] font-medium text-slate-500 transition hover:text-sky-400"
+                  >
+                    View original <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                )}
+              </div>
+              <span className="shrink-0 text-[11px] text-slate-600">
+                {n.source} · {n.published_at}
+              </span>
+            </li>
+          ))}
         </ul>
       )}
     </div>
