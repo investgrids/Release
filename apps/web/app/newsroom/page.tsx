@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Sparkles, TrendingUp, TrendingDown, Building2, Radio, ChevronRight, Clock,
-  Gauge, BarChart3, Layers, CheckCircle2,
+  Gauge, BarChart3, CheckCircle2, Eye,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText } from "@/lib/text";
@@ -17,6 +17,8 @@ export const metadata: Metadata = {
 
 // ── Types (subset of the real API shapes, only what this page renders) ──────
 
+interface CompanyMention { name: string; symbol: string; impact: string }
+
 interface InsightCard {
   slug: string;
   article_type: string;
@@ -26,7 +28,12 @@ interface InsightCard {
   confidence_score?: number;
   sources?: string[];
   read_time_minutes?: number;
-  companies_affected: { name: string; symbol: string; impact: string }[];
+  companies_affected: CompanyMention[];
+  // Ranked by real textual prominence (headline > opening paragraph > body
+  // mentions) server-side — not just companies_affected[0], which reflects
+  // extraction order, not which company the article is actually about.
+  primary_entity?: CompanyMention | null;
+  views?: number;
   published_at?: string;
 }
 
@@ -286,7 +293,7 @@ export default async function NewsroomHomePage() {
                 <table className="w-full text-left text-[12.5px]">
                   <tbody className="divide-y divide-white/[0.05]">
                     {companies.slice(0, 6).map((a) => {
-                      const primary = a.companies_affected?.[0];
+                      const primary = a.primary_entity ?? a.companies_affected?.[0];
                       const sentiment = (primary?.impact ?? "neutral").toLowerCase();
                       return (
                         <tr key={a.slug} className="transition hover:bg-white/[0.03]">
@@ -356,23 +363,9 @@ export default async function NewsroomHomePage() {
             )}
           </SidebarCard>
 
-          {/* Live Sources — supporting evidence, not AI narrative */}
-          <SidebarCard title="Live Sources" icon={<Layers className="h-3.5 w-3.5 text-slate-400" />} href="/newsroom/sources">
-            {news.length === 0 ? (
-              <p className="text-[12px] text-slate-500">No live sources fetched right now.</p>
-            ) : (
-              <ul className="space-y-2.5">
-                {news.map((n) => (
-                  <li key={n.id} className="text-[12px] leading-snug">
-                    <p className="line-clamp-2 text-slate-300">{n.headline}</p>
-                    {/* published_at from /api/news/ is already a formatted
-                        relative string ("7m ago"), not ISO. */}
-                    <p className="mt-0.5 text-[10.5px] text-slate-600">{n.source} · {n.published_at}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SidebarCard>
+          {/* Live Sources sidebar card intentionally removed for now (still
+              fetched above for the status banner's real source names) —
+              easy to re-add, not deleted data or logic. */}
 
         </div>
       </div>
@@ -462,6 +455,9 @@ function ArticleCard({ a }: { a: InsightCard }) {
       </div>
       <p className="mt-2 line-clamp-2 text-[13.5px] font-semibold leading-snug text-white group-hover:text-sky-200">
         {cleanText(a.headline)}
+      </p>
+      <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-600">
+        <Eye className="h-2.5 w-2.5" /> {(a.views ?? 0).toLocaleString("en-IN")} {a.views === 1 ? "view" : "views"}
       </p>
     </Link>
   );

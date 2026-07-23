@@ -31,6 +31,64 @@ router = APIRouter()
 
 _WORDS_PER_MINUTE = 200
 
+# Entity-ranking weights: a mention in the headline is a much stronger
+# signal of "this is what the article is about" than one more mention
+# buried in paragraph six.
+_WEIGHT_HEADLINE = 10
+_WEIGHT_OPENING = 5
+_WEIGHT_BODY_MENTION = 1
+
+
+def _rank_primary_entity(a: IntelligenceArticle) -> tuple[Optional[dict], list[dict]]:
+    """
+    Ranks companies_affected by real textual prominence — headline mention,
+    then opening-paragraph mention, then repeat mentions through the body —
+    rather than trusting extraction order (which reflects nothing about
+    which company the article is actually about).
+
+    Returns (primary_entity, secondary_entities). primary_entity is None for
+    a pure macro/policy article with no companies attached — never forced.
+    """
+    companies = a.companies_affected or []
+    if not companies:
+        return None, []
+    if len(companies) == 1:
+        return companies[0], []
+
+    headline = (a.headline or "").lower()
+    opening = (a.executive_summary or a.why_it_matters or "")[:280].lower()
+    body = " ".join(filter(None, [
+        a.executive_summary, a.key_takeaway, a.why_it_matters, a.what_happened,
+    ])).lower()
+
+    def score(company: dict) -> int:
+        full_name = company.get("name") or ""
+        names = {n for n in (company.get("symbol"), full_name) if n}
+        # Financial journalism almost never spells out the full registered
+        # name or ticker in a headline ("Adani Stocks", not "Adani
+        # Enterprises" or "ADANIENT") — match on the brand word too. Guarded
+        # to 4+ chars so this doesn't match on generic short words like
+        # "The" or "SBI"-style initialisms that could false-positive against
+        # unrelated text.
+        first_word = full_name.split()[0] if full_name else ""
+        if len(first_word) >= 4:
+            names.add(first_word)
+
+        total = 0
+        for name in names:
+            needle = name.lower()
+            if not needle:
+                continue
+            if needle in headline:
+                total += _WEIGHT_HEADLINE
+            if needle in opening:
+                total += _WEIGHT_OPENING
+            total += body.count(needle) * _WEIGHT_BODY_MENTION
+        return total
+
+    ranked = sorted(companies, key=score, reverse=True)
+    return ranked[0], ranked[1:]
+
 
 def _read_time_minutes(a: IntelligenceArticle) -> int:
     """Real word count across the article's own body fields, not a fabricated
@@ -44,6 +102,7 @@ def _read_time_minutes(a: IntelligenceArticle) -> int:
 
 
 def _list_row(a: IntelligenceArticle) -> dict:
+    primary_entity, secondary_entities = _rank_primary_entity(a)
     return {
         "id":                 a.id,
         "slug":               a.slug,
@@ -57,6 +116,8 @@ def _list_row(a: IntelligenceArticle) -> dict:
         "seo_title":          a.seo_title,
         "meta_description":   a.meta_description,
         "companies_affected": a.companies_affected,
+        "primary_entity":     primary_entity,
+        "secondary_entities": secondary_entities,
         "sectors_affected":   a.sectors_affected,
         "confidence_score":   a.confidence_score,
         # event_score is already the same real 0-100 relevance score the rest

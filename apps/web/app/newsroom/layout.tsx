@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/newsroom" },
 };
 
+// "Live Sources" (/newsroom/sources) intentionally unlisted for now — the
+// page and its data still exist, just not promoted in nav. Not a deletion.
 const NAV = [
   { href: "/newsroom",              label: "Home" },
   { href: "/newsroom/library",      label: "Library" },
@@ -17,7 +19,6 @@ const NAV = [
   { href: "/newsroom/themes",       label: "Themes" },
   { href: "/newsroom/companies",    label: "Companies" },
   { href: "/newsroom/events",       label: "Events" },
-  { href: "/newsroom/sources",      label: "Live Sources" },
 ];
 
 export default function NewsroomLayout({ children }: { children: React.ReactNode }) {
