@@ -220,6 +220,10 @@ async def insights_stats(db: AsyncSession = Depends(get_db)):
     last_updated = (await db.execute(
         select(func.max(IntelligenceArticle.published_at)).where(published)
     )).scalar()
+    events_covered = (await db.execute(
+        select(func.count(func.distinct(IntelligenceArticle.trigger_event_id)))
+        .where(published).where(IntelligenceArticle.trigger_event_id.isnot(None))
+    )).scalar() or 0
 
     # Companies/sectors/themes covered — real distinct entities pulled from
     # the JSON columns of every published article, not a separate tracked
@@ -254,6 +258,7 @@ async def insights_stats(db: AsyncSession = Depends(get_db)):
         "this_week_articles": this_week,
         "companies_covered":  len(companies),
         "sectors_covered":    len(sectors),
+        "events_covered":     events_covered,
         "themes_covered":     len(themes),
         "avg_confidence":     round(avg_confidence, 2) if avg_confidence is not None else None,
         "last_updated":       last_updated.isoformat() if last_updated else None,

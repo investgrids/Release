@@ -68,8 +68,10 @@ interface LibraryStats {
   this_week_articles?: number;
   companies_covered?: number;
   sectors_covered?: number;
+  events_covered?: number;
   themes_covered?: number;
   avg_confidence?: number | null;
+  last_updated?: string | null;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -169,7 +171,7 @@ export default async function NewsroomHomePage() {
         <StatTile label="Today" value={stats.today_articles} />
         <StatTile label="This Week" value={stats.this_week_articles} />
         <StatTile label="Companies" value={stats.companies_covered} />
-        <StatTile label="Sectors" value={stats.sectors_covered} />
+        <StatTile label="Events" value={stats.events_covered} />
         <StatTile label="Themes" value={stats.themes_covered} />
         <StatTile label="Avg Confidence" value={stats.avg_confidence != null ? `${Math.round(stats.avg_confidence * 100)}%` : undefined} />
       </div>
