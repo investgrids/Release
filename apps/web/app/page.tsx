@@ -676,7 +676,7 @@ export default function HomePage() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr_1fr]">
         <Suspense fallback={<Sk h={420} />}><AIMarketBriefCard /></Suspense>
         <Suspense fallback={<Sk h={420} />}><TodaysBiggestEventsCard /></Suspense>
-        <LiveIntelligenceFeed compact limit={20} />
+        <LiveIntelligenceFeed compact limit={5} />
       </div>
 
       {/* Row 2 — Today's Opportunities · Companies to Watch · Theme Strength */}
