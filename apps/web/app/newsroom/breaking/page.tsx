@@ -50,7 +50,10 @@ const DIGEST_TYPES = new Set(["morning_intelligence", "market_wrap"]);
 
 async function getBreakingArticles(): Promise<InsightCard[]> {
   try {
-    const res = await fetch(`${API}/api/insights/?limit=40`, { next: { revalidate: 180 } });
+    // Short window on purpose — this page is specifically about "what's
+    // recent," so a 3-minute-stale cache showing a gap right as a real
+    // burst of coverage lands (confirmed happening) undercuts the point.
+    const res = await fetch(`${API}/api/insights/?limit=40`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     const d = await res.json();
     const items: InsightCard[] = d.items ?? [];

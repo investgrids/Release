@@ -637,9 +637,16 @@ async function LatestIntelligenceRow() {
             : null;
           return (
             <Link key={a.slug} href={`/newsroom/article/${a.slug}`} className="group flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:border-white/20 hover:bg-white/[0.04]">
-              <span className="w-fit rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                {(a.article_type ?? "intelligence").replace(/_/g, " ")}
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="w-fit rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                  {(a.article_type ?? "intelligence").replace(/_/g, " ")}
+                </span>
+                {!a.views && (
+                  <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-violet-400">
+                    New
+                  </span>
+                )}
+              </div>
               <p className="mt-2 flex-1 text-[12px] font-bold leading-snug text-white group-hover:text-sky-200 transition line-clamp-3">
                 {a.headline}
               </p>
@@ -648,6 +655,7 @@ async function LatestIntelligenceRow() {
                 <span>{a.read_time_minutes ?? 1} min read</span>
                 {a.confidence_score != null && <span className="text-sky-400 font-semibold">{Math.round(a.confidence_score * 100)}% confidence</span>}
                 {a.impact_score != null && <span className="text-violet-400 font-semibold">Impact {Math.round(a.impact_score)}</span>}
+                {!!a.views && <span>{a.views.toLocaleString("en-IN")} {a.views === 1 ? "view" : "views"}</span>}
               </div>
               <span className="mt-2 flex items-center gap-1 text-[10px] font-bold text-violet-400 group-hover:text-violet-300 transition">
                 Read <ArrowRight className="h-2.5 w-2.5" />
