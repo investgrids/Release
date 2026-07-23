@@ -451,14 +451,22 @@ function ArticleCard({ a }: { a: InsightCard }) {
         <span className={`rounded-full border px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider ${accentCls}`}>
           {TYPE_LABEL[a.article_type] ?? "Intelligence"}
         </span>
-        {a.published_at && <span className="text-[10px] text-slate-600">{fmtRelative(a.published_at)}</span>}
+        {!a.views ? (
+          <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-violet-400">
+            New
+          </span>
+        ) : (
+          a.published_at && <span className="text-[10px] text-slate-600">{fmtRelative(a.published_at)}</span>
+        )}
       </div>
       <p className="mt-2 line-clamp-2 text-[13.5px] font-semibold leading-snug text-white group-hover:text-sky-200">
         {cleanText(a.headline)}
       </p>
-      <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-600">
-        <Eye className="h-2.5 w-2.5" /> {(a.views ?? 0).toLocaleString("en-IN")} {a.views === 1 ? "view" : "views"}
-      </p>
+      {!!a.views && (
+        <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-600">
+          <Eye className="h-2.5 w-2.5" /> {a.views.toLocaleString("en-IN")} {a.views === 1 ? "view" : "views"}
+        </p>
+      )}
     </Link>
   );
 }
