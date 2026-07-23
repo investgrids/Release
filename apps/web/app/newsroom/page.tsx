@@ -62,6 +62,16 @@ interface MieState {
   generated_at?: string;
 }
 
+interface LibraryStats {
+  total_articles?: number;
+  today_articles?: number;
+  this_week_articles?: number;
+  companies_covered?: number;
+  sectors_covered?: number;
+  themes_covered?: number;
+  avg_confidence?: number | null;
+}
+
 const TYPE_LABEL: Record<string, string> = {
   breaking_intelligence: "Breaking",
   morning_intelligence:  "Morning Brief",
@@ -89,7 +99,7 @@ async function fetchJSON<T>(path: string, fallback: T): Promise<T> {
 async function getHomeData() {
   const [
     brief, breaking, wrap, theme, company, event,
-    radar, news, mie, indices,
+    radar, news, mie, indices, stats,
   ] = await Promise.all([
     fetchJSON<{ items: InsightCard[] }>("/api/insights/?article_type=morning_intelligence&limit=1", { items: [] }),
     fetchJSON<{ items: InsightCard[] }>("/api/insights/?article_type=breaking_intelligence&limit=1", { items: [] }),
@@ -101,6 +111,7 @@ async function getHomeData() {
     fetchJSON<NewsCard[]>("/api/news/", []),
     fetchJSON<MieState>("/api/mie/state", {}),
     fetchJSON<IndexRow[]>("/api/indices/", []),
+    fetchJSON<LibraryStats>("/api/insights/stats", {}),
   ]);
 
   // Real, currently-active source names — not a fixed marketing list. NSE/BSE
@@ -119,13 +130,14 @@ async function getHomeData() {
     mie,
     indices: indices.slice(0, 4),
     sources,
+    stats,
   };
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export default async function NewsroomHomePage() {
-  const { hero, latest, companies, themes, news, mie, indices, sources } = await getHomeData();
+  const { hero, latest, companies, themes, news, mie, indices, sources, stats } = await getHomeData();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -149,6 +161,17 @@ export default async function NewsroomHomePage() {
             </span>
           ))}
         </div>
+      </div>
+
+      {/* Real aggregate stats — every number a live query, not a claim */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        <StatTile label="AI Articles" value={stats.total_articles} />
+        <StatTile label="Today" value={stats.today_articles} />
+        <StatTile label="This Week" value={stats.this_week_articles} />
+        <StatTile label="Companies" value={stats.companies_covered} />
+        <StatTile label="Sectors" value={stats.sectors_covered} />
+        <StatTile label="Themes" value={stats.themes_covered} />
+        <StatTile label="Avg Confidence" value={stats.avg_confidence != null ? `${Math.round(stats.avg_confidence * 100)}%` : undefined} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -395,6 +418,15 @@ function SidebarCard({ title, icon, href, children }: { title: string; icon: Rea
         )}
       </div>
       {children}
+    </div>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value?: number | string }) {
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-center">
+      <p className="text-[18px] font-black leading-none text-white">{value ?? "—"}</p>
+      <p className="mt-1 text-[9px] uppercase tracking-wider text-slate-500">{label}</p>
     </div>
   );
 }

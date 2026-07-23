@@ -138,7 +138,11 @@ export function useLiveFeed(limit?: number, opts?: { criticalHighOnly?: boolean 
   // When filtering to Critical/High only, fetch a wider raw window since
   // most triaged events land in Medium/Low and would otherwise get filtered
   // down to near-nothing.
-  const fetchLimit = criticalHighOnly ? Math.max(50, (limit ?? 10) * 6) : (limit ?? 40);
+  // /api/mie/feed caps limit at 50 server-side (Query(..., le=50)). The
+  // "fetch wider than requested" intent below collapses to a flat 50 once
+  // clamped to that ceiling — previously uncapped, a large `limit` prop
+  // (e.g. 20 * 6 = 120) got a 422 on every single request.
+  const fetchLimit = criticalHighOnly ? 50 : (limit ?? 40);
   const [seed, setSeed] = useState<IntelligenceEvent[]>([]);
   useEffect(() => {
     let cancelled = false;

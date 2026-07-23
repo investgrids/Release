@@ -20,7 +20,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from slowapi.util import get_remote_address
-from sqlalchemy import func, select
+from sqlalchemy import func, select, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.redis import cache_get, cache_set
@@ -189,6 +189,115 @@ async def get_company_insights(
             for h in historical
         ],
     }
+
+
+@router.get("/stats")
+async def insights_stats(db: AsyncSession = Depends(get_db)):
+    """
+    Real aggregate stats for the AI Newsroom's trust/freshness banner —
+    every value is a live query, nothing precomputed or fabricated.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    _IST = timezone(timedelta(hours=5, minutes=30))
+    today_ist = datetime.now(_IST).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_utc = today_ist.astimezone(timezone.utc)
+    published = IntelligenceArticle.status == "published"
+
+    total = (await db.execute(select(func.count()).select_from(IntelligenceArticle).where(published))).scalar() or 0
+    today = (await db.execute(
+        select(func.count()).select_from(IntelligenceArticle)
+        .where(published).where(IntelligenceArticle.published_at >= today_utc)
+    )).scalar() or 0
+    week_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    this_week = (await db.execute(
+        select(func.count()).select_from(IntelligenceArticle)
+        .where(published).where(IntelligenceArticle.published_at >= week_cutoff)
+    )).scalar() or 0
+    avg_confidence = (await db.execute(
+        select(func.avg(IntelligenceArticle.confidence_score)).where(published)
+    )).scalar()
+    last_updated = (await db.execute(
+        select(func.max(IntelligenceArticle.published_at)).where(published)
+    )).scalar()
+
+    # Companies/sectors/themes covered — real distinct entities pulled from
+    # the JSON columns of every published article, not a separate tracked
+    # count that could drift from what's actually referenced.
+    rows = (await db.execute(
+        select(
+            IntelligenceArticle.companies_affected,
+            IntelligenceArticle.sectors_affected,
+            IntelligenceArticle.related_themes,
+        ).where(published)
+    )).all()
+    companies: set[str] = set()
+    sectors: set[str] = set()
+    themes: set[str] = set()
+    for companies_affected, sectors_affected, related_themes in rows:
+        for c in (companies_affected or []):
+            sym = (c or {}).get("symbol") or (c or {}).get("name")
+            if sym:
+                companies.add(sym)
+        for s in (sectors_affected or []):
+            name = (s or {}).get("name")
+            if name:
+                sectors.add(name)
+        for t in (related_themes or []):
+            name = (t or {}).get("theme") or (t or {}).get("name")
+            if name:
+                themes.add(name)
+
+    return {
+        "total_articles":     total,
+        "today_articles":     today,
+        "this_week_articles": this_week,
+        "companies_covered":  len(companies),
+        "sectors_covered":    len(sectors),
+        "themes_covered":     len(themes),
+        "avg_confidence":     round(avg_confidence, 2) if avg_confidence is not None else None,
+        "last_updated":       last_updated.isoformat() if last_updated else None,
+    }
+
+
+@router.get("/search")
+async def search_insights(
+    q:      str          = Query(..., min_length=2, max_length=200),
+    limit:  int          = Query(20, le=50),
+    db:     AsyncSession = Depends(get_db),
+):
+    """
+    Real keyword search across published articles — headline, summary
+    fields, and company/sector names (the JSON columns), via SQL LIKE.
+    Not a ranked/fuzzy search engine; a real substring match over real
+    content, which is what the search bar actually needs today.
+    """
+    like = f"%{q}%"
+    text_match = (
+        IntelligenceArticle.headline.ilike(like)
+        | IntelligenceArticle.key_takeaway.ilike(like)
+        | IntelligenceArticle.executive_summary.ilike(like)
+        | IntelligenceArticle.seo_title.ilike(like)
+    )
+    # SQLite stores JSON columns as TEXT under the hood, so a plain LIKE
+    # against the serialized column finds company/sector names inside the
+    # JSON without needing a JSON-path function (which also wouldn't be
+    # portable to the planned Postgres migration anyway).
+    entity_match = (
+        IntelligenceArticle.companies_affected.cast(String).ilike(like)
+        | IntelligenceArticle.sectors_affected.cast(String).ilike(like)
+        | IntelligenceArticle.related_themes.cast(String).ilike(like)
+    )
+
+    result = await db.execute(
+        select(IntelligenceArticle)
+        .where(IntelligenceArticle.status == "published")
+        .where(text_match | entity_match)
+        .order_by(IntelligenceArticle.published_at.desc())
+        .limit(limit)
+    )
+    articles = result.scalars().all()
+    return {"query": q, "total": len(articles), "items": [_list_row(a) for a in articles]}
 
 
 @router.get("/{slug}")

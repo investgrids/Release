@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useNavLoading } from "@/components/NavLoadingProvider";
 import { useAlerts } from "@/components/AlertProvider";
@@ -50,6 +50,7 @@ function getISTSession() {
 
 export function SiteHeader() {
   const pathname    = usePathname();
+  const router       = useRouter();
   const { start }   = useNavLoading();
   const [session, setSession]   = useState(getISTSession);
   const [nifty, setNifty]       = useState<{ value: string; change: string; positive: boolean } | null>(null);
@@ -274,7 +275,27 @@ export function SiteHeader() {
         {/* Search bar dropdown */}
         {searchOpen && (
           <div className="border-t border-white/[0.06] bg-[#020617]/95 px-6 py-3">
-            <form action="/ai-search" method="get" onSubmit={() => setSearch(false)}>
+            <form
+              action="/search"
+              method="get"
+              onSubmit={(e) => {
+                // Client-side navigate instead of letting the browser run
+                // the native GET submit: setSearch(false) below unmounts
+                // this form (it's behind {searchOpen && ...}) synchronously,
+                // which was racing the in-flight native navigation and
+                // canceling it before the destination page ever loaded.
+                //
+                // Real site search (/search — matches our own articles,
+                // companies, sectors, themes), not the AI Q&A tool: that's
+                // still reachable from /search's "no results" state via
+                // "Ask MarketRipple AI instead" for open-ended questions.
+                e.preventDefault();
+                const q = query.trim();
+                if (!q) return;
+                setSearch(false);
+                router.push(`/search?q=${encodeURIComponent(q)}`);
+              }}
+            >
               <div className="mx-auto flex max-w-2xl items-center gap-3 rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 focus-within:border-violet-500/40">
                 <Search className="h-4 w-4 shrink-0 text-slate-500" />
                 <input
@@ -283,7 +304,7 @@ export function SiteHeader() {
                   name="q"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Ask any market question…"
+                  placeholder="Search companies, sectors, themes, articles…"
                   className="flex-1 bg-transparent text-[14px] text-white outline-none placeholder:text-slate-500"
                 />
                 <kbd className="hidden rounded-md border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-slate-600 sm:block">⌘K</kbd>

@@ -237,7 +237,6 @@ async function AIMarketBriefCard() {
     ...(brief.risks ?? []).slice(0, 2).map((r: any) => ({ text: r.title, impact: "negative" })),
   ].slice(0, 5);
   const sectors = (brief.sectors_affected ?? []).slice(0, 5);
-  const companies = (brief.companies_affected ?? []).slice(0, 5);
   const topRisk = (brief.risks ?? [])[0];
 
   return (
@@ -285,16 +284,6 @@ async function AIMarketBriefCard() {
                 </span>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* 5. Companies to watch */}
-        {companies.length > 0 && (
-          <div>
-            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">Companies to Watch</p>
-            <p className="text-[11px] text-slate-300">
-              {companies.map((c: any) => c.symbol || c.name).join(" · ")}
-            </p>
           </div>
         )}
 
@@ -687,7 +676,7 @@ export default function HomePage() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr_1fr]">
         <Suspense fallback={<Sk h={420} />}><AIMarketBriefCard /></Suspense>
         <Suspense fallback={<Sk h={420} />}><TodaysBiggestEventsCard /></Suspense>
-        <LiveIntelligenceFeed compact limit={8} />
+        <LiveIntelligenceFeed compact limit={20} />
       </div>
 
       {/* Row 2 — Today's Opportunities · Companies to Watch · Theme Strength */}
