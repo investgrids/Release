@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import MiniIntelligenceGraph from "@/components/MiniIntelligenceGraph";
 import { API_BASE_URL as API } from "@/lib/api";
+import { isRealSymbol } from "@/lib/text";
 
 function makeNodeId(nodeType: string, label: string): string {
   const slug = label.toLowerCase().replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
@@ -714,7 +715,8 @@ export default async function IntelligenceArticlePage({
                 <div className="space-y-1">
                   {(relCompanies.length ? relCompanies : companies).slice(0, 5).map((c: any, i: number) => {
                     const name   = typeof c === "string" ? c : (c.name ?? c.company ?? c.symbol ?? c);
-                    const symbol = typeof c === "object" ? (c.symbol ?? c.ticker ?? "") : "";
+                    const rawSymbol = typeof c === "object" ? (c.symbol ?? c.ticker ?? "") : "";
+                    const symbol = isRealSymbol(rawSymbol) ? rawSymbol : "";
                     const change = typeof c === "object" ? (c.change_pct ?? c.change ?? c.nifty_change ?? null) : null;
                     const pos    = change == null ? true : parseFloat(String(change)) >= 0;
                     return (
@@ -756,7 +758,7 @@ export default async function IntelligenceArticlePage({
                   const list = relCompanies.length >= 2 ? relCompanies : companies;
                   const s0 = typeof list[0] === "object" ? list[0].symbol : "";
                   const s1 = typeof list[1] === "object" ? list[1].symbol : "";
-                  if (!s0 || !s1) return null;
+                  if (!isRealSymbol(s0) || !isRealSymbol(s1)) return null;
                   return (
                     <Link href={`/compare?a=${s0}&b=${s1}`}
                       className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-3 py-2 text-[11px] font-semibold text-sky-400 hover:bg-sky-500/10 transition">
@@ -799,7 +801,8 @@ export default async function IntelligenceArticlePage({
             {/* ── Mini Intelligence Graph ──────────────────────────────────── */}
             {(() => {
               const firstCo = companies[0] ?? relCompanies[0];
-              const sym = firstCo ? (typeof firstCo === "string" ? firstCo : (firstCo.symbol ?? firstCo.ticker ?? "")) : "";
+              const rawSym = firstCo ? (typeof firstCo === "string" ? firstCo : (firstCo.symbol ?? firstCo.ticker ?? "")) : "";
+              const sym = isRealSymbol(rawSym) ? rawSym : "";
               const firstSec = sectors[0];
               const secName = firstSec ? (typeof firstSec === "string" ? firstSec : (firstSec.name ?? "")) : "";
               const graphNodeId = sym

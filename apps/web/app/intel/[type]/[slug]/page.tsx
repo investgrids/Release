@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, TrendingUp, AlertTriangle, Building2, Globe, Clock, BookOpen } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { isRealSymbol, safeJsonLd } from "@/lib/text";
 
 
 const VALID_TYPES = ["company", "event", "theme", "news"] as const;
@@ -107,7 +108,7 @@ export default async function IntelPage(
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: safeJsonLd({
             "@context": "https://schema.org",
             "@type": "Article",
             "headline": intel.key_takeaway,
@@ -115,7 +116,8 @@ export default async function IntelPage(
             "datePublished": intel.generated_at,
             "publisher": { "@type": "Organization", "name": "InvestGrids" },
             "about": companies.map((c: any) => ({
-              "@type": "Corporation", "name": c.name, "tickerSymbol": c.symbol,
+              "@type": "Corporation", "name": c.name,
+              ...(isRealSymbol(c.symbol) ? { "tickerSymbol": c.symbol } : {}),
             })),
           }),
         }}
@@ -246,10 +248,12 @@ export default async function IntelPage(
               {companies.map((c: any, i: number) => (
                 <div key={i} className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <Link href={`/companies/${c.symbol}`}
-                      className="text-[13px] font-semibold text-sky-300 hover:text-sky-200 transition">
-                      {c.symbol}
-                    </Link>
+                    {isRealSymbol(c.symbol) ? (
+                      <Link href={`/companies/${c.symbol}`}
+                        className="text-[13px] font-semibold text-sky-300 hover:text-sky-200 transition">
+                        {c.symbol}
+                      </Link>
+                    ) : null}
                     <span className="text-[12px] text-slate-500">{c.name}</span>
                   </div>
                   <div className="flex items-center gap-2">

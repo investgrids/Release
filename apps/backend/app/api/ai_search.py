@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.limiter import limiter
 from app.db.session import get_db
 from app.services.ai_search_service import run_ai_search
 
@@ -44,21 +45,6 @@ def get_search_stats() -> dict:
     }
 
 
-# ── Rate limiting (in-process, per IP) ───────────────────────────────────────
-_RL: dict[str, list[float]] = {}
-_RL_WINDOW = 60   # seconds
-_RL_LIMIT  = 10   # requests per window
-
-
-def _check_rate_limit(ip: str) -> None:
-    now = time.time()
-    hits = [t for t in _RL.get(ip, []) if now - t < _RL_WINDOW]
-    if len(hits) >= _RL_LIMIT:
-        raise HTTPException(status_code=429, detail="Too many requests. Please wait before searching again.")
-    hits.append(now)
-    _RL[ip] = hits
-
-
 # ── Redis cache helper ────────────────────────────────────────────────────────
 async def _redis_get(key: str):
     try:
@@ -91,15 +77,13 @@ class SearchResponse(BaseModel):
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 @router.post("/search", response_model=SearchResponse)
+@limiter.limit("10/minute")
 async def ai_search(
-    body: SearchRequest,
     request: Request,
+    body: SearchRequest,
     db: AsyncSession = Depends(get_db),
 ):
     from datetime import datetime, timezone
-
-    ip = request.client.host if request.client else "unknown"
-    _check_rate_limit(ip)
 
     query = body.query.strip()
     if not query:
@@ -128,7 +112,7 @@ async def ai_search(
         return SearchResponse(query=query, cached=True, result=redis_cached)
 
     # Run pipeline
-    log.info("ai_search.request", query=query[:50], ip=ip)
+    log.info("ai_search.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
     try:
         result = await run_ai_search(query, db)

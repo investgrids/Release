@@ -5,7 +5,7 @@ import {
   TrendingUp, ShieldAlert, Gauge, Building2, CalendarClock, Newspaper, Sparkles,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { cleanText } from "@/lib/text";
+import { cleanText, isRealSymbol } from "@/lib/text";
 
 interface OpportunityListItem { id: number; slug: string }
 interface AISummary { matters: string; benefits: string; risks: string[]; why_bullets: string[] }
@@ -171,7 +171,7 @@ export default async function ThemeDetailPage({ params }: { params: Promise<{ sl
             {detail.companies.map((c, i) => (
               <div key={i} className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-3.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-bold text-white">{c.symbol}</span>
+                  <span className="text-[13px] font-bold text-white">{isRealSymbol(c.symbol) ? c.symbol : cleanText(c.company_name)}</span>
                   <span className="text-[11px] text-slate-500">{Math.round(c.impact_score)}</span>
                 </div>
                 <p className="mt-0.5 text-[11.5px] text-slate-500">{cleanText(c.company_name)}</p>

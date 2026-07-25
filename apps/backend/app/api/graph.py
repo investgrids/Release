@@ -6,9 +6,10 @@ import time
 from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from app.core.limiter import limiter
 from app.core.security import require_admin_key
 
 log = structlog.get_logger(__name__)
@@ -214,8 +215,12 @@ class ChatIn(BaseModel):
 
 
 @router.post("/chat")
-async def graph_chat(body: ChatIn):
-    """AI conversation about the graph — powered by OpenRouter free tier."""
+@limiter.limit("20/minute")
+async def graph_chat(request: Request, body: ChatIn):
+    """AI conversation about the graph — powered by OpenRouter free tier.
+    Rate-limited to match the other AI-generation routes (thesis/scenario/
+    pattern/checklist) — the global 300/min default is too generous for a
+    paid/quota-limited LLM call chain."""
     from app.services.ai_service import _call_with_fallback  # noqa: PLC2701
     import json as _json
 
