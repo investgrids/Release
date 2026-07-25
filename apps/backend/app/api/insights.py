@@ -24,12 +24,43 @@ from sqlalchemy import func, select, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.redis import cache_get, cache_set
+from app.db.models.generated_media import GeneratedMedia
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.session import get_db
 
 router = APIRouter()
 
+
+async def _fetch_hero_images(db: AsyncSession, article_ids: list[str]) -> dict[str, str]:
+    """One batched query for a page of articles' hero images, not one query
+    per article. Only the newest *generated* row per article counts — an
+    older failed/superseded attempt for the same article must not win."""
+    if not article_ids:
+        return {}
+    result = await db.execute(
+        select(GeneratedMedia.article_id, GeneratedMedia.url, GeneratedMedia.generated_at)
+        .where(GeneratedMedia.article_id.in_(article_ids))
+        .where(GeneratedMedia.media_type == "hero")
+        .where(GeneratedMedia.status == "generated")
+        .order_by(GeneratedMedia.generated_at.desc())
+    )
+    hero_map: dict[str, str] = {}
+    for article_id, url, _ in result.all():
+        hero_map.setdefault(article_id, url)  # first hit per id = newest, thanks to the ORDER BY
+    return hero_map
+
 _WORDS_PER_MINUTE = 200
+
+# Curated grouping of the real article_type values into the Library's
+# filter-pill categories — every value here is one AIPE actually generates
+# (see content_templates.py), not a hypothetical taxonomy.
+_CATEGORY_TYPES: dict[str, list[str]] = {
+    "market":        ["morning_intelligence", "market_wrap", "sector_intelligence", "historical_intelligence", "educational_intelligence"],
+    "companies":      ["company_intelligence"],
+    "events":         ["policy_intelligence", "ripple_intelligence", "breaking_intelligence", "question_intelligence"],
+    "themes":         ["theme_intelligence"],
+    "opportunities":  ["opportunity_intelligence"],
+}
 
 # Entity-ranking weights: a mention in the headline is a much stronger
 # signal of "this is what the article is about" than one more mention
@@ -101,7 +132,7 @@ def _read_time_minutes(a: IntelligenceArticle) -> int:
     return max(1, round(words / _WORDS_PER_MINUTE))
 
 
-def _list_row(a: IntelligenceArticle) -> dict:
+def _list_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> dict:
     primary_entity, secondary_entities = _rank_primary_entity(a)
     return {
         "id":                 a.id,
@@ -110,6 +141,7 @@ def _list_row(a: IntelligenceArticle) -> dict:
         "angle":              a.angle,
         "angle_entity":       a.angle_entity,
         "is_evergreen":       a.is_evergreen,
+        "hero_image_url":     hero_image_url,
         "headline":           a.headline,
         "key_takeaway":       a.key_takeaway,
         "executive_summary":  a.executive_summary,
@@ -130,11 +162,16 @@ def _list_row(a: IntelligenceArticle) -> dict:
         "update_count":       a.update_count,
         "published_at":       a.published_at.isoformat() if a.published_at else None,
         "last_updated":       a.last_updated.isoformat() if a.last_updated else None,
+        # Siblings (per-company/per-angle articles off the same underlying
+        # event) share this ID — list consumers need it too, not just the
+        # detail page, to merge siblings into one row instead of showing
+        # near-duplicate rows per company.
+        "parent_event_group_id": a.parent_event_group_id,
     }
 
 
-def _detail_row(a: IntelligenceArticle) -> dict:
-    base = _list_row(a)
+def _detail_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> dict:
+    base = _list_row(a, hero_image_url)
     base.update({
         "why_it_matters":      a.why_it_matters,
         "what_happened":       a.what_happened,
@@ -153,7 +190,6 @@ def _detail_row(a: IntelligenceArticle) -> dict:
         "created_at":          a.created_at.isoformat() if a.created_at else None,
         "canonical_url":       a.canonical_url,
         "json_ld":             a.json_ld,
-        "parent_event_group_id": a.parent_event_group_id,
         "related_articles":    [],  # filled in by get_insight() — needs a DB lookup
     })
     return base
@@ -162,32 +198,41 @@ def _detail_row(a: IntelligenceArticle) -> dict:
 @router.get("/")
 async def list_insights(
     article_type: Optional[str] = Query(None),
+    category:     Optional[str] = Query(None, description="market|companies|events|themes|opportunities — a curated group of article_types, for the Library's filter pills"),
+    sort_by:      str           = Query("newest", pattern="^(newest|views|confidence)$"),
     limit:        int           = Query(20, le=100),
     offset:       int           = Query(0),
     db:           AsyncSession  = Depends(get_db),
 ):
-    q = (
-        select(IntelligenceArticle)
-        .where(IntelligenceArticle.status == "published")
-        .order_by(IntelligenceArticle.published_at.desc())
-    )
+    q = select(IntelligenceArticle).where(IntelligenceArticle.status == "published")
+    cq = select(func.count()).select_from(IntelligenceArticle).where(IntelligenceArticle.status == "published")
+
     if article_type:
         q = q.where(IntelligenceArticle.article_type == article_type)
+        cq = cq.where(IntelligenceArticle.article_type == article_type)
+    elif category:
+        types = _CATEGORY_TYPES.get(category, [])
+        q = q.where(IntelligenceArticle.article_type.in_(types))
+        cq = cq.where(IntelligenceArticle.article_type.in_(types))
+
+    if sort_by == "views":
+        q = q.order_by(IntelligenceArticle.views.desc(), IntelligenceArticle.published_at.desc())
+    elif sort_by == "confidence":
+        q = q.order_by(IntelligenceArticle.confidence_score.desc(), IntelligenceArticle.published_at.desc())
+    else:
+        q = q.order_by(IntelligenceArticle.published_at.desc())
     q = q.offset(offset).limit(limit)
 
     result = await db.execute(q)
     articles = result.scalars().all()
-
-    cq = select(func.count()).select_from(IntelligenceArticle).where(IntelligenceArticle.status == "published")
-    if article_type:
-        cq = cq.where(IntelligenceArticle.article_type == article_type)
     total = (await db.execute(cq)).scalar() or 0
+    hero_images = await _fetch_hero_images(db, [a.id for a in articles])
 
     return {
         "total":  total,
         "offset": offset,
         "limit":  limit,
-        "items":  [_list_row(a) for a in articles],
+        "items":  [_list_row(a, hero_images.get(a.id)) for a in articles],
     }
 
 
@@ -234,10 +279,11 @@ async def get_company_insights(
         .limit(8)
     )
     historical = hist_result.scalars().all()
+    hero_images = await _fetch_hero_images(db, [a.id for a in matched])
 
     return {
         "symbol": symbol,
-        "articles": [_list_row(a) for a in matched],
+        "articles": [_list_row(a, hero_images.get(a.id)) for a in matched],
         "campaign_count": len(group_ids),
         "historical_events": [
             {
@@ -363,7 +409,8 @@ async def search_insights(
         .limit(limit)
     )
     articles = result.scalars().all()
-    return {"query": q, "total": len(articles), "items": [_list_row(a) for a in articles]}
+    hero_images = await _fetch_hero_images(db, [a.id for a in articles])
+    return {"query": q, "total": len(articles), "items": [_list_row(a, hero_images.get(a.id)) for a in articles]}
 
 
 @router.get("/{slug}")
@@ -377,7 +424,8 @@ async def get_insight(slug: str, db: AsyncSession = Depends(get_db)):
     if not art:
         raise HTTPException(status_code=404, detail="Article not found")
 
-    row = _detail_row(art)
+    hero_images = await _fetch_hero_images(db, [art.id])
+    row = _detail_row(art, hero_images.get(art.id))
 
     # Other angles on the same underlying event (primary + per-company +
     # sector-rollup siblings) — only set on articles published after the

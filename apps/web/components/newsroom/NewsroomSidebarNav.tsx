@@ -1,0 +1,47 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Home, Library, Sunrise, Radio, TrendingUp, Building2, CalendarClock, Rss,
+} from "lucide-react";
+
+const NAV = [
+  { href: "/newsroom",              label: "Home",        icon: Home },
+  { href: "/newsroom/library",      label: "Library",     icon: Library },
+  { href: "/newsroom/daily-brief",  label: "Daily Brief",  icon: Sunrise },
+  { href: "/newsroom/breaking",     label: "Breaking",    icon: Radio },
+  { href: "/newsroom/themes",       label: "Themes",      icon: TrendingUp },
+  { href: "/newsroom/companies",    label: "Companies",   icon: Building2 },
+  { href: "/newsroom/events",       label: "Events",      icon: CalendarClock },
+  { href: "/newsroom/sources",      label: "Live Sources", icon: Rss },
+];
+
+export function NewsroomSidebarNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="space-y-0.5">
+      {NAV.map((n) => {
+        // "/newsroom" must match exactly (it's a prefix of every other
+        // route here); everything else matches on prefix so a detail page
+        // like /newsroom/article/[slug] still highlights its section —
+        // article pages don't have their own nav entry.
+        const active = n.href === "/newsroom" ? pathname === "/newsroom" : pathname.startsWith(n.href);
+        const Icon = n.icon;
+        return (
+          <Link
+            key={n.href}
+            href={n.href}
+            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition ${
+              active ? "bg-white/[0.08] text-white" : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+            }`}
+          >
+            <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? "text-sky-400" : "text-slate-500"}`} />
+            {n.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

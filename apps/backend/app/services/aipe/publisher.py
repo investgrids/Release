@@ -312,6 +312,12 @@ async def _publish_new_article(
             _store_article_predictions(article_id, article_data, triage_event),
             name="aipe-prediction-store",
         )
+
+        # Queue a hero-image job — fire-and-forget, one cheap insert. Actual
+        # generation happens later on the media worker's own schedule (see
+        # app/services/media/image_worker.py), never here.
+        from app.services.media.image_worker import create_media_job
+        asyncio.create_task(create_media_job(article_id, "hero"), name="aipe-media-job")
     else:
         _STATS["validation_failures"] += 1
         log.warning("publisher.validation_failed", slug=slug, results=results)

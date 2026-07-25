@@ -22,6 +22,7 @@ from app.db.models.company_announcements import CompanyAnnouncement
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.score_history import ScoreHistory
 from app.db.models.feedback import FeedbackSubmission
+from app.db.models.generated_media import GeneratedMedia
 
 __all__ = [
     "Opportunity",
@@ -47,4 +48,5 @@ __all__ = [
     "IntelligenceArticle",
     "ScoreHistory",
     "FeedbackSubmission",
+    "GeneratedMedia",
 ]

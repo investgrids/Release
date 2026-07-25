@@ -1,14 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, Search, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Search, Clock, ChevronLeft, ChevronRight, Flame, Sparkles, Eye,
+  FileText, CalendarDays, TrendingUp, Building2, Radio as RadioIcon,
+  Tag, ShieldCheck, type LucideIcon,
+} from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { cleanText } from "@/lib/text";
+import { cleanText, isRealSymbol } from "@/lib/text";
+import { HeroImage } from "@/components/HeroImage";
+import { BookmarkButton } from "@/components/BookmarkButton";
 
 export const metadata: Metadata = {
   title: "AI Intelligence Library",
   description: "The complete, searchable archive of every AI-generated market intelligence article — no raw feeds, no external content, just MarketRipple's own analysis.",
   alternates: { canonical: "/newsroom/library" },
 };
+
+// ── Types ─────────────────────────────────────────────────────────────────
 
 interface InsightCard {
   slug: string;
@@ -19,8 +27,10 @@ interface InsightCard {
   confidence_score?: number;
   read_time_minutes?: number;
   views?: number;
-  companies_affected: { name: string; symbol: string; impact: string }[];
   published_at?: string;
+  companies_affected: { name: string; symbol: string; impact: string }[];
+  sectors_affected: { name: string }[];
+  hero_image_url?: string | null;
 }
 
 interface LibraryStats {
@@ -46,9 +56,35 @@ const TYPE_LABEL: Record<string, string> = {
   opportunity_intelligence: "Opportunity",
   question_intelligence: "Q&A",
   historical_intelligence: "Historical",
+  educational_intelligence: "Explainer",
 };
 
+const CATEGORIES = [
+  { id: "",             label: "All" },
+  { id: "market",        label: "Market" },
+  { id: "companies",     label: "Companies" },
+  { id: "events",        label: "Events" },
+  { id: "themes",        label: "Themes" },
+  { id: "opportunities", label: "Opportunities" },
+] as const;
+
+const SORTS = [
+  { id: "newest",     label: "Newest" },
+  { id: "views",      label: "Most Viewed" },
+  { id: "confidence", label: "Highest Confidence" },
+] as const;
+
+const SECTIONS = [
+  { title: "Market Intelligence",      category: "market",        href: "/newsroom/daily-brief" },
+  { title: "Company Intelligence",     category: "companies",     href: "/newsroom/companies" },
+  { title: "Event Intelligence",       category: "events",        href: "/newsroom/events" },
+  { title: "Theme Intelligence",       category: "themes",        href: "/newsroom/themes" },
+  { title: "Opportunity Intelligence", category: "opportunities", href: "/opportunity-radar" },
+] as const;
+
 const PAGE_SIZE = 20;
+
+// ── Fetching ──────────────────────────────────────────────────────────────
 
 async function fetchJSON<T>(path: string, fallback: T): Promise<T> {
   try {
@@ -69,152 +105,317 @@ function fmtRelative(iso?: string): string {
   return `${Math.floor(mins / 1440)}d ago`;
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────
+
 export default async function LibraryPage(
-  { searchParams }: { searchParams: Promise<{ page?: string }> }
+  { searchParams }: { searchParams: Promise<{ page?: string; category?: string; sort?: string }> }
 ) {
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, category = "", sort = "newest" } = await searchParams;
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
+  const catQS = category ? `&category=${category}` : "";
+  const isFiltered = !!category || sort !== "newest" || page > 1;
 
-  const [stats, list] = await Promise.all([
+  const [stats, list, trending, ...sectionLists] = await Promise.all([
     fetchJSON<LibraryStats>("/api/insights/stats", {}),
-    fetchJSON<{ items: InsightCard[]; total: number }>(`/api/insights/?limit=${PAGE_SIZE}&offset=${offset}`, { items: [], total: 0 }),
+    fetchJSON<{ items: InsightCard[]; total: number }>(
+      `/api/insights/?limit=${PAGE_SIZE}&offset=${offset}&sort_by=${sort}${catQS}`, { items: [], total: 0 }
+    ),
+    // Trending: real view-based ranking, not a fabricated "hot" flag.
+    fetchJSON<{ items: InsightCard[] }>(`/api/insights/?sort_by=views&limit=4`, { items: [] }),
+    ...SECTIONS.map(s => fetchJSON<{ items: InsightCard[] }>(`/api/insights/?category=${s.category}&limit=4`, { items: [] })),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
+  const featured = !isFiltered ? list.items[0] : null;
+  const gridItems = featured ? list.items.slice(1) : list.items;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
 
-      {/* Hero */}
-      <div className="mb-8">
-        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-          <BookOpen className="h-3 w-3 text-violet-400" /> AI Newsroom
-        </p>
-        <h1 className="mt-2 text-[28px] font-black leading-tight text-white md:text-[32px]">
+      {/* ══════════ Header ══════════ */}
+      <div className="mb-6">
+        <h1 className="text-[30px] font-black leading-tight text-white md:text-[36px]">
           AI Intelligence Library
         </h1>
-        <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-slate-400">
-          AI-generated investment intelligence powered by MarketRipple. Every article here is
-          written by our AI Publishing Engine from real market data — no raw news feeds, no
-          syndicated content.
+        <p className="mt-2 max-w-2xl text-[14px] leading-6 text-slate-400">
+          Discover AI-generated market intelligence, investment research and daily analysis —
+          every article written by MarketRipple&apos;s AI Publishing Engine from real market data.
         </p>
-        <form action="/search" method="get" className="mt-4 max-w-lg">
-          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.1] bg-white/[0.04] px-3.5 py-2 focus-within:border-violet-500/40">
-            <Search className="h-4 w-4 shrink-0 text-slate-500" />
+        <form action="/search" method="get" className="mt-5 max-w-xl">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 focus-within:border-violet-500/40">
+            <Search className="h-4.5 w-4.5 shrink-0 text-slate-500" />
             <input
               type="text"
               name="q"
-              placeholder="Search companies, sectors, themes, articles…"
-              className="flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-slate-500"
+              placeholder="Search articles, companies, events, themes…"
+              className="flex-1 bg-transparent text-[14px] text-white outline-none placeholder:text-slate-500"
             />
           </div>
         </form>
       </div>
 
-      {/* Real stats — every value a live query */}
-      <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-        <StatTile label="Total AI Articles" value={stats.total_articles} />
-        <StatTile label="Today's Articles" value={stats.today_articles} />
-        <StatTile label="This Week" value={stats.this_week_articles} />
-        <StatTile label="Companies Covered" value={stats.companies_covered} />
-        <StatTile label="Events Covered" value={stats.events_covered} />
-        <StatTile label="Themes Covered" value={stats.themes_covered} />
-        <StatTile label="Avg AI Confidence" value={stats.avg_confidence != null ? `${Math.round(stats.avg_confidence * 100)}%` : undefined} />
+      {/* ══════════ Stats ══════════ */}
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+        <StatTile icon={FileText}     label="Total AI Articles"  value={stats.total_articles}   sub="Across all categories" />
+        <StatTile icon={CalendarDays} label="Today's Articles"   value={stats.today_articles}   sub="Published today" />
+        <StatTile icon={TrendingUp}   label="This Week"          value={stats.this_week_articles} sub="Last 7 days" />
+        <StatTile icon={Building2}    label="Companies Covered"  value={stats.companies_covered} sub="Active companies" />
+        <StatTile icon={RadioIcon}    label="Events Covered"     value={stats.events_covered}    sub="Key events tracked" />
+        <StatTile icon={Tag}          label="Themes Covered"     value={stats.themes_covered}    sub="Investment themes" />
+        <StatTile icon={ShieldCheck}  label="Avg AI Confidence"  value={stats.avg_confidence != null ? `${Math.round(stats.avg_confidence * 100)}%` : undefined} sub="Across all articles" />
+        <StatTile icon={Clock}        label="Last Updated"       value={stats.last_updated ? fmtRelative(stats.last_updated) : undefined} sub="Real-time updates" />
       </div>
-      {stats.last_updated && (
-        <p className="-mt-8 mb-8 text-[11px] text-slate-500">Last updated {fmtRelative(stats.last_updated)}</p>
-      )}
 
-      {/* Article list — server-side paginated, 20/page */}
-      {list.items.length === 0 ? (
-        <p className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-8 text-center text-[13px] text-slate-500">
-          No articles published yet — check back soon.
-        </p>
-      ) : (
-        <>
-          <div className="space-y-3">
-            {list.items.map((a) => (
+      {/* ══════════ Filters (sticky) ══════════ */}
+      <div className="sticky top-0 z-20 -mx-4 mb-8 border-y border-white/[0.07] bg-[#040810]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map((c) => (
               <Link
-                key={a.slug}
-                href={`/newsroom/article/${a.slug}`}
-                className="group block rounded-xl border border-white/[0.07] bg-white/[0.03] p-5 transition-colors hover:border-white/20 hover:bg-white/[0.05]"
+                key={c.id}
+                href={c.id ? `/newsroom/library?category=${c.id}` : "/newsroom/library"}
+                className={`rounded-full border px-3.5 py-1.5 text-[12px] font-semibold transition ${
+                  category === c.id
+                    ? "border-violet-500/40 bg-violet-500/15 text-violet-300"
+                    : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+                }`}
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {TYPE_LABEL[a.article_type] ?? "Intelligence"}
-                  </span>
-                  {a.published_at && (
-                    <span className="flex items-center gap-1 text-[10px] text-slate-600">
-                      <Clock className="h-2.5 w-2.5" /> {fmtRelative(a.published_at)}
-                    </span>
-                  )}
-                  {a.confidence_score != null && (
-                    <span className="text-[10px] text-slate-600">{Math.round(a.confidence_score * 100)}% confidence</span>
-                  )}
-                  {a.read_time_minutes && (
-                    <span className="text-[10px] text-slate-600">{a.read_time_minutes} min read</span>
-                  )}
-                </div>
-                <h2 className="mt-2 text-[16px] font-bold leading-snug text-white group-hover:text-sky-200 transition">
-                  {cleanText(a.headline)}
-                </h2>
-                {(a.key_takeaway || a.executive_summary) && (
-                  <p className="mt-1.5 line-clamp-2 text-[13px] leading-5 text-slate-400">
-                    {cleanText(a.key_takeaway ?? a.executive_summary ?? "")}
-                  </p>
-                )}
-                {a.companies_affected?.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {a.companies_affected.slice(0, 4).map((c, i) => (
-                      <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">
-                        {c.symbol}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {c.label}
               </Link>
             ))}
           </div>
+          <div className="flex gap-2">
+            {SORTS.map((s) => (
+              <Link
+                key={s.id}
+                href={`/newsroom/library?sort=${s.id}${category ? `&category=${category}` : ""}`}
+                className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                  sort === s.id
+                    ? "border-white/20 bg-white/10 text-white"
+                    : "border-white/10 bg-white/[0.02] text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                {s.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
 
+      {list.items.length === 0 ? (
+        <p className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-10 text-center text-[13px] text-slate-500">
+          No AI Intelligence Available — check back soon.
+        </p>
+      ) : (
+        <>
+          {/* ══════════ Featured Intelligence ══════════ */}
+          {featured && (
+            <section className="mb-10">
+              <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                <Sparkles className="h-3.5 w-3.5" /> Featured Intelligence
+              </p>
+              <Link
+                href={`/newsroom/article/${featured.slug}`}
+                className="group grid grid-cols-1 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] transition hover:border-white/20 md:grid-cols-2"
+              >
+                <HeroImage
+                  heroImageUrl={featured.hero_image_url}
+                  headline={featured.headline}
+                  articleType={featured.article_type}
+                  sectors={(featured.sectors_affected ?? []).map(s => s.name)}
+                  className="h-56 md:h-full"
+                />
+                <div className="flex flex-col justify-center p-6 md:p-8">
+                  <span className="w-fit rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    {TYPE_LABEL[featured.article_type] ?? "Intelligence"}
+                  </span>
+                  <h2 className="mt-3 text-[22px] font-black leading-tight text-white group-hover:text-sky-200 transition md:text-[26px]">
+                    {cleanText(featured.headline)}
+                  </h2>
+                  {(featured.key_takeaway || featured.executive_summary) && (
+                    <p className="mt-2 line-clamp-3 text-[13.5px] leading-6 text-slate-400">
+                      {cleanText(featured.key_takeaway ?? featured.executive_summary ?? "")}
+                    </p>
+                  )}
+                  {featured.companies_affected?.some(c => isRealSymbol(c.symbol)) && (
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {featured.companies_affected.filter(c => isRealSymbol(c.symbol)).slice(0, 4).map((c, i) => (
+                        <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">{c.symbol}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                    {featured.confidence_score != null && <span className="font-semibold text-sky-400">{Math.round(featured.confidence_score * 100)}% confidence</span>}
+                    {featured.read_time_minutes && <span>{featured.read_time_minutes} min read</span>}
+                    {featured.published_at && <span>{fmtRelative(featured.published_at)}</span>}
+                  </div>
+                  <span className="mt-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[12px] font-bold text-slate-900 transition group-hover:bg-slate-100">
+                    Read Article <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </Link>
+            </section>
+          )}
+
+          {/* ══════════ Trending Today ══════════ */}
+          {trending.items.some(a => (a.views ?? 0) > 0) && (
+            <section className="mb-10">
+              <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-rose-400">
+                <Flame className="h-3.5 w-3.5" /> Trending Today
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {trending.items.filter(a => (a.views ?? 0) > 0).map((a) => <GridCard key={a.slug} a={a} />)}
+              </div>
+            </section>
+          )}
+
+          {/* ══════════ Latest Intelligence (filtered/paginated grid) ══════════ */}
+          <section className="mb-10">
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+              {category ? CATEGORIES.find(c => c.id === category)?.label : "Latest Intelligence"}
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {gridItems.map((a) => <GridCard key={a.slug} a={a} large />)}
+            </div>
+          </section>
+
+          {/* ══════════ Pagination ══════════ */}
           {totalPages > 1 && (
-            <div className="mt-8 flex items-center justify-between">
-              <Link
-                href={`/newsroom/library?page=${page - 1}`}
-                aria-disabled={page <= 1}
-                className={`flex items-center gap-1 rounded-full border px-4 py-2 text-[12px] font-medium transition ${
-                  page <= 1
-                    ? "pointer-events-none border-white/5 text-slate-700"
-                    : "border-white/10 bg-white/5 text-slate-300 hover:text-white"
-                }`}
-              >
+            <div className="mb-12 flex items-center justify-between">
+              <PageLink page={page - 1} disabled={page <= 1} category={category} sort={sort}>
                 <ChevronLeft className="h-3.5 w-3.5" /> Previous
-              </Link>
-              <span className="text-[12px] text-slate-500">Page {page} of {totalPages} · {list.total} articles</span>
-              <Link
-                href={`/newsroom/library?page=${page + 1}`}
-                aria-disabled={page >= totalPages}
-                className={`flex items-center gap-1 rounded-full border px-4 py-2 text-[12px] font-medium transition ${
-                  page >= totalPages
-                    ? "pointer-events-none border-white/5 text-slate-700"
-                    : "border-white/10 bg-white/5 text-slate-300 hover:text-white"
-                }`}
-              >
+              </PageLink>
+              <div className="flex items-center gap-1.5">
+                {paginationRange(page, totalPages).map((p, i) =>
+                  p === "…" ? (
+                    <span key={`e${i}`} className="px-1.5 text-[12px] text-slate-600">…</span>
+                  ) : (
+                    <Link
+                      key={p}
+                      href={`/newsroom/library?page=${p}${category ? `&category=${category}` : ""}${sort !== "newest" ? `&sort=${sort}` : ""}`}
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold transition ${
+                        p === page ? "bg-violet-500 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      {p}
+                    </Link>
+                  )
+                )}
+              </div>
+              <PageLink page={page + 1} disabled={page >= totalPages} category={category} sort={sort}>
                 Next <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
+              </PageLink>
             </div>
           )}
+
+          {/* ══════════ Dedicated category sections (only on the unfiltered default view) ══════════ */}
+          {!isFiltered && sectionLists.map((sl, i) => {
+            const s = SECTIONS[i];
+            if (sl.items.length === 0) return null;
+            return (
+              <section key={s.category} className="mb-10">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">{s.title}</p>
+                  <Link href={`/newsroom/library?category=${s.category}`} className="flex items-center gap-0.5 text-[11.5px] font-medium text-slate-500 hover:text-white">
+                    View all <ChevronRight className="h-3 w-3" />
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {sl.items.map((a) => <GridCard key={a.slug} a={a} />)}
+                </div>
+              </section>
+            );
+          })}
         </>
       )}
     </div>
   );
 }
 
-function StatTile({ label, value }: { label: string; value?: number | string }) {
+// ── Building blocks ──────────────────────────────────────────────────────────
+
+function paginationRange(page: number, total: number): (number | "…")[] {
+  const out: (number | "…")[] = [];
+  const add = (n: number | "…") => out.push(n);
+  add(1);
+  if (page > 3) add("…");
+  for (let p = Math.max(2, page - 1); p <= Math.min(total - 1, page + 1); p++) add(p);
+  if (page < total - 2) add("…");
+  if (total > 1) add(total);
+  return out;
+}
+
+function PageLink({ page, disabled, category, sort, children }: { page: number; disabled: boolean; category: string; sort: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-center">
-      <p className="text-[18px] font-black leading-none text-white">{value ?? "—"}</p>
-      <p className="mt-1 text-[9px] uppercase tracking-wider text-slate-500">{label}</p>
+    <Link
+      href={`/newsroom/library?page=${page}${category ? `&category=${category}` : ""}${sort !== "newest" ? `&sort=${sort}` : ""}`}
+      aria-disabled={disabled}
+      className={`flex items-center gap-1 rounded-full border px-4 py-2 text-[12px] font-medium transition ${
+        disabled ? "pointer-events-none border-white/5 text-slate-700" : "border-white/10 bg-white/5 text-slate-300 hover:text-white"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function StatTile({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: string; value?: number | string; sub?: string }) {
+  return (
+    <div className="flex h-full flex-col rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
+      {/* Fixed-height label row — some labels wrap to 2 lines ("Total AI
+          Articles") and some fit on 1 ("This Week"), which otherwise pushes
+          the value below to a different Y per tile and breaks the row's
+          alignment. */}
+      <div className="flex min-h-[28px] items-start gap-1.5 text-slate-500">
+        <Icon className="mt-0.5 h-3 w-3 shrink-0" />
+        <p className="text-[9.5px] font-semibold uppercase leading-tight tracking-wider">{label}</p>
+      </div>
+      <p className="mt-1.5 text-[20px] font-black leading-none text-white">
+        {typeof value === "number" ? value.toLocaleString("en-IN") : (value ?? "—")}
+      </p>
+      <p className="mt-1 min-h-[13px] text-[10px] text-slate-600">{sub ?? ""}</p>
     </div>
+  );
+}
+
+function GridCard({ a, large = false }: { a: InsightCard; large?: boolean }) {
+  return (
+    <Link
+      href={`/newsroom/article/${a.slug}`}
+      className="group flex flex-col overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.02] transition hover:border-white/20 hover:bg-white/[0.04]"
+    >
+      <div className="relative">
+        <HeroImage
+          heroImageUrl={a.hero_image_url}
+          headline={a.headline}
+          articleType={a.article_type}
+          sectors={(a.sectors_affected ?? []).map(s => s.name)}
+          className={large ? "h-36" : "h-28"}
+        />
+        <span className="absolute left-2.5 top-2.5 rounded-full border border-white/10 bg-black/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur">
+          {TYPE_LABEL[a.article_type] ?? "Intelligence"}
+        </span>
+        <div className="absolute right-2 top-2">
+          <BookmarkButton slug={a.slug} headline={a.headline} articleType={a.article_type} className="bg-black/40 backdrop-blur" />
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col p-3.5">
+        <p className={`line-clamp-2 font-semibold leading-snug text-white group-hover:text-sky-200 transition ${large ? "text-[14px]" : "text-[12.5px]"}`}>
+          {cleanText(a.headline)}
+        </p>
+        {(a.key_takeaway || a.executive_summary) && large && (
+          <p className="mt-1.5 line-clamp-2 text-[12px] leading-5 text-slate-500">
+            {cleanText(a.key_takeaway ?? a.executive_summary ?? "")}
+          </p>
+        )}
+        <div className="mt-auto flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-2.5 text-[10px] text-slate-600">
+          {a.confidence_score != null && <span className="font-semibold text-sky-400">{Math.round(a.confidence_score * 100)}%</span>}
+          {a.read_time_minutes && <span>{a.read_time_minutes} min</span>}
+          {a.published_at && <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{fmtRelative(a.published_at)}</span>}
+          {!!a.views && <span className="ml-auto flex items-center gap-1"><Eye className="h-2.5 w-2.5" />{a.views}</span>}
+        </div>
+      </div>
+    </Link>
   );
 }

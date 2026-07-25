@@ -222,6 +222,21 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         misfire_grace_time=1800,
     )
 
+    # ── Media generation worker — every 60s ──────────────────────────────────
+    # Drains the GeneratedMedia job queue (see app/services/media/). Decoupled
+    # from AIPE on purpose — publishing never waits on this. Short interval
+    # so a fresh article's hero image shows up quickly, but the worker itself
+    # only claims a small batch per tick since the provider is slow under load.
+    from app.services.media.image_worker import run_image_generation_cycle
+    scheduler.add_job(
+        run_image_generation_cycle,
+        IntervalTrigger(seconds=60),
+        id="media_generation",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=120,
+    )
+
     log.info("scheduler.jobs_registered", count=len(scheduler.get_jobs()))
 
 
