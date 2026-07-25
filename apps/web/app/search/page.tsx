@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Search, Clock, Sparkles } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { cleanText } from "@/lib/text";
+import { cleanText, isRealSymbol } from "@/lib/text";
 
 export async function generateMetadata(
   { searchParams }: { searchParams: Promise<{ q?: string }> }
@@ -124,7 +124,7 @@ export default async function SearchPage(
               )}
               {a.companies_affected?.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {a.companies_affected.slice(0, 4).map((c, i) => (
+                  {a.companies_affected.filter(c => isRealSymbol(c.symbol)).slice(0, 4).map((c, i) => (
                     <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">
                       {c.symbol}
                     </span>

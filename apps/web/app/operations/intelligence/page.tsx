@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { GLOSSARY } from "@/lib/glossary-data";
+import { isRealSymbol } from "@/lib/text";
 import { LiveTicker } from "./LiveTicker";
 import { LoadMoreInsights } from "./LoadMoreInsights";
 import { TYPE_LABEL, fmtRelative, sectorName, type FeedArticle } from "./shared";
@@ -80,7 +81,7 @@ function deriveCompanies(items: FeedArticle[]): CompanyStat[] {
   const map = new Map<string, CompanyStat>();
   for (const a of items) {
     for (const c of a.companies_affected ?? []) {
-      if (!c.symbol) continue;
+      if (!isRealSymbol(c.symbol)) continue;
       const existing = map.get(c.symbol);
       if (existing) {
         existing.count += 1;
@@ -108,7 +109,7 @@ function deriveThemes(themes: ThemeScore[], items: FeedArticle[]): ThemeStat[] {
       (a.sectors_affected ?? []).some(s => sectorName(s).toLowerCase().includes(lower.split(" ")[0]) || lower.includes(sectorName(s).toLowerCase()))
     );
     const companies = new Set<string>();
-    matches.forEach(a => (a.companies_affected ?? []).forEach(c => c.symbol && companies.add(c.symbol)));
+    matches.forEach(a => (a.companies_affected ?? []).forEach(c => isRealSymbol(c.symbol) && companies.add(c.symbol)));
     const latestAt = matches.reduce<string | null>((max, a) => (a.published_at && (!max || a.published_at > max) ? a.published_at : max), null);
     return { ...t, articleCount: matches.length, companyCount: companies.size, latestAt };
   }).sort((a, b) => b.score - a.score).slice(0, 8);
@@ -277,7 +278,7 @@ export default async function MarketIntelligenceShowcase() {
                     )}
                     {featured.companies_affected?.length > 0 && (
                       <div className="mt-6 flex flex-wrap gap-2">
-                        {featured.companies_affected.slice(0, 6).map((c, i) => (
+                        {featured.companies_affected.filter(c => isRealSymbol(c.symbol)).slice(0, 6).map((c, i) => (
                           <span key={i} className={`rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold ${IMPACT_COLOR[c.impact] ?? "text-slate-300"}`}>
                             {c.symbol}
                           </span>
@@ -408,7 +409,7 @@ export default async function MarketIntelligenceShowcase() {
                     )}
                     {a.companies_affected?.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        {a.companies_affected.slice(0, 4).map((c, ci) => (
+                        {a.companies_affected.filter(c => isRealSymbol(c.symbol)).slice(0, 4).map((c, ci) => (
                           <span key={ci} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">{c.symbol}</span>
                         ))}
                       </div>

@@ -8,11 +8,12 @@ import {
   Sparkles, Target, Radio, ChevronRight, Compass, Database,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { cleanText } from "@/lib/text";
+import { cleanText, isRealSymbol, safeJsonLd } from "@/lib/text";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyShareBar } from "@/components/StickyShareBar";
+import { HeroImage } from "@/components/HeroImage";
 
 // ── Article type metadata ────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ interface UpdateEntry {
 
 interface InsightDetail {
   id: string; slug: string; article_type: string;
+  hero_image_url?: string | null;
   headline: string; key_takeaway?: string; executive_summary?: string;
   seo_title?: string; meta_description?: string;
   why_it_matters?: string; what_happened?: string;
@@ -101,7 +103,10 @@ function cleanArticle(a: InsightDetail): InsightDetail {
     executive_summary: a.executive_summary ? cleanText(a.executive_summary) : a.executive_summary,
     why_it_matters: a.why_it_matters ? cleanText(a.why_it_matters) : a.why_it_matters,
     what_happened: a.what_happened ? cleanText(a.what_happened) : a.what_happened,
-    companies_affected: (a.companies_affected ?? []).map(c => ({ ...c, name: cleanText(c.name), reason: c.reason ? cleanText(c.reason) : c.reason })),
+    // Drop entries where the AI couldn't identify a real ticker (writes a
+    // placeholder like "Not Provided" instead) — these render as broken
+    // /companies/{symbol} links elsewhere on this page, not just odd text.
+    companies_affected: (a.companies_affected ?? []).filter(c => isRealSymbol(c.symbol)).map(c => ({ ...c, name: cleanText(c.name), reason: c.reason ? cleanText(c.reason) : c.reason })),
     sectors_affected: (a.sectors_affected ?? []).map(s => ({ ...s, name: cleanText(s.name), reason: s.reason ? cleanText(s.reason) : s.reason })),
     opportunities: (a.opportunities ?? []).map(o => ({ ...o, title: cleanText(o.title), description: cleanText(o.description) })),
     risks: (a.risks ?? []).map(r => ({ ...r, title: cleanText(r.title), description: cleanText(r.description), mitigation: r.mitigation ? cleanText(r.mitigation) : r.mitigation })),
@@ -303,7 +308,7 @@ export default async function ArticlePage(
       {article.json_ld && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(article.json_ld) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(article.json_ld) }}
         />
       )}
 
@@ -341,6 +346,13 @@ export default async function ArticlePage(
 
         {/* ══════════ 1. HERO ══════════ */}
         <div className="mb-8">
+          <HeroImage
+            heroImageUrl={article.hero_image_url}
+            headline={article.headline}
+            articleType={article.article_type}
+            sectors={(article.sectors_affected ?? []).map(s => s.name)}
+            className="mb-5 h-56 w-full rounded-2xl sm:h-72"
+          />
           <div className="flex flex-wrap items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${meta.color}`}>
               <BookOpen className="h-2.5 w-2.5" /> {meta.label}

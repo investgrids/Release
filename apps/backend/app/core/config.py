@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     # rather than leaving them open.
     admin_api_key: str = ""
 
+    # Shared secret for the media worker -> frontend on-demand revalidation
+    # webhook (POST /api/revalidate). Same "unset locally disables it"
+    # posture as admin_api_key — a missed revalidation just means the page
+    # catches up at its next natural cache window, not a broken state.
+    revalidate_secret: str = ""
+
     # ── Database ──────────────────────────────────────────────────────────────
     # On Railway: set DATABASE_URL to sqlite+aiosqlite:////data/ig.db
     # (note 4 slashes = absolute path /data/ig.db on the mounted volume)
@@ -137,6 +143,15 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         extra = "ignore"  # silently skip any unrecognised env vars
+
+    @property
+    def is_production(self) -> bool:
+        """True on Railway prod (JSON_LOGS=true is already the existing
+        prod/dev signal, set in .env.example and used by main.py's startup
+        log). Reused here to gate anything that must never run against real
+        users: placeholder/demo data endpoints and destructive or
+        fabricated-content seed operations."""
+        return self.json_logs
 
 
 settings = Settings()

@@ -59,19 +59,28 @@ async def lifespan(app: FastAPI):
     await relax_events_score_columns(engine)
 
     # ── 2. Seed ───────────────────────────────────────────────────────────────
-    from app.db.session import AsyncSessionLocal
-    from app.db.seed import seed
+    # Dev/staging only. EVENTS/NEWS/RADAR/STORIES/SECTORS in app/db/seed.py
+    # are hand-written placeholder content — some of it (NEWS) attributes
+    # fabricated headlines to real outlets ("Economic Times", "Business
+    # Standard"). That must never land in the production DB, so this whole
+    # step is skipped there rather than relying on callers to know not to
+    # trust it.
+    if settings.is_production:
+        log.info("db.seed_skipped", reason="production")
+    else:
+        from app.db.session import AsyncSessionLocal
+        from app.db.seed import seed
 
-    async with AsyncSessionLocal() as db:
-        await seed(db)
-    from app.db.seed import seed_missing_stories, seed_missing_calendar, seed_missing_events
-    async with AsyncSessionLocal() as db:
-        await seed_missing_stories(db)
-    async with AsyncSessionLocal() as db:
-        await seed_missing_calendar(db)
-    async with AsyncSessionLocal() as db:
-        await seed_missing_events(db)
-    log.info("db.seed_done")
+        async with AsyncSessionLocal() as db:
+            await seed(db)
+        from app.db.seed import seed_missing_stories, seed_missing_calendar, seed_missing_events
+        async with AsyncSessionLocal() as db:
+            await seed_missing_stories(db)
+        async with AsyncSessionLocal() as db:
+            await seed_missing_calendar(db)
+        async with AsyncSessionLocal() as db:
+            await seed_missing_events(db)
+        log.info("db.seed_done")
 
     # ── 3. APScheduler ────────────────────────────────────────────────────────
     from app.scheduler import start_scheduler, stop_scheduler
@@ -303,11 +312,17 @@ async def _warm_dashboard_cache() -> None:
 
 # ── Application ───────────────────────────────────────────────────────────────
 
+# Public Swagger UI / OpenAPI schema make every route — including the
+# admin-gated ones — trivially discoverable by anyone. No real cost to
+# disabling them in prod (still available locally/staging for development).
 app = FastAPI(
     title="IG Market Intelligence API",
     description="Backend API for event-driven market intelligence",
     version="0.2.0",
     lifespan=lifespan,
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
 )
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -339,7 +354,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -396,6 +411,8 @@ app.include_router(publishing.router, prefix="/api/publishing", tags=["publishin
 app.include_router(insights.router, prefix="/api/insights", tags=["insights"])
 # ── Feedback — /contact page form submissions ───────────────────────────────
 app.include_router(feedback.router, prefix="/api/feedback", tags=["feedback"])
+# ── Media — generated article images (served from the persistent volume) ────
+app.include_router(media.router, prefix="/api/media", tags=["media"])
 # ── Admin — protected infra/db status, not for end users ────────────────────
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 

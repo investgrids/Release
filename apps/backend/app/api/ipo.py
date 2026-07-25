@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from app.core.config import settings
+
 router = APIRouter()
 
 _MOCK_DATE_FIELDS = ("openDate", "closeDate", "allotmentDate", "refundDate", "creditDate", "listingDate")
@@ -286,8 +288,27 @@ _SECTOR_TRENDS = [
 ]
 
 
+# No real IPO data provider is wired up yet — _IPOS below is entirely
+# hand-written placeholder content for real, named companies (prices, GMP,
+# subscription %, "AI" ratings). Showing that in production, even with an
+# is_mock flag the frontend didn't check, means real users could see
+# fabricated financials for real companies. Rather than trust every caller
+# to honor is_mock, the endpoint itself refuses to serve it in production.
+_UNAVAILABLE = {
+    "ipos": [],
+    "stats": {"upcoming": 0, "ongoing": 0, "listed": 0, "avg_listing_gain": 0},
+    "sector_trends": [],
+    "sentiment": {"score": 0, "label": "Unavailable", "retail": "—", "hni": "—", "volatility": "—", "overall": "—"},
+    "ai_insight": "IPO data provider integration is coming soon.",
+    "is_mock": False,
+    "data_source": "unavailable",
+}
+
+
 @router.get("/")
 async def list_ipos(status: str | None = None):
+    if settings.is_production:
+        return _UNAVAILABLE
     ipos = _IPOS
     if status and status.lower() in ("upcoming", "ongoing", "listed"):
         ipos = [i for i in ipos if i["status"].lower() == status.lower()]
@@ -307,6 +328,8 @@ async def list_ipos(status: str | None = None):
 
 @router.get("/{ipo_id}")
 async def get_ipo(ipo_id: str):
+    if settings.is_production:
+        raise HTTPException(status_code=404, detail="IPO data provider integration is coming soon.")
     ipo = next((i for i in _IPOS if i["id"] == ipo_id), None)
     if not ipo:
         raise HTTPException(status_code=404, detail="IPO not found")

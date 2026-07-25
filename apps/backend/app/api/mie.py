@@ -14,8 +14,9 @@ GET /api/mie/status             Engine health — last refresh time + cache stat
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.security import require_admin_key
 from app.services.intelligence.engine import (
     get_intelligence_state,
     get_symbol_context,
@@ -54,7 +55,7 @@ async def mie_state():
         raise HTTPException(status_code=503, detail=f"Intelligence engine unavailable: {e}")
 
 
-@router.post("/state/refresh")
+@router.post("/state/refresh", dependencies=[Depends(require_admin_key)])
 async def mie_force_refresh():
     """Force-recompute and cache the intelligence state. Use after bulk ingest."""
     try:

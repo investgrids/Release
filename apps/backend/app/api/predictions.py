@@ -7,6 +7,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, BackgroundTasks
 
+from app.core.security import require_admin_key
 from app.db.session import get_db
 from app.db.models.predictions import PredictionRecord, PredictionEvaluation
 from app.services.prediction_service import get_stats
@@ -72,7 +73,7 @@ async def recent_predictions(
     return result
 
 
-@router.post("/evaluate")
+@router.post("/evaluate", dependencies=[Depends(require_admin_key)])
 async def trigger_evaluation(background_tasks: BackgroundTasks):
     """
     Manually trigger an evaluation cycle (admin / debug).

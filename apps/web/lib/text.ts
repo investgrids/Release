@@ -60,3 +60,24 @@ export function decodeEntities(s?: string | null): string {
 export function cleanText(s?: string | null): string {
   return decodeEntities(fixMojibake(s));
 }
+
+// When the AI can't identify a specific ticker for a vaguely-referenced
+// company (e.g. "the multibagger stock" with no name given in the source
+// event), it writes a placeholder into the symbol field rather than
+// omitting it — real output, but showing "Not Provided" as a ticker chip
+// reads as a bug. Filter these out at render time instead of hiding the
+// whole company (the name/reason are usually still real and useful).
+const PLACEHOLDER_SYMBOLS = new Set(["not provided", "n/a", "na", "unknown", "tbd", "none", ""]);
+export function isRealSymbol(symbol?: string | null): boolean {
+  return !!symbol && !PLACEHOLDER_SYMBOLS.has(symbol.trim().toLowerCase());
+}
+
+// JSON.stringify does not escape "<", so embedding it verbatim inside a
+// <script type="application/ld+json"> tag lets a literal "</script>" in any
+// string value (e.g. AI-generated or externally-sourced content) close the
+// tag early and inject arbitrary HTML — a real stored-XSS path. Escaping
+// "<" to its unicode form is the standard fix; it's semantically identical
+// once parsed as JSON, so it never changes the resulting structured data.
+export function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}

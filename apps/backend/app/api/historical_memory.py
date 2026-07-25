@@ -11,8 +11,10 @@ Endpoints:
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
+
+from app.core.security import require_admin_key
 
 log = structlog.get_logger(__name__)
 router = APIRouter()
@@ -206,12 +208,14 @@ async def get_event(event_id: str):
         raise HTTPException(status_code=503, detail=str(exc))
 
 
-@router.post("/store")
+@router.post("/store", dependencies=[Depends(require_admin_key)])
 async def store_event(body: dict):
     """
     Store a new historical market event.
-    Called automatically by TriageWorker for high-urgency events,
-    or manually via the admin panel.
+    Called automatically by TriageWorker for high-urgency events (via a
+    direct function call, not this HTTP route) — this endpoint itself is
+    only for manual/ops use, hence admin-gated: anything unauthenticated
+    could write bogus rows into data the AI treats as verified ground truth.
     """
     required = ["event_title", "event_date", "category"]
     for field in required:

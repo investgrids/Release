@@ -13,10 +13,11 @@ from typing import Any
 from uuid import uuid4
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.redis import get_redis
+from app.core.security import require_admin_key
 from app.services.ai_service import _call_with_fallback
 
 log = structlog.get_logger(__name__)
@@ -133,9 +134,10 @@ class TestAlertRequest(BaseModel):
     headline: str
 
 
-@router.post("/test")
+@router.post("/test", dependencies=[Depends(require_admin_key)])
 async def trigger_test_alert(body: TestAlertRequest):
-    """Manually generate and store a breaking alert — for testing only."""
+    """Manually generate and store a breaking alert — for testing only.
+    Admin-gated: this publishes straight into the public /breaking feed."""
     if not body.headline or len(body.headline.strip()) < 5:
         raise HTTPException(status_code=422, detail="headline must be at least 5 characters")
 
@@ -146,9 +148,9 @@ async def trigger_test_alert(body: TestAlertRequest):
     return {"ok": True, "alert": alert}
 
 
-@router.delete("/clear")
+@router.delete("/clear", dependencies=[Depends(require_admin_key)])
 async def clear_alerts():
-    """Clear all alerts — for testing."""
+    """Clear all alerts — for testing. Admin-gated: wipes real alerts too."""
     global _MEM_ALERTS
     _MEM_ALERTS = []
     redis = await get_redis()

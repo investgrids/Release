@@ -5,7 +5,7 @@ import {
   Gauge, BarChart3, CheckCircle2, Eye,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { cleanText } from "@/lib/text";
+import { cleanText, isRealSymbol } from "@/lib/text";
 import { MarketSentimentGauge } from "@/components/MarketSentimentGauge";
 
 export const metadata: Metadata = {
@@ -35,6 +35,9 @@ interface InsightCard {
   primary_entity?: CompanyMention | null;
   views?: number;
   published_at?: string;
+  // Set when this article is one of several per-company angles AIPE
+  // generated off the same underlying event — siblings share this ID.
+  parent_event_group_id?: string | null;
 }
 
 interface OpportunityCard {
@@ -114,7 +117,10 @@ async function getHomeData() {
     fetchJSON<{ items: InsightCard[] }>("/api/insights/?article_type=breaking_intelligence&limit=1", { items: [] }),
     fetchJSON<{ items: InsightCard[] }>("/api/insights/?article_type=market_wrap&limit=1", { items: [] }),
     fetchJSON<{ items: InsightCard[] }>("/api/insights/?article_type=theme_intelligence&limit=1", { items: [] }),
-    fetchJSON<{ items: InsightCard[] }>("/api/insights/?article_type=company_intelligence&limit=6", { items: [] }),
+    // Over-fetch — several of these are usually per-company siblings of the
+    // same event that collapse into one row after grouping (see
+    // groupCompanyArticles), so 6 raw articles isn't reliably 6 real rows.
+    fetchJSON<{ items: InsightCard[] }>("/api/insights/?article_type=company_intelligence&limit=15", { items: [] }),
     fetchJSON<{ items: InsightCard[] }>("/api/insights/?article_type=ripple_intelligence&limit=1", { items: [] }),
     fetchJSON<{ items: OpportunityCard[] }>("/api/radar/?page=1&page_size=5", { items: [] }),
     fetchJSON<NewsCard[]>("/api/news/", []),
@@ -292,14 +298,14 @@ export default async function NewsroomHomePage() {
               <div className="overflow-x-auto rounded-xl border border-white/[0.07]">
                 <table className="w-full text-left text-[12.5px]">
                   <tbody className="divide-y divide-white/[0.05]">
-                    {companies.slice(0, 6).map((a) => {
+                    {groupCompanyArticles(companies).slice(0, 6).map(({ key, representative: a, symbols }) => {
                       const primary = a.primary_entity ?? a.companies_affected?.[0];
                       const sentiment = (primary?.impact ?? "neutral").toLowerCase();
                       return (
-                        <tr key={a.slug} className="transition hover:bg-white/[0.03]">
+                        <tr key={key} className="transition hover:bg-white/[0.03]">
                           <td className="px-4 py-2.5">
                             <Link href={`/newsroom/article/${a.slug}`} className="font-semibold text-white hover:text-sky-300">
-                              {primary?.symbol ?? primary?.name ?? "—"}
+                              {symbols.length > 0 ? symbols.join(", ") : (primary?.name ?? "—")}
                             </Link>
                           </td>
                           <td className="px-4 py-2.5 max-w-md truncate text-slate-400">
@@ -374,6 +380,36 @@ export default async function NewsroomHomePage() {
 }
 
 // ── Small building blocks ────────────────────────────────────────────────────
+
+// AIPE fans one real event out into several per-company angle articles
+// (angle="per_company", one per affected company) that share the same
+// parent_event_group_id and — since they're about the same event — often
+// the same boilerplate summary. Rendered as separate rows, that reads as
+// duplicate news; this merges siblings into one row listing every company.
+interface CompanyGroup {
+  key: string;
+  representative: InsightCard;
+  symbols: string[];
+}
+
+function groupCompanyArticles(articles: InsightCard[]): CompanyGroup[] {
+  const groups = new Map<string, InsightCard[]>();
+  for (const a of articles) {
+    const key = a.parent_event_group_id || `solo-${a.slug}`;
+    const list = groups.get(key);
+    if (list) list.push(a); else groups.set(key, [a]);
+  }
+
+  return [...groups.values()].map((members) => {
+    const representative = members[0]; // already newest-first from the API
+    const symbols = [...new Set(
+      members
+        .map(m => (m.primary_entity ?? m.companies_affected?.[0])?.symbol)
+        .filter((s): s is string => isRealSymbol(s))
+    )];
+    return { key: representative.slug, representative, symbols };
+  });
+}
 
 function fmtRelative(iso: string): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);

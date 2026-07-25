@@ -24,9 +24,11 @@ from __future__ import annotations
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Query, Request, WebSocket, HTTPException
+import structlog
+from fastapi import APIRouter, Depends, Query, Request, WebSocket, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app.core.security import require_admin_key
 from app.services.market_data_service import (
     market_data_service,
     ws_hub,
@@ -34,6 +36,19 @@ from app.services.market_data_service import (
 )
 
 router = APIRouter()
+log = structlog.get_logger(__name__)
+
+# Allowlist, not blocklist — Fyers' own login-flow responses embed request_key
+# (a signed JWT), masked mobile/email, and the account holder's name
+# alongside plain status fields. Rather than trying to enumerate every
+# sensitive key Fyers might ever add, only these known-safe diagnostic
+# fields cross the wire; the full raw response still goes to server logs
+# for anyone who actually needs to debug a failed login.
+_SAFE_RESPONSE_FIELDS = {"s", "code", "message", "otp_retries", "failed_attempts", "user_blocked", "totp_enabled", "pin_created"}
+
+
+def _redact(raw: dict) -> dict:
+    return {k: v for k, v in raw.items() if k in _SAFE_RESPONSE_FIELDS}
 
 
 # ── Health / provider info ────────────────────────────────────────────────────
@@ -153,9 +168,17 @@ async def get_sectors():
 
 # ── Fyers auth flow ───────────────────────────────────────────────────────────
 
-@router.post("/auth/fyers/refresh")
+@router.post("/auth/fyers/refresh", dependencies=[Depends(require_admin_key)])
 async def fyers_manual_refresh():
-    """Manually trigger TOTP-based Fyers re-authentication and return verbose result."""
+    """Manually trigger TOTP-based Fyers re-authentication and return verbose result.
+
+    Admin-gated: this drives a real login against Fyers using server-held
+    broker credentials, so an anonymous caller hitting it repeatedly could
+    trip Fyers' own anti-bot/lockout defenses. The step diagnostics below
+    intentionally never include the TOTP code used or any token material —
+    even to an authenticated admin caller, over the wire is the wrong place
+    for that; server logs are.
+    """
     import asyncio, concurrent.futures, hashlib, base64, time
     try:
         from app.core.config import settings
@@ -195,7 +218,8 @@ async def fyers_manual_refresh():
             try:
                 r1 = s.post(attempt_cfg["url"], json=attempt_cfg["body"], timeout=10)
                 d1 = r1.json()
-                a = {"url": attempt_cfg["url"], "body": attempt_cfg["body"], "ok": d1.get("s") == "ok", "response": d1}
+                log.info("fyers_refresh.step1", response=d1)
+                a = {"url": attempt_cfg["url"], "ok": d1.get("s") == "ok", "response": _redact(d1)}
                 step1_attempts.append(a)
                 if d1.get("s") == "ok":
                     request_key = d1["request_key"]
@@ -212,7 +236,8 @@ async def fyers_manual_refresh():
             r2 = s.post("https://api-t2.fyers.in/vagator/v2/verify_otp",
                         json={"request_key": request_key, "otp": totp}, timeout=10)
             d2 = r2.json()
-            steps.append({"step": 2, "ok": d2.get("s") == "ok", "totp_used": totp, "response": d2})
+            log.info("fyers_refresh.step2", response=d2)
+            steps.append({"step": 2, "ok": d2.get("s") == "ok", "response": _redact(d2)})
             if d2.get("s") != "ok":
                 return {"ok": False, "failed_at": 2, "steps": steps}
             request_key = d2["request_key"]
@@ -225,14 +250,15 @@ async def fyers_manual_refresh():
             r3 = s.post("https://api-t2.fyers.in/vagator/v2/verify_pin",
                         json={"request_key": request_key, "identity_type": "pin", "identifier": pin}, timeout=10)
             d3 = r3.json()
+            log.info("fyers_refresh.step3", response={k: v for k, v in d3.items() if k != "data"})
             if d3.get("s") != "ok":
-                steps.append({"step": 3, "ok": False, "response": d3})
+                steps.append({"step": 3, "ok": False, "response": _redact(d3)})
                 return {"ok": False, "failed_at": 3, "steps": steps}
             raw_token = d3["data"].get("access_token") or d3["data"].get("token")
             if not raw_token:
                 steps.append({"step": 3, "ok": False, "error": "no token in data", "keys": list(d3["data"].keys())})
                 return {"ok": False, "failed_at": 3, "steps": steps}
-            steps.append({"step": 3, "ok": True, "token_prefix": raw_token[:12]})
+            steps.append({"step": 3, "ok": True})
         except Exception as e:
             return {"ok": False, "failed_at": 3, "error": str(e), "steps": steps}
 
@@ -244,7 +270,7 @@ async def fyers_manual_refresh():
             auth_mgr._set_token(token)
             new_provider = FyersProvider(client_id=client_id, access_token=token, secret_key=secret_key, redirect_uri=redirect_uri)
             market_data_service.swap_provider(new_provider)
-            steps.append({"step": 4, "ok": True, "provider": "Fyers", "token_prefix": token[:20]})
+            steps.append({"step": 4, "ok": True, "provider": "Fyers"})
             return {"ok": True, "provider": "Fyers", "steps": steps}
         except Exception as e:
             steps.append({"step": 4, "ok": False, "error": str(e)})

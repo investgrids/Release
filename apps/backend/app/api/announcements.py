@@ -6,7 +6,9 @@ POST /api/announcements/refresh      — trigger manual ingestion
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+
+from app.core.security import require_admin_key
 
 router = APIRouter()
 
@@ -31,7 +33,7 @@ async def symbol_announcements(
     return {"symbol": symbol.upper(), "announcements": items, "count": len(items)}
 
 
-@router.post("/refresh")
+@router.post("/refresh", dependencies=[Depends(require_admin_key)])
 async def refresh_announcements():
     from app.services.company_announcements_service import ingest_announcements
     saved = await ingest_announcements()

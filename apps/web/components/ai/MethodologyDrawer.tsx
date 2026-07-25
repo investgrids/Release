@@ -5,6 +5,7 @@ import Link from "next/link";
 import { X, ChevronRight, Layers, GitBranch, BarChart2, AlertTriangle, BookOpen } from "lucide-react";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import type { RelationshipStep } from "@/components/ai/AITransparencyPanel";
+import { isRealSymbol } from "@/lib/text";
 
 interface MethodologyDrawerProps {
   open: boolean;
@@ -181,7 +182,7 @@ export function MethodologyDrawer({
               <div className="flex flex-wrap gap-1.5">
                 {companies.map((co, i) => (
                   <span key={i} className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-0.5 text-[11px] text-slate-300">
-                    {co.symbol ? `${co.name} (${co.symbol})` : co.name}
+                    {isRealSymbol(co.symbol) ? `${co.name} (${co.symbol})` : co.name}
                   </span>
                 ))}
               </div>

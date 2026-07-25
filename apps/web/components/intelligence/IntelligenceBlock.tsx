@@ -6,6 +6,7 @@ import {
   AlertTriangle, Eye, ChevronDown, ChevronUp, History,
 } from "lucide-react";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
+import { isRealSymbol } from "@/lib/text";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface IntelligenceOpportunity {
@@ -157,7 +158,7 @@ function CompanyPill({ co }: { co: IntelligenceCompany }) {
     <div className={`rounded-xl border p-3 ${s.bg}`}>
       <div className="mb-1 flex items-center gap-1.5">
         <span className={s.cls}>{s.icon}</span>
-        <span className="text-[11px] font-bold text-white">{co.symbol}</span>
+        <span className="text-[11px] font-bold text-white">{isRealSymbol(co.symbol) ? co.symbol : co.name}</span>
         <span className="ml-auto text-[10px] tabular-nums text-slate-600">{co.confidence === null || co.confidence === undefined ? "—" : `${co.confidence}%`}</span>
       </div>
       <p className="text-[10px] text-slate-400 leading-snug">{co.reason}</p>

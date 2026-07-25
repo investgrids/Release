@@ -42,12 +42,13 @@ const FILTER_CHIPS = [
   { label: "Economy",      value: "Macro" },
 ];
 
+// /api/events/ already normalizes every event to a 0-100 scale server-side
+// (app/services/event_scale.py) — no client-side re-guessing needed.
 function impactLabel(score: number | null | undefined) {
   if (score === null || score === undefined) return "Unscored";
-  const n = score <= 10 ? score * 10 : score;
-  if (n >= 90) return "Very High Impact";
-  if (n >= 75) return "High Impact";
-  if (n >= 55) return "Medium Impact";
+  if (score >= 90) return "Very High Impact";
+  if (score >= 75) return "High Impact";
+  if (score >= 55) return "Medium Impact";
   return "Low Impact";
 }
 

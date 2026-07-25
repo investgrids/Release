@@ -8,6 +8,7 @@ import { EvidenceCard, type EvidenceCardProps } from "./EvidenceCard";
 import { MethodologyDrawer } from "./MethodologyDrawer";
 import { WhyAmISeeingThis } from "./WhyAmISeeingThis";
 import type { EvidenceType } from "./EvidenceCard";
+import { isRealSymbol } from "@/lib/text";
 
 export interface RelationshipStep {
   from: string;
@@ -222,9 +223,9 @@ export function AITransparencyPanel({
                         <p key={i} className="text-[11px] text-slate-400 line-clamp-1">
                           {co.href ? (
                             <Link href={co.href as any} className="hover:text-white transition">
-                              {co.symbol ?? co.name}
+                              {isRealSymbol(co.symbol) ? co.symbol : co.name}
                             </Link>
-                          ) : (co.symbol ?? co.name)}
+                          ) : (isRealSymbol(co.symbol) ? co.symbol : co.name)}
                         </p>
                       ))}
                     </div>
