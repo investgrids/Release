@@ -124,8 +124,9 @@ class AIAnalysis(BaseModel):
 class EventDetailResponse(BaseModel):
     event: EventInfo
     summary: EventSummaryDetail = Field(default_factory=EventSummaryDetail)
-    impactScore: float = 0.0
-    confidence: float = 0.0
+    # None means "not yet scored" — must stay distinct from a real 0.
+    impactScore: Optional[float] = None
+    confidence: Optional[float] = None
     companies: List[CompanyDetail] = []
     beneficiaries: List[BeneficiaryDetail] = []
     losers: List[BeneficiaryDetail] = []

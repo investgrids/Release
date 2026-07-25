@@ -14,17 +14,11 @@ from app.db.session import get_db
 from app.schemas.event import CompanyImpact, EventSummary
 from app.schemas.event_detail import EventDetailResponse
 from app.services.event_service import EventService
+from app.services.event_scale import normalize_impact_score, normalize_confidence
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter()
-
-
-def _normalize_score(score: float) -> float:
-    """Normalize to 0-100 scale. Seed events use 0-10; pipeline events use 0-100."""
-    if score <= 10.0:
-        return round(score * 10.0, 1)
-    return round(score, 1)
 
 
 def _build_summary(e, companies: list) -> EventSummary:
@@ -32,8 +26,8 @@ def _build_summary(e, companies: list) -> EventSummary:
         id=e.id,
         title=e.title,
         summary=e.summary or "",
-        impact_score=_normalize_score(float(e.impact_score or 0)),
-        confidence=float(e.confidence or 0),
+        impact_score=normalize_impact_score(e.id, e.impact_score),
+        confidence=normalize_confidence(e.id, e.confidence),
         sectors=e.sectors or [],
         companies=companies,
         date=e.published_at,
@@ -66,7 +60,9 @@ async def list_events(
                 for c in (e.companies or []) if isinstance(c, dict) or (isinstance(c, str) and c.strip())
             ]
             result.append(_build_summary(e, companies))
-        result.sort(key=lambda x: x.impact_score, reverse=True)
+        # Unscored (None) events sort last, not crash the comparison or
+        # masquerade as a real "0 impact" event at the bottom of a real scale.
+        result.sort(key=lambda x: x.impact_score if x.impact_score is not None else -1, reverse=True)
         return result[:effective_limit]
     else:
         rows = await get_events(db, limit=effective_limit, sort_by=sort_by)

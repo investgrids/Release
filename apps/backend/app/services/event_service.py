@@ -17,6 +17,7 @@ from app.db.models.event import Event
 from app.db.models_legacy import NewsArticle
 from app.repositories.event_repository import EventRepository
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
+from app.services.event_scale import normalize_impact_score, normalize_confidence
 
 logger = structlog.get_logger(__name__)
 
@@ -193,8 +194,8 @@ class EventService:
                 "risk_factors": ai_s.get("risk_factors", []),
                 "opportunities": ai_s.get("opportunities", []),
             },
-            "impactScore": float(event.impact_score or 0),
-            "confidence": float(event.confidence or 0),
+            "impactScore": normalize_impact_score(event.id, event.impact_score),
+            "confidence": normalize_confidence(event.id, event.confidence),
             "companies": [
                 {
                     "symbol": c.symbol,

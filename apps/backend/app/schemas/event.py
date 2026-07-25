@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class CompanyImpact(BaseModel):
     symbol: str
@@ -11,8 +11,10 @@ class EventSummary(BaseModel):
     id: str
     title: str
     summary: str
-    impact_score: float
-    confidence: float
+    # None means "not yet scored" — must stay distinct from a real 0, which
+    # would otherwise read as "confirmed zero impact" instead of "pending."
+    impact_score: Optional[float] = None
+    confidence: Optional[float] = None
     sectors: List[str]
     companies: List[CompanyImpact]
     date: datetime

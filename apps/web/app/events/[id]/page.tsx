@@ -10,6 +10,7 @@ import { Target, Building2, BarChart2, Sparkles, MailX, ArrowRight } from "lucid
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
+import { isRealSymbol } from "@/lib/text";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { InvestmentThesisCard, OpportunityLifecycleCard, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, MultiHorizonOutlookCard } from "@/components/intelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
@@ -86,6 +87,13 @@ function scoreLabel(s: number | null | undefined) {
   if (s >= 70) return "High Impact";
   if (s >= 50) return "Medium Impact";
   return "Low Impact";
+}
+
+// A zero score is as uninformative as no score at all (not yet meaningfully
+// scored) — treat both the same way rather than presenting "0" as if it
+// were a confident "no impact" verdict.
+function hasRealScore(s: number | null | undefined): s is number {
+  return s !== null && s !== undefined && s > 0;
 }
 
 function impactBg(v?: string) {
@@ -255,7 +263,11 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
               {data.beneficiaries.slice(0, 5).map((c, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <span className="w-4 text-[10px] text-slate-600 text-right">{i + 1}</span>
-                  <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 hover:text-emerald-300 transition truncate">{c.name || c.symbol}</Link>
+                  {isRealSymbol(c.symbol) ? (
+                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 hover:text-emerald-300 transition truncate">{c.name || c.symbol}</Link>
+                  ) : (
+                    <span className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 truncate">{c.name}</span>
+                  )}
                   <span className="shrink-0 text-[12px] font-bold text-emerald-400">{c.impact_score === null || c.impact_score === undefined ? "—" : `+${Math.round(c.impact_score)}`}</span>
                 </div>
               ))}
@@ -272,7 +284,11 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
               {data.losers.slice(0, 5).map((c, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <span className="w-4 text-[10px] text-slate-600 text-right">{i + 1}</span>
-                  <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 hover:text-rose-300 transition truncate">{c.name || c.symbol}</Link>
+                  {isRealSymbol(c.symbol) ? (
+                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 hover:text-rose-300 transition truncate">{c.name || c.symbol}</Link>
+                  ) : (
+                    <span className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 truncate">{c.name}</span>
+                  )}
                   <span className="shrink-0 text-[12px] font-bold text-rose-400">{c.impact_score === null || c.impact_score === undefined ? "—" : Math.round(c.impact_score)}</span>
                 </div>
               ))}
@@ -377,9 +393,9 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
                 reasoning={data.summary.why_it_matters || data.summary.text || "AI-generated event analysis based on available market data and historical precedents."}
                 summary={data.summary.text}
                 evidence={evidenceItems}
-                companies={data.companies.slice(0, 6).map(c => ({ name: c.name || c.symbol, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
+                companies={data.companies.slice(0, 6).map(c => ({ name: c.name || c.symbol, symbol: c.symbol, href: isRealSymbol(c.symbol) ? `/companies/${c.symbol}` : undefined }))}
                 limitations={data.summary.risk_factors?.length ? data.summary.risk_factors.slice(0, 3) : ["Analysis based on available public data.", "Market conditions may change rapidly.", "Historical patterns may not repeat."]}
-                whyReason={data.impactScore !== null && data.impactScore !== undefined
+                whyReason={hasRealScore(data.impactScore)
                   ? `This event is shown because it has an impact score of ${Math.round(data.impactScore)}/100 and affects ${data.affectedSectors.length} sectors.`
                   : `This event is shown because it affects ${data.affectedSectors.length} sectors; its impact score is still being computed.`}
                 whyChain={data.affectedSectors.slice(0, 4).map(s => s.sector)}
@@ -413,7 +429,7 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
                 return "emerging" as const;
               })()}
               description={data.summary.text?.slice(0, 180) || "Event impact is being analysed."}
-              whyAssigned={data.summary.why_it_matters || (data.impactScore !== null && data.impactScore !== undefined
+              whyAssigned={data.summary.why_it_matters || (hasRealScore(data.impactScore)
                 ? `This event has an impact score of ${Math.round(data.impactScore)}/100 across ${data.affectedSectors?.length ?? 0} sectors.`
                 : `This event's impact is still being analysed across ${data.affectedSectors?.length ?? 0} sectors.`)}
               historicalComparison={`Events of type "${data.event.event_type}" with similar impact scores have historically caused 2–8% sector-level price moves within 5 trading sessions.`}
@@ -477,18 +493,26 @@ function CompaniesTab({ data }: { data: EventDetail }) {
       ].filter(g => g.list.length > 0).map(group => (
         <Card key={group.label} title={group.label}>
           <div className="space-y-2">
-            {group.list.map((c, i) => (
+            {group.list.map((c, i) => {
+              const real = isRealSymbol(c.symbol);
+              const avatar = (
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold
+                  ${group.color === "emerald" ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}
+                  ${real ? "transition hover:opacity-80" : ""}`}>
+                  {(real ? c.symbol : c.name).slice(0, 3)}
+                </div>
+              );
+              const nameEl = (
+                <span className="text-[13px] font-semibold text-white">{c.name || c.symbol}</span>
+              );
+              return (
               <div key={i} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5
                 ${group.color === "emerald" ? "border-emerald-500/10 bg-emerald-500/[0.04]" : "border-rose-500/10 bg-rose-500/[0.04]"}`}>
-                <Link href={`/companies/${c.symbol}`}
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold transition
-                    ${group.color === "emerald" ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30" : "bg-rose-500/20 text-rose-300 hover:bg-rose-500/30"}`}>
-                  {c.symbol.slice(0, 3)}
-                </Link>
+                {real ? <Link href={`/companies/${c.symbol}`}>{avatar}</Link> : avatar}
                 <div className="min-w-0 flex-1">
-                  <Link href={`/companies/${c.symbol}`} className="text-[13px] font-semibold text-white hover:text-sky-300 transition">
-                    {c.name || c.symbol}
-                  </Link>
+                  {real ? (
+                    <Link href={`/companies/${c.symbol}`} className="hover:text-sky-300 transition">{nameEl}</Link>
+                  ) : nameEl}
                   {c.reason && <p className="text-[11px] text-slate-500 line-clamp-1">{c.reason}</p>}
                 </div>
                 <div className="shrink-0 text-right">
@@ -502,7 +526,8 @@ function CompaniesTab({ data }: { data: EventDetail }) {
                   {group.tag}
                 </span>
               </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       ))}
@@ -733,7 +758,7 @@ function RightPanel({
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-slate-500">Impact Score</span>
-            <span className={`text-[12px] font-bold ${sc.text}`}>{data.impactScore === null || data.impactScore === undefined ? "—" : Math.round(data.impactScore)}</span>
+            <span className={`text-[12px] font-bold ${sc.text}`}>{hasRealScore(data.impactScore) ? Math.round(data.impactScore) : "—"}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-slate-500">Confidence</span>
@@ -1172,7 +1197,7 @@ export default function EventExplorerPage() {
             <div className="min-w-0 flex-1">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${catPill}`}>{mapCategory(ev.event_type || "Event")}</span>
-                {data.impactScore !== null && data.impactScore !== undefined && (
+                {hasRealScore(data.impactScore) && (
                   <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${sc.text} border-current/20`}>
                     {scoreLabel(data.impactScore)}
                   </span>
@@ -1209,14 +1234,14 @@ export default function EventExplorerPage() {
 
       {/* ── KPI cards ─────────────────────────────────────────────────────── */}
       <div className="mb-5 grid grid-cols-4 gap-3">
-        <KpiCard label="Impact Score"       value={data.impactScore !== null && data.impactScore !== undefined ? Math.round(data.impactScore) : "—"} sub={data.impactScore !== null && data.impactScore !== undefined ? scoreLabel(data.impactScore) : "Pending analysis"} icon={<Target className="h-4 w-4" />} color={sc.text} border={`${sc.border}/20`}/>
+        <KpiCard label="Impact Score"       value={hasRealScore(data.impactScore) ? Math.round(data.impactScore) : "—"} sub={hasRealScore(data.impactScore) ? scoreLabel(data.impactScore) : "Pending analysis"} icon={<Target className="h-4 w-4" />} color={sc.text} border={`${sc.border}/20`}/>
         <KpiCard label="Companies Affected" value={data.companies.length || "—"} sub={`${data.beneficiaries.length} benefit · ${data.losers.length} at risk`} icon={<Building2 className="h-4 w-4" />} color="text-sky-400"     border="border-sky-500/15"/>
         <KpiCard label="Sectors Impacted"   value={data.affectedSectors.length || "—"} sub={data.affectedSectors[0]?.sector ?? "Analyzing…"} icon={<BarChart2 className="h-4 w-4" />} color="text-emerald-400" border="border-emerald-500/15"/>
         <KpiCard label="Confidence Level"   value={data.confidence !== null && data.confidence !== undefined ? `${Math.round(data.confidence)}%` : "—"} sub={data.confidence === null || data.confidence === undefined ? "Unscored" : data.confidence >= 80 ? "High Confidence" : data.confidence >= 60 ? "Moderate" : "Low Confidence"} icon={<Sparkles className="h-4 w-4" />} color="text-violet-400" border="border-violet-500/15"/>
       </div>
 
       {/* ── Verdict card ─────────────────────────────────────────────────── */}
-      {data.impactScore !== null && data.impactScore !== undefined && <VerdictCard data={data} />}
+      {hasRealScore(data.impactScore) && <VerdictCard data={data} />}
 
       {/* ── AI Intelligence Block — unified intelligence layer ────────────── */}
       {intelligence && (

@@ -74,13 +74,16 @@ const SECTOR_ICONS: Record<string, ReactNode> = {
   "General":          <Pin className="h-3.5 w-3.5" />,
 };
 
-// Backend stores 0-10; static fallback uses 0-100. Normalise to 0-100.
+// The API already normalizes every event to a 0-100 scale server-side
+// (app/services/event_scale.py — keyed off known seed-event IDs, not
+// magnitude, so a genuinely low real score like 7.5/100 for a routine
+// corporate announcement never gets silently 10x'd into a fake "75/High").
 // null means the Scoring Engine had insufficient real evidence — never
 // coerce that into 0/"Low", which would silently claim a real (low) score
 // where none was actually computed.
 function norm(s: number | null): number | null {
   if (s === null || s === undefined) return null;
-  return s <= 10 ? s * 10 : s;
+  return s;
 }
 
 function impactLabel(s: number | null): string {
@@ -333,14 +336,13 @@ export default function EventsPage() {
   useEffect(() => {
     fetch(`${API}/api/events/?sort_by=impact_score&limit=${limit}`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : [])
-      // impact_score === 0 means the scoring engine hasn't actually scored
-      // this event (distinct from a real low score) — showing it ranked
-      // alongside real scores misrepresents it as "lowest impact" rather
-      // than "not yet scored". Same fix as LiveMarketTab's driver cards.
-      // Real "Low" impact events (score 1-54) are excluded too — this page
-      // is meant to surface events worth an investor's attention, and
-      // routine/low-signal events just add noise.
-      .then(d => { if (Array.isArray(d)) setEvents(d.filter((e: Event) => e.impact_score !== 0 && impactLabel(e.impact_score) !== "Low")); })
+      // Unscored events (impact_score null — the API now returns real null,
+      // never a fake 0) and genuine zero/near-zero scores aren't worth an
+      // investor's attention here, so both are excluded rather than shown
+      // ranked alongside real scores as if "lowest impact". Real "Low"
+      // impact events (score 1-54) are excluded too, same reasoning —
+      // this page is meant to surface events worth attention, not noise.
+      .then(d => { if (Array.isArray(d)) setEvents(d.filter((e: Event) => e.impact_score !== null && e.impact_score !== 0 && impactLabel(e.impact_score) !== "Low")); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [limit]);
