@@ -5,12 +5,14 @@ import type { ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Newspaper, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw, Building2, ChevronRight, Target, Truck, Landmark, Factory, Ship, LineChart as LineChartIcon, ShieldAlert, Users, Cpu, Wallet, Scale, Receipt, GitBranch, DollarSign, Package, CreditCard, Eye, ListChecks, ArrowRight, Clock, AlertTriangle, GitCompare, FileText } from "lucide-react";
+import { Search, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw, Building2, ChevronRight, Target, Truck, Landmark, Factory, Ship, LineChart as LineChartIcon, ShieldAlert, Users, Cpu, Wallet, Scale, Receipt, GitBranch, DollarSign, Package, CreditCard, Eye, ListChecks, ArrowRight, Clock, AlertTriangle, GitCompare, FileText } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { DecisionIntelligencePanel, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
+import { AISearchGraphReveal } from "@/components/ai/AISearchGraphReveal";
+import { AISearchFindingsRecap } from "@/components/ai/AISearchFindingsRecap";
 import { API_BASE_URL as API } from "@/lib/api";
-import { fixMojibake } from "@/lib/text";
+import { fixMojibake, isRealSymbol } from "@/lib/text";
 
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -114,12 +116,18 @@ interface MarketPulseResult {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const LOADING_STEPS: { icon: ReactNode; label: string }[] = [
-  { icon: <Search className="h-4 w-4" />,       label: "Searching events database…" },
-  { icon: <Newspaper className="h-4 w-4" />,    label: "Reading news sources…" },
-  { icon: <Bot className="h-4 w-4" />,          label: "Generating AI analysis…" },
-  { icon: <BarChart2 className="h-4 w-4" />,    label: "Calculating market impact…" },
-  { icon: <CheckCircle2 className="h-4 w-4" />, label: "Preparing your report…" },
+// Qualitative only — no counts/percentages, since none are known until the
+// real response arrives. Loops indefinitely (see SearchWaitingState) so a
+// slow provider-fallback request never looks "finished" and stuck.
+const WAITING_PHRASES: string[] = [
+  "Understanding the market context…",
+  "Scanning today's events and news…",
+  "Connecting today's events…",
+  "Checking historical market reactions…",
+  "Weighing sector and company impact…",
+  "Structuring the intelligence graph…",
+  "Drafting the analysis…",
+  "Almost there — finalizing the report…",
 ];
 
 const EXAMPLES = [
@@ -355,13 +363,48 @@ function inferStatus(dateStr: string): "Completed" | "Ongoing" | "Upcoming" {
   return "Completed";
 }
 
-// ── Loading state ──────────────────────────────────────────────────────────────
-function LoadingState({ query }: { query: string }) {
-  const [step, setStep] = useState(0);
+// ── Waiting state ──────────────────────────────────────────────────────────────
+// Foreshadows the real Intelligence Graph reveal (see AISearchGraphReveal) with
+// an abstract shape — no labels, no counts, purely ambient. Query dot on top,
+// a row of sector dots, a row of company dots below, faint connecting lines,
+// gentle breathing opacity so it reads as "working," not "frozen."
+function AmbientGraphPulse() {
+  const sectorX = [-48, -16, 16, 48];
+  const companyX = [-64, -32, 0, 32, 64];
+  return (
+    <svg width="200" height="110" viewBox="-100 -6 200 110" className="overflow-visible">
+      {sectorX.map((x, i) => (
+        <line key={`qs-${i}`} x1={0} y1={6} x2={x} y2={46} stroke="#334155" strokeWidth={1} strokeOpacity={0.35} />
+      ))}
+      {companyX.map((x, i) => (
+        <line key={`sc-${i}`} x1={sectorX[i % sectorX.length]} y1={46} x2={x} y2={86} stroke="#334155" strokeWidth={1} strokeOpacity={0.35} />
+      ))}
+      <motion.circle cx={0} cy={6} r={6} fill="#a78bfa"
+        animate={{ opacity: [0.35, 0.9, 0.35] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }} />
+      {sectorX.map((x, i) => (
+        <motion.circle key={`s-${i}`} cx={x} cy={46} r={4} fill="#34d399"
+          animate={{ opacity: [0.25, 0.7, 0.25] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 0.15 + i * 0.12 }} />
+      ))}
+      {companyX.map((x, i) => (
+        <motion.circle key={`c-${i}`} cx={x} cy={86} r={3.5} fill="#818cf8"
+          animate={{ opacity: [0.2, 0.6, 0.2] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 0.35 + i * 0.1 }} />
+      ))}
+    </svg>
+  );
+}
+
+function SearchWaitingState({ query }: { query: string }) {
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const startRef = useRef(Date.now());
+
   useEffect(() => {
-    const t = setInterval(() => setStep(s => Math.min(s + 1, LOADING_STEPS.length - 1)), 1200);
-    return () => clearInterval(t);
+    startRef.current = Date.now();
+    const phraseTimer = setInterval(() => setPhraseIdx(i => (i + 1) % WAITING_PHRASES.length), 2800);
+    const clockTimer = setInterval(() => setElapsedSec(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
+    return () => { clearInterval(phraseTimer); clearInterval(clockTimer); };
   }, []);
+
   return (
     <div className="space-y-4 pb-10">
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-6">
@@ -369,27 +412,25 @@ function LoadingState({ query }: { query: string }) {
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
             <Sparkles className="h-5 w-5" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-[11px] uppercase tracking-widest text-violet-400 mb-1">AI Answer</p>
             <p className="text-sm text-slate-400">Researching: <span className="text-white font-medium">{query}</span></p>
           </div>
+          <span className="text-[10px] text-slate-600 tabular-nums shrink-0 mt-1">{elapsedSec}s elapsed</span>
         </div>
-        <div className="space-y-3">
-          {LOADING_STEPS.map((s, i) => (
-            <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: i <= step ? 1 : 0.25, x: 0 }}
-              transition={{ delay: i * 0.15 }}
-              className="flex items-center gap-3">
-              <span className="w-6 flex justify-center text-slate-400">{s.icon}</span>
-              <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${i < step ? "bg-violet-500/30" : "bg-white/[0.05]"}`}>
-                {i <= step && (
-                  <motion.div className="h-full bg-gradient-to-r from-violet-500 to-sky-400 rounded-full"
-                    initial={{ width: "0%" }} animate={{ width: i < step ? "100%" : "60%" }}
-                    transition={{ duration: 1.2, ease: "easeInOut" }}/>
-                )}
-              </div>
-              <span className={`text-[12px] w-48 ${i <= step ? "text-slate-300" : "text-slate-600"}`}>{s.label}</span>
-            </motion.div>
-          ))}
+
+        <AnimatePresence mode="wait">
+          <motion.p key={phraseIdx}
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.4 }}
+            className="flex items-center gap-2 text-[13px] text-slate-300">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400 animate-pulse" />
+            {WAITING_PHRASES[phraseIdx]}
+          </motion.p>
+        </AnimatePresence>
+
+        <div className="mt-6 flex items-center justify-center">
+          <AmbientGraphPulse />
         </div>
       </div>
       {[1, 2].map(i => (
@@ -713,6 +754,25 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
   );
 }
 
+// Graph + findings recap, played the instant a real result mounts. A
+// separate call site from SearchResults's own `companies` filtering below —
+// isRealSymbol is reapplied here since this reads `result.companies` fresh.
+function ResultReveal({ result }: { result: SearchResult }) {
+  const companies = result.companies.filter(c => isRealSymbol(c.symbol));
+  const topHistorical = result.historical_comparison?.[0] ?? null;
+  return (
+    <div className="mb-4 grid gap-4 sm:grid-cols-[1.1fr_1fr]">
+      <AISearchGraphReveal nodes={result.graph?.nodes ?? []} edges={result.graph?.edges ?? []} />
+      <AISearchFindingsRecap
+        sourcesCount={result.answer?.sources_count ?? 0}
+        companies={companies}
+        sectors={result.sectors ?? []}
+        topHistoricalMatch={topHistorical ? { event_title: topHistorical.event_title, similarity: topHistorical.similarity } : null}
+      />
+    </div>
+  );
+}
+
 function SearchResults({ result, onFollowUp, resultTime }: {
   result: SearchResult;
   onFollowUp: (q: string) => void;
@@ -722,11 +782,17 @@ function SearchResults({ result, onFollowUp, resultTime }: {
   const [saved, setSaved] = useState(false);
   const [activeRippleNode, setActiveRippleNode] = useState<string | null>(null);
 
-  const { answer, key_drivers, companies, sectors, related_events, news, policies,
+  const { answer, key_drivers, companies: rawCompanies, sectors, related_events, news, policies,
           investment_verdict, historical_comparison,
           ripple_chain, scenarios, market_impact_horizons, what_to_monitor,
           ai_reasoning_methods, confidence_data, market_chart,
           follow_up_questions, decision_intelligence } = result;
+
+  // The AI can hallucinate a placeholder ticker ("Not Provided", "N/A") when
+  // it can't identify a specific company — filtered here once so every
+  // downstream render (avatar, symbol text, compare link, /companies/{symbol}
+  // link) never sees one, instead of re-checking at each of the ~6 sites below.
+  const companies = rawCompanies.filter(c => isRealSymbol(c.symbol));
 
   const isDecision = !!decision_intelligence?.intent && decision_intelligence.intent !== "general";
 
@@ -822,6 +888,9 @@ function SearchResults({ result, onFollowUp, resultTime }: {
           </div>
         </div>
       </div>
+
+      {/* ── Reveal: graph + findings recap ───────────────────────────────────── */}
+      {!result.synthesis_incomplete && <ResultReveal result={result} />}
 
       {/* ── Degraded-synthesis notice ──────────────────────────────────────────
           The AI model didn't return a usable response for this query (provider
@@ -1466,7 +1535,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         confidence={conf}
         reasoning={methodologySummary}
         events={(result.related_events ?? []).slice(0, 5).map((e) => ({ title: e.title, href: `/events/${e.id}` }))}
-        companies={(result.companies ?? []).slice(0, 5).map((c) => ({ name: c.name, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
+        companies={companies.slice(0, 5).map((c) => ({ name: c.name, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
         assumptions={confidence_data?.reasons ?? []}
         limitations={confidence_data?.caveats ?? []}
         confidenceBreakdown={confidence_data?.breakdown}
@@ -1611,8 +1680,6 @@ function RightSidebar({ result, onAction }: {
             { label: "Events",               value: result?.related_events?.length ?? 0 },
             { label: "Companies",            value: result?.companies?.length ?? 0 },
             { label: "Historical Matches",   value: result?.historical_comparison?.length ?? 0 },
-            { label: "Graph Nodes",          value: result?.graph?.nodes?.length ?? 0 },
-            { label: "Graph Edges",          value: result?.graph?.edges?.length ?? 0 },
           ].map(s => (
             <div key={s.label} className="flex items-center justify-between">
               <p className="text-[11px] text-slate-400">{s.label}</p>
@@ -1836,7 +1903,7 @@ function AISearchInner() {
         <AnimatePresence mode="wait">
           {loading ? (
             <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <LoadingState query={query}/>
+              <SearchWaitingState query={query}/>
             </motion.div>
           ) : result ? (
             <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>

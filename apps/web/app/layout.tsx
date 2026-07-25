@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 import { SiteHeader }        from "@/components/SiteHeader";
@@ -61,6 +62,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // causing a harmless but noisy hydration mismatch warning.
     <html lang="en-IN" className={inter.variable} suppressHydrationWarning>
       <body className="min-h-screen bg-[#020617] text-slate-100 font-[family-name:var(--font-inter)]">
+        {/* Google Analytics — prod only, so local `next dev` traffic never
+            pollutes real analytics. next/script afterInteractive loads it
+            off the critical rendering path instead of blocking like a raw
+            <script> tag. NODE_ENV is set by the Next.js build itself
+            ("development" under `next dev`, "production" for the real
+            Vercel build) — not a value anyone here configures by hand. */}
+        {process.env.NODE_ENV === "production" && (
+          <>
+            <Script src="https://www.googletagmanager.com/gtag/js?id=G-W76EXES2KE" strategy="afterInteractive" />
+            <Script id="ga-gtag" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', 'G-W76EXES2KE');
+              `}
+            </Script>
+          </>
+        )}
         <script
           type="application/ld+json"
           // biome-ignore lint/security/noDangerouslySetInnerHtml: static JSON-LD
