@@ -1,0 +1,3903 @@
+[
+  {
+    "id": "ea00001",
+    "question": "Who manufactures the Tejas fighter aircraft?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "HAL"
+      ],
+      "winner": "HAL",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Tejas",
+        "HAL"
+      ],
+      "must_not_mention": [
+        "BEL"
+      ],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00002",
+    "question": "Which company manufactures the Dhruv helicopter?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "HAL"
+      ],
+      "winner": "HAL",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Dhruv",
+        "HAL"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00003",
+    "question": "Which company is India's largest IT services exporter by employee count?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "TCS"
+      ],
+      "winner": "TCS",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "TCS"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00004",
+    "question": "What is the parent group of TCS?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "TCS"
+      ],
+      "winner": "TCS",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Tata"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00005",
+    "question": "What is the parent group of Tata Motors?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "TATAMOTORS"
+      ],
+      "winner": "TATAMOTORS",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Tata"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00006",
+    "question": "Which company owns Jaguar Land Rover?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "TATAMOTORS"
+      ],
+      "winner": "TATAMOTORS",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Tata Motors",
+        "Jaguar Land Rover"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00007",
+    "question": "Which company operates the Zomato food delivery app?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "ZOMATO"
+      ],
+      "winner": "ZOMATO",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Eternal",
+        "Zomato"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00008",
+    "question": "What is the current corporate name of the company that runs Zomato?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "ZOMATO"
+      ],
+      "winner": "ZOMATO",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Eternal"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00009",
+    "question": "Which company manufactures Maruti-badged cars in India?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "MARUTI"
+      ],
+      "winner": "MARUTI",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Maruti Suzuki"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00010",
+    "question": "Which company runs the DMart retail chain?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "DMART"
+      ],
+      "winner": "DMART",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Avenue Supermarts",
+        "DMart"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00011",
+    "question": "Which company operates IndiGo airlines?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "INDIGO"
+      ],
+      "winner": "INDIGO",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "InterGlobe Aviation",
+        "IndiGo"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00012",
+    "question": "Which company runs the IRCTC ticketing platform?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "IRCTC"
+      ],
+      "winner": "IRCTC",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "IRCTC",
+        "Indian Railway"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00013",
+    "question": "Which bank is promoted by the Kotak group?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "KOTAKBANK"
+      ],
+      "winner": "KOTAKBANK",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Kotak Mahindra Bank"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00014",
+    "question": "Which company manufactures Bajaj-badged motorcycles?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "BAJAJ-AUTO"
+      ],
+      "winner": "BAJAJ-AUTO",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Bajaj Auto"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00015",
+    "question": "Which company owns the Titan watch and jewellery brand Tanishq?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "TITAN"
+      ],
+      "winner": "TITAN",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Titan",
+        "Tanishq"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00016",
+    "question": "Which company operates the BigBasket-style DMart retail format?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "DMART"
+      ],
+      "winner": "DMART",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "DMart",
+        "Avenue Supermarts"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00017",
+    "question": "Which oil marketing company operates under the brand name Indane?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "IOC"
+      ],
+      "winner": "IOC",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Indian Oil",
+        "Indane"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00018",
+    "question": "Which company runs the Airtel telecom network?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "BHARTIARTL"
+      ],
+      "winner": "BHARTIARTL",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Bharti Airtel"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00019",
+    "question": "Which company is the listed entity for Nestle's India operations?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "NESTLEIND"
+      ],
+      "winner": "NESTLEIND",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Nestle India"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00020",
+    "question": "Which company manufactures shipbuilding vessels for the Indian Navy at Mazagon Dock?",
+    "expected": {
+      "query_type": "factual",
+      "companies": [
+        "MAZDOCK"
+      ],
+      "winner": "MAZDOCK",
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "Mazagon Dock"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea00021",
+    "question": "Analyze Apple India Defence Ltd",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00022",
+    "question": "Is Bharat Quantum Computing Ltd overvalued?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00023",
+    "question": "Should I buy Reliance Space Systems?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00024",
+    "question": "Compare Tata Neuralink vs Nestle India",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00025",
+    "question": "What is the outlook for Adani Lunar Mining Corp?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00026",
+    "question": "HDFC Metaverse Bank vs Indian Oil Corporation — which is the better buy?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00027",
+    "question": "Analyze Infosys Nuclear Energy Ltd",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00028",
+    "question": "Is Vedanta Interstellar Ltd overvalued?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00029",
+    "question": "Should I buy SBI Crypto Holdings?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00030",
+    "question": "Compare ITC Robotics Division Ltd vs Wipro",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00031",
+    "question": "What is the outlook for Maruti Hyperloop Ltd?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00032",
+    "question": "Sun Pharma Genomics International vs Central Depository Services — which is the better buy?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00033",
+    "question": "Analyze Wipro Asteroid Mining",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00034",
+    "question": "Is L&T Antarctica Infrastructure overvalued?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00035",
+    "question": "Should I buy Zomato Aerospace Ltd?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00036",
+    "question": "Compare Bajaj Fusion Energy Corp vs Berger Paints",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00037",
+    "question": "What is the outlook for Titan Deep Sea Exploration?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00038",
+    "question": "HAL Commercial Airlines Retail vs GMR Airports Infrastructure — which is the better buy?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00039",
+    "question": "Analyze BEL Consumer Electronics Ltd",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea00040",
+    "question": "Is Coal India Solar Devision overvalued?",
+    "expected": {
+      "query_type": "hallucination_trap",
+      "companies": [],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": null,
+      "must_mention": [
+        "no verified",
+        "not found",
+        "unable to identify",
+        "no matching company",
+        "couldn't find",
+        "no record"
+      ],
+      "must_mention_match_mode": "any",
+      "must_not_mention": [],
+      "expected_behavior": "reject_unknown_entity"
+    }
+  },
+  {
+    "id": "ea_cmp_q00251",
+    "question": "Which pays a better dividend, PETRONET or RELIANCE?",
+    "dataset_id": "q00251",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "RELIANCE",
+        "PETRONET"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00252",
+    "question": "How does JSWENERGY compare to MARUTI on margins?",
+    "dataset_id": "q00252",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "JSWENERGY",
+        "MARUTI"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "capacity addition",
+        "plant load factor",
+        "tariffs",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00253",
+    "question": "DLF or Asian Paints for long-term investing?",
+    "dataset_id": "q00253",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "ASIANPAINT",
+        "DLF"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "premiumisation",
+        "margins",
+        "distribution reach",
+        "pre-sales"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00254",
+    "question": "Compare KOTAKBANK and Havells India",
+    "dataset_id": "q00254",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "HAVELLS",
+        "KOTAKBANK"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "premiumisation",
+        "margins",
+        "distribution reach",
+        "asset quality"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00255",
+    "question": "Which pays a better dividend, Hindustan Aeronautics or Motilal Oswal Financial Services?",
+    "dataset_id": "q00255",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "HAL",
+        "MOTILALOFS"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "government spending",
+        "export orders",
+        "client additions"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00256",
+    "question": "Should I buy KFin Technologies or Prestige Estates?",
+    "dataset_id": "q00256",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "PRESTIGE",
+        "KFINTECH"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "pre-sales",
+        "launch pipeline",
+        "collections",
+        "client additions"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00257",
+    "question": "Which has better fundamentals, Jindal Steel & Power or Delhivery?",
+    "dataset_id": "q00257",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "JINDALSTEL",
+        "DELHIVERY"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "input costs",
+        "capacity utilisation",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00258",
+    "question": "Mahindra & Mahindra or KAYNES for long-term investing?",
+    "dataset_id": "q00258",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "M&M",
+        "KAYNES"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition",
+        "order book"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00259",
+    "question": "Which has better fundamentals, TRENT or MUTHOOTFIN?",
+    "dataset_id": "q00259",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "MUTHOOTFIN",
+        "TRENT"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "cost of funds",
+        "loan growth",
+        "same-store sales growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00260",
+    "question": "Which pays a better dividend, BAJFINANCE or HEROMOTOCO?",
+    "dataset_id": "q00260",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BAJFINANCE",
+        "HEROMOTOCO"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "cost of funds",
+        "loan growth",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00261",
+    "question": "Compare Tata Chemicals and Oil and Natural Gas Corporation",
+    "dataset_id": "q00261",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "ONGC",
+        "TATACHEM"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput",
+        "realisations"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00262",
+    "question": "Which has better fundamentals, VMART or BHARTIARTL?",
+    "dataset_id": "q00262",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "VMART",
+        "BHARTIARTL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "same-store sales growth",
+        "store expansion",
+        "margins",
+        "ARPU"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00263",
+    "question": "Which has better fundamentals, Syrma SGS Technology or Deepak Nitrite?",
+    "dataset_id": "q00263",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "SYRMA",
+        "DEEPAKNTR"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "PLI benefits",
+        "capacity expansion",
+        "realisations"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00264",
+    "question": "Compare AUBANK and INDUSINDBK",
+    "dataset_id": "q00264",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "AUBANK",
+        "INDUSINDBK"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00265",
+    "question": "MAZDOCK vs Hindustan Aeronautics — which is the better buy?",
+    "dataset_id": "q00265",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "HAL",
+        "MAZDOCK"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "government spending",
+        "export orders"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00266",
+    "question": "Which stock is cheaper on valuation — PAYTM or MARUTI?",
+    "dataset_id": "q00266",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "MARUTI",
+        "PAYTM"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition",
+        "path to profitability"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00267",
+    "question": "Biocon versus VBL: which has stronger growth?",
+    "dataset_id": "q00267",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BIOCON",
+        "VBL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend",
+        "rural demand"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00268",
+    "question": "Which pays a better dividend, Tech Mahindra or Bharat Electronics?",
+    "dataset_id": "q00268",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "TECHM",
+        "BEL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "margins",
+        "deal wins",
+        "attrition",
+        "order book"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00269",
+    "question": "Which has better fundamentals, VMART or EICHERMOT?",
+    "dataset_id": "q00269",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "EICHERMOT",
+        "VMART"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition",
+        "same-store sales growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00270",
+    "question": "Which has better fundamentals, SPICEJET or AUBANK?",
+    "dataset_id": "q00270",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "AUBANK",
+        "SPICEJET"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth",
+        "load factor"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00271",
+    "question": "Voltas or HINDZINC for long-term investing?",
+    "dataset_id": "q00271",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "VOLTAS",
+        "HINDZINC"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "premiumisation",
+        "margins",
+        "distribution reach",
+        "realisations"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00272",
+    "question": "How does TVSMOTOR compare to PB Fintech (Policybazaar) on margins?",
+    "dataset_id": "q00272",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "POLICYBZR",
+        "TVSMOTOR"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "path to profitability",
+        "unit economics",
+        "customer growth",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00273",
+    "question": "Which has better fundamentals, MUTHOOTFIN or Oil and Natural Gas Corporation?",
+    "dataset_id": "q00273",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "ONGC",
+        "MUTHOOTFIN"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput",
+        "asset quality"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00274",
+    "question": "Which pays a better dividend, Angel One or KFINTECH?",
+    "dataset_id": "q00274",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "ANGELONE",
+        "KFINTECH"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "client additions",
+        "active clients",
+        "yields",
+        "revenue per client"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00275",
+    "question": "Which stock is cheaper on valuation — ACC or Tata Consultancy Services?",
+    "dataset_id": "q00275",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "TCS",
+        "ACC"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "margins",
+        "deal wins",
+        "attrition",
+        "realisations"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00276",
+    "question": "Oil and Natural Gas Corporation or IOC for long-term investing?",
+    "dataset_id": "q00276",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "ONGC",
+        "IOC"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00277",
+    "question": "How does IIFL compare to UPL Limited on margins?",
+    "dataset_id": "q00277",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "UPL",
+        "IIFL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "capacity expansion",
+        "export demand",
+        "asset quality"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00278",
+    "question": "Which pays a better dividend, LT or GMR Airports Infrastructure?",
+    "dataset_id": "q00278",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "GMRINFRA",
+        "LT"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "execution pace",
+        "working capital"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00279",
+    "question": "GAIL vs Rail Vikas Nigam",
+    "dataset_id": "q00279",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "RVNL",
+        "GAIL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "execution pace",
+        "working capital",
+        "refining margins"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00280",
+    "question": "Indian Oil Corporation and POWERGRID — which has less debt?",
+    "dataset_id": "q00280",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "IOC",
+        "POWERGRID"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput",
+        "capacity addition"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00281",
+    "question": "How does POWERGRID compare to Suzlon Energy on margins?",
+    "dataset_id": "q00281",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "SUZLON",
+        "POWERGRID"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "capacity addition",
+        "plant load factor",
+        "tariffs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00282",
+    "question": "Which pays a better dividend, Eternal (Zomato) or TCS?",
+    "dataset_id": "q00282",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "ZOMATO",
+        "TCS"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "path to profitability",
+        "unit economics",
+        "customer growth",
+        "margins"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00283",
+    "question": "Cochin Shipyard or DIXON for long-term investing?",
+    "dataset_id": "q00283",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "COCHINSHIP",
+        "DIXON"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "government spending",
+        "export orders",
+        "PLI benefits"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00284",
+    "question": "Should I buy Varun Beverages or TATAMOTORS?",
+    "dataset_id": "q00284",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "VBL",
+        "TATAMOTORS"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "rural demand",
+        "volume growth",
+        "input costs",
+        "margins"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00285",
+    "question": "Should I buy BANKBARODA or BPCL?",
+    "dataset_id": "q00285",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BANKBARODA",
+        "BPCL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth",
+        "refining margins"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00286",
+    "question": "Wipro or Divi's Laboratories for long-term investing?",
+    "dataset_id": "q00286",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "WIPRO",
+        "DIVISLAB"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "margins",
+        "deal wins",
+        "attrition",
+        "US generics"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00287",
+    "question": "How does DEEPAKNTR compare to Bank of Baroda on margins?",
+    "dataset_id": "q00287",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BANKBARODA",
+        "DEEPAKNTR"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth",
+        "realisations"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00288",
+    "question": "ICICI Bank vs Vodafone Idea",
+    "dataset_id": "q00288",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "ICICIBANK",
+        "IDEA"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth",
+        "ARPU"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00289",
+    "question": "Compare Dabur India and BERGERPAINT",
+    "dataset_id": "q00289",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "DABUR",
+        "BERGERPAINT"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "rural demand",
+        "volume growth",
+        "input costs",
+        "premiumisation"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00290",
+    "question": "Should I buy AU Small Finance Bank or Godrej Properties?",
+    "dataset_id": "q00290",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "AUBANK",
+        "GODREJPROP"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth",
+        "pre-sales"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00291",
+    "question": "Which pays a better dividend, Hindustan Zinc or Steel Authority of India?",
+    "dataset_id": "q00291",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "SAIL",
+        "HINDZINC"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "input costs",
+        "capacity utilisation"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00292",
+    "question": "How does Indian Railway Catering & Tourism compare to Fortis Healthcare on margins?",
+    "dataset_id": "q00292",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "FORTIS",
+        "IRCTC"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "occupancy",
+        "ARPOB",
+        "capacity expansion",
+        "ticketing volumes"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00293",
+    "question": "Which pays a better dividend, PFC or Shree Cement?",
+    "dataset_id": "q00293",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "SHREECEM",
+        "PFC"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "volume growth",
+        "input costs",
+        "asset quality"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00294",
+    "question": "Between Reliance Industries and Bharat Petroleum, which is the safer bet?",
+    "dataset_id": "q00294",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "RELIANCE",
+        "BPCL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00295",
+    "question": "Blue Dart Express and Biocon — which has less debt?",
+    "dataset_id": "q00295",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BIOCON",
+        "BLUEDART"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00296",
+    "question": "How does Mazagon Dock Shipbuilders compare to IDEA on margins?",
+    "dataset_id": "q00296",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "MAZDOCK",
+        "IDEA"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "government spending",
+        "export orders",
+        "ARPU"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00297",
+    "question": "Should I buy RECLTD or HPCL?",
+    "dataset_id": "q00297",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "RECLTD",
+        "HPCL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "cost of funds",
+        "loan growth",
+        "refining margins"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00298",
+    "question": "Which has better fundamentals, JSW Energy or Indian Energy Exchange?",
+    "dataset_id": "q00298",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "JSWENERGY",
+        "IEX"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "capacity addition",
+        "plant load factor",
+        "tariffs",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00299",
+    "question": "Between DIVISLAB and Shree Cement, which is the safer bet?",
+    "dataset_id": "q00299",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "SHREECEM",
+        "DIVISLAB"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "volume growth",
+        "input costs",
+        "US generics"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00300",
+    "question": "Which pays a better dividend, CONCOR or HCL Technologies?",
+    "dataset_id": "q00300",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "HCLTECH",
+        "CONCOR"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "margins",
+        "deal wins",
+        "attrition",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00301",
+    "question": "Bharat Petroleum or KOTAKBANK for long-term investing?",
+    "dataset_id": "q00301",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BPCL",
+        "KOTAKBANK"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput",
+        "asset quality"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00302",
+    "question": "Between KFin Technologies and Maruti Suzuki, which is the safer bet?",
+    "dataset_id": "q00302",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "MARUTI",
+        "KFINTECH"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition",
+        "client additions"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00303",
+    "question": "ACC vs Page Industries",
+    "dataset_id": "q00303",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "PAGEIND",
+        "ACC"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "premiumisation",
+        "margins",
+        "distribution reach",
+        "realisations"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00304",
+    "question": "Between MAZDOCK and Britannia Industries, which is the safer bet?",
+    "dataset_id": "q00304",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BRITANNIA",
+        "MAZDOCK"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "rural demand",
+        "volume growth",
+        "input costs",
+        "order book"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00305",
+    "question": "Sun Pharmaceutical or Oberoi Realty for long-term investing?",
+    "dataset_id": "q00305",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "SUNPHARMA",
+        "OBEROIRLTY"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend",
+        "pre-sales"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00306",
+    "question": "PNB versus VBL: which has stronger growth?",
+    "dataset_id": "q00306",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "PNB",
+        "VBL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth",
+        "rural demand"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00307",
+    "question": "Britannia Industries or VMART for long-term investing?",
+    "dataset_id": "q00307",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BRITANNIA",
+        "VMART"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "rural demand",
+        "volume growth",
+        "input costs",
+        "same-store sales growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00308",
+    "question": "PAYTM versus Ashok Leyland: which has stronger growth?",
+    "dataset_id": "q00308",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "ASHOKLEY",
+        "PAYTM"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition",
+        "path to profitability"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00309",
+    "question": "How does Tata Steel compare to BLUEDART on margins?",
+    "dataset_id": "q00309",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "TATASTEEL",
+        "BLUEDART"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "input costs",
+        "capacity utilisation",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00310",
+    "question": "RECLTD vs SHREECEM — which is the better buy?",
+    "dataset_id": "q00310",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "RECLTD",
+        "SHREECEM"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "cost of funds",
+        "loan growth",
+        "realisations"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00311",
+    "question": "One97 Communications (Paytm) and HAL — which has less debt?",
+    "dataset_id": "q00311",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "PAYTM",
+        "HAL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "path to profitability",
+        "unit economics",
+        "customer growth",
+        "order book"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00312",
+    "question": "Which has better fundamentals, BLUEDART or VMART?",
+    "dataset_id": "q00312",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "VMART",
+        "BLUEDART"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "same-store sales growth",
+        "store expansion",
+        "margins",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00313",
+    "question": "Compare MARUTI and VOLTAS",
+    "dataset_id": "q00313",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "MARUTI",
+        "VOLTAS"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition",
+        "premiumisation"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00314",
+    "question": "Which stock is cheaper on valuation — CAMS or Bharti Airtel?",
+    "dataset_id": "q00314",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BHARTIARTL",
+        "CAMS"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "ARPU",
+        "subscriber additions",
+        "capex",
+        "client additions"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00315",
+    "question": "TATACHEM or Jindal Steel & Power for long-term investing?",
+    "dataset_id": "q00315",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "JINDALSTEL",
+        "TATACHEM"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "input costs",
+        "capacity utilisation",
+        "capacity expansion"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00316",
+    "question": "Angel One vs Sun Pharmaceutical",
+    "dataset_id": "q00316",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "SUNPHARMA",
+        "ANGELONE"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend",
+        "client additions"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00317",
+    "question": "Between Rail Vikas Nigam and TRENT, which is the safer bet?",
+    "dataset_id": "q00317",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "RVNL",
+        "TRENT"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "execution pace",
+        "working capital",
+        "same-store sales growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00318",
+    "question": "KAYNES and Polycab India — which has less debt?",
+    "dataset_id": "q00318",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "POLYCAB",
+        "KAYNES"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "PLI benefits",
+        "capacity expansion"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00319",
+    "question": "Which stock is cheaper on valuation — HEROMOTOCO or LTIM?",
+    "dataset_id": "q00319",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "LTIM",
+        "HEROMOTOCO"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "margins",
+        "deal wins",
+        "attrition",
+        "volume growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00320",
+    "question": "IDFCFIRSTB or KFINTECH for long-term investing?",
+    "dataset_id": "q00320",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "IDFCFIRSTB",
+        "KFINTECH"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth",
+        "client additions"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00321",
+    "question": "PFC and PVR Inox — which has less debt?",
+    "dataset_id": "q00321",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "PVRINOX",
+        "PFC"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "ad revenue",
+        "subscriber growth",
+        "content costs",
+        "asset quality"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00322",
+    "question": "Compare Indian Energy Exchange and CONCOR",
+    "dataset_id": "q00322",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "IEX",
+        "CONCOR"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "market share",
+        "yields",
+        "network expansion"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00323",
+    "question": "Which stock is cheaper on valuation — Vedanta Limited or SRF?",
+    "dataset_id": "q00323",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "VEDL",
+        "SRF"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "input costs",
+        "capacity utilisation",
+        "capacity expansion"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00324",
+    "question": "How does ONGC compare to UPL on margins?",
+    "dataset_id": "q00324",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "ONGC",
+        "UPL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput",
+        "realisations"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00325",
+    "question": "Compare ZOMATO and LUPIN",
+    "dataset_id": "q00325",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "LUPIN",
+        "ZOMATO"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend",
+        "path to profitability"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00326",
+    "question": "Compare Bata India and MAZDOCK",
+    "dataset_id": "q00326",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BATAINDIA",
+        "MAZDOCK"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "premiumisation",
+        "margins",
+        "distribution reach",
+        "order book"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00327",
+    "question": "TITAN or Cipla for long-term investing?",
+    "dataset_id": "q00327",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "CIPLA",
+        "TITAN"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend",
+        "premiumisation"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00328",
+    "question": "Bharat Electronics and APOLLOHOSP — which has less debt?",
+    "dataset_id": "q00328",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "BEL",
+        "APOLLOHOSP"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "government spending",
+        "export orders",
+        "occupancy"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00329",
+    "question": "Titan Company versus Rail Vikas Nigam: which has stronger growth?",
+    "dataset_id": "q00329",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "TITAN",
+        "RVNL"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "premiumisation",
+        "margins",
+        "distribution reach",
+        "order book"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_cmp_q00330",
+    "question": "NYKAA or GAIL for long-term investing?",
+    "dataset_id": "q00330",
+    "expected": {
+      "query_type": "comparison",
+      "companies": [
+        "GAIL",
+        "NYKAA"
+      ],
+      "winner": null,
+      "winner_needs_review": true,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput",
+        "path to profitability"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00001",
+    "question": "Give me a fundamental analysis of Nestle India",
+    "dataset_id": "q00001",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "NESTLEIND"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "rural demand",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00002",
+    "question": "Why is GMR Airports Infrastructure stock falling today?",
+    "dataset_id": "q00002",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "GMRINFRA"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "execution pace",
+        "working capital"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00003",
+    "question": "Is Pidilite Industries overvalued?",
+    "dataset_id": "q00003",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "PIDILITIND"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "premiumisation",
+        "margins",
+        "distribution reach"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00004",
+    "question": "What does Cipla's balance sheet tell us?",
+    "dataset_id": "q00004",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "CIPLA"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00005",
+    "question": "What's driving Jindal Steel & Power's stock price?",
+    "dataset_id": "q00005",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "JINDALSTEL"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "input costs",
+        "capacity utilisation"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00006",
+    "question": "Analyze Marico",
+    "dataset_id": "q00006",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "MARICO"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "rural demand",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00007",
+    "question": "Is Oil and Natural Gas Corporation undervalued right now?",
+    "dataset_id": "q00007",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "ONGC"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00008",
+    "question": "Should I hold GAIL India for the long term?",
+    "dataset_id": "q00008",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "GAIL"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "refining margins",
+        "crude prices",
+        "throughput"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00009",
+    "question": "How is HDFC Bank positioned against competition?",
+    "dataset_id": "q00009",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "HDFCBANK"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00010",
+    "question": "Analyze Lupin",
+    "dataset_id": "q00010",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "LUPIN"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00011",
+    "question": "What are the biggest risks for Adani Power?",
+    "dataset_id": "q00011",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "ADANIPOWER"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "capacity addition",
+        "plant load factor",
+        "tariffs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00012",
+    "question": "Why is Hero MotoCorp stock rallying today?",
+    "dataset_id": "q00012",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "HEROMOTOCO"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00013",
+    "question": "What's driving ACC Limited's stock price?",
+    "dataset_id": "q00013",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "ACC"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00014",
+    "question": "Why is Pidilite Industries stock rallying today?",
+    "dataset_id": "q00014",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "PIDILITIND"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "premiumisation",
+        "margins",
+        "distribution reach"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00015",
+    "question": "Is Rail Vikas Nigam a value trap?",
+    "dataset_id": "q00015",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "RVNL"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "execution pace",
+        "working capital"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00016",
+    "question": "What's driving GMR Airports Infrastructure's stock price?",
+    "dataset_id": "q00016",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "GMRINFRA"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "execution pace",
+        "working capital"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00017",
+    "question": "What is Motilal Oswal Financial Services's competitive moat?",
+    "dataset_id": "q00017",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "MOTILALOFS"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "client additions",
+        "active clients",
+        "yields"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00018",
+    "question": "Should I buy BSE Limited after earnings?",
+    "dataset_id": "q00018",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "BSE"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "market share"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00019",
+    "question": "Is HINDZINC still attractive at current levels?",
+    "dataset_id": "q00019",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "HINDZINC"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "input costs",
+        "capacity utilisation"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00020",
+    "question": "What is Delhivery's competitive moat?",
+    "dataset_id": "q00020",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "DELHIVERY"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "yields",
+        "network expansion"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00021",
+    "question": "Should I hold Federal Bank for the long term?",
+    "dataset_id": "q00021",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "FEDERALBNK"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00022",
+    "question": "Is now a good time to enter Shree Cement?",
+    "dataset_id": "q00022",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "SHREECEM"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00023",
+    "question": "Should I buy Tata Motors after earnings?",
+    "dataset_id": "q00023",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "TATAMOTORS"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00024",
+    "question": "Should I buy LTIMindtree after earnings?",
+    "dataset_id": "q00024",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "LTIM"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "margins",
+        "deal wins",
+        "attrition"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00025",
+    "question": "What is the fair value of Aurobindo Pharma?",
+    "dataset_id": "q00025",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "AUROPHARMA"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00026",
+    "question": "Why is BSE Limited stock rallying today?",
+    "dataset_id": "q00026",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "BSE"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "market share"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00027",
+    "question": "What is the fair value of ICICI Bank?",
+    "dataset_id": "q00027",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "ICICIBANK"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00028",
+    "question": "Should I buy NTPC after earnings?",
+    "dataset_id": "q00028",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "NTPC"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "capacity addition",
+        "plant load factor",
+        "tariffs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00029",
+    "question": "Is UltraTech Cement a good buy for a beginner investor?",
+    "dataset_id": "q00029",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "ULTRACEMCO"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00030",
+    "question": "Is now a good time to enter Federal Bank?",
+    "dataset_id": "q00030",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "FEDERALBNK"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00031",
+    "question": "How is Axis Bank positioned against competition?",
+    "dataset_id": "q00031",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "AXISBANK"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00032",
+    "question": "How is Fortis Healthcare positioned against competition?",
+    "dataset_id": "q00032",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "FORTIS"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "occupancy",
+        "ARPOB",
+        "capacity expansion"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00033",
+    "question": "Why is Ashok Leyland stock falling today?",
+    "dataset_id": "q00033",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "ASHOKLEY"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00034",
+    "question": "How is Avenue Supermarts (DMart) positioned against competition?",
+    "dataset_id": "q00034",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "DMART"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "same-store sales growth",
+        "store expansion",
+        "margins"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00035",
+    "question": "Why is Tata Motors stock rallying today?",
+    "dataset_id": "q00035",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "TATAMOTORS"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00036",
+    "question": "Should I buy Hindustan Aeronautics after earnings?",
+    "dataset_id": "q00036",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "HAL"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "order book",
+        "government spending",
+        "export orders"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00037",
+    "question": "What does InterGlobe Aviation (IndiGo)'s balance sheet tell us?",
+    "dataset_id": "q00037",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "INDIGO"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "load factor",
+        "fuel costs",
+        "yields"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00038",
+    "question": "What is the fair value of TVS Motor Company?",
+    "dataset_id": "q00038",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "TVSMOTOR"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00039",
+    "question": "Should I hold AU Small Finance Bank for the long term?",
+    "dataset_id": "q00039",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "AUBANK"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00040",
+    "question": "Is HDFC Life Insurance a value trap?",
+    "dataset_id": "q00040",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "HDFCLIFE"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "premium growth",
+        "claims ratio",
+        "persistency"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00041",
+    "question": "Is now a good time to enter Tata Steel?",
+    "dataset_id": "q00041",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "TATASTEEL"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "input costs",
+        "capacity utilisation"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00042",
+    "question": "What are the biggest risks for Britannia Industries?",
+    "dataset_id": "q00042",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "BRITANNIA"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "rural demand",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00043",
+    "question": "Is now a good time to enter SBI Life Insurance?",
+    "dataset_id": "q00043",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "SBILIFE"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "premium growth",
+        "claims ratio",
+        "persistency"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00044",
+    "question": "What's driving Max Healthcare's stock price?",
+    "dataset_id": "q00044",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "MAXHEALTH"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "occupancy",
+        "ARPOB",
+        "capacity expansion"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00045",
+    "question": "Is Titan Company overvalued?",
+    "dataset_id": "q00045",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "TITAN"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "premiumisation",
+        "margins",
+        "distribution reach"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00046",
+    "question": "What is SHREECEM's growth story for the next 5 years?",
+    "dataset_id": "q00046",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "SHREECEM"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00047",
+    "question": "Is Motilal Oswal Financial Services's debt level a concern?",
+    "dataset_id": "q00047",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "MOTILALOFS"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "client additions",
+        "active clients",
+        "yields"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00048",
+    "question": "How does JSW Energy make money?",
+    "dataset_id": "q00048",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "JSWENERGY"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "capacity addition",
+        "plant load factor",
+        "tariffs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00049",
+    "question": "Should I buy Max Healthcare after earnings?",
+    "dataset_id": "q00049",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "MAXHEALTH"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "occupancy",
+        "ARPOB",
+        "capacity expansion"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00050",
+    "question": "Why is Dabur India stock rallying today?",
+    "dataset_id": "q00050",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "DABUR"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "rural demand",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00051",
+    "question": "Is Ambuja Cements a value trap?",
+    "dataset_id": "q00051",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "AMBUJACEM"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00052",
+    "question": "What is the promoter holding trend in Tata Steel?",
+    "dataset_id": "q00052",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "TATASTEEL"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "input costs",
+        "capacity utilisation"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00053",
+    "question": "Is Bharti Airtel's debt level a concern?",
+    "dataset_id": "q00053",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "BHARTIARTL"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "ARPU",
+        "subscriber additions",
+        "capex"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00054",
+    "question": "Is Container Corporation of India a good buy for a beginner investor?",
+    "dataset_id": "q00054",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "CONCOR"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "yields",
+        "network expansion"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00055",
+    "question": "Should I hold Infosys for the long term?",
+    "dataset_id": "q00055",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "INFY"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "margins",
+        "deal wins",
+        "attrition"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00056",
+    "question": "How is Aurobindo Pharma positioned against competition?",
+    "dataset_id": "q00056",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "AUROPHARMA"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "US generics",
+        "regulatory approvals",
+        "R&D spend"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00057",
+    "question": "What is the outlook for Eicher Motors over the next year?",
+    "dataset_id": "q00057",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "EICHERMOT"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "volume growth",
+        "margins",
+        "EV transition"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00058",
+    "question": "What's driving UPL Limited's stock price?",
+    "dataset_id": "q00058",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "UPL"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "capacity expansion",
+        "export demand"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00059",
+    "question": "Is Bank of Baroda a good buy for a beginner investor?",
+    "dataset_id": "q00059",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "BANKBARODA"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "asset quality",
+        "net interest margin",
+        "credit growth"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  },
+  {
+    "id": "ea_co_q00060",
+    "question": "What is ULTRACEMCO's growth story for the next 5 years?",
+    "dataset_id": "q00060",
+    "expected": {
+      "query_type": "company_analysis",
+      "companies": [
+        "ULTRACEMCO"
+      ],
+      "winner": null,
+      "winner_needs_review": false,
+      "confidence_min": 30,
+      "must_mention": [
+        "realisations",
+        "volume growth",
+        "input costs"
+      ],
+      "must_not_mention": [],
+      "expected_behavior": "normal"
+    }
+  }
+]

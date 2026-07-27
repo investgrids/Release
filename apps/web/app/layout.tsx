@@ -27,7 +27,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default:  "MarketRipple — AI-Powered Market Intelligence for India",
+    default:  "MarketRipple — AI-Powered Market Intelligence",
     template: "%s | MarketRipple",
   },
   description:
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     type:        "website",
     siteName:    "MarketRipple",
-    title:       "MarketRipple — AI-Powered Market Intelligence for India",
+    title:       "MarketRipple — AI-Powered Market Intelligence",
     description: "Understand Indian market events, ripple effects, and investment opportunities with AI-powered analysis.",
     url:         SITE_URL,
     locale:      "en_IN",
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     card:        "summary_large_image",
     site:        "@marketripple",
     creator:     "@marketripple",
-    title:       "MarketRipple — AI-Powered Market Intelligence for India",
+    title:       "MarketRipple — AI-Powered Market Intelligence",
     description: "Understand Indian market events, ripple effects, and investment opportunities with AI-powered analysis.",
   },
   alternates: { canonical: SITE_URL },

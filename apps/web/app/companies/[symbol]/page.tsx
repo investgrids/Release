@@ -10,6 +10,7 @@ import { useIntelligence } from "@/hooks/useIntelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { NextSteps } from "@/components/NextSteps";
+import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSection";
 import { RelatedContent } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { scoreToColor, impactToStyle } from "@/lib/scoring";
@@ -1595,7 +1596,7 @@ function SectionSkel({ h = 180 }: { h?: number }) {
 // ── Full-page Skeleton (matches 2-col layout) ─────────────────────────────────
 function PageSkeleton() {
   return (
-    <div className="grid grid-cols-[1fr_320px] gap-6">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
       <div className="space-y-6 animate-pulse">
         {/* Hero */}
         <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.04] p-6">
@@ -1638,7 +1639,7 @@ function PageSkeleton() {
         ))}
       </div>
       {/* RIGHT panel */}
-      <div className="sticky top-[88px] space-y-5 animate-pulse">
+      <div className="space-y-5 animate-pulse lg:sticky lg:top-[88px]">
         {[200, 170, 160, 150, 160, 110].map((h, i) => (
           <div key={i} className="rounded-[28px] border border-white/[0.05] bg-white/[0.03]" style={{ height: h }}/>
         ))}
@@ -1722,7 +1723,7 @@ export default function StockPage({ params }: PageProps) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}>
-        <div className="grid grid-cols-[1fr_320px] gap-6 items-start">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_320px]">
 
           {/* ── LEFT: sections rendered in 3 progressive waves ─────── */}
           <div className="min-w-0 space-y-6">
@@ -1730,6 +1731,7 @@ export default function StockPage({ params }: PageProps) {
             {/* Wave 1 — above fold: hero, chart, AI summary, DNA, financials, ratios */}
             {renderGroup >= 1 && <>
               <CompanyHero stock={stock} symbol={symbol} watchlisted={watchlisted} setWatchlisted={setWatchlisted}/>
+              <CompanyIntelligenceSection symbol={symbol} govScore={stock.gov_score} pricePositive={stock.pct_change >= 0}/>
               <PriceChart symbol={symbol} chartData={chartData} loadingChart={loadingChart}
                 period={period} setPeriod={p => { setPeriod(p); fetchChart(p); }} stock={stock}/>
               <AISummary stock={stock}/>
@@ -1929,7 +1931,7 @@ export default function StockPage({ params }: PageProps) {
           </div>
 
           {/* ── RIGHT: sticky intelligence panel ──────────────────────── */}
-          <aside className="sticky top-[88px] max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-hide">
+          <aside className="lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto scrollbar-hide">
             {renderGroup >= 1
               ? <IntelligencePanel stock={stock}/>
               : <div className="animate-pulse space-y-5">

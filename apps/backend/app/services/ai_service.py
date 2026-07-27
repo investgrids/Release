@@ -1,18 +1,21 @@
 """
 AI service — multi-provider free-tier AI with automatic fallback.
 
-Provider chain (highest quality first, auto-skips exhausted providers):
-  1. OpenRouter large  — 550B, 405B, 120B, 70B free models (~50 req/day each)
-  2. Mistral           — mistral-small/open-mistral-nemo, La Plateforme
-  3. Gemini            — gemini-2.0-flash, 1,500 req/day / 4M tokens free
-  4. Groq high-quality — gpt-oss-120b, llama-3.3-70b, 1,000 req/day each
-  5. Groq fast         — llama-3.1-8b-instant, 14,400 req/day (high-volume workhorse)
-  6. Cerebras          — llama3.1-70b/8b, 10,000 req/day, ultra-fast
+Provider chain (empirically-reliable-first, auto-skips exhausted providers —
+see _call_with_fallback for the 2026-07-26 reordering rationale):
+  1. Groq high-quality — gpt-oss-120b, llama-3.3-70b, 1,000 req/day each
+  2. Cerebras          — llama3.1-70b/8b, 10,000 req/day, ultra-fast
+  3. Groq fast         — llama-3.1-8b-instant, 14,400 req/day (high-volume workhorse)
+  4. OpenRouter large  — 550B, 405B, 120B, 70B free models (~50 req/day each)
+  5. Mistral           — mistral-small/open-mistral-nemo, La Plateforme
+  6. Gemini            — gemini-2.0-flash, 1,500 req/day / 4M tokens free
   7. OpenRouter small  — remaining free models as final fallback
 
 Each model that returns HTTP 429 (rate-limited) is remembered in _EXHAUSTED
-for the lifetime of the process and skipped on all future calls — no wasted
-round-trips. Resets when Railway restarts (typically daily).
+and skipped on future calls for a cooldown window (_EXHAUSTED_COOLDOWN_S) —
+long enough to ride out a per-minute throttle without hammering it, short
+enough that a model isn't permanently dead for the rest of the process from
+one transient 429.
 """
 import time
 import httpx
@@ -32,8 +35,32 @@ _GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/co
 _MISTRAL_URL  = "https://api.mistral.ai/v1/chat/completions"
 _NVIDIA_PATH  = "/chat/completions"   # appended to settings.nvidia_base_url
 
-# Models that have returned 429 (rate exhausted) — skipped until process restart
-_EXHAUSTED: set[str] = set()
+# Models that have returned 429 — skipped for a cooldown window, not forever.
+# A generic 429 doesn't distinguish "hit today's real daily quota" from "briefly
+# tripped a per-minute rate limit" — a permanent-until-restart blacklist (the
+# original design) meant a short burst of per-minute throttling on a handful of
+# models could permanently starve the whole fallback chain for the rest of the
+# process. Verified live: running the AI Search benchmark at a steady ~9
+# requests/min (well within every provider's stated daily quota) exhausted 18
+# of ~24 configured models within 5 minutes of a fresh restart, and every
+# subsequent query silently fell back to the generic degraded template. A
+# short cooldown lets a model that was only briefly throttled recover within
+# the same process; a model that's genuinely out for the day just keeps
+# getting retried (and re-429'd) every cooldown window, which costs one
+# wasted round-trip per model per window — negligible next to the alternative
+# of the whole chain going dark.
+_EXHAUSTED: dict[str, float] = {}   # model -> monotonic time it was marked exhausted
+_EXHAUSTED_COOLDOWN_S = 120.0
+
+
+def _is_exhausted(model: str) -> bool:
+    marked_at = _EXHAUSTED.get(model)
+    if marked_at is None:
+        return False
+    if time.monotonic() - marked_at >= _EXHAUSTED_COOLDOWN_S:
+        _EXHAUSTED.pop(model, None)
+        return False
+    return True
 
 # Lightweight in-process AI usage counters for the Ops Dashboard — same
 # "resets on deploy, not a DB table" pattern as publisher.py's _STATS.
@@ -232,9 +259,16 @@ _GROQ_FAST = [
 ]
 
 # ── Tier 5: Cerebras (10,000 req/day — ultra-fast inference)
+# 2026-07-26: llama3.1-70b/llama3.1-8b confirmed 404 "model does not exist"
+# via direct live probe against Cerebras's own API — deprecated on their
+# side. gpt-oss-120b is confirmed a real, current model name (probed 402
+# Payment Required, not 404) but 402 means this specific API key's account
+# needs billing/plan setup on cloud.cerebras.ai before it's actually usable —
+# a real account-level step, not something fixable from this code. Kept in
+# the list since _call_provider already treats any non-2xx as "try the next
+# model" gracefully; this tier is effectively a no-op until billing is set up.
 _CEREBRAS_MODELS = [
-    "llama3.1-70b",
-    "llama3.1-8b",
+    "gpt-oss-120b",
 ]
 
 # ── Tier 6: OpenRouter smaller free models (final fallback)
@@ -270,8 +304,9 @@ async def _call_provider(
     extra_headers: dict | None = None,
 ) -> str:
     """Generic OpenAI-compatible call. Returns '' on any failure or rate-limit.
-    Marks the model as exhausted in _EXHAUSTED on HTTP 429 so future calls skip it."""
-    if model in _EXHAUSTED:
+    Marks the model as exhausted in _EXHAUSTED on HTTP 429 so future calls skip
+    it until the cooldown window elapses (see _EXHAUSTED_COOLDOWN_S above)."""
+    if _is_exhausted(model):
         return ""
 
     messages = []
@@ -303,8 +338,8 @@ async def _call_provider(
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(base_url, json=payload, headers=headers)
             if r.status_code == 429:
-                _EXHAUSTED.add(model)
-                log.warning("ai.exhausted", model=model, status=429)
+                _EXHAUSTED[model] = time.monotonic()
+                log.warning("ai.exhausted", model=model, status=429, cooldown_s=_EXHAUSTED_COOLDOWN_S)
                 _AI_USAGE["calls_failed"] += 1
                 return ""
             if r.status_code in (402, 503, 529):
@@ -437,16 +472,23 @@ async def _call_with_fallback(
     max_tokens: int = 200,
 ) -> str:
     """
-    Try providers in quality order until one returns a non-empty response.
-    Models that have already returned 429 today are in _EXHAUSTED and skipped instantly.
+    Try providers in *empirical reliability* order until one returns a
+    non-empty response — not just nominal "quality", but what's actually been
+    observed to work. Models that recently returned 429 are skipped instantly
+    until their cooldown window elapses (see _EXHAUSTED_COOLDOWN_S).
 
-    Chain:
-      1. OpenRouter large free models  — 550B, 405B, 120B, 70B (best quality, ~50/day each)
-      2. Gemini 2.0-flash              — 1,500 req/day, high quality, very reliable
-      3. Groq high-quality models      — 120B, 70B, 32B (1,000 req/day each)
-      4. Groq fast models              — 8B (14,400 req/day, high-volume workhorse)
-      5. Cerebras                      — 10,000 req/day, ultra-fast
-      6. OpenRouter smaller models     — final fallback
+    Chain (reordered 2026-07-26 after live benchmark testing showed OpenRouter's
+    free models 429 almost immediately under any sustained load, while Groq
+    consistently succeeded — Groq and Cerebras now go first since they're the
+    tiers with real, working, high-quota keys; OpenRouter/Mistral/Gemini are
+    kept as later-tier headroom):
+      1. Groq high-quality models      — 120B, 70B, 32B (1,000 req/day each) — most reliable in testing
+      2. Cerebras                      — 10,000 req/day, ultra-fast
+      3. Groq fast models              — 8B (14,400 req/day, high-volume workhorse)
+      4. OpenRouter large free models  — 550B, 405B, 120B, 70B (best nominal quality, ~50/day each, but 429s fast)
+      5. Mistral La Plateforme
+      6. Gemini 2.0-flash              — 1,500 req/day (currently a no-op — see Gemini tier comment)
+      7. OpenRouter smaller models     — final fallback
     """
     _AI_USAGE["fallback_invocations"] += 1
     or_headers = {
@@ -454,70 +496,70 @@ async def _call_with_fallback(
         "X-Title": "InvestGrids Market Intelligence",
     }
 
-    # ── Tier 1: OpenRouter large high-quality models ──────────────────────────
-    if settings.openrouter_api_key:
-        for model in _OR_HIGH_QUALITY:
-            if model in _EXHAUSTED:
-                continue
-            result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers)
-            if result:
-                log.info("ai.success", provider="openrouter-hq", model=model)
-                return result
-
-    # ── Tier 1.5: Mistral La Plateforme ──────────────────────────────────────
-    if settings.mistral_api_key:
-        for model in _MISTRAL_MODELS:
-            if model in _EXHAUSTED:
-                continue
-            result = await _call_provider(_MISTRAL_URL, settings.mistral_api_key, model, prompt, system, max_tokens)
-            if result:
-                log.info("ai.success", provider="mistral", model=model)
-                return result
-
-    # ── Tier 2: Gemini — reliable, 1,500 req/day ─────────────────────────────
-    if settings.gemini_api_key:
-        for model in _GEMINI_MODELS:
-            if model in _EXHAUSTED:
-                continue
-            result = await _call_provider(_GEMINI_URL, settings.gemini_api_key, model, prompt, system, max_tokens)
-            if result:
-                log.info("ai.success", provider="gemini", model=model)
-                return result
-
-    # ── Tier 3: Groq high-quality (70B+, 1,000 req/day each) ─────────────────
+    # ── Tier 1: Groq high-quality (70B+, 1,000 req/day each) ─────────────────
     if settings.groq_api_key:
         for model in _GROQ_HIGH:
-            if model in _EXHAUSTED:
+            if _is_exhausted(model):
                 continue
             result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens)
             if result:
                 log.info("ai.success", provider="groq-hq", model=model)
                 return result
 
-    # ── Tier 4: Groq fast (8B, 14,400 req/day — high-volume backstop) ────────
-    if settings.groq_api_key:
-        for model in _GROQ_FAST:
-            if model in _EXHAUSTED:
-                continue
-            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens)
-            if result:
-                log.info("ai.success", provider="groq-fast", model=model)
-                return result
-
-    # ── Tier 5: Cerebras — ultra-fast, 10,000 req/day ────────────────────────
+    # ── Tier 2: Cerebras — ultra-fast, 10,000 req/day ────────────────────────
     if settings.cerebras_api_key:
         for model in _CEREBRAS_MODELS:
-            if model in _EXHAUSTED:
+            if _is_exhausted(model):
                 continue
             result = await _call_provider(_CEREBRAS_URL, settings.cerebras_api_key, model, prompt, system, max_tokens)
             if result:
                 log.info("ai.success", provider="cerebras", model=model)
                 return result
 
-    # ── Tier 6: OpenRouter smaller free models — final fallback ──────────────
+    # ── Tier 3: Groq fast (8B, 14,400 req/day — high-volume backstop) ────────
+    if settings.groq_api_key:
+        for model in _GROQ_FAST:
+            if _is_exhausted(model):
+                continue
+            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens)
+            if result:
+                log.info("ai.success", provider="groq-fast", model=model)
+                return result
+
+    # ── Tier 4: OpenRouter large high-quality models ──────────────────────────
+    if settings.openrouter_api_key:
+        for model in _OR_HIGH_QUALITY:
+            if _is_exhausted(model):
+                continue
+            result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers)
+            if result:
+                log.info("ai.success", provider="openrouter-hq", model=model)
+                return result
+
+    # ── Tier 5: Mistral La Plateforme ──────────────────────────────────────
+    if settings.mistral_api_key:
+        for model in _MISTRAL_MODELS:
+            if _is_exhausted(model):
+                continue
+            result = await _call_provider(_MISTRAL_URL, settings.mistral_api_key, model, prompt, system, max_tokens)
+            if result:
+                log.info("ai.success", provider="mistral", model=model)
+                return result
+
+    # ── Tier 6: Gemini — reliable, 1,500 req/day ─────────────────────────────
+    if settings.gemini_api_key:
+        for model in _GEMINI_MODELS:
+            if _is_exhausted(model):
+                continue
+            result = await _call_provider(_GEMINI_URL, settings.gemini_api_key, model, prompt, system, max_tokens)
+            if result:
+                log.info("ai.success", provider="gemini", model=model)
+                return result
+
+    # ── Tier 7: OpenRouter smaller free models — final fallback ──────────────
     if settings.openrouter_api_key:
         for model in _OR_SMALL:
-            if model in _EXHAUSTED:
+            if _is_exhausted(model):
                 continue
             result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers)
             if result:

@@ -1,0 +1,1802 @@
+[
+  {
+    "id": "q00138",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Trader",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "What does Pidilite Industries's balance sheet tell us?"
+  },
+  {
+    "id": "q00142",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Value Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Is now a good time to enter Tech Mahindra?"
+  },
+  {
+    "id": "q00032",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Financial Advisor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How is Fortis Healthcare positioned against competition?"
+  },
+  {
+    "id": "q00243",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Student",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Give me a fundamental analysis of Polycab India"
+  },
+  {
+    "id": "q00063",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Beginner",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Why is Adani Enterprises stock rallying today?"
+  },
+  {
+    "id": "q00188",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Value Investor",
+    "time_horizon": "Intraday",
+    "question": "Is Wipro's debt level a concern?"
+  },
+  {
+    "id": "q00191",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Journalist",
+    "time_horizon": "Intraday",
+    "question": "What is the fair value of Ashok Leyland?"
+  },
+  {
+    "id": "q00233",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Beginner",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Is Hindustan Zinc a value trap?"
+  },
+  {
+    "id": "q00220",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Trader",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Should I add GAIL India to my portfolio?"
+  },
+  {
+    "id": "q00133",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Student",
+    "time_horizon": "Intraday",
+    "question": "Analyze TVS Motor Company"
+  },
+  {
+    "id": "q00052",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Growth Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What is the promoter holding trend in Tata Steel?"
+  },
+  {
+    "id": "q00251",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Fund Manager",
+    "time_horizon": "Intraday",
+    "question": "Which pays a better dividend, PETRONET or RELIANCE?"
+  },
+  {
+    "id": "q00381",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Financial Advisor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Which has better fundamentals, SPICEJET or Shree Cement?"
+  },
+  {
+    "id": "q00308",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Value Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "PAYTM versus Ashok Leyland: which has stronger growth?"
+  },
+  {
+    "id": "q00306",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Long-term Investor",
+    "time_horizon": "Intraday",
+    "question": "PNB versus VBL: which has stronger growth?"
+  },
+  {
+    "id": "q00301",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Student",
+    "time_horizon": "Intraday",
+    "question": "Bharat Petroleum or KOTAKBANK for long-term investing?"
+  },
+  {
+    "id": "q00448",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Long-term Investor",
+    "time_horizon": "Intraday",
+    "question": "Should I buy Bank of Baroda or Tata Chemicals?"
+  },
+  {
+    "id": "q00354",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Journalist",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "STARHEALTH versus SAIL: which has stronger growth?"
+  },
+  {
+    "id": "q00379",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Growth Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "TRENT vs ZOMATO"
+  },
+  {
+    "id": "q00429",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Student",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "WIPRO versus JSWSTEEL: which has stronger growth?"
+  },
+  {
+    "id": "q00279",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Beginner",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "GAIL vs Rail Vikas Nigam"
+  },
+  {
+    "id": "q00334",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Financial Advisor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Between Tata Chemicals and PIIND, which is the safer bet?"
+  },
+  {
+    "id": "q00463",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Fund Manager",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Outlook for the Telecom sector"
+  },
+  {
+    "id": "q00479",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Trader",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Why is the Energy sector underperforming?"
+  },
+  {
+    "id": "q00515",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Journalist",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Is the Cement sector overheated?"
+  },
+  {
+    "id": "q00542",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Journalist",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What are the key risks for the Banking sector?"
+  },
+  {
+    "id": "q00551",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Growth Investor",
+    "time_horizon": "Intraday",
+    "question": "Best Energy stocks to buy now"
+  },
+  {
+    "id": "q00482",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Growth Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Outlook for the Healthcare sector"
+  },
+  {
+    "id": "q00573",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Retail Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Best Metals stocks to buy now"
+  },
+  {
+    "id": "q00574",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Beginner",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What's driving the FMCG sector rally?"
+  },
+  {
+    "id": "q00484",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Retail Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Why is the Consumer sector underperforming?"
+  },
+  {
+    "id": "q00546",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Financial Advisor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Outlook for the Banking sector"
+  },
+  {
+    "id": "q00596",
+    "category": "Sector Analysis",
+    "difficulty": "Easy",
+    "intent": "Sector",
+    "persona": "Retail Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Is the Banking sector overheated?"
+  },
+  {
+    "id": "q00622",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Trader",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What should investors do after massive FII inflow into Indian markets?"
+  },
+  {
+    "id": "q00722",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Growth Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What should investors do after credit rating agency upgrades India's outlook?"
+  },
+  {
+    "id": "q00656",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Long-term Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Impact of sEBI bans a company from trading on my portfolio"
+  },
+  {
+    "id": "q00672",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Financial Advisor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "What should investors do after massive FII outflow from Indian markets?"
+  },
+  {
+    "id": "q00665",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Growth Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "What should investors do after red Sea shipping disruption?"
+  },
+  {
+    "id": "q00607",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Growth Investor",
+    "time_horizon": "Intraday",
+    "question": "Which sectors are hurt by gST council meeting outcomes?"
+  },
+  {
+    "id": "q00760",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Beginner",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Impact of monsoon forecast revised upward on my portfolio"
+  },
+  {
+    "id": "q00772",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Student",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Q1 GDP data comes in below estimates — how should I position my portfolio?"
+  },
+  {
+    "id": "q00748",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Beginner",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Israel-Iran conflict escalates — how should I position my portfolio?"
+  },
+  {
+    "id": "q00713",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Growth Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Is government removes export duty on rice priced in already?"
+  },
+  {
+    "id": "q00738",
+    "category": "Event Impact",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Financial Advisor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What should investors do after union Budget announcement?"
+  },
+  {
+    "id": "q00861",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Growth Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What does yield curve inversion mean for the rupee?"
+  },
+  {
+    "id": "q00943",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Long-term Investor",
+    "time_horizon": "Intraday",
+    "question": "How does core inflation trends affect my investments?"
+  },
+  {
+    "id": "q00921",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Retail Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How is falling inflation likely to evolve over the next year?"
+  },
+  {
+    "id": "q00936",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Trader",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What sectors are most affected by rupee depreciation?"
+  },
+  {
+    "id": "q00813",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Beginner",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Explain falling inflation and its market impact"
+  },
+  {
+    "id": "q00880",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Retail Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How should investors respond to forex reserves accumulation?"
+  },
+  {
+    "id": "q00834",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Trader",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How does government capex spending affect my investments?"
+  },
+  {
+    "id": "q00845",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Journalist",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What sectors are most affected by narrowing fiscal deficit?"
+  },
+  {
+    "id": "q00833",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Growth Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What sectors are most affected by falling unemployment?"
+  },
+  {
+    "id": "q00941",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Long-term Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How should investors respond to falling inflation?"
+  },
+  {
+    "id": "q00918",
+    "category": "Macro Economy",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Long-term Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How should investors respond to rising unemployment?"
+  },
+  {
+    "id": "q01008",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Retail Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Is the new labour codes good for the economy?"
+  },
+  {
+    "id": "q00965",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Growth Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What's the market reaction to the coal auction policy?"
+  },
+  {
+    "id": "q01045",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Long-term Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What's the market reaction to the Agnipath scheme?"
+  },
+  {
+    "id": "q00995",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Financial Advisor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Is the new bankruptcy code amendments good for the economy?"
+  },
+  {
+    "id": "q01066",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Value Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Which companies benefit from the production-linked incentive for textiles?"
+  },
+  {
+    "id": "q01059",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Value Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How will the renewable energy purchase obligation play out for the sector?"
+  },
+  {
+    "id": "q01052",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Growth Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How should I position my portfolio around the PLI scheme for semiconductors?"
+  },
+  {
+    "id": "q00999",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Student",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How should I position my portfolio around the renewable energy purchase obligation?"
+  },
+  {
+    "id": "q01054",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Growth Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How will the semiconductor mission policy play out for the sector?"
+  },
+  {
+    "id": "q00954",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Growth Investor",
+    "time_horizon": "Intraday",
+    "question": "Which stocks are hurt by the new bankruptcy code amendments?"
+  },
+  {
+    "id": "q00955",
+    "category": "Government Policy",
+    "difficulty": "Easy",
+    "intent": "Policy",
+    "persona": "Growth Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Which stocks are hurt by the coal auction policy?"
+  },
+  {
+    "id": "q01217",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Journalist",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Should I sell Tata Consumer Products after it beats on EBITDA but misses on revenue?"
+  },
+  {
+    "id": "q01155",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Student",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Bharat Dynamics shows strong revenue growth — what should I do?"
+  },
+  {
+    "id": "q01186",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Trader",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Should I sell Adani Enterprises after it reports weak order inflows?"
+  },
+  {
+    "id": "q01225",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Journalist",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Is Rail Vikas Nigam's earnings quality good after it reports its first loss in years?"
+  },
+  {
+    "id": "q01105",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Value Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "ICICIPRULI announces a special dividend — how should investors react?"
+  },
+  {
+    "id": "q01135",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Student",
+    "time_horizon": "Intraday",
+    "question": "Britannia Industries reports margin decline — what should I do?"
+  },
+  {
+    "id": "q01179",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Journalist",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Computer Age Management Services reports a debt reduction this quarter, is it a buy?"
+  },
+  {
+    "id": "q01116",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Fund Manager",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "PVR Inox announces a share buyback this quarter, is it a buy?"
+  },
+  {
+    "id": "q01160",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Trader",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Should I sell Tata Motors after it shows strong revenue growth?"
+  },
+  {
+    "id": "q01150",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Fund Manager",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Vedanta Limited just beats on EBITDA but misses on revenue — stock reaction?"
+  },
+  {
+    "id": "q01198",
+    "category": "Earnings",
+    "difficulty": "Easy",
+    "intent": "News",
+    "persona": "Journalist",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Eicher Motors reports margin decline this quarter, is it a buy?"
+  },
+  {
+    "id": "q01293",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Long-term Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Should I apply for the Sagility India IPO?"
+  },
+  {
+    "id": "q01275",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Long-term Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Should I apply for the Hero FinCorp IPO?"
+  },
+  {
+    "id": "q01264",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Journalist",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What are the listing gain expectations for Premier Energies?"
+  },
+  {
+    "id": "q01341",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Growth Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What are the listing gain expectations for Ather Energy?"
+  },
+  {
+    "id": "q01283",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Journalist",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What are the risks in the Vodafone Idea FPO IPO?"
+  },
+  {
+    "id": "q01280",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Value Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Is Sagility India a good long-term investment after listing?"
+  },
+  {
+    "id": "q01332",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Long-term Investor",
+    "time_horizon": "Intraday",
+    "question": "What is the grey market premium for Premier Energies telling us?"
+  },
+  {
+    "id": "q01261",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Fund Manager",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What is the grey market premium for Sagility telling us?"
+  },
+  {
+    "id": "q01349",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Long-term Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Waaree Energies IPO — GMP analysis"
+  },
+  {
+    "id": "q01340",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Retail Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "What are the risks in the Western Carriers IPO?"
+  },
+  {
+    "id": "q01284",
+    "category": "IPO",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Trader",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Is the Niva Bupa Health Insurance IPO worth applying for?"
+  },
+  {
+    "id": "q01429",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Trader",
+    "time_horizon": "Intraday",
+    "question": "Best Aviation stocks for a recession-proof portfolio"
+  },
+  {
+    "id": "q01379",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Value Investor",
+    "time_horizon": "Intraday",
+    "question": "Best Aviation momentum stocks right now"
+  },
+  {
+    "id": "q01474",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Financial Advisor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Best Telecom stocks to accumulate on dips"
+  },
+  {
+    "id": "q01439",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Portfolio",
+    "persona": "Financial Advisor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How should I build a dividend investing portfolio?"
+  },
+  {
+    "id": "q01459",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Growth Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Is Sun TV Network a good swing trade this week?"
+  },
+  {
+    "id": "q01437",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Financial Advisor",
+    "time_horizon": "Intraday",
+    "question": "What's a good entry strategy for FSN E-Commerce (Nykaa)?"
+  },
+  {
+    "id": "q01414",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Trader",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Is Adani Green Energy a good dip-buying opportunity?"
+  },
+  {
+    "id": "q01454",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Beginner",
+    "time_horizon": "Intraday",
+    "question": "Best Infra stocks for a recession-proof portfolio"
+  },
+  {
+    "id": "q01445",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Financial Advisor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Is Tata Steel a good swing trade this week?"
+  },
+  {
+    "id": "q01446",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Financial Advisor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Is NMDC Limited a good swing trade this week?"
+  },
+  {
+    "id": "q01461",
+    "category": "Market Strategy",
+    "difficulty": "Easy",
+    "intent": "Strategy",
+    "persona": "Journalist",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What's a good entry strategy for Muthoot Finance?"
+  },
+  {
+    "id": "q01542",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Journalist",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How long did it take markets to recover from the 2013 taper tantrum?"
+  },
+  {
+    "id": "q01553",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Financial Advisor",
+    "time_horizon": "Intraday",
+    "question": "What should investors learn from the 2019 Yes Bank crisis?"
+  },
+  {
+    "id": "q01564",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Trader",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How did stocks recover after the 2020 COVID crash?"
+  },
+  {
+    "id": "q01538",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Trader",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Which sectors outperformed during the 2015 Chinese market crash?"
+  },
+  {
+    "id": "q01504",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Fund Manager",
+    "time_horizon": "Intraday",
+    "question": "How similar is today's market to the 2020 COVID crash?"
+  },
+  {
+    "id": "q01572",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Value Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How long did it take markets to recover from the 2021 Adani-Hindenburg episode?"
+  },
+  {
+    "id": "q01552",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Journalist",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How did stocks recover after past election-year market volatility?"
+  },
+  {
+    "id": "q01567",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Financial Advisor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What should investors learn from the 2020 oil price crash below zero?"
+  },
+  {
+    "id": "q01524",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Fund Manager",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How long did it take markets to recover from the 2009 global financial recovery?"
+  },
+  {
+    "id": "q01503",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Value Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Which sectors were hit hardest by the 2013 taper tantrum?"
+  },
+  {
+    "id": "q01532",
+    "category": "Historical Events",
+    "difficulty": "Easy",
+    "intent": "Event",
+    "persona": "Retail Investor",
+    "time_horizon": "Intraday",
+    "question": "What happened to the market during the 1997 Asian financial crisis?"
+  },
+  {
+    "id": "q01657",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Trader",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "What's the long-term potential of the railways theme?"
+  },
+  {
+    "id": "q01615",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Beginner",
+    "time_horizon": "Intraday",
+    "question": "How do I get exposure to the defence theme in India?"
+  },
+  {
+    "id": "q01634",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Long-term Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Which stocks lead the water infrastructure theme?"
+  },
+  {
+    "id": "q01627",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Retail Investor",
+    "time_horizon": "Intraday",
+    "question": "What's the long-term potential of the hydrogen fuel theme?"
+  },
+  {
+    "id": "q01673",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Growth Investor",
+    "time_horizon": "Intraday",
+    "question": "Best way to play the data centers theme for the next 5 years"
+  },
+  {
+    "id": "q01689",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Fund Manager",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Which small caps benefit from the affordable housing theme?"
+  },
+  {
+    "id": "q01682",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Trader",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What's the long-term potential of the quick commerce theme?"
+  },
+  {
+    "id": "q01678",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Fund Manager",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Which small caps benefit from the healthcare infrastructure theme?"
+  },
+  {
+    "id": "q01656",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Beginner",
+    "time_horizon": "Intraday",
+    "question": "Best manufacturing stocks to invest in"
+  },
+  {
+    "id": "q01693",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Growth Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What's the long-term potential of the logistics and warehousing theme?"
+  },
+  {
+    "id": "q01624",
+    "category": "Theme Investing",
+    "difficulty": "Easy",
+    "intent": "Theme",
+    "persona": "Financial Advisor",
+    "time_horizon": "Intraday",
+    "question": "Best semiconductors stocks to invest in"
+  },
+  {
+    "id": "q01794",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Value Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What's driving wheat prices globally?"
+  },
+  {
+    "id": "q01751",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Fund Manager",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How does nickel affect India's import bill?"
+  },
+  {
+    "id": "q01741",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Beginner",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Why is coal rallying?"
+  },
+  {
+    "id": "q01775",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Fund Manager",
+    "time_horizon": "Intraday",
+    "question": "Which companies benefit from falling coal prices?"
+  },
+  {
+    "id": "q01787",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Trader",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Why is aluminium rallying?"
+  },
+  {
+    "id": "q01776",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Trader",
+    "time_horizon": "Intraday",
+    "question": "Why is cotton rallying?"
+  },
+  {
+    "id": "q01704",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Student",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Should I invest in crude palm oil right now?"
+  },
+  {
+    "id": "q01759",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Student",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Should I invest in copper right now?"
+  },
+  {
+    "id": "q01752",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Beginner",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Which companies benefit from falling sugar prices?"
+  },
+  {
+    "id": "q01778",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Growth Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Should I invest in crude oil right now?"
+  },
+  {
+    "id": "q01736",
+    "category": "Commodities",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Student",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Why is crude oil falling?"
+  },
+  {
+    "id": "q01869",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Student",
+    "time_horizon": "Intraday",
+    "question": "How correlated are Indian markets with a Brexit-related trade shift?"
+  },
+  {
+    "id": "q01886",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Retail Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What's the impact of a Brexit-related trade shift on FII flows?"
+  },
+  {
+    "id": "q01820",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Trader",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How correlated are Indian markets with Japan's yield curve control shift?"
+  },
+  {
+    "id": "q01804",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Beginner",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What's the impact of a Fed rate hike on IT stocks?"
+  },
+  {
+    "id": "q01888",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Retail Investor",
+    "time_horizon": "Intraday",
+    "question": "How should I position my portfolio for a Fed rate cut?"
+  },
+  {
+    "id": "q01851",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Retail Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How does a US government shutdown affect Indian markets?"
+  },
+  {
+    "id": "q01889",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Value Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "What does a Taiwan-China tension spike mean for emerging markets?"
+  },
+  {
+    "id": "q01812",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Long-term Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Should Indian investors worry about an emerging markets currency crisis?"
+  },
+  {
+    "id": "q01806",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Beginner",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How does Japan's yield curve control shift affect Indian markets?"
+  },
+  {
+    "id": "q01802",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Trader",
+    "time_horizon": "Intraday",
+    "question": "Should Indian investors worry about a global supply chain disruption?"
+  },
+  {
+    "id": "q01833",
+    "category": "Global Markets",
+    "difficulty": "Easy",
+    "intent": "Macro",
+    "persona": "Financial Advisor",
+    "time_horizon": "Intraday",
+    "question": "Should Indian investors worry about a China economic slowdown?"
+  },
+  {
+    "id": "q01966",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Student",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "What's the best approach to averaging down on a losing position in a volatile market?"
+  },
+  {
+    "id": "q01994",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Growth Investor",
+    "time_horizon": "Intraday",
+    "question": "How does position sizing change in a bear market?"
+  },
+  {
+    "id": "q01921",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Fund Manager",
+    "time_horizon": "Intraday",
+    "question": "What's the best approach to assessing sector concentration risk in a volatile market?"
+  },
+  {
+    "id": "q01922",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Growth Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How should I think about protecting gains during a bull run?"
+  },
+  {
+    "id": "q01982",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Long-term Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How does managing concentration risk change in a bull market?"
+  },
+  {
+    "id": "q01999",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Beginner",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How do fund managers handle risk versus reward ratio?"
+  },
+  {
+    "id": "q01946",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Student",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "What's a beginner's guide to protecting gains during a bull run?"
+  },
+  {
+    "id": "q01977",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Financial Advisor",
+    "time_horizon": "Intraday",
+    "question": "What mistakes do investors make with risk versus reward ratio?"
+  },
+  {
+    "id": "q01936",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Trader",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How does managing currency risk in global investing change in a bull market?"
+  },
+  {
+    "id": "q01972",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Financial Advisor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What mistakes do investors make with managing currency risk in global investing?"
+  },
+  {
+    "id": "q01954",
+    "category": "Risk Management",
+    "difficulty": "Easy",
+    "intent": "Risk",
+    "persona": "Trader",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How do professional traders approach assessing sector concentration risk?"
+  },
+  {
+    "id": "q02096",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Explain short selling in simple terms"
+  },
+  {
+    "id": "q02107",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Explain market cap in simple terms"
+  },
+  {
+    "id": "q02082",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Intraday",
+    "question": "How do I use mutual fund NAV to pick stocks?"
+  },
+  {
+    "id": "q02007",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How do I use repo rate to pick stocks?"
+  },
+  {
+    "id": "q02124",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Intraday",
+    "question": "What is book value?"
+  },
+  {
+    "id": "q02003",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Why does index fund matter for investors?"
+  },
+  {
+    "id": "q02058",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How do I use buyback to pick stocks?"
+  },
+  {
+    "id": "q02148",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Why does SIP matter for investors?"
+  },
+  {
+    "id": "q02028",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Explain bull market in simple terms"
+  },
+  {
+    "id": "q02034",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Intraday",
+    "question": "Explain demat account in simple terms"
+  },
+  {
+    "id": "q02068",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Intraday",
+    "question": "Explain repo rate in simple terms"
+  },
+  {
+    "id": "q02287",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Financial Advisor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Explain interest coverage ratio with Crompton Greaves Consumer as an example"
+  },
+  {
+    "id": "q02168",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Growth Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How do I calculate earnings quality analysis for Hindustan Aeronautics?"
+  },
+  {
+    "id": "q02253",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Financial Advisor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How do I calculate peer relative valuation for ICICI Lombard General Insurance?"
+  },
+  {
+    "id": "q02245",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Growth Investor",
+    "time_horizon": "Intraday",
+    "question": "How do I calculate EV/EBITDA multiple for State Bank of India?"
+  },
+  {
+    "id": "q02197",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Financial Advisor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "What does capital allocation tell us about Adani Enterprises's quality?"
+  },
+  {
+    "id": "q02265",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Financial Advisor",
+    "time_horizon": "Intraday",
+    "question": "Walk me through ROIC for ICICI Lombard General Insurance"
+  },
+  {
+    "id": "q02258",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Growth Investor",
+    "time_horizon": "Intraday",
+    "question": "How does Page Industries compare on asset turnover ratio to its peers?"
+  },
+  {
+    "id": "q02208",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Financial Advisor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "How do I calculate return on equity decomposition for SRF Limited?"
+  },
+  {
+    "id": "q02212",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Value Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Is Persistent Systems's interest coverage ratio sustainable?"
+  },
+  {
+    "id": "q02162",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Growth Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "How does Gujarat Gas compare on interest coverage ratio to its peers?"
+  },
+  {
+    "id": "q02173",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Financial Advisor",
+    "time_horizon": "Intraday",
+    "question": "Is PVR Inox's capital allocation sustainable?"
+  },
+  {
+    "id": "q02315",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Financial Advisor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Is the market going to crash?"
+  },
+  {
+    "id": "q02365",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Value Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Recession?"
+  },
+  {
+    "id": "q02349",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Long-term Investor",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Will it go up?"
+  },
+  {
+    "id": "q02329",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Beginner",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Defence stocks ka future kaisa hai?"
+  },
+  {
+    "id": "q02306",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Financial Advisor",
+    "time_horizon": "Intraday",
+    "question": "Undervalued?"
+  },
+  {
+    "id": "q02383",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Student",
+    "time_horizon": "Intraday",
+    "question": "Best stock for long term batao"
+  },
+  {
+    "id": "q02324",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Journalist",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Crash?"
+  },
+  {
+    "id": "q02308",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Trader",
+    "time_horizon": "Intraday",
+    "question": "Wiproo"
+  },
+  {
+    "id": "q02301",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Trader",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Adnai"
+  },
+  {
+    "id": "q02348",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Trader",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Reliance ka stock kaisa hai?"
+  },
+  {
+    "id": "q02362",
+    "category": "AI Search Edge Cases",
+    "difficulty": "Hard",
+    "intent": "Company",
+    "persona": "Financial Advisor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Reliance"
+  },
+  {
+    "id": "q01924",
+    "category": "Risk Management",
+    "difficulty": "Medium",
+    "intent": "Risk",
+    "persona": "Fund Manager",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "How do fund managers handle protecting gains during a bull run?"
+  },
+  {
+    "id": "q02024",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Explain PE ratio in simple terms"
+  },
+  {
+    "id": "q02167",
+    "category": "Advanced Investor Questions",
+    "difficulty": "Expert",
+    "intent": "Education",
+    "persona": "Growth Investor",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Walk me through DCF valuation for Divi's Laboratories"
+  },
+  {
+    "id": "q00066",
+    "category": "Company Analysis",
+    "difficulty": "Easy",
+    "intent": "Company",
+    "persona": "Long-term Investor",
+    "time_horizon": "Intraday",
+    "question": "Is IRB still attractive at current levels?"
+  },
+  {
+    "id": "q00953",
+    "category": "Government Policy",
+    "difficulty": "Hard",
+    "intent": "Policy",
+    "persona": "Retail Investor",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Long-term implications of the Agnipath scheme"
+  },
+  {
+    "id": "q01434",
+    "category": "Market Strategy",
+    "difficulty": "Expert",
+    "intent": "Strategy",
+    "persona": "Fund Manager",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What's a good entry strategy for Bharat Forge?"
+  },
+  {
+    "id": "q02128",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Can you explain bull market like I'm new to investing?"
+  },
+  {
+    "id": "q00994",
+    "category": "Government Policy",
+    "difficulty": "Hard",
+    "intent": "Policy",
+    "persona": "Trader",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "What is the new data protection law and how does it affect investors?"
+  },
+  {
+    "id": "q01770",
+    "category": "Commodities",
+    "difficulty": "Hard",
+    "intent": "Macro",
+    "persona": "Fund Manager",
+    "time_horizon": "Medium-term (3-12 months)",
+    "question": "Why is steel falling?"
+  },
+  {
+    "id": "q01009",
+    "category": "Government Policy",
+    "difficulty": "Medium",
+    "intent": "Policy",
+    "persona": "Beginner",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "What is an export ban on wheat and how does it affect investors?"
+  },
+  {
+    "id": "q00276",
+    "category": "Company Comparison",
+    "difficulty": "Easy",
+    "intent": "Comparison",
+    "persona": "Student",
+    "time_horizon": "Short-term (1-4 weeks)",
+    "question": "Oil and Natural Gas Corporation or IOC for long-term investing?"
+  },
+  {
+    "id": "q00328",
+    "category": "Company Comparison",
+    "difficulty": "Hard",
+    "intent": "Comparison",
+    "persona": "Student",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Bharat Electronics and APOLLOHOSP — which has less debt?"
+  },
+  {
+    "id": "q02106",
+    "category": "Beginner Questions",
+    "difficulty": "Easy",
+    "intent": "Education",
+    "persona": "Beginner",
+    "time_horizon": "Long-term (1-5 years)",
+    "question": "Explain SIP in simple terms"
+  }
+]

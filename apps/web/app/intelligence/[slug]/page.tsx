@@ -3,7 +3,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Share2, Bookmark, Star, CheckCircle2, Info,
   Calendar, TrendingUp, TrendingDown, ChevronRight, Zap,
-  AlertCircle, Building2, Layers, BookOpen, Clock, ExternalLink,
+  AlertCircle, Building2, Layers, BookOpen, Clock,
 } from "lucide-react";
 import MiniIntelligenceGraph from "@/components/MiniIntelligenceGraph";
 import { API_BASE_URL as API } from "@/lib/api";
@@ -827,13 +827,7 @@ export default async function IntelligenceArticlePage({
                 <div className="space-y-2">
                   {sources.slice(0, 4).map((s: any, i: number) => {
                     const name = typeof s === "string" ? s : (s.name ?? s.title ?? s.source ?? s.url ?? "Source");
-                    const url  = typeof s === "object" ? s.url : null;
-                    return url ? (
-                      <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-[11px] text-slate-500 hover:text-slate-300 transition">
-                        <ExternalLink className="h-3 w-3 shrink-0 text-slate-700" /> {name}
-                      </a>
-                    ) : (
+                    return (
                       <p key={i} className="flex items-center gap-2 text-[11px] text-slate-600">
                         <span className="h-1 w-1 rounded-full bg-slate-700" /> {name}
                       </p>

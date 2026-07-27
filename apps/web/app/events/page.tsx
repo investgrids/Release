@@ -453,7 +453,7 @@ export default function EventsPage() {
       </div>
 
       {/* Main content grid */}
-      <div className="grid grid-cols-[1fr_288px] gap-5 items-start">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_288px]">
 
         {/* ── LEFT: Timeline / List ─────────────────────────────────── */}
         <div className="min-w-0">
@@ -524,7 +524,7 @@ export default function EventsPage() {
         </div>
 
         {/* ── RIGHT: Overview Sidebar ───────────────────────────────── */}
-        <aside className="sticky top-[84px] space-y-4">
+        <aside className="space-y-4 lg:sticky lg:top-[84px]">
 
           {/* Events Overview */}
           <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">

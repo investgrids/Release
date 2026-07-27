@@ -1,0 +1,223 @@
+"""
+Entity extraction for the AI Search V3 pipeline — extends V2's exact/alias
+company matching (`_match_companies` in ai_search_service.py, reused
+unchanged here) with fuzzy matching for misspellings, and returns canonical,
+resolved entities rather than raw matched text, so downstream specialists and
+the deterministic validator (validation.py) can trust `companies[]` actually
+exist in the real NSE universe.
+
+No new third-party dependency — uses stdlib `difflib`, since a fuzzy-matching
+library (rapidfuzz/python-Levenshtein) isn't currently vendored and adding
+one is a decision better made once real precision/recall numbers exist (see
+plan's Open Risks). difflib's SequenceMatcher-based ratio is slower than a
+compiled library at large scale but the NSE universe here is ~260 companies —
+negligible at that size.
+"""
+from __future__ import annotations
+
+import difflib
+import re
+
+from app.services.ai_search_service import (
+    _COMPANY_BARE_RE,
+    _COMPANY_SUFFIX_RE,
+    _POLICIES,
+    _SECTORS,
+    _match_companies,
+)
+
+# Below this ratio, a fuzzy candidate is too weak to trust as a real match —
+# only used as a "did you mean" suggestion, never silently substituted in.
+_FUZZY_MATCH_CUTOFF = 0.82
+# Looser cutoff purely for surfacing suggestions when nothing matched at all.
+_FUZZY_SUGGEST_CUTOFF = 0.6
+
+
+def _universe() -> list[dict]:
+    from app.api.companies import _NSE_UNIVERSE
+    return _NSE_UNIVERSE
+
+
+def _corpus() -> list[tuple[str, dict]]:
+    """(searchable_text, company_row) pairs — name, symbol, and every alias,
+    each pointing back to its parent row so a fuzzy hit resolves to the real
+    canonical symbol regardless of which alias it matched against."""
+    pairs: list[tuple[str, dict]] = []
+    for co in _universe():
+        texts = {co["name"].lower(), co["symbol"].lower(), *[a.lower() for a in (co.get("aliases") or [])]}
+        for t in texts:
+            pairs.append((t, co))
+    return pairs
+
+
+_WORD_RE = re.compile(r"[A-Za-z][A-Za-z&.]{1,}")
+
+# Generic corporate-suffix / connector words that are too common to trust as
+# a *standalone* fuzzy match key — e.g. the bare word "Industries" fuzzy-
+# matches "PI Industries Ltd" at a deceptively high ratio (it's a genuine
+# substring) despite carrying no company-identifying signal on its own.
+# Multi-word n-grams that merely *contain* one of these are fine and still
+# checked — only a 1-word n-gram consisting of just this word is skipped.
+_GENERIC_SUFFIX_WORDS = {
+    "ltd", "limited", "inc", "corp", "corporation", "industries", "technologies",
+    "systems", "holdings", "international", "enterprises", "group", "motors",
+    "pharma", "energy", "bank", "finance", "financial", "services", "company",
+    "consultancy", "solutions", "products", "power", "steel", "cement",
+}
+
+
+def _word_ngrams(text: str, max_len: int = 3) -> list[str]:
+    """1-to-max_len contiguous word n-grams, longest-first (so a full 2-word
+    company name is tried before its individual words, avoiding a spurious
+    single-word match pre-empting a better multi-word one). An n-gram made
+    ENTIRELY of generic suffix words is excluded regardless of length — not
+    just the 1-word case. Found live: "Jio Financial Services" (after "jio"
+    is stripped by the exact-match pass) leaves the residual 2-word gram
+    "Financial Services", which fuzzy-matched a completely different real
+    company ("HDB Financial Services Ltd") at a deceptively high ratio,
+    since neither word is company-identifying on its own — the same failure
+    mode _GENERIC_SUFFIX_WORDS already exists to prevent, just not yet
+    generalized past n=1. A gram is only skipped when EVERY word in it is
+    generic — "Jio Financial" (n=2, only "financial" generic) still passes."""
+    words = _WORD_RE.findall(text)
+    words = [w for w in words if len(w) >= 3]
+    grams: list[str] = []
+    for n in range(max_len, 0, -1):
+        for i in range(len(words) - n + 1):
+            gram_words = words[i:i + n]
+            if all(w.lower() in _GENERIC_SUFFIX_WORDS for w in gram_words):
+                continue
+            grams.append(" ".join(gram_words))
+    return grams
+
+
+def _strip_generic(text: str) -> str:
+    """Drops generic-suffix words before fuzzy comparison. Needed beyond
+    _word_ngrams's whole-gram skip: found live that a gram like "buy
+    Financial Services" (not all-generic — "buy" survives that filter)
+    still fuzzy-matched a real company ("HDB Financial Services Ltd") at
+    ratio 0.83, because difflib's SequenceMatcher scores on raw character
+    overlap — a long shared generic suffix ("financial services") inflates
+    the ratio almost independently of whether the differentiating word
+    ("buy" vs "hdb") means anything at all. Stripping generic words from
+    BOTH sides before scoring means the ratio reflects the part that
+    actually identifies a company, not the boilerplate around it."""
+    words = [w for w in _WORD_RE.findall(text) if w.lower() not in _GENERIC_SUFFIX_WORDS]
+    return " ".join(words).lower()
+
+
+def _fuzzy_candidates(token: str, cutoff: float, limit: int = 3) -> list[tuple[dict, float]]:
+    if len(token) < 3:
+        return []
+    token_core = _strip_generic(token)
+    if len(token_core) < 3:
+        return []
+    corpus = _corpus()
+    scored: list[tuple[dict, float]] = []
+    for text, co in corpus:
+        text_core = _strip_generic(text)
+        if len(text_core) < 3:
+            continue
+        ratio = difflib.SequenceMatcher(a=token_core, b=text_core).ratio()
+        if ratio >= cutoff:
+            scored.append((co, ratio))
+    # Dedupe by symbol, keep the best-scoring alias match per company.
+    best: dict[str, tuple[dict, float]] = {}
+    for co, ratio in scored:
+        sym = co["symbol"]
+        if sym not in best or ratio > best[sym][1]:
+            best[sym] = (co, ratio)
+    return sorted(best.values(), key=lambda x: x[1], reverse=True)[:limit]
+
+
+def extract_entities(query: str) -> dict:
+    """Canonical entity extraction: exact/alias matches (V2's proven logic,
+    reused verbatim) plus fuzzy-matched misspellings, deduplicated, resolved
+    to real company rows — never a symbol that isn't genuinely in the NSE
+    universe. Multi-company queries return every match, not just the first."""
+    q_lower = query.lower()
+
+    exact_symbols = _match_companies(q_lower)
+    matches: list[dict] = []
+    seen_symbols: set[str] = set()
+    residual = query
+    for sym in exact_symbols:
+        co = next((c for c in _universe() if c["symbol"] == sym), None)
+        if co and sym not in seen_symbols:
+            matches.append({"symbol": sym, "name": co["name"], "match_type": "exact"})
+            seen_symbols.add(sym)
+            # Strip the matched alias text out of the residual query before
+            # the fuzzy pass runs — otherwise an already-exact-matched phrase
+            # like "PI Industries" (-> PIIND) gets re-scored by the fuzzy
+            # pass and can spuriously also match a *different* company
+            # sharing the same generic suffix word (e.g. "Page Industries").
+            # Longest-first: found live that stripping a short alias first
+            # (e.g. "uno") fragments a longer one that would otherwise have
+            # matched whole (e.g. "uno minda"), leaving the bare remainder
+            # word ("Minda") in the residual to spuriously fuzzy-match a
+            # different real company (Minda Corporation Ltd) sharing that word.
+            strip_candidates = sorted(
+                {a for a in (co.get("aliases") or []) + [co["name"], co["symbol"]] if len(a) >= 3},
+                key=len, reverse=True,
+            )
+            for alias in strip_candidates:
+                residual = re.sub(re.escape(alias), " ", residual, flags=re.IGNORECASE)
+
+    # Fuzzy pass — guards against misspellings like "Relaince" / "Infosis" /
+    # "HDFC Bnak". Uses sliding 1-3 word n-grams over word-like tokens rather
+    # than one greedy multi-word regex capture — a greedy capture swallows
+    # trailing unrelated words (e.g. "Relaince Industries overvalued" as one
+    # blob), which tanks the similarity ratio against the real company name
+    # and silently misses the match. N-grams try every reasonable phrase
+    # length so "Relaince Industries" gets scored on its own. Runs against
+    # `residual` (query text minus anything already exactly matched above).
+    for ngram in _word_ngrams(residual, max_len=3):
+        token = ngram.lower()
+        if token in seen_symbols or any(token == m["name"].lower() for m in matches):
+            continue
+        candidates = _fuzzy_candidates(token, _FUZZY_MATCH_CUTOFF, limit=1)
+        for co, ratio in candidates:
+            if co["symbol"] not in seen_symbols:
+                matches.append({
+                    "symbol": co["symbol"], "name": co["name"],
+                    "match_type": "fuzzy", "matched_text": ngram, "confidence": round(ratio, 2),
+                })
+                seen_symbols.add(co["symbol"])
+
+    sectors = [s for s in _SECTORS if s in q_lower]
+    policies = [p for p in _POLICIES if p in q_lower]
+
+    return {
+        # kept as plain symbol list for backward compatibility with every
+        # existing call site that reads entities["companies"] as list[str]
+        "companies": [m["symbol"] for m in matches],
+        "company_matches": matches,  # richer form — match_type/confidence for validation.py & UI badges
+        "sectors": sectors,
+        "policies": policies,
+    }
+
+
+def suggest_companies(query: str, limit: int = 3) -> list[dict]:
+    """'Did you mean...' suggestions for a query that looks company-shaped
+    but matched nothing real — used by the unrecognized-company response.
+    Never returned as if they were real matches; always framed as a guess."""
+    candidates: list[tuple[dict, float]] = []
+    for ngram in _word_ngrams(query, max_len=3):
+        candidates.extend(_fuzzy_candidates(ngram.lower(), _FUZZY_SUGGEST_CUTOFF, limit=limit))
+    best: dict[str, float] = {}
+    for co, ratio in candidates:
+        if co["symbol"] not in best or ratio > best[co["symbol"]]:
+            best[co["symbol"]] = ratio
+    ranked = sorted(best.items(), key=lambda x: x[1], reverse=True)[:limit]
+    by_symbol = {c["symbol"]: c for c in _universe()}
+    return [
+        {"symbol": sym, "name": by_symbol[sym]["name"], "confidence": round(ratio, 2)}
+        for sym, ratio in ranked if sym in by_symbol
+    ]
+
+
+def looks_like_unrecognized_company(query: str, entities: dict) -> bool:
+    """Re-exports V2's exact logic (ai_search_service._looks_like_unrecognized_company)
+    against the new canonical entities dict — same behavior, new call site."""
+    from app.services.ai_search_service import _looks_like_unrecognized_company
+    return _looks_like_unrecognized_company(query, entities)

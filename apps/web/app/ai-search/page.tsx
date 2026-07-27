@@ -11,8 +11,29 @@ import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { DecisionIntelligencePanel, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
 import { AISearchGraphReveal } from "@/components/ai/AISearchGraphReveal";
 import { AISearchFindingsRecap } from "@/components/ai/AISearchFindingsRecap";
+import { SearchProgressStages } from "@/components/ai/SearchProgressStages";
+import { AISearchHistory, AI_SEARCH_HISTORY_KEY, AI_SEARCH_HISTORY_EVENT } from "@/components/ai/AISearchHistory";
+import { InvestmentVerdictHero, weightedShare, clamp01to100, type HeroVerdictData } from "@/components/ai/InvestmentVerdictHero";
+import { AISearchFeedback, type AISearchFeedbackMeta } from "@/components/ai/AISearchFeedback";
+import { RefineAnalysisPanel, type RefinedDecision } from "@/components/ai/RefineAnalysisPanel";
+import { FollowUpIntelligence, type FollowUpGroup } from "@/components/ai/FollowUpIntelligence";
+import { useResearchSession, type SessionEntity } from "@/lib/hooks/useResearchSession";
+import { ContextChips } from "@/components/ai/ContextChips";
+import { ResearchWorkspace } from "@/components/ai/ResearchWorkspace";
+import { ClarificationPicker } from "@/components/ai/ClarificationPicker";
+import { InvestmentWatchPanel, type WatchSubject } from "@/components/ai/InvestmentWatchPanel";
+import { DecisionTimelinePanel, type TimelineIntelligence } from "@/components/ai/DecisionTimelinePanel";
+import { ConfidenceBreakdownPanel } from "@/components/ai/ConfidenceBreakdownPanel";
+import { openResearchReport, downloadMarkdown } from "@/lib/researchReport";
+import type { ResponseMeta } from "@/lib/hooks/useAISearchStream";
+import { useAISearchStream } from "@/lib/hooks/useAISearchStream";
 import { API_BASE_URL as API } from "@/lib/api";
 import { fixMojibake, isRealSymbol } from "@/lib/text";
+
+// Opt-in only — V3's intelligence pipeline hasn't been cut over to
+// production traffic yet (see the V3 Phase 1 plan's migration section).
+// Toggle locally via NEXT_PUBLIC_AI_SEARCH_V3=1 in .env.local.
+const AI_SEARCH_V3_ENABLED = process.env.NEXT_PUBLIC_AI_SEARCH_V3 === "1";
 
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -55,6 +76,33 @@ interface MarketChart  { labels: string[]; series: ChartSeries[]; }
 interface GraphNode    { id: string; label: string; type: string; x: number; y: number; }
 interface GraphEdge    { id: string; source: string; target: string; label: string; }
 
+// ── V3-only fields (Phase 1) ─────────────────────────────────────────────────
+// Absent on V2 responses — every consumer must treat these as optional and
+// degrade gracefully (see InvestmentVerdictHero, which renders nothing when
+// decision_engine_v2/ai_conclusion are missing rather than showing empty UI).
+interface DecisionEngineV2 {
+  verdict_scale: string; // one of VERDICT_SCALE (schema.py) — already research-framed, never "Buy/Sell/Hold"
+  why: string;
+  what_changes_the_view: string[];
+  what_invalidates_the_thesis: string[];
+  explain_why_not?: { alternative: string; reason_rejected: string } | null;
+}
+interface AIConclusion {
+  current_view: string; reason: string;
+  biggest_opportunity: string; biggest_risk: string;
+  investor_action_note: string;
+}
+interface EvidenceScoreV3 { stars: number; checklist: Record<string, boolean>; source_count: number; }
+interface ConfidenceBreakdown {
+  evidence_quality: number; market_confirmation: number; historical_similarity: number;
+  data_freshness: number; reasoning_confidence: number; final_confidence: number;
+  level: string; reasons: string[];
+}
+interface OpportunityRiskMatrix {
+  opportunity: { high?: string[]; medium?: string[]; low?: string[] };
+  risk: { high?: string[]; medium?: string[]; low?: string[] };
+}
+
 interface SearchResult {
   type?: "search";
   query: string; synthesis_incomplete?: boolean; answer: AnswerSection; key_drivers: KeyDriver[]; insights: Insight[];
@@ -67,11 +115,30 @@ interface SearchResult {
   what_to_monitor: MonitorItem[];
   ai_reasoning_methods: ReasoningMethod[];
   follow_up_questions: string[];
+  follow_up_groups?: FollowUpGroup[];
   investment_verdict: InvestmentVerdict; market_chart: MarketChart;
   graph: { nodes: GraphNode[]; edges: GraphEdge[] };
   citations: string[];
   decision_intelligence: DecisionIntelligence | null;
   confidence_data?: ConfidenceData;
+  // V3 Phase 1 additions — all optional, all absent on V2 responses.
+  response_id?: string;
+  schema_version?: string;
+  specialist?: string;
+  decision_engine_v2?: DecisionEngineV2;
+  ai_conclusion?: AIConclusion;
+  timeline_intelligence?: TimelineIntelligence;
+  evidence_score?: EvidenceScoreV3;
+  confidence_breakdown?: ConfidenceBreakdown;
+  opportunity_risk_matrix?: OpportunityRiskMatrix;
+  // Phase 1.7 — what (if anything) the research session contributed to
+  // this specific answer; see session_context.resolve_context on the backend.
+  context_used?: { companies: string[]; sectors: string[] };
+  // Phase 2B — the single company/sector this response resolves to, if
+  // any (null for comparisons/multi-subject queries); see pipeline.py's
+  // subject_for docstring. Drives the Investment Watch panel directly —
+  // the frontend never re-derives which subject a query was "about".
+  watch_subject?: WatchSubject | null;
 }
 
 // ── Market Pulse types ───────────────────────────────────────────────────────
@@ -773,10 +840,12 @@ function ResultReveal({ result }: { result: SearchResult }) {
   );
 }
 
-function SearchResults({ result, onFollowUp, resultTime }: {
+function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }: {
   result: SearchResult;
   onFollowUp: (q: string) => void;
   resultTime: Date;
+  resultMeta?: ResponseMeta | null;
+  onRefined: (refined: RefinedDecision, newResponseId: string) => void;
 }) {
   const [showMore, setShowMore] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -786,7 +855,9 @@ function SearchResults({ result, onFollowUp, resultTime }: {
           investment_verdict, historical_comparison,
           ripple_chain, scenarios, market_impact_horizons, what_to_monitor,
           ai_reasoning_methods, confidence_data, market_chart,
-          follow_up_questions, decision_intelligence } = result;
+          follow_up_questions, follow_up_groups, decision_intelligence, context_used,
+          decision_engine_v2, ai_conclusion, evidence_score, confidence_breakdown, opportunity_risk_matrix,
+          timeline_intelligence } = result;
 
   // The AI can hallucinate a placeholder ticker ("Not Provided", "N/A") when
   // it can't identify a specific company — filtered here once so every
@@ -814,6 +885,26 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         : "text-rose-400 bg-rose-500/10 border-rose-500/20" }
     : riskLevel(conf);
   const suitableForLabel = investment_verdict?.suitable_for || suitableFor(investment_verdict?.horizon || "");
+
+  // Hero Decision Panel data — only assembled when the V3 fields it needs
+  // are present (decision_engine_v2 + ai_conclusion); render site below
+  // checks this and shows nothing on V2 responses rather than a stub.
+  const heroData: HeroVerdictData | null = (decision_engine_v2 && ai_conclusion && !result.synthesis_incomplete) ? {
+    verdictScale: decision_engine_v2.verdict_scale || "Neutral",
+    why: decision_engine_v2.why || "",
+    confidence: confidence_breakdown?.final_confidence ?? conf,
+    confidenceLevel: confidence_breakdown?.level,
+    horizon: investment_verdict?.horizon || "6-12 months",
+    suitableFor: suitableForLabel,
+    riskLabel: risk.label,
+    riskColor: risk.color,
+    conclusion: ai_conclusion.reason || ai_conclusion.current_view || "",
+    opportunityPct: weightedShare(opportunity_risk_matrix?.opportunity) ?? clamp01to100(investment_verdict?.opportunity_score ?? 50),
+    riskPct: weightedShare(opportunity_risk_matrix?.risk) ?? clamp01to100(100 - (confidence_breakdown?.final_confidence ?? conf ?? 50)),
+    evidenceStars: evidence_score?.stars ?? 3,
+    evidenceChecklist: evidence_score?.checklist ?? {},
+    sourceCount: evidence_score?.source_count ?? answer?.sources_count ?? 0,
+  } : null;
 
   // Continue Your Research CTAs
   const topCo   = companies?.[0];
@@ -888,6 +979,47 @@ function SearchResults({ result, onFollowUp, resultTime }: {
           </div>
         </div>
       </div>
+
+      {/* ── Hero Decision Panel ───────────────────────────────────────────────── */}
+      {heroData && <InvestmentVerdictHero data={heroData} />}
+
+      {/* ── Context indicator (Phase 1.7) ──────────────────────────────────────
+          Only appears when the research session actually contributed
+          something to THIS answer — honestly reflects context_used from the
+          backend, never a guess about what "probably" happened. */}
+      {((context_used?.companies.length ?? 0) + (context_used?.sectors.length ?? 0)) > 0 && (
+        <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
+          Using current research context
+          {context_used!.companies.length > 0 && <span className="text-slate-400"> · Companies {context_used!.companies.length}</span>}
+          {context_used!.sectors.length > 0 && <span className="text-slate-400"> · Sectors {context_used!.sectors.length}</span>}
+        </p>
+      )}
+
+      {/* ── Refine Analysis ────────────────────────────────────────────────────
+          Adjusts personal parameters and regenerates only the decision layer
+          against the same evidence — response_id comes from whichever answer
+          (original or a previous refine) is currently displayed. */}
+      <RefineAnalysisPanel
+        responseId={resultMeta?.responseId ?? result.response_id ?? null}
+        onRefined={onRefined}
+      />
+
+      {/* ── Feedback loop ─────────────────────────────────────────────────────
+          response_id (and everything else fed into meta) comes straight from
+          the search response envelope — never re-derived here. Hides itself
+          when there's nothing to attach feedback to (V2 responses). */}
+      <AISearchFeedback
+        meta={{
+          responseId: resultMeta?.responseId ?? result.response_id ?? null,
+          query: result.query,
+          specialist: result.specialist ?? null,
+          schemaVersion: result.schema_version ?? null,
+          cached: resultMeta?.cached ?? false,
+          latencyMs: resultMeta?.latencyMs ?? null,
+          provider: resultMeta?.provider ?? null,
+        }}
+      />
 
       {/* ── Reveal: graph + findings recap ───────────────────────────────────── */}
       {!result.synthesis_incomplete && <ResultReveal result={result} />}
@@ -1245,6 +1377,14 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         </div>
       )}
 
+      {/* ── 8b. Decision Timeline + Confidence Explainability (Phase 2C) ─────── */}
+      {/* V3-only fields (timeline_intelligence / confidence_breakdown) — the
+          panels above (Market Impact Over Time) and the evidence checklist
+          in the Hero already cover the V2-equivalent ground, so these are
+          additive and simply render nothing on a V2 response. */}
+      <DecisionTimelinePanel timeline={timeline_intelligence} />
+      <ConfidenceBreakdownPanel breakdown={confidence_breakdown ?? null} />
+
       {/* ── 9. Historical Comparison ──────────────────────────────────────────── */}
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
         <p className="text-[15px] font-semibold text-white mb-4">Historical Comparison</p>
@@ -1436,13 +1576,16 @@ function SearchResults({ result, onFollowUp, resultTime }: {
         </div>
       </div>
 
-      {/* ── 12. Continue Your Research ──────────────────────────────────────────
-          Hidden entirely when nothing applies, rather than showing an empty
-          "nothing to continue with" card — there's no useful message to give
-          a user here beyond just not showing the section. */}
+      {/* ── 12. Related Actions ───────────────────────────────────────────────
+          Navigates elsewhere on MarketRipple (company pages, the compare
+          page, in-page ripple scroll) — distinct from section 13's Follow-up
+          Intelligence, which starts a new AI search in place. Renamed off
+          "Continue Your Research" (2026-07-27) since that title now belongs
+          to section 13 per the Follow-up Intelligence spec. Hidden entirely
+          when nothing applies, rather than showing an empty card. */}
       {hasContinueResearchCta && (
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-        <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-3">Continue Your Research</p>
+        <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-3">Related Actions</p>
         <div className="grid grid-cols-3 gap-3">
           {[
             topCo ? {
@@ -1514,8 +1657,18 @@ function SearchResults({ result, onFollowUp, resultTime }: {
       </div>
       )}
 
-      {/* ── 13. Follow-up Questions ───────────────────────────────────────────── */}
-      {follow_up_questions?.length > 0 && (
+      {/* ── 13. Follow-up Intelligence ─────────────────────────────────────────
+          Grouped, contextual follow-ups built server-side from this answer's
+          own structured evidence (see FollowUpIntelligence's docstring).
+          Falls back to the old flat list only for V2 responses, which never
+          have follow_up_groups at all. */}
+      {follow_up_groups?.length ? (
+        <FollowUpIntelligence
+          groups={follow_up_groups}
+          responseId={resultMeta?.responseId ?? result.response_id ?? null}
+          onFollowUp={onFollowUp}
+        />
+      ) : follow_up_questions?.length > 0 ? (
         <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
           <p className="text-[13px] font-semibold text-white mb-3">Follow-up Questions</p>
           <div className="grid grid-cols-2 gap-2">
@@ -1528,7 +1681,7 @@ function SearchResults({ result, onFollowUp, resultTime }: {
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* ── 14. AI Transparency + Disclaimer ──────────────────────────────────── */}
       <AITransparencyPanel
@@ -1546,9 +1699,12 @@ function SearchResults({ result, onFollowUp, resultTime }: {
 }
 
 // ── Right Sidebar ──────────────────────────────────────────────────────────────
-function RightSidebar({ result, onAction }: {
+function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }: {
   result: SearchResult | null;
   onAction: (type: string) => void;
+  onReopenSearch: (query: string) => void;
+  activeQuery?: string;
+  session: ReturnType<typeof useResearchSession>;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -1575,6 +1731,7 @@ function RightSidebar({ result, onAction }: {
     { icon: <Bot className="h-4 w-4"/>,      label: "Ask Follow-up Question", action: "followup" },
     { icon: <Bookmark className="h-4 w-4"/>,  label: "Save This Answer",       action: "save" },
     { icon: <Download className="h-4 w-4"/>,  label: "Download as PDF",        action: "pdf" },
+    { icon: <FileText className="h-4 w-4"/>,  label: "Download as Markdown",   action: "markdown" },
     { icon: <Share2 className="h-4 w-4"/>,    label: "Share Answer",           action: "share" },
     { icon: <Copy className="h-4 w-4"/>,      label: copied ? "Copied!" : "Copy Link", action: "copy" },
   ];
@@ -1653,6 +1810,21 @@ function RightSidebar({ result, onAction }: {
           </div>
         )}
       </div>
+
+      {/* Investment Watch — merged Monitoring Dashboard + Verdict Change Explainer (Phase 2B) */}
+      <InvestmentWatchPanel subject={result?.watch_subject} />
+
+      {/* Current Research — this browser session's own accumulated state (Phase 1.7) */}
+      <ResearchWorkspace
+        session={session}
+        onReopenQuery={onReopenSearch}
+        onExploreCompany={sym => onReopenSearch(`Tell me about ${sym}`)}
+        onExploreSector={sector => onReopenSearch(`What is the outlook for the ${sector} sector?`)}
+        onClear={session.clear}
+      />
+
+      {/* Research History — real past searches (localStorage), reopen instantly */}
+      <AISearchHistory onReopen={onReopenSearch} activeQuery={activeQuery} />
 
       {/* Quick Actions */}
       <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
@@ -1753,6 +1925,7 @@ function AISearchInner() {
   const [query, setQuery]         = useState("");
   const [input, setInput]         = useState("");
   const [result, setResult]       = useState<SearchResult | MarketPulseResult | null>(null);
+  const [resultMeta, setResultMeta] = useState<ResponseMeta | null>(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [history, setHistory]     = useState<string[]>([]);
@@ -1761,6 +1934,11 @@ function AISearchInner() {
   const textareaRef  = useRef<HTMLTextAreaElement>(null);
   const didAutoSearch = useRef(false);
   const searchParams  = useSearchParams();
+  const v3Stream = useAISearchStream();
+  const session = useResearchSession();
+  const [clarification, setClarification] = useState<{
+    term: string; candidates: { symbol: string; name: string }[]; originalQuery: string;
+  } | null>(null);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1782,14 +1960,26 @@ function AISearchInner() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setResultMeta(null);
+    setClarification(null);
     setHistory(prev => [trimmed, ...prev.filter(h => h !== trimmed)].slice(0, 10));
     try {
-      const key = "recent_ai_searches";
-      const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
+      const existing = JSON.parse(localStorage.getItem(AI_SEARCH_HISTORY_KEY) ?? "[]");
       const entry = { id: `s-${Date.now()}`, title: trimmed, href: `/ai-search?q=${encodeURIComponent(trimmed)}`, timestamp: Date.now() };
       const deduped = existing.filter((e: { title: string }) => e.title !== trimmed);
-      localStorage.setItem(key, JSON.stringify([entry, ...deduped].slice(0, 20)));
+      localStorage.setItem(AI_SEARCH_HISTORY_KEY, JSON.stringify([entry, ...deduped].slice(0, 20)));
+      window.dispatchEvent(new Event(AI_SEARCH_HISTORY_EVENT));
     } catch { /**/ }
+    if (AI_SEARCH_V3_ENABLED) {
+      // Streaming path — result/error land via the useEffect below that
+      // watches v3Stream, so setLoading(false) happens there, not here.
+      // session_context (Phase 1.7) lets the backend resolve natural
+      // follow-ups ("What about BEML?", "Which is safer?") against
+      // whatever this session has already discussed — see
+      // useResearchSession.toApiContext.
+      v3Stream.run(trimmed, history, session.toApiContext());
+      return;
+    }
     try {
       const res = await fetch(`${API}/api/ai/search`, {
         method: "POST",
@@ -1808,7 +1998,49 @@ function AISearchInner() {
     } finally {
       setLoading(false);
     }
-  }, [loading, history]);
+  }, [loading, history, v3Stream]);
+
+  // Syncs the streaming hook's terminal state (result/error) back into this
+  // component's own state machine, so every downstream consumer (SearchResults,
+  // the follow-up flow, resultTime) works identically regardless of which
+  // path fetched the data.
+  useEffect(() => {
+    if (!AI_SEARCH_V3_ENABLED) return;
+    if (v3Stream.result) {
+      // needs_clarification (Phase 1.7) — a bare conglomerate name ("Tata")
+      // that maps to several real companies. Show the picker instead of
+      // treating this as a normal answer — nothing to accumulate into the
+      // session yet since nothing was actually resolved.
+      if (v3Stream.result.needs_clarification) {
+        setClarification({
+          term: v3Stream.result.ambiguous_term,
+          candidates: v3Stream.result.candidates ?? [],
+          originalQuery: query,
+        });
+        setLoading(false);
+        return;
+      }
+      setResult(v3Stream.result);
+      setResultMeta(v3Stream.meta);
+      setResultTime(new Date());
+      setLoading(false);
+
+      const r = v3Stream.result;
+      if (r.type !== "market_pulse") {
+        session.addFromResult(query, r.response_id ?? null, {
+          companies: (r.companies ?? []).map((c: Company) => ({ symbol: c.symbol, name: c.name })).filter((c: SessionEntity) => isRealSymbol(c.symbol)),
+          sectors: (r.sectors ?? []).map((s: Sector) => s.name),
+          events: (r.related_events ?? []).slice(0, 3).map((e: RelatedEvent) => e.title),
+          policies: (r.policies ?? []).slice(0, 2).map((p: Policy) => p.title),
+          verdict: r.decision_engine_v2?.verdict_scale ?? r.investment_verdict?.rating ?? null,
+        });
+      }
+    } else if (v3Stream.error) {
+      setError(v3Stream.error);
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v3Stream.result, v3Stream.meta, v3Stream.error]);
 
   useEffect(() => {
     const q = searchParams.get("q");
@@ -1819,6 +2051,25 @@ function AISearchInner() {
     }
   }, [searchParams, runSearch]);
 
+  // Merges a Refine Analysis result (decision layer only) into the current
+  // result in place — companies/evidence/graph/etc. are untouched since the
+  // underlying evidence didn't change, only how it's weighed for the user's
+  // stated parameters. response_id moves forward so feedback attributes to
+  // the refined answer, not the original.
+  function handleRefined(refined: RefinedDecision, newResponseId: string) {
+    setResult(prev => {
+      if (!prev || prev.type === "market_pulse") return prev;
+      return {
+        ...prev,
+        investment_verdict: { ...prev.investment_verdict, ...refined.investment_verdict } as InvestmentVerdict,
+        decision_engine_v2: { ...(prev as SearchResult).decision_engine_v2, ...refined.decision_engine_v2 } as DecisionEngineV2,
+        ai_conclusion: { ...(prev as SearchResult).ai_conclusion, ...refined.ai_conclusion } as AIConclusion,
+        response_id: newResponseId,
+      };
+    });
+    setResultMeta(prev => (prev ? { ...prev, responseId: newResponseId } : prev));
+  }
+
   function handleSubmit(e: React.FormEvent) { e.preventDefault(); runSearch(input); }
   function handleFollowUpSubmit(e: React.FormEvent) { e.preventDefault(); if (followUp.trim()) runSearch(followUp); }
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -1826,6 +2077,8 @@ function AISearchInner() {
   }
   function handleSidebarAction(type: string) {
     if (type === "followup") textareaRef.current?.focus();
+    if (type === "pdf" && result && result.type !== "market_pulse") openResearchReport(result as SearchResult);
+    if (type === "markdown" && result && result.type !== "market_pulse") downloadMarkdown(result as SearchResult);
   }
 
   return (
@@ -1833,6 +2086,17 @@ function AISearchInner() {
       <div className="mx-auto flex max-w-[1600px] items-start gap-6 px-6 py-6">
       {/* ── Main content column ──────────────────────────────────────────────── */}
       <div className="min-w-0 flex-1 space-y-4 pb-6">
+        {/* Current Context — removable chips reflecting the live research session */}
+        <ContextChips
+          companies={session.companies}
+          sectors={session.sectors}
+          timeHorizon={session.timeHorizon}
+          riskTolerance={session.riskTolerance}
+          onRemoveCompany={session.removeCompany}
+          onRemoveSector={session.removeSector}
+          onClearHorizon={() => session.setPreference("timeHorizon", null)}
+          onClearRisk={() => session.setPreference("riskTolerance", null)}
+        />
         {/* Search bar */}
         <form onSubmit={handleSubmit}>
           <div className="group flex items-end overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#0d1117] shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition focus-within:border-violet-500/50 focus-within:shadow-[0_0_0_4px_rgba(139,92,246,0.08)]">
@@ -1901,15 +2165,42 @@ function AISearchInner() {
 
         {/* Content area */}
         <AnimatePresence mode="wait">
-          {loading ? (
+          {clarification ? (
+            <motion.div key="clarification" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <ClarificationPicker
+                ambiguousTerm={clarification.term}
+                candidates={clarification.candidates}
+                onPick={(symbol, name) => {
+                  // Substitutes the picked company's name for the bare
+                  // ambiguous term in the original query text — turns
+                  // "Should I compare with Tata" into "...with Tata Motors",
+                  // a fully self-contained query the backend resolves
+                  // normally, no special-casing needed on that side.
+                  const re = new RegExp(`\\b${clarification.term}\\b`, "i");
+                  const substituted = clarification.originalQuery.replace(re, name);
+                  setClarification(null);
+                  runSearch(substituted);
+                }}
+              />
+            </motion.div>
+          ) : loading ? (
             <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <SearchWaitingState query={query}/>
+              {AI_SEARCH_V3_ENABLED ? (
+                <SearchProgressStages
+                  query={query}
+                  stageHistory={v3Stream.stageHistory}
+                  elapsedMs={v3Stream.elapsedMs}
+                  loading={v3Stream.loading}
+                />
+              ) : (
+                <SearchWaitingState query={query}/>
+              )}
             </motion.div>
           ) : result ? (
             <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               {result.type === "market_pulse"
                 ? <MarketPulseResults result={result}/>
-                : <SearchResults result={result} onFollowUp={runSearch} resultTime={resultTime}/>}
+                : <SearchResults result={result} onFollowUp={runSearch} resultTime={resultTime} resultMeta={resultMeta} onRefined={handleRefined}/>}
             </motion.div>
           ) : (
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -1920,7 +2211,8 @@ function AISearchInner() {
       </div>
 
       {/* ── Right sidebar ────────────────────────────────────────────────────── */}
-      <RightSidebar result={result?.type === "market_pulse" ? null : result} onAction={handleSidebarAction}/>
+      <RightSidebar result={result?.type === "market_pulse" ? null : result} onAction={handleSidebarAction}
+        onReopenSearch={runSearch} activeQuery={query || undefined} session={session}/>
       </div>{/* end flex container */}
 
       {/* ── Fixed bottom follow-up bar ───────────────────────────────────────── */}
@@ -1937,16 +2229,24 @@ function AISearchInner() {
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
               </button>
             </form>
-            {result && result.type !== "market_pulse" && result.follow_up_questions?.length && (
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {result.follow_up_questions.slice(0, 4).map((q: string) => (
-                  <button key={q} onClick={() => { setFollowUp(q); runSearch(q); }}
-                    className="rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1 text-[11px] text-slate-500 transition hover:border-violet-500/30 hover:text-violet-300">
-                    {q.length > 55 ? q.slice(0, 52) + "…" : q}
-                  </button>
-                ))}
-              </div>
-            )}
+            {result && result.type !== "market_pulse" && (() => {
+              // Same source as the main "Continue Your Research" panel —
+              // flattened to the first few items so this quick-chip strip
+              // never shows a different set of suggestions than the panel.
+              const quick = result.follow_up_groups?.length
+                ? result.follow_up_groups.flatMap(g => g.items.map(it => it.query)).slice(0, 4)
+                : result.follow_up_questions?.slice(0, 4) ?? [];
+              return quick.length > 0 ? (
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {quick.map((q: string) => (
+                    <button key={q} onClick={() => { setFollowUp(q); runSearch(q); }}
+                      className="rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1 text-[11px] text-slate-500 transition hover:border-violet-500/30 hover:text-violet-300">
+                      {q.length > 55 ? q.slice(0, 52) + "…" : q}
+                    </button>
+                  ))}
+                </div>
+              ) : null;
+            })()}
           </div>
         </div>
       )}

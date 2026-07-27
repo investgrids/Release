@@ -11,20 +11,40 @@ interface Props {
   className?: string;
 }
 
+// Phase 2A — extended for the deep ripple graph (real macro causal chain
+// + companies/competitors/historical/risks/opportunities, see the
+// backend's ripple_graph.py). Colors grouped by "kind": macro-chain nodes
+// (policy/event/theme/commodity/index/currency) in warm/cool blues-greens,
+// entity nodes (sector/company/competitor) in the original palette,
+// evidence nodes (historical/risk/opportunity) in amber/rose/emerald so
+// they read as "outcomes" at a glance rather than more chain links.
 const NODE_COLORS: Record<string, string> = {
-  query:   "#a78bfa",
-  sector:  "#34d399",
-  company: "#818cf8",
-  default: "#64748b",
+  query:       "#a78bfa",
+  policy:      "#38bdf8",
+  event:       "#38bdf8",
+  sector:      "#34d399",
+  theme:       "#c084fc",
+  commodity:   "#fb923c",
+  index:       "#facc15",
+  currency:    "#2dd4bf",
+  company:     "#818cf8",
+  competitor:  "#6366f1",
+  historical:  "#94a3b8",
+  risk:        "#fb7185",
+  opportunity: "#4ade80",
+  default:     "#64748b",
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  query:   "Query",
-  sector:  "Sector",
-  company: "Company",
+  query: "Query", policy: "Policy", event: "Event", sector: "Sector", theme: "Theme",
+  commodity: "Commodity", index: "Index", currency: "Currency", company: "Company",
+  competitor: "Competitor", historical: "Historical", risk: "Risk", opportunity: "Opportunity",
 };
 
-const GROUP_ORDER: Record<string, number> = { query: 0, sector: 1, company: 2 };
+const GROUP_ORDER: Record<string, number> = {
+  query: 0, policy: 1, event: 1, theme: 1, commodity: 1, sector: 2, index: 2, currency: 2,
+  company: 3, competitor: 4, historical: 4, risk: 5, opportunity: 5,
+};
 
 function truncate(s: string, n: number) {
   return s && s.length > n ? s.slice(0, n) + "…" : (s || "");
@@ -49,14 +69,19 @@ export function AISearchGraphReveal({ nodes, edges, className = "" }: Props) {
   const H = (maxY - minY) + PAD * 2 || 160;
   const pos = (n: RevealGraphNode) => ({ x: n.x - minX + PAD, y: n.y - minY + PAD });
 
-  // Group-ordered reveal: query first, then sectors, then companies.
-  const byGroup: Record<string, RevealGraphNode[]> = { query: [], sector: [], company: [] };
-  for (const n of nodes) (byGroup[n.type] ?? (byGroup[n.type] = [])).push(n);
-
+  // Row-ordered reveal (by real Y position, not a hardcoded 3-type list) —
+  // the ripple graph can now be 6-7 rows deep with heterogeneous types per
+  // row (a "sector" can appear at row 2 in one response and row 4 in
+  // another), so staggering by type no longer makes sense; staggering by
+  // the backend's own layout row does, and generalizes to any depth.
+  const rowOf = (n: RevealGraphNode) => Math.round(n.y / 130);
+  const rows = [...new Set(nodes.map(rowOf))].sort((a, b) => a - b);
   const delayOf: Record<string, number> = {};
-  (byGroup.query ?? []).forEach(n => { delayOf[n.id] = 0; });
-  (byGroup.sector ?? []).forEach((n, i) => { delayOf[n.id] = 0.15 + i * 0.06; });
-  (byGroup.company ?? []).forEach((n, i) => { delayOf[n.id] = 0.35 + i * 0.05; });
+  for (const n of nodes) {
+    const rowIndex = rows.indexOf(rowOf(n));
+    const withinRow = nodes.filter(m => rowOf(m) === rowOf(n)).findIndex(m => m.id === n.id);
+    delayOf[n.id] = rowIndex * 0.15 + withinRow * 0.05;
+  }
 
   const uniqueTypes = [...new Set(nodes.map(n => n.type))].sort(
     (a, b) => (GROUP_ORDER[a] ?? 9) - (GROUP_ORDER[b] ?? 9)

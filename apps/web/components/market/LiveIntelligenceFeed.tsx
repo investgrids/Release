@@ -1,7 +1,12 @@
 "use client";
 
 /**
- * Live Intelligence — homepage widget answering "what happened just now?".
+ * Live Activity — homepage widget answering "what happened just now?".
+ * Renamed from "Live Intelligence" (Phase 3) — that name now belongs to
+ * the new pattern-detection feed (components/homepage/LiveIntelligence
+ * section in page.tsx), which answers "why does this matter" rather than
+ * "what just happened." This widget's own job is unchanged: a real-time
+ * raw event ticker, not analysis.
  * A real consumer of the app-wide SSE connection (AlertProvider ->
  * /api/stream/events), not mocked or simulated: every row here is a real
  * `alert`/`update` (TriagedEvent) the backend's Intelligence Orchestrator
@@ -34,7 +39,7 @@ export function LiveIntelligenceFeed({ compact = false, limit = 5 }: { compact?:
       <div className="mb-3 flex flex-wrap items-center justify-between gap-y-1">
         <div className="flex items-center gap-2">
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-          <h3 className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.04em] text-white">Live Intelligence</h3>
+          <h3 className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.04em] text-white">Live Activity</h3>
         </div>
         <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
           <Radio className="h-3 w-3 text-emerald-400" />

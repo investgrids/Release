@@ -21,3 +21,9 @@ class EventSummary(BaseModel):
     category: str = "Macro"
     event_type: str = ""
     source: str = ""
+    # Homepage-ranking-only fields (see event_lifecycle.py) — always present
+    # (computed for every event, cheap), but only surfaces that opt into
+    # `sort_by=active` actually use them for ordering/filtering. impact_score
+    # above is never altered by these.
+    active_score: Optional[float] = None
+    lifecycle: str = "Historical"

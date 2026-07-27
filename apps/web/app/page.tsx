@@ -3,7 +3,7 @@ import Link from "next/link";
 import {
   ArrowRight, ChevronRight, Calendar, Building2, BarChart3,
   Landmark, Droplets, Shield, Cloud, DollarSign, FlameKindling, Cpu, Wheat,
-  Sparkles, TrendingUp,
+  Sparkles, TrendingUp, Radar, GitBranch, Rocket, History,
 } from "lucide-react";
 import { HomepageRefresher } from "@/components/homepage/HomepageRefresher";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
@@ -46,6 +46,10 @@ const getLive         = cache(() => live(`${API}/api/market/live`));
 const getSession      = cache(() => live(`${API}/api/market/session`));
 const getRadar        = cache(() => revalidate(`${API}/api/radar/?page=1&page_size=4`, 120));
 const getRecentEvents = cache(() => revalidate(`${API}/api/events/?sort_by=impact_score&page_size=10`, 300));
+// Recency-aware ranking (event_lifecycle.py) — used only by "Latest Biggest
+// Events" below. CompaniesToWatchTable deliberately keeps using the plain
+// impact_score pool above (unaffected by this change).
+const getActiveEvents = cache(() => revalidate(`${API}/api/events/?sort_by=active&page_size=5`, 120));
 const getInsights     = cache(() => revalidate(`${API}/api/insights/?limit=4`, 300));
 
 // Real AIPE Daily Brief — single source of truth for "what does the AI say
@@ -61,6 +65,16 @@ const getMorningBrief = cache(async () => {
   if (!slug) return null;
   return revalidate<any>(`${API}/api/insights/${slug}`, 300);
 });
+
+// Phase 3 — the two things the morning_intelligence article itself can't
+// carry (a real day-over-day diff, and the article-derived AI Prediction
+// line) — see homepage_intelligence.py's module docstring for why this
+// is deliberately NOT a second, competing narrative source.
+const getHomepageExtras = cache(() => live(`${API}/api/homepage/intelligence`, 6000));
+
+// Phase 3, Priority 2 — see live_intelligence.py's module docstring for
+// exactly what backs each of the 4 real card types.
+const getLiveIntelligenceItems = cache(() => live<{ items: any[] }>(`${API}/api/live-intelligence/feed`, 8000));
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 function todayDateStr() {
@@ -221,151 +235,375 @@ function ImpactDot({ impact }: { impact?: string }) {
   return <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${color}`} />;
 }
 
-async function AIMarketBriefCard() {
-  // Real AIPE morning_intelligence article — single source of truth for
-  // everything on this card, including the structured sections below.
-  // Deliberately not blending in MIE or any other pipeline here: that's the
-  // exact "two sources disagreeing on the same day" problem this card was
-  // rewritten to avoid earlier — opportunities/risks/sectors/companies all
-  // come from this one article object, nothing else.
-  const brief = await getMorningBrief();
+function greeting(): string {
+  const ist = new Date(Date.now() + 5.5 * 3600_000);
+  const h = ist.getUTCHours();
+  return h < 12 ? "Good Morning" : h < 17 ? "Good Afternoon" : "Good Evening";
+}
+
+function Stars({ n }: { n: number }) {
+  return (
+    <span className="text-amber-400 tracking-tight" aria-label={`${n} of 5`}>
+      {"★".repeat(n)}<span className="text-white/15">{"★".repeat(5 - n)}</span>
+    </span>
+  );
+}
+
+/**
+ * Homepage Intelligence (Phase 3, Priority 1) — the "Good Morning" daily
+ * brief. Replaces the old AI Market Brief card as the homepage's hero:
+ * same single source of truth (the real AIPE morning_intelligence
+ * article — deliberately never blended with MIE or any other pipeline,
+ * see homepage_intelligence.py's module docstring), just surfaced at the
+ * scale this content deserves, plus two real additions the article alone
+ * can't carry: a genuine day-over-day sector diff and a one-line AI
+ * Prediction (both from GET /api/homepage/intelligence).
+ */
+async function HomepageIntelligenceHero() {
+  const [brief, extras] = await Promise.all([getMorningBrief(), getHomepageExtras()]);
   if (!brief) return null;
 
+  const ex = (extras as any) ?? {};
   const confPct = brief.confidence_score != null ? Math.round(brief.confidence_score * 100) : null;
-  const drivers = [
-    ...(brief.opportunities ?? []).slice(0, 3).map((o: any) => ({ text: o.title, impact: "positive" })),
-    ...(brief.risks ?? []).slice(0, 2).map((r: any) => ({ text: r.title, impact: "negative" })),
-  ].slice(0, 5);
-  const sectors = (brief.sectors_affected ?? []).slice(0, 5);
-  const topRisk = (brief.risks ?? [])[0];
+
+  // Today's Biggest Story / Ripple / Companies Most Likely To Move /
+  // Biggest Opportunity / Highest Risk all come from the Latest Biggest
+  // Events Engine (event_lifecycle.py) — the SAME ranking that decides
+  // what's on the Events page, not a second, independently-guessed
+  // narrative. Falls back to the article's own fields only if the events
+  // engine genuinely has nothing (e.g. empty dev DB) — never a blank hero.
+  const ev = ex.event?.available ? ex.event.primary : null;
+  const stars = ev
+    ? Math.max(1, Math.min(5, Math.round((ev.impact_score ?? 60) / 20)))
+    : Math.max(1, Math.min(5, Math.round((brief.impact_score ?? (confPct ?? 60)) / 20)));
+
+  const sectors = (brief.sectors_affected ?? []) as any[];
+  const positiveSectors = sectors.filter(s => s.impact === "positive")
+    .sort((a, b) => _magRank(b.magnitude) - _magRank(a.magnitude));
+  const negativeSectors = sectors.filter(s => s.impact === "negative")
+    .sort((a, b) => _magRank(b.magnitude) - _magRank(a.magnitude));
+  const biggestOpportunity = ev ? ev.opportunity_sector : positiveSectors[0]?.name;
+  const highestRisk = ev ? ev.risk_sector : negativeSectors[0]?.name;
+
+  const companies = ev
+    ? ev.companies.slice(0, 3).map((c: any) => ({ symbol: c.symbol, name: c.name, impact: "positive" }))
+    : ((brief.companies_affected ?? []) as any[]).filter(c => c.impact === "positive" || c.impact === "negative").slice(0, 3);
+
+  const ripple = ev ? ev.ripple.slice(0, 3) : ((brief.ripple_effect ?? []) as any[]).slice(0, 3);
+  const changes = (ex.yesterday_changes ?? []) as { name: string; delta: number; direction: string }[];
+  const storyTitle = ev ? ev.title : brief.headline;
+  const storySummary = ev ? ev.why_it_matters : brief.executive_summary;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-violet-400" />
-          <h3 className="text-[13px] font-black text-white">AI Market Brief</h3>
+    <div className="rounded-[24px] border border-white/[0.07] bg-gradient-to-br from-[#0b1220] to-[#060e1e] p-6 md:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-400">
+            <Sparkles className="h-3.5 w-3.5" /> {greeting()}
+          </p>
+          <h1 className="mt-1 text-[22px] font-black leading-tight text-white md:text-[26px]">Today&apos;s Market Intelligence</h1>
         </div>
-        {brief.published_at && <span className="text-[10px] text-slate-600">{briefTimeLabel(brief.published_at)}</span>}
+        <div className="text-right">
+          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Confidence</p>
+          <p className="text-[28px] font-black tabular-nums text-white leading-none">{confPct != null ? `${confPct}%` : "—"}</p>
+        </div>
       </div>
 
-      {/* 1. Headline */}
-      <p className="mb-2 text-[15px] font-semibold leading-snug text-white line-clamp-2">{cleanText(brief.headline)}</p>
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_1fr]">
+        {/* Left: biggest story + opportunity/risk + companies */}
+        <div className="space-y-4">
+          <Link href={ev ? `/events/${ev.id}` as any : "/events"} className="block rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-violet-500/25">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Today&apos;s Biggest Story</p>
+              {ev?.lifecycle && _LIFECYCLE_BADGE[ev.lifecycle] && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase ${_LIFECYCLE_BADGE[ev.lifecycle]}`}>{ev.lifecycle}</span>
+              )}
+            </div>
+            <p className="text-[16px] font-semibold leading-snug text-white">{cleanText(storyTitle)}</p>
+            {storySummary && (
+              <p className="mt-1.5 line-clamp-2 text-[12px] leading-5 text-slate-400">{cleanText(storySummary)}</p>
+            )}
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+              <span>Expected Market Impact</span> <Stars n={stars} />
+            </div>
+          </Link>
 
-      {/* 2. Executive summary */}
-      {brief.executive_summary && (
-        <p className="mb-3 line-clamp-3 text-[12px] leading-5 text-slate-400">{cleanText(brief.executive_summary)}</p>
-      )}
-
-      <div className="space-y-2.5 border-t border-white/[0.06] pt-3">
-        {/* 3. Key drivers */}
-        {drivers.length > 0 && (
-          <div>
-            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">Key Drivers</p>
-            <ul className="space-y-1">
-              {drivers.map((d, i) => (
-                <li key={i} className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300">
-                  <span className="mt-1"><ImpactDot impact={d.impact} /></span>
-                  <span className="line-clamp-1">{cleanText(d.text)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* 4. Sectors to watch */}
-        {sectors.length > 0 && (
-          <div>
-            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">Sectors to Watch</p>
-            <div className="flex flex-wrap gap-x-3 gap-y-1">
-              {sectors.map((s: any, i: number) => (
-                <span key={i} className="flex items-center gap-1 text-[11px] text-slate-300">
-                  <ImpactDot impact={s.impact} /> {cleanText(s.name)}
-                </span>
-              ))}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-[14px] border border-emerald-500/15 bg-emerald-500/[0.05] p-3.5">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-400">Biggest Opportunity</p>
+              <p className="mt-1 text-[14px] font-bold text-white">{biggestOpportunity ?? "—"}</p>
+            </div>
+            <div className="rounded-[14px] border border-rose-500/15 bg-rose-500/[0.05] p-3.5">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-400">Highest Risk</p>
+              <p className="mt-1 text-[14px] font-bold text-white">{highestRisk ?? "—"}</p>
             </div>
           </div>
-        )}
 
-        {/* 6. Key risk */}
-        {topRisk && (
-          <div>
-            <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">Key Risk</p>
-            <p className="line-clamp-2 text-[11px] leading-snug text-rose-300/90">{cleanText(topRisk.description ?? topRisk.title)}</p>
+          {companies.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Companies Most Likely To Move</p>
+              <div className="flex flex-wrap gap-1.5">
+                {companies.map((c: any, i: number) => (
+                  <Link key={i} href={`/companies/${c.symbol}` as any}
+                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition hover:opacity-80 ${
+                      c.impact === "positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-300"
+                    }`}>
+                    <ImpactDot impact={c.impact} /> {cleanText(c.name)}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: what changed + ripple + prediction */}
+        <div className="space-y-4">
+          <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4">
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">What Changed Since Yesterday</p>
+            {changes.length === 0 ? (
+              <p className="text-[11px] text-slate-600">Not enough history yet — check back tomorrow.</p>
+            ) : (
+              <ul className="space-y-1">
+                {changes.map((c, i) => (
+                  <li key={i} className={`flex items-center gap-1.5 text-[12px] font-medium ${c.direction === "up" ? "text-emerald-400" : "text-rose-400"}`}>
+                    {c.direction === "up" ? "↑" : "↓"} {c.name} {c.direction === "up" ? "+" : ""}{c.delta}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        )}
+
+          {ripple.length > 0 && (
+            <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Today&apos;s Ripple</p>
+              <div className="space-y-2">
+                {ripple.map((r: any, i: number) => (
+                  <div key={i} className="flex items-center gap-1.5 text-[11px] leading-snug text-slate-300">
+                    <span className="font-medium text-white">{cleanText(r.from_entity)}</span>
+                    <ArrowRight className="h-3 w-3 shrink-0 text-slate-600" />
+                    <span>{cleanText(r.to_entity)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {ex.ai_prediction && (
+            <div className="rounded-[16px] border border-violet-500/15 bg-violet-500/[0.06] p-4">
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-violet-300">AI Prediction</p>
+              <p className="text-[13px] font-medium leading-snug text-slate-200">{ex.ai_prediction}</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 7. Confidence & freshness */}
-      <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3 text-[10px] text-slate-500">
-        {confPct != null && <span className="font-bold text-slate-400">AI Confidence: {confPct}%</span>}
-        {brief.published_at && <span>{briefTimeLabel(brief.published_at)}</span>}
+      <div className="mt-5 flex items-center justify-between border-t border-white/[0.06] pt-4">
+        {brief.published_at && <span className="text-[10px] text-slate-600">{briefTimeLabel(brief.published_at)}</span>}
+        <Link href="/newsroom/daily-brief"
+          className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
+          Read Full Brief <ArrowRight className="h-3 w-3" />
+        </Link>
       </div>
-
-      <Link href="/newsroom/daily-brief"
-        className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
-        Read Full Brief <ArrowRight className="h-3 w-3" />
-      </Link>
     </div>
   );
 }
 
-async function TodaysBiggestEventsCard() {
-  const recentRaw = await getRecentEvents();
-  const events = ((recentRaw as any)?.results ?? (recentRaw as any) ?? []) as any[];
-  const todayStr = todayDateStr();
+function _magRank(m: string): number {
+  return m === "high" ? 3 : m === "medium" ? 2 : m === "low" ? 1 : 0;
+}
 
-  // impact_score === 0 means "not yet scored" (e.g. routine NSE compliance
-  // filings that were enriched but genuinely carry no market signal), not a
-  // real low score — same convention as Events/LiveMarketTab. Real news that
-  // happened today can still be sitting unscored while a truly significant
-  // event from a few days ago has a real score; showing nothing in that case
-  // (the old "must be dated exactly today" rule) reads as "broken" when
-  // there's genuinely nothing scored yet today. So: prefer today's own real
-  // events, but fall back to the most recent scored events otherwise —
-  // every item's own timestamp is shown, so it's never mislabeled as today's.
+// ═══════════════════════════════════════════════════════════════════════════════
+// LIVE INTELLIGENCE (Phase 3, Priority 2) — the "why this matters" stream,
+// not a news feed. See live_intelligence.py's module docstring for exactly
+// which real signal backs each of these 4 card types.
+// ═══════════════════════════════════════════════════════════════════════════════
+const _LI_META: Record<string, { label: string; icon: React.ReactNode; cls: string }> = {
+  anomaly:           { label: "Intelligence Detection", icon: <Radar className="h-3.5 w-3.5" />,     cls: "text-violet-300 border-violet-500/25 bg-violet-500/[0.08]" },
+  policy_ripple:     { label: "Policy Intelligence",     icon: <GitBranch className="h-3.5 w-3.5" />, cls: "text-sky-300 border-sky-500/25 bg-sky-500/[0.08]" },
+  early_theme:       { label: "Emerging Theme",          icon: <Rocket className="h-3.5 w-3.5" />,    cls: "text-emerald-300 border-emerald-500/25 bg-emerald-500/[0.08]" },
+  historical_match:  { label: "Pattern Detected",        icon: <History className="h-3.5 w-3.5" />,   cls: "text-amber-300 border-amber-500/25 bg-amber-500/[0.08]" },
+};
+
+function LiveIntelligenceCard({ item }: { item: any }) {
+  const meta = _LI_META[item.type];
+  if (!meta) return null;
+
+  return (
+    <div className="flex h-full flex-col rounded-[18px] border border-white/[0.07] bg-white/[0.02] p-4">
+      <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${meta.cls}`}>
+        {meta.icon} {meta.label}
+      </span>
+      <p className="mt-2.5 text-[13.5px] font-semibold leading-snug text-white">{cleanText(item.headline)}</p>
+
+      {item.type === "anomaly" && (
+        <>
+          {item.why_it_matters && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-5 text-slate-400">Why this matters: {cleanText(item.why_it_matters)}</p>}
+          {item.similarity != null && <p className="mt-1.5 text-[10px] text-slate-500">Historical similarity <span className="font-bold text-white">{Math.round(item.similarity)}%</span></p>}
+        </>
+      )}
+
+      {item.type === "policy_ripple" && item.path?.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-slate-300">
+          {item.path.map((p: string, i: number) => (
+            <span key={i} className="flex items-center gap-1">
+              {i > 0 && <ArrowRight className="h-2.5 w-2.5 text-slate-600" />}
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5">{cleanText(p)}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {item.type === "early_theme" && (
+        <div className="mt-2 flex items-center gap-4 text-[11px]">
+          <span className="text-slate-500">Stage <span className="font-bold text-emerald-400">Early</span></span>
+          {item.opportunity_score != null && <span className="text-slate-500">Opportunity Score <span className="font-bold text-white">{item.opportunity_score}</span></span>}
+        </div>
+      )}
+
+      {item.type === "historical_match" && (
+        <>
+          {item.similarity != null && <p className="mt-1.5 text-[10px] text-slate-500">Similarity <span className="font-bold text-white">{Math.round(item.similarity)}%</span></p>}
+          {item.key_lesson && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-400">{cleanText(item.key_lesson)}</p>}
+          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px]">
+            {(item.winners ?? []).slice(0, 3).map((w: string, i: number) => <span key={i} className="text-emerald-400">▲ {w}</span>)}
+            {(item.losers ?? []).slice(0, 2).map((l: string, i: number) => <span key={i} className="text-rose-400">▼ {l}</span>)}
+          </div>
+        </>
+      )}
+
+      {item.companies?.length > 0 && (
+        <div className="mt-auto flex flex-wrap gap-1 pt-2.5">
+          {item.companies.slice(0, 5).map((c: string, i: number) => (
+            <Link key={i} href={`/companies/${c}` as any}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-300 transition hover:border-violet-500/30 hover:text-violet-300">
+              {c}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+async function LiveIntelligenceSection() {
+  const data = await getLiveIntelligenceItems();
+  const items = (data as any)?.items ?? [];
+  if (items.length === 0) return null;
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-violet-400" />
+        <h2 className="text-[15px] font-black text-white">Live Intelligence</h2>
+        <span className="text-[11px] text-slate-500">— Ripple Signals</span>
+      </div>
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        {items.map((item: any, i: number) => <LiveIntelligenceCard key={i} item={item} />)}
+      </div>
+    </div>
+  );
+}
+
+const _LIFECYCLE_BADGE: Record<string, string> = {
+  LIVE: "bg-rose-500/15 text-rose-400",
+  Developing: "bg-amber-500/15 text-amber-400",
+  Active: "bg-sky-500/15 text-sky-400",
+};
+
+// Why a card is ranked where it is — the Latest Biggest Events Engine's
+// own lifecycle + position, translated into one glanceable line, per the
+// user's explicit ask: "users instantly understand why they're seeing
+// that event." Historical items (most common in this dev dataset — see
+// event_lifecycle.py) fall back to their real rank number rather than a
+// fabricated "trending" claim.
+function _rankReason(lifecycle: string | undefined, rank: number): { emoji: string; text: string } {
+  if (lifecycle === "LIVE") return { emoji: "🔴", text: "Live Now" };
+  if (lifecycle === "Developing") return { emoji: "📈", text: "Developing" };
+  if (lifecycle === "Active") return { emoji: "🟡", text: "Active" };
+  return { emoji: "📌", text: `#${rank} Today` };
+}
+
+async function TodaysBiggestEventsCard() {
+  // Recency-aware ranking (event_lifecycle.py) — see its module docstring
+  // for the bug this replaced: pure impact_score sorting let month-old
+  // events (e.g. a June RBI meeting) permanently outrank genuinely current
+  // ones. The backend already applies the 7→14→30-day progressive window
+  // and only falls back to real Historical events as an explicit last
+  // resort, so this component just renders what it's given.
+  //
+  // #1 is deliberately skipped here — it's already the homepage hero's
+  // "Today's Biggest Story" (same engine, same event), so repeating it
+  // in this list would just be the same story twice.
+  const recentRaw = await getActiveEvents();
+  const events = ((recentRaw as any)?.results ?? (recentRaw as any) ?? []) as any[];
+
   const seen = new Set<string>();
-  const scored: any[] = [];
+  const items: any[] = [];
   for (const e of events) {
-    if (!e.id || seen.has(e.id) || e.impact_score === 0 || e.impact_score == null) continue;
+    if (!e.id || seen.has(e.id)) continue;
     seen.add(e.id);
-    scored.push(e);
+    items.push(e);
   }
-  scored.sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score));
-  const fromToday = scored.filter(e => e.date && new Date(e.date).toDateString() === todayStr);
-  const items = (fromToday.length > 0 ? fromToday : scored).slice(0, 3);
-  const allFromToday = items.length > 0 && items.every(e => e.date && new Date(e.date).toDateString() === todayStr);
+  const rest = items.slice(1, 4);
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-      <CardHeader title={allFromToday ? "Today's Biggest Events" : "Latest Biggest Events"} href="/events" />
-      {items.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No scored events available right now.</p>
+      <CardHeader title="Other Major Events" href="/events" />
+      {rest.length === 0 ? (
+        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No other scored events available right now.</p>
       ) : (
-        <div className="flex-1 space-y-3.5">
-          {items.map((e, i) => {
+        <div className="flex-1 space-y-3">
+          {rest.map((e, idx) => {
             const style = impactToStyle(e.impact_score);
-            const eventIsToday = e.date && new Date(e.date).toDateString() === todayStr;
+            const sectors = (e.sectors ?? []) as string[];
+            const companies = (e.companies ?? []) as { symbol: string; name: string; impact: string }[];
+            const reason = _rankReason(e.lifecycle, idx + 2);
             return (
-              <Link key={e.id} href={`/events/${e.id}` as any} className="group flex items-start gap-3">
-                <div className="mt-0.5 flex w-11 shrink-0 flex-col items-start gap-1">
-                  <span className="text-[9px] font-bold tabular-nums text-slate-600">
-                    {e.date
-                      ? eventIsToday
-                        ? new Date(e.date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
-                        : new Date(e.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
-                      : ""}
+              <div key={e.id} className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-3.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="rounded-full border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[8px] font-black text-slate-300">
+                      {reason.emoji} {reason.text}
+                    </span>
+                    <span className={`rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase tabular-nums ${style.circle}`}>
+                      {style.label} Impact
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-[11px] font-black tabular-nums text-slate-400">
+                    {e.impact_score != null ? Math.round(e.impact_score) : "—"}
                   </span>
-                  {i === 0 && eventIsToday && <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[7px] font-black text-rose-400">LIVE</span>}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-bold leading-snug text-white group-hover:text-violet-200 transition line-clamp-2">{cleanText(e.title)}</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">{e.category ?? "Market"} · {style.label} Impact</p>
+                <Link href={`/events/${e.id}` as any} className="group mt-1.5 block">
+                  <p className="text-[13px] font-bold leading-snug text-white group-hover:text-violet-200 transition line-clamp-2">{cleanText(e.title)}</p>
+                </Link>
+                {sectors.length > 0 && (
+                  <p className="mt-1.5 text-[10.5px] text-slate-500">{sectors.slice(0, 3).join(" • ")}</p>
+                )}
+                {companies.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {companies.slice(0, 5).map((c, i) => (
+                      <Link key={i} href={`/companies/${c.symbol}` as any}
+                        className={`rounded-full border px-1.5 py-0.5 text-[9.5px] font-semibold transition hover:opacity-80 ${
+                          c.impact === "Positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                          : c.impact === "Negative" ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
+                          : "border-white/10 bg-white/[0.03] text-slate-400"
+                        }`}>
+                        {c.symbol || c.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {/* Only 3 quick actions — dedicated destinations for
+                    "Impacted Companies" / "Opportunities" / "Historical
+                    Similar Events" as separate views don't exist yet, and
+                    a broken/placeholder link is worse than not having it. */}
+                <div className="mt-2.5 flex items-center gap-3 border-t border-white/[0.05] pt-2">
+                  <Link href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${e.title}`)}` as any} className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition">Analyze with AI →</Link>
+                  <Link href={`/ripple?event=${e.id}` as any} className="text-[10px] font-semibold text-sky-400 hover:text-sky-300 transition">Ripple Analysis →</Link>
+                  <Link href={`/events/${e.id}` as any} className="text-[10px] font-semibold text-slate-500 hover:text-slate-300 transition">Full Event Analysis →</Link>
+                  {e.confidence != null && <span className="ml-auto text-[10px] text-slate-600">Confidence <span className="font-bold text-slate-400">{Math.round(e.confidence)}%</span></span>}
                 </div>
-                <span className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-black tabular-nums ${style.circle}`}>
-                  {e.impact_score != null ? Math.round(e.impact_score) : "—"}
-                </span>
-              </Link>
+              </div>
             );
           })}
         </div>
@@ -680,10 +918,24 @@ export default function HomePage() {
         <TickerStrip />
       </Suspense>
 
-      {/* Row 1 — AI Market Brief (hero) · Today's Biggest Events · Live Intelligence */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr_1fr]">
-        <Suspense fallback={<Sk h={420} />}><AIMarketBriefCard /></Suspense>
-        <Suspense fallback={<Sk h={420} />}><TodaysBiggestEventsCard /></Suspense>
+      {/* Homepage Intelligence hero (Phase 3, Priority 1) — "Good Morning",
+          replaces the old AI Market Brief card as the primary read-this-first
+          surface; see HomepageIntelligenceHero's own docstring. */}
+      <Suspense fallback={<Sk h={420} />}>
+        <HomepageIntelligenceHero />
+      </Suspense>
+
+      {/* Live Intelligence (Phase 3, Priority 2) — the "why this matters"
+          stream right beneath the hero, per the user's own reasoning:
+          "the next thing every user naturally asks is 'show me the
+          intelligence behind it.'" */}
+      <Suspense fallback={<Sk h={220} />}>
+        <LiveIntelligenceSection />
+      </Suspense>
+
+      {/* Row 1 — Today's Biggest Events · Live Activity */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Suspense fallback={<Sk h={340} />}><TodaysBiggestEventsCard /></Suspense>
         <LiveIntelligenceFeed compact limit={5} />
       </div>
 

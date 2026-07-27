@@ -35,6 +35,34 @@ async def get_opportunity_detail(
     detail = await service.get_opportunity_details(opportunity_id)
     if detail is None:
         raise HTTPException(status_code=404, detail=f"Opportunity {opportunity_id} not found")
+
+    # Opportunity Radar 2.0 — see opportunity_intelligence.py's module
+    # docstring. Best-effort: any single piece failing must never break the
+    # page (each already degrades gracefully to None/[] on its own).
+    from app.services import opportunity_intelligence as oi
+
+    try:
+        detail.investment_verdict = oi.compute_investment_verdict(
+            detail.opportunity_score, detail.confidence, detail.risk_level, detail.trend,
+        )
+    except Exception as exc:
+        logger.warning("radar.verdict_fail", exc=str(exc)[:160])
+
+    try:
+        detail.primary_event = max(detail.events, key=lambda e: e.importance) if detail.events else None
+    except Exception as exc:
+        logger.warning("radar.primary_event_fail", exc=str(exc)[:160])
+
+    try:
+        detail.historical_similarity = await oi.get_historical_similarity(detail.sectors, detail.title)
+    except Exception as exc:
+        logger.warning("radar.historical_fail", exc=str(exc)[:160])
+
+    try:
+        detail.catalysts = await oi.get_catalysts(detail.sectors)
+    except Exception as exc:
+        logger.warning("radar.catalysts_fail", exc=str(exc)[:160])
+
     return detail
 
 

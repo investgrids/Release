@@ -15,6 +15,7 @@ from app.schemas.event import CompanyImpact, EventSummary
 from app.schemas.event_detail import EventDetailResponse
 from app.services.event_service import EventService
 from app.services.event_scale import normalize_impact_score, normalize_confidence
+from app.services.event_lifecycle import compute_active_score, compute_lifecycle
 
 logger = structlog.get_logger(__name__)
 
@@ -22,11 +23,12 @@ router = APIRouter()
 
 
 def _build_summary(e, companies: list) -> EventSummary:
+    impact = normalize_impact_score(e.id, e.impact_score)
     return EventSummary(
         id=e.id,
         title=e.title,
         summary=e.summary or "",
-        impact_score=normalize_impact_score(e.id, e.impact_score),
+        impact_score=impact,
         confidence=normalize_confidence(e.id, e.confidence),
         sectors=e.sectors or [],
         companies=companies,
@@ -34,6 +36,8 @@ def _build_summary(e, companies: list) -> EventSummary:
         category=e.category or e.event_type or "Macro",
         event_type=e.event_type or "",
         source=e.source or "",
+        active_score=compute_active_score(impact, e.published_at),
+        lifecycle=compute_lifecycle(e.published_at),
     )
 
 
@@ -45,6 +49,14 @@ async def list_events(
     db: AsyncSession = Depends(get_db),
 ):
     effective_limit = page_size if page_size is not None else limit
+
+    if sort_by == "active":
+        # THE Latest Biggest Events Engine — see event_lifecycle.py's
+        # module docstring. This is the single ranking function every
+        # surface (this endpoint, the homepage hero) reads, never its own
+        # independent computation.
+        from app.services.event_lifecycle import get_top_active_events
+        return await get_top_active_events(db, limit=effective_limit)
 
     if sort_by == "impact_score":
         # Fetch a wider pool so mixed-scale scores can be normalized and re-sorted in Python.

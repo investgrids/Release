@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home, Library, Sunrise, Radio, TrendingUp, Building2, CalendarClock, Rss,
+  Home, Library, Sunrise, Radio, TrendingUp, Building2, CalendarClock,
 } from "lucide-react";
 
+// No "Live Sources" entry — that page's whole purpose was linking out to
+// third-party wire copy, which the app doesn't do (see /newsroom/sources
+// and every other former external-link exit point, all converted to
+// plain attribution text).
 const NAV = [
   { href: "/newsroom",              label: "Home",        icon: Home },
   { href: "/newsroom/library",      label: "Library",     icon: Library },
@@ -14,7 +18,6 @@ const NAV = [
   { href: "/newsroom/themes",       label: "Themes",      icon: TrendingUp },
   { href: "/newsroom/companies",    label: "Companies",   icon: Building2 },
   { href: "/newsroom/events",       label: "Events",      icon: CalendarClock },
-  { href: "/newsroom/sources",      label: "Live Sources", icon: Rss },
 ];
 
 export function NewsroomSidebarNav() {

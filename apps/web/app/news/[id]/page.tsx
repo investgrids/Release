@@ -391,7 +391,7 @@ function OverviewTab({ article, relatedEvents }: { article: NewsArticle; related
   const top3Events = relatedEvents.slice(0, 3);
 
   return (
-    <div className="grid grid-cols-[1fr_284px] gap-5 items-start">
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_284px]">
       {/* LEFT */}
       <div className="space-y-4">
         <Card title="Article Summary">
@@ -427,7 +427,7 @@ function OverviewTab({ article, relatedEvents }: { article: NewsArticle; related
       </div>
 
       {/* RIGHT sticky sidebar */}
-      <div className="sticky top-[84px] space-y-4">
+      <div className="space-y-4 lg:sticky lg:top-[84px]">
         <Card title="AI Summary">
           <SentimentBadge sentiment={ins.sentiment} />
           <p className="mt-3 text-[12px] leading-5 text-slate-400">{ins.shortTerm}</p>
@@ -784,7 +784,7 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
                     : "text-sky-300 bg-sky-500/15 border-sky-500/30";
 
   return (
-    <div className="grid grid-cols-[1fr_260px] gap-5 items-start">
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_260px]">
       {/* LEFT */}
       <div className="space-y-4">
         <Card title="Sentiment Analysis">
@@ -849,7 +849,7 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
       </div>
 
       {/* RIGHT sticky */}
-      <div className="sticky top-[84px] space-y-4">
+      <div className="space-y-4 lg:sticky lg:top-[84px]">
         <Card title="Market Outlook">
           <div className="space-y-3">
             {[
@@ -958,7 +958,7 @@ export default function NewsDetailPage() {
     return (
       <main className="min-w-0 pb-10">
         <div className="mb-5 h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
-        <div className="grid grid-cols-[1fr_284px] gap-5">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_284px]">
           <div className="h-56 animate-pulse rounded-[24px] bg-white/[0.03]" />
           <div className="h-56 animate-pulse rounded-[20px] bg-white/[0.03]" />
         </div>
@@ -995,7 +995,7 @@ export default function NewsDetailPage() {
       </nav>
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-[1fr_284px] gap-5 items-start">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_284px]">
         {/* Article header */}
         <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-sm">
           <div className="flex flex-wrap items-center gap-2">
@@ -1014,12 +1014,6 @@ export default function NewsDetailPage() {
             </div>
           )}
           <div className="mt-5 flex items-center gap-2">
-            {article.url && (
-              <a href={article.url} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-sky-500/15 px-4 py-2 text-[13px] font-semibold text-sky-300 hover:bg-sky-500/25 transition">
-                Read original ↗
-              </a>
-            )}
             <button className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-400 hover:text-white transition">
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
             </button>
@@ -1057,10 +1051,10 @@ export default function NewsDetailPage() {
       )}
 
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 border-b border-white/[0.06] pb-px">
+      <div className="flex gap-1 overflow-x-auto border-b border-white/[0.06] pb-px scrollbar-hide">
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-[13px] font-medium transition border-b-2 -mb-px ${
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-[13px] font-medium transition border-b-2 -mb-px ${
               activeTab === tab
                 ? "border-violet-500 text-white"
                 : "border-transparent text-slate-500 hover:text-slate-300"

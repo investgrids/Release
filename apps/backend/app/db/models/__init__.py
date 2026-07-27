@@ -23,6 +23,10 @@ from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.score_history import ScoreHistory
 from app.db.models.feedback import FeedbackSubmission
 from app.db.models.generated_media import GeneratedMedia
+from app.db.models.ai_search_feedback import AISearchFeedback
+from app.db.models.ai_search_followup_click import AISearchFollowupClick
+from app.db.models.ai_search_verdict_snapshot import AISearchVerdictSnapshot
+from app.db.models.homepage_snapshot import HomepageDailySnapshot
 
 __all__ = [
     "Opportunity",
@@ -49,4 +53,8 @@ __all__ = [
     "ScoreHistory",
     "FeedbackSubmission",
     "GeneratedMedia",
+    "AISearchFeedback",
+    "AISearchFollowupClick",
+    "AISearchVerdictSnapshot",
+    "HomepageDailySnapshot",
 ]

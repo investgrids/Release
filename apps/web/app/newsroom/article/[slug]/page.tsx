@@ -14,6 +14,7 @@ import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyShareBar } from "@/components/StickyShareBar";
 import { HeroImage } from "@/components/HeroImage";
+import { NextSteps } from "@/components/NextSteps";
 
 // ── Article type metadata ────────────────────────────────────────────────────
 
@@ -925,23 +926,48 @@ export default async function ArticlePage(
           Not investment advice — always do your own research before making investment decisions.
         </p>
 
-        {/* ══════════ FOOTER CTA ══════════ */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-[13px] font-semibold text-white">Want deeper analysis?</p>
-            <p className="text-[12px] text-slate-500">Ask our AI any question about this story.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href={`/ai-search?q=${encodeURIComponent(article.headline)}`}
-              className="rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-[12px] font-semibold text-violet-300 hover:bg-violet-500/15 transition">
-              Ask AI →
-            </Link>
-            <Link href="/newsroom"
-              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-medium text-slate-300 hover:text-white transition">
-              <ArrowLeft className="inline h-3 w-3 mr-1" /> Back to AI Newsroom
-            </Link>
-          </div>
-        </div>
+        {/* ══════════ CONTINUE RESEARCH ══════════ — cross-links this
+            article into the rest of the platform (Platform Integration
+            Sprint) instead of dead-ending at "read the article, done." */}
+        <NextSteps config={{
+          takeaway: cleanText(article.key_takeaway || article.headline),
+          primary: {
+            label: "Ask AI about this story",
+            why: "Get a full investment analysis grounded in this article's own evidence, not just the summary.",
+            href: `/ai-search?q=${encodeURIComponent(article.headline)}`,
+          },
+          groups: [
+            ...(companies.length >= 2 ? [{
+              label: "Compare",
+              actions: [{
+                label: `Compare ${companies[0].symbol ?? companies[0].name} vs ${companies[1].symbol ?? companies[1].name}`,
+                why: "See the two most affected companies side by side.",
+                href: `/compare?a=${companies[0].symbol ?? ""}&b=${companies[1].symbol ?? ""}`,
+              }],
+            }] : []),
+            {
+              label: "Continue Research",
+              actions: [
+                ...(relatedCompanies.slice(0, 1).map((c: any) => ({
+                  label: `Open ${c.name} company page`,
+                  why: "See the full research terminal for this company.",
+                  href: c.link,
+                }))),
+                ...(relatedThemes.slice(0, 1).map((t: any) => ({
+                  label: `Explore ${t.theme} theme`,
+                  why: "See every company and event tied to this theme.",
+                  href: t.link,
+                }))),
+                {
+                  label: "Explore Ripple Graph",
+                  why: "See how this story propagates across sectors and companies.",
+                  href: "/ripple",
+                },
+              ],
+            },
+          ],
+          path: [sectors[0]?.name ?? "Market", cleanText(article.headline).slice(0, 30), "Analysis", "Investment Decision"],
+        }} />
 
       </div>
     </main>

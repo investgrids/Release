@@ -97,6 +97,102 @@ def _match_companies(q: str) -> list[str]:
     return matched
 
 
+# Strong signal: a capitalized phrase ending in a real corporate suffix —
+# e.g. "Bharat Quantum Computing Ltd". High-confidence enough that a
+# coincidental sector word elsewhere in the same phrase ("XYZ Defence Ltd")
+# shouldn't override it — "Ltd"/"Corp"/etc. essentially never appears in a
+# genuine sector/macro/policy question.
+_COMPANY_SUFFIX_RE = re.compile(
+    r"\b(?:[A-Z][a-zA-Z]*\s+){1,5}"
+    r"(?:Ltd\.?|Limited|Inc\.?|Corp\.?|Corporation|Industries|Technologies|"
+    r"Systems|Holdings|International|Enterprises|Group|Motors|Pharma|Energy)\b"
+)
+# Weak signal: a bare 2+ capitalized-word phrase with no corporate suffix —
+# e.g. "Tata Neuralink". Realistic company names can be this short, so the
+# minimum is 2 words, not 3 — but with no suffix to lean on, this tier stays
+# gated on zero sector/policy signal too (see caller), unlike the strong tier.
+_COMPANY_BARE_RE = re.compile(r"\b(?:[A-Z][a-zA-Z]{2,}\s+){1,4}[A-Z][a-zA-Z]{2,}\b")
+
+
+def _looks_like_unrecognized_company(query: str, entities: dict) -> bool:
+    """High-confidence-only signal that the query names a specific company
+    not in our real ~202-company NSE universe — used to short-circuit
+    straight to an honest "no verified company found" response instead of
+    letting the LLM either analyze a fictional entity or fall through to
+    the generic degraded-synthesis template (which reads as "we have real
+    data but couldn't finish the analysis", not "this company doesn't
+    exist" — the wrong message for a fabricated name).
+
+    Handles mixed queries too — e.g. "Compare Apple India Defence Ltd vs
+    HAL" has one real match (HAL) and one fake one; a naive "any real match
+    disqualifies this" rule would let the fake half through silently. Real
+    company text is stripped out first, then the residual is checked for a
+    still-unaccounted-for company-shaped phrase.
+    """
+    residual = query
+    if entities["companies"]:
+        from app.api.companies import _NSE_UNIVERSE
+        matched_set = set(entities["companies"])
+        for co in _NSE_UNIVERSE:
+            if co["symbol"] not in matched_set:
+                continue
+            for alias in (co.get("aliases") or []) + [co["name"], co["symbol"]]:
+                if len(alias) < 3:
+                    continue
+                residual = re.sub(re.escape(alias), " ", residual, flags=re.IGNORECASE)
+        # Mixed case: only the high-confidence suffix signal counts on the
+        # residual — leftover connector words ("Compare", "vs") after
+        # stripping real names could spuriously look bare-capitalized.
+        return bool(_COMPANY_SUFFIX_RE.search(residual))
+
+    if _COMPANY_SUFFIX_RE.search(residual):
+        return True
+    if entities["sectors"] or entities["policies"]:
+        return False
+    return bool(_COMPANY_BARE_RE.search(residual))
+
+
+def _unrecognized_company_response(query: str) -> dict:
+    """Minimal but schema-complete SearchResult — deliberately not routed
+    through _synthesis_incomplete's "degraded" framing, since this isn't a
+    failure to synthesize; it's a correct, confident classification that
+    the named entity isn't a real, tracked company."""
+    summary = (
+        f"No verified company found matching this query. MarketRipple only analyzes "
+        f"companies in its tracked NSE universe, and nothing in “{query}” matched a "
+        f"real, listed entity — double-check the spelling/ticker, or it may not be "
+        f"publicly listed on the NSE."
+    )
+    return {
+        "query": query, "synthesis_incomplete": False,
+        "answer": {
+            "summary": summary, "bottom_line": summary,
+            "what_happened": "", "why_it_happened": "", "immediate_impact": "",
+            "medium_term": "", "long_term": "", "what_priced_in": "",
+            "risks": [], "opportunities": [],
+            "confidence": None, "confidence_level": "unscored",
+            "sentiment": "neutral", "sources_count": 0,
+        },
+        "key_drivers": [], "insights": [], "companies": [], "sectors": [],
+        "related_events": [], "news": [], "policies": [], "timeline": [],
+        "historical_comparison": [], "ripple_chain": [], "scenarios": {},
+        "market_impact_horizons": [], "what_to_monitor": [],
+        "ai_reasoning_methods": [], "follow_up_questions": [
+            "Which real companies are in this sector?",
+            "Show me the correct ticker for this company",
+        ],
+        "investment_verdict": {
+            "rating": "Not Applicable", "direction": "neutral", "confidence": None,
+            "horizon": "", "top_picks": [], "risks": [], "catalysts": [],
+            "opportunity_score": None, "risk_level": "", "suitable_for": "",
+        },
+        "market_chart": {"labels": [], "series": []},
+        "graph": {"nodes": [], "edges": []},
+        "citations": [], "decision_intelligence": None,
+        "confidence_data": {"level": "unscored", "score": None, "reasons": [], "breakdown": {}, "caveats": []},
+    }
+
+
 def _extract_entities(query: str) -> dict:
     q = query.lower()
     return {
@@ -1600,8 +1696,14 @@ async def _run_market_pulse_search(query: str) -> dict:
             n = narratives.get(m.get("ticker", "")) if isinstance(narratives, dict) else None
             if not n:
                 drivers = m.get("verified_drivers") or []
-                n = ("; ".join(d["label"] for d in drivers) if drivers
+                # Real key is "driver" (market_intelligence_service._verified_drivers_for),
+                # never "label" — the old d["label"] crashed with a KeyError on every
+                # mover whose ticker wasn't covered by the AI-generated narratives,
+                # taking down the whole market-pulse response with a 500.
+                n = ("; ".join(d.get("driver", "") for d in drivers if d.get("driver")) if drivers
                      else "No verified driver identified for this move — likely broad-market or idiosyncratic trading.")
+                if not n:
+                    n = "No verified driver identified for this move — likely broad-market or idiosyncratic trading."
             out.append({**m, "narrative": n})
         return out
 
@@ -1634,6 +1736,11 @@ async def _run_market_pulse_search(query: str) -> dict:
 async def run_ai_search(query: str, db: AsyncSession) -> dict:
     """Full AI search pipeline. Returns complete research report dict."""
     ck = _ck(query)
+    # True end-to-end clock from function entry — used for `timing.total_ms`
+    # even though the named stage buckets below only start once we're past
+    # the market-pulse pre-check (a separate query family, not part of this
+    # pipeline's own stage breakdown).
+    _overall_t0 = time.monotonic()
 
     # Market Pulse — real-data-first path, checked before decision-intent
     # detection since it's a distinct query family (top movers / sector
@@ -1654,10 +1761,16 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             _CACHE[mp_key] = (time.time(), mp_result)
         return mp_result
 
-    # Detect intent first — needed to compute the right cache TTL
+    # Detect intent first — needed to compute the right cache TTL. Timed on
+    # its own (not via the checkpoint chain below) since it's the one stage
+    # that runs before the cache-hit early-return, which skips the rest of
+    # the pipeline — and skips stage timing entirely on a cache hit, since
+    # nothing was actually computed on this call.
+    _t_intent0  = time.monotonic()
     intent_data = _detect_decision_intent(query)
     intent      = intent_data.get("intent", "general")
     ttl         = 300 if intent == "news_reaction" else _TTL
+    _intent_detection_ms = round((time.monotonic() - _t_intent0) * 1000, 1)
 
     cached = _cget(ck, ttl=ttl)
     if cached:
@@ -1668,7 +1781,28 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     entities = _extract_entities(query)
     loop     = asyncio.get_running_loop()
 
+    if _looks_like_unrecognized_company(query, entities):
+        log.info("ai_search.unrecognized_company", query=query[:80])
+        result = _unrecognized_company_response(query)
+        _cset(ck, result)
+        return result
+
     log.info("ai_search.intent", intent=intent, is_decision=intent_data["is_decision"])
+
+    # Stage-by-stage wall-clock timing from here on, exposed on the response
+    # as `timing` (ms per stage + total) — feeds the benchmark runner's
+    # speed reporting. Checkpoint-based (each stage = time since the
+    # previous checkpoint), not independently-measured spans, so buckets are
+    # approximate groupings of pipeline work rather than a strict profiler —
+    # good enough to see which stage dominates a slow request.
+    _t_prev = time.monotonic()
+    _stage_ms: dict[str, float] = {"intent_detection_ms": _intent_detection_ms}
+
+    def _checkpoint(stage: str) -> None:
+        nonlocal _t_prev
+        now = time.monotonic()
+        _stage_ms[stage] = round((now - _t_prev) * 1000, 1)
+        _t_prev = now
 
     # Parallel: DB search (chart is built after enrichment so it uses the right companies)
     events, news, policies = await asyncio.gather(
@@ -2029,6 +2163,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     # prompt. Everything else — including single-entity "should I invest in
     # X" questions — is an investment_opportunity query and goes through the
     # general prompt so it never fabricates a placeholder "Asset A".
+    _checkpoint("db_search_ms")
     if intent_data["is_comparison"] and intent not in ("list_picks", "portfolio_review", "news_reaction", "earnings_preview", "entry_timing"):
         prompt  = _build_decision_prompt(query, intent_data, events, news, policies, extra_context=extra_context)
         max_tok = 4500
@@ -2216,6 +2351,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             {}, "monitoring",
         ),
     )
+    _checkpoint("llm_ms")
     horizons_raw = _build_market_horizons(
         ai, _conf_result.total_score if _conf_result else ai.get("confidence", 50), ai.get("sentiment", "neutral"),
     )
@@ -2231,6 +2367,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     ]
 
     graph = _build_graph(query, sectors_raw, companies_enriched)
+    _checkpoint("graph_generation_ms")
 
     # Extract decision_intelligence block when present — only for genuine
     # two-asset comparisons; a single-entity "should I invest in X" question
@@ -2442,6 +2579,13 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     # built entirely from generic fallback templates (main answer and/or the
     # separately-generated scenarios/checklist can each degrade independently).
     _synthesis_incomplete = bool(ai.get("degraded")) or bool(isinstance(scenarios, dict) and scenarios.get("degraded"))
+    _checkpoint("assembly_ms")
+    # True end-to-end time from function entry, not a sum of the named
+    # buckets — the market-pulse pre-check (before intent detection even
+    # starts) runs on every call and isn't individually attributed to a
+    # named stage. The gap between total_ms and the sum of named buckets
+    # is exactly that overhead.
+    _stage_ms["total_ms"] = round((time.monotonic() - _overall_t0) * 1000, 1)
 
     result = {
         "query": query,
@@ -2490,6 +2634,7 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
             "breakdown": dict(_conf_result.breakdown) if _conf_result else {},
             "caveats":   confidence_caveats,
         },
+        "timing": dict(_stage_ms),
     }
 
     if not _synthesis_incomplete:

@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
-import { Clock, ExternalLink } from "lucide-react";
+import { Clock } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText } from "@/lib/text";
+
+// Retired — redirected to /newsroom via next.config.ts (this page's whole
+// purpose was linking readers off the site to raw third-party wire copy,
+// which the app doesn't do anywhere else). Kept as dead code rather than
+// deleted, same as this codebase's other retired routes.
 
 export const metadata: Metadata = {
   title: "Live Sources | AI Newsroom",
@@ -72,16 +77,6 @@ export default async function LiveSourcesPage() {
                       </span>
                     ))}
                   </div>
-                )}
-                {n.url && (
-                  <a
-                    href={n.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] font-medium text-slate-500 transition hover:text-sky-400"
-                  >
-                    View original <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
                 )}
               </div>
               <span className="shrink-0 text-[11px] text-slate-600">

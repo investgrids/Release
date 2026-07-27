@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const COMPANY_LINKS = [
   { label: "About MarketRipple",       href: "/about" },
@@ -37,13 +38,14 @@ export function Footer() {
 
           {/* Brand */}
           <div className="col-span-full lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2.5 mb-4" aria-label="MarketRipple home">
-              <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-gradient-to-br from-violet-500 to-sky-400 text-white shadow-lg shadow-violet-500/20">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden="true">
-                  <path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/>
-                </svg>
-              </div>
-              <span className="text-sm font-semibold text-white">MarketRipple</span>
+            <Link href="/" className="mb-4 inline-block" aria-label="MarketRipple home">
+              <Image
+                src="/marketripple-logo.png"
+                alt="MarketRipple"
+                width={1300}
+                height={250}
+                className="h-8 w-auto"
+              />
             </Link>
             <p className="text-[12px] text-slate-500 leading-5 max-w-[220px]">
               AI-powered market intelligence. Understand not just what happened — but why, who's affected, and what comes next.

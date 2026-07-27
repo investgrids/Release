@@ -4,8 +4,10 @@ import { useState, useEffect, use } from "react";
 import type { ReactNode } from "react";
 import { fixMojibake } from "@/lib/text";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
+import { NextSteps } from "@/components/NextSteps";
+import { OpportunityRippleGraph } from "@/components/OpportunityRippleGraph";
 import Link from "next/link";
-import { Lightbulb, Building2, AlertTriangle, Ban, Check } from "lucide-react";
+import { Lightbulb, Building2, AlertTriangle, Ban, Check, Zap, CalendarClock, History, Gauge } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import {
   Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -37,6 +39,12 @@ interface OpportunityDetail {
   sector_distribution: SectorDist[];
   graph_nodes: GraphNode[];
   graph_edges: GraphEdge[];
+  // Opportunity Radar 2.0 — Event -> Ripple -> ... -> Investment Verdict
+  // chain (see opportunity_intelligence.py's module docstring).
+  primary_event: EventSchema | null;
+  investment_verdict: { label: string; tone: string; reasoning: string } | null;
+  historical_similarity: { event_title: string; similarity: number; key_lesson: string | null; winners: string[]; losers: string[] } | null;
+  catalysts: { label: string; category: string; date: string; days_until: number }[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -126,7 +134,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
   if (loading) return (
     <div className="min-w-0 pb-12 space-y-5">
       <SkeletonBlock h="h-6" w="w-48" />
-      <div className="grid grid-cols-[1fr_280px] gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
         <div className="space-y-5">
           <SkeletonBlock h="h-40" /><SkeletonBlock h="h-60" /><SkeletonBlock h="h-40" />
         </div>
@@ -172,15 +180,15 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
         <span className="text-slate-300">{d.title}</span>
       </div>
 
-      <div className="grid grid-cols-[1fr_280px] gap-6 items-start">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_280px]">
 
         {/* ── MAIN ─────────────────────────────────────────────────────────── */}
         <div className="space-y-5">
 
           {/* Hero */}
           <SectionCard>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-4">
                 <div className="shrink-0 text-center">
                   {score !== null ? (
                     <>
@@ -203,7 +211,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
                     </>
                   )}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h1 className="text-2xl font-bold text-white">{d.title}</h1>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {(d.sectors || []).map((s, i) => (
@@ -224,13 +232,36 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-4 gap-3">
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatCard label="Confidence Score" value={confidence !== null ? `${confidence}%` : "—"} sub={confidence !== null ? "Confidence" : "Unscored"} valueClass="text-sky-400"/>
               <StatCard label="Time Horizon"     value={fixMojibake(d.time_horizon)}/>
               <StatCard label="Risk Level"       value={d.risk_level}   valueClass={riskColor(d.risk_level)}/>
               <StatCard label="Trend"            value={d.trend}        valueClass={trendColor(d.trend)}/>
             </div>
           </SectionCard>
+
+          {/* ── Step 1: Triggering Event — the real event that created this
+              opportunity (opportunity_events, linked via the Unified Event
+              Intelligence Engine's own event_id — same detail page events/
+              [id] renders, not a duplicate). ─────────────────────────────── */}
+          {d.primary_event && (
+            <Link href={`/events/${d.primary_event.event_id}` as any}
+              className="block rounded-[20px] border border-violet-500/15 bg-violet-500/[0.04] p-4 transition hover:border-violet-500/30">
+              <p className="mb-1 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-violet-300">
+                <Zap className="h-3 w-3" /> Triggering Event
+              </p>
+              <p className="text-[13px] font-semibold text-white">{d.primary_event.title}</p>
+              {d.primary_event.description && (
+                <p className="mt-1 line-clamp-2 text-[11.5px] leading-5 text-slate-400">{d.primary_event.description}</p>
+              )}
+            </Link>
+          )}
+
+          {/* ── Step 2: Ripple Analysis — real OpportunityGraphNode/Edge
+              data (pipeline-populated, previously never rendered). ──────── */}
+          {d.graph_nodes.length > 0 && (
+            <OpportunityRippleGraph nodes={d.graph_nodes} edges={d.graph_edges} />
+          )}
 
           {/* Why + Score chart */}
           <div className="grid grid-cols-[1fr_1.3fr] gap-5">
@@ -281,7 +312,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
           </div>
 
           {/* Beneficiaries + Sectors */}
-          <div className="grid grid-cols-[1fr_180px] gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_180px]">
             <div className="space-y-5">
 
               {/* Beneficiary table */}
@@ -405,6 +436,52 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
             </SectionCard>
           )}
 
+          {/* ── Catalysts — real, upcoming calendar events (same admin-
+              curated calendar Investment Watch already uses on company
+              pages), matched to this opportunity's sectors. ──────────────── */}
+          {d.catalysts.length > 0 && (
+            <SectionCard title="Catalysts">
+              <div className="space-y-2.5">
+                {d.catalysts.map((c, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+                    <CalendarClock className="h-4 w-4 shrink-0 text-amber-400" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-medium text-white">{fixMojibake(c.label)}</p>
+                      <p className="text-[10px] text-slate-500">{c.category} · {c.date}</p>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-semibold text-slate-400">in {c.days_until}d</span>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* ── Historical Similarity — same real precedent-matching engine
+              used across the app (historical_memory_service). Omitted
+              entirely (not a hollow "no match" card) when nothing real
+              clears the similarity bar. ──────────────────────────────────── */}
+          {d.historical_similarity && (
+            <SectionCard title="Historical Similarity">
+              <div className="flex items-center justify-between">
+                <p className="flex items-center gap-1.5 text-[13px] font-semibold text-white">
+                  <History className="h-3.5 w-3.5 text-slate-500" /> {d.historical_similarity.event_title}
+                </p>
+                <span className="shrink-0 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-300">
+                  {Math.round(d.historical_similarity.similarity)}% similar
+                </span>
+              </div>
+              {d.historical_similarity.key_lesson && (
+                <p className="mt-2 text-[12px] leading-5 text-slate-400">{d.historical_similarity.key_lesson}</p>
+              )}
+              {(d.historical_similarity.winners.length > 0 || d.historical_similarity.losers.length > 0) && (
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+                  {d.historical_similarity.winners.map((w, i) => <span key={`w${i}`} className="text-emerald-400">▲ {w}</span>)}
+                  {d.historical_similarity.losers.map((l, i) => <span key={`l${i}`} className="text-rose-400">▼ {l}</span>)}
+                </div>
+              )}
+            </SectionCard>
+          )}
+
           {/* Financial Impact */}
           {metrics && (
             <SectionCard title={`Financial Impact (Next ${fixMojibake(d.time_horizon)})`}>
@@ -423,10 +500,73 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </SectionCard>
           )}
+
+          {/* ── Step 9: Investment Verdict — the capstone. Deterministic,
+              from the opportunity's own real score/confidence/risk/trend
+              (see opportunity_intelligence.py — never an LLM call). ──────── */}
+          {d.investment_verdict && (
+            <div className={`rounded-[20px] border p-5 ${
+              d.investment_verdict.tone === "positive" ? "border-emerald-500/20 bg-emerald-500/[0.05]"
+              : d.investment_verdict.tone === "negative" ? "border-rose-500/20 bg-rose-500/[0.05]"
+              : "border-white/[0.08] bg-white/[0.03]"
+            }`}>
+              <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
+                <Gauge className="h-3 w-3" /> Investment Verdict
+              </p>
+              <p className={`text-[20px] font-black ${
+                d.investment_verdict.tone === "positive" ? "text-emerald-400"
+                : d.investment_verdict.tone === "negative" ? "text-rose-400" : "text-slate-300"
+              }`}>{d.investment_verdict.label}</p>
+              <p className="mt-1.5 text-[12px] text-slate-400">{d.investment_verdict.reasoning}</p>
+            </div>
+          )}
+
+          {/* Continue Research — cross-links this opportunity into the rest
+              of the platform (Platform Integration Sprint) instead of
+              dead-ending here. */}
+          <NextSteps config={{
+            takeaway: `${d.title} scores ${score ?? "—"}/100 across ${(d.sectors || []).join(", ") || "the affected sectors"}, with ${d.companies.length} companies identified as beneficiaries.`,
+            primary: {
+              label: `Ask AI about ${d.title}`,
+              why: "Get a full investment analysis, not just the opportunity summary — risks, valuation, and timing.",
+              href: `/ai-search?q=${encodeURIComponent(`Tell me about this opportunity: ${d.title}. Which companies benefit most and what are the risks?`)}`,
+            },
+            groups: [
+              ...(d.companies.length >= 2 ? [{
+                label: "Compare",
+                actions: [{
+                  label: `Compare ${d.companies[0].symbol} vs ${d.companies[1].symbol}`,
+                  why: "See the two leading beneficiaries side by side before deciding.",
+                  href: `/compare?a=${d.companies[0].symbol}&b=${d.companies[1].symbol}`,
+                }],
+              }] : []),
+              {
+                label: "Continue Research",
+                actions: [
+                  ...(d.companies[0] ? [{
+                    label: `Open ${d.companies[0].symbol} company page`,
+                    why: "See the full research terminal for the top beneficiary.",
+                    href: `/companies/${d.companies[0].symbol}`,
+                  }] : []),
+                  {
+                    label: "Explore Ripple Graph",
+                    why: "See how this opportunity propagates across sectors and companies.",
+                    href: "/ripple",
+                  },
+                  {
+                    label: "View related events",
+                    why: "Understand what triggered this opportunity in the first place.",
+                    href: "/events",
+                  },
+                ],
+              },
+            ],
+            path: [(d.sectors || [])[0] ?? "Sector", d.title, "Opportunity", "Investment Decision"],
+          }} />
         </div>
 
         {/* ── RIGHT SIDEBAR ─────────────────────────────────────────────────── */}
-        <aside className="sticky top-[84px] space-y-4">
+        <aside className="space-y-4 lg:sticky lg:top-[84px]">
 
           {/* AI Analysis */}
           <SectionCard>
@@ -471,11 +611,7 @@ export default function RadarDetailPage({ params }: { params: Promise<{ id: stri
               <div className="space-y-3">
                 {d.news.map((n, i) => (
                   <div key={i} className="border-b border-white/5 pb-3 last:border-0 last:pb-0">
-                    {n.url ? (
-                      <a href={n.url} target="_blank" rel="noreferrer" className="text-[12px] leading-5 text-slate-200 hover:text-sky-300 transition">{n.headline}</a>
-                    ) : (
-                      <p className="text-[12px] leading-5 text-slate-200">{n.headline}</p>
-                    )}
+                    <p className="text-[12px] leading-5 text-slate-200">{n.headline}</p>
                     <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-500">
                       <span>{n.source}</span>
                       {n.published_at && <><span>·</span><span>{n.published_at}</span></>}

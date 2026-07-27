@@ -107,6 +107,13 @@ class OpportunityDetailResponse(BaseModel):
     graph_nodes: List[GraphNodeSchema] = []
     graph_edges: List[GraphEdgeSchema] = []
 
+    # ── Opportunity Radar 2.0 — Event -> Ripple -> ... -> Investment
+    # Verdict chain (see opportunity_intelligence.py's module docstring) ──
+    primary_event: Optional[EventSchema] = None
+    investment_verdict: Optional[Dict[str, Any]] = None
+    historical_similarity: Optional[Dict[str, Any]] = None
+    catalysts: List[Dict[str, Any]] = []
+
 
 # ── Pagination wrapper for list endpoints ─────────────────────────────────────
 

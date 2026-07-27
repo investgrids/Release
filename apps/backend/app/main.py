@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import structlog
@@ -83,8 +84,17 @@ async def lifespan(app: FastAPI):
         log.info("db.seed_done")
 
     # ── 3. APScheduler ────────────────────────────────────────────────────────
+    # DISABLE_SCHEDULER=1 skips autonomous background jobs (AIPE publishing,
+    # evergreen/historical content generation, MIE refresh, etc.) — useful for
+    # isolating a single feature's real LLM behavior (e.g. an AI Search
+    # benchmark run) from the app's own background jobs, which share the same
+    # small free-tier LLM provider pool and would otherwise starve it.
     from app.scheduler import start_scheduler, stop_scheduler
-    scheduler = await start_scheduler()
+    scheduler = None
+    if os.environ.get("DISABLE_SCHEDULER") != "1":
+        scheduler = await start_scheduler()
+    else:
+        log.warning("scheduler.disabled", reason="DISABLE_SCHEDULER=1")
 
     # ── 4. Fyers auto-auth (TOTP) — upgrades provider before cache warmup ────
     asyncio.create_task(_try_fyers_upgrade(), name="fyers-auto-auth")
@@ -354,7 +364,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -366,6 +376,16 @@ app.include_router(stocks.router,       prefix="/api/stocks",       tags=["stock
 app.include_router(sectors.router,      prefix="/api/sectors",      tags=["sectors"])
 app.include_router(indices.router,      prefix="/api/indices",      tags=["indices"])
 app.include_router(ai_search.router,    prefix="/api/ai",           tags=["ai-search"])
+# Separate router (see ai_search_feedback.py's module docstring for why —
+# appending these to the ai_search router above left them unreachable).
+app.include_router(ai_search_feedback.router, prefix="/api/ai/search", tags=["ai-search"])
+app.include_router(ai_search_refine.router, prefix="/api/ai/search", tags=["ai-search"])
+app.include_router(ai_search_followup.router, prefix="/api/ai/search", tags=["ai-search"])
+app.include_router(ai_search_session.router, prefix="/api/ai/search", tags=["ai-search"])
+app.include_router(ai_search_watch.router, prefix="/api/ai/search", tags=["ai-search"])
+app.include_router(homepage_intelligence.router, prefix="/api/homepage", tags=["homepage"])
+app.include_router(live_intelligence.router, prefix="/api/live-intelligence", tags=["live-intelligence"])
+app.include_router(company_intelligence.router, prefix="/api/company-intelligence", tags=["company-intelligence"])
 app.include_router(premarket.router,    prefix="/api/premarket",    tags=["premarket"])
 app.include_router(market.router,       prefix="/api/market",       tags=["market"])
 app.include_router(commodities.router,  prefix="/api/commodities",  tags=["commodities"])

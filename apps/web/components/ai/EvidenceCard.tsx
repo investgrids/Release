@@ -59,9 +59,12 @@ export function EvidenceCard({ type, title, summary, href, date }: EvidenceCardP
     </div>
   );
 
+  // Always same-origin (an /events/[id] or /companies/[symbol] path — see
+  // AITransparencyPanel's callers) — normal in-app navigation, never a new
+  // tab out to a third party.
   if (href) {
     return (
-      <Link href={href as any} target="_blank" rel="noopener noreferrer" aria-label={`Evidence: ${title}`}>
+      <Link href={href as any} aria-label={`Evidence: ${title}`}>
         {inner}
       </Link>
     );

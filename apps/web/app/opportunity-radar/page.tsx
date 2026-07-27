@@ -167,7 +167,7 @@ function OpportunitiesTab() {
       </div>
 
       {/* 2-col: cards + sidebar */}
-      <div className="grid grid-cols-[1fr_220px] gap-5 items-start">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_220px]">
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {[1,2,3,4,5,6].map(i => <div key={i} className="h-[280px] animate-pulse rounded-[20px] border border-white/[0.06] bg-white/[0.02]" />)}
@@ -239,7 +239,7 @@ function OpportunitiesTab() {
         )}
 
         {/* Sidebar */}
-        <aside className="sticky top-[84px] rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
+        <aside className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4 lg:sticky lg:top-[84px]">
           <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Top Sectors</h3>
           {topSectors.length === 0 ? (
             <p className="text-[11px] text-slate-500">Not enough scored opportunities yet to rank sectors.</p>

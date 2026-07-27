@@ -253,7 +253,7 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
       )}
 
       {/* Level 1: Who's affected — most actionable */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card title="Beneficiaries"
           action={data.beneficiaries.length > 3
             ? <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-300">View All →</button>
@@ -635,7 +635,7 @@ function MarketTab({ data }: { data: EventDetail }) {
   const mr = data.marketReaction;
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
           { label: "Bull Case", v: ai.bull_case, color: "text-emerald-400", border: "border-emerald-500/20", prob: 30 },
           { label: "Base Case", v: ai.base_case, color: "text-amber-400",   border: "border-amber-500/20",  prob: 50 },
@@ -655,7 +655,7 @@ function MarketTab({ data }: { data: EventDetail }) {
 
       {Object.values(mr).some(Boolean) && (
         <Card title="Market Outlook">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { label: "Short Term",  v: mr.short_term  },
               { label: "Medium Term", v: mr.medium_term },
@@ -881,7 +881,6 @@ function RightPanel({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-1">
                     <p className="text-[12px] font-medium text-slate-200 line-clamp-2">{p.title}</p>
-                    {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="shrink-0 text-[9px] text-sky-400">↗</a>}
                   </div>
                   <p className="text-[10px] text-slate-500">{p.ministry} · {p.announcement_date?.slice(0, 10)}</p>
                 </div>
@@ -1050,11 +1049,11 @@ function Skeleton() {
     <div className="animate-pulse space-y-4">
       <div className="h-8 w-48 rounded-xl bg-white/[0.04]"/>
       <div className="h-28 rounded-[20px] bg-white/[0.04]"/>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[1,2,3,4].map(i => <div key={i} className="h-24 rounded-[20px] bg-white/[0.04]"/>)}
       </div>
       <div className="h-10 rounded-xl bg-white/[0.04]"/>
-      <div className="grid grid-cols-[1fr_280px] gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
         <div className="space-y-3">
           {[160,200,140].map((h,i) => <div key={i} className="rounded-[20px] bg-white/[0.04]" style={{ height: h }}/>)}
         </div>
@@ -1233,7 +1232,7 @@ export default function EventExplorerPage() {
       </div>
 
       {/* ── KPI cards ─────────────────────────────────────────────────────── */}
-      <div className="mb-5 grid grid-cols-4 gap-3">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiCard label="Impact Score"       value={hasRealScore(data.impactScore) ? Math.round(data.impactScore) : "—"} sub={hasRealScore(data.impactScore) ? scoreLabel(data.impactScore) : "Pending analysis"} icon={<Target className="h-4 w-4" />} color={sc.text} border={`${sc.border}/20`}/>
         <KpiCard label="Companies Affected" value={data.companies.length || "—"} sub={`${data.beneficiaries.length} benefit · ${data.losers.length} at risk`} icon={<Building2 className="h-4 w-4" />} color="text-sky-400"     border="border-sky-500/15"/>
         <KpiCard label="Sectors Impacted"   value={data.affectedSectors.length || "—"} sub={data.affectedSectors[0]?.sector ?? "Analyzing…"} icon={<BarChart2 className="h-4 w-4" />} color="text-emerald-400" border="border-emerald-500/15"/>
@@ -1251,7 +1250,7 @@ export default function EventExplorerPage() {
       )}
 
       {/* ── Tab bar ───────────────────────────────────────────────────────── */}
-      <div className="mb-5 flex items-center border-b border-white/[0.06]" role="tablist">
+      <div className="mb-5 flex items-center overflow-x-auto border-b border-white/[0.06] scrollbar-hide" role="tablist">
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             role="tab"
@@ -1274,7 +1273,7 @@ export default function EventExplorerPage() {
       </div>
 
       {/* ── Content + Right panel ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-[1fr_280px] items-start gap-5">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_280px]">
         <div className="min-w-0" role="tabpanel" aria-labelledby={`tab-${activeTab.toLowerCase().replace(/\s+/g, "-")}`}>
           {activeTab === "Overview"      && <OverviewTab   data={data} goTab={setActiveTab}/>}
           {activeTab === "Companies"     && <CompaniesTab  data={data}/>}
@@ -1288,7 +1287,7 @@ export default function EventExplorerPage() {
           <WhatNextSection data={data} />
         </div>
 
-        <aside className="sticky top-[84px]">
+        <aside className="lg:sticky lg:top-[84px]">
           <RightPanel
             data={data}
             marketData={marketData}

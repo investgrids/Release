@@ -29,6 +29,12 @@ const nextConfig: NextConfig = {
       // deliberately NOT redirected here — it's kept as an internal-only
       // ops preview (can show unpublished drafts via /api/publishing,
       // which the public route can't).
+      // /newsroom/sources ("Live Sources") existed only to link readers off
+      // the site to raw third-party wire copy — the app doesn't do that
+      // anywhere else (every other source citation is plain attribution
+      // text, never an outbound link), so this page is retired rather than
+      // patched.
+      { source: "/newsroom/sources",   destination: "/newsroom",                permanent: true },
       { source: "/insights",           destination: "/newsroom",                permanent: true },
       { source: "/insights/:slug",     destination: "/newsroom/article/:slug",  permanent: true },
       { source: "/daily-brief",        destination: "/newsroom/daily-brief",    permanent: true },
@@ -49,13 +55,23 @@ const nextConfig: NextConfig = {
     // JSON-LD <script type="application/ld+json"> tags are inline with no
     // nonce plumbing today; still a large improvement over no CSP at all.
     const apiOrigin = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+    // Google Analytics (next/script, gated to production in app/layout.tsx)
+    // needs its loader script allowed and its beacon endpoint reachable —
+    // without both, gtag's own <script src> tag in the HTML silently gets
+    // blocked by CSP and no events ever send, even though the tag is there.
     const csp = [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+      `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https:",
+      // Explicit apiOrigin (not just "https:") so this holds in local dev
+      // too, where the backend is plain http://localhost:8000 — confirmed
+      // live during the platform QA sprint: article hero images
+      // (/api/media/*.jpg) were silently CSP-blocked on every newsroom
+      // article page in dev, since a bare "https:" scheme allowance never
+      // matches an http:// origin.
+      `img-src 'self' data: ${apiOrigin} https:`,
       "font-src 'self' data:",
-      `connect-src 'self' ${apiOrigin}`,
+      `connect-src 'self' ${apiOrigin} https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com`,
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",

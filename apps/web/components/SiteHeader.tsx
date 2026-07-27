@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useNavLoading } from "@/components/NavLoadingProvider";
@@ -103,13 +104,23 @@ export function SiteHeader() {
         <div className="mx-auto flex h-[68px] max-w-[1600px] items-center gap-3 px-6">
 
           {/* Logo */}
-          <Link href="/" className="flex shrink-0 items-center gap-2.5 mr-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-violet-500 to-sky-500 shadow-lg shadow-violet-500/20">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-white">
-                <path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/>
-              </svg>
-            </div>
-            <span className="hidden text-[15px] font-bold text-white sm:block">MarketRipple</span>
+          <Link href="/" className="flex shrink-0 items-center mr-4">
+            <Image
+              src="/marketripple-mark.png"
+              alt="MarketRipple"
+              width={379}
+              height={250}
+              className="h-8 w-auto sm:hidden"
+              priority
+            />
+            <Image
+              src="/marketripple-logo.png"
+              alt="MarketRipple"
+              width={1300}
+              height={250}
+              className="hidden h-8 w-auto sm:block"
+              priority
+            />
           </Link>
 
           {/* Desktop nav */}
