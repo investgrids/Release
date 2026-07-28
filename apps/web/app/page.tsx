@@ -14,6 +14,24 @@ import { cleanText } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
 
+// The AI-generated morning brief (and, less often, real event data) lists
+// market indices and macro instruments in the same companies_affected /
+// event.companies shape a real company uses ("Sensex" / SENSEX, "Nifty
+// 50" / NIFTY) — found live in production ("Stocks to Watch" showing
+// SENSEX and NIFTY as if they were tickers). Same root cause the backend
+// itself already guards against in live_intelligence.py's anomaly
+// detector (indices/macro symbols mixed into real event ticker lists) —
+// applied here too since the frontend doesn't have that backend's real
+// company-universe lookup to check against, only a blocklist of the
+// known non-company symbols this pipeline actually produces.
+const _NON_COMPANY_SYMBOLS = new Set([
+  "SENSEX", "NIFTY", "NIFTY50", "BANKNIFTY", "NIFTYBANK", "INDIAVIX", "VIX",
+  "INR", "USDINR", "GOLD", "SILVER", "CRUDE", "BRENT",
+]);
+function isRealCompanySymbol(symbol?: string | null): boolean {
+  return !!symbol && !_NON_COMPANY_SYMBOLS.has(symbol.trim().toUpperCase());
+}
+
 // ── Fetch helpers — single cached call per render ─────────────────────────────
 async function live<T = any>(url: string, ms = 7000): Promise<T | null> {
   const ac = new AbortController();
@@ -386,7 +404,7 @@ async function HomepageIntelligenceHero() {
   );
   const seenSymbols = new Set<string>();
   const companies = [...evCompanies, ...briefCompanies, ...activeCompanies].filter(c => {
-    if (!c.symbol || seenSymbols.has(c.symbol)) return false;
+    if (!isRealCompanySymbol(c.symbol) || seenSymbols.has(c.symbol)) return false;
     seenSymbols.add(c.symbol);
     return true;
   }).slice(0, 4);
@@ -942,7 +960,7 @@ async function CompaniesToWatchTable() {
   outer:
   for (const e of events) {
     for (const c of (e.companies ?? [])) {
-      if (!c.symbol || seen.has(c.symbol)) continue;
+      if (!isRealCompanySymbol(c.symbol) || seen.has(c.symbol)) continue;
       seen.add(c.symbol);
       rows.push({ ticker: c.symbol, name: c.name ?? c.symbol, reason: e.title, score: e.impact_score ?? null, freshness: _watchFreshness(e.date, e.lifecycle) });
       if (rows.length >= 5) break outer;
