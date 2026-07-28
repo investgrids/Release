@@ -90,18 +90,22 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
               visible (not sr-only/hidden) — real page context for users
               on first paint, not a cloaked SEO-only block. */}
           <h1 className="text-[13px] font-semibold uppercase tracking-wide text-slate-500">
-            {stock.name} ({upper}) — AI Investment Analysis
+            {stock.name} ({upper}) Share Price &amp; AI Investment Analysis
           </h1>
-          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-slate-400">
+          {/* No max-width cap — the old max-w-3xl (768px) capped this well
+              short of the page's real container width, wasting the space
+              beside it on wide screens and forcing 6 lines where 3 would
+              do; letting it fill the section naturally fixes both. */}
+          <p className="mt-1.5 text-[13px] leading-relaxed text-slate-400">
             {withPeriod(
               stock.description
                 ? stock.description
                 : `${stock.name} (${upper}) trades on the NSE${stock.sector && stock.sector !== "N/A" ? ` in the ${stock.sector} sector` : ""}${stock.industry && stock.industry !== stock.sector ? ` (${stock.industry})` : ""}`
             )}
-            {" "}Current price ₹{stock.price}{stock.change ? ` (${stock.change})` : ""}
+            {" "}Track {stock.name}&apos;s live NSE:{upper} share price ₹{stock.price}{stock.change ? ` (${stock.change})` : ""}
             {fmtCrore(stock.market_cap) ? `, market cap ₹${stock.market_cap}` : ""}
-            {fmtCrore(stock.pe) ? `, P/E ${stock.pe}` : ""}. MarketRipple's AI analysis covers the investment thesis,
-            ripple-chain impact, and event-driven intelligence behind {stock.name}.
+            {fmtCrore(stock.pe) ? `, P/E ${stock.pe}` : ""}. MarketRipple's AI analysis covers the investment thesis, ripple-chain impact, and
+            {stock.sector && stock.sector !== "N/A" ? ` ${stock.sector} sector ` : " "}outlook for {upper} — real-time NSE India stock intelligence.
           </p>
         </section>
       )}

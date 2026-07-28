@@ -276,8 +276,20 @@ function EventCard({ ev }: { ev: Event }) {
 }
 
 // ── PriorityEventsBar ─────────────────────────────────────────────────────────
+// Ranked purely by impact_score with no recency bound, a handful of old
+// high-score events (weeks-old macro/policy items) permanently occupied
+// this "Today's" bar since nothing more recent ever outscored them. Now
+// restricted to a real 48h window (not a strict calendar day, so IST/UTC
+// timestamp differences and slower-scoring pipelines don't hide genuinely
+// current events) before ranking — if nothing recent qualifies, the section
+// hides itself rather than falling back to stale data.
 function PriorityEventsBar({ events }: { events: Event[] }) {
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
   const top3 = [...events]
+    .filter(ev => {
+      const t = Date.parse(ev.date);
+      return !Number.isNaN(t) && t >= cutoff;
+    })
     .sort((a, b) => (norm(b.impact_score) ?? -1) - (norm(a.impact_score) ?? -1))
     .slice(0, 3);
 
@@ -364,6 +376,16 @@ export default function EventsPage() {
   const high     = events.filter(e => e.impact_score !== null && e.impact_score >= 75 && e.impact_score < 90).length;
   const medium   = events.filter(e => e.impact_score !== null && e.impact_score >= 55 && e.impact_score < 75).length;
 
+  // Same 48h window as PriorityEventsBar — the header copy below literally
+  // says "today", so it needs to actually be scoped to today rather than
+  // reusing the all-time veryHigh count (which stayed permanently >0 off
+  // the same handful of weeks-old high-score seed events).
+  const recentCutoff = Date.now() - 48 * 60 * 60 * 1000;
+  const todayVeryHigh = events.filter(e => {
+    const t = Date.parse(e.date);
+    return e.impact_score !== null && e.impact_score >= 90 && !Number.isNaN(t) && t >= recentCutoff;
+  }).length;
+
   // Sector counts
   const sectorCounts: Record<string, number> = {};
   for (const ev of events) {
@@ -391,8 +413,8 @@ export default function EventsPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Events</h1>
           <p className="mt-0.5 text-sm text-slate-400">
-            {veryHigh > 0
-              ? `${veryHigh} very high-impact event${veryHigh > 1 ? "s" : ""} today — start with those first.`
+            {todayVeryHigh > 0
+              ? `${todayVeryHigh} very high-impact event${todayVeryHigh > 1 ? "s" : ""} today — start with those first.`
               : "Events ranked by market impact. Start with the highest."}
           </p>
         </div>

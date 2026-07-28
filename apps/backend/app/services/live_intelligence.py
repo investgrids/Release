@@ -53,9 +53,19 @@ _MIN_EVENT_URGENCY = 5
 
 
 async def _detect_anomaly(db: AsyncSession) -> dict | None:
-    """Real sector event-clustering: N>=3 distinct real companies with
-    real, recently-triaged, meaningfully-urgent events in the same sector
-    within a real time window. This is a genuine count, not a model guess."""
+    """Real sector event-clustering: N>=3 distinct real companies whose own
+    sector genuinely matches, with real, recently-triaged, meaningfully-
+    urgent events in that sector within a real time window. This is a
+    genuine count, not a model guess.
+
+    Live-audit bug (2026-07-28): a "11 IT companies" card was found showing
+    BHARTIARTL/CIPLA/DRREDDY/HDFCBANK/ICICIBANK — because EventTriage.sectors
+    is a list per event (one event can be tagged with several sectors at
+    once, e.g. a Union Budget story), and every ticker on that event was
+    being credited to every one of its tags. Fixed by only counting a ticker
+    under a sector when that company's OWN real sector (from _NSE_UNIVERSE)
+    actually matches the tag — via the same word-overlap+alias check
+    sectors.py uses for the identical "IT" vs "Technology" naming variance."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_CLUSTER_WINDOW_HOURS)
     rows = (await db.execute(
         select(EventTriage)
@@ -64,7 +74,9 @@ async def _detect_anomaly(db: AsyncSession) -> dict | None:
     )).scalars().all()
 
     from app.api.companies import _NSE_UNIVERSE
-    real_symbols = {co["symbol"] for co in _NSE_UNIVERSE}
+    from app.api.sectors import _words_overlap
+    symbol_sector = {co["symbol"]: (co.get("sector") or "") for co in _NSE_UNIVERSE}
+    real_symbols = set(symbol_sector)
 
     by_sector: dict[str, dict] = {}
     for r in rows:
@@ -72,15 +84,26 @@ async def _detect_anomaly(db: AsyncSession) -> dict | None:
             key = sector.strip()
             if not key:
                 continue
-            bucket = by_sector.setdefault(key, {"tickers": set(), "headlines": []})
+            bucket = by_sector.setdefault(key, {"tickers": set(), "headlines": [], "latest": None})
+            key_words = set(key.lower().split())
+            matched_this_event = False
             for t in (r.tickers or []):
                 sym = t.replace("NSE:", "")
                 # Real companies only — event tickers also include indices
                 # (NIFTY50, SENSEX, BANKNIFTY) and macro symbols (INR), which
                 # aren't "companies" and would inflate the cluster count.
-                if sym in real_symbols:
+                if sym not in real_symbols:
+                    continue
+                # ...and only when the company's OWN sector actually matches
+                # this tag, not merely because the event carried multiple tags.
+                sym_words = set(symbol_sector[sym].lower().split())
+                if _words_overlap(key_words, sym_words):
                     bucket["tickers"].add(sym)
-            bucket["headlines"].append(r.one_liner or r.headline)
+                    matched_this_event = True
+            if matched_this_event:
+                bucket["headlines"].append(r.one_liner or r.headline)
+                if r.triaged_at and (bucket["latest"] is None or r.triaged_at > bucket["latest"]):
+                    bucket["latest"] = r.triaged_at
 
     candidates = [(s, b) for s, b in by_sector.items() if len(b["tickers"]) >= _MIN_CLUSTER_COMPANIES]
     if not candidates:
@@ -100,13 +123,23 @@ async def _detect_anomaly(db: AsyncSession) -> dict | None:
         "why_it_matters": bucket["headlines"][0] if bucket["headlines"] else None,
         "companies": sorted(bucket["tickers"])[:6],
         "similarity": similarity,
+        "sector": sector,
+        "detected_at": bucket["latest"].isoformat() if bucket["latest"] else None,
     }
 
 
 async def _detect_policy_ripple(db: AsyncSession) -> dict | None:
     """A real multi-hop causal path — reuses _build_ripple_chain verbatim
     (same mechanism Phase 2A's Ripple Graph already proved), seeded from a
-    real recent policy-flagged event's own headline when one exists."""
+    real recent policy-flagged event's own headline when one exists.
+
+    Live-audit finding (2026-07-28): when no policy_row exists, this fell
+    through to a hardcoded evergreen seed pool and returned it exactly like
+    a live signal — "Union Budget Defence Boost" under a "Policy
+    Intelligence" card with no indication it wasn't today's news. The chain
+    itself is still real (not fabricated), but the freshness claim was
+    false. `is_fallback` now marks that distinction so the frontend can be
+    honest about it instead of implying "detected right now.\""""
     from app.services.ai_search_service import _build_ripple_chain
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_CLUSTER_WINDOW_HOURS)
@@ -118,13 +151,15 @@ async def _detect_policy_ripple(db: AsyncSession) -> dict | None:
         .limit(1)
     )).scalars().first()
 
-    seeds = [policy_row.headline] if policy_row else []
+    seeds = [(policy_row.headline, False)] if policy_row else []
     # Real, already-seeded policy nodes (intelligence_graph_service) as a
     # fallback pool — tried in order, first one that produces a real
-    # traversal wins. Never a fabricated path.
-    seeds += ["Union Budget Defence Boost", "PLI Manufacturing", "RBI Rate Cut", "Union Budget Infra Boost"]
+    # traversal wins. Never a fabricated path, but never today's real news
+    # either — is_fallback=True marks every seed in this pool as such.
+    seeds += [(s, True) for s in
+              ("Union Budget Defence Boost", "PLI Manufacturing", "RBI Rate Cut", "Union Budget Infra Boost")]
 
-    for seed in seeds:
+    for seed, is_fallback in seeds:
         if not seed:
             continue
         try:
@@ -145,6 +180,8 @@ async def _detect_policy_ripple(db: AsyncSession) -> dict | None:
                 "headline": seed,
                 "path": path[:5],
                 "companies": companies,
+                "is_fallback": is_fallback,
+                "detected_at": None if is_fallback else policy_row.triaged_at.isoformat(),
             }
     return None
 
@@ -187,6 +224,8 @@ async def _detect_early_theme(db: AsyncSession, exclude: str | None = None) -> d
         "headline": theme.theme,
         "opportunity_score": opportunity_score,
         "companies": top_stocks,
+        "opportunity_id": match.id if match else None,
+        "detected_at": theme.updated_at.isoformat() if theme.updated_at else None,
     }
 
 
@@ -232,6 +271,7 @@ async def _detect_historical_match(article) -> dict | None:
         "winners": [w.get("symbol") or w.get("name") for w in (m.get("historical_winners") or [])][:4],
         "losers": [l.get("symbol") or l.get("name") for l in (m.get("historical_losers") or [])][:4],
         "key_lesson": m.get("key_lesson"),
+        "detected_at": article.published_at.isoformat() if article.published_at else None,
     }
 
 

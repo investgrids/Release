@@ -429,63 +429,89 @@ const _LI_META: Record<string, { label: string; icon: React.ReactNode; cls: stri
   historical_match:  { label: "Pattern Detected",        icon: <History className="h-3.5 w-3.5" />,   cls: "text-amber-300 border-amber-500/25 bg-amber-500/[0.08]" },
 };
 
+// Every card links to its own permanent /intelligence/signal/{slug} page
+// (homepage audit, Priority 1 — signal_publisher.py persists one on every
+// cache-miss feed rebuild). The card itself stays a plain div with a full-
+// cover overlay <Link> (the "stretched link" pattern) rather than wrapping
+// everything in one <a>, so the company chips below can remain their own
+// real, separately-navigable links — nesting an <a> inside an <a> is
+// invalid HTML and would swallow those clicks.
 function LiveIntelligenceCard({ item }: { item: any }) {
   const meta = _LI_META[item.type];
   if (!meta) return null;
+  const href = item.slug ? `/intelligence/signal/${item.slug}` : null;
 
   return (
-    <div className="flex h-full flex-col rounded-[18px] border border-white/[0.07] bg-white/[0.02] p-4">
-      <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${meta.cls}`}>
-        {meta.icon} {meta.label}
-      </span>
-      <p className="mt-2.5 text-[13.5px] font-semibold leading-snug text-white">{cleanText(item.headline)}</p>
-
-      {item.type === "anomaly" && (
-        <>
-          {item.why_it_matters && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-5 text-slate-400">Why this matters: {cleanText(item.why_it_matters)}</p>}
-          {item.similarity != null && <p className="mt-1.5 text-[10px] text-slate-500">Historical similarity <span className="font-bold text-white">{Math.round(item.similarity)}%</span></p>}
-        </>
+    <div className="group relative flex h-full flex-col rounded-[18px] border border-white/[0.07] bg-white/[0.02] p-4 transition hover:border-violet-500/25">
+      {href && (
+        <Link href={href as any} className="absolute inset-0 z-0 rounded-[18px]" aria-label={`View full intelligence: ${cleanText(item.headline)}`} />
       )}
-
-      {item.type === "policy_ripple" && item.path?.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-slate-300">
-          {item.path.map((p: string, i: number) => (
-            <span key={i} className="flex items-center gap-1">
-              {i > 0 && <ArrowRight className="h-2.5 w-2.5 text-slate-600" />}
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5">{cleanText(p)}</span>
+      <div className="pointer-events-none relative z-10 flex h-full flex-col">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${meta.cls}`}>
+            {meta.icon} {meta.label}
+          </span>
+          {item.is_fallback ? (
+            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+              Recurring, not today
             </span>
-          ))}
+          ) : item.detected_at ? (
+            <span className="text-[9.5px] text-slate-600">{timeAgo(item.detected_at)}</span>
+          ) : null}
         </div>
-      )}
+        <p className="mt-2.5 text-[13.5px] font-semibold leading-snug text-white transition group-hover:text-violet-200">{cleanText(item.headline)}</p>
 
-      {item.type === "early_theme" && (
-        <div className="mt-2 flex items-center gap-4 text-[11px]">
-          <span className="text-slate-500">Stage <span className="font-bold text-emerald-400">Early</span></span>
-          {item.opportunity_score != null && <span className="text-slate-500">Opportunity Score <span className="font-bold text-white">{item.opportunity_score}</span></span>}
-        </div>
-      )}
+        {item.type === "anomaly" && (
+          <>
+            {item.why_it_matters && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-5 text-slate-400">Why this matters: {cleanText(item.why_it_matters)}</p>}
+            {item.similarity != null && <p className="mt-1.5 text-[10px] text-slate-500">Historical similarity <span className="font-bold text-white">{Math.round(item.similarity)}%</span></p>}
+          </>
+        )}
 
-      {item.type === "historical_match" && (
-        <>
-          {item.similarity != null && <p className="mt-1.5 text-[10px] text-slate-500">Similarity <span className="font-bold text-white">{Math.round(item.similarity)}%</span></p>}
-          {item.key_lesson && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-400">{cleanText(item.key_lesson)}</p>}
-          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px]">
-            {(item.winners ?? []).slice(0, 3).map((w: string, i: number) => <span key={i} className="text-emerald-400">▲ {w}</span>)}
-            {(item.losers ?? []).slice(0, 2).map((l: string, i: number) => <span key={i} className="text-rose-400">▼ {l}</span>)}
+        {item.type === "policy_ripple" && item.path?.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-slate-300">
+            {item.path.map((p: string, i: number) => (
+              <span key={i} className="flex items-center gap-1">
+                {i > 0 && <ArrowRight className="h-2.5 w-2.5 text-slate-600" />}
+                <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5">{cleanText(p)}</span>
+              </span>
+            ))}
           </div>
-        </>
-      )}
+        )}
 
-      {item.companies?.length > 0 && (
-        <div className="mt-auto flex flex-wrap gap-1 pt-2.5">
-          {item.companies.slice(0, 5).map((c: string, i: number) => (
-            <Link key={i} href={`/companies/${c}` as any}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-300 transition hover:border-violet-500/30 hover:text-violet-300">
-              {c}
-            </Link>
-          ))}
-        </div>
-      )}
+        {item.type === "early_theme" && (
+          <div className="mt-2 flex items-center gap-4 text-[11px]">
+            <span className="text-slate-500">Stage <span className="font-bold text-emerald-400">Early</span></span>
+            {item.opportunity_score != null && <span className="text-slate-500">Opportunity Score <span className="font-bold text-white">{item.opportunity_score}</span></span>}
+          </div>
+        )}
+
+        {item.type === "historical_match" && (
+          <>
+            {item.similarity != null && <p className="mt-1.5 text-[10px] text-slate-500">Similarity <span className="font-bold text-white">{Math.round(item.similarity)}%</span></p>}
+            {item.key_lesson && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-400">{cleanText(item.key_lesson)}</p>}
+            <div className="pointer-events-auto mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-[10.5px]">
+              {(item.winners ?? []).slice(0, 3).map((w: string, i: number) => (
+                <Link key={`w${i}`} href={`/companies/${w}` as any} className="text-emerald-400 hover:text-emerald-300 hover:underline">▲ {w}</Link>
+              ))}
+              {(item.losers ?? []).slice(0, 2).map((l: string, i: number) => (
+                <Link key={`l${i}`} href={`/companies/${l}` as any} className="text-rose-400 hover:text-rose-300 hover:underline">▼ {l}</Link>
+              ))}
+            </div>
+          </>
+        )}
+
+        {item.companies?.length > 0 && (
+          <div className="pointer-events-auto mt-auto flex flex-wrap gap-1 pt-2.5">
+            {item.companies.slice(0, 5).map((c: string, i: number) => (
+              <Link key={i} href={`/companies/${c}` as any}
+                className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-300 transition hover:border-violet-500/30 hover:text-violet-300">
+                {c}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
