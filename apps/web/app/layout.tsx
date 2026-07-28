@@ -101,6 +101,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             sameAs: [],
           }) }}
         />
+        {/* WebSite + SearchAction (SEO Phase 2, §2.3) — enables Google's
+            sitelinks searchbox. Points at the real /search route, which
+            already handles a plain ?q= query param. */}
+        <script
+          type="application/ld+json"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static JSON-LD
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "MarketRipple",
+            url: SITE_URL,
+            potentialAction: {
+              "@type": "SearchAction",
+              target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/search?q={search_term_string}` },
+              "query-input": "required name=search_term_string",
+            },
+          }) }}
+        />
         <NavigationProgress />
         <AlertProvider>
           <MarketIntelligenceProvider>

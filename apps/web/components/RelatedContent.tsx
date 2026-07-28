@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { API_BASE_URL as API } from "@/lib/api";
 import {
-  Zap, Building2, BookOpen, Target, Activity,
+  Zap, Building2, Target, Activity,
   TrendingUp, ArrowRight, Sparkles,
 } from "lucide-react";
 
 export type RelatedEntityType =
   | "event" | "company" | "story" | "opportunity" | "ripple" | "search";
 
-interface RelatedItem {
+export interface RelatedItem {
   id:       string;
   title:    string;
   subtitle?: string;
@@ -34,13 +34,20 @@ interface RelatedContentProps {
   title?:     string;
   sector?:    string;
   className?: string;
+  // Server-fetched /api/related/{type}/{id} response (SEO Phase 2, §2.4) —
+  // when provided, seeds initial render with real data instead of the
+  // empty-then-fetch pattern, so this block's links exist in the server
+  // HTML crawlers see, not just after a client round-trip.
+  initialData?: Record<string, RelatedItem[]> | null;
 }
 
 
+// "stories" removed (2026-07-28) — the Story model is confirmed dead (see
+// the SEO/Growth audit's Critical Finding #3); /api/related never returns
+// this key anymore, kept only as dead weight before this cleanup.
 const TYPE_META: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
   events:       { icon: <Zap className="h-3.5 w-3.5" />,       label: "Related Events",       color: "violet" },
   companies:    { icon: <Building2 className="h-3.5 w-3.5" />, label: "Related Companies",    color: "sky"    },
-  stories:      { icon: <BookOpen className="h-3.5 w-3.5" />,  label: "Related Stories",      color: "amber"  },
   opportunities:{ icon: <Target className="h-3.5 w-3.5" />,    label: "Opportunities",        color: "emerald"},
   ripple:       { icon: <Activity className="h-3.5 w-3.5" />,  label: "Ripple Analyses",      color: "rose"   },
 };
@@ -63,14 +70,31 @@ function Skeleton() {
   );
 }
 
+function buildGroups(data: Record<string, RelatedItem[]>): RelatedGroup[] {
+  const built: RelatedGroup[] = [];
+  for (const [key, items] of Object.entries(data)) {
+    if (!Array.isArray(items) || items.length === 0) continue;
+    const meta = TYPE_META[key] ?? TYPE_META.events;
+    built.push({ type: key, ...meta, items: items.slice(0, 5) });
+  }
+  return built;
+}
+
 export function RelatedContent({
-  entityType, entityId, title, sector, className = "",
+  entityType, entityId, title, sector, className = "", initialData,
 }: RelatedContentProps) {
-  const [groups,  setGroups]  = useState<RelatedGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [groups,  setGroups]  = useState<RelatedGroup[]>(initialData ? buildGroups(initialData) : []);
+  const [loading, setLoading] = useState(!initialData);
+  // Guards the very first effect run only — see CompanyPageClient.tsx's
+  // identical pattern for the full reasoning.
+  const skippedFirstResetRef = useRef(!!initialData);
 
   useEffect(() => {
     if (!entityId) return;
+    if (skippedFirstResetRef.current) {
+      skippedFirstResetRef.current = false;
+      return;
+    }
     const params = new URLSearchParams();
     if (title)  params.set("title",  title);
     if (sector) params.set("sector", sector);
@@ -78,13 +102,7 @@ export function RelatedContent({
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return;
-        const built: RelatedGroup[] = [];
-        for (const [key, items] of Object.entries(data as Record<string, RelatedItem[]>)) {
-          if (!Array.isArray(items) || items.length === 0) continue;
-          const meta = TYPE_META[key] ?? TYPE_META.events;
-          built.push({ type: key, ...meta, items: items.slice(0, 5) });
-        }
-        setGroups(built);
+        setGroups(buildGroups(data as Record<string, RelatedItem[]>));
       })
       .catch(() => {/* ignore */})
       .finally(() => setLoading(false));

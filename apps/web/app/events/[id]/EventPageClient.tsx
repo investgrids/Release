@@ -15,7 +15,7 @@ import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { InvestmentThesisCard, OpportunityLifecycleCard, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, MultiHorizonOutlookCard } from "@/components/intelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
-import { RelatedContent } from "@/components/RelatedContent";
+import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { HistoricalMemory } from "@/components/HistoricalMemory";
 import { useIntelligence } from "@/hooks/useIntelligence";
 import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
@@ -203,7 +203,7 @@ function Card({ title, action, children, className = "" }: {
 }
 
 // ── Tab: Overview ─────────────────────────────────────────────────────────────
-function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => void }) {
+function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab: (t: Tab) => void; initialRelated?: Record<string, RelatedItem[]> | null }) {
   const [deepOpen, setDeepOpen] = useState(false);
   const isPending = data.event.enrichment_status !== "done";
   const evidenceItems = (data.relatedNews ?? []).slice(0, 6).map(n => ({
@@ -472,6 +472,7 @@ function OverviewTab({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => vo
               entityId={data.event.id}
               title={data.event.title}
               sector={data.affectedSectors?.[0]?.sector}
+              initialData={initialRelated}
             />
           </div>
         )}
@@ -1072,7 +1073,7 @@ function Skeleton() {
 // loading skeleton. This component still fetches its own fresh copy (plus
 // market data/chart, which the server wrapper doesn't fetch) exactly as
 // before.
-export default function EventExplorerPage({ initialDetail }: { initialDetail?: EventDetail | null } = {}) {
+export default function EventExplorerPage({ initialDetail, initialRelated }: { initialDetail?: EventDetail | null; initialRelated?: Record<string, RelatedItem[]> | null } = {}) {
   const { id } = useParams<{ id: string }>();
   const [data,        setData]        = useState<EventDetail | null>(initialDetail ?? null);
   const [marketData,  setMarketData]  = useState<MarketData | null>(null);
@@ -1297,7 +1298,7 @@ export default function EventExplorerPage({ initialDetail }: { initialDetail?: E
       {/* ── Content + Right panel ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_280px]">
         <div className="min-w-0" role="tabpanel" aria-labelledby={`tab-${activeTab.toLowerCase().replace(/\s+/g, "-")}`}>
-          {activeTab === "Overview"      && <OverviewTab   data={data} goTab={setActiveTab}/>}
+          {activeTab === "Overview"      && <OverviewTab   data={data} goTab={setActiveTab} initialRelated={initialRelated}/>}
           {activeTab === "Companies"     && <CompaniesTab  data={data}/>}
           {activeTab === "Sectors"       && <SectorsTab    data={data}/>}
           {activeTab === "Timeline"      && <TimelineTab   data={data}/>}

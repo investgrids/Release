@@ -77,8 +77,8 @@ export default async function SectorsPage() {
             const isPositive = s.positive;
 
             return (
-              <div key={s.id}
-                className="group rounded-[20px] border border-white/[0.08] bg-[#0c1422] p-5 transition hover:-translate-y-0.5 hover:border-white/[0.15] hover:shadow-lg">
+              <Link key={s.id} href={`/sectors/${s.id}`}
+                className="group block rounded-[20px] border border-white/[0.08] bg-[#0c1422] p-5 transition hover:-translate-y-0.5 hover:border-white/[0.15] hover:shadow-lg">
                 {/* Header */}
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[15px] font-bold text-white">{s.name}</p>
@@ -100,13 +100,11 @@ export default async function SectorsPage() {
                   <span className={`text-[11px] font-medium ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
                     {isPositive ? "↑ Outperforming" : "↓ Underperforming"}
                   </span>
-                  <Link
-                    href={`/ai-search?q=${encodeURIComponent(`${s.name} sector outlook and top stocks`)}`}
-                    className="text-[11px] font-semibold text-violet-400 opacity-0 transition group-hover:opacity-100 hover:text-violet-300">
-                    Ask AI →
-                  </Link>
+                  <span className="text-[11px] font-semibold text-violet-400 opacity-0 transition group-hover:opacity-100">
+                    View Sector →
+                  </span>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

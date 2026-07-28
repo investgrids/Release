@@ -11,7 +11,7 @@ import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { NextSteps } from "@/components/NextSteps";
 import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSection";
-import { RelatedContent } from "@/components/RelatedContent";
+import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { scoreToColor, impactToStyle } from "@/lib/scoring";
 import {
@@ -1664,7 +1664,7 @@ function PageSkeleton() {
 // skeleton — see page.tsx's own docstring. Purely a perceived-perf/SEO
 // seed: this component still fetches its own fresh copy (plus news, which
 // the server wrapper deliberately doesn't fetch) exactly as before.
-export default function StockPage({ params, initialStock }: PageProps & { initialStock?: StockDetail | null }) {
+export default function StockPage({ params, initialStock, initialRelated }: PageProps & { initialStock?: StockDetail | null; initialRelated?: Record<string, RelatedItem[]> | null }) {
   const { symbol } = use(params);
   const [stock,        setStock]        = useState<StockDetail | null>(initialStock ?? null);
   const [chartData,    setChartData]    = useState<any[]>([]);
@@ -1859,6 +1859,7 @@ export default function StockPage({ params, initialStock }: PageProps & { initia
                       entityId={stock.symbol}
                       title={stock.name}
                       sector={stock.sector}
+                      initialData={initialRelated}
                     />
                   </div>
                 )}

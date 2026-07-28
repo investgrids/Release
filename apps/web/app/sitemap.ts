@@ -85,12 +85,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // /stories/:slug 301-redirects to /newsroom/themes for every id, so
   // submitting these URLs in the sitemap only produced Search Console
   // "Page with redirect" warnings for pages that never had real content.
-  const [events, radar, companiesPage1, news, insights] = await Promise.all([
+  const [events, radar, companiesPage1, news, insights, sectors] = await Promise.all([
     safeJson<Array<{ id: string; date?: string }>>(`${API}/api/events/?limit=100`, []),
     safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
     safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
-    safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string }> }>(`${API}/api/insights/?limit=100`, {}),
+    safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
+    safeJson<Array<{ id: string }>>(`${API}/api/sectors/`, []),
   ]);
 
   // Companies list is paginated server-side (60/page) — fetch the remaining
@@ -135,12 +136,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Real destination, not /insights/{slug} — that path also 301-redirects
   // (to /newsroom/article/{slug}, same "AI Newsroom consolidation" redirect
   // block as /themes above). Same bug, same fix.
+  //
+  // `images` (SEO Phase 3, §3.4) — real AI-generated hero images already
+  // exist per article (a genuine backend pipeline, not a placeholder);
+  // Next.js's sitemap type accepts a plain `images: string[]` per entry,
+  // which is all Google's image sitemap extension needs — no separate
+  // sitemap file required. Served from the backend's own domain
+  // (/api/media/*), which is fine for an image sitemap — it only needs a
+  // publicly reachable absolute URL, not same-origin.
   const insightRoutes: MetadataRoute.Sitemap = (insights.items ?? []).map(a => ({
     url: `${base}/newsroom/article/${a.slug}`,
     lastModified: a.last_updated ?? a.published_at ?? now,
     changeFrequency: "weekly",
     priority: 0.85,
+    ...(a.hero_image_url ? { images: [`${API}${a.hero_image_url}`] } : {}),
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  // SEO Phase 2 §2.1 — real sector landing pages (/sectors/[sector]),
+  // sourced from the same SectorData rows the /sectors overview already
+  // lists, each backed by real constituent stocks + matched opportunities/
+  // events (see sectors.py's /intelligence endpoint).
+  const sectorRoutes: MetadataRoute.Sitemap = (Array.isArray(sectors) ? sectors : []).map(s => ({
+    url: `${base}/sectors/${s.id}`,
+    lastModified: now,
+    changeFrequency: "daily",
+    priority: 0.75,
+  }));
+
+  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }

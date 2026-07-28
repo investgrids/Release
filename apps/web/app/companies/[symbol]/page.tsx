@@ -1,6 +1,8 @@
 import { API_BASE_URL as API } from "@/lib/api";
 import StockPage, { type StockDetail } from "./CompanyPageClient";
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+
 /**
  * Server wrapper (Phase 1 SEO fix — see the SEO/Growth audit's Critical
  * Finding #1: this route previously shipped zero server-rendered content,
@@ -16,6 +18,20 @@ import StockPage, { type StockDetail } from "./CompanyPageClient";
 async function fetchStock(symbol: string): Promise<StockDetail | null> {
   try {
     const res = await fetch(`${API}/api/stocks/${symbol}`, { next: { revalidate: 300 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// SEO Phase 2, §2.4 — server-fetches the same /api/related endpoint
+// RelatedContent otherwise fetches client-side, so the internal-link web
+// this block builds exists in the initial HTML, not just after hydration.
+async function fetchRelated(symbol: string, name: string, sector?: string) {
+  try {
+    const params = new URLSearchParams({ title: name, ...(sector ? { sector } : {}) });
+    const res = await fetch(`${API}/api/related/company/${encodeURIComponent(symbol)}?${params}`, { next: { revalidate: 600 } });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -41,9 +57,31 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
   const { symbol } = await params;
   const upper = symbol.toUpperCase();
   const stock = await fetchStock(upper);
+  const related = stock ? await fetchRelated(upper, stock.name, stock.sector) : null;
+  const url = `${SITE}/companies/${upper}`;
+
+  const jsonLd = stock ? {
+    "@context": "https://schema.org",
+    "@type": "Corporation",
+    name: stock.name,
+    tickerSymbol: upper,
+    url,
+    ...(stock.sector && stock.sector !== "N/A" ? { industry: stock.sector } : {}),
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
+        { "@type": "ListItem", position: 2, name: "Companies", item: `${SITE}/companies` },
+        { "@type": "ListItem", position: 3, name: stock.name, item: url },
+      ],
+    },
+  } : null;
 
   return (
     <>
+      {jsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      )}
       {stock && (
         <section className="mb-4 border-b border-white/[0.06] pb-4">
           {/* The single real <h1> for this page — CompanyHero inside the
@@ -67,7 +105,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
           </p>
         </section>
       )}
-      <StockPage params={params} initialStock={stock} />
+      <StockPage params={params} initialStock={stock} initialRelated={related} />
     </>
   );
 }

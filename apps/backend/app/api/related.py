@@ -64,22 +64,28 @@ async def _recent_events(db: AsyncSession, limit: int, exclude_id: str = "", sec
     return items
 
 
-async def _recent_stories(db: AsyncSession, limit: int) -> list[dict[str, Any]]:
-    rows = await db.execute(select(models.Story).limit(limit))
-    return [
-        {"id": r.id, "title": r.title, "href": f"/stories/{r.id}"}
-        for r in rows.scalars().all()
-    ]
-
-
 async def _recent_opportunities(db: AsyncSession, limit: int, sector: str = "") -> list[dict[str, Any]]:
+    """Real Opportunity rows (app.db.models.opportunity.Opportunity — 40
+    live rows), not the legacy RadarOpportunity model this used to read
+    from (5 stale seed rows, linking to /radar/{id} which itself
+    301-redirects to /opportunity-radar/{id}) — found live while fixing
+    RelatedContent's SSR conversion. This endpoint also used to surface a
+    "stories" group from the confirmed-dead Story model (see the SEO/Growth
+    audit's Critical Finding #3), linking to /stories/{id} — another
+    redirecting dead end — removed entirely rather than relabeled."""
+    from app.db.models.opportunity import Opportunity
+
     rows = await db.execute(
-        select(models.RadarOpportunity).order_by(models.RadarOpportunity.score.desc()).limit(limit)
+        select(Opportunity).order_by(Opportunity.opportunity_score.desc()).limit(limit * 3)
     )
-    return [
-        {"id": str(r.id), "title": r.theme, "href": f"/radar/{r.id}", "score": r.score}
-        for r in rows.scalars().all()
-    ]
+    items = []
+    for r in rows.scalars().all():
+        if sector and not _sector_match(r.sectors or [], sector):
+            continue
+        items.append({"id": str(r.id), "title": r.title, "href": f"/opportunity-radar/{r.id}", "score": round(r.opportunity_score or 0)})
+        if len(items) >= limit:
+            break
+    return items
 
 
 @router.get("/{entity_type}/{entity_id}")
@@ -101,8 +107,7 @@ async def get_related(
 
     if entity_type == "event":
         result["events"]        = await _recent_events(db, 5, exclude_id=entity_id, sector=sector)
-        result["stories"]       = await _recent_stories(db, 4)
-        result["opportunities"] = await _recent_opportunities(db, 3)
+        result["opportunities"] = await _recent_opportunities(db, 4)
 
     elif entity_type == "company":
         # Events mentioning this company symbol
@@ -124,25 +129,17 @@ async def get_related(
         if not company_events:
             company_events = await _recent_events(db, 4, sector=sector)
         result["events"]        = company_events
-        result["stories"]       = await _recent_stories(db, 4)
-        result["opportunities"] = await _recent_opportunities(db, 3)
-
-    elif entity_type == "story":
-        result["events"]        = await _recent_events(db, 5, sector=sector)
         result["opportunities"] = await _recent_opportunities(db, 4)
 
     elif entity_type == "opportunity":
         result["events"]        = await _recent_events(db, 5, sector=sector)
-        result["stories"]       = await _recent_stories(db, 4)
 
     elif entity_type == "ripple":
         result["events"]        = await _recent_events(db, 5, exclude_id=entity_id, sector=sector)
-        result["opportunities"] = await _recent_opportunities(db, 3)
-        result["stories"]       = await _recent_stories(db, 3)
+        result["opportunities"] = await _recent_opportunities(db, 4)
 
     elif entity_type == "search":
         result["events"]        = await _recent_events(db, 5)
-        result["opportunities"] = await _recent_opportunities(db, 4)
-        result["stories"]       = await _recent_stories(db, 3)
+        result["opportunities"] = await _recent_opportunities(db, 5)
 
     return result

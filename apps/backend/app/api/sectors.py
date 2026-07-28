@@ -51,9 +51,23 @@ async def list_sectors(db: AsyncSession = Depends(get_db)):
 async def sector_stocks(sector_id: str):
     """Return constituent stocks for a sector with live prices."""
     key = _norm(sector_id)
+    if key not in _SECTOR_STOCKS:
+        raise HTTPException(status_code=404, detail=f"Sector '{sector_id}' not found")
+    stocks = await _get_sector_stocks_cached(key)
+    return {"sector": sector_id, "stocks": stocks}
+
+
+async def _get_sector_stocks_cached(key: str) -> list[dict]:
+    """Same fetch-or-cache logic as the /stocks route above, extracted so
+    the new /intelligence route (sector landing pages, SEO Phase 2) can
+    call it directly instead of a self-HTTP round-trip."""
     symbols = _SECTOR_STOCKS.get(key)
     if not symbols:
-        raise HTTPException(status_code=404, detail=f"Sector '{sector_id}' not found")
+        return []
+
+    cached_entry = _sector_stock_cache.get(key)
+    if cached_entry and time.time() - cached_entry[0] < _SECTOR_STOCK_TTL:
+        return cached_entry[1]
 
     import yfinance as yf, math
     tickers = [f"{s}.NS" for s in symbols]
@@ -66,7 +80,6 @@ async def sector_stocks(sector_id: str):
             )
         except Exception:
             return []
-
         result = []
         for sym, ns in zip(symbols, tickers):
             try:
@@ -85,24 +98,76 @@ async def sector_stocks(sector_id: str):
                     pct = 0.0
                 sign = "+" if pct >= 0 else ""
                 result.append({
-                    "symbol":   sym,
-                    "name":     sym,
-                    "price":    f"₹{curr:,.2f}",
-                    "change":   f"{sign}{pct:.2f}%",
-                    "positive": pct >= 0,
+                    "symbol": sym, "name": sym,
+                    "price": f"₹{curr:,.2f}", "change": f"{sign}{pct:.2f}%", "positive": pct >= 0,
                 })
             except Exception:
                 result.append({"symbol": sym, "name": sym, "price": "—", "change": "—", "positive": True})
         return result
 
-    # Return cached result if still fresh
-    cached_entry = _sector_stock_cache.get(key)
-    if cached_entry and time.time() - cached_entry[0] < _SECTOR_STOCK_TTL:
-        return {"sector": sector_id, "stocks": cached_entry[1]}
-
     loop = asyncio.get_event_loop()
     stocks = await loop.run_in_executor(None, _fetch)
-
-    # Store in cache
     _sector_stock_cache[key] = (time.time(), stocks)
-    return {"sector": sector_id, "stocks": stocks}
+    return stocks
+
+
+def _sector_words(name: str) -> set[str]:
+    return {w.lower() for w in (name or "").replace("&", " ").split() if len(w) > 3}
+
+
+@router.get("/{sector_id}/intelligence")
+async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)):
+    """Real aggregation for sector landing pages (SEO Phase 2, §2.1) — the
+    sector's live momentum + constituent stocks (existing /stocks logic)
+    plus real opportunities and events whose own `sectors` field overlaps
+    this sector's name. No new intelligence generated here: every field is
+    a read of data that already exists elsewhere in the app, filtered by
+    sector — same word-overlap matching pattern as context_pulse.py's
+    _find_related_opportunity, reused rather than reinvented."""
+    from sqlalchemy import select
+    from app.db.models.event import Event
+    from app.db.models.opportunity import Opportunity
+
+    rows = await get_sectors(db)
+    sector_row = next((r for r in rows if r.id.lower() == sector_id.lower()), None)
+    if not sector_row:
+        raise HTTPException(status_code=404, detail=f"Sector '{sector_id}' not found")
+
+    key = _norm(sector_id)
+    stocks = await _get_sector_stocks_cached(key)
+
+    target_words = _sector_words(sector_row.name) | _sector_words(sector_id.replace("-", " "))
+
+    opp_rows = (await db.execute(
+        select(Opportunity).order_by(Opportunity.opportunity_score.desc()).limit(60)
+    )).scalars().all()
+    opportunities = []
+    for o in opp_rows:
+        opp_words = {w.lower() for s in (o.sectors or []) for w in _sector_words(s)}
+        if target_words & opp_words:
+            opportunities.append({
+                "id": o.id, "slug": o.slug, "title": o.title,
+                "opportunity_score": o.opportunity_score, "confidence": o.confidence,
+            })
+        if len(opportunities) >= 6:
+            break
+
+    event_rows = (await db.execute(
+        select(Event).order_by(Event.published_at.desc()).limit(200)
+    )).scalars().all()
+    events = []
+    for e in event_rows:
+        ev_words = {w.lower() for s in (e.sectors or []) for w in _sector_words(s)}
+        if target_words & ev_words:
+            events.append({
+                "id": e.id, "title": e.title, "impact_score": e.impact_score,
+                "date": (e.event_date or e.published_at).isoformat() if (e.event_date or e.published_at) else None,
+            })
+        if len(events) >= 6:
+            break
+
+    return {
+        "id": sector_row.id, "name": sector_row.name,
+        "value": sector_row.value, "positive": sector_row.positive,
+        "stocks": stocks, "opportunities": opportunities, "events": events,
+    }
