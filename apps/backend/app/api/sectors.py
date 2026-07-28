@@ -93,8 +93,10 @@ async def _get_sector_stocks_cached(key: str) -> list[dict]:
                     continue
                 if len(df) >= 2:
                     prev = float(df["Close"].iloc[-2])
-                    pct = (curr - prev) / prev * 100 if prev else 0.0
+                    pct = (curr - prev) / prev * 100 if prev and not math.isnan(prev) else 0.0
                 else:
+                    pct = 0.0
+                if math.isnan(pct):
                     pct = 0.0
                 sign = "+" if pct >= 0 else ""
                 result.append({
