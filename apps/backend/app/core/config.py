@@ -34,7 +34,14 @@ def _default_cors() -> List[str]:
 class Settings(BaseSettings):
     app_name: str = "IG Market Intelligence"
     backend_cors_origins: List[str] = []
-    frontend_url: str = ""    # set on Railway: https://release-web-pi.vercel.app (real prod domain not purchased yet)
+    # Set on Railway — MUST be the real production domain (https://www.marketripple.in),
+    # never a Vercel preview subdomain. Used to build canonical_url/mainEntityOfPage
+    # for every AIPE-published article (see aipe/publisher.py) — a stale preview
+    # domain here silently tells Google to canonicalize every article to a
+    # non-production URL (confirmed live in the SEO/Growth audit's Critical
+    # Finding #2: FRONTEND_URL was still release-web-pi.vercel.app long after
+    # marketripple.in went live).
+    frontend_url: str = ""
     log_level: str = "INFO"
     json_logs: bool = False          # True in production for structured JSON
 

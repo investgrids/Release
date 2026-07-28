@@ -25,7 +25,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/events`,                     lastModified: now, changeFrequency: "hourly", priority: 0.95 },
     { url: `${base}/companies`,                  lastModified: now, changeFrequency: "daily",  priority: 0.9 },
     { url: `${base}/news`,                       lastModified: now, changeFrequency: "hourly", priority: 0.85 },
-    { url: `${base}/themes`,                     lastModified: now, changeFrequency: "daily",  priority: 0.85 },
+    // Real destination, not /themes — that path 301-redirects here (see
+    // next.config.ts's "AI Newsroom consolidation" redirects). A sitemap
+    // listing a redirecting URL is a confirmed Search Console warning
+    // ("Page with redirect") and wastes crawl budget every cycle.
+    { url: `${base}/newsroom/themes`,            lastModified: now, changeFrequency: "daily",  priority: 0.85 },
     { url: `${base}/opportunity-radar`,          lastModified: now, changeFrequency: "daily",  priority: 0.85 },
     { url: `${base}/ripple`,                     lastModified: now, changeFrequency: "daily",  priority: 0.8 },
     { url: `${base}/ai-search`,                  lastModified: now, changeFrequency: "daily",  priority: 0.8 },
@@ -73,13 +77,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // not assumed — /api/events caps `limit` at 100, /api/companies caps
   // `page_size` at 60, both silently 422 and fall back to [] if exceeded):
   //   /api/events/  -> bare array of events, keyed by `id`
-  //   /api/stories/ -> bare array of stories; `id` doubles as the /stories/[slug] param
   //   /api/radar/   -> { items: [...] }; /opportunity-radar/[id] uses the numeric `id`
   //   /api/companies/ -> { companies: [...], total_pages }, keyed by `symbol`
   //   /api/news/    -> bare array of news items, keyed by `id`
-  const [events, stories, radar, companiesPage1, news, insights] = await Promise.all([
+  // Deliberately NOT fetching /api/stories/ — the Story model is confirmed
+  // dead (seed data only, see next.config.ts's redirect comment) and
+  // /stories/:slug 301-redirects to /newsroom/themes for every id, so
+  // submitting these URLs in the sitemap only produced Search Console
+  // "Page with redirect" warnings for pages that never had real content.
+  const [events, radar, companiesPage1, news, insights] = await Promise.all([
     safeJson<Array<{ id: string; date?: string }>>(`${API}/api/events/?limit=100`, []),
-    safeJson<Array<{ id: string }>>(`${API}/api/stories/?limit=100`, []),
     safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
     safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
@@ -100,13 +107,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const eventRoutes: MetadataRoute.Sitemap = (Array.isArray(events) ? events : []).map(e => ({
     url: `${base}/events/${e.id}`,
     lastModified: e.date ?? now,
-    changeFrequency: "weekly",
-    priority: 0.75,
-  }));
-
-  const storyRoutes: MetadataRoute.Sitemap = (Array.isArray(stories) ? stories : []).map(s => ({
-    url: `${base}/stories/${s.id}`,
-    lastModified: now,
     changeFrequency: "weekly",
     priority: 0.75,
   }));
@@ -132,12 +132,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.55,
   }));
 
+  // Real destination, not /insights/{slug} — that path also 301-redirects
+  // (to /newsroom/article/{slug}, same "AI Newsroom consolidation" redirect
+  // block as /themes above). Same bug, same fix.
   const insightRoutes: MetadataRoute.Sitemap = (insights.items ?? []).map(a => ({
-    url: `${base}/insights/${a.slug}`,
+    url: `${base}/newsroom/article/${a.slug}`,
     lastModified: a.last_updated ?? a.published_at ?? now,
     changeFrequency: "weekly",
     priority: 0.85,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...storyRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }

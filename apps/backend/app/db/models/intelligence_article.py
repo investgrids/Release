@@ -92,7 +92,7 @@ class IntelligenceArticle(Base):
     related_events       = Column(JSON, nullable=False, default=list)
     # [{"event_id": "...", "title": "..."}]
     related_themes       = Column(JSON, nullable=False, default=list)
-    # [{"theme": "Banking", "link": "/themes"}]
+    # [{"theme": "Banking", "link": "/newsroom/themes"}]
     knowledge_graph_refs = Column(JSON, nullable=False, default=list)
     # Node IDs from intelligence_graph
     historical_refs      = Column(JSON, nullable=False, default=list)

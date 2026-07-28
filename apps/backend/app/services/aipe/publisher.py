@@ -138,7 +138,16 @@ async def _publish_new_article(
     now = datetime.now(timezone.utc)
     article_id = str(uuid.uuid4())
     slug = article_data.get("slug", article_id)
-    site_url = settings.frontend_url or "https://investgrids.com"
+    # settings.frontend_url MUST be the real production domain
+    # (https://www.marketripple.in) — see config.py's docstring on this
+    # field for the incident this comment references. The "/insights/{slug}"
+    # path below is deliberately NOT what the real frontend serves either:
+    # /insights/:slug 301-redirects to /newsroom/article/:slug (see
+    # next.config.ts's "AI Newsroom consolidation" redirects) — canonical
+    # URLs and JSON-LD mainEntityOfPage must point at the FINAL destination,
+    # never a URL that immediately redirects.
+    site_url = (settings.frontend_url or "https://www.marketripple.in").rstrip("/")
+    article_path = f"/newsroom/article/{slug}"
 
     # Build JSON-LD (Article + FAQPage if FAQs present)
     json_ld: dict[str, Any] = {
@@ -150,13 +159,13 @@ async def _publish_new_article(
         "dateModified": now.isoformat(),
         "author": {"@type": "Organization", "name": "MarketRipple AI Intelligence Engine"},
         "publisher": {"@type": "Organization", "name": "MarketRipple"},
-        "mainEntityOfPage": f"{site_url}/insights/{slug}",
+        "mainEntityOfPage": f"{site_url}{article_path}",
         "breadcrumb": {
             "@type": "BreadcrumbList",
             "itemListElement": [
                 {"@type": "ListItem", "position": 1, "name": "MarketRipple", "item": site_url},
-                {"@type": "ListItem", "position": 2, "name": "Insights", "item": f"{site_url}/insights"},
-                {"@type": "ListItem", "position": 3, "name": article_data.get("headline", ""), "item": f"{site_url}/insights/{slug}"},
+                {"@type": "ListItem", "position": 2, "name": "Newsroom", "item": f"{site_url}/newsroom"},
+                {"@type": "ListItem", "position": 3, "name": article_data.get("headline", ""), "item": f"{site_url}{article_path}"},
             ],
         },
     }
@@ -181,11 +190,11 @@ async def _publish_new_article(
     for sec in (article_data.get("sectors_affected") or [])[:3]:
         name = sec.get("name", "")
         if name:
-            internal_links.append({"text": name, "href": "/themes", "type": "sector"})
+            internal_links.append({"text": name, "href": "/newsroom/themes", "type": "sector"})
     internal_links += [
         {"text": "AI Search", "href": "/ai-search", "type": "tool"},
         {"text": "Market Intelligence", "href": "/market-intelligence", "type": "tool"},
-        {"text": "Daily Brief", "href": "/daily-brief", "type": "tool"},
+        {"text": "Daily Brief", "href": "/newsroom/daily-brief", "type": "tool"},
     ]
 
     # Related entity lists
@@ -195,7 +204,7 @@ async def _publish_new_article(
         if c.get("symbol")
     ]
     related_sectors = [
-        {"theme": s.get("name", ""), "link": "/themes"}
+        {"theme": s.get("name", ""), "link": "/newsroom/themes"}
         for s in (article_data.get("sectors_affected") or [])[:4]
         if s.get("name")
     ]
@@ -259,7 +268,7 @@ async def _publish_new_article(
         # SEO
         seo_title=article_data.get("seo_title"),
         meta_description=article_data.get("meta_description"),
-        canonical_url=f"{site_url}/insights/{slug}",
+        canonical_url=f"{site_url}{article_path}",
         json_ld=json_ld,
         # Context
         market_context=market_ctx,
@@ -919,7 +928,10 @@ async def run_historical_cycle() -> None:
                 with perf_stats.timed("validation"):
                     passed, results, quality_score = validate(article_data, seo_score)
                 now = datetime.now(timezone.utc)
-                site_url = settings.frontend_url or "https://marketripple.in"
+                # Same fix as generate_and_publish above — real production
+                # domain + the final (non-redirecting) article path.
+                site_url = (settings.frontend_url or "https://www.marketripple.in").rstrip("/")
+                article_path = f"/newsroom/article/{article_data.get('slug', story_id)}"
                 faqs = article_data.get("faqs") or []
                 json_ld: dict[str, Any] = {
                     "@context": "https://schema.org", "@type": "Article",
@@ -928,7 +940,7 @@ async def run_historical_cycle() -> None:
                     "datePublished": now.isoformat(), "dateModified": now.isoformat(),
                     "author": {"@type": "Organization", "name": "MarketRipple AI Intelligence Engine"},
                     "publisher": {"@type": "Organization", "name": "MarketRipple"},
-                    "mainEntityOfPage": f"{site_url}/insights/{article_data.get('slug', story_id)}",
+                    "mainEntityOfPage": f"{site_url}{article_path}",
                 }
                 if faqs:
                     json_ld["@type"] = ["Article", "FAQPage"]
@@ -958,7 +970,7 @@ async def run_historical_cycle() -> None:
                     what_to_watch_next=article_data.get("what_to_watch_next", []),
                     faqs=faqs, sources=article_data.get("sources", ["MarketRipple Intelligence Engine"]),
                     seo_title=article_data.get("seo_title"), meta_description=article_data.get("meta_description"),
-                    canonical_url=f"{site_url}/insights/{article_data.get('slug', story_id)}", json_ld=json_ld,
+                    canonical_url=f"{site_url}{article_path}", json_ld=json_ld,
                     confidence_score=float(article_data.get("confidence_score") or 0.7),
                     quality_score=quality_score, seo_score=seo_score,
                     validation_passed=passed, validation_results=results,
