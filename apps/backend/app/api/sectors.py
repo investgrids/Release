@@ -117,6 +117,28 @@ def _sector_words(name: str) -> set[str]:
     return {w.lower() for w in (name or "").replace("&", " ").split() if len(w) > 3}
 
 
+# A few real sector-name variants share no substring at all (found live
+# while sizing best-of pages: SectorData's fixed 12 rows use "IT", but
+# Opportunity/Event rows tag "Technology" — no word is a substring of the
+# other, unlike Auto/Automotive or Infra/Infrastructure, which
+# _words_overlap's substring check below already catches on its own).
+_SECTOR_ALIASES: dict[str, set[str]] = {"it": {"technology", "information"}}
+
+
+def _words_overlap(a: set[str], b: set[str]) -> bool:
+    """True if any word in `a` and any word in `b` share a real relationship
+    — exact match, one contains the other (Auto/Automotive, Infra/
+    Infrastructure, Metal/Metals — the common case for real sector-name
+    variance), or a known alias pair. Same reasoning as this file's own
+    _norm() substring check, generalized to two whole word-sets."""
+    for wa in a:
+        aliases = _SECTOR_ALIASES.get(wa, set())
+        for wb in b:
+            if wa == wb or wa in wb or wb in wa or wb in aliases:
+                return True
+    return False
+
+
 @router.get("/{sector_id}/intelligence")
 async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)):
     """Real aggregation for sector landing pages (SEO Phase 2, §2.1) — the
@@ -132,13 +154,27 @@ async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)
 
     rows = await get_sectors(db)
     sector_row = next((r for r in rows if r.id.lower() == sector_id.lower()), None)
-    if not sector_row:
-        raise HTTPException(status_code=404, detail=f"Sector '{sector_id}' not found")
-
     key = _norm(sector_id)
-    stocks = await _get_sector_stocks_cached(key)
 
-    target_words = _sector_words(sector_row.name) | _sector_words(sector_id.replace("-", " "))
+    if not sector_row:
+        # No live-momentum SectorData row, but real constituent stocks
+        # exist for this key (_SECTOR_STOCKS has 13 sectors; SectorData
+        # only tracks 12, and they're NOT the same 12 — Defence,
+        # Chemicals, Telecom, and Finance have real stock lists and real
+        # Opportunity/Event data but no momentum row). A page with real
+        # opportunities/events/companies and no momentum badge is honest
+        # and valuable; a 404 for "defence" when HAL/BEL opportunity and
+        # event data is sitting right there is not.
+        if key not in _SECTOR_STOCKS:
+            raise HTTPException(status_code=404, detail=f"Sector '{sector_id}' not found")
+        sector_name = key.replace("-", " ").title()
+        sector_value, sector_positive = None, None
+    else:
+        sector_name = sector_row.name
+        sector_value, sector_positive = sector_row.value, sector_row.positive
+
+    stocks = await _get_sector_stocks_cached(key)
+    target_words = _sector_words(sector_name) | _sector_words(sector_id.replace("-", " "))
 
     opp_rows = (await db.execute(
         select(Opportunity).order_by(Opportunity.opportunity_score.desc()).limit(60)
@@ -146,7 +182,7 @@ async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)
     opportunities = []
     for o in opp_rows:
         opp_words = {w.lower() for s in (o.sectors or []) for w in _sector_words(s)}
-        if target_words & opp_words:
+        if _words_overlap(target_words, opp_words):
             opportunities.append({
                 "id": o.id, "slug": o.slug, "title": o.title,
                 "opportunity_score": o.opportunity_score, "confidence": o.confidence,
@@ -160,7 +196,7 @@ async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)
     events = []
     for e in event_rows:
         ev_words = {w.lower() for s in (e.sectors or []) for w in _sector_words(s)}
-        if target_words & ev_words:
+        if _words_overlap(target_words, ev_words):
             events.append({
                 "id": e.id, "title": e.title, "impact_score": e.impact_score,
                 "date": (e.event_date or e.published_at).isoformat() if (e.event_date or e.published_at) else None,
@@ -169,7 +205,7 @@ async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)
             break
 
     return {
-        "id": sector_row.id, "name": sector_row.name,
-        "value": sector_row.value, "positive": sector_row.positive,
+        "id": sector_id.lower(), "name": sector_name,
+        "value": sector_value, "positive": sector_positive,
         "stocks": stocks, "opportunities": opportunities, "events": events,
     }

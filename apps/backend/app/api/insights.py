@@ -190,6 +190,12 @@ def _detail_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> di
         "created_at":          a.created_at.isoformat() if a.created_at else None,
         "canonical_url":       a.canonical_url,
         "json_ld":             a.json_ld,
+        # Generic structured-data slot — comparison_intelligence articles
+        # (SEO Phase 2, §2.2 research pages) stash the full decision
+        # comparison here (holding/target analysis, dimension table,
+        # tradeoff) rather than adding new fixed columns for one article
+        # type. Empty/None for every other article type.
+        "market_context":      a.market_context,
         "related_articles":    [],  # filled in by get_insight() — needs a DB lookup
     })
     return base

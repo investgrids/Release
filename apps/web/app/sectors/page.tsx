@@ -109,6 +109,27 @@ export default async function SectorsPage() {
           })}
         </div>
       )}
+
+      {/* Sectors with real constituent stocks + opportunity/event data but
+          no live-momentum index tracked yet (see sectors.py's /intelligence
+          endpoint docstring) — still real pages, just without a "Today"
+          momentum badge. */}
+      <div>
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">More Sectors</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "defence", name: "Defence" },
+            { id: "chemicals", name: "Chemicals" },
+            { id: "telecom", name: "Telecom" },
+            { id: "finance", name: "Finance (NBFC)" },
+          ].map((s) => (
+            <Link key={s.id} href={`/sectors/${s.id}`}
+              className="rounded-full border border-white/[0.1] bg-white/[0.03] px-4 py-2 text-[13px] font-medium text-slate-300 transition hover:border-white/[0.2] hover:text-white">
+              {s.name}
+            </Link>
+          ))}
+        </div>
+      </div>
     </main>
   );
 }

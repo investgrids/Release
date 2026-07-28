@@ -33,6 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/opportunity-radar`,          lastModified: now, changeFrequency: "daily",  priority: 0.85 },
     { url: `${base}/ripple`,                     lastModified: now, changeFrequency: "daily",  priority: 0.8 },
     { url: `${base}/ai-search`,                  lastModified: now, changeFrequency: "daily",  priority: 0.8 },
+    { url: `${base}/research`,                   lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/about`,                      lastModified: now, changeFrequency: "monthly",priority: 0.5 },
     { url: `${base}/why-marketripple`,           lastModified: now, changeFrequency: "monthly",priority: 0.5 },
     { url: `${base}/how-it-works`,               lastModified: now, changeFrequency: "monthly",priority: 0.5 },
@@ -44,7 +45,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/legal`,                      lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/contact`,                    lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/calendar`,                   lastModified: now, changeFrequency: "daily",  priority: 0.5 },
-    { url: `${base}/insights`,                   lastModified: now, changeFrequency: "hourly", priority: 0.9 },
+    // Real destination, not /insights — that path 301-redirects to
+    // /newsroom (same "AI Newsroom consolidation" redirect block already
+    // fixed for /themes and /insights/{slug} — this bare entry was missed
+    // in that earlier pass, found while adding /research below).
+    { url: `${base}/newsroom`,                   lastModified: now, changeFrequency: "hourly", priority: 0.9 },
     { url: `${base}/learn`,                      lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/learn/glossary`,             lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/learn/guides`,               lastModified: now, changeFrequency: "weekly", priority: 0.6 },
@@ -85,13 +90,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // /stories/:slug 301-redirects to /newsroom/themes for every id, so
   // submitting these URLs in the sitemap only produced Search Console
   // "Page with redirect" warnings for pages that never had real content.
-  const [events, radar, companiesPage1, news, insights, sectors] = await Promise.all([
+  const [events, radar, companiesPage1, news, insights, sectors, research] = await Promise.all([
     safeJson<Array<{ id: string; date?: string }>>(`${API}/api/events/?limit=100`, []),
     safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
     safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
     safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
     safeJson<Array<{ id: string }>>(`${API}/api/sectors/`, []),
+    // SEO Phase 2, §2.2 — comparison research pages.
+    safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string }> }>(`${API}/api/insights/?article_type=comparison_intelligence&limit=100`, {}),
   ]);
 
   // Companies list is paginated server-side (60/page) — fetch the remaining
@@ -163,5 +170,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.75,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  // Sectors.py's /intelligence endpoint also serves 4 sectors with real
+  // constituent stocks + opportunity/event data but no SectorData momentum
+  // row (Defence, Chemicals, Telecom, Finance) — not present in the
+  // /api/sectors/ list above, so listed explicitly here rather than
+  // silently missing from the sitemap.
+  const extraSectorRoutes: MetadataRoute.Sitemap = ["defence", "chemicals", "telecom", "finance"].map(id => ({
+    url: `${base}/sectors/${id}`,
+    lastModified: now,
+    changeFrequency: "daily",
+    priority: 0.7,
+  }));
+
+  // SEO Phase 2, §2.2 — comparison research pages, generated (with a real
+  // retry+quality gate) from the live AI Search decision engine — see
+  // comparison_publisher.py.
+  const researchRoutes: MetadataRoute.Sitemap = (research.items ?? []).map(a => ({
+    url: `${base}/research/${a.slug}`,
+    lastModified: a.last_updated ?? a.published_at ?? now,
+    changeFrequency: "weekly",
+    priority: 0.8,
+  }));
+
+  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
+import { AskAICta } from "@/components/AskAICta";
 
 /**
  * Sector landing page (SEO Phase 2, §2.1 — the single largest programmatic-
@@ -19,7 +20,12 @@ interface SectorStock { symbol: string; name: string; price: string; change: str
 interface SectorOpportunity { id: number; slug: string; title: string; opportunity_score: number | null; confidence: number | null }
 interface SectorEvent { id: string; title: string; impact_score: number | null; date: string | null }
 interface SectorIntelligence {
-  id: string; name: string; value: string; positive: boolean;
+  id: string; name: string;
+  // null for sectors with real constituent stocks + opportunities/events
+  // but no live-momentum SectorData row (e.g. Defence, Chemicals, Telecom,
+  // Finance) — an honest "no live index for this one" rather than a
+  // fabricated 0%.
+  value: string | null; positive: boolean | null;
   stocks: SectorStock[]; opportunities: SectorOpportunity[]; events: SectorEvent[];
 }
 
@@ -38,9 +44,9 @@ export async function generateMetadata({ params }: { params: Promise<{ sector: s
   const url = `${SITE}/sectors/${sector}`;
   const d = await fetchSector(sector);
   if (!d) return { title: "Sector — MarketRipple", alternates: { canonical: url } };
-  const desc = `${d.name} sector on NSE — live performance (${d.value}), constituent stocks, and AI-driven opportunity and event analysis on MarketRipple.`;
+  const desc = `${d.name} sector on NSE${d.value ? ` — live performance (${d.value})` : ""}, constituent stocks, and AI-driven opportunity and event analysis on MarketRipple.`;
   return {
-    title: `${d.name} Sector — Live Performance & AI Analysis`,
+    title: `${d.name} Sector — AI Analysis`,
     description: desc,
     openGraph: { type: "website", title: `${d.name} Sector — MarketRipple`, description: desc, url, siteName: "MarketRipple" },
     twitter: { card: "summary_large_image", title: `${d.name} Sector`, description: desc },
@@ -94,10 +100,17 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
             Live NSE {d.name} sector performance, constituent stocks, and AI-driven opportunity and event analysis.
           </p>
         </div>
-        <div className={`rounded-2xl border px-5 py-3 ${d.positive ? "bg-emerald-500/10 border-emerald-500/20" : "bg-rose-500/10 border-rose-500/20"}`}>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Today</p>
-          <p className={`mt-1 text-2xl font-black ${d.positive ? "text-emerald-300" : "text-rose-300"}`}>{d.value}</p>
-        </div>
+        {d.value ? (
+          <div className={`rounded-2xl border px-5 py-3 ${d.positive ? "bg-emerald-500/10 border-emerald-500/20" : "bg-rose-500/10 border-rose-500/20"}`}>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Today</p>
+            <p className={`mt-1 text-2xl font-black ${d.positive ? "text-emerald-300" : "text-rose-300"}`}>{d.value}</p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Companies</p>
+            <p className="mt-1 text-2xl font-black text-white">{d.stocks.length}</p>
+          </div>
+        )}
       </div>
 
       {/* Constituent stocks */}
@@ -162,9 +175,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
       <div className="rounded-[16px] border border-violet-500/20 bg-violet-500/[0.04] px-5 py-4">
         <p className="text-[13px] text-slate-300">
           Want a deeper read on {d.name}?{" "}
-          <Link href={`/ai-search?q=${encodeURIComponent(`What is the outlook for the ${d.name} sector?`)}`} className="font-semibold text-violet-300 hover:text-violet-200 transition">
-            Ask MarketRipple AI →
-          </Link>
+          <AskAICta query={`What is the outlook for the ${d.name} sector?`} source="sector_page" />
         </p>
       </div>
     </main>
