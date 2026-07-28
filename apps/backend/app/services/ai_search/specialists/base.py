@@ -122,9 +122,10 @@ PRIORITY_INSTRUCTIONS = (
 # References the NESTED field paths since that's the shape the model
 # actually generates (flatten_nested renames these on the way out).
 def research_framing_rules(outlook_labels: list[str]) -> str:
+    quoted_labels = ", ".join(f'"{l}"' for l in outlook_labels)
     return (
         f'- "investment.rating" MUST be exactly one of these values, nothing else: '
-        f'{", ".join(f'"{l}"' for l in outlook_labels)}. '
+        f'{quoted_labels}. '
         "This is a RESEARCH platform, not an advisory one — never say Buy, Sell, Hold, "
         "Strong Buy, Strong Sell, Accumulate, or Reduce anywhere in any field.\n"
         '- "decision.investor_action_note" must be phrased as what to watch for or '

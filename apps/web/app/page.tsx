@@ -282,8 +282,13 @@ async function HomepageIntelligenceHero() {
     .sort((a, b) => _magRank(b.magnitude) - _magRank(a.magnitude));
   const negativeSectors = sectors.filter(s => s.impact === "negative")
     .sort((a, b) => _magRank(b.magnitude) - _magRank(a.magnitude));
-  const biggestOpportunity = ev ? ev.opportunity_sector : positiveSectors[0]?.name;
-  const highestRisk = ev ? ev.risk_sector : negativeSectors[0]?.name;
+  // Fall back to the article's own sector breakdown at the FIELD level, not
+  // just when ev is entirely absent — the top event can be real and still
+  // have no negative-impact sector of its own (e.g. a purely positive
+  // Defence budget event), in which case the hero showed a bare "—" even
+  // though the article's broader sectors_affected had a real risk sector.
+  const biggestOpportunity = ev?.opportunity_sector ?? positiveSectors[0]?.name;
+  const highestRisk = ev?.risk_sector ?? negativeSectors[0]?.name;
 
   const companies = ev
     ? ev.companies.slice(0, 3).map((c: any) => ({ symbol: c.symbol, name: c.name, impact: "positive" }))
