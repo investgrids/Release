@@ -928,7 +928,7 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
       <MarketReplayPanel open={replayOpen} />
 
       {/* Row 1 — AI Market Intelligence (hero, executive summary only) · Market Health */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2.1fr_1fr]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <AIMarketIntelligenceHero
           story={story} storyLoading={storyLoading}
           drivers={mie?.market_drivers ?? []}

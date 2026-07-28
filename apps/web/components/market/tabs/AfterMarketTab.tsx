@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Telescope, Sparkles, CheckCircle2, XCircle } from "lucide-react";
-import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
+import { impactToStyle } from "@/lib/scoring";
 import { API_BASE_URL as API } from "@/lib/api";
 import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
+import { isRealCompanySymbol } from "@/lib/text";
 
 
 function StatCard({ label, value, positive, sub }: { label: string; value: string; positive?: boolean; sub?: string }) {
@@ -63,7 +64,13 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    fetch(`${API}/api/events/?sort_by=impact_score&page_size=10`)
+    // Recency-aware ranking (event_lifecycle.py), not plain impact_score —
+    // found live: this previously permanently pinned the same handful of
+    // weeks-old high-score seed events (Dixon/Kaynes/BEL/HAL, 94/91) at
+    // the top of "Tomorrow's Watchlist" regardless of how stale they were.
+    // Same root cause and same fix already applied to the homepage's
+    // Companies to Watch table.
+    fetch(`${API}/api/events/?sort_by=active&page_size=25`)
       .then(r => r.ok ? r.json() : null)
       .then(eventsRes => {
         const evs = eventsRes?.results ?? eventsRes ?? [];
@@ -93,15 +100,16 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
   const sectors   = data?.sectors ?? [];
   const breadth   = data?.breadth;
 
-  // "Tomorrow's Watchlist" — real event-linked companies (same honest pattern
-  // as Live Market's Companies That Matter), not a hardcoded fallback list.
-  const sortedEvents = [...recentEvents].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score));
+  // "Tomorrow's Watchlist" — real event-linked companies, in the order the
+  // recency-aware API already ranked them (re-sorting by plain impact_score
+  // here would undo that and bring back the exact staleness bug this fetch
+  // was just changed to fix).
   const seen = new Set<string>();
   const watchlist: { ticker: string; name: string; reason: string; score: number | null }[] = [];
   outer:
-  for (const e of sortedEvents) {
+  for (const e of recentEvents) {
     for (const c of (e.companies ?? [])) {
-      if (!c.symbol || seen.has(c.symbol)) continue;
+      if (!isRealCompanySymbol(c.symbol) || seen.has(c.symbol)) continue;
       seen.add(c.symbol);
       watchlist.push({ ticker: c.symbol, name: c.name ?? c.symbol, reason: e.title, score: e.impact_score ?? null });
       if (watchlist.length >= 4) break outer;

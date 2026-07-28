@@ -100,33 +100,38 @@ function AIConfidenceMeter({ value }: { value: number | null | undefined }) {
 }
 
 // ── Pre-Market Top Movers ─────────────────────────────────────────────────────
-function TopMoversPanel({ gainers }: { gainers: any[] }) {
+// Was a tab switcher (Gainers/Losers/Most Active) that only ever rendered the
+// gainers list — the tabs had no click handler or active-tab state, so
+// Losers/Most Active were dead UI. Replaced with both real lists shown at
+// once, side by side, per explicit "make this as two side layout" feedback.
+function MoverColumn({ label, rows, positive }: { label: string; rows: any[]; positive: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className={`mb-1.5 text-[9px] font-semibold uppercase tracking-wider ${positive ? "text-emerald-500" : "text-rose-500"}`}>{label}</p>
+      <div className="space-y-1.5">
+        {rows.slice(0, 5).map((r) => (
+          <Link key={r.ticker} href={`/companies/${r.ticker}`}
+            className="flex items-center justify-between hover:bg-white/[0.02] rounded-lg px-1 py-0.5 transition">
+            <p className="truncate text-[11px] font-semibold text-white">{r.ticker}</p>
+            <p className={`shrink-0 text-[10px] font-bold ${positive ? "text-emerald-400" : "text-rose-400"}`}>{r.value}</p>
+          </Link>
+        ))}
+        {rows.length === 0 && <p className="py-3 text-center text-[10px] text-slate-600">Loading…</p>}
+      </div>
+    </div>
+  );
+}
+
+function TopMoversPanel({ gainers, losers }: { gainers: any[]; losers: any[] }) {
   return (
     <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-4">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-[11px] font-bold text-white">Pre-Market Top Movers</p>
         <Link href="/stocks" className="text-[9px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
       </div>
-      <div className="flex gap-2 mb-2 border-b border-white/[0.05] pb-2">
-        {["Gainers","Losers","Most Active"].map((t, i) => (
-          <button key={t} className={`text-[9px] font-semibold ${i === 0 ? "text-emerald-400 border-b border-emerald-400" : "text-slate-600 hover:text-slate-400"} pb-0.5 transition`}>{t}</button>
-        ))}
-      </div>
-      <div className="space-y-1.5">
-        {gainers.slice(0, 5).map((r) => (
-          <Link key={r.ticker} href={`/companies/${r.ticker}`}
-            className="flex items-center justify-between hover:bg-white/[0.02] rounded-lg px-1 py-0.5 transition">
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 shrink-0 flex items-center justify-center rounded-md bg-white/[0.06] text-[7px] font-bold text-slate-400">{r.ticker?.slice(0,3)}</div>
-              <p className="text-[11px] font-semibold text-white">{r.ticker}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] text-slate-400">{r.subtitle}</p>
-              <p className="text-[10px] font-bold text-emerald-400">{r.value}</p>
-            </div>
-          </Link>
-        ))}
-        {gainers.length === 0 && <p className="py-3 text-center text-[10px] text-slate-600">Loading…</p>}
+      <div className="grid grid-cols-2 gap-3">
+        <MoverColumn label="Gainers" rows={gainers} positive/>
+        <MoverColumn label="Losers" rows={losers} positive={false}/>
       </div>
     </div>
   );
@@ -211,14 +216,25 @@ export function MarketIntelligenceSidebar({
   const conf      = liveInsights?.confidence ?? null;
   const fearGreed = liveInsights?.fear_greed ?? 72;
   const gainers   = liveMovers?.gainers ?? [];
+  const losers    = liveMovers?.losers ?? [];
 
+  // Previously one long single-column stack of 5 panels — made this
+  // sidebar column noticeably taller than the main content beside it,
+  // forcing extra scroll to reach Breaking News. Pairing panels that are
+  // naturally similar in height (the two compact gauges; the two list
+  // panels) into 2-column rows keeps the same content but roughly halves
+  // the total height.
   return (
     <div className="space-y-3">
-      <TopMoversPanel gainers={gainers}/>
-      <UpcomingEventsPanel events={calendarEvents}/>
-      <FearGreedGauge value={fearGreed}/>
-      <AIConfidenceMeter value={conf}/>
-      <BreakingNewsPanel news={news}/>
+      <TopMoversPanel gainers={gainers} losers={losers}/>
+      <div className="grid grid-cols-2 gap-3">
+        <UpcomingEventsPanel events={calendarEvents}/>
+        <BreakingNewsPanel news={news}/>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <FearGreedGauge value={fearGreed}/>
+        <AIConfidenceMeter value={conf}/>
+      </div>
     </div>
   );
 }

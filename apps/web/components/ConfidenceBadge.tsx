@@ -46,14 +46,28 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
 
   return (
     <div className="relative inline-block">
-      <button
+      {/* Not a <button> — this badge is frequently nested inside a larger
+          clickable card/header (e.g. IntelligenceBlock's own expand
+          toggle), and <button> inside <button> is invalid HTML that
+          React 19 now flags as a hydration error. role="button" +
+          keyboard handling keeps it just as accessible. */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
-        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all hover:opacity-90 ${style.bg} ${style.text} ${style.border}`}
+        onKeyDown={e => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen(o => !o);
+          }
+        }}
+        className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all hover:opacity-90 ${style.bg} ${style.text} ${style.border}`}
       >
         <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
         {data.level}
         <span className="tabular-nums opacity-70">{hasScore ? `${data.score}%` : "—"}</span>
-      </button>
+      </div>
 
       {open && data.reasons.length > 0 && (
         <div

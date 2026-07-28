@@ -71,7 +71,17 @@ async def get_yesterday_changes(db: AsyncSession, article) -> list[dict]:
     snapshots exist (same "never fabricate, just show nothing yet"
     stance as Investment Watch's last_change). Compares today's LIVE
     article sectors (not today's stored snapshot, which may be a few
-    hours stale) against the most recent snapshot from a PRIOR day."""
+    hours stale) against the most recent snapshot from a PRIOR day.
+
+    A prior snapshot existing is NOT the same as there being an overlapping
+    sector to diff — the daily narrative can move to an entirely different
+    set of sectors day to day (confirmed live: Jul 27 was Defence/IT,
+    Jul 28 was Banking/PSU Bank/Auto/Infra, zero name overlap). Sectors
+    with no prior-day match still carry real information — they're newly
+    in focus today — so they're surfaced as `is_new` entries with today's
+    own score standing in for the "delta", rather than silently dropped
+    and misreported as "not enough history" alongside the genuine
+    no-prior-snapshot-at-all case above."""
     today = _today()
     prior = (await db.execute(
         select(HomepageDailySnapshot)
@@ -91,11 +101,12 @@ async def get_yesterday_changes(db: AsyncSession, article) -> list[dict]:
     changes = []
     for s in today_sectors:
         name = s["name"]
-        if name not in prior_by_name:
-            continue
-        delta = s["score"] - prior_by_name[name]
-        if delta != 0:
-            changes.append({"name": name, "delta": delta, "direction": "up" if delta > 0 else "down"})
+        if name in prior_by_name:
+            delta = s["score"] - prior_by_name[name]
+            if delta != 0:
+                changes.append({"name": name, "delta": delta, "direction": "up" if delta > 0 else "down", "is_new": False})
+        elif s["score"] != 0:
+            changes.append({"name": name, "delta": s["score"], "direction": "up" if s["score"] > 0 else "down", "is_new": True})
     changes.sort(key=lambda c: abs(c["delta"]), reverse=True)
     return changes[:4]
 

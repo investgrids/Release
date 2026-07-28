@@ -265,17 +265,17 @@ export function OverviewTab({ data, loading = false, events: rawEvents, news: ra
     <div className="space-y-5">
       {loading ? <OverviewSkeleton /> : <AIExecutiveSummary data={{ ...data, events, opportunities: opps }} storyConfidence={storyConfidence} storyText={storyText} />}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <TopEventsSection events={topEvents}/>
         <AIOpportunitySection items={radarItems}/>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {loading ? <OverviewSkeleton /> : <TopMoversOverview movers={movers}/>}
         {loading ? <OverviewSkeleton /> : <SectorOverview sectors={sectors}/>}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <NewsPreview news={news}/>
         <UpcomingEvents events={calEvts}/>
       </div>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Sparkles, TrendingUp, TrendingDown, Building2, Radio, ChevronRight, Clock,
-  Gauge, BarChart3, CheckCircle2, Eye,
+  Gauge, BarChart3, Eye,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText, isRealSymbol } from "@/lib/text";
@@ -152,30 +152,26 @@ async function getHomeData() {
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export default async function NewsroomHomePage() {
-  const { hero, latest, companies, themes, news, mie, indices, sources, stats } = await getHomeData();
+  const { hero, latest, companies, themes, news, mie, indices, stats } = await getHomeData();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
 
-      {/* Status banner — real freshness + real active sources, not a static claim */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-          </span>
-          <span className="text-[12px] font-bold text-white">AI Intelligence Engine</span>
-          {mie.generated_at && (
-            <span className="text-[11px] text-slate-500">· Updated {fmtRelative(mie.generated_at)}</span>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {sources.map((s) => (
-            <span key={s} className="flex items-center gap-1 text-[10.5px] text-slate-500">
-              <CheckCircle2 className="h-3 w-3 text-emerald-500" /> {s}
-            </span>
-          ))}
-        </div>
+      {/* Status banner — freshness only. Previously also listed NSE/BSE as
+          "verified sources" unconditionally (see getHomeData's own comment:
+          "not fetched on this page" — they were never actually checked as
+          active for this specific request, just always prepended), which
+          overstated what had genuinely been verified. Hidden per request
+          rather than left implying a check that wasn't happening. */}
+      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+        </span>
+        <span className="text-[12px] font-bold text-white">AI Intelligence Engine</span>
+        {mie.generated_at && (
+          <span className="text-[11px] text-slate-500">· Updated {fmtRelative(mie.generated_at)}</span>
+        )}
       </div>
 
       {/* Real aggregate stats — every number a live query, not a claim */}

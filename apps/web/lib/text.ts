@@ -72,6 +72,28 @@ export function isRealSymbol(symbol?: string | null): boolean {
   return !!symbol && !PLACEHOLDER_SYMBOLS.has(symbol.trim().toLowerCase());
 }
 
+// AI-generated market narratives (morning briefs) and, less often, real
+// event data list market indices and macro instruments in the same
+// companies_affected / event.companies shape a real company uses ("Sensex"
+// / SENSEX, "Nifty 50" / NIFTY) — found live in production ("Stocks to
+// Watch" showing SENSEX and NIFTY as if they were tickers), and the same
+// pattern recurs anywhere "companies mentioned in this event" gets
+// rendered as ticker chips (e.g. After Market's Tomorrow's Watchlist).
+// Shared here rather than duplicated per call site since it's the same
+// real bug wherever it shows up. Same category of symbol
+// live_intelligence.py's anomaly detector already guards against on the
+// backend via its own real company-universe lookup, which the frontend
+// doesn't have direct access to — this is a blocklist of the specific
+// non-company symbols this pipeline actually produces, not a full
+// company-universe check.
+const NON_COMPANY_SYMBOLS = new Set([
+  "SENSEX", "NIFTY", "NIFTY50", "BANKNIFTY", "NIFTYBANK", "INDIAVIX", "VIX",
+  "INR", "USDINR", "GOLD", "SILVER", "CRUDE", "BRENT",
+]);
+export function isRealCompanySymbol(symbol?: string | null): boolean {
+  return isRealSymbol(symbol) && !NON_COMPANY_SYMBOLS.has((symbol as string).trim().toUpperCase());
+}
+
 // JSON.stringify does not escape "<", so embedding it verbatim inside a
 // <script type="application/ld+json"> tag lets a literal "</script>" in any
 // string value (e.g. AI-generated or externally-sourced content) close the

@@ -482,14 +482,28 @@ async def market_overview():
     status = get_market_status()
     pos_idx = sum(1 for i in indices if i.get("positive"))
     sentiment_score = min(90, max(20, int(50 + (pos_idx / max(len(indices), 1) - 0.5) * 80)))
+    # Real breadth derived from the movers sample — previously a hardcoded
+    # {1124, 387, 89, 47, 12} identical to /live's own placeholder,
+    # unchanging regardless of actual market conditions (this is the
+    # response After Market's Advances/Declines cards ultimately read via
+    # initialData, so the frontend "—" users saw traced back to this).
+    sample_pos = len(movers.get("gainers", []))
+    sample_neg = len(movers.get("losers",  []))
+    sample_total = max(sample_pos + sample_neg, 1)
+    est_advances = round(sample_pos / sample_total * 1200)
+    est_declines = round(sample_neg / sample_total * 1200)
     result = {
         "status":   status,
         "indices":  indices[:6],
         "sectors":  sectors,
         "movers":   movers,
         "sentiment_score": sentiment_score,
-        "breadth":  {"advances": 1124, "declines": 387, "unchanged": 89,
-                     "high52w": 47, "low52w": 12},
+        "breadth":  {
+            "advances": est_advances, "declines": est_declines,
+            "unchanged": max(0, 1500 - est_advances - est_declines),
+            "high52w": None, "low52w": None,
+            "note": "Estimated from Nifty 500 sample",
+        },
     }
     _overview_cache["ts"]   = now
     _overview_cache["data"] = result
@@ -663,13 +677,26 @@ async def market_live():
         get_sector_changes(),
         get_top_movers(),
     )
+    # Real breadth derived from the movers sample — this was previously a
+    # hardcoded {1124, 387, 89, 47, 12} that never changed regardless of
+    # actual market conditions (same copy-pasted placeholder found in
+    # /overview below). high52w/low52w/volume_cr have no real source
+    # available here, so they're now honestly None rather than static
+    # fake numbers alongside a real advances/declines figure.
+    sample_pos = len(movers.get("gainers", []))
+    sample_neg = len(movers.get("losers",  []))
+    sample_total = max(sample_pos + sample_neg, 1)
+    est_advances = round(sample_pos / sample_total * 1200)
+    est_declines = round(sample_neg / sample_total * 1200)
     return {
         "indices": indices,
         "sectors": sectors,
         "movers":  movers,
         "breadth": {
-            "advances": 1124, "declines": 387, "unchanged": 89,
-            "high52w": 47, "low52w": 12, "volume_cr": 18432,
+            "advances": est_advances, "declines": est_declines,
+            "unchanged": max(0, 1500 - est_advances - est_declines),
+            "high52w": None, "low52w": None, "volume_cr": None,
+            "note": "Estimated from Nifty 500 sample",
         },
     }
 
@@ -683,6 +710,17 @@ async def market_after_market():
     )
     nifty  = next((i for i in indices if "NIFTY 50" in i["name"]), {})
     sensex = next((i for i in indices if "SENSEX"   in i["name"]), {})
+
+    # Real market breadth derived from the movers sample — same approach
+    # already used by the premarket endpoint. Previously this response had
+    # no breadth field at all, so the frontend's Advances/Declines cards
+    # always rendered "—" regardless of real market conditions.
+    sample_pos = len(movers.get("gainers", []))
+    sample_neg = len(movers.get("losers",  []))
+    sample_total = max(sample_pos + sample_neg, 1)
+    est_advances = round(sample_pos / sample_total * 1200)
+    est_declines = round(sample_neg / sample_total * 1200)
+
     return {
         "closing": {
             "nifty":          nifty.get("value", "—"),
@@ -695,18 +733,16 @@ async def market_after_market():
         "sectors":  sectors,
         "gainers":  movers.get("gainers", []),
         "losers":   movers.get("losers",  []),
-        "tomorrow_watchlist": [
-            {"ticker": "BEL",  "name": "Bharat Electronics", "reason": "Defence contract expected",  "score": 87},
-            {"ticker": "RVNL", "name": "Rail Vikas Nigam",   "reason": "Railway budget allocation",  "score": 84},
-            {"ticker": "LT",   "name": "Larsen & Toubro",    "reason": "Strong order inflow",        "score": 82},
-            {"ticker": "NTPC", "name": "NTPC Ltd",           "reason": "Q4 results due tomorrow",    "score": 79},
-        ],
-        "ai_summary": (
-            "Markets ended "
-            + ("higher" if nifty.get("positive") else "lower")
-            + " driven by infrastructure and banking sectors. "
-            "Strong FII inflows supported the rally. Tomorrow, focus on Q4 earnings releases."
-        ),
+        "breadth": {
+            "advances":  est_advances,
+            "declines":  est_declines,
+            "unchanged": max(0, 1500 - est_advances - est_declines),
+            "note":      "Estimated from Nifty 500 sample",
+        },
+        # tomorrow_watchlist / ai_summary intentionally removed — both were
+        # hardcoded placeholder content the frontend never actually reads
+        # (it builds a real watchlist from live event data and a real
+        # summary from the shared market-story service instead).
     }
 
 

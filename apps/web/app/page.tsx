@@ -409,7 +409,7 @@ async function HomepageIntelligenceHero() {
     return true;
   }).slice(0, 4);
 
-  const changes = (ex.yesterday_changes ?? []) as { name: string; delta: number; direction: string }[];
+  const changes = (ex.yesterday_changes ?? []) as { name: string; delta: number; direction: string; is_new?: boolean }[];
   const storyTitle = ev ? ev.title : brief.headline;
   // ev.why_it_matters is frequently empty for routine compliance-filing
   // events; the SAME api/homepage/intelligence response also carries a
@@ -630,12 +630,18 @@ async function HomepageIntelligenceHero() {
                   <li key={i} className="flex items-center gap-2 text-[12px] font-medium">
                     <span className={c.direction === "up" ? "text-emerald-400" : "text-rose-400"}>{c.direction === "up" ? "↑" : "↓"}</span>
                     <span className="text-white">{c.name}</span>
-                    <span className={c.direction === "up" ? "text-emerald-400" : "text-rose-400"}>{c.direction === "up" ? "+" : ""}{c.delta}</span>
-                    <span className="ml-auto flex gap-0.5">
-                      {Array.from({ length: 4 }).map((_, di) => (
-                        <span key={di} className={`h-1.5 w-1.5 rounded-full ${di < deltaStrength(c.delta) ? (c.direction === "up" ? "bg-emerald-400" : "bg-rose-400") : "bg-white/10"}`} />
-                      ))}
-                    </span>
+                    {c.is_new ? (
+                      <span className="text-[10px] font-normal text-slate-500">newly in focus today</span>
+                    ) : (
+                      <>
+                        <span className={c.direction === "up" ? "text-emerald-400" : "text-rose-400"}>{c.direction === "up" ? "+" : ""}{c.delta}</span>
+                        <span className="ml-auto flex gap-0.5">
+                          {Array.from({ length: 4 }).map((_, di) => (
+                            <span key={di} className={`h-1.5 w-1.5 rounded-full ${di < deltaStrength(c.delta) ? (c.direction === "up" ? "bg-emerald-400" : "bg-rose-400") : "bg-white/10"}`} />
+                          ))}
+                        </span>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
