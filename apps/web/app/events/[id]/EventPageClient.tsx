@@ -20,6 +20,7 @@ import { HistoricalMemory } from "@/components/HistoricalMemory";
 import { useIntelligence } from "@/hooks/useIntelligence";
 import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
 import { API_BASE_URL as API } from "@/lib/api";
+import "reactflow/dist/style.css";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTip,
   ResponsiveContainer, PieChart, Pie, Cell,

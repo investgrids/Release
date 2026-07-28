@@ -262,4 +262,4 @@ select {
 .react-flow__controls-button:hover {
   background: rgba(20, 26, 48, 0.98) !important;
 }
-.react-flow__edge-path { stroke-width: 0 !important; }
+.react-flow__edge-path { stroke-width: 1.5px !important; }

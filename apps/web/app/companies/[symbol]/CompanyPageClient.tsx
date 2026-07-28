@@ -14,6 +14,7 @@ import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSect
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { scoreToColor, impactToStyle } from "@/lib/scoring";
+import "reactflow/dist/style.css";
 import {
   Star, Check, Sparkles, TrendingUp, IndianRupee, Target, Zap,
   BarChart2, ClipboardList, CheckCircle2, Rocket, Globe2, FlaskConical,
