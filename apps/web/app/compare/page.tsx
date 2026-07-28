@@ -1146,7 +1146,12 @@ function ComparePageInner() {
       </div>
 
       {/* Company selector chips */}
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 backdrop-blur-sm">
+      {/* relative + z-20: the Add Company dropdown inside (z-50) only wins
+          its OWN local stacking context — without this, the sibling
+          "Company summary cards" grid below (later in DOM order, its own
+          z-index:auto) painted over it regardless, since z-50 doesn't
+          escape to compete against elements outside this subtree. */}
+      <div className="relative z-20 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 backdrop-blur-sm">
         <div className="flex flex-wrap items-center gap-3">
           {selected.map((sym, i) => {
             const m = meta(sym);

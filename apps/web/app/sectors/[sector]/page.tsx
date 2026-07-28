@@ -39,6 +39,80 @@ async function fetchSector(sector: string): Promise<SectorIntelligence | null> {
   }
 }
 
+interface RelatedArticle {
+  slug: string; headline: string; article_type: string;
+  companies_affected: { symbol: string }[];
+}
+
+// TS mirror of sectors.py's _words_overlap — real sector-name variance
+// (SectorData's "IT" vs an article's own "Technology" tag; "Auto" vs
+// "Automotive") means a naive exact-string match silently misses real,
+// already-published content. Same alias pair as the Python version (the
+// one case with zero substring relationship).
+const _SECTOR_ALIASES: Record<string, Set<string>> = { it: new Set(["technology", "information"]) };
+function sectorWordsOverlap(a: Set<string>, b: Set<string>): boolean {
+  for (const wa of a) {
+    const aliases = _SECTOR_ALIASES[wa] ?? new Set<string>();
+    for (const wb of b) {
+      if (wa === wb || wa.includes(wb) || wb.includes(wa) || aliases.has(wb)) return true;
+    }
+  }
+  return false;
+}
+function sectorMatches(sectorName: string, tag: string): boolean {
+  return sectorWordsOverlap(new Set(sectorName.toLowerCase().split(/\s+/)), new Set(tag.toLowerCase().split(/\s+/)));
+}
+
+// "Related Research" (comparisons) and "Latest Intelligence Signals" —
+// SEO roadmap, "each sector page should become a topical authority hub."
+// Both reuse endpoints already built for the company page's own Compare-
+// With section and the Live Intelligence signal pipeline — no new backend
+// surface, just a sector-scoped view of real, already-persisted content.
+async function fetchSectorComparisons(sectorName: string): Promise<RelatedArticle[]> {
+  try {
+    const res = await fetch(`${API}/api/insights/comparisons?sector=${encodeURIComponent(sectorName)}&limit=6`, { next: { revalidate: 900 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.items) ? data.items : [];
+  } catch {
+    return [];
+  }
+}
+
+// live_signal articles don't have their own sector-filter endpoint yet
+// (only anomaly-type signals carry a real `sector` field on
+// sectors_affected — policy/theme/historical signals are topic-scoped,
+// not sector-scoped) — filtered here in the Server Component rather than
+// adding a narrow one-off API param for a single caller.
+async function fetchSectorSignals(sectorName: string): Promise<RelatedArticle[]> {
+  try {
+    const res = await fetch(`${API}/api/insights/?article_type=live_signal&limit=50&sort_by=newest`, { next: { revalidate: 300 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    return items.filter((a: any) =>
+      (a.sectors_affected ?? []).some((s: any) => s?.name && sectorMatches(sectorName, s.name))
+    ).slice(0, 6);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchSectorArticles(sectorName: string): Promise<RelatedArticle[]> {
+  try {
+    const res = await fetch(`${API}/api/insights/?limit=60&sort_by=newest`, { next: { revalidate: 900 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    return items.filter((a: any) =>
+      a.article_type !== "comparison_intelligence" && a.article_type !== "live_signal" &&
+      (a.sectors_affected ?? []).some((s: any) => s?.name && sectorMatches(sectorName, s.name))
+    ).slice(0, 6);
+  } catch {
+    return [];
+  }
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ sector: string }> }): Promise<Metadata> {
   const { sector } = await params;
   const url = `${SITE}/sectors/${sector}`;
@@ -58,6 +132,12 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
   const { sector } = await params;
   const d = await fetchSector(sector);
   if (!d) notFound();
+
+  const [comparisons, signals, articles] = await Promise.all([
+    fetchSectorComparisons(d.name),
+    fetchSectorSignals(d.name),
+    fetchSectorArticles(d.name),
+  ]);
 
   const url = `${SITE}/sectors/${sector}`;
   const jsonLd = {
@@ -170,6 +250,56 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
             <p className="text-[12px] text-slate-500">No recent events specifically affecting {d.name} right now.</p>
           )}
         </section>
+      </div>
+
+      {/* Sector authority hub — real Related Research (comparisons),
+          Latest Intelligence Signals, and Recent AI Articles, each scoped
+          to this sector via its own real sectors_affected tag. Sections
+          that have nothing real to show simply don't render — no
+          "coming soon" filler. */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {comparisons.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-[15px] font-semibold text-white">Related Research</h2>
+            <div className="space-y-2">
+              {comparisons.map((c) => (
+                <Link key={c.slug} href={`/research/${c.slug}`}
+                  className="flex items-center justify-between rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-sky-500/25">
+                  <p className="text-[13px] text-slate-200 line-clamp-1">{c.companies_affected?.map(x => x.symbol).join(" vs ")}</p>
+                  <span className="shrink-0 text-[11px] font-semibold text-sky-400">Compare →</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {signals.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-[15px] font-semibold text-white">Latest Intelligence Signals</h2>
+            <div className="space-y-2">
+              {signals.map((s) => (
+                <Link key={s.slug} href={`/intelligence/signal/${s.slug}`}
+                  className="flex items-center justify-between rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-amber-500/25">
+                  <p className="text-[13px] text-slate-200 line-clamp-1">{s.headline}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {articles.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-[15px] font-semibold text-white">Recent AI Articles</h2>
+            <div className="space-y-2">
+              {articles.map((a) => (
+                <Link key={a.slug} href={`/newsroom/article/${a.slug}`}
+                  className="flex items-center justify-between rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-emerald-500/25">
+                  <p className="text-[13px] text-slate-200 line-clamp-1">{a.headline}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       <div className="rounded-[16px] border border-violet-500/20 bg-violet-500/[0.04] px-5 py-4">

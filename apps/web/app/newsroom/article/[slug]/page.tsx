@@ -370,6 +370,17 @@ export default async function ArticlePage(
           <h1 className="mt-3 text-[28px] font-black leading-tight text-white sm:text-[34px]">
             {article.headline}
           </h1>
+          {/* Visible author/publisher disclosure — the JSON-LD schema below
+              already declares this to crawlers, but a human reader saw
+              nothing on the page itself. Google's AI-content and E-E-A-T
+              guidance expects a clear, disclosed byline, not just structured
+              data invisible to the eye — same "genuinely visible, not
+              cloaked" principle used for every SSR summary block this
+              session. */}
+          <p className="mt-2 flex items-center gap-1.5 text-[12px] text-slate-500">
+            <Brain className="h-3.5 w-3.5 text-violet-400" />
+            By <span className="font-semibold text-slate-300">MarketRipple AI Intelligence Engine</span> — AI-generated from real market data, not written by a human reporter.
+          </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
             {article.published_at && (
               <span className="flex items-center gap-1 text-[11px] text-slate-500">

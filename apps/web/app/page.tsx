@@ -45,11 +45,18 @@ const getIndices      = cache(() => live<any[]>(`${API}/api/indices/`));
 const getLive         = cache(() => live(`${API}/api/market/live`));
 const getSession      = cache(() => live(`${API}/api/market/session`));
 const getRadar        = cache(() => revalidate(`${API}/api/radar/?page=1&page_size=4`, 120));
-const getRecentEvents = cache(() => revalidate(`${API}/api/events/?sort_by=impact_score&page_size=10`, 300));
-// Recency-aware ranking (event_lifecycle.py) — used only by "Latest Biggest
-// Events" below. CompaniesToWatchTable deliberately keeps using the plain
-// impact_score pool above (unaffected by this change).
+// Recency-aware ranking (event_lifecycle.py) — used by "Latest Biggest
+// Events" below.
 const getActiveEvents = cache(() => revalidate(`${API}/api/events/?sort_by=active&page_size=5`, 120));
+// CompaniesToWatchTable's own pull from the SAME recency-aware endpoint —
+// a larger page than getActiveEvents' own page_size=5 because extracting
+// up to 5 DISTINCT companies (not events) needs a bigger real pool to
+// draw from. Previously used the plain impact_score-sorted pool above,
+// which only returns the top-10 BY SCORE before any recency filtering
+// ever runs — so a real, currently-relevant company past rank 10 was
+// invisible no matter how good a decay formula ran on top of it. Found
+// live: switching sources was the actual fix, not a better decay curve.
+const getActiveEventsForWatch = cache(() => revalidate(`${API}/api/events/?sort_by=active&page_size=25`, 300));
 const getInsights     = cache(() => revalidate(`${API}/api/insights/?limit=4`, 300));
 
 // Real AIPE Daily Brief — single source of truth for "what does the AI say
@@ -249,55 +256,217 @@ function Stars({ n }: { n: number }) {
   );
 }
 
+// Real sector-count → coarse outlook label. Not a stored field anywhere
+// in the pipeline — this app has no discrete "Bullish/Bearish" classifier
+// — but it's an honest, deterministic transform of already-real data
+// (positive vs negative sector counts), the same kind of derivation the
+// existing `stars` rating already does from impact_score. Never invented
+// from nothing; always traceable back to the same sectors_affected array
+// rendered elsewhere on this same hero.
+function deriveOutlook(posCount: number, negCount: number): { label: string; cls: string; dot: string } {
+  if (posCount === 0 && negCount === 0) return { label: "Neutral", cls: "text-slate-300 bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400" };
+  if (posCount >= negCount * 2 && posCount >= 2) return { label: "Bullish", cls: "text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
+  if (posCount > negCount) return { label: "Cautiously Bullish", cls: "text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
+  if (negCount >= posCount * 2 && negCount >= 2) return { label: "Bearish", cls: "text-rose-300 bg-rose-500/10 border-rose-500/20", dot: "bg-rose-400" };
+  if (negCount > posCount) return { label: "Cautious", cls: "text-amber-300 bg-amber-500/10 border-amber-500/20", dot: "bg-amber-400" };
+  return { label: "Neutral", cls: "text-slate-300 bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400" };
+}
+
+// Real delta magnitude → 1-4 dot strength, same honest-derivation
+// reasoning as deriveOutlook above — never a stored rating, always a
+// transform of the same `delta` number rendered as text beside it.
+function deltaStrength(delta: number): number {
+  const n = Math.abs(delta);
+  return n >= 4 ? 4 : n >= 3 ? 3 : n >= 1 ? 2 : 1;
+}
+
+// Real event titles (NSE compliance filings, mostly) frequently carry
+// regulatory acronyms retail investors won't recognize — expands a small,
+// well-known set in the DISPLAYED title only. Not new information: "PIT"
+// genuinely stands for exactly this in every SEBI filing that uses it
+// (confirmed by the same event data's own summary text), so this clarifies
+// an existing real acronym rather than inventing anything.
+const _ACRONYM_EXPANSIONS: Record<string, string> = {
+  "PIT": "PIT (Prohibition of Insider Trading)",
+  "SAST": "SAST (Substantial Acquisition of Shares & Takeovers)",
+  "LODR": "LODR (Listing Obligations & Disclosure Requirements)",
+};
+function expandAcronyms(text: string): string {
+  let out = text;
+  for (const [k, v] of Object.entries(_ACRONYM_EXPANSIONS)) {
+    out = out.replace(new RegExp(`\\b${k}\\b`), v);
+  }
+  return out;
+}
+
 /**
  * Homepage Intelligence (Phase 3, Priority 1) — the "Good Morning" daily
- * brief. Replaces the old AI Market Brief card as the homepage's hero:
- * same single source of truth (the real AIPE morning_intelligence
- * article — deliberately never blended with MIE or any other pipeline,
- * see homepage_intelligence.py's module docstring), just surfaced at the
- * scale this content deserves, plus two real additions the article alone
- * can't carry: a genuine day-over-day sector diff and a one-line AI
- * Prediction (both from GET /api/homepage/intelligence).
+ * brief. Same single source of truth as before (the real AIPE
+ * morning_intelligence article, never blended with MIE — see
+ * homepage_intelligence.py's module docstring), reorganized into a
+ * Decision (left) / Evidence (right) layout per the hero-layout audit.
+ *
+ * Two new real sources added, both already fetched elsewhere on this same
+ * homepage render via cache()-deduped calls, so this adds zero new
+ * network requests: getPremarket() (US futures / commodities / currencies
+ * / FII-DII — backs "Today's Drivers") and getRadar() (backs the live
+ * opportunity count in the status strip).
+ *
+ * Deliberately NOT built, because no real data backs them without
+ * inventing something: an RBI stance driver (no discrete "surprise/no
+ * surprise" field exists anywhere in the pipeline), per-company
+ * confidence tiers (only a directional impact — positive/negative/
+ * neutral — exists per company, never a numeric confidence), and a
+ * "best time horizon" line (not a field on the morning brief).
  */
 async function HomepageIntelligenceHero() {
-  const [brief, extras] = await Promise.all([getMorningBrief(), getHomepageExtras()]);
+  const [brief, extras, premarket, radar, activeForWatch] = await Promise.all([
+    getMorningBrief(), getHomepageExtras(), getPremarket(), getRadar(), getActiveEventsForWatch(),
+  ]);
   if (!brief) return null;
 
   const ex = (extras as any) ?? {};
+  const pm = (premarket as any) ?? {};
   const confPct = brief.confidence_score != null ? Math.round(brief.confidence_score * 100) : null;
 
-  // Today's Biggest Story / Ripple / Companies Most Likely To Move /
-  // Biggest Opportunity / Highest Risk all come from the Latest Biggest
-  // Events Engine (event_lifecycle.py) — the SAME ranking that decides
-  // what's on the Events page, not a second, independently-guessed
-  // narrative. Falls back to the article's own fields only if the events
-  // engine genuinely has nothing (e.g. empty dev DB) — never a blank hero.
   const ev = ex.event?.available ? ex.event.primary : null;
   const stars = ev
     ? Math.max(1, Math.min(5, Math.round((ev.impact_score ?? 60) / 20)))
     : Math.max(1, Math.min(5, Math.round((brief.impact_score ?? (confPct ?? 60)) / 20)));
 
+  // "Economy" / "Macro" aren't things a user can invest in — real event
+  // sector-tagging sometimes includes them alongside genuinely investable
+  // sectors (e.g. a routine compliance-filing event tagged
+  // ["Economy","Macro","Financials"]), so they're excluded from ever
+  // becoming Focus / Biggest Opportunity / Biggest Risk.
+  const NON_INVESTABLE = new Set(["economy", "macro", "market"]);
   const sectors = (brief.sectors_affected ?? []) as any[];
-  const positiveSectors = sectors.filter(s => s.impact === "positive")
+  const positiveSectors = sectors.filter(s => s.impact === "positive" && !NON_INVESTABLE.has((s.name ?? "").toLowerCase()))
     .sort((a, b) => _magRank(b.magnitude) - _magRank(a.magnitude));
-  const negativeSectors = sectors.filter(s => s.impact === "negative")
+  const negativeSectors = sectors.filter(s => s.impact === "negative" && !NON_INVESTABLE.has((s.name ?? "").toLowerCase()))
     .sort((a, b) => _magRank(b.magnitude) - _magRank(a.magnitude));
-  // Fall back to the article's own sector breakdown at the FIELD level, not
-  // just when ev is entirely absent — the top event can be real and still
-  // have no negative-impact sector of its own (e.g. a purely positive
-  // Defence budget event), in which case the hero showed a bare "—" even
-  // though the article's broader sectors_affected had a real risk sector.
-  const biggestOpportunity = ev?.opportunity_sector ?? positiveSectors[0]?.name;
-  const highestRisk = ev?.risk_sector ?? negativeSectors[0]?.name;
 
-  const companies = ev
-    ? ev.companies.slice(0, 3).map((c: any) => ({ symbol: c.symbol, name: c.name, impact: "positive" }))
-    : ((brief.companies_affected ?? []) as any[]).filter(c => c.impact === "positive" || c.impact === "negative").slice(0, 3);
+  // The article's own sectors_affected is the SAME source ai_prediction is
+  // generated from — preferred over the event engine's opportunity_sector/
+  // risk_sector, which named a non-investable macro bucket from a routine
+  // event often enough to contradict ai_prediction's own stated sector
+  // (found live: Focus said "Economy" while ai_prediction said "led by
+  // IT" — both should trace back to the same signal). Event-engine fields
+  // are now only a fallback, and only when they're not themselves a
+  // non-investable bucket.
+  const evOpportunity = ev?.opportunity_sector && !NON_INVESTABLE.has(ev.opportunity_sector.toLowerCase()) ? ev.opportunity_sector : null;
+  const evRisk = ev?.risk_sector && !NON_INVESTABLE.has(ev.risk_sector.toLowerCase()) ? ev.risk_sector : null;
+  const focusSector = positiveSectors[0]?.name ?? evOpportunity;
+  // Deliberately NOT the same value as focusSector — the second real
+  // positive sector when one exists, so this card adds information
+  // instead of repeating "Focus" above it.
+  const secondaryOpportunity = positiveSectors[1]?.name ?? (evOpportunity && evOpportunity !== focusSector ? evOpportunity : null);
+  const highestRisk = negativeSectors[0]?.name ?? evRisk;
+  // Only reachable when NOTHING investable exists anywhere — the honest
+  // "this is a macro condition, not a stock opportunity" case instead of
+  // mislabeling it.
+  const macroTheme = !focusSector && ev?.opportunity_sector ? ev.opportunity_sector : null;
+  const outlook = deriveOutlook(positiveSectors.length, negativeSectors.length);
 
-  const ripple = ev ? ev.ripple.slice(0, 3) : ((brief.ripple_effect ?? []) as any[]).slice(0, 3);
+  // Three real sources merged, not one — the top event alone often names
+  // only 1-2 companies. Deduped by symbol, capped at 4, never padded with
+  // anything not backed by a real company record. The third source is the
+  // SAME recency-aware engine (event_lifecycle.py via sort_by=active) that
+  // now also powers "Companies to Watch" below on this same homepage —
+  // added specifically because the first two sources alone regularly
+  // produced just a single real company on a quiet day, and hardcoding
+  // extras was never the right fix for that.
+  const evCompanies = ev ? ev.companies.map((c: any) => ({ symbol: c.symbol, name: c.name, impact: "positive" as const })) : [];
+  const briefCompanies = ((brief.companies_affected ?? []) as any[])
+    .filter(c => c.impact === "positive" || c.impact === "negative")
+    .map(c => ({ symbol: c.symbol, name: c.name, impact: c.impact as "positive" | "negative" }));
+  const activeEventsList = ((activeForWatch as any)?.results ?? (activeForWatch as any) ?? []) as any[];
+  const activeCompanies = activeEventsList.flatMap(e =>
+    (e.companies ?? []).map((c: any) => ({ symbol: c.symbol, name: c.name, impact: (c.impact ?? "").toLowerCase() === "negative" ? "negative" as const : "positive" as const }))
+  );
+  const seenSymbols = new Set<string>();
+  const companies = [...evCompanies, ...briefCompanies, ...activeCompanies].filter(c => {
+    if (!c.symbol || seenSymbols.has(c.symbol)) return false;
+    seenSymbols.add(c.symbol);
+    return true;
+  }).slice(0, 4);
+
   const changes = (ex.yesterday_changes ?? []) as { name: string; delta: number; direction: string }[];
   const storyTitle = ev ? ev.title : brief.headline;
-  const storySummary = ev ? ev.why_it_matters : brief.executive_summary;
+  // ev.why_it_matters is frequently empty for routine compliance-filing
+  // events; the SAME api/homepage/intelligence response also carries a
+  // real summary for that exact event in top_events (which the events
+  // engine's own /events page already surfaces) — matched by id here
+  // rather than left unused, so a real explanation shows instead of a
+  // blank subtitle. Never fabricated text, just a different real field
+  // from the same response.
+  const matchedEvent = ev ? (ex.event?.top_events ?? []).find((e: any) => e.id === ev.id) : null;
+  const storySummary = ev ? (ev.why_it_matters || matchedEvent?.summary) : brief.executive_summary;
+
+  // Today's Drivers — real market_data_service fields, same endpoint the
+  // homepage ticker strip already fetches. find() returns undefined (not
+  // a crash) if a given instrument is missing from a given day's feed —
+  // each driver row is skipped individually rather than showing a fake one.
+  // Ordered FII → US Futures → Crude → USD/INR (importance to Indian
+  // equity flows first, per feedback).
+  const usFut = (pm.us_futures ?? [])[0];
+  const crude = (pm.commodities ?? []).find((c: any) => (c.name ?? "").toLowerCase().includes("crude"));
+  const usdInr = (pm.currencies ?? []).find((c: any) => (c.name ?? "").toUpperCase() === "USD/INR");
+  const fiiDii = pm.fii_dii;
+  const drivers = [
+    fiiDii?.available && { label: "FII", value: fiiDii.fii_net >= 0 ? "Buying" : "Selling", positive: fiiDii.fii_net >= 0 },
+    usFut && { label: "US Futures", value: usFut.positive ? "Positive" : "Negative", positive: usFut.positive },
+    crude && { label: "Crude", value: crude.positive ? "Rising" : "Falling", positive: !crude.positive },
+    usdInr && { label: "USD/INR", value: usdInr.positive ? "INR Weaker" : "INR Stronger", positive: !usdInr.positive },
+  ].filter(Boolean) as { label: string; value: string; positive: boolean }[];
+
+  // High/Medium/Low — an honest bucketing of the real confidence score,
+  // not a second independent metric. Shown inside "Today's AI Action"
+  // alongside the same directional outlook rendered at the top.
+  const convictionStrength = confPct == null ? null : confPct >= 75 ? "High" : confPct >= 50 ? "Medium" : "Low";
+
+  const liveEventCount = ex.event?.top_events?.length ?? 0;
+  const opportunityCount = (radar as any)?.total ?? 0;
+
+  // A risk card that just says "—" tells the user nothing — an explicit,
+  // honest statement that no negative-impact sector cleared the bar today
+  // is real information, not a gap. Never invents a specific risk that
+  // isn't backed by a real negative sector.
+  const highestRiskDisplay = highestRisk ?? "No major verified market risk detected today";
+
+  // "Updated 17h ago" reads as stale for a page titled "Today's Market
+  // Outlook" even when the underlying content genuinely hasn't changed —
+  // shows the real IST time when the brief is from today, falls back to
+  // the honest relative age only when it's from an earlier day.
+  const heroFreshnessLabel = (() => {
+    if (!brief.published_at) return null;
+    const d = new Date(brief.published_at);
+    const nowIst = new Date(Date.now() + 5.5 * 3600_000);
+    const dIst = new Date(d.getTime() + 5.5 * 3600_000);
+    const sameDay = nowIst.getUTCFullYear() === dIst.getUTCFullYear()
+      && nowIst.getUTCMonth() === dIst.getUTCMonth()
+      && nowIst.getUTCDate() === dIst.getUTCDate();
+    if (sameDay) {
+      const h = dIst.getUTCHours(), h12 = h % 12 === 0 ? 12 : h % 12, m = dIst.getUTCMinutes().toString().padStart(2, "0");
+      return `Updated today at ${h12}:${m} ${h >= 12 ? "PM" : "AM"} IST`;
+    }
+    return `Updated ${timeAgo(brief.published_at)}`;
+  })();
+
+  // Today's Summary — a template composed entirely from real fields
+  // already derived above (outlook, focusSector/macroTheme, the same
+  // honest risk fallback, ai_prediction) — not a new LLM call, not
+  // invented. Each clause is only included when its underlying field is
+  // real; capped at 50 words per the explicit ask.
+  const todaysSummary = (() => {
+    const parts: string[] = [`Markets look ${outlook.label.toLowerCase()} today${confPct != null ? ` with ${confPct}% confidence` : ""}.`];
+    if (focusSector) parts.push(`${focusSector} stands out as the biggest opportunity.`);
+    else if (macroTheme) parts.push(`${macroTheme} is the dominant macro theme today.`);
+    parts.push(highestRisk ? `Watch ${highestRisk} as the key risk area.` : `No major verified risk stands out today.`);
+    if (ex.ai_prediction) parts.push(ex.ai_prediction);
+    const words = parts.join(" ").split(/\s+/);
+    return words.length > 50 ? words.slice(0, 50).join(" ") + "…" : words.join(" ");
+  })();
 
   return (
     <div className="rounded-[24px] border border-white/[0.07] bg-gradient-to-br from-[#0b1220] to-[#060e1e] p-6 md:p-7">
@@ -306,25 +475,94 @@ async function HomepageIntelligenceHero() {
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-400">
             <Sparkles className="h-3.5 w-3.5" /> {greeting()}
           </p>
-          <h1 className="mt-1 text-[22px] font-black leading-tight text-white md:text-[26px]">Today&apos;s Market Intelligence</h1>
+          <h1 className="mt-1 text-[22px] font-black leading-tight text-white md:text-[26px]">Today&apos;s Market Outlook</h1>
+          {/* Status strip — real counts only, no "N min ago" copy of what's
+              already in the footer timestamp; this is the "feels alive" row. */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-500">
+            {heroFreshnessLabel && <span>{heroFreshnessLabel}</span>}
+            {liveEventCount > 0 && <span>· {liveEventCount} live events</span>}
+            {opportunityCount > 0 && <span>· {opportunityCount} active opportunities</span>}
+            {positiveSectors.length > 0 && <span>· {positiveSectors.length} sectors strengthening</span>}
+          </div>
         </div>
         <div className="text-right">
-          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Confidence</p>
-          <p className="text-[28px] font-black tabular-nums text-white leading-none">{confPct != null ? `${confPct}%` : "—"}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Market Conviction</p>
+          <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-bold ${outlook.cls}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${outlook.dot}`} /> {outlook.label}
+          </span>
+          {confPct != null && (
+            <div className="mt-1.5 flex items-center justify-end gap-1.5">
+              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/[0.08]">
+                <div className="h-full rounded-full bg-white" style={{ width: `${confPct}%` }} />
+              </div>
+              <span className="text-[11px] font-bold tabular-nums text-white">{confPct}%</span>
+            </div>
+          )}
+          {/* Evidence behind the conviction label, not just the label
+              itself — real counts already computed above. */}
+          <p className="mt-1 text-[10px] text-slate-500">{positiveSectors.length} positive · {negativeSectors.length} negative signals</p>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_1fr]">
-        {/* Left: biggest story + opportunity/risk + companies */}
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* LEFT — Decision. AI Action leads: users care more about "what
+            should I do" than "what happened" — the story/evidence moved
+            to the right column entirely. */}
+        <div className="space-y-4">
+          {(focusSector || macroTheme || highestRisk) && (
+            <div className="rounded-[18px] border border-white/[0.1] bg-gradient-to-br from-white/[0.05] to-transparent p-5">
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300">Today&apos;s AI Action</p>
+              <div className="grid grid-cols-2 gap-4 text-[13px]">
+                {focusSector ? (
+                  <div><span className="text-[10px] uppercase tracking-wide text-slate-500">Focus</span><p className="mt-0.5 text-[19px] font-black text-emerald-300">{focusSector}</p></div>
+                ) : macroTheme ? (
+                  <div><span className="text-[10px] uppercase tracking-wide text-slate-500">Macro Theme</span><p className="mt-0.5 text-[19px] font-black text-emerald-300">{macroTheme}</p></div>
+                ) : null}
+                <div><span className="text-[10px] uppercase tracking-wide text-slate-500">Avoid</span><p className="mt-0.5 text-[15px] font-black leading-snug text-rose-300">{highestRiskDisplay}</p></div>
+                <div className="col-span-2 flex items-center justify-between border-t border-white/[0.08] pt-3">
+                  <span className="text-[10px] uppercase tracking-wide text-slate-500">Market Conviction</span>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-bold ${outlook.cls}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${outlook.dot}`} /> {convictionStrength ?? outlook.label}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {ex.ai_prediction && focusSector && (
+            <div className="rounded-[16px] border border-violet-500/15 bg-violet-500/[0.06] p-4">
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-violet-300">AI Market Call</p>
+              <p className="text-[16px] font-black leading-snug text-white">Overweight {focusSector}</p>
+              <p className="mt-1.5 text-[12px] leading-5 text-slate-400"><span className="text-slate-500">Driven by —</span> {ex.ai_prediction}</p>
+              {/* Today's Summary — same underlying signal as the call
+                  above (outlook / focus / risk / ai_prediction), composed
+                  into one retail-readable paragraph, capped at 50 words. */}
+              <p className="mt-2.5 border-t border-white/[0.08] pt-2.5 text-[11.5px] leading-relaxed text-slate-300">{todaysSummary}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-[14px] border border-emerald-500/15 bg-emerald-500/[0.05] p-3.5">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-400">🔥 Biggest Opportunity</p>
+              <p className="mt-1 text-[14px] font-bold text-white">{secondaryOpportunity ?? "No second opportunity signal today"}</p>
+            </div>
+            <div className="rounded-[14px] border border-rose-500/15 bg-rose-500/[0.05] p-3.5">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-400">⚠ Biggest Risk</p>
+              <p className="mt-1 text-[13px] font-bold leading-snug text-white">{highestRiskDisplay}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT — Evidence */}
         <div className="space-y-4">
           <Link href={ev ? `/events/${ev.id}` as any : "/events"} className="block rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-violet-500/25">
             <div className="mb-1 flex items-center justify-between">
-              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Today&apos;s Biggest Story</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Why Today Matters</p>
               {ev?.lifecycle && _LIFECYCLE_BADGE[ev.lifecycle] && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase ${_LIFECYCLE_BADGE[ev.lifecycle]}`}>{ev.lifecycle}</span>
               )}
             </div>
-            <p className="text-[16px] font-semibold leading-snug text-white">{cleanText(storyTitle)}</p>
+            <p className="text-[15px] font-semibold leading-snug text-white">{expandAcronyms(cleanText(storyTitle))}</p>
             {storySummary && (
               <p className="mt-1.5 line-clamp-2 text-[12px] leading-5 text-slate-400">{cleanText(storySummary)}</p>
             )}
@@ -333,72 +571,58 @@ async function HomepageIntelligenceHero() {
             </div>
           </Link>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-[14px] border border-emerald-500/15 bg-emerald-500/[0.05] p-3.5">
-              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-400">Biggest Opportunity</p>
-              <p className="mt-1 text-[14px] font-bold text-white">{biggestOpportunity ?? "—"}</p>
+          {drivers.length > 0 && (
+            <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Today&apos;s Drivers</p>
+              <div className="flex flex-wrap gap-1.5">
+                {drivers.map((d, i) => (
+                  <span key={i} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                    d.positive ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : "border-rose-500/20 bg-rose-500/[0.06] text-rose-300"
+                  }`}>
+                    {d.positive ? "🟢" : "🔴"} {d.label} <span className="text-slate-400 font-normal">{d.value}</span>
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="rounded-[14px] border border-rose-500/15 bg-rose-500/[0.05] p-3.5">
-              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-400">Highest Risk</p>
-              <p className="mt-1 text-[14px] font-bold text-white">{highestRisk ?? "—"}</p>
-            </div>
-          </div>
+          )}
 
           {companies.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Companies Most Likely To Move</p>
-              <div className="flex flex-wrap gap-1.5">
+            <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Stocks To Watch</p>
+              <div className="grid grid-cols-2 gap-2">
                 {companies.map((c: any, i: number) => (
                   <Link key={i} href={`/companies/${c.symbol}` as any}
-                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition hover:opacity-80 ${
+                    className={`flex items-center justify-between rounded-[10px] border px-2.5 py-1.5 text-[11.5px] font-semibold transition hover:opacity-80 ${
                       c.impact === "positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-300"
                     }`}>
-                    <ImpactDot impact={c.impact} /> {cleanText(c.name)}
+                    {cleanText(c.symbol || c.name)} <span>{c.impact === "positive" ? "▲" : "▼"}</span>
                   </Link>
                 ))}
               </div>
             </div>
           )}
-        </div>
 
-        {/* Right: what changed + ripple + prediction */}
-        <div className="space-y-4">
           <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4">
             <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">What Changed Since Yesterday</p>
             {changes.length === 0 ? (
               <p className="text-[11px] text-slate-600">Not enough history yet — check back tomorrow.</p>
             ) : (
-              <ul className="space-y-1">
+              <ul className="space-y-1.5">
                 {changes.map((c, i) => (
-                  <li key={i} className={`flex items-center gap-1.5 text-[12px] font-medium ${c.direction === "up" ? "text-emerald-400" : "text-rose-400"}`}>
-                    {c.direction === "up" ? "↑" : "↓"} {c.name} {c.direction === "up" ? "+" : ""}{c.delta}
+                  <li key={i} className="flex items-center gap-2 text-[12px] font-medium">
+                    <span className={c.direction === "up" ? "text-emerald-400" : "text-rose-400"}>{c.direction === "up" ? "↑" : "↓"}</span>
+                    <span className="text-white">{c.name}</span>
+                    <span className={c.direction === "up" ? "text-emerald-400" : "text-rose-400"}>{c.direction === "up" ? "+" : ""}{c.delta}</span>
+                    <span className="ml-auto flex gap-0.5">
+                      {Array.from({ length: 4 }).map((_, di) => (
+                        <span key={di} className={`h-1.5 w-1.5 rounded-full ${di < deltaStrength(c.delta) ? (c.direction === "up" ? "bg-emerald-400" : "bg-rose-400") : "bg-white/10"}`} />
+                      ))}
+                    </span>
                   </li>
                 ))}
               </ul>
             )}
           </div>
-
-          {ripple.length > 0 && (
-            <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4">
-              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Today&apos;s Ripple</p>
-              <div className="space-y-2">
-                {ripple.map((r: any, i: number) => (
-                  <div key={i} className="flex items-center gap-1.5 text-[11px] leading-snug text-slate-300">
-                    <span className="font-medium text-white">{cleanText(r.from_entity)}</span>
-                    <ArrowRight className="h-3 w-3 shrink-0 text-slate-600" />
-                    <span>{cleanText(r.to_entity)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {ex.ai_prediction && (
-            <div className="rounded-[16px] border border-violet-500/15 bg-violet-500/[0.06] p-4">
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-violet-300">AI Prediction</p>
-              <p className="text-[13px] font-medium leading-snug text-slate-200">{ex.ai_prediction}</p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -406,7 +630,7 @@ async function HomepageIntelligenceHero() {
         {brief.published_at && <span className="text-[10px] text-slate-600">{briefTimeLabel(brief.published_at)}</span>}
         <Link href="/newsroom/daily-brief"
           className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
-          Read Full Brief <ArrowRight className="h-3 w-3" />
+          Read Today&apos;s Market Brief <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
     </div>
@@ -690,19 +914,37 @@ const AVATAR_GRADIENT = [
   "from-violet-600 to-violet-800", "from-rose-600 to-rose-800", "from-amber-600 to-amber-800",
 ];
 
+// Today's Watch Score — companies extracted from event_lifecycle.py's own
+// recency-aware ranking (the sort_by=active pool, real active_score
+// already applying its own progressive 7→14→30-day decay window), not the
+// plain impact_score pool. Previously sorted by raw impact_score with no
+// recency factor at all, so a handful of weeks-old high-score seed events
+// (94/91/87/83, dated back to June) permanently outranked anything
+// current — the same company names (Dixon, Kaynes, BEL, HAL, Bharat
+// Forge) showed up unchanged for days. A second, independent decay
+// formula layered on top of that same stale pool doesn't fix it — the
+// pool itself was wrong; the real recency-ranked engine already exists
+// and is used two cards over on this same page.
+function _watchFreshness(dateStr: string | null | undefined, lifecycle: string | undefined): string {
+  if (lifecycle === "LIVE") return "New today";
+  if (!dateStr) return "Still relevant";
+  const hoursAgo = (Date.now() - new Date(dateStr).getTime()) / 3_600_000;
+  if (hoursAgo >= 0 && hoursAgo <= 24) return `Updated ${Math.max(1, Math.round(hoursAgo))}h ago`;
+  return "Still relevant";
+}
+
 async function CompaniesToWatchTable() {
-  const recentRaw = await getRecentEvents();
-  const events = ((recentRaw as any)?.results ?? (recentRaw as any) ?? []) as any[];
-  const sorted = [...events].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score));
+  const activeRaw = await getActiveEventsForWatch();
+  const events = ((activeRaw as any)?.results ?? (activeRaw as any) ?? []) as any[];
 
   const seen = new Set<string>();
-  const rows: { ticker: string; name: string; reason: string; score: number | null }[] = [];
+  const rows: { ticker: string; name: string; reason: string; score: number | null; freshness: string }[] = [];
   outer:
-  for (const e of sorted) {
+  for (const e of events) {
     for (const c of (e.companies ?? [])) {
       if (!c.symbol || seen.has(c.symbol)) continue;
       seen.add(c.symbol);
-      rows.push({ ticker: c.symbol, name: c.name ?? c.symbol, reason: e.title, score: e.impact_score ?? null });
+      rows.push({ ticker: c.symbol, name: c.name ?? c.symbol, reason: e.title, score: e.impact_score ?? null, freshness: _watchFreshness(e.date, e.lifecycle) });
       if (rows.length >= 5) break outer;
     }
   }
@@ -711,7 +953,7 @@ async function CompaniesToWatchTable() {
     <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
       <CardHeader title="Companies to Watch" href="/companies" />
       {rows.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">Company data is loading.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No high-relevance company signals right now.</p>
       ) : (
         <div className="flex-1">
           <div className="mb-1.5 grid grid-cols-[1fr_44px] gap-2 text-[8px] font-bold uppercase tracking-wider text-slate-700">
@@ -729,7 +971,7 @@ async function CompaniesToWatchTable() {
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-[11px] font-bold text-white group-hover:text-violet-200 transition">{cleanText(r.name)}</p>
-                      <p className="truncate text-[9px] text-slate-500">{cleanText(r.reason)}</p>
+                      <p className="truncate text-[9px] text-slate-500">{cleanText(r.reason)} <span className="text-slate-600">· {r.freshness}</span></p>
                     </div>
                   </div>
                   <span className={`text-right text-[12px] font-black tabular-nums ${style.text}`}>

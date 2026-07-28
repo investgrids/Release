@@ -412,7 +412,7 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
                 <span className="text-[13px] font-semibold text-violet-200">Ask MarketRipple AI</span>
                 <ArrowRight className="h-4 w-4 text-violet-400" />
               </Link>
-              <Link href="/research"
+              <Link href="/research/comparisons"
                 className="flex items-center justify-between rounded-[12px] border border-white/10 bg-white/[0.02] px-4 py-3 transition hover:border-white/20">
                 <span className="text-[13px] font-semibold text-slate-300">Browse Research Hub</span>
                 <ArrowRight className="h-4 w-4 text-slate-500" />

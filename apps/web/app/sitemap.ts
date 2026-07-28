@@ -33,7 +33,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/opportunity-radar`,          lastModified: now, changeFrequency: "daily",  priority: 0.85 },
     { url: `${base}/ripple`,                     lastModified: now, changeFrequency: "daily",  priority: 0.8 },
     { url: `${base}/ai-search`,                  lastModified: now, changeFrequency: "daily",  priority: 0.8 },
-    { url: `${base}/research`,                   lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    // Real destination, not /research — that path now redirects to this
+    // hub (see research/page.tsx), same "don't list a redirecting URL"
+    // fix already applied to /themes, /insights, and bare /insights above.
+    { url: `${base}/research/comparisons`,       lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/about`,                      lastModified: now, changeFrequency: "monthly",priority: 0.5 },
     { url: `${base}/why-marketripple`,           lastModified: now, changeFrequency: "monthly",priority: 0.5 },
     { url: `${base}/how-it-works`,               lastModified: now, changeFrequency: "monthly",priority: 0.5 },

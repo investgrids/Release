@@ -108,7 +108,7 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <nav className="flex items-center gap-2 text-[12px] text-slate-500">
-        <Link href="/research" className="hover:text-slate-300 transition">Research</Link>
+        <Link href="/research/comparisons" className="hover:text-slate-300 transition">Research</Link>
         <span>/</span>
         <span className="text-slate-400">{a.entity} vs {b.entity}</span>
       </nav>

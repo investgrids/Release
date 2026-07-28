@@ -304,6 +304,67 @@ async def get_company_insights(
     }
 
 
+@router.get("/comparisons")
+async def get_comparisons(
+    symbol: Optional[str] = Query(None, description="Return comparison_intelligence articles that include this company"),
+    sector: Optional[str] = Query(None, description="Return comparison_intelligence articles tagged with this sector"),
+    limit:  int           = Query(20, le=100),
+    db:     AsyncSession  = Depends(get_db),
+):
+    """
+    Real comparison_intelligence articles filtered by company or sector —
+    backs the "Compare {symbol} With" section on company pages, the
+    "Popular Comparisons" section on sector pages, and AI Search's related-
+    research surfacing. All three want the same real, published-only query
+    against comparison_publisher.py's output, just filtered differently —
+    one endpoint, not three near-duplicate ones.
+
+    Symbol filtering reuses get_company_insights' own scan-and-filter
+    approach (companies_affected is JSON, not a column SQLite can index
+    directly) — bounded to comparison_intelligence rows only, so even at
+    hundreds of comparison pages this stays a cheap in-memory filter over
+    a few hundred rows, not a full-table scan of every article type.
+    """
+    symbol_u = symbol.strip().upper() if symbol else None
+
+    result = await db.execute(
+        select(IntelligenceArticle)
+        .where(IntelligenceArticle.status == "published")
+        .where(IntelligenceArticle.article_type == "comparison_intelligence")
+        .order_by(IntelligenceArticle.published_at.desc())
+        .limit(500)
+    )
+    all_comparisons = result.scalars().all()
+
+    def _matches(a: IntelligenceArticle) -> bool:
+        if symbol_u:
+            found = any(
+                isinstance(c, dict) and str(c.get("symbol", "")).upper() == symbol_u
+                for c in (a.companies_affected or [])
+            )
+            if not found:
+                return False
+        if sector:
+            from app.api.sectors import _words_overlap
+            sector_words = set(sector.lower().split())
+            found = any(
+                isinstance(s, dict) and s.get("name") and _words_overlap(sector_words, set(str(s["name"]).lower().split()))
+                for s in (a.sectors_affected or [])
+            )
+            if not found:
+                return False
+        return True
+
+    matched = [a for a in all_comparisons if _matches(a)][:limit]
+    hero_images = await _fetch_hero_images(db, [a.id for a in matched])
+
+    return {
+        "symbol": symbol_u,
+        "sector": sector,
+        "items": [_list_row(a, hero_images.get(a.id)) for a in matched],
+    }
+
+
 @router.get("/stats")
 async def insights_stats(db: AsyncSession = Depends(get_db)):
     """

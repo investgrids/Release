@@ -1114,6 +1114,52 @@ function PeerComparison({ stock }: { stock: StockDetail }) {
   );
 }
 
+// ── Section 17b: Compare With (real, published research pages only) ─────────
+// SEO roadmap — "Compare {symbol} With" surfaces existing comparison_publisher.py
+// articles for this company's real peers. Deliberately shows nothing for a
+// peer that doesn't have a published comparison yet rather than linking to a
+// page that 404s — the comparison scheduler (comparison_scheduler.py) fills
+// these in gradually; this section just reflects whatever's real right now.
+function CompareWithSection({ stock }: { stock: StockDetail }) {
+  const [comparisons, setComparisons] = useState<{ slug: string; headline: string; companies_affected: { symbol: string }[] }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API}/api/insights/comparisons?symbol=${stock.symbol}&limit=8`)
+      .then(r => r.ok ? r.json() : { items: [] })
+      .then(d => setComparisons(d.items ?? []))
+      .catch(() => setComparisons([]))
+      .finally(() => setLoading(false));
+  }, [stock.symbol]);
+
+  if (loading) return null;
+  if (comparisons.length === 0) return null;
+
+  return (
+    <SectionCard title={`Compare ${stock.symbol} With`} action={
+      <Link href="/research/comparisons" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All Comparisons →</Link>
+    }>
+      <div className="mt-3 space-y-2">
+        {comparisons.map(c => {
+          const other = c.companies_affected?.find(x => x.symbol !== stock.symbol);
+          return (
+            <Link key={c.slug} href={`/research/${c.slug}`}
+              className="flex items-center justify-between rounded-[12px] border border-white/[0.07] bg-white/[0.02] px-4 py-2.5 transition hover:border-violet-500/25 hover:bg-white/[0.04]">
+              <span className="flex items-center gap-2.5">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-[10px] font-bold text-violet-300">
+                  {(other?.symbol ?? "?").slice(0, 2)}
+                </span>
+                <span className="text-[13px] font-semibold text-white">{other?.symbol ?? c.headline}</span>
+              </span>
+              <span className="text-[11px] font-medium text-violet-400">Compare →</span>
+            </Link>
+          );
+        })}
+      </div>
+    </SectionCard>
+  );
+}
+
 // ── Section 18: Historical Performance ───────────────────────────────────────
 function HistoricalPerformance({ stock }: { stock: StockDetail }) {
   const [activeMetric, setActiveMetric] = useState<"revenue"|"profit">("revenue");
@@ -1941,6 +1987,7 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
               <OrderBook stock={stock}/>
               <Shareholding stock={stock}/>
               <PeerComparison stock={stock}/>
+              <CompareWithSection stock={stock}/>
               <HistoricalPerformance stock={stock}/>
               <AIForecast stock={stock}/>
               <RelatedStories stock={stock}/>

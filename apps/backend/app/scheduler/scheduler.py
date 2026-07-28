@@ -222,6 +222,29 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         misfire_grace_time=1800,
     )
 
+    # ── Comparison pages — up to 5 pairs/run, twice a day (10:00 AM & 3:00 PM
+    # IST) — see comparison_scheduler.py's own docstring for the pair-
+    # selection and staleness-refresh logic. Two runs/day (not one) so a
+    # cycle interrupted by a run of quality-gate failures still gets a
+    # second attempt at its remaining pairs the same day.
+    from app.services.aipe.comparison_scheduler import run_comparison_cycle
+    scheduler.add_job(
+        run_comparison_cycle,
+        CronTrigger(hour=10, minute=0, timezone=_IST),
+        id="comparison_cycle_morning",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
+    )
+    scheduler.add_job(
+        run_comparison_cycle,
+        CronTrigger(hour=15, minute=0, timezone=_IST),
+        id="comparison_cycle_afternoon",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
+    )
+
     # ── Media generation worker — every 60s ──────────────────────────────────
     # Drains the GeneratedMedia job queue (see app/services/media/). Decoupled
     # from AIPE on purpose — publishing never waits on this. Short interval
