@@ -56,6 +56,12 @@ async function revalidate<T = any>(url: string, sec = 60, ms = 5000): Promise<T 
 // (getMIE removed — no homepage card reads MIE directly anymore; the
 // three cards that used to now read the real AIPE/Opportunity Engine
 // sources instead. MIE itself is untouched and still powers other pages.)
+// Re-added specifically for the hero's top-level market-direction verdict —
+// see the comment at HomepageIntelligenceHero's `outlook` derivation for
+// why. Every other homepage card still reads AIPE/Opportunity Engine
+// sources as before; this one call is scoped to fixing a single confirmed
+// bug, not a wholesale revert of the "MIE removed" decision above.
+const getMieState     = cache(() => live(`${API}/api/mie/state`));
 const getPremarket    = cache(() => live(`${API}/api/market/premarket`));
 const getTopMovers    = cache(() => live(`${API}/api/market/top-movers`));
 const getCalendar     = cache(() => live(`${API}/api/calendar/`));
@@ -290,6 +296,28 @@ function deriveOutlook(posCount: number, negCount: number): { label: string; cls
   return { label: "Neutral", cls: "text-slate-300 bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400" };
 }
 
+// Same label/style vocabulary as deriveOutlook above, driven by MIE's real
+// pulse ("+"/"-"/neutral) + confidence — the identical fields
+// LiveMarketTab.tsx's AI Market Intelligence hero already renders via
+// pulseDisplay(). Returns null (never a guess) when MIE has no story yet,
+// so the caller can fall back to the sector-count derivation rather than
+// showing a fabricated direction.
+function deriveOutlookFromMie(pulse: string | undefined, confidence: number | null | undefined): { label: string; cls: string; dot: string } | null {
+  if (!pulse) return null;
+  const conf = confidence ?? 50;
+  if (pulse === "+") {
+    return conf >= 65
+      ? { label: "Bullish", cls: "text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" }
+      : { label: "Cautiously Bullish", cls: "text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
+  }
+  if (pulse === "-") {
+    return conf >= 65
+      ? { label: "Bearish", cls: "text-rose-300 bg-rose-500/10 border-rose-500/20", dot: "bg-rose-400" }
+      : { label: "Cautious", cls: "text-amber-300 bg-amber-500/10 border-amber-500/20", dot: "bg-amber-400" };
+  }
+  return { label: "Neutral", cls: "text-slate-300 bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400" };
+}
+
 // Real delta magnitude → 1-4 dot strength, same honest-derivation
 // reasoning as deriveOutlook above — never a stored rating, always a
 // transform of the same `delta` number rendered as text beside it.
@@ -338,14 +366,25 @@ function expandAcronyms(text: string): string {
  * "best time horizon" line (not a field on the morning brief).
  */
 async function HomepageIntelligenceHero() {
-  const [brief, extras, premarket, radar, activeForWatch] = await Promise.all([
-    getMorningBrief(), getHomepageExtras(), getPremarket(), getRadar(), getActiveEventsForWatch(),
+  const [brief, extras, premarket, radar, activeForWatch, mie] = await Promise.all([
+    getMorningBrief(), getHomepageExtras(), getPremarket(), getRadar(), getActiveEventsForWatch(), getMieState(),
   ]);
   if (!brief) return null;
 
   const ex = (extras as any) ?? {};
   const pm = (premarket as any) ?? {};
   const confPct = brief.confidence_score != null ? Math.round(brief.confidence_score * 100) : null;
+  // The morning brief's own confidence (above) is how confident the AI was
+  // WRITING that narrative — not a market-direction confidence. Confirmed
+  // live: homepage showed "Bearish 92%" while Nifty/Sensex/BankNifty were
+  // all solidly green and the Live Market tab's AI Market Intelligence
+  // hero — reading the same MIE state every other page already trusts —
+  // correctly said "Bullish 70%". Two flagship pages contradicting each
+  // other on market direction is a real trust problem, so the top-level
+  // verdict specifically (not the rest of this hero's sector-level
+  // analysis) now reads the identical MIE story object Live Market uses.
+  const mieStory = (mie as any)?.story ?? null;
+  const marketConfPct = mieStory?.confidence != null ? Math.round(mieStory.confidence) : confPct;
 
   const ev = ex.event?.available ? ex.event.primary : null;
   const stars = ev
@@ -384,7 +423,12 @@ async function HomepageIntelligenceHero() {
   // "this is a macro condition, not a stock opportunity" case instead of
   // mislabeling it.
   const macroTheme = !focusSector && ev?.opportunity_sector ? ev.opportunity_sector : null;
-  const outlook = deriveOutlook(positiveSectors.length, negativeSectors.length);
+  // MIE's live pulse first — it's the same real-time signal Live Market's
+  // hero already shows, refreshed every 5 minutes from actual index
+  // movement. Falls back to the sector-count derivation only when MIE has
+  // no story yet (e.g. very early pre-market), never a fabricated guess.
+  const outlook = deriveOutlookFromMie(mieStory?.pulse, mieStory?.confidence)
+    ?? deriveOutlook(positiveSectors.length, negativeSectors.length);
 
   // Three real sources merged, not one — the top event alone often names
   // only 1-2 companies. Deduped by symbol, capped at 4, never padded with
@@ -441,7 +485,7 @@ async function HomepageIntelligenceHero() {
   // High/Medium/Low — an honest bucketing of the real confidence score,
   // not a second independent metric. Shown inside "Today's AI Action"
   // alongside the same directional outlook rendered at the top.
-  const convictionStrength = confPct == null ? null : confPct >= 75 ? "High" : confPct >= 50 ? "Medium" : "Low";
+  const convictionStrength = marketConfPct == null ? null : marketConfPct >= 75 ? "High" : marketConfPct >= 50 ? "Medium" : "Low";
 
   const liveEventCount = ex.event?.top_events?.length ?? 0;
   const opportunityCount = (radar as any)?.total ?? 0;
@@ -477,7 +521,7 @@ async function HomepageIntelligenceHero() {
   // invented. Each clause is only included when its underlying field is
   // real; capped at 50 words per the explicit ask.
   const todaysSummary = (() => {
-    const parts: string[] = [`Markets look ${outlook.label.toLowerCase()} today${confPct != null ? ` with ${confPct}% confidence` : ""}.`];
+    const parts: string[] = [`Markets look ${outlook.label.toLowerCase()} today${marketConfPct != null ? ` with ${marketConfPct}% confidence` : ""}.`];
     if (focusSector) parts.push(`${focusSector} stands out as the biggest opportunity.`);
     else if (macroTheme) parts.push(`${macroTheme} is the dominant macro theme today.`);
     parts.push(highestRisk ? `Watch ${highestRisk} as the key risk area.` : `No major verified risk stands out today.`);
@@ -508,12 +552,12 @@ async function HomepageIntelligenceHero() {
           <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-bold ${outlook.cls}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${outlook.dot}`} /> {outlook.label}
           </span>
-          {confPct != null && (
+          {marketConfPct != null && (
             <div className="mt-1.5 flex items-center justify-end gap-1.5">
               <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/[0.08]">
-                <div className="h-full rounded-full bg-white" style={{ width: `${confPct}%` }} />
+                <div className="h-full rounded-full bg-white" style={{ width: `${marketConfPct}%` }} />
               </div>
-              <span className="text-[11px] font-bold tabular-nums text-white">{confPct}%</span>
+              <span className="text-[11px] font-bold tabular-nums text-white">{marketConfPct}%</span>
             </div>
           )}
           {/* Evidence behind the conviction label, not just the label

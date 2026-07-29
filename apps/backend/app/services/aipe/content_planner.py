@@ -188,6 +188,7 @@ def plan_extra_angles(
     sectors_affected: list[dict[str, Any]],
     max_companies: int = 2,
     max_questions: int = 2,
+    primary_angle_entity: str | None = None,
 ) -> list[tuple[str, str, str, str | None, str | None]]:
     """
     Given the just-published primary article's own AI-vetted companies/sectors,
@@ -206,9 +207,17 @@ def plan_extra_angles(
     plans: list[tuple[str, str, str, str | None, str | None]] = []
 
     companies = [c for c in (companies_affected or []) if c.get("symbol")]
+    primary_entity_norm = (primary_angle_entity or "").upper().split(".")[0]
     for c in companies[:max_companies]:
-        symbol = str(c["symbol"]).upper()
-        if primary_article_type == "company_intelligence" and symbol in primary_story_id.upper():
+        symbol = str(c["symbol"]).upper().split(".")[0]
+        # Was `symbol in primary_story_id.upper()` — story IDs are slugs
+        # like "intel-abc123-20260729" that essentially never contain a
+        # literal ticker, so this never actually fired (confirmed live: a
+        # per_company RELIANCE angle and a per_company ONGC angle both
+        # published from the same event with no dedup between them). The
+        # real check is whether this symbol IS the primary's own angle —
+        # only meaningful when the primary is itself a per-company piece.
+        if primary_article_type == "company_intelligence" and symbol == primary_entity_norm:
             continue  # primary already IS this company's angle
         plans.append((
             "company_intelligence",

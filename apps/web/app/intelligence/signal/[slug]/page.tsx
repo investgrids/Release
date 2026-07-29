@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Radar, GitBranch, Rocket, History, ArrowRight, Sparkles } from "lucide-react";
+import { Radar, GitBranch, Rocket, History, ArrowRight, Sparkles, BookOpen, TrendingUp, TrendingDown, HelpCircle } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { safeJsonLd } from "@/lib/text";
 import { SignalActions } from "@/components/intelligence/SignalActions";
@@ -66,6 +66,15 @@ interface SignalArticle {
     kind: string; signal_type: string; payload: SignalPayload;
     first_detected_at?: string; last_seen_at?: string; occurrence_count?: number;
   } | null;
+  // Populated by signal_publisher.py's async enrichment pass (run_signal_
+  // enrichment_cycle), not at initial publish — null/undefined on a signal
+  // that hasn't been enriched yet, which is a real, expected state (the
+  // request-time publish path stays fast/LLM-free on purpose), not a bug.
+  why_it_matters?: string | null;
+  what_happened?: string | null;
+  opportunities?: { title: string; description: string; timeframe?: string; risk?: string }[];
+  risks?: { title: string; description: string; severity?: string; mitigation?: string }[];
+  faqs?: { question: string; answer: string }[];
 }
 
 async function fetchSignal(slug: string): Promise<SignalArticle | null> {
@@ -215,9 +224,18 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
   // different domain than the page's own canonical tag.
   const siteOrigin = url.replace(/\/intelligence\/signal\/.*$/, "");
 
-  const jsonLd = {
+  // NewsArticle (not the plain Article this page previously always sent) —
+  // this page's own hardcoded value was a separate, dead-end JSON-LD
+  // construction that never picked up the backend's schema-type or FAQPage
+  // work (comparison_publisher.py/publisher.py/signal_publisher.py all
+  // compute a real json_ld field on the row, but this page has always
+  // built its own from scratch instead of rendering it) — fixed at the
+  // source that's actually used rather than plumbing through the unused
+  // backend field, to avoid two parallel JSON-LD constructions drifting
+  // further apart.
+  const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": a.faqs && a.faqs.length > 0 ? ["NewsArticle", "FAQPage"] : "NewsArticle",
     headline: a.headline,
     description: a.meta_description || a.executive_summary || seoSummary,
     datePublished: ctx.first_detected_at || a.published_at,
@@ -234,6 +252,12 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
       ],
     },
   };
+  if (a.faqs && a.faqs.length > 0) {
+    jsonLd.mainEntity = a.faqs.slice(0, 5).map(f => ({
+      "@type": "Question", name: f.question,
+      acceptedAnswer: { "@type": "Answer", text: f.answer },
+    }));
+  }
 
   return (
     <main className="mx-auto max-w-[1280px] px-5 py-6 pb-16 sm:px-6">
@@ -375,6 +399,64 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
                     </span>
                     <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-600 opacity-0 transition group-hover:opacity-100" />
                   </Link>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Populated by the async enrichment pass (signal_publisher.py's
+              run_signal_enrichment_cycle) — real content, not fabricated
+              for the page: absent entirely on a signal not yet enriched,
+              rather than showing an empty/placeholder section. */}
+          {a.what_happened && (
+            <Card title="What Happened" icon={<BookOpen className="h-3.5 w-3.5 text-sky-400" />}>
+              <p className="text-[13px] leading-relaxed text-slate-300">{a.what_happened}</p>
+            </Card>
+          )}
+
+          {a.why_it_matters && (
+            <Card title="Why It Matters" icon={<Sparkles className="h-3.5 w-3.5 text-violet-400" />}>
+              <p className="text-[13px] leading-relaxed text-slate-300">{a.why_it_matters}</p>
+            </Card>
+          )}
+
+          {(a.opportunities?.length || a.risks?.length) ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {a.opportunities && a.opportunities.length > 0 && (
+                <Card title="Opportunities" icon={<TrendingUp className="h-3.5 w-3.5 text-emerald-400" />}>
+                  <div className="space-y-2.5">
+                    {a.opportunities.map((o, i) => (
+                      <div key={i} className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-3">
+                        <p className="text-[12.5px] font-bold text-white">{o.title}</p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-slate-400">{o.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+              {a.risks && a.risks.length > 0 && (
+                <Card title="Risks" icon={<TrendingDown className="h-3.5 w-3.5 text-rose-400" />}>
+                  <div className="space-y-2.5">
+                    {a.risks.map((r, i) => (
+                      <div key={i} className="rounded-xl border border-rose-500/15 bg-rose-500/[0.04] p-3">
+                        <p className="text-[12.5px] font-bold text-white">{r.title}</p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-slate-400">{r.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+          ) : null}
+
+          {a.faqs && a.faqs.length > 0 && (
+            <Card title="Frequently Asked" icon={<HelpCircle className="h-3.5 w-3.5 text-slate-400" />}>
+              <div className="space-y-2">
+                {a.faqs.map((f, i) => (
+                  <details key={i} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+                    <summary className="cursor-pointer text-[12.5px] font-semibold text-white">{f.question}</summary>
+                    <p className="mt-2 text-[12px] leading-relaxed text-slate-400">{f.answer}</p>
+                  </details>
                 ))}
               </div>
             </Card>

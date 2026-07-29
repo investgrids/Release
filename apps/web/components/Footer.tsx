@@ -22,9 +22,11 @@ const PRODUCT_LINKS = [
   { label: "Companies",           href: "/companies" },
   { label: "Stories",             href: "/stories" },
   { label: "Opportunity Radar",   href: "/opportunity-radar" },
+  { label: "Best Stocks",         href: "/best-stocks" },
   { label: "Ripple Intelligence", href: "/ripple" },
   { label: "AI Search",           href: "/ai-search" },
   { label: "Historical Patterns", href: "/historical" },
+  { label: "Commodities",         href: "/commodities" },
   { label: "Knowledge Library",   href: "/learn" },
 ];
 

@@ -260,6 +260,23 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         misfire_grace_time=120,
     )
 
+    # Same decoupling principle as media_generation above — publish_signal
+    # (live_intelligence.py's request-time path) stays fast and LLM-free;
+    # this separately, asynchronously backfills real why_it_matters/
+    # what_happened/opportunities/risks/FAQs onto live_signal rows that are
+    # still thin (see signal_publisher.py's enrichment section docstring —
+    # roadmap Stage 2's "Live Feed explanations" / "one-click article
+    # generation from every feed item" ask).
+    from app.services.aipe.signal_publisher import run_signal_enrichment_cycle
+    scheduler.add_job(
+        run_signal_enrichment_cycle,
+        IntervalTrigger(seconds=300),
+        id="signal_enrichment",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=120,
+    )
+
     log.info("scheduler.jobs_registered", count=len(scheduler.get_jobs()))
 
 
@@ -289,7 +306,7 @@ async def start_scheduler() -> AsyncIOScheduler:
     # contamination bug already wrote before its fix shipped (see
     # daily_tasks.py's job_repair_evergreen_contamination docstring).
     # Naturally idempotent — safe to leave registered permanently.
-    from app.tasks.daily_tasks import job_repair_evergreen_contamination, job_repair_unfilled_placeholders
+    from app.tasks.daily_tasks import job_repair_evergreen_contamination, job_repair_unfilled_placeholders, job_repair_comparison_missing_fields
     scheduler.add_job(
         job_repair_evergreen_contamination,
         id="repair_evergreen_contamination_startup",
@@ -303,6 +320,17 @@ async def start_scheduler() -> AsyncIOScheduler:
     scheduler.add_job(
         job_repair_unfilled_placeholders,
         id="repair_unfilled_placeholders_startup",
+        max_instances=1,
+        trigger="date",  # runs once immediately
+    )
+
+    # Same idempotent-cleanup pattern, backfilling what_happened/
+    # why_it_matters on already-published comparisons from their own
+    # already-stored decision_intelligence (see comparison_publisher.py's
+    # compose_what_happened/compose_why_it_matters).
+    scheduler.add_job(
+        job_repair_comparison_missing_fields,
+        id="repair_comparison_missing_fields_startup",
         max_instances=1,
         trigger="date",  # runs once immediately
     )

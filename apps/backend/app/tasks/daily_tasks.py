@@ -416,3 +416,55 @@ async def job_repair_unfilled_placeholders() -> None:
         if fixed:
             await db.commit()
         log.info("job.repair_unfilled_placeholders.done", repaired=fixed)
+
+
+async def job_repair_comparison_missing_fields() -> None:
+    """One-off backfill of what_happened/why_it_matters on already-published
+    comparison_intelligence articles that predate compose_what_happened/
+    compose_why_it_matters (comparison_publisher.py) — computed from each
+    row's OWN already-stored market_context.decision_intelligence, no fresh
+    LLM call needed. Naturally idempotent: a row with both fields already
+    set is skipped, so a later boot finds nothing left to do."""
+    from sqlalchemy import select
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.intelligence_article import IntelligenceArticle
+    from app.services.aipe.comparison_publisher import compose_what_happened, compose_why_it_matters
+
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(IntelligenceArticle)
+            .where(IntelligenceArticle.article_type == "comparison_intelligence")
+            .where(IntelligenceArticle.status == "published")
+        )).scalars().all()
+
+        fixed = 0
+        for a in rows:
+            if a.what_happened and a.why_it_matters:
+                continue
+            di = ((a.market_context or {}).get("decision_intelligence")) or {}
+            if not di:
+                continue
+            companies = a.companies_affected or []
+            name_a = companies[0].get("name") if len(companies) > 0 else None
+            name_b = companies[1].get("name") if len(companies) > 1 else None
+            if not name_a or not name_b:
+                continue
+            changed = False
+            if not a.what_happened:
+                wh = compose_what_happened(di, name_a, name_b)
+                if wh:
+                    a.what_happened = wh
+                    changed = True
+            if not a.why_it_matters:
+                wim = compose_why_it_matters(di, name_a, name_b)
+                if wim:
+                    a.why_it_matters = wim
+                    changed = True
+            if changed:
+                db.add(a)
+                fixed += 1
+                log.info("job.repair_comparison_missing_fields.fixed", slug=a.slug)
+
+        if fixed:
+            await db.commit()
+        log.info("job.repair_comparison_missing_fields.done", repaired=fixed)

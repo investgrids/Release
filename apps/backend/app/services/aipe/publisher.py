@@ -149,10 +149,20 @@ async def _publish_new_article(
     site_url = (settings.frontend_url or "https://www.marketripple.in").rstrip("/")
     article_path = f"/newsroom/article/{slug}"
 
-    # Build JSON-LD (Article + FAQPage if FAQs present)
+    # NewsArticle (a schema.org subtype of Article) is Google's own
+    # distinction for timely reporting on a current event vs. general
+    # content — this app already draws the identical line for the Google
+    # News sitemap (news-sitemap.xml/route.ts sources from the same
+    # article corpus but is inherently time-bound). The three genuinely
+    # evergreen types are the exception; everything else is reporting on
+    # something that happened today, which NewsArticle is the correct,
+    # more specific type for.
+    schema_type = "Article" if article_type in ("educational_intelligence", "comparison_intelligence", "historical_intelligence") else "NewsArticle"
+
+    # Build JSON-LD (Article/NewsArticle + FAQPage if FAQs present)
     json_ld: dict[str, Any] = {
         "@context": "https://schema.org",
-        "@type": "Article",
+        "@type": schema_type,
         "headline": article_data.get("headline", ""),
         "description": article_data.get("meta_description", ""),
         "datePublished": now.isoformat(),
@@ -171,7 +181,7 @@ async def _publish_new_article(
     }
     faqs = article_data.get("faqs") or []
     if faqs:
-        json_ld["@type"] = ["Article", "FAQPage"]
+        json_ld["@type"] = [schema_type, "FAQPage"]
         json_ld["mainEntity"] = [
             {
                 "@type": "Question",
@@ -620,6 +630,7 @@ async def run_aipe_cycle() -> None:
                             angle_plans = plan_extra_angles(
                                 article_type, story_id, article.headline,
                                 article.companies_affected, article.sectors_affected,
+                                primary_angle_entity=article.angle_entity,
                             )[:_MAX_ANGLES_PER_EVENT]
                             with perf_stats.timed("campaign"):
                                 for angle_type, angle_story_id, angle, angle_entity, angle_question in angle_plans:
@@ -654,6 +665,33 @@ async def run_aipe_cycle() -> None:
                                         question=angle_question or "",
                                     )
                                     if angle_article and angle_article.status == "published":
+                                        if angle == "per_company" and angle_entity:
+                                            # Confirmed live: a "per_company" article
+                                            # generated for one angle_entity (e.g.
+                                            # RELIANCE) frequently still lists sibling
+                                            # companies from the same source event in
+                                            # its own companies_affected (ONGC, BEL) —
+                                            # the LLM was steered toward this entity via
+                                            # angle_event["tickers"] above, but wasn't
+                                            # told to OMIT the others. Since a separate
+                                            # per_company article already exists for
+                                            # each sibling, this made two independently
+                                            # real, non-duplicate-content articles read
+                                            # as near-identical (SEO audit's "9 events
+                                            # each produced 2-5 near-identical articles"
+                                            # finding). Narrowing the stored field to
+                                            # this angle's own real focus is a filter on
+                                            # already-generated real data, not new
+                                            # content — never invents a reason or drops
+                                            # the row if nothing matches.
+                                            own = [
+                                                c for c in (angle_article.companies_affected or [])
+                                                if str(c.get("symbol", "")).upper().split(".")[0] == angle_entity.upper()
+                                            ]
+                                            if own:
+                                                angle_article.companies_affected = own
+                                                db.add(angle_article)
+                                                await db.commit()
                                         daily_count += 1
                                         today_story_ids.add(angle_story_id)
                                         log.info("aipe.cycle.angle_published", angle=angle, entity=angle_entity, story_id=angle_story_id)

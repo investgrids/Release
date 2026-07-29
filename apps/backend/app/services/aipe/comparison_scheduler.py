@@ -59,12 +59,20 @@ _CURATED_PAIRS: list[tuple[str, str]] = [
 ]
 
 
-def _sector_derived_pairs() -> list[tuple[str, str]]:
+def _sector_derived_pairs(sector_priority: dict[str, int] | None = None) -> list[tuple[str, str]]:
     """Every large-cap pair within each real NSE sector — the systematic
     path to hundreds of pages without hand-listing them. Capped at the top
     6 large-cap names per sector (C(6,2)=15 pairs max/sector) so one huge
     sector (e.g. Banking) doesn't dominate the whole pool with low-intent
-    pairings between minor names."""
+    pairings between minor names.
+
+    sector_priority (real total views, see _sector_engagement_scores)
+    reorders which sector's pairs get tried FIRST when _MAX_PER_CYCLE caps
+    how many this cycle can reach — the traffic-feedback piece the SEO
+    audit's roadmap named (views/share_count collected but never read by
+    any generation/scheduling code). Sectors with no signal yet keep their
+    original relative order (Python's sort is stable), so a brand-new
+    sector is never starved, just not artificially prioritized either."""
     from app.api.companies import _NSE_UNIVERSE
 
     by_sector: dict[str, list[str]] = {}
@@ -73,11 +81,53 @@ def _sector_derived_pairs() -> list[tuple[str, str]]:
             continue
         by_sector.setdefault(co["sector"], []).append(co["symbol"])
 
+    sector_names = list(by_sector.keys())
+    if sector_priority:
+        sector_names.sort(key=lambda s: sector_priority.get(s, 0), reverse=True)
+
     pairs: list[tuple[str, str]] = []
-    for symbols in by_sector.values():
-        top = sorted(symbols)[:6]
+    for sector in sector_names:
+        top = sorted(by_sector[sector])[:6]
         pairs.extend(combinations(top, 2))
     return pairs
+
+
+async def _sector_engagement_scores(db) -> dict[str, int]:
+    """Real per-sector total views, the concrete traffic-feedback signal
+    for _sector_derived_pairs above. Aggregated through each article's real
+    companies_affected symbols -> _sector_for(symbol) (the same NSE_UNIVERSE
+    lookup _sector_derived_pairs itself groups companies by), NOT through
+    articles' own sectors_affected free-text tags — confirmed live that
+    those two vocabularies disagree (AI-authored tags like "IT", "Pharma",
+    "Auto & EV" vs. NSE_UNIVERSE's "Technology", "Pharmaceuticals",
+    "Automotive"), which silently zeroed out most of the real signal before
+    this fix. Same category of accuracy bug already caught once this
+    session on the Best Stocks pages — worth the extra join here too rather
+    than shipping a feedback loop that mostly measures name-matching luck."""
+    from sqlalchemy import select
+    from app.db.models.intelligence_article import IntelligenceArticle
+
+    rows = (await db.execute(
+        select(IntelligenceArticle.companies_affected, IntelligenceArticle.views)
+        .where(IntelligenceArticle.status == "published")
+    )).all()
+    scores: dict[str, int] = {}
+    for companies_affected, views in rows:
+        seen_sectors_this_row: set[str] = set()
+        for c in (companies_affected or []):
+            symbol = (c.get("symbol") if isinstance(c, dict) else None) or ""
+            if not symbol:
+                continue
+            sector = _sector_for(symbol.upper())
+            # Count each sector once per article even if it names several
+            # of that sector's companies — this measures "how many views
+            # has content about this sector gotten," not "how many company
+            # mentions," which would double/triple count multi-company
+            # roundup articles.
+            if sector and sector not in seen_sectors_this_row:
+                scores[sector] = scores.get(sector, 0) + (views or 0)
+                seen_sectors_this_row.add(sector)
+    return scores
 
 
 def _name_for(symbol: str) -> str:
@@ -152,7 +202,11 @@ async def run_comparison_cycle() -> None:
             )).scalars().all()
             existing_by_slug = {a.slug: a for a in existing}
 
-            candidates = _CURATED_PAIRS + _sector_derived_pairs()
+            sector_priority = await _sector_engagement_scores(db)
+            if sector_priority:
+                top5 = sorted(sector_priority.items(), key=lambda x: -x[1])[:5]
+                log.info("comparison_cycle.sector_priority", top_sectors=top5)
+            candidates = _CURATED_PAIRS + _sector_derived_pairs(sector_priority)
             now = datetime.now(timezone.utc)
 
             for sym_a, sym_b in candidates:

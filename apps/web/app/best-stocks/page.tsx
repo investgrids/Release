@@ -1,0 +1,57 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { TrendingUp } from "lucide-react";
+import { getSectorsWithCounts } from "@/lib/bestStocks";
+
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+
+export const metadata: Metadata = {
+  title: "Best Stocks by Sector — Real AI Opportunity Rankings | MarketRipple",
+  description: "Which stocks are best positioned in Defence, Banking, Energy, IT and more — ranked from MarketRipple's real, already-scored Opportunity Radar, not a generic list.",
+  openGraph: {
+    type: "website",
+    title: "Best Stocks by Sector — MarketRipple",
+    description: "Real, opportunity-scored stock rankings by sector.",
+    url: `${SITE}/best-stocks`,
+    siteName: "MarketRipple",
+  },
+  alternates: { canonical: `${SITE}/best-stocks` },
+};
+
+export default async function BestStocksHubPage() {
+  const sectors = await getSectorsWithCounts();
+
+  return (
+    <main className="mx-auto max-w-[900px] px-5 py-8 pb-16 sm:px-6">
+      <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+        <TrendingUp className="h-3.5 w-3.5" /> Best Stocks
+      </div>
+      <h1 className="text-[28px] font-black leading-tight text-white md:text-[34px]">
+        Best Stocks By Sector
+      </h1>
+      <p className="mt-3 max-w-[640px] text-[14px] leading-relaxed text-slate-400">
+        Ranked from MarketRipple&apos;s real Opportunity Radar — every company here is backed by a
+        live, scored opportunity with a stated reason, not a generic screener list.
+      </p>
+
+      {sectors.length === 0 && (
+        <p className="mt-10 text-[13px] text-slate-600">No sector rankings available right now.</p>
+      )}
+
+      <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {sectors.map(s => (
+          <Link
+            key={s.slug}
+            href={`/best-stocks/${s.slug}`}
+            className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-emerald-500/25 hover:bg-white/[0.03]"
+          >
+            <span className="text-[14px] font-semibold text-white">Best {s.sector} Stocks</span>
+            <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-400">
+              {s.companyCount} ranked
+            </span>
+          </Link>
+        ))}
+      </div>
+    </main>
+  );
+}

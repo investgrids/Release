@@ -3,6 +3,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 import { GLOSSARY } from "@/lib/glossary-data";
 import { GUIDES } from "@/lib/guides-data";
 import { ARTICLES } from "@/lib/articles-data";
+import { getSectorsWithCounts } from "@/lib/bestStocks";
 
 const base  = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.in";
 const now   = new Date().toISOString();
@@ -57,6 +58,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // (historical_memory_service.py, 52 events) previously powering only a
     // sidebar widget with no indexable URL of its own.
     { url: `${base}/historical`,                 lastModified: now, changeFrequency: "weekly", priority: 0.75 },
+    // Best Stocks hub — real, opportunity-scored rankings by sector (pure
+    // presentation layer over the existing Opportunity Radar data).
+    { url: `${base}/best-stocks`,                lastModified: now, changeFrequency: "daily",  priority: 0.8 },
+    // Commodities — real live metals/energy prices (commodities.py), fixed
+    // 8-item set (4 metals + 4 energy) defined in the backend itself, so
+    // listed directly rather than fetched.
+    { url: `${base}/commodities`,                lastModified: now, changeFrequency: "hourly", priority: 0.75 },
+    ...["gold", "silver", "copper", "platinum", "brent", "wti", "natgas", "petrol"].map(id => ({
+      url: `${base}/commodities/${id}`,
+      lastModified: now,
+      changeFrequency: "hourly" as const,
+      priority: 0.7,
+    })),
     { url: `${base}/learn`,                      lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/learn/glossary`,             lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/learn/guides`,               lastModified: now, changeFrequency: "weekly", priority: 0.6 },
@@ -210,6 +224,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // near-empty page to Google is exactly the thin-content risk the SEO
   // audit flagged. Only events with real reaction/scoring data go in the
   // sitemap; the hub page still lists everything for browsing.
+  // Best Stocks — reuses the same thin-content threshold (>=3 real
+  // companies) already applied inside getSectorsWithCounts().
+  const bestStocksSectors = await getSectorsWithCounts();
+  const bestStocksRoutes: MetadataRoute.Sitemap = bestStocksSectors.map(s => ({
+    url: `${base}/best-stocks/${s.slug}`,
+    lastModified: now,
+    changeFrequency: "daily",
+    priority: 0.75,
+  }));
+
   const historicalRoutes: MetadataRoute.Sitemap = (historical.events ?? [])
     .filter(e => e.nifty_1w != null || e.opportunity_score != null)
     .map(e => ({
@@ -231,5 +255,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }

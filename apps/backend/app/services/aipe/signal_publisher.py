@@ -145,7 +145,9 @@ async def publish_signal(db: AsyncSession, item: dict) -> dict:
 
     json_ld = {
         "@context": "https://schema.org",
-        "@type": "Article",
+        # Same distinction as publisher.py — this is a real-time detection
+        # reported as it happens, the exact shape NewsArticle exists for.
+        "@type": "NewsArticle",
         "headline": headline,
         "description": summary,
         "datePublished": first_detected_at,
@@ -199,3 +201,115 @@ async def publish_signal(db: AsyncSession, item: dict) -> dict:
 
     await db.commit()
     return {"slug": slug, "headline": headline}
+
+
+# ── Async enrichment ──────────────────────────────────────────────────────
+#
+# publish_signal above is deliberately fast and LLM-free — it runs inside a
+# real user's request (live_intelligence.py's /feed endpoint, on a cache
+# miss), and blocking that on an LLM call would make a live page load wait
+# on AI generation. What it stores is genuinely thin though (SEO audit's
+# Stage-2 "Live Feed explanations" gap, and the roadmap's own "one-click
+# article generation from every feed item" ask): why_it_matters/
+# what_happened/opportunities/risks/faqs are never set.
+#
+# Enrichment is a SEPARATE, scheduled, async pass — same decoupling
+# principle already proven safe in this codebase by image_worker.py (hero
+# images generate after publish, on the worker's own schedule, never
+# blocking the request that created the row).
+
+_ENRICH_MIN_WHY_LEN = 40  # below this, treat why_it_matters as "still thin"
+
+
+async def _needs_enrichment(a: IntelligenceArticle) -> bool:
+    return len(a.why_it_matters or "") < _ENRICH_MIN_WHY_LEN
+
+
+async def enrich_signal_article(db: AsyncSession, article: IntelligenceArticle) -> bool:
+    """One real LLM call to give a thin live_signal row genuine analysis —
+    why it matters, what happened, real opportunities/risks, FAQs — reusing
+    article_generator.py's existing schema/template rather than building a
+    parallel prompt. The signal-specific identity (headline, companies_
+    affected, market_context payload, canonical_url) is never overwritten;
+    only the narrative fields a real reader would expect are filled in."""
+    from app.services.aipe.article_generator import generate_intelligence_article
+    from app.services.aipe.market_story_engine import get_mie_context
+
+    ctx = (article.market_context or {})
+    payload = ctx.get("payload") or {}
+    event = {
+        "headline": article.headline,
+        "summary": article.executive_summary or "",
+        "sectors": [payload["sector"]] if payload.get("sector") else [],
+        "tickers": [c.get("symbol") for c in (article.companies_affected or []) if c.get("symbol")],
+    }
+    try:
+        mie_context = await get_mie_context()
+    except Exception:
+        mie_context = {}
+
+    # breaking_intelligence is the closest existing template to "explain
+    # this just-detected real-time signal" — reused rather than adding a
+    # parallel prompt for what's conceptually the same kind of content.
+    generated = await generate_intelligence_article("breaking_intelligence", event, mie_context, historical=[])
+    if not generated:
+        return False
+
+    article.why_it_matters = generated.get("why_it_matters") or article.why_it_matters
+    article.what_happened = generated.get("what_happened") or article.what_happened
+    article.opportunities = generated.get("opportunities") or article.opportunities
+    article.risks = generated.get("risks") or article.risks
+    article.faqs = generated.get("faqs") or article.faqs
+    if generated.get("faqs"):
+        types = article.json_ld.get("@type") if article.json_ld else None
+        if article.json_ld and types and "FAQPage" not in (types if isinstance(types, list) else [types]):
+            article.json_ld = {
+                **article.json_ld,
+                "@type": [types, "FAQPage"] if isinstance(types, str) else [*types, "FAQPage"],
+                "mainEntity": [
+                    {"@type": "Question", "name": f.get("question", ""),
+                     "acceptedAnswer": {"@type": "Answer", "text": f.get("answer", "")}}
+                    for f in generated["faqs"][:5]
+                ],
+            }
+    article.last_updated = datetime.now(timezone.utc)
+    article.update_count = (article.update_count or 0) + 1
+    db.add(article)
+    await db.commit()
+    return True
+
+
+async def run_signal_enrichment_cycle(max_per_cycle: int = 3) -> int:
+    """Scheduled job (see scheduler.py) — enriches up to max_per_cycle thin
+    live_signal articles per run. Small batch + a real LLM call each,
+    matching the same rate-limit reasoning comparison_scheduler.py already
+    documents for its own cycle."""
+    import structlog
+    log = structlog.get_logger(__name__)
+    from app.db.session import AsyncSessionLocal
+
+    enriched = 0
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(IntelligenceArticle)
+            .where(IntelligenceArticle.article_type == _ARTICLE_TYPE)
+            .where(IntelligenceArticle.status == "published")
+            .order_by(IntelligenceArticle.published_at.desc())
+            .limit(50)
+        )).scalars().all()
+
+        for a in rows:
+            if enriched >= max_per_cycle:
+                break
+            if not await _needs_enrichment(a):
+                continue
+            try:
+                ok = await enrich_signal_article(db, a)
+            except Exception as exc:
+                log.warning("signal_enrichment.failed", slug=a.slug, error=str(exc)[:200])
+                continue
+            if ok:
+                enriched += 1
+                log.info("signal_enrichment.done", slug=a.slug)
+
+    return enriched
