@@ -116,6 +116,24 @@ async def _has_fresh_event_since(db, symbol: str, since: datetime) -> bool:
     return matched is not None
 
 
+def _aware(dt: datetime | None) -> datetime | None:
+    """SQLAlchemy's DateTime(timezone=True) is honored by Postgres but
+    SQLite (this app's actual DATABASE_URL — see config) silently drops
+    tzinfo on read regardless of the column declaration, returning a naive
+    datetime. `now - article.last_updated` below then raises "can't
+    subtract offset-naive and offset-aware datetimes" — confirmed live:
+    this crashed the comparison cycle on its very first loop iteration
+    every single run (hal-vs-bel, the first curated pair, already existed
+    from an earlier publish, so the age check below was always reached
+    immediately and always raised, aborting the entire cycle via the outer
+    try/except before it ever got to attempt a single new pair). This is
+    the actual root cause of "only 4 comparisons ever published" — not a
+    quality-gate or rate-limit issue."""
+    if dt is None or dt.tzinfo is not None:
+        return dt
+    return dt.replace(tzinfo=timezone.utc)
+
+
 async def run_comparison_cycle() -> None:
     """Scheduled job (see scheduler.py) — publishes/refreshes up to
     _MAX_PER_CYCLE comparison pairs per run. Every actual generation still
@@ -144,11 +162,12 @@ async def run_comparison_cycle() -> None:
                 article = existing_by_slug.get(slug)
 
                 if article:
-                    age = now - (article.last_updated or article.published_at or now)
+                    anchor = _aware(article.last_updated) or _aware(article.published_at) or now
+                    age = now - anchor
                     if age < timedelta(days=_STALE_AFTER_DAYS):
                         continue
-                    fresh = await _has_fresh_event_since(db, sym_a, article.last_updated or now) \
-                        or await _has_fresh_event_since(db, sym_b, article.last_updated or now)
+                    fresh = await _has_fresh_event_since(db, sym_a, anchor) \
+                        or await _has_fresh_event_since(db, sym_b, anchor)
                     if not fresh:
                         continue  # old enough to refresh, but nothing new to say
 

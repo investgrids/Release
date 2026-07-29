@@ -24,6 +24,7 @@ const PRODUCT_LINKS = [
   { label: "Opportunity Radar",   href: "/opportunity-radar" },
   { label: "Ripple Intelligence", href: "/ripple" },
   { label: "AI Search",           href: "/ai-search" },
+  { label: "Historical Patterns", href: "/historical" },
   { label: "Knowledge Library",   href: "/learn" },
 ];
 

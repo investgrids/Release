@@ -53,6 +53,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // fixed for /themes and /insights/{slug} — this bare entry was missed
     // in that earlier pass, found while adding /research below).
     { url: `${base}/newsroom`,                   lastModified: now, changeFrequency: "hourly", priority: 0.9 },
+    // Historical Memory hub — real dated market-pattern data
+    // (historical_memory_service.py, 52 events) previously powering only a
+    // sidebar widget with no indexable URL of its own.
+    { url: `${base}/historical`,                 lastModified: now, changeFrequency: "weekly", priority: 0.75 },
     { url: `${base}/learn`,                      lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/learn/glossary`,             lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/learn/guides`,               lastModified: now, changeFrequency: "weekly", priority: 0.6 },
@@ -93,7 +97,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // /stories/:slug 301-redirects to /newsroom/themes for every id, so
   // submitting these URLs in the sitemap only produced Search Console
   // "Page with redirect" warnings for pages that never had real content.
-  const [events, radar, companiesPage1, news, insights, sectors, research] = await Promise.all([
+  const [events, radar, companiesPage1, news, insights, sectors, research, historical] = await Promise.all([
     safeJson<Array<{ id: string; date?: string }>>(`${API}/api/events/?limit=100`, []),
     safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
@@ -102,6 +106,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     safeJson<Array<{ id: string }>>(`${API}/api/sectors/`, []),
     // SEO Phase 2, §2.2 — comparison research pages.
     safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string }> }>(`${API}/api/insights/?article_type=comparison_intelligence&limit=100`, {}),
+    // Historical Memory pages — real dated events, ids are already
+    // human-readable slugs (e.g. "rbi-rate-pause-2023"), not opaque UUIDs.
+    safeJson<{ events?: Array<{ id: string; nifty_1w?: number | null; opportunity_score?: number | null }> }>(`${API}/api/historical/all?limit=200`, {}),
   ]);
 
   // Companies list is paginated server-side (60/page) — fetch the remaining
@@ -196,6 +203,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  // Some stored events are thin, auto-captured recent items with no real
+  // Nifty-reaction or scoring data yet (verified live: a "General"-category
+  // event with nifty_1w/1m all null and no winners/losers) — the page still
+  // renders honestly for these (no fabricated numbers), but submitting a
+  // near-empty page to Google is exactly the thin-content risk the SEO
+  // audit flagged. Only events with real reaction/scoring data go in the
+  // sitemap; the hub page still lists everything for browsing.
+  const historicalRoutes: MetadataRoute.Sitemap = (historical.events ?? [])
+    .filter(e => e.nifty_1w != null || e.opportunity_score != null)
+    .map(e => ({
+      url: `${base}/historical/${e.id}`,
+      lastModified: now,
+      // Real dated pattern, not today's news — long organic life, doesn't
+      // need frequent recrawl.
+      changeFrequency: "monthly",
+      priority: 0.65,
+    }));
+
   // SEO Phase 2, §2.2 — comparison research pages, generated (with a real
   // retry+quality gate) from the live AI Search decision engine — see
   // comparison_publisher.py.
@@ -206,5 +231,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }

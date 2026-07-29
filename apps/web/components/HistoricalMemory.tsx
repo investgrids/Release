@@ -273,6 +273,16 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
         {expanded ? "Less detail" : "Key lesson + sectors"}
         <ChevronRight className={`h-2.5 w-2.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
       </button>
+
+      {/* This widget rendered all of this data inline with nowhere to go —
+          no indexable URL, no way to share or revisit one specific event.
+          /historical/{id} now exists as the real destination. */}
+      <Link
+        href={`/historical/${ev.id}`}
+        className="flex w-full items-center justify-center gap-1 border-t border-white/[0.04] bg-sky-500/[0.04] py-2 text-[10px] font-bold uppercase tracking-wider text-sky-400 transition hover:bg-sky-500/[0.08] hover:text-sky-300"
+      >
+        View Full Analysis <ChevronRight className="h-3 w-3" />
+      </Link>
     </div>
   );
 }
