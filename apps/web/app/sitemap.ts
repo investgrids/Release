@@ -98,7 +98,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
     safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
-    safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
+    safeJson<{ items?: Array<{ slug: string; article_type?: string; canonical_url?: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
     safeJson<Array<{ id: string }>>(`${API}/api/sectors/`, []),
     // SEO Phase 2, §2.2 — comparison research pages.
     safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string }> }>(`${API}/api/insights/?article_type=comparison_intelligence&limit=100`, {}),
@@ -154,13 +154,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // sitemap file required. Served from the backend's own domain
   // (/api/media/*), which is fine for an image sitemap — it only needs a
   // publicly reachable absolute URL, not same-origin.
-  const insightRoutes: MetadataRoute.Sitemap = (insights.items ?? []).map(a => ({
-    url: `${base}/newsroom/article/${a.slug}`,
-    lastModified: a.last_updated ?? a.published_at ?? now,
-    changeFrequency: "weekly",
-    priority: 0.85,
-    ...(a.hero_image_url ? { images: [`${API}${a.hero_image_url}`] } : {}),
-  }));
+  // comparison_intelligence is excluded here — it's already submitted via
+  // researchRoutes below at its real /research/{slug} destination; including
+  // it again at /newsroom/article/{slug} would submit two URLs for the same
+  // article. For every other type, prefer the article's own real
+  // canonical_url (set once at publish time, e.g. live_signal points at
+  // /intelligence/signal/{slug}) over guessing the path from article_type —
+  // this was previously hardcoded to /newsroom/article/{slug} for every
+  // type, which put a non-canonical URL in the sitemap for live_signal
+  // articles (confirmed live: their own canonical tag disagreed with this).
+  const insightRoutes: MetadataRoute.Sitemap = (insights.items ?? [])
+    .filter(a => a.article_type !== "comparison_intelligence")
+    .map(a => ({
+      url: a.canonical_url || `${base}/newsroom/article/${a.slug}`,
+      lastModified: a.last_updated ?? a.published_at ?? now,
+      changeFrequency: "weekly",
+      priority: 0.85,
+      ...(a.hero_image_url ? { images: [`${API}${a.hero_image_url}`] } : {}),
+    }));
 
   // SEO Phase 2 §2.1 — real sector landing pages (/sectors/[sector]),
   // sourced from the same SectorData rows the /sectors overview already

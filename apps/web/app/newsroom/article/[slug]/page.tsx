@@ -221,6 +221,14 @@ export async function generateMetadata(
 
   const title = article.seo_title || article.headline;
   const description = article.meta_description || article.executive_summary || article.key_takeaway || "";
+  // Real per-article AI-generated hero images exist for a real subset of
+  // articles (served from the backend at /api/media/{id}.jpg) but were
+  // never read here — og:image/twitter:image were silently absent even
+  // when a real image existed, hurting social-share CTR and Article
+  // rich-result eligibility. Omitted entirely (not a placeholder) when
+  // the article has none, consistent with this app's "never fabricate"
+  // rule — no article, no image, no invented stock photo.
+  const image = article.hero_image_url ? `${API}${article.hero_image_url}` : null;
 
   return {
     title,
@@ -230,11 +238,13 @@ export async function generateMetadata(
       description,
       type: "article",
       siteName: "MarketRipple",
+      ...(image ? { images: [{ url: image }] } : {}),
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      ...(image ? { images: [image] } : {}),
     },
     alternates: {
       canonical: article.canonical_url || `/newsroom/article/${slug}`,
@@ -304,12 +314,22 @@ export default async function ArticlePage(
     "Explain this for beginners",
   ].filter(Boolean) as string[];
 
+  // Hero images are generated asynchronously by a worker some time after
+  // publish (see image_worker.py) — json_ld is built once at publish time
+  // and never touched again for this field, so it can never carry an image
+  // the backend didn't have yet. Overlaying it here, at render time, means
+  // the very next page load after the image lands gets a correct Article
+  // schema — no backend job needs to remember to go back and patch it.
+  const jsonLd = article.json_ld && article.hero_image_url
+    ? { ...article.json_ld, image: `${API}${article.hero_image_url}` }
+    : article.json_ld;
+
   return (
     <main className="min-h-screen bg-[#040711] text-white">
-      {article.json_ld && (
+      {jsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(article.json_ld) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
         />
       )}
 

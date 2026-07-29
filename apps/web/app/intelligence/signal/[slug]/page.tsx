@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Radar, GitBranch, Rocket, History, ArrowRight, Sparkles } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { safeJsonLd } from "@/lib/text";
 import { SignalActions } from "@/components/intelligence/SignalActions";
 
 /**
@@ -60,6 +61,7 @@ interface SignalArticle {
   executive_summary?: string;
   companies_affected: { name: string; symbol: string; impact?: string }[];
   published_at?: string; last_updated?: string;
+  canonical_url?: string;
   market_context?: {
     kind: string; signal_type: string; payload: SignalPayload;
     first_detected_at?: string; last_seen_at?: string; occurrence_count?: number;
@@ -141,9 +143,15 @@ function Card({ title, icon, children, className = "" }: { title?: string; icon?
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const url = `${SITE}/intelligence/signal/${slug}`;
+  const fallbackUrl = `${SITE}/intelligence/signal/${slug}`;
   const a = await fetchSignal(slug);
-  if (!a) return { title: "Signal — MarketRipple Live Intelligence", alternates: { canonical: url } };
+  if (!a) return { title: "Signal — MarketRipple Live Intelligence", alternates: { canonical: fallbackUrl } };
+  // Trust the backend's canonical_url (settings.frontend_url, always
+  // "https://www.marketripple.in") over this page's own SITE constant —
+  // they previously disagreed (this page fell back to a non-www domain
+  // when NEXT_PUBLIC_SITE_URL wasn't set at build time), producing two
+  // live pages for the same slug with two contradictory canonical tags.
+  const url = a.canonical_url || fallbackUrl;
   const ctx0 = a.market_context;
   const seoFallback = ctx0
     ? buildSeoSummary(ctx0.signal_type, a.headline, ctx0.payload, a.companies_affected?.map(c => c.symbol) ?? [], "recently detected")
@@ -166,7 +174,7 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
   const ctx = a.market_context;
   const p = ctx.payload;
   const meta = TYPE_META[ctx.signal_type] ?? { label: "Live Intelligence", icon: <Sparkles className="h-3.5 w-3.5" />, cls: "text-slate-300 border-white/20 bg-white/[0.05]", glow: "from-slate-500/10" };
-  const url = `${SITE}/intelligence/signal/${slug}`;
+  const url = a.canonical_url || `${SITE}/intelligence/signal/${slug}`;
   const companies = a.companies_affected?.map(c => c.symbol) ?? [];
 
   // Real score, honestly labeled per type — never a generic invented
@@ -200,6 +208,12 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
     ? "identified as a recurring pattern in MarketRipple's intelligence graph"
     : ctx.first_detected_at ? `first detected ${timeAgo(ctx.first_detected_at)}` : "recently identified";
   const seoSummary = buildSeoSummary(ctx.signal_type, a.headline, p, companies, detectedLabel);
+  // Same domain `url` already resolves to (a.canonical_url when the
+  // backend has it) — previously hardcoded to the local SITE constant,
+  // which could disagree with `url` itself (see the canonical_url fix
+  // above) and made the breadcrumb's own "MarketRipple" item point at a
+  // different domain than the page's own canonical tag.
+  const siteOrigin = url.replace(/\/intelligence\/signal\/.*$/, "");
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -214,8 +228,8 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
     breadcrumb: {
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Live Intelligence", item: `${SITE}/#live-intelligence` },
+        { "@type": "ListItem", position: 1, name: "MarketRipple", item: siteOrigin },
+        { "@type": "ListItem", position: 2, name: "Live Intelligence", item: `${siteOrigin}/#live-intelligence` },
         { "@type": "ListItem", position: 3, name: a.headline, item: url },
       ],
     },
@@ -223,7 +237,12 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
 
   return (
     <main className="mx-auto max-w-[1280px] px-5 py-6 pb-16 sm:px-6">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {/* JSON.stringify (not safeJsonLd) previously left "<" unescaped —
+          a literal "</script>" inside any AI-generated string field
+          (headline, description, key_lesson, etc.) could close this tag
+          early and inject arbitrary HTML. Same stored-XSS class lib/text.ts's
+          safeJsonLd() already guards against on the main article page. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
       <nav className="mb-4 flex items-center gap-2 text-[12px] text-slate-500">
         <Link href="/" className="hover:text-slate-300 transition">Home</Link>

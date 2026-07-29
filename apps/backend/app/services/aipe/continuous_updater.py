@@ -131,6 +131,18 @@ async def find_updatable_articles(
         .where(IntelligenceArticle.status == "published")
         .where(IntelligenceArticle.published_at >= cutoff)
         .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged"]))
+        # Evergreen articles (comparisons, educational explainers) are about
+        # a timeless topic, not today's market — this updater's whole output
+        # is built from mie_context's CURRENT global mood/top-urgency-event
+        # (see _generate_updated_takeaway below), which has no connection to
+        # e.g. an ITC-vs-HUL comparison's own topic. Without this exclusion,
+        # any evergreen article republished/refreshed within the window
+        # became "eligible" purely because the market's story-hash moved on,
+        # and had its key_takeaway overwritten with unrelated content —
+        # confirmed live (an ITC-vs-HUL comparison page showing a Cholamandalam
+        # Finance takeaway). Comparisons already have their own dedicated
+        # staleness-aware refresh (comparison_scheduler.py, 14-day cycle).
+        .where(IntelligenceArticle.is_evergreen.isnot(True))
         # Only update articles not updated very recently
         .where(
             (IntelligenceArticle.last_updated == None) |  # noqa: E711

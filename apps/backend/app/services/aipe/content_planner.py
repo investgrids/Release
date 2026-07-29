@@ -163,8 +163,20 @@ def _match_theme(companies_affected: list[dict[str, Any]], sectors_affected: lis
 
 
 _QUESTION_TEMPLATES = [
-    "Should I Buy {company} After {event_phrase}?",
-    "Is {event_phrase} Good or Bad for {company} Investors?",
+    # event_phrase is a truncated real headline, and this app's own headlines
+    # overwhelmingly open with a clause word ("How X Impacts Y", "What X
+    # Means For Y" — ~65% of published headlines, per the SEO audit). Both
+    # templates used to splice event_phrase into a grammatical slot that
+    # assumes a noun phrase ("...After {event_phrase}?", "Is {event_phrase}
+    # Good or Bad..."), producing live broken output like "Is How Nifty's
+    # Fall Below 23,800 Impacts Energy, Financials... Good or Bad for HDFC
+    # Bank Investors?" — "Is How X" and "After How X" are not grammatical
+    # regardless of truncation length. Treating event_phrase as its own
+    # independent clause (colon/dash-separated, like a real two-part
+    # headline) sidesteps the grammar problem entirely instead of trying to
+    # rewrite an arbitrary clause into a noun phrase.
+    "Should I Buy {company}? {event_phrase}",
+    "{event_phrase} — Good or Bad for {company} Investors?",
 ]
 
 

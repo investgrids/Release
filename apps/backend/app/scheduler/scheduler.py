@@ -285,6 +285,28 @@ async def start_scheduler() -> AsyncIOScheduler:
         trigger="date",  # runs once immediately
     )
 
+    # One-off cleanup of evergreen articles the continuous-updater
+    # contamination bug already wrote before its fix shipped (see
+    # daily_tasks.py's job_repair_evergreen_contamination docstring).
+    # Naturally idempotent — safe to leave registered permanently.
+    from app.tasks.daily_tasks import job_repair_evergreen_contamination, job_repair_unfilled_placeholders
+    scheduler.add_job(
+        job_repair_evergreen_contamination,
+        id="repair_evergreen_contamination_startup",
+        max_instances=1,
+        trigger="date",  # runs once immediately
+    )
+
+    # Same idempotent-cleanup pattern, for already-published articles
+    # carrying a literal unfilled template placeholder (see quality_validator
+    # .py's new no_unfilled_placeholders gate, which stops new ones).
+    scheduler.add_job(
+        job_repair_unfilled_placeholders,
+        id="repair_unfilled_placeholders_startup",
+        max_instances=1,
+        trigger="date",  # runs once immediately
+    )
+
     register_jobs(scheduler)
     scheduler.start()
     log.info("scheduler.started")

@@ -304,3 +304,115 @@ async def job_backup_database() -> None:
     log.info("job.backup_database.start")
     result = await asyncio.to_thread(backup_database)
     log.info("job.backup_database.done", **result)
+
+
+# ── Startup once — repair evergreen articles contaminated by the ───────────
+# continuous updater's global-market-mood injection bug (fixed in
+# continuous_updater.py's find_updatable_articles, which now excludes
+# is_evergreen articles from its eligibility query going forward). This job
+# only cleans up rows the OLD, buggy version already wrote before that fix
+# shipped — confirmed live: an ITC-vs-HUL comparison page showing a
+# key_takeaway about Cholamandalam Finance Q1 results, and a why_it_matters
+# block with an unrelated appended "Update HH:MM AM/PM IST" market-pulse
+# note, neither of which has anything to do with ITC or HUL.
+#
+# Naturally idempotent — repaired rows have update_count reset to 0, so the
+# `update_count > 0` filter below never matches them again on a later boot.
+import re as _re
+_UPDATE_NOTE_RE = _re.compile(r"\n\n\*\*Update \d{1,2}:\d{2} [AP]M IST:\*\*.*", _re.DOTALL)
+
+
+async def job_repair_evergreen_contamination() -> None:
+    from sqlalchemy import select
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.intelligence_article import IntelligenceArticle
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(IntelligenceArticle)
+            .where(IntelligenceArticle.is_evergreen.is_(True))
+            .where(IntelligenceArticle.update_count > 0)
+        )
+        rows = result.scalars().all()
+        if not rows:
+            log.debug("job.repair_evergreen_contamination.skip", found=0)
+            return
+
+        log.info("job.repair_evergreen_contamination.start", found=len(rows))
+        for a in rows:
+            # The original key_takeaway is unrecoverable (overwritten in
+            # place, not versioned before this fix) — executive_summary is
+            # real, on-topic content already on the same row, so it's the
+            # honest substitute rather than leaving contaminated text live.
+            a.key_takeaway = a.executive_summary or None
+            why = a.why_it_matters or ""
+            cleaned = _UPDATE_NOTE_RE.sub("", why).strip()
+            a.why_it_matters = cleaned or None
+            # Unrecoverable and, per this app's own "never fabricate" rule,
+            # better empty than false — same principle already applied
+            # elsewhere (e.g. highestRiskDisplay's honest fallback strings).
+            a.what_to_watch_next = []
+            a.update_history = []
+            a.update_count = 0
+            a.last_updated = None
+            a.lifecycle_status = "published"
+            db.add(a)
+            log.info("job.repair_evergreen_contamination.fixed", slug=a.slug)
+
+        await db.commit()
+        log.info("job.repair_evergreen_contamination.done", repaired=len(rows))
+
+
+async def job_repair_unfilled_placeholders() -> None:
+    """One-off cleanup of already-published articles containing a literal
+    unfilled template placeholder (e.g. "On [specific date], tensions
+    escalated..." — confirmed live in a ripple_intelligence article). The
+    quality gate (quality_validator.py's no_unfilled_placeholders check) now
+    blocks this from being published going forward; this only cleans up
+    what already got through before that check existed. Mechanical text
+    removal, not a rewrite — no attempt to guess what the real date/value
+    should have been, since that would risk fabricating a fact.
+
+    Naturally idempotent — a repaired row no longer matches the pattern, so
+    later boots find nothing to do for it."""
+    from sqlalchemy import select
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.intelligence_article import IntelligenceArticle
+    from app.services.aipe.quality_validator import _PLACEHOLDER_RE
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(IntelligenceArticle).where(IntelligenceArticle.status == "published")
+        )
+        # "On [specific date], X happened" is the exact live pattern found —
+        # removing just the bracket leaves a dangling "On , X happened".
+        # Strip the common leading preposition + placeholder + comma
+        # together where present, so the sentence starts clean; the plain
+        # bracket-only removal below is the fallback for anywhere else the
+        # placeholder shows up mid-sentence.
+        leading_re = _re.compile(
+            r"^(On|In|During|At|Since)\s+" + _PLACEHOLDER_RE.pattern + r"\s*,\s*",
+            _re.IGNORECASE,
+        )
+        rows = result.scalars().all()
+        fixed = 0
+        for a in rows:
+            changed = False
+            for field in ("headline", "executive_summary", "key_takeaway", "why_it_matters", "what_happened"):
+                val = getattr(a, field, None)
+                if isinstance(val, str) and _PLACEHOLDER_RE.search(val):
+                    cleaned = leading_re.sub("", val)
+                    cleaned = _PLACEHOLDER_RE.sub("", cleaned)
+                    cleaned = " ".join(cleaned.split())  # collapse leftover double-spaces
+                    if cleaned and cleaned[0].islower():
+                        cleaned = cleaned[0].upper() + cleaned[1:]
+                    setattr(a, field, cleaned)
+                    changed = True
+            if changed:
+                db.add(a)
+                fixed += 1
+                log.info("job.repair_unfilled_placeholders.fixed", slug=a.slug)
+
+        if fixed:
+            await db.commit()
+        log.info("job.repair_unfilled_placeholders.done", repaired=fixed)

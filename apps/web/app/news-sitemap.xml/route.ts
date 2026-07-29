@@ -28,6 +28,7 @@ interface InsightItem {
   headline?: string;
   seo_title?: string;
   published_at?: string;
+  canonical_url?: string;
 }
 
 function escapeXml(s: string): string {
@@ -57,7 +58,7 @@ export async function GET() {
     const title = escapeXml(a.seo_title || a.headline || a.slug);
     const pubDate = new Date(a.published_at!).toISOString();
     return `  <url>
-    <loc>${SITE}/newsroom/article/${a.slug}</loc>
+    <loc>${a.canonical_url || `${SITE}/newsroom/article/${a.slug}`}</loc>
     <news:news>
       <news:publication>
         <news:name>MarketRipple</news:name>
