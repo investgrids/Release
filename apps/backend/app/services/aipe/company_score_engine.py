@@ -66,11 +66,15 @@ _IMPACT_SIGN = {"positive": 1.0, "negative": -1.0, "neutral": 0.0}
 _TREND_SIGN = {"up": 1.0, "down": -1.0, "neutral": 0.0}
 
 
-async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle) -> int:
+async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle, auto_commit: bool = True) -> int:
     """Extracts one AICompanySignal row per company mentioned in a just-
     published article's companies_affected[]. Idempotent per-article (skips
     if signals already exist for this source_id) so it's safe to call both
-    at publish time and from a backfill job without double-counting."""
+    at publish time and from a backfill job without double-counting.
+    auto_commit=False lets a caller iterating many rows (the backfill job)
+    batch everything into one commit instead of one per row — a boot-time
+    loop over the full article/opportunity corpus doing a separate commit
+    per row is real, avoidable overhead on every single deploy."""
     existing = (await db.execute(
         select(AICompanySignal.id).where(
             AICompanySignal.source_type == "article",
@@ -103,12 +107,12 @@ async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle
             signal_at=signal_at,
         ))
         created += 1
-    if created:
+    if created and auto_commit:
         await db.commit()
     return created
 
 
-async def extract_opportunity_signals(db: AsyncSession, opportunity_id: int, opportunity_created_at: datetime) -> int:
+async def extract_opportunity_signals(db: AsyncSession, opportunity_id: int, opportunity_created_at: datetime, auto_commit: bool = True) -> int:
     """Same extraction, for an Opportunity's already-real per-company
     impact_score/confidence/reason (OpportunityCompany) — the other existing
     real signal source (previously the ONLY source bestStocks.ts read).
@@ -149,7 +153,7 @@ async def extract_opportunity_signals(db: AsyncSession, opportunity_id: int, opp
             signal_at=signal_at,
         ))
         created += 1
-    if created:
+    if created and auto_commit:
         await db.commit()
     return created
 

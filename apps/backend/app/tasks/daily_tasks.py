@@ -617,12 +617,18 @@ async def job_backfill_company_signals() -> None:
         )).scalars().all()
         article_signals = 0
         for a in articles:
-            article_signals += await extract_company_signals(db, a)
+            article_signals += await extract_company_signals(db, a, auto_commit=False)
 
         opportunities = (await db.execute(select(Opportunity))).scalars().all()
         opp_signals = 0
         for o in opportunities:
-            opp_signals += await extract_opportunity_signals(db, o.id, o.created_at)
+            opp_signals += await extract_opportunity_signals(db, o.id, o.created_at, auto_commit=False)
+
+        # One commit for the whole backfill instead of one per article/
+        # opportunity (up to ~300 individual commits on a boot with a large
+        # existing corpus) — real, avoidable overhead on every deploy.
+        if article_signals or opp_signals:
+            await db.commit()
 
         log.info(
             "job.backfill_company_signals.done",
