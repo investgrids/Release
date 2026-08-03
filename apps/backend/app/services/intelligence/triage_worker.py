@@ -4,6 +4,19 @@ then routes by urgency:
   >= 7  → SSE broadcast + DB store
   4–6   → DB store (enriched later)
   < 4   → DB store only
+
+Observability note: when the AI scoring call fails outright (every provider
+in _call_with_fallback's chain exhausted/erroring), urgency silently
+degrades to _rule_based_fallback's keyword heuristic — which defaults to
+urgency=3 (below the >=6 publish threshold) for anything not matching a
+narrow keyword list. _ai_triage logs a structured "triage.fallback_to_
+rule_based" event every time this happens (headline, which providers
+failed and why, the fallback-assigned urgency, and which keyword category
+if any matched) plus "triage.ai_scored_low_urgency" whenever the AI *did*
+respond but scored below 6 — the second gives a baseline to compare
+against, so a burst of fallback events can be judged against how often the
+AI itself would have scored the same headlines low anyway. Pure
+visibility — this doesn't change retry/fallback behavior.
 """
 from __future__ import annotations
 
@@ -40,41 +53,92 @@ Urgency guide: 10=war/circuit breaker, 8-9=RBI rate decision/major miss,
 Return only valid JSON."""
 
 
+_FALLBACK_KEYWORD_CATEGORIES: list[tuple[str, int, list[str]]] = [
+    ("rate_or_emergency", 8, ["rbi", "rate cut", "rate hike", "emergency", "circuit"]),
+    ("crash_or_rally", 7, ["crash", "surge", "rally", "sell-off", "collapse"]),
+    ("earnings", 6, ["results", "earnings", "quarterly", "q4", "q3"]),
+    ("deal", 6, ["merger", "acquisition", "deal", "order"]),
+]
+
+
 def _rule_based_fallback(headline: str) -> dict:
     h = headline.lower()
     urgency = 3
-    if any(w in h for w in ["rbi", "rate cut", "rate hike", "emergency", "circuit"]):
-        urgency = 8
-    elif any(w in h for w in ["results", "earnings", "quarterly", "q4", "q3"]):
-        urgency = 6
-    elif any(w in h for w in ["crash", "surge", "rally", "sell-off", "collapse"]):
-        urgency = 7
-    elif any(w in h for w in ["merger", "acquisition", "deal", "order"]):
-        urgency = 6
+    matched_category = None
+    matched_keyword = None
+    for category, score, keywords in _FALLBACK_KEYWORD_CATEGORIES:
+        hit = next((kw for kw in keywords if kw in h), None)
+        if hit:
+            urgency = score
+            matched_category = category
+            matched_keyword = hit
+            break
     return {
         "urgency": urgency, "importance": 5, "confidence": 4,
         "sentiment": "neutral", "horizon": "short", "market_impact": "medium",
         "is_structural": False, "direction": "sideways",
         "one_liner": headline[:200], "themes": [], "sectors": [], "tickers": [],
+        # Not part of the TriagedEvent schema — popped by _ai_triage before
+        # the dict is used, only carried this far so the fallback-visibility
+        # log line below can include which keyword (if any) fired, e.g. to
+        # manually audit "results" matching something unrelated to earnings.
+        "_fallback_matched_category": matched_category,
+        "_fallback_matched_keyword": matched_keyword,
     }
 
 
 async def _ai_triage(headline: str, summary: str) -> dict:
     from app.services.ai_service import _call_with_fallback  # noqa: PLC2701
     prompt = f"Headline: {headline}\n\nSummary: {summary[:500]}"
+    failure_log: list[dict] = []
     try:
-        raw = await _call_with_fallback(prompt, _TRIAGE_SYSTEM, max_tokens=400)
+        raw = await _call_with_fallback(prompt, _TRIAGE_SYSTEM, max_tokens=400, failure_log=failure_log)
         if not raw:
-            return _rule_based_fallback(headline)
+            fallback = _rule_based_fallback(headline)
+            # Pure observability — no behavior change. See this module's
+            # docstring update: the goal is to find out how often (and
+            # under what conditions) triage silently degrades to keyword
+            # matching before deciding whether that's worth fixing.
+            log.warning(
+                "triage.fallback_to_rule_based",
+                headline=headline[:300],
+                providers_failed=failure_log,
+                fallback_urgency=fallback["urgency"],
+                fallback_matched_category=fallback["_fallback_matched_category"],
+                fallback_matched_keyword=fallback["_fallback_matched_keyword"],
+            )
+            fallback.pop("_fallback_matched_category", None)
+            fallback.pop("_fallback_matched_keyword", None)
+            return fallback
         text = raw.strip()
         if "```" in text:
             parts = text.split("```")
             text = parts[1] if len(parts) > 1 else text
             if text.startswith("json"):
                 text = text[4:]
-        return json.loads(text.strip())
+        scores = json.loads(text.strip())
+        # Baseline for comparison against the fallback path above — without
+        # this, there's no way to tell whether a fallback urgency=3 is
+        # "probably right" (the AI would've said the same) or "we don't
+        # actually know" (the AI never got to weigh in).
+        ai_urgency = scores.get("urgency")
+        if isinstance(ai_urgency, (int, float)) and ai_urgency < 6:
+            log.info("triage.ai_scored_low_urgency", headline=headline[:300], ai_urgency=ai_urgency)
+        return scores
     except Exception:
-        return _rule_based_fallback(headline)
+        fallback = _rule_based_fallback(headline)
+        log.warning(
+            "triage.fallback_to_rule_based",
+            headline=headline[:300],
+            providers_failed=failure_log,
+            fallback_urgency=fallback["urgency"],
+            fallback_matched_category=fallback["_fallback_matched_category"],
+            fallback_matched_keyword=fallback["_fallback_matched_keyword"],
+            exception=True,
+        )
+        fallback.pop("_fallback_matched_category", None)
+        fallback.pop("_fallback_matched_keyword", None)
+        return fallback
 
 
 async def _store_triage(triage: TriagedEvent) -> None:

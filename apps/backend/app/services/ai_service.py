@@ -302,11 +302,26 @@ async def _call_provider(
     system: str = "",
     max_tokens: int = 200,
     extra_headers: dict | None = None,
+    failure_log: list[dict] | None = None,
 ) -> str:
     """Generic OpenAI-compatible call. Returns '' on any failure or rate-limit.
     Marks the model as exhausted in _EXHAUSTED on HTTP 429 so future calls skip
-    it until the cooldown window elapses (see _EXHAUSTED_COOLDOWN_S above)."""
+    it until the cooldown window elapses (see _EXHAUSTED_COOLDOWN_S above).
+
+    failure_log is optional and additive — when a caller passes a list, every
+    skipped/failed attempt appends a structured {model, reason} record to it;
+    every existing caller that doesn't pass one gets identical behavior to
+    before. Built for triage_worker.py's fallback-visibility logging (see
+    that module's docstring) without touching this function's actual
+    fallback/retry behavior."""
+    _PROVIDER_BY_URL_EARLY = {
+        _OR_URL: "openrouter", _GROQ_URL: "groq",
+        _CEREBRAS_URL: "cerebras", _GEMINI_URL: "gemini",
+        _MISTRAL_URL: "mistral",
+    }
     if _is_exhausted(model):
+        if failure_log is not None:
+            failure_log.append({"model": model, "provider": _PROVIDER_BY_URL_EARLY.get(base_url, "unknown"), "reason": "already_exhausted"})
         return ""
 
     messages = []
@@ -341,16 +356,22 @@ async def _call_provider(
                 _EXHAUSTED[model] = time.monotonic()
                 log.warning("ai.exhausted", model=model, status=429, cooldown_s=_EXHAUSTED_COOLDOWN_S)
                 _AI_USAGE["calls_failed"] += 1
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": provider_name, "reason": "429"})
                 return ""
             if r.status_code in (402, 503, 529):
                 log.warning("ai.rate_limited", model=model, status=r.status_code)
                 _AI_USAGE["calls_failed"] += 1
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": provider_name, "reason": f"rate_limited_{r.status_code}"})
                 return ""
             r.raise_for_status()
             data = r.json()
             if "error" in data:
                 log.warning("ai.api_error", model=model, err=str(data["error"])[:120])
                 _AI_USAGE["calls_failed"] += 1
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": provider_name, "reason": "api_error"})
                 return ""
             content = data["choices"][0]["message"]["content"]
             _AI_USAGE["latency_ms_total"] += (time.monotonic() - _t0) * 1000
@@ -366,8 +387,11 @@ async def _call_provider(
         _AI_USAGE["calls_failed"] += 1
         _AI_USAGE["last_error_at"] = datetime.now(timezone.utc).isoformat()
         _AI_USAGE["last_error"] = str(exc)[:200]
-        if isinstance(exc, httpx.TimeoutException) or "timeout" in str(exc).lower():
+        is_timeout = isinstance(exc, httpx.TimeoutException) or "timeout" in str(exc).lower()
+        if is_timeout:
             _AI_USAGE["timeouts"] += 1
+        if failure_log is not None:
+            failure_log.append({"model": model, "provider": provider_name, "reason": "timeout" if is_timeout else "other"})
         return ""
 
 
@@ -470,6 +494,7 @@ async def _call_with_fallback(
     prompt: str,
     system: str = "",
     max_tokens: int = 200,
+    failure_log: list[dict] | None = None,
 ) -> str:
     """
     Try providers in *empirical reliability* order until one returns a
@@ -489,6 +514,10 @@ async def _call_with_fallback(
       5. Mistral La Plateforme
       6. Gemini 2.0-flash              — 1,500 req/day (currently a no-op — see Gemini tier comment)
       7. OpenRouter smaller models     — final fallback
+
+    failure_log is optional and purely additive (see _call_provider's
+    docstring) — every caller that doesn't pass one sees identical behavior
+    to before this parameter existed.
     """
     _AI_USAGE["fallback_invocations"] += 1
     or_headers = {
@@ -500,8 +529,10 @@ async def _call_with_fallback(
     if settings.groq_api_key:
         for model in _GROQ_HIGH:
             if _is_exhausted(model):
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": "groq-hq", "reason": "already_exhausted"})
                 continue
-            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens)
+            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
             if result:
                 log.info("ai.success", provider="groq-hq", model=model)
                 return result
@@ -510,8 +541,10 @@ async def _call_with_fallback(
     if settings.cerebras_api_key:
         for model in _CEREBRAS_MODELS:
             if _is_exhausted(model):
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": "cerebras", "reason": "already_exhausted"})
                 continue
-            result = await _call_provider(_CEREBRAS_URL, settings.cerebras_api_key, model, prompt, system, max_tokens)
+            result = await _call_provider(_CEREBRAS_URL, settings.cerebras_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
             if result:
                 log.info("ai.success", provider="cerebras", model=model)
                 return result
@@ -520,8 +553,10 @@ async def _call_with_fallback(
     if settings.groq_api_key:
         for model in _GROQ_FAST:
             if _is_exhausted(model):
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": "groq-fast", "reason": "already_exhausted"})
                 continue
-            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens)
+            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
             if result:
                 log.info("ai.success", provider="groq-fast", model=model)
                 return result
@@ -530,8 +565,10 @@ async def _call_with_fallback(
     if settings.openrouter_api_key:
         for model in _OR_HIGH_QUALITY:
             if _is_exhausted(model):
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": "openrouter-hq", "reason": "already_exhausted"})
                 continue
-            result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers)
+            result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
             if result:
                 log.info("ai.success", provider="openrouter-hq", model=model)
                 return result
@@ -540,8 +577,10 @@ async def _call_with_fallback(
     if settings.mistral_api_key:
         for model in _MISTRAL_MODELS:
             if _is_exhausted(model):
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": "mistral", "reason": "already_exhausted"})
                 continue
-            result = await _call_provider(_MISTRAL_URL, settings.mistral_api_key, model, prompt, system, max_tokens)
+            result = await _call_provider(_MISTRAL_URL, settings.mistral_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
             if result:
                 log.info("ai.success", provider="mistral", model=model)
                 return result
@@ -550,8 +589,10 @@ async def _call_with_fallback(
     if settings.gemini_api_key:
         for model in _GEMINI_MODELS:
             if _is_exhausted(model):
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": "gemini", "reason": "already_exhausted"})
                 continue
-            result = await _call_provider(_GEMINI_URL, settings.gemini_api_key, model, prompt, system, max_tokens)
+            result = await _call_provider(_GEMINI_URL, settings.gemini_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
             if result:
                 log.info("ai.success", provider="gemini", model=model)
                 return result
@@ -560,8 +601,10 @@ async def _call_with_fallback(
     if settings.openrouter_api_key:
         for model in _OR_SMALL:
             if _is_exhausted(model):
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": "openrouter-small", "reason": "already_exhausted"})
                 continue
-            result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers)
+            result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
             if result:
                 log.info("ai.success", provider="openrouter-small", model=model)
                 return result
