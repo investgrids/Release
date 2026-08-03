@@ -162,21 +162,40 @@ def _match_theme(companies_affected: list[dict[str, Any]], sectors_affected: lis
     return None
 
 
-_QUESTION_TEMPLATES = [
-    # event_phrase is a truncated real headline, and this app's own headlines
-    # overwhelmingly open with a clause word ("How X Impacts Y", "What X
-    # Means For Y" — ~65% of published headlines, per the SEO audit). Both
-    # templates used to splice event_phrase into a grammatical slot that
-    # assumes a noun phrase ("...After {event_phrase}?", "Is {event_phrase}
-    # Good or Bad..."), producing live broken output like "Is How Nifty's
-    # Fall Below 23,800 Impacts Energy, Financials... Good or Bad for HDFC
-    # Bank Investors?" — "Is How X" and "After How X" are not grammatical
-    # regardless of truncation length. Treating event_phrase as its own
-    # independent clause (colon/dash-separated, like a real two-part
-    # headline) sidesteps the grammar problem entirely instead of trying to
-    # rewrite an arbitrary clause into a noun phrase.
+# event_phrase is a truncated real headline, and this app's own headlines
+# overwhelmingly open with a clause word ("How X Impacts Y", "What X Means
+# For Y" — ~65% of published headlines, per the SEO audit). Every template
+# below treats event_phrase as its own independent clause (colon/dash-
+# separated, like a real two-part headline) rather than splicing it into a
+# noun-phrase slot — the old two templates did the latter and produced live
+# broken output like "Is How Nifty's Fall Below 23,800 Impacts Energy,
+# Financials... Good or Bad for HDFC Bank Investors?" ("Is How X" isn't
+# grammatical regardless of truncation length).
+#
+# Previously this was 2 fixed templates cycled by index regardless of the
+# event's actual effect on the company — every question angle read as a
+# "should I buy" pitch even for a company the AI itself had just classified
+# as negatively affected, which doesn't match what someone would actually
+# search after bad news (nobody searches "should I buy" a stock that just
+# dropped on negative news; they search "should I sell" or "is this a
+# warning sign"). Selecting the template pool by the company's own
+# AI-assigned impact direction (already-generated real data, not a new
+# fabrication) makes the generated question match real search intent
+# instead of always defaulting to a buy-side framing.
+_QUESTION_TEMPLATES_POSITIVE = [
     "Should I Buy {company}? {event_phrase}",
     "{event_phrase} — Good or Bad for {company} Investors?",
+    "Is Now A Good Time To Buy {company}? {event_phrase}",
+]
+_QUESTION_TEMPLATES_NEGATIVE = [
+    "Should I Sell {company}? {event_phrase}",
+    "{event_phrase} — Is This A Warning Sign for {company} Investors?",
+    "Should {company} Investors Be Worried? {event_phrase}",
+]
+_QUESTION_TEMPLATES_NEUTRAL = [
+    "What Does This Mean For {company}? {event_phrase}",
+    "{event_phrase} — How Should {company} Investors React?",
+    "Should {company} Investors Hold or Act? {event_phrase}",
 ]
 
 
@@ -257,7 +276,13 @@ def plan_extra_angles(
     for i, c in enumerate(companies[:max_questions]):
         company_name = str(c.get("name") or c["symbol"])
         symbol = str(c["symbol"]).upper()
-        q_template = _QUESTION_TEMPLATES[i % len(_QUESTION_TEMPLATES)]
+        impact = str(c.get("impact") or "neutral").lower()
+        pool = (
+            _QUESTION_TEMPLATES_POSITIVE if impact == "positive"
+            else _QUESTION_TEMPLATES_NEGATIVE if impact == "negative"
+            else _QUESTION_TEMPLATES_NEUTRAL
+        )
+        q_template = pool[i % len(pool)]
         question_text = q_template.format(company=company_name, event_phrase=event_phrase)
         q_slug = re.sub(r"[^a-z0-9]+", "-", question_text.lower())[:40].strip("-")
         plans.append((

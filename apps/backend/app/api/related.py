@@ -17,7 +17,7 @@ from app.db import models_legacy as models
 
 router = APIRouter()
 
-_VALID_TYPES = {"event", "company", "story", "opportunity", "ripple", "search"}
+_VALID_TYPES = {"event", "company", "story", "opportunity", "ripple", "search", "comparison"}
 
 
 def _sector_match(sectors_a: list[str], sector_b: str | None) -> bool:
@@ -141,5 +141,14 @@ async def get_related(
     elif entity_type == "search":
         result["events"]        = await _recent_events(db, 5)
         result["opportunities"] = await _recent_opportunities(db, 5)
+
+    elif entity_type == "comparison":
+        # Comparison research pages (/research/{slug}) had NO related-
+        # content section at all before this — a confirmed orphan-risk
+        # page type (SEO audit's Part 8/Stage 4 "no orphan pages" finding).
+        # Reuses the same real event/opportunity lookups every other
+        # entity type already uses; no new data source.
+        result["events"]        = await _recent_events(db, 5, sector=sector)
+        result["opportunities"] = await _recent_opportunities(db, 4, sector=sector)
 
     return result

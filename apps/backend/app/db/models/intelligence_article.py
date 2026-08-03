@@ -106,6 +106,21 @@ class IntelligenceArticle(Base):
     canonical_url    = Column(Text, nullable=True)
     json_ld          = Column(JSON, nullable=True)
 
+    def touch_json_ld_modified(self, when: datetime) -> None:
+        """
+        Every content-updating code path (continuous_updater, comparison
+        refresh, signal enrichment) bumps last_updated but json_ld was built
+        once at publish time and never touched again — so dateModified stayed
+        frozen at the original publish timestamp even after real content
+        changes, which is exactly the freshness signal Google's Article/
+        NewsArticle structured data is meant to convey. Reassigns the whole
+        dict (not an in-place mutation) so SQLAlchemy's JSON column change
+        tracking actually picks it up.
+        """
+        if not self.json_ld:
+            return
+        self.json_ld = {**self.json_ld, "dateModified": when.isoformat()}
+
     # ── Market context snapshot at generation time ────────────────────────────
     market_context   = Column(JSON, nullable=True)
     # {"nifty": ..., "mood": ..., "story": ..., "themes": [...], "session": "live"}

@@ -32,12 +32,29 @@ from typing import Any
 # rather than trying to prevent every way an LLM might do this.
 _PLACEHOLDER_RE = re.compile(r"\[[a-zA-Z][a-zA-Z0-9 ,'/-]{2,40}\]")
 _PLACEHOLDER_FIELDS = ("headline", "executive_summary", "key_takeaway", "why_it_matters", "what_happened")
+# opportunities/risks/faqs/what_to_watch_next are LLM-authored prose too, and
+# were never checked here — a production sweep of 100 live articles found no
+# leaks yet, but the gap is real (title/description/question/answer are the
+# same free-text shape as the fields already covered above).
+_PLACEHOLDER_LIST_FIELDS = ("opportunities", "risks", "faqs")
+_PLACEHOLDER_LIST_TEXT_KEYS = ("title", "description", "question", "answer")
 
 
 def _has_unfilled_placeholder(article: dict[str, Any]) -> bool:
     for field in _PLACEHOLDER_FIELDS:
         val = article.get(field)
         if isinstance(val, str) and _PLACEHOLDER_RE.search(val):
+            return True
+    for field in _PLACEHOLDER_LIST_FIELDS:
+        for item in (article.get(field) or []):
+            if not isinstance(item, dict):
+                continue
+            for key in _PLACEHOLDER_LIST_TEXT_KEYS:
+                val = item.get(key)
+                if isinstance(val, str) and _PLACEHOLDER_RE.search(val):
+                    return True
+    for item in (article.get("what_to_watch_next") or []):
+        if isinstance(item, str) and _PLACEHOLDER_RE.search(item):
             return True
     return False
 

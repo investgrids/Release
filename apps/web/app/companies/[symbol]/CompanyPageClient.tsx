@@ -17,7 +17,7 @@ import { scoreToColor, impactToStyle } from "@/lib/scoring";
 import "reactflow/dist/style.css";
 import {
   Star, Check, Sparkles, TrendingUp, IndianRupee, Target, Zap,
-  BarChart2, ClipboardList, CheckCircle2, Rocket, Globe2, FlaskConical,
+  BarChart2, ClipboardList, CheckCircle2, Rocket,
   TrendingDown, Landmark, Briefcase, HardHat, Leaf, Shield, Bot,
   FileText, Mic, FileStack, Bell, Share2, Copy, Clock,
 } from "lucide-react";
@@ -750,49 +750,79 @@ function GovernmentExposureSection({ stock }: { stock: StockDetail }) {
   );
 }
 
-// ── Section 9: Opportunity Radar ──────────────────────────────────────────────
+// ── Section 9: AI Company Intelligence Score ──────────────────────────────────
+// Previously "Opportunity Radar" — 3 entirely fabricated cards (invented
+// titles like "Export Opportunity", scores/confidence/revenue/timeline that
+// were never computed from anything, just hardcoded numbers plus one fake
+// formula on market_cap). Replaced with the real AI Company Intelligence
+// Score engine (company_score_engine.py) — real signals extracted from
+// every published article's companies_affected[] and every opportunity's
+// real per-company impact_score, aggregated with real recency decay. Hides
+// entirely rather than showing a fabricated fallback when a company has no
+// real signals yet.
+interface CompanyScoreContributor {
+  reason: string | null; source_type: "article" | "opportunity";
+  signed_magnitude: number; signal_at: string | null;
+}
+interface CompanyScoreData {
+  symbol: string; score: number | null; confidence: number | null;
+  signal_count: number; sector: string | null;
+  top_contributors: CompanyScoreContributor[];
+}
+
 function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
-  const opps: { title: string; score: number; confidence: number; revenue: string; timeline: string; icon: React.ReactNode }[] = [
-    { title: `${stock.sector} Expansion`, score: 88, confidence: 82, revenue: `₹${Math.round(n2(stock.market_cap) * 0.12)}Cr`, timeline: "12-18 months", icon: <Rocket className="h-4 w-4" /> },
-    { title: "Export Opportunity",         score: 74, confidence: 68, revenue: "Incremental", timeline: "18-24 months", icon: <Globe2 className="h-4 w-4" /> },
-    { title: "New Product Pipeline",       score: 69, confidence: 71, revenue: "TBD",         timeline: "24-36 months", icon: <FlaskConical className="h-4 w-4" /> },
-  ];
+  const [data, setData] = useState<CompanyScoreData | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API}/api/company-scores/${stock.symbol}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [stock.symbol]);
+
+  if (!data || data.signal_count === 0) return null;
+
   return (
-    <SectionCard title="Opportunity Radar" action={<span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300">AI Powered</span>}>
-      <div className="mt-4 grid grid-cols-3 gap-4">
-        {opps.map((o, i) => (
-          <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="flex flex-col gap-3 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-4 hover:border-emerald-400/20 hover:-translate-y-0.5 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center">{o.icon}</span>
-              <div className="text-right">
-                <p className="text-[24px] font-black text-white leading-none">{o.score}</p>
-                <p className="text-[9px] text-slate-500">Score</p>
-              </div>
-            </div>
-            <div>
-              <p className="text-[13px] font-bold text-white">{o.title}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{o.timeline}</p>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">Confidence</span>
-                <span className="text-emerald-400 font-semibold">{o.confidence}%</span>
-              </div>
-              <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${o.confidence}%` }}/>
-              </div>
-            </div>
-            <div className="flex justify-between text-[10px] pt-1 border-t border-white/[0.04]">
-              <span className="text-slate-500">Expected Revenue</span>
-              <span className="font-semibold text-sky-300">{o.revenue}</span>
-            </div>
-            <button className="w-full rounded-xl bg-emerald-500/10 border border-emerald-500/20 py-1.5 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/20 transition">
-              Explore →
-            </button>
-          </motion.div>
-        ))}
+    <SectionCard title="AI Company Intelligence Score" action={<span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300">AI Powered</span>}>
+      <div className="mt-2 flex items-center gap-6 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-4">
+        <div className="text-center">
+          <p className="text-[36px] font-black leading-none text-white">{data.score}</p>
+          <p className="mt-1 text-[9px] uppercase tracking-wider text-slate-500">AI Score</p>
+        </div>
+        <div className="flex-1 space-y-1.5">
+          <div className="flex justify-between text-[10px]">
+            <span className="text-slate-500">Confidence</span>
+            <span className="font-semibold text-emerald-400">{data.confidence != null ? `${Math.round(data.confidence * 100)}%` : "—"}</span>
+          </div>
+          <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${data.confidence != null ? Math.round(data.confidence * 100) : 0}%` }} />
+          </div>
+          <p className="text-[10px] text-slate-500">Based on {data.signal_count} real signal{data.signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking</p>
+        </div>
       </div>
+      {data.top_contributors.length > 0 && (
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {data.top_contributors.map((c, i) => (
+            <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
+              className="flex flex-col gap-2 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-4">
+              <div className="flex items-center justify-between">
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-slate-500">
+                  {c.source_type === "opportunity" ? "Opportunity Radar" : "Published Analysis"}
+                </span>
+                <span className={`text-[11px] font-bold ${c.signed_magnitude >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {c.signed_magnitude >= 0 ? "+" : ""}{Math.round(c.signed_magnitude)}
+                </span>
+              </div>
+              <p className="text-[12px] leading-5 text-slate-300">{c.reason || "—"}</p>
+              {c.signal_at && (
+                <p className="mt-auto text-[10px] text-slate-600">{new Date(c.signal_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
     </SectionCard>
   );
 }

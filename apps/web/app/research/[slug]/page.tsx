@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import { AskAICta } from "@/components/AskAICta";
+import { RelatedContent } from "@/components/RelatedContent";
+import { safeJsonLd } from "@/lib/text";
 
 /**
  * Comparison research pages (SEO Phase 2, §2.2 — the permanent-page half
@@ -51,6 +53,21 @@ async function fetchArticle(slug: string): Promise<ResearchArticle | null> {
   }
 }
 
+// This page previously had NO related-content section at all — a genuine
+// orphan-content-graph gap (SEO audit's Part 8 / roadmap Stage 4 "no
+// orphan pages" finding). Server-fetched so the links exist in the
+// initial HTML, same reasoning as the companies page's own fetchRelated.
+async function fetchRelated(slug: string, sector?: string) {
+  try {
+    const params = new URLSearchParams(sector ? { sector } : {});
+    const res = await fetch(`${API}/api/related/comparison/${encodeURIComponent(slug)}?${params}`, { next: { revalidate: 600 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 function outlookColor(o: string) {
   const l = (o || "").toLowerCase();
   if (l === "positive") return "text-emerald-400";
@@ -85,6 +102,7 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
   const di = article.market_context.decision_intelligence;
   const url = `${SITE}/research/${slug}`;
   const [a, b] = [di.holding_analysis, di.target_analysis];
+  const related = await fetchRelated(slug, a.sector || b.sector);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -105,7 +123,11 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
 
   return (
     <main className="mx-auto max-w-[1100px] space-y-6 px-6 py-6 pb-16">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {/* JSON.stringify (not safeJsonLd) previously left "<" unescaped —
+          same stored-XSS class already fixed on the article/signal pages;
+          a literal "</script>" inside any AI-generated field here
+          (headline, thesis, etc.) could close this tag early. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
       <nav className="flex items-center gap-2 text-[12px] text-slate-500">
         <Link href="/research/comparisons" className="hover:text-slate-300 transition">Research</Link>
@@ -216,6 +238,15 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
           <AskAICta query={`${a.entity} vs ${b.entity}, which is better for 12 months?`} source="research_page" />
         </p>
       </div>
+
+      {related && (
+        <RelatedContent
+          entityType="comparison"
+          entityId={slug}
+          sector={a.sector || b.sector}
+          initialData={related}
+        />
+      )}
     </main>
   );
 }

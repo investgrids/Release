@@ -394,6 +394,14 @@ async def job_repair_unfilled_placeholders() -> None:
             r"^(On|In|During|At|Since)\s+" + _PLACEHOLDER_RE.pattern + r"\s*,\s*",
             _re.IGNORECASE,
         )
+        def _clean(val: str) -> str:
+            cleaned = leading_re.sub("", val)
+            cleaned = _PLACEHOLDER_RE.sub("", cleaned)
+            cleaned = " ".join(cleaned.split())  # collapse leftover double-spaces
+            if cleaned and cleaned[0].islower():
+                cleaned = cleaned[0].upper() + cleaned[1:]
+            return cleaned
+
         rows = result.scalars().all()
         fixed = 0
         for a in rows:
@@ -401,13 +409,33 @@ async def job_repair_unfilled_placeholders() -> None:
             for field in ("headline", "executive_summary", "key_takeaway", "why_it_matters", "what_happened"):
                 val = getattr(a, field, None)
                 if isinstance(val, str) and _PLACEHOLDER_RE.search(val):
-                    cleaned = leading_re.sub("", val)
-                    cleaned = _PLACEHOLDER_RE.sub("", cleaned)
-                    cleaned = " ".join(cleaned.split())  # collapse leftover double-spaces
-                    if cleaned and cleaned[0].islower():
-                        cleaned = cleaned[0].upper() + cleaned[1:]
-                    setattr(a, field, cleaned)
+                    setattr(a, field, _clean(val))
                     changed = True
+            # Same leak, list-shaped fields (see quality_validator.py's
+            # _PLACEHOLDER_LIST_FIELDS — the live gate now checks these too;
+            # this repairs anything already published before that widening).
+            for field in ("opportunities", "risks", "faqs"):
+                items = getattr(a, field, None) or []
+                new_items = []
+                field_changed = False
+                for item in items:
+                    if not isinstance(item, dict):
+                        new_items.append(item)
+                        continue
+                    new_item = dict(item)
+                    for key in ("title", "description", "question", "answer"):
+                        val = new_item.get(key)
+                        if isinstance(val, str) and _PLACEHOLDER_RE.search(val):
+                            new_item[key] = _clean(val)
+                            field_changed = True
+                    new_items.append(new_item)
+                if field_changed:
+                    setattr(a, field, new_items)
+                    changed = True
+            watch = a.what_to_watch_next or []
+            if any(isinstance(w, str) and _PLACEHOLDER_RE.search(w) for w in watch):
+                a.what_to_watch_next = [_clean(w) if isinstance(w, str) else w for w in watch]
+                changed = True
             if changed:
                 db.add(a)
                 fixed += 1
@@ -468,3 +496,136 @@ async def job_repair_comparison_missing_fields() -> None:
         if fixed:
             await db.commit()
         log.info("job.repair_comparison_missing_fields.done", repaired=fixed)
+
+
+_UPDATE_NOTE_BLOCK_RE = _re.compile(
+    r"\n\n\*\*Update \d{1,2}:\d{2} [AP]M IST:\*\*.*?(?=\n\n\*\*Update \d{1,2}:\d{2} [AP]M IST:\*\*|\Z)",
+    _re.DOTALL,
+)
+
+
+async def job_repair_why_it_matters_bloat() -> None:
+    """One-off cleanup of already-published, non-evergreen articles whose
+    why_it_matters accumulated many stacked "**Update HH:MM AM IST:**" notes
+    instead of the single latest one — the old continuous_updater dedup
+    check (`update_note[:50] not in current`) always included the fresh
+    timestamp in those 50 chars, so it never matched and every update cycle
+    just appended. Confirmed live: one article had 34 stacked notes, 8.7KB,
+    many near-identical, across 35 updates. continuous_updater.py now
+    replaces rather than appends going forward; this repairs what already
+    accumulated before that fix, keeping only the base explanation + the
+    single most recent update note. Naturally idempotent — a repaired row
+    has at most one update block left, so later boots find nothing to do."""
+    from sqlalchemy import select
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.intelligence_article import IntelligenceArticle
+
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(IntelligenceArticle)
+            .where(IntelligenceArticle.status == "published")
+            .where(IntelligenceArticle.is_evergreen.isnot(True))
+        )).scalars().all()
+
+        fixed = 0
+        for a in rows:
+            why = a.why_it_matters or ""
+            blocks = _UPDATE_NOTE_BLOCK_RE.findall(why)
+            if len(blocks) <= 1:
+                continue
+            base = _UPDATE_NOTE_RE.sub("", why).strip()
+            a.why_it_matters = base + blocks[-1]
+            db.add(a)
+            fixed += 1
+            log.info("job.repair_why_it_matters_bloat.fixed", slug=a.slug, blocks_removed=len(blocks) - 1)
+
+        if fixed:
+            await db.commit()
+        log.info("job.repair_why_it_matters_bloat.done", repaired=fixed)
+
+
+async def job_repair_pipe_enum_leaks() -> None:
+    """One-off cleanup of already-published articles carrying a literal
+    unresolved pipe-joined enum value (e.g. companies_affected[].impact =
+    "positive|neutral", opportunities[].timeframe = "months|years") —
+    confirmed live, renders on the frontend as garbled text like
+    "Positive|Neutral". Same normalization as article_generator.py's
+    _normalize_pipe_enum_leaks (now applied going forward at generation
+    time); this only repairs rows published before that fix shipped.
+    Naturally idempotent — a repaired row no longer contains "|", so later
+    boots find nothing to do for it."""
+    from sqlalchemy import select
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.intelligence_article import IntelligenceArticle
+    from app.services.aipe.article_generator import _ENUM_FIELD_SPECS
+
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(IntelligenceArticle).where(IntelligenceArticle.status == "published")
+        )).scalars().all()
+
+        fixed = 0
+        for a in rows:
+            changed = False
+            for list_field, keys in _ENUM_FIELD_SPECS:
+                items = getattr(a, list_field, None) or []
+                new_items = []
+                field_changed = False
+                for item in items:
+                    if not isinstance(item, dict):
+                        new_items.append(item)
+                        continue
+                    new_item = dict(item)
+                    for key in keys:
+                        val = new_item.get(key)
+                        if isinstance(val, str) and "|" in val:
+                            first = val.split("|", 1)[0].strip()
+                            if first:
+                                new_item[key] = first
+                                field_changed = True
+                    new_items.append(new_item)
+                if field_changed:
+                    setattr(a, list_field, new_items)
+                    changed = True
+            if changed:
+                db.add(a)
+                fixed += 1
+                log.info("job.repair_pipe_enum_leaks.fixed", slug=a.slug)
+
+        if fixed:
+            await db.commit()
+        log.info("job.repair_pipe_enum_leaks.done", repaired=fixed)
+
+
+async def job_backfill_company_signals() -> None:
+    """One-off backfill of AICompanySignal rows for articles/opportunities
+    published before the AI Company Intelligence Score engine shipped (see
+    company_score_engine.py). Both extraction functions are already
+    idempotent per source row (skip if signals exist for that source_id),
+    so this is safe to leave registered permanently — a normal boot with
+    nothing new to backfill just does a no-op pass over already-covered
+    rows."""
+    from sqlalchemy import select
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.intelligence_article import IntelligenceArticle
+    from app.db.models.opportunity import Opportunity
+    from app.services.aipe.company_score_engine import extract_company_signals, extract_opportunity_signals
+
+    async with AsyncSessionLocal() as db:
+        articles = (await db.execute(
+            select(IntelligenceArticle).where(IntelligenceArticle.status == "published")
+        )).scalars().all()
+        article_signals = 0
+        for a in articles:
+            article_signals += await extract_company_signals(db, a)
+
+        opportunities = (await db.execute(select(Opportunity))).scalars().all()
+        opp_signals = 0
+        for o in opportunities:
+            opp_signals += await extract_opportunity_signals(db, o.id, o.created_at)
+
+        log.info(
+            "job.backfill_company_signals.done",
+            articles_scanned=len(articles), article_signals=article_signals,
+            opportunities_scanned=len(opportunities), opportunity_signals=opp_signals,
+        )

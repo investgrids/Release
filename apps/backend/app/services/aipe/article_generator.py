@@ -194,7 +194,43 @@ def _parse_and_validate(
     # Ensure article_type is set
     data["article_type"] = article_type
 
+    _normalize_pipe_enum_leaks(data)
+
     return data
+
+
+# content_templates.py's schema documents enum-shaped fields as pipe-joined
+# hints ("positive|negative|neutral", "immediate|short|medium|long") — the
+# LLM sometimes echoes that hint text verbatim instead of picking one value,
+# producing live-confirmed output like impact="positive|neutral" and
+# timeframe="short|medium" (renders on the frontend, via a CSS `capitalize`
+# transform, as the garbled "Positive|Neutral" / "short|medium" seen in
+# production). Same root-cause class as the earlier "[specific date]"
+# unfilled-placeholder bug — a content-shaped safety net at the parse
+# boundary, not a prompt fix, since a prompt change can reduce but can't
+# reliably guarantee this never recurs. Takes the first listed value rather
+# than rejecting the whole article — these are small structured fields
+# where a deterministic pick is safe, and the rest of the generation is
+# usually otherwise good.
+_ENUM_FIELD_SPECS: list[tuple[str, tuple[str, ...]]] = [
+    ("companies_affected", ("impact", "timeframe")),
+    ("sectors_affected", ("impact", "magnitude")),
+    ("opportunities", ("timeframe", "risk")),
+    ("risks", ("severity",)),
+]
+
+
+def _normalize_pipe_enum_leaks(data: dict[str, Any]) -> None:
+    for list_field, keys in _ENUM_FIELD_SPECS:
+        for item in (data.get(list_field) or []):
+            if not isinstance(item, dict):
+                continue
+            for key in keys:
+                val = item.get(key)
+                if isinstance(val, str) and "|" in val:
+                    first = val.split("|", 1)[0].strip()
+                    if first:
+                        item[key] = first
 
 
 def compute_seo_score(article: dict[str, Any]) -> int:

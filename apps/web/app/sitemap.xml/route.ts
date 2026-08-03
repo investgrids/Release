@@ -1,9 +1,21 @@
-import type { MetadataRoute } from "next";
 import { API_BASE_URL as API } from "@/lib/api";
 import { GLOSSARY } from "@/lib/glossary-data";
 import { GUIDES } from "@/lib/guides-data";
 import { ARTICLES } from "@/lib/articles-data";
 import { getSectorsWithCounts } from "@/lib/bestStocks";
+import { buildSitemapXml, type SitemapEntry } from "@/lib/xmlSitemap";
+
+/**
+ * Custom Route Handler, not the app/sitemap.ts MetadataRoute.Sitemap
+ * convention — that built-in convention does not XML-escape URL segments,
+ * which broke Google Search Console validation on any ticker containing
+ * "&" (M&M, M&MFIN — see xmlSitemap.ts's docstring for the exact error).
+ * All data-fetching logic below is unchanged from the previous sitemap.ts;
+ * only the final serialization step changed, from Next's own (unescaped)
+ * builder to buildSitemapXml(), which escapes every text value.
+ */
+
+export const revalidate = 3600;
 
 const base  = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.in";
 const now   = new Date().toISOString();
@@ -19,8 +31,8 @@ async function safeJson<T>(url: string, fallback: T): Promise<T> {
   } catch { return fallback; }
 }
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticRoutes: MetadataRoute.Sitemap = [
+async function buildEntries(): Promise<SitemapEntry[]> {
+  const staticRoutes: SitemapEntry[] = [
     { url: base,                                 lastModified: now, changeFrequency: "daily",  priority: 1.0 },
     { url: `${base}/market-intelligence`,        lastModified: now, changeFrequency: "hourly", priority: 0.95 },
     { url: `${base}/events`,                     lastModified: now, changeFrequency: "hourly", priority: 0.95 },
@@ -77,21 +89,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/learn/articles`,             lastModified: now, changeFrequency: "weekly", priority: 0.6 },
   ];
 
-  const glossaryRoutes: MetadataRoute.Sitemap = GLOSSARY.map(t => ({
+  const glossaryRoutes: SitemapEntry[] = GLOSSARY.map(t => ({
     url: `${base}/learn/glossary/${t.slug}`,
     lastModified: now,
     changeFrequency: "monthly",
     priority: 0.55,
   }));
 
-  const guideRoutes: MetadataRoute.Sitemap = GUIDES.map(g => ({
+  const guideRoutes: SitemapEntry[] = GUIDES.map(g => ({
     url: `${base}/learn/guides/${g.slug}`,
     lastModified: now,
     changeFrequency: "monthly",
     priority: 0.55,
   }));
 
-  const articleRoutes: MetadataRoute.Sitemap = ARTICLES.map(a => ({
+  const articleRoutes: SitemapEntry[] = ARTICLES.map(a => ({
     url: `${base}/learn/articles/${a.slug}`,
     lastModified: now,
     changeFrequency: "monthly",
@@ -136,28 +148,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     companies: [...(companiesPage1.companies ?? []), ...extraCompanyPages.flatMap(p => p.companies ?? [])],
   };
 
-  const eventRoutes: MetadataRoute.Sitemap = (Array.isArray(events) ? events : []).map(e => ({
+  const eventRoutes: SitemapEntry[] = (Array.isArray(events) ? events : []).map(e => ({
     url: `${base}/events/${e.id}`,
     lastModified: e.date ?? now,
     changeFrequency: "weekly",
     priority: 0.75,
   }));
 
-  const radarRoutes: MetadataRoute.Sitemap = (radar.items ?? []).map(r => ({
+  const radarRoutes: SitemapEntry[] = (radar.items ?? []).map(r => ({
     url: `${base}/opportunity-radar/${r.id}`,
     lastModified: now,
     changeFrequency: "weekly",
     priority: 0.7,
   }));
 
-  const companyRoutes: MetadataRoute.Sitemap = (companies.companies ?? []).map(c => ({
+  // Ticker symbols routinely contain "&" (M&M, M&MFIN) — this is exactly
+  // the field that broke Search Console validation. buildSitemapXml()
+  // escapes it at serialization time; no special-casing needed here.
+  const companyRoutes: SitemapEntry[] = (companies.companies ?? []).map(c => ({
     url: `${base}/companies/${c.symbol}`,
     lastModified: now,
     changeFrequency: "daily",
     priority: 0.7,
   }));
 
-  const newsRoutes: MetadataRoute.Sitemap = (Array.isArray(news) ? news : []).map(n => ({
+  const newsRoutes: SitemapEntry[] = (Array.isArray(news) ? news : []).map(n => ({
     url: `${base}/news/${n.id}`,
     lastModified: now,
     changeFrequency: "monthly",
@@ -170,11 +185,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   //
   // `images` (SEO Phase 3, §3.4) — real AI-generated hero images already
   // exist per article (a genuine backend pipeline, not a placeholder);
-  // Next.js's sitemap type accepts a plain `images: string[]` per entry,
-  // which is all Google's image sitemap extension needs — no separate
-  // sitemap file required. Served from the backend's own domain
-  // (/api/media/*), which is fine for an image sitemap — it only needs a
-  // publicly reachable absolute URL, not same-origin.
+  // buildSitemapXml() emits a real <image:image> entry per image URL, which
+  // is all Google's image sitemap extension needs.
   // comparison_intelligence is excluded here — it's already submitted via
   // researchRoutes below at its real /research/{slug} destination; including
   // it again at /newsroom/article/{slug} would submit two URLs for the same
@@ -184,12 +196,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // this was previously hardcoded to /newsroom/article/{slug} for every
   // type, which put a non-canonical URL in the sitemap for live_signal
   // articles (confirmed live: their own canonical tag disagreed with this).
-  const insightRoutes: MetadataRoute.Sitemap = (insights.items ?? [])
+  const insightRoutes: SitemapEntry[] = (insights.items ?? [])
     .filter(a => a.article_type !== "comparison_intelligence")
     .map(a => ({
       url: a.canonical_url || `${base}/newsroom/article/${a.slug}`,
       lastModified: a.last_updated ?? a.published_at ?? now,
-      changeFrequency: "weekly",
+      changeFrequency: "weekly" as const,
       priority: 0.85,
       ...(a.hero_image_url ? { images: [`${API}${a.hero_image_url}`] } : {}),
     }));
@@ -198,7 +210,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // sourced from the same SectorData rows the /sectors overview already
   // lists, each backed by real constituent stocks + matched opportunities/
   // events (see sectors.py's /intelligence endpoint).
-  const sectorRoutes: MetadataRoute.Sitemap = (Array.isArray(sectors) ? sectors : []).map(s => ({
+  const sectorRoutes: SitemapEntry[] = (Array.isArray(sectors) ? sectors : []).map(s => ({
     url: `${base}/sectors/${s.id}`,
     lastModified: now,
     changeFrequency: "daily",
@@ -210,7 +222,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // row (Defence, Chemicals, Telecom, Finance) — not present in the
   // /api/sectors/ list above, so listed explicitly here rather than
   // silently missing from the sitemap.
-  const extraSectorRoutes: MetadataRoute.Sitemap = ["defence", "chemicals", "telecom", "finance"].map(id => ({
+  const extraSectorRoutes: SitemapEntry[] = ["defence", "chemicals", "telecom", "finance"].map(id => ({
     url: `${base}/sectors/${id}`,
     lastModified: now,
     changeFrequency: "daily",
@@ -227,28 +239,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Best Stocks — reuses the same thin-content threshold (>=3 real
   // companies) already applied inside getSectorsWithCounts().
   const bestStocksSectors = await getSectorsWithCounts();
-  const bestStocksRoutes: MetadataRoute.Sitemap = bestStocksSectors.map(s => ({
+  const bestStocksRoutes: SitemapEntry[] = bestStocksSectors.map(s => ({
     url: `${base}/best-stocks/${s.slug}`,
     lastModified: now,
     changeFrequency: "daily",
     priority: 0.75,
   }));
 
-  const historicalRoutes: MetadataRoute.Sitemap = (historical.events ?? [])
+  const historicalRoutes: SitemapEntry[] = (historical.events ?? [])
     .filter(e => e.nifty_1w != null || e.opportunity_score != null)
     .map(e => ({
       url: `${base}/historical/${e.id}`,
       lastModified: now,
       // Real dated pattern, not today's news — long organic life, doesn't
       // need frequent recrawl.
-      changeFrequency: "monthly",
+      changeFrequency: "monthly" as const,
       priority: 0.65,
     }));
 
   // SEO Phase 2, §2.2 — comparison research pages, generated (with a real
   // retry+quality gate) from the live AI Search decision engine — see
   // comparison_publisher.py.
-  const researchRoutes: MetadataRoute.Sitemap = (research.items ?? []).map(a => ({
+  const researchRoutes: SitemapEntry[] = (research.items ?? []).map(a => ({
     url: `${base}/research/${a.slug}`,
     lastModified: a.last_updated ?? a.published_at ?? now,
     changeFrequency: "weekly",
@@ -256,4 +268,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+}
+
+export async function GET() {
+  const entries = await buildEntries();
+  const xml = buildSitemapXml(entries);
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "public, max-age=3600, s-maxage=3600",
+    },
+  });
 }

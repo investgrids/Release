@@ -2,24 +2,17 @@ import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText } from "@/lib/text";
 
 /**
- * "Best <sector> stocks" pages — pure presentation layer over data that
- * already exists and is already scored: the Opportunity Radar
- * (opportunity_service.py / scoring_engine.py) already computes a real
- * per-company impact_score, confidence, trend, and reason for every
- * company it names inside each of the ~40-50 live opportunities. This
- * file only aggregates that already-real data by sector — no new scoring
- * logic, no LLM call, no fabricated ranking.
- *
- * Sector classification deliberately uses each COMPANY's own real sector
- * (from /api/companies/, e.g. "Automotive", "Banking") rather than the
- * opportunity's own `sectors[]` field. An opportunity is often tagged with
- * several sectors at once (e.g. one Q1-earnings-roundup opportunity tagged
- * ["Technology","Banking","Automotive"] because it mentions companies from
- * all three) and its `companies[]` array mixes names from every tagged
- * sector — using the opportunity's tags to classify its companies produced
- * "Best Automotive Stocks" pages containing HDFC Bank and Sun Pharma,
- * caught in local screenshot review before this ever shipped. The
- * company's own stored sector is the correct ground truth.
+ * "Best <sector> stocks" pages — pure presentation layer over the AI Company
+ * Intelligence Score engine (apps/backend/app/services/aipe/
+ * company_score_engine.py). Previously this file aggregated rankings ONLY
+ * from the ~47 Opportunity Radar items, which is why only 2 sectors
+ * (Banking, Technology) ever cleared the 3-company thin-content minimum —
+ * Defence, Auto/EV, Pharma and others simply weren't covered by that narrow
+ * pool. The engine now merges that same opportunity data with real
+ * per-company signals extracted from every published article's
+ * companies_affected[], unlocking every sector with real coverage across
+ * either source. No new scoring logic lives here — this file only shapes
+ * the engine's response for these two pages.
  */
 
 export interface RankedCompany {
@@ -30,16 +23,14 @@ export interface RankedCompany {
   trend: string;
   confidence: number | null;
   reason: string;
-  fromOpportunity: string; // title, for attribution
+  fromOpportunity: string; // attribution — kept as the field name existing callers use
 }
 
-interface RadarListItem { id: number }
-interface RadarDetail {
-  id: number;
-  title: string;
-  companies?: { symbol: string; company_name: string; impact_score: number | null; impact_label: string; trend: string; confidence: number | null; reason: string }[];
+interface ScoreApiCompany {
+  symbol: string; score: number | null; confidence: number | null;
+  signal_count: number; sector: string | null;
+  top_contributors: { reason: string | null; source_type: string; signed_magnitude: number }[];
 }
-interface CompanyRow { symbol: string; sector: string }
 
 async function safeJson<T>(url: string): Promise<T | null> {
   try {
@@ -51,85 +42,50 @@ async function safeJson<T>(url: string): Promise<T | null> {
   }
 }
 
-// Cached per request-render via Next's fetch cache (revalidate: 3600) — the
-// ~40-50 detail calls this fans out to are the same calls the individual
-// /opportunity-radar/[id] pages already make, just batched here rather than
-// duplicated per sector page.
-async function fetchAllOpportunityDetails(): Promise<RadarDetail[]> {
-  const list = await safeJson<{ items?: RadarListItem[] }>(`${API}/api/radar/?page_size=100`);
-  const items = list?.items ?? [];
-  const details = await Promise.all(
-    items.map(it => safeJson<RadarDetail>(`${API}/api/radar/${it.id}`))
-  );
-  return details.filter((d): d is RadarDetail => d !== null);
-}
-
-// Ground-truth symbol -> real sector map, paginated (backend caps
-// page_size at 60) across all ~510 companies.
-async function fetchCompanySectorMap(): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  const first = await safeJson<{ companies?: CompanyRow[]; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`);
-  for (const c of first?.companies ?? []) if (c.sector) map.set(c.symbol, c.sector);
-  const totalPages = first?.total_pages ?? 1;
-  const rest = await Promise.all(
-    Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) =>
-      safeJson<{ companies?: CompanyRow[] }>(`${API}/api/companies/?page_size=60&page=${i + 2}`)
-    )
-  );
-  for (const page of rest) for (const c of page?.companies ?? []) if (c.sector) map.set(c.symbol, c.sector);
-  return map;
-}
-
 export function sectorSlug(sector: string): string {
   return sector.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-interface SectorAggregate { sector: string; slug: string; companies: Map<string, RankedCompany> }
+function impactLabelFor(score: number): string {
+  if (score >= 80) return "Very High";
+  if (score >= 65) return "High";
+  if (score >= 50) return "Medium";
+  return "Low";
+}
 
-// Single shared pass — both callers need the same (opportunity x company x
-// real-sector) join, so this computes it once rather than duplicating the
-// fan-out fetch + join logic in two functions that could silently drift
-// out of sync with each other.
-async function aggregateBySector(): Promise<Map<string, SectorAggregate>> {
-  const [details, sectorMap] = await Promise.all([
-    fetchAllOpportunityDetails(),
-    fetchCompanySectorMap(),
-  ]);
+function trendFor(score: number): string {
+  if (score > 55) return "up";
+  if (score < 45) return "down";
+  return "neutral";
+}
 
-  const bySector = new Map<string, SectorAggregate>();
-  for (const d of details) {
-    for (const c of d.companies ?? []) {
-      if (c.impact_score == null) continue;
-      const realSector = sectorMap.get(c.symbol);
-      if (!realSector) continue; // no ground-truth sector on record — skip rather than misclassify
-      const slug = sectorSlug(realSector);
-      if (!bySector.has(slug)) bySector.set(slug, { sector: realSector, slug, companies: new Map() });
-      const agg = bySector.get(slug)!;
-      const existing = agg.companies.get(c.symbol);
-      // Same company can be named by multiple opportunities — keep the
-      // single highest real impact_score seen, not an average (a company
-      // is a "best pick" if ANY real signal strongly supports it).
-      if (!existing || c.impact_score > existing.impactScore) {
-        agg.companies.set(c.symbol, {
-          symbol: c.symbol,
-          name: cleanText(c.company_name || c.symbol),
-          impactScore: c.impact_score,
-          impactLabel: c.impact_label,
-          trend: c.trend,
-          confidence: c.confidence,
-          reason: cleanText(c.reason),
-          fromOpportunity: cleanText(d.title),
-        });
-      }
-    }
-  }
-  return bySector;
+async function fetchCompanyName(symbol: string): Promise<string> {
+  const d = await safeJson<{ companies?: { symbol: string; name: string }[] }>(`${API}/api/companies/search?q=${symbol}`);
+  return d?.companies?.find(c => c.symbol === symbol)?.name ?? symbol;
+}
+
+function toRankedCompany(c: ScoreApiCompany, name: string): RankedCompany {
+  const top = c.top_contributors[0];
+  return {
+    symbol: c.symbol,
+    name: cleanText(name),
+    impactScore: c.score ?? 0,
+    impactLabel: impactLabelFor(c.score ?? 0),
+    trend: trendFor(c.score ?? 0),
+    confidence: c.confidence,
+    reason: cleanText(top?.reason || `Based on ${c.signal_count} real market signal${c.signal_count === 1 ? "" : "s"}`),
+    fromOpportunity: top?.source_type === "opportunity" ? "Opportunity Radar" : "Published Analysis",
+  };
 }
 
 export async function getSectorsWithCounts(): Promise<{ sector: string; slug: string; companyCount: number }[]> {
-  const bySector = await aggregateBySector();
-  return [...bySector.values()]
-    .map(agg => ({ sector: agg.sector, slug: agg.slug, companyCount: agg.companies.size }))
+  // Dedicated endpoint (distinct-symbol counts per sector), not the ranked
+  // list — that one caps at 50 results globally, which would silently
+  // undercount sectors whose companies didn't make an arbitrary top-50 cut
+  // before counts were even taken.
+  const counts = await safeJson<Record<string, number>>(`${API}/api/company-scores/sector-counts`);
+  return Object.entries(counts ?? {})
+    .map(([sector, companyCount]) => ({ sector, slug: sectorSlug(sector), companyCount }))
     // Thin-content guard — same reasoning as the historical pages: a
     // "best stocks" page with 1-2 real names isn't worth indexing.
     .filter(s => s.companyCount >= 3)
@@ -137,8 +93,10 @@ export async function getSectorsWithCounts(): Promise<{ sector: string; slug: st
 }
 
 export async function getRankedCompaniesForSector(sector: string): Promise<RankedCompany[]> {
-  const bySector = await aggregateBySector();
-  const agg = bySector.get(sectorSlug(sector));
-  if (!agg) return [];
-  return [...agg.companies.values()].sort((a, b) => b.impactScore - a.impactScore);
+  const d = await safeJson<{ companies: ScoreApiCompany[] }>(`${API}/api/company-scores/sector/${encodeURIComponent(sector)}?limit=20`);
+  const companies = d?.companies ?? [];
+  const withNames = await Promise.all(
+    companies.map(async c => toRankedCompany(c, await fetchCompanyName(c.symbol)))
+  );
+  return withNames.sort((a, b) => b.impactScore - a.impactScore);
 }

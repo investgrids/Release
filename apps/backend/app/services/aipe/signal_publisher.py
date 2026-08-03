@@ -272,8 +272,10 @@ async def enrich_signal_article(db: AsyncSession, article: IntelligenceArticle) 
                     for f in generated["faqs"][:5]
                 ],
             }
-    article.last_updated = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    article.last_updated = now
     article.update_count = (article.update_count or 0) + 1
+    article.touch_json_ld_modified(now)
     db.add(article)
     await db.commit()
     return True

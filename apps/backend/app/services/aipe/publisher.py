@@ -314,6 +314,8 @@ async def _publish_new_article(
 
     if passed:
         await _link_event_siblings(db, article)
+        from app.services.aipe.company_score_engine import extract_company_signals
+        await extract_company_signals(db, article)
 
     # Update timing stats
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()

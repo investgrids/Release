@@ -4,6 +4,7 @@ import { useState, useEffect, use, useRef } from "react";
 import type { ReactNode } from "react";
 import { fixMojibake } from "@/lib/text";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
+import { RelatedContent } from "@/components/RelatedContent";
 import { NextSteps } from "@/components/NextSteps";
 import { OpportunityRippleGraph } from "@/components/OpportunityRippleGraph";
 import Link from "next/link";
@@ -115,7 +116,7 @@ function SkeletonBlock({ h = "h-4", w = "w-full" }: { h?: string; w?: string }) 
 // (page.tsx), which fetches the same /api/radar/{id} endpoint server-side
 // purely so crawlers and the first paint see real content instead of a
 // loading skeleton.
-export default function RadarDetailPage({ params, initialDetail }: { params: Promise<{ id: string }>; initialDetail?: OpportunityDetail | null }) {
+export default function RadarDetailPage({ params, initialDetail, initialRelated }: { params: Promise<{ id: string }>; initialDetail?: OpportunityDetail | null; initialRelated?: Record<string, any> | null }) {
   const { id } = use(params);
   const [detail, setDetail] = useState<OpportunityDetail | null>(initialDetail ?? null);
   const [loading, setLoading] = useState(!initialDetail);
@@ -643,6 +644,18 @@ export default function RadarDetailPage({ params, initialDetail }: { params: Pro
 
         </aside>
       </div>
+
+      {/* This page had zero related-content/cross-links out at all before
+          this — confirmed orphan-page gap despite the backend already
+          supporting entity_type="opportunity" (SEO audit Part 8 / roadmap
+          Stage 4 "no orphan pages"). */}
+      <RelatedContent
+        entityType="opportunity"
+        entityId={id}
+        sector={d.sectors?.[0]}
+        initialData={initialRelated}
+        className="mt-6"
+      />
     </div>
   );
 }

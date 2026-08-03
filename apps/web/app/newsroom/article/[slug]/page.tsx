@@ -160,6 +160,18 @@ const IMPACT_STYLE: Record<string, string> = {
   negative: "border-rose-500/25 bg-rose-500/10 text-rose-400",
   neutral:  "border-white/10 bg-white/5 text-slate-400",
 };
+const IMPACT_DOT: Record<string, string> = { positive: "🟢", negative: "🔴", neutral: "⚪" };
+const RISK_DOT: Record<string, string> = { low: "🟢", medium: "🟡", high: "🔴" };
+// Real data doesn't always follow the schema's documented enum strictly —
+// opportunities[].timeframe has shown up with the *other* field's vocabulary
+// (immediate|short|medium|long, from companies_affected[].timeframe) as well
+// as its own (days|weeks|months|years). Both are mapped so the label stays
+// friendly regardless of which one the AI actually used; an unmapped value
+// still falls back to the raw text rather than breaking.
+const OPPORTUNITY_DURATION_LABEL: Record<string, string> = {
+  days: "A Few Days", weeks: "1–4 Weeks", months: "1–3 Months", years: "1+ Years",
+  immediate: "Immediate", short: "1–4 Weeks", medium: "1–3 Months", long: "3+ Months",
+};
 const MAGNITUDE_BARS: Record<string, number> = { high: 4, medium: 2, low: 1 };
 const HORIZON_LABEL: Record<string, string> = {
   immediate: "Today", short: "1 Week", weeks: "1 Week", medium: "1 Month", months: "1 Month", long: "Long Term",
@@ -555,19 +567,19 @@ export default async function ArticlePage(
           <section className="mb-8">
             <Eyebrow icon={Building2}>Company Impact</Eyebrow>
             <Card className="overflow-hidden">
-              <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-slate-600">
-                <span>Company</span><span>Impact</span><span className="text-right">Horizon</span>
+              <div className="grid grid-cols-[1fr_auto_2fr_auto] items-center gap-3 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-slate-600">
+                <span>Company</span><span>AI Impact</span><span>Why</span><span className="text-right">Expected Horizon</span>
               </div>
               {companies.map((c, i) => (
-                <div key={i} className={`grid grid-cols-[1fr_auto_auto] items-center gap-2 px-4 py-3 ${i < companies.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
+                <div key={i} className={`grid grid-cols-[1fr_auto_2fr_auto] items-center gap-3 px-4 py-3 ${i < companies.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Link href={`/companies/${c.symbol}`} className="text-[13px] font-bold text-sky-300 hover:text-sky-200 transition">{c.symbol}</Link>
-                      <span className="truncate text-[11px] text-slate-500">{c.name}</span>
-                    </div>
-                    {c.reason && <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{c.reason}</p>}
+                    <Link href={`/companies/${c.symbol}`} className="block text-[13px] font-bold text-sky-300 hover:text-sky-200 transition">{c.symbol}</Link>
+                    <span className="truncate text-[11px] text-slate-500">{c.name}</span>
                   </div>
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>{c.impact}</span>
+                  <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>
+                    {IMPACT_DOT[c.impact] ?? IMPACT_DOT.neutral} {c.impact}
+                  </span>
+                  <span className="min-w-0 text-[12px] leading-5 text-slate-400">{c.reason || "—"}</span>
                   <span className="shrink-0 text-right text-[11px] text-slate-500">{c.timeframe ? (HORIZON_LABEL[c.timeframe] ?? c.timeframe) : "—"}</span>
                 </div>
               ))}
@@ -616,14 +628,32 @@ export default async function ArticlePage(
             <div className="space-y-3">
               {opportunities.map((o, i) => (
                 <Card key={i} className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-[13px] font-bold text-white">{o.title}</h3>
-                    <div className="flex shrink-0 gap-1.5">
-                      {o.timeframe && <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] uppercase text-slate-500">{o.timeframe}</span>}
-                      {o.risk && <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[9px] uppercase text-amber-400">{o.risk} risk</span>}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+                    <div className="col-span-2 sm:col-span-4">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Recommendation</p>
+                      <p className="mt-1 text-[14px] font-bold text-white">{o.title}</p>
                     </div>
+                    {o.timeframe && (
+                      <div>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Expected Duration</p>
+                        <p className="mt-1 text-[12px] font-semibold text-slate-300">{OPPORTUNITY_DURATION_LABEL[o.timeframe] ?? o.timeframe}</p>
+                      </div>
+                    )}
+                    {o.risk && (
+                      <div>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Risk</p>
+                        <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold capitalize text-slate-300">
+                          {RISK_DOT[o.risk] ?? RISK_DOT.medium} {o.risk}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <p className="mt-1.5 text-[12px] leading-5 text-slate-400">{o.description}</p>
+                  {o.description && (
+                    <div className="mt-3 border-t border-white/[0.06] pt-3">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Why?</p>
+                      <p className="mt-1 text-[12px] leading-5 text-slate-400">{o.description}</p>
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>

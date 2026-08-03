@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { API_BASE_URL as API } from "@/lib/api";
+import { safeJsonLd } from "@/lib/text";
 import RadarDetailPage, { type OpportunityDetail } from "./OpportunityPageClient";
 
 /**
@@ -15,6 +16,22 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
 async function fetchOpportunity(id: string): Promise<OpportunityDetail | null> {
   try {
     const res = await fetch(`${API}/api/radar/${id}`, { next: { revalidate: 300 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// Backend already supports entity_type="opportunity" — this page just
+// never called it (confirmed: zero RelatedContent usage anywhere under
+// opportunity-radar), a real orphan-page gap despite the plumbing already
+// existing. Server-fetched for the same reason companies/research pages
+// are: real internal links in the initial HTML, not just after hydration.
+async function fetchRelated(id: string, sector?: string) {
+  try {
+    const params = new URLSearchParams(sector ? { sector } : {});
+    const res = await fetch(`${API}/api/related/opportunity/${encodeURIComponent(id)}?${params}`, { next: { revalidate: 600 } });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -49,6 +66,7 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
   const detail = await fetchOpportunity(id);
   const url = `${SITE}/opportunity-radar/${id}`;
   const description = detail ? withPeriod(detail.summary || detail.ai_summary?.matters || `${detail.title} — AI-powered opportunity analysis on MarketRipple.`) : "";
+  const related = detail ? await fetchRelated(id, detail.sectors?.[0]) : null;
 
   const jsonLd = detail ? {
     "@context": "https://schema.org",
@@ -70,7 +88,10 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
   return (
     <>
       {jsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        // JSON.stringify (not safeJsonLd) previously left "<" unescaped —
+        // same stored-XSS class already fixed on the article/signal/
+        // research pages.
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       )}
       {detail && (
         <section className="mb-4 border-b border-white/[0.06] pb-4">
@@ -80,7 +101,7 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
           <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-slate-400">{description}</p>
         </section>
       )}
-      <RadarDetailPage params={params} initialDetail={detail} />
+      <RadarDetailPage params={params} initialDetail={detail} initialRelated={related} />
     </>
   );
 }

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 export type RelatedEntityType =
-  | "event" | "company" | "story" | "opportunity" | "ripple" | "search";
+  | "event" | "company" | "story" | "opportunity" | "ripple" | "search" | "comparison";
 
 export interface RelatedItem {
   id:       string;

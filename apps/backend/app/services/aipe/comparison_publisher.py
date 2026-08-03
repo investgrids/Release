@@ -151,12 +151,21 @@ async def publish_comparison_article(
     why_it_matters = compose_why_it_matters(di, name_a, name_b)
 
     now = datetime.now(timezone.utc)
+    existing_lookup = (await db.execute(
+        select(IntelligenceArticle).where(IntelligenceArticle.slug == slug)
+    )).scalar_one_or_none()
+    # datePublished must stay fixed at the article's real first-publish time —
+    # this refresh cycle runs every 14 days (comparison_scheduler.py), and
+    # rebuilding json_ld from scratch here was previously resetting
+    # datePublished to "now" on every single refresh, which is actively wrong
+    # (not just stale) for an Article's structured-data freshness signal.
+    date_published = (existing_lookup.published_at or now) if existing_lookup else now
     json_ld = {
         "@context": "https://schema.org",
         "@type": "Article",
         "headline": headline,
         "description": meta_description,
-        "datePublished": now.isoformat(),
+        "datePublished": date_published.isoformat(),
         "dateModified": now.isoformat(),
         "author": {"@type": "Organization", "name": "MarketRipple AI Intelligence Engine"},
         "publisher": {"@type": "Organization", "name": "MarketRipple"},
@@ -189,9 +198,7 @@ async def publish_comparison_article(
         "investment_verdict": verdict,
     }
 
-    existing = (await db.execute(
-        select(IntelligenceArticle).where(IntelligenceArticle.slug == slug)
-    )).scalar_one_or_none()
+    existing = existing_lookup
 
     if existing:
         existing.headline = headline

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
+import { safeJsonLd } from "@/lib/text";
 import { AskAICta } from "@/components/AskAICta";
 
 /**
@@ -113,6 +114,29 @@ async function fetchSectorArticles(sectorName: string): Promise<RelatedArticle[]
   }
 }
 
+interface SectorScoreCompany { symbol: string; score: number | null; top_contributors: { reason: string | null }[] }
+
+// AI Company Intelligence Score (company_score_engine.py) — real per-company
+// ranking + reason, previously nowhere on this page: "Companies in {sector}"
+// was an unranked flat grid of just price/change. Additive only — stocks
+// with no real signal yet keep their original position, not hidden.
+async function fetchSectorScores(sectorName: string): Promise<Map<string, { score: number; reason: string | null }>> {
+  try {
+    const res = await fetch(`${API}/api/company-scores/sector/${encodeURIComponent(sectorName)}?limit=50`, { next: { revalidate: 900 } });
+    if (!res.ok) return new Map();
+    const data = await res.json();
+    const companies: SectorScoreCompany[] = Array.isArray(data.companies) ? data.companies : [];
+    const map = new Map<string, { score: number; reason: string | null }>();
+    for (const c of companies) {
+      if (c.score == null) continue;
+      map.set(c.symbol, { score: c.score, reason: c.top_contributors?.[0]?.reason ?? null });
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ sector: string }> }): Promise<Metadata> {
   const { sector } = await params;
   const url = `${SITE}/sectors/${sector}`;
@@ -133,11 +157,23 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
   const d = await fetchSector(sector);
   if (!d) notFound();
 
-  const [comparisons, signals, articles] = await Promise.all([
+  const [comparisons, signals, articles, scores] = await Promise.all([
     fetchSectorComparisons(d.name),
     fetchSectorSignals(d.name),
     fetchSectorArticles(d.name),
+    fetchSectorScores(d.name),
   ]);
+
+  // Rank by real AI score where available; stocks with no signal yet keep
+  // their original relative order, appended after the ranked ones.
+  const rankedStocks = [...d.stocks].sort((a, b) => {
+    const sa = scores.get(a.symbol)?.score;
+    const sb = scores.get(b.symbol)?.score;
+    if (sa == null && sb == null) return 0;
+    if (sa == null) return 1;
+    if (sb == null) return -1;
+    return sb - sa;
+  });
 
   const url = `${SITE}/sectors/${sector}`;
   const jsonLd = {
@@ -155,7 +191,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
     },
     mainEntity: {
       "@type": "ItemList",
-      itemListElement: d.stocks.map((s, i) => ({
+      itemListElement: rankedStocks.map((s, i) => ({
         "@type": "ListItem", position: i + 1, name: s.name,
         url: `${SITE}/companies/${s.symbol}`,
       })),
@@ -164,7 +200,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
 
   return (
     <main className="mx-auto max-w-[1400px] space-y-6 px-6 py-6 pb-16">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
       <nav className="flex items-center gap-2 text-[12px] text-slate-500">
         <Link href="/sectors" className="hover:text-slate-300 transition">Sectors</Link>
@@ -193,21 +229,41 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
         )}
       </div>
 
-      {/* Constituent stocks */}
-      {d.stocks.length > 0 && (
+      {/* Constituent stocks — ranked by real AI Company Intelligence Score
+          where available (company_score_engine.py); stocks with no signal
+          yet keep price/change only, appended after the ranked ones. */}
+      {rankedStocks.length > 0 && (
         <section>
           <h2 className="mb-3 text-[15px] font-semibold text-white">Companies in {d.name}</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {d.stocks.map((s) => (
-              <Link key={s.symbol} href={`/companies/${s.symbol}`}
-                className="group flex items-center justify-between rounded-[16px] border border-white/[0.08] bg-[#0c1422] px-4 py-3 transition hover:border-white/[0.15]">
-                <div>
-                  <p className="text-[13px] font-bold text-white">{s.symbol}</p>
-                  <p className="text-[11px] text-slate-500">{s.price !== "—" ? `₹${s.price.replace("₹", "")}` : "—"}</p>
-                </div>
-                <span className={`text-[12px] font-semibold tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.change}</span>
-              </Link>
-            ))}
+            {rankedStocks.map((s, i) => {
+              const ranked = scores.get(s.symbol);
+              return (
+                <Link key={s.symbol} href={`/companies/${s.symbol}`}
+                  className="group flex flex-col gap-2 rounded-[16px] border border-white/[0.08] bg-[#0c1422] px-4 py-3 transition hover:border-white/[0.15]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {ranked && <span className="text-[10px] font-bold text-slate-600">#{i + 1}</span>}
+                      <div>
+                        <p className="text-[13px] font-bold text-white">{s.symbol}</p>
+                        <p className="text-[11px] text-slate-500">{s.price !== "—" ? `₹${s.price.replace("₹", "")}` : "—"}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {ranked && (
+                        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                          {Math.round(ranked.score)}
+                        </span>
+                      )}
+                      <span className={`text-[12px] font-semibold tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.change}</span>
+                    </div>
+                  </div>
+                  {ranked?.reason && (
+                    <p className="line-clamp-1 text-[10.5px] text-slate-600">{ranked.reason}</p>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}

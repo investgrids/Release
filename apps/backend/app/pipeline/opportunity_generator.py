@@ -355,6 +355,10 @@ Return:
     await repo.add_event_links(opp.id, event_links)
 
     await db.commit()
+
+    from app.services.aipe.company_score_engine import extract_opportunity_signals
+    await extract_opportunity_signals(db, opp.id, opp.created_at)
+
     logger.info("Generated opportunity id=%s slug=%s score=%s", opp.id, slug, score)
     return opp
 

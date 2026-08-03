@@ -72,10 +72,36 @@ async def list_events(
                 for c in (e.companies or []) if isinstance(c, dict) or (isinstance(c, str) and c.strip())
             ]
             result.append(_build_summary(e, companies))
-        # Unscored (None) events sort last, not crash the comparison or
-        # masquerade as a real "0 impact" event at the bottom of a real scale.
-        result.sort(key=lambda x: x.impact_score if x.impact_score is not None else -1, reverse=True)
-        return result[:effective_limit]
+        # A pure impact_score sort with no recency bound let a handful of old
+        # high-score events (weeks-old macro/policy items) permanently occupy
+        # this list's top slots since nothing more recent ever outscored them
+        # — confirmed live: "events page not showing latest events." Same root
+        # cause already fixed client-side for PriorityEventsBar's 48h window
+        # (events/page.tsx), never applied here even though this endpoint
+        # feeds that same page's main timeline/list. Fix: rank events from the
+        # last 14 days by impact_score first (still "ranked by impact," per
+        # this page's own header copy, just recency-bounded); only reach into
+        # older events if the recent window doesn't fill the requested limit,
+        # so genuinely major old events can still appear rather than vanish,
+        # but never at the cost of hiding today's news behind them.
+        from datetime import datetime, timedelta, timezone
+        cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+
+        def _aware(dt):
+            if dt is None:
+                return None
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+        def _score_key(x):
+            return x.impact_score if x.impact_score is not None else -1
+
+        recent, older = [], []
+        for r, e in zip(result, pool_rows):
+            published = _aware(getattr(e, "published_at", None))
+            (recent if published is not None and published >= cutoff else older).append(r)
+        recent.sort(key=_score_key, reverse=True)
+        older.sort(key=_score_key, reverse=True)
+        return (recent + older)[:effective_limit]
     else:
         rows = await get_events(db, limit=effective_limit, sort_by=sort_by)
         result = []

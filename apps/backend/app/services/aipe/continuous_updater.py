@@ -48,6 +48,36 @@ _MIN_UPDATE_GAP_MINUTES = 45
 # even if the overall market narrative text hasn't changed).
 _MARKET_MOVE_THRESHOLD_PCT = 1.5
 
+# A share is a stronger engagement signal than a view — a reader chose to
+# hand this specific article to someone else. Same weighting used by
+# comparison_scheduler.py's _sector_engagement_scores.
+_SHARE_WEIGHT = 5
+
+# A genuinely shared article that's gone this long without any update — even
+# with zero market trigger today — is itself worth a freshness pass. Real
+# reader engagement previously had no path into refresh *eligibility* at
+# all (views only affected ordering among already-eligible candidates,
+# below); share_count was collected (insights.py's /share endpoint) but
+# never read by any engine decision anywhere in the pipeline.
+_ENGAGEMENT_REFRESH_STALE_HOURS = 6
+
+
+def _engagement_score(article: IntelligenceArticle) -> int:
+    return (article.views or 0) + (article.share_count or 0) * _SHARE_WEIGHT
+
+
+def _aware(dt: datetime | None) -> datetime | None:
+    """SQLite silently drops tzinfo on read even with DateTime(timezone=True)
+    — same fix already applied in comparison_scheduler.py, needed here too
+    since this module now does real Python-level datetime subtraction
+    against last_updated/published_at for the engagement-staleness check
+    below (previously this file only ever compared datetimes inside a SQL
+    WHERE clause, which SQLAlchemy translates rather than subtracting in
+    Python, so the naive/aware mismatch never surfaced here before)."""
+    if dt is None:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
 # article sectors_affected name (lowercased, substring match) -> tracked
 # sector-performance id from market_data_service.get_sector_performance()
 _SECTOR_MOVE_MAP: dict[str, str] = {
@@ -111,55 +141,93 @@ def _relevant_market_move(article: IntelligenceArticle, moves: dict[str, float])
     return False, None
 
 
+# Real shares mostly accumulate well after the first 12h — bounding the
+# engagement-refresh path to _UPDATE_WINDOW_HOURS would make it almost
+# always redundant with the market-triggered path above (confirmed while
+# testing this: the one real article in the local DB with share_count > 0
+# was 172h old, entirely outside the 12h window). This window is separate
+# and much wider so genuine engagement can matter independent of how
+# recently the article was first published.
+_ENGAGEMENT_WINDOW_DAYS = 30
+
+
 async def find_updatable_articles(
     db: AsyncSession,
     current_mie_hash: str,
     market_moves: dict[str, float] | None = None,
 ) -> list[tuple[IntelligenceArticle, str | None]]:
     """
-    Return (article, market_move_reason) pairs for published articles from
-    today that should receive an update — either because the MIE story-hash
-    changed, or because the article's own relevant sector/the broad market
-    moved beyond _MARKET_MOVE_THRESHOLD_PCT today (market_move_reason is set
-    in that case, None when it's a story-hash-only trigger).
+    Return (article, reason) pairs for published articles that should
+    receive an update — because the MIE story-hash changed, because the
+    article's own relevant sector/the broad market moved beyond
+    _MARKET_MOVE_THRESHOLD_PCT today (both within _UPDATE_WINDOW_HOURS of
+    first publish), or because a genuinely shared article has gone stale
+    (within the wider _ENGAGEMENT_WINDOW_DAYS, independent of the market).
+    reason is None only for the story-hash-only trigger.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=_UPDATE_WINDOW_HOURS)
-    min_gap = datetime.now(timezone.utc) - timedelta(minutes=_MIN_UPDATE_GAP_MINUTES)
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=_UPDATE_WINDOW_HOURS)
+    min_gap = now - timedelta(minutes=_MIN_UPDATE_GAP_MINUTES)
 
-    result = await db.execute(
+    # Evergreen articles (comparisons, educational explainers) are about a
+    # timeless topic, not today's market — this updater's whole output is
+    # built from mie_context's CURRENT global mood/top-urgency-event (see
+    # _generate_updated_takeaway below), which has no connection to e.g. an
+    # ITC-vs-HUL comparison's own topic. Without this exclusion, any
+    # evergreen article republished/refreshed within the window became
+    # "eligible" purely because the market's story-hash moved on, and had
+    # its key_takeaway overwritten with unrelated content — confirmed live
+    # (an ITC-vs-HUL comparison page showing a Cholamandalam Finance
+    # takeaway). Comparisons already have their own dedicated staleness-
+    # aware refresh (comparison_scheduler.py, 14-day cycle). Shared by both
+    # queries below.
+    base_query = (
         select(IntelligenceArticle)
         .where(IntelligenceArticle.status == "published")
-        .where(IntelligenceArticle.published_at >= cutoff)
         .where(IntelligenceArticle.lifecycle_status.notin_(["archived", "merged"]))
-        # Evergreen articles (comparisons, educational explainers) are about
-        # a timeless topic, not today's market — this updater's whole output
-        # is built from mie_context's CURRENT global mood/top-urgency-event
-        # (see _generate_updated_takeaway below), which has no connection to
-        # e.g. an ITC-vs-HUL comparison's own topic. Without this exclusion,
-        # any evergreen article republished/refreshed within the window
-        # became "eligible" purely because the market's story-hash moved on,
-        # and had its key_takeaway overwritten with unrelated content —
-        # confirmed live (an ITC-vs-HUL comparison page showing a Cholamandalam
-        # Finance takeaway). Comparisons already have their own dedicated
-        # staleness-aware refresh (comparison_scheduler.py, 14-day cycle).
         .where(IntelligenceArticle.is_evergreen.isnot(True))
-        # Only update articles not updated very recently
         .where(
             (IntelligenceArticle.last_updated == None) |  # noqa: E711
             (IntelligenceArticle.last_updated <= min_gap)
         )
+    )
+
+    market_result = await db.execute(
+        base_query.where(IntelligenceArticle.published_at >= cutoff)
         .order_by(IntelligenceArticle.published_at.asc())
     )
-    articles = result.scalars().all()
+    articles = market_result.scalars().all()
 
     out: list[tuple[IntelligenceArticle, str | None]] = []
+    seen_ids: set[str] = set()
     for a in articles:
         if a.mie_story_hash != current_mie_hash:
             out.append((a, None))
+            seen_ids.add(a.id)
             continue
         moved, reason = _relevant_market_move(a, market_moves or {})
         if moved:
             out.append((a, reason))
+            seen_ids.add(a.id)
+
+    # Engagement-driven path — genuinely shared articles, independent of
+    # the 12h market window and of today's market-hash/move triggers.
+    engagement_cutoff = now - timedelta(days=_ENGAGEMENT_WINDOW_DAYS)
+    engagement_result = await db.execute(
+        base_query
+        .where(IntelligenceArticle.published_at >= engagement_cutoff)
+        .where(IntelligenceArticle.share_count >= 1)
+        .order_by(IntelligenceArticle.share_count.desc())
+        .limit(20)
+    )
+    for a in engagement_result.scalars().all():
+        if a.id in seen_ids:
+            continue
+        anchor = _aware(a.last_updated) or _aware(a.published_at) or now
+        stale_hours = (now - anchor).total_seconds() / 3600
+        if stale_hours >= _ENGAGEMENT_REFRESH_STALE_HOURS:
+            out.append((a, f"{a.share_count} share(s) on a stale article — refreshing for a genuinely engaged reader base"))
+            seen_ids.add(a.id)
     return out
 
 
@@ -222,13 +290,19 @@ async def update_article(
     article.last_updated     = now
     article.mie_story_hash   = mie_context.get("story_hash")
     article.lifecycle_status = "updated"
+    article.touch_json_ld_modified(now)
 
-    # Append update note to why_it_matters
+    # Replace (not append) the update note on why_it_matters. The old dedup
+    # check (`update_note[:50] not in current`) always included the fresh
+    # timestamp in those 50 chars, so it never actually matched — confirmed
+    # live: one article accumulated 34 stacked "**Update HH:MM AM IST:**"
+    # blocks (8.7KB, many near-identical) across 35 update cycles. Splitting
+    # on the first delimiter keeps the original base explanation and swaps
+    # in only the single latest update note each time.
     if mie_context.get("story"):
         update_note = f"\n\n**Update {now.strftime('%I:%M %p IST')}:** {mie_context['story']}"
-        current = article.why_it_matters or ""
-        if update_note[:50] not in current:  # avoid duplicate appends
-            article.why_it_matters = current + update_note
+        base = (article.why_it_matters or "").split("\n\n**Update ", 1)[0]
+        article.why_it_matters = base + update_note
 
     db.add(article)
     await db.commit()
@@ -327,6 +401,18 @@ async def run_continuous_update_cycle(
     for ev in new_triage_events:
         relevant_sectors.update(ev.get("sectors") or [])
         relevant_tickers.update(ev.get("tickers") or [])
+
+    # Real user behavior now factors into WHICH eligible articles get one
+    # of the cycle's 3 update slots, not just market intelligence — the
+    # roadmap's Stage 5 "Learning Engine" ask. Eligibility itself is mostly
+    # unchanged (still find_updatable_articles' market-driven criteria, plus
+    # the engagement-staleness path above); this reorders among already-
+    # eligible candidates by combined views+shares so a genuinely popular
+    # or shared article gets refreshed before an equally-eligible but
+    # rarely-read one, when there isn't capacity for both. Same reasoning
+    # and same real-data source as comparison_scheduler.py's sector-priority
+    # ordering.
+    candidates = sorted(candidates, key=lambda pair: _engagement_score(pair[0]), reverse=True)
 
     for article, market_move_reason in candidates[:3]:  # Cap at 3 updates per cycle
         art_sectors = {s.get("name", s) if isinstance(s, dict) else s

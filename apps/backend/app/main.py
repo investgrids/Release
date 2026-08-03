@@ -364,7 +364,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -407,6 +407,7 @@ app.include_router(pattern.router,      prefix="/api/pattern",      tags=["patte
 # Related Content — cross-entity related intelligence for RelatedContent component
 app.include_router(related.router,      prefix="/api/related",      tags=["related"])
 app.include_router(companies.router,          prefix="/api/companies",            tags=["companies"])
+app.include_router(company_scores.router,     prefix="/api/company-scores",       tags=["company-scores"])
 # SSE live broadcast
 app.include_router(stream.router,             prefix="/api/stream",               tags=["stream"])
 # Intelligence market endpoints (story, themes, feed, explain)

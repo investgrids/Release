@@ -92,27 +92,36 @@ def _sector_derived_pairs(sector_priority: dict[str, int] | None = None) -> list
     return pairs
 
 
+_SHARE_WEIGHT = 5
+# A share is a stronger engagement signal than a view — a reader chose to
+# hand this specific content to someone else, not just load the page. Same
+# weighting used by _engagement_score in continuous_updater.py.
+
+
 async def _sector_engagement_scores(db) -> dict[str, int]:
-    """Real per-sector total views, the concrete traffic-feedback signal
-    for _sector_derived_pairs above. Aggregated through each article's real
-    companies_affected symbols -> _sector_for(symbol) (the same NSE_UNIVERSE
-    lookup _sector_derived_pairs itself groups companies by), NOT through
-    articles' own sectors_affected free-text tags — confirmed live that
-    those two vocabularies disagree (AI-authored tags like "IT", "Pharma",
-    "Auto & EV" vs. NSE_UNIVERSE's "Technology", "Pharmaceuticals",
-    "Automotive"), which silently zeroed out most of the real signal before
-    this fix. Same category of accuracy bug already caught once this
-    session on the Best Stocks pages — worth the extra join here too rather
-    than shipping a feedback loop that mostly measures name-matching luck."""
+    """Real per-sector total engagement (views + weighted shares), the
+    concrete traffic-feedback signal for _sector_derived_pairs above.
+    Aggregated through each article's real companies_affected symbols ->
+    _sector_for(symbol) (the same NSE_UNIVERSE lookup _sector_derived_pairs
+    itself groups companies by), NOT through articles' own sectors_affected
+    free-text tags — confirmed live that those two vocabularies disagree
+    (AI-authored tags like "IT", "Pharma", "Auto & EV" vs. NSE_UNIVERSE's
+    "Technology", "Pharmaceuticals", "Automotive"), which silently zeroed
+    out most of the real signal before this fix. Same category of accuracy
+    bug already caught once this session on the Best Stocks pages — worth
+    the extra join here too rather than shipping a feedback loop that
+    mostly measures name-matching luck. share_count is included here too —
+    previously collected (insights.py's /share endpoint) but never read by
+    any engine decision anywhere in the pipeline."""
     from sqlalchemy import select
     from app.db.models.intelligence_article import IntelligenceArticle
 
     rows = (await db.execute(
-        select(IntelligenceArticle.companies_affected, IntelligenceArticle.views)
+        select(IntelligenceArticle.companies_affected, IntelligenceArticle.views, IntelligenceArticle.share_count)
         .where(IntelligenceArticle.status == "published")
     )).all()
     scores: dict[str, int] = {}
-    for companies_affected, views in rows:
+    for companies_affected, views, share_count in rows:
         seen_sectors_this_row: set[str] = set()
         for c in (companies_affected or []):
             symbol = (c.get("symbol") if isinstance(c, dict) else None) or ""
@@ -120,12 +129,13 @@ async def _sector_engagement_scores(db) -> dict[str, int]:
                 continue
             sector = _sector_for(symbol.upper())
             # Count each sector once per article even if it names several
-            # of that sector's companies — this measures "how many views
+            # of that sector's companies — this measures "how much engagement
             # has content about this sector gotten," not "how many company
             # mentions," which would double/triple count multi-company
             # roundup articles.
             if sector and sector not in seen_sectors_this_row:
-                scores[sector] = scores.get(sector, 0) + (views or 0)
+                engagement = (views or 0) + (share_count or 0) * _SHARE_WEIGHT
+                scores[sector] = scores.get(sector, 0) + engagement
                 seen_sectors_this_row.add(sector)
     return scores
 

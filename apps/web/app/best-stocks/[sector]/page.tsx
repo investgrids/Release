@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ sector: s
   const sector = await resolveSector(slug);
   if (!sector) return { title: "Sector Not Found — MarketRipple", alternates: { canonical: url } };
   const title = `Best ${sector} Stocks Right Now — Ranked by Real Opportunity Score`;
-  const description = `Which ${sector} stocks are best positioned right now, ranked by MarketRipple's real, already-scored Opportunity Radar — with the actual reason behind each ranking.`;
+  const description = `Which ${sector} stocks are best positioned right now, ranked by MarketRipple's AI Company Intelligence Score — real signals from published analysis and Opportunity Radar — with the actual reason behind each ranking.`;
   return {
     title,
     description,
@@ -49,11 +49,11 @@ export default async function BestStocksSectorPage({ params }: { params: Promise
   const faqs = [
     {
       q: `What are the best ${sector} stocks right now?`,
-      a: `Based on MarketRipple's real Opportunity Radar, the top-ranked ${sector} names right now are ${companies.slice(0, 3).map(c => c.name).join(", ")} — each backed by a live, scored investment opportunity.`,
+      a: `Based on MarketRipple's AI Company Intelligence Score, the top-ranked ${sector} names right now are ${companies.slice(0, 3).map(c => c.name).join(", ")} — each backed by real signals from published analysis and Opportunity Radar.`,
     },
     {
       q: `Why is ${companies[0].name} the top-ranked ${sector} stock?`,
-      a: companies[0].reason || `${companies[0].name} carries the highest real opportunity score among ${sector} stocks tracked by MarketRipple.`,
+      a: companies[0].reason || `${companies[0].name} carries the highest AI Company Intelligence Score among ${sector} stocks tracked by MarketRipple.`,
     },
   ];
 
@@ -90,8 +90,8 @@ export default async function BestStocksSectorPage({ params }: { params: Promise
         Best {sector} Stocks Right Now
       </h1>
       <p className="mt-3 max-w-[640px] text-[14px] leading-relaxed text-slate-400">
-        Ranked by real opportunity score from MarketRipple&apos;s Opportunity Radar — ties each
-        company to the actual live opportunity and reason behind its ranking, not a generic list.
+        Ranked by MarketRipple&apos;s AI Company Intelligence Score — real signals from published
+        analysis and Opportunity Radar, ties each company to the actual reason behind its ranking.
       </p>
 
       <div className="mt-8 space-y-2.5">
