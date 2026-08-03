@@ -293,82 +293,46 @@ async def start_scheduler() -> AsyncIOScheduler:
         trigger="date",  # runs once immediately
     )
 
-    # First backup shortly after boot too, so a fresh deploy doesn't wait
-    # until 2 AM for its first snapshot.
-    scheduler.add_job(
-        job_backup_database,
-        id="backup_database_startup",
-        max_instances=1,
-        trigger="date",  # runs once immediately
-    )
-
-    # One-off cleanup of evergreen articles the continuous-updater
-    # contamination bug already wrote before its fix shipped (see
-    # daily_tasks.py's job_repair_evergreen_contamination docstring).
-    # Naturally idempotent — safe to leave registered permanently.
+    # These boot-time repair/backfill jobs all used to fire with the exact
+    # same immediate `trigger="date"` (no run_date), which APScheduler
+    # doesn't serialize — they'd all start concurrently, each holding its
+    # own full-table query result (every published article, now 226+ rows
+    # in production and growing daily) in memory at once. Confirmed live:
+    # a deploy crashed with "Worker was sent SIGKILL! Perhaps out of
+    # memory?" during exactly this boot window. Staggering by run_date
+    # forces them to run one at a time instead, bounding peak memory to
+    # roughly one job's worth rather than all seven simultaneously — cheap
+    # (adds well under 2 minutes to full boot-repair completion) and safe
+    # (every one of these jobs is already independently idempotent).
+    from datetime import datetime
     from app.tasks.daily_tasks import job_repair_evergreen_contamination, job_repair_unfilled_placeholders, job_repair_comparison_missing_fields, job_repair_why_it_matters_bloat, job_repair_pipe_enum_leaks, job_backfill_company_signals
-    scheduler.add_job(
-        job_repair_evergreen_contamination,
-        id="repair_evergreen_contamination_startup",
-        max_instances=1,
-        trigger="date",  # runs once immediately
-    )
 
-    # Same idempotent-cleanup pattern, for already-published articles
-    # carrying a literal unfilled template placeholder (see quality_validator
-    # .py's new no_unfilled_placeholders gate, which stops new ones).
-    scheduler.add_job(
-        job_repair_unfilled_placeholders,
-        id="repair_unfilled_placeholders_startup",
-        max_instances=1,
-        trigger="date",  # runs once immediately
-    )
-
-    # Same idempotent-cleanup pattern, backfilling what_happened/
-    # why_it_matters on already-published comparisons from their own
-    # already-stored decision_intelligence (see comparison_publisher.py's
-    # compose_what_happened/compose_why_it_matters).
-    scheduler.add_job(
-        job_repair_comparison_missing_fields,
-        id="repair_comparison_missing_fields_startup",
-        max_instances=1,
-        trigger="date",  # runs once immediately
-    )
-
-    # Same idempotent-cleanup pattern — collapses already-published articles'
-    # stacked "**Update HH:MM AM IST:**" why_it_matters bloat down to base +
-    # latest note (see daily_tasks.py's job_repair_why_it_matters_bloat
-    # docstring; continuous_updater.py now replaces rather than appends
-    # going forward, so this only cleans up what already accumulated).
-    scheduler.add_job(
-        job_repair_why_it_matters_bloat,
-        id="repair_why_it_matters_bloat_startup",
-        max_instances=1,
-        trigger="date",  # runs once immediately
-    )
-
-    # Same idempotent-cleanup pattern — normalizes already-published
-    # articles' literal unresolved pipe-enum values (see article_generator
-    # .py's _normalize_pipe_enum_leaks, now applied going forward at
-    # generation time; this only repairs rows published before that fix).
-    scheduler.add_job(
-        job_repair_pipe_enum_leaks,
-        id="repair_pipe_enum_leaks_startup",
-        max_instances=1,
-        trigger="date",  # runs once immediately
-    )
-
-    # Backfills AICompanySignal rows for articles/opportunities published
-    # before the AI Company Intelligence Score engine shipped (see
-    # daily_tasks.py's job_backfill_company_signals docstring). Both
-    # extraction functions are idempotent per source row, so this is safe
-    # to leave registered permanently.
-    scheduler.add_job(
-        job_backfill_company_signals,
-        id="backfill_company_signals_startup",
-        max_instances=1,
-        trigger="date",  # runs once immediately
-    )
+    _boot_now = datetime.now(timezone.utc)
+    _boot_jobs = [
+        (job_backup_database, "backup_database_startup"),
+        (job_repair_evergreen_contamination, "repair_evergreen_contamination_startup"),
+        (job_repair_unfilled_placeholders, "repair_unfilled_placeholders_startup"),
+        (job_repair_comparison_missing_fields, "repair_comparison_missing_fields_startup"),
+        (job_repair_why_it_matters_bloat, "repair_why_it_matters_bloat_startup"),
+        # Normalizes already-published articles' literal unresolved
+        # pipe-enum values (see article_generator.py's
+        # _normalize_pipe_enum_leaks, applied going forward at generation
+        # time; this only repairs rows published before that fix).
+        (job_repair_pipe_enum_leaks, "repair_pipe_enum_leaks_startup"),
+        # Backfills AICompanySignal rows for articles/opportunities
+        # published before the AI Company Intelligence Score engine
+        # shipped (see daily_tasks.py's job_backfill_company_signals
+        # docstring) — the heaviest of these jobs, scheduled last.
+        (job_backfill_company_signals, "backfill_company_signals_startup"),
+    ]
+    for i, (job_fn, job_id) in enumerate(_boot_jobs):
+        scheduler.add_job(
+            job_fn,
+            id=job_id,
+            max_instances=1,
+            trigger="date",
+            run_date=_boot_now + timedelta(seconds=15 * i),
+        )
 
     register_jobs(scheduler)
     scheduler.start()
