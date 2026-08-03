@@ -64,7 +64,7 @@ function Skeleton() {
   return (
     <div className="animate-pulse space-y-2">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="h-12 rounded-lg bg-white/[0.04]" />
+        <div key={i} className="h-12 rounded-lg bg-text-primary/[0.04]" />
       ))}
     </div>
   );
@@ -111,10 +111,10 @@ export function RelatedContent({
   if (!loading && groups.length === 0) return null;
 
   return (
-    <section className={`rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 ${className}`}>
+    <section className={`rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-4 ${className}`}>
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-violet-400" />
-        <h3 className="text-sm font-semibold text-white">Related Intelligence</h3>
+        <h3 className="text-sm font-semibold text-text-primary">Related Intelligence</h3>
       </div>
 
       {loading ? (
@@ -123,7 +123,7 @@ export function RelatedContent({
         <div className="space-y-4">
           {groups.map(group => (
             <div key={group.type}>
-              <div className={`mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${COLOR_CLASSES[group.color] ?? "text-slate-400"}`}>
+              <div className={`mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${COLOR_CLASSES[group.color] ?? "text-text-secondary"}`}>
                 {group.icon}
                 {group.label}
               </div>
@@ -132,17 +132,17 @@ export function RelatedContent({
                   <li key={item.id}>
                     <Link
                       href={item.href as any}
-                      className="group flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition hover:bg-white/[0.05]"
+                      className="group flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition hover:bg-text-primary/[0.05]"
                     >
-                      <span className="flex-1 text-slate-300 group-hover:text-white line-clamp-2 leading-snug">
+                      <span className="flex-1 text-text-secondary group-hover:text-text-primary line-clamp-2 leading-snug">
                         {item.title}
                       </span>
                       {item.score !== undefined && (
-                        <span className="shrink-0 text-[10px] font-medium text-slate-500">
+                        <span className="shrink-0 text-[10px] font-medium text-text-muted">
                           {item.score}%
                         </span>
                       )}
-                      <ArrowRight className="h-3 w-3 shrink-0 text-slate-600 group-hover:text-slate-400" />
+                      <ArrowRight className="h-3 w-3 shrink-0 text-text-muted group-hover:text-text-secondary" />
                     </Link>
                   </li>
                 ))}

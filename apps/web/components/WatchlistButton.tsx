@@ -23,7 +23,7 @@ export function WatchlistButton({ item, size = "md", className = "" }: Props) {
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         width: size === "sm" ? 26 : 30, height: size === "sm" ? 26 : 30,
         borderRadius: 8, border: "none", cursor: "pointer", transition: "all 0.15s",
-        background: watched ? "rgba(124,58,237,0.18)" : "rgba(255,255,255,0.06)",
+        background: watched ? "rgba(124,58,237,0.18)" : "rgb(var(--text-primary) / 0.06)",
         color: watched ? "#a78bfa" : "#475569",
         flexShrink: 0,
       }}

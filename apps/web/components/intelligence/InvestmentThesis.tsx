@@ -88,7 +88,7 @@ function strengthLabel(s: number) {
 // callers gate on `effectiveStrength !== null` before invoking them,
 // so there is no "unscored" branch to fabricate here.
 
-function SectionLabel({ children, color = "text-slate-500" }: { children: React.ReactNode; color?: string }) {
+function SectionLabel({ children, color = "text-text-muted" }: { children: React.ReactNode; color?: string }) {
   return (
     <p className={`mb-1.5 text-[9px] font-bold uppercase tracking-[0.10em] ${color}`}>
       {children}
@@ -98,7 +98,7 @@ function SectionLabel({ children, color = "text-slate-500" }: { children: React.
 
 function Pill({ text }: { text: string }) {
   return (
-    <li className="flex items-start gap-2 text-[12px] text-slate-300 leading-5">
+    <li className="flex items-start gap-2 text-[12px] text-text-secondary leading-5">
       <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" aria-hidden />
       {text}
     </li>
@@ -107,7 +107,7 @@ function Pill({ text }: { text: string }) {
 
 function EvidencePill({ text }: { text: string }) {
   return (
-    <li className="flex items-start gap-2 text-[12px] text-slate-400 leading-5">
+    <li className="flex items-start gap-2 text-[12px] text-text-secondary leading-5">
       <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-sky-400" aria-hidden />
       {text}
     </li>
@@ -116,7 +116,7 @@ function EvidencePill({ text }: { text: string }) {
 
 function RiskPill({ text }: { text: string }) {
   return (
-    <li className="flex items-start gap-1.5 text-[12px] text-slate-400 leading-5">
+    <li className="flex items-start gap-1.5 text-[12px] text-text-secondary leading-5">
       <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-rose-400" aria-hidden />
       {text}
     </li>
@@ -129,7 +129,7 @@ function TextSkeleton({ lines = 2 }: { lines?: number }) {
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
-          className="h-3 animate-pulse rounded bg-white/[0.06]"
+          className="h-3 animate-pulse rounded bg-text-primary/[0.06]"
           style={{ width: i === lines - 1 ? "65%" : "100%" }}
         />
       ))}
@@ -144,7 +144,7 @@ function CollapsibleSection({
 }) {
   return (
     <details className="group">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 transition hover:text-slate-400">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted transition hover:text-text-secondary">
         <span className="inline-block transition-transform group-open:rotate-90" aria-hidden>›</span>
         {icon}
         {label} ({count})
@@ -220,16 +220,16 @@ export function InvestmentThesisCard({
   // Empty state — nothing to show yet
   if (!hasStatic && !isEnriching) {
     return (
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.025] p-5">
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.025] p-5">
         <div className="flex items-center gap-2 mb-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-500/[0.04] border border-violet-500/20">
             <Target className="h-3.5 w-3.5 text-violet-400" />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
             Investment Thesis
           </span>
         </div>
-        <p className="text-[12px] text-slate-400 leading-5">No thesis data available.</p>
+        <p className="text-[12px] text-text-secondary leading-5">No thesis data available.</p>
       </div>
     );
   }
@@ -246,14 +246,14 @@ export function InvestmentThesisCard({
           >
             <Target className="h-3.5 w-3.5 text-violet-400" />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
             Investment Thesis
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           {isEnriching && (
-            <span className="flex items-center gap-1 text-[10px] text-slate-600">
+            <span className="flex items-center gap-1 text-[10px] text-text-muted">
               <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
               Analysing…
             </span>
@@ -271,14 +271,14 @@ export function InvestmentThesisCard({
 
       {/* ── Executive Summary ─────────────────────────────────────────── */}
       {effectiveThesis ? (
-        <p className="text-[13px] text-slate-200 leading-6">{effectiveThesis}</p>
+        <p className="text-[13px] text-text-primary leading-6">{effectiveThesis}</p>
       ) : isEnriching ? (
         <TextSkeleton lines={3} />
       ) : null}
 
       {/* ── Time Horizon ──────────────────────────────────────────────── */}
       {effectiveHorizon && (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[11px] font-medium text-violet-300">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[11px] font-medium text-violet-600 dark:text-violet-300">
           <Clock className="h-3 w-3" aria-hidden />
           {fixMojibake(effectiveHorizon)}
         </span>
@@ -291,7 +291,7 @@ export function InvestmentThesisCard({
             <div className="rounded-[14px] border border-violet-500/15 bg-violet-500/[0.04] p-3">
               <SectionLabel color="text-violet-400">Why It Matters</SectionLabel>
               {effectiveWhy
-                ? <p className="text-[12px] leading-5 text-slate-300">{effectiveWhy}</p>
+                ? <p className="text-[12px] leading-5 text-text-secondary">{effectiveWhy}</p>
                 : <TextSkeleton />}
             </div>
           )}
@@ -299,7 +299,7 @@ export function InvestmentThesisCard({
             <div className="rounded-[14px] border border-sky-500/15 bg-sky-500/[0.04] p-3">
               <SectionLabel color="text-sky-400">Business Impact</SectionLabel>
               {effectiveBiz
-                ? <p className="text-[12px] leading-5 text-slate-300">{effectiveBiz}</p>
+                ? <p className="text-[12px] leading-5 text-text-secondary">{effectiveBiz}</p>
                 : <TextSkeleton />}
             </div>
           )}
@@ -314,7 +314,7 @@ export function InvestmentThesisCard({
             <SectionLabel color="text-emerald-400">Revenue &amp; Growth Impact</SectionLabel>
           </div>
           {effectiveRev
-            ? <p className="text-[12px] leading-5 text-slate-300">{effectiveRev}</p>
+            ? <p className="text-[12px] leading-5 text-text-secondary">{effectiveRev}</p>
             : <TextSkeleton />}
         </div>
       )}
@@ -362,7 +362,7 @@ export function InvestmentThesisCard({
           icon={<BookOpen className="h-3 w-3" aria-hidden />}
         >
           {assumptions.map((a, i) => (
-            <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-400 leading-5">
+            <li key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary leading-5">
               <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-violet-400" aria-hidden />
               {a}
             </li>
@@ -383,7 +383,7 @@ export function InvestmentThesisCard({
 
       {/* ── Last Updated ──────────────────────────────────────────────── */}
       {effectiveUpdated && (
-        <p className="border-t border-white/[0.04] pt-2 text-[10px] text-slate-600">
+        <p className="border-t border-surface-border/4 pt-2 text-[10px] text-text-muted">
           Analysis updated:{" "}
           {(() => {
             try {

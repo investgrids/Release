@@ -51,14 +51,14 @@ export function CompanySearchInput({ defaultValue, sector, cap, sort }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="relative w-full">
-      <div className="flex items-center overflow-hidden rounded-xl border border-white/10 bg-[#0a0d16] transition focus-within:border-indigo-500/40">
-        <Search className="ml-4 h-4 w-4 shrink-0 text-slate-500" />
+      <div className="flex items-center overflow-hidden rounded-xl border border-surface-border/10 bg-surface-card transition focus-within:border-indigo-500/40">
+        <Search className="ml-4 h-4 w-4 shrink-0 text-text-muted" />
         <input
           type="text"
           value={value}
           onChange={handleChange}
           placeholder="Search by company name, ticker, keyword…"
-          className="flex-1 bg-transparent px-3 py-3 text-[13px] text-white outline-none placeholder:text-slate-500"
+          className="flex-1 bg-transparent px-3 py-3 text-[13px] text-text-primary outline-none placeholder:text-text-muted"
           autoComplete="off"
           spellCheck={false}
         />
@@ -66,7 +66,7 @@ export function CompanySearchInput({ defaultValue, sector, cap, sort }: Props) {
           <button
             type="button"
             onClick={handleClear}
-            className="mr-1 rounded-md border border-white/10 px-2.5 py-1 text-[11px] text-slate-400 transition hover:text-white"
+            className="mr-1 rounded-md border border-surface-border/10 px-2.5 py-1 text-[11px] text-text-secondary transition hover:text-text-primary"
           >
             Clear
           </button>

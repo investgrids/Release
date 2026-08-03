@@ -68,7 +68,7 @@ export function AISearchFeedback({ meta }: { meta: AISearchFeedbackMeta }) {
 
   if (status === "done") {
     return (
-      <div className="flex items-center gap-2 rounded-[14px] border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-[12px] text-slate-400">
+      <div className="flex items-center gap-2 rounded-[14px] border border-surface-border/6 bg-text-primary/[0.02] px-4 py-3 text-[12px] text-text-secondary">
         <Check className="h-3.5 w-3.5 text-emerald-400" />
         Thanks for the feedback{submittedRating === "not_helpful" ? " — we'll use this to improve." : "."}
       </div>
@@ -76,14 +76,14 @@ export function AISearchFeedback({ meta }: { meta: AISearchFeedbackMeta }) {
   }
 
   return (
-    <div className="rounded-[14px] border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+    <div className="rounded-[14px] border border-surface-border/6 bg-text-primary/[0.02] px-4 py-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[12px] text-slate-400">Was this answer helpful?</p>
+        <p className="text-[12px] text-text-secondary">Was this answer helpful?</p>
         <div className="flex items-center gap-2">
           <button
             onClick={() => submit("helpful", null)}
             disabled={status === "submitting"}
-            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[12px] text-slate-300 transition hover:border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-300 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-3 py-1.5 text-[12px] text-text-secondary transition hover:border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-300 disabled:opacity-50"
           >
             <ThumbsUp className="h-3.5 w-3.5" /> Helpful
           </button>
@@ -92,8 +92,8 @@ export function AISearchFeedback({ meta }: { meta: AISearchFeedbackMeta }) {
             disabled={status === "submitting"}
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition disabled:opacity-50 ${
               status === "picking_reason"
-                ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                : "border-white/10 bg-white/[0.03] text-slate-300 hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-300"
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300"
+                : "border-surface-border/10 bg-text-primary/[0.03] text-text-secondary hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-600 dark:text-rose-300"
             }`}
           >
             <ThumbsDown className="h-3.5 w-3.5" /> Not Helpful
@@ -102,8 +102,8 @@ export function AISearchFeedback({ meta }: { meta: AISearchFeedbackMeta }) {
       </div>
 
       {status === "picking_reason" && (
-        <div className="mt-3 border-t border-white/[0.06] pt-3">
-          <p className="mb-2 text-[11px] text-slate-500">What went wrong?</p>
+        <div className="mt-3 border-t border-surface-border/6 pt-3">
+          <p className="mb-2 text-[11px] text-text-muted">What went wrong?</p>
           <div className="mb-2 flex flex-wrap gap-1.5">
             {REASONS.map(r => (
               <button
@@ -111,8 +111,8 @@ export function AISearchFeedback({ meta }: { meta: AISearchFeedbackMeta }) {
                 onClick={() => setSelectedReason(r.key)}
                 className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
                   selectedReason === r.key
-                    ? "border-rose-500/40 bg-rose-500/15 text-rose-300"
-                    : "border-white/10 bg-white/[0.02] text-slate-400 hover:bg-white/[0.05]"
+                    ? "border-rose-500/40 bg-rose-500/15 text-rose-600 dark:text-rose-300"
+                    : "border-surface-border/10 bg-text-primary/[0.02] text-text-secondary hover:bg-text-primary/[0.05]"
                 }`}
               >
                 {r.label}
@@ -126,13 +126,13 @@ export function AISearchFeedback({ meta }: { meta: AISearchFeedbackMeta }) {
               maxLength={500}
               placeholder="Tell us more (optional)"
               rows={2}
-              className="mb-2 w-full resize-none rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2 text-[12px] text-slate-300 placeholder:text-slate-600 focus:border-violet-500/40 focus:outline-none"
+              className="mb-2 w-full resize-none rounded-[10px] border border-surface-border/10 bg-text-primary/[0.02] px-3 py-2 text-[12px] text-text-secondary placeholder:text-text-muted focus:border-violet-500/40 focus:outline-none"
             />
           )}
           <button
             onClick={() => selectedReason && submit("not_helpful", selectedReason)}
             disabled={!selectedReason}
-            className="rounded-[10px] border border-rose-500/30 bg-rose-500/20 px-3 py-1.5 text-[11.5px] font-medium text-rose-300 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-[10px] border border-rose-500/30 bg-rose-500/20 px-3 py-1.5 text-[11.5px] font-medium text-rose-600 dark:text-rose-300 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Submit
           </button>

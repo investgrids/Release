@@ -141,7 +141,7 @@ export function OpportunityLifecycleCard({
   const hasConfidence = confidence !== null && confidence !== undefined && confidence > 0;
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.025] p-5 space-y-4">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.025] p-5 space-y-4">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
@@ -150,7 +150,7 @@ export function OpportunityLifecycleCard({
             aria-hidden="true">
             <Activity className="h-3.5 w-3.5 text-violet-400" />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
             Opportunity Lifecycle
           </span>
         </div>
@@ -163,7 +163,7 @@ export function OpportunityLifecycleCard({
       </div>
 
       {!stage ? (
-        <p className="text-[12px] text-slate-400 leading-5">No lifecycle data available</p>
+        <p className="text-[12px] text-text-secondary leading-5">No lifecycle data available</p>
       ) : (
         <>
           {/* ── Stage progression ─────────────────────────────────────── */}
@@ -176,7 +176,7 @@ export function OpportunityLifecycleCard({
             className="relative flex items-start justify-between"
           >
             {/* Track line */}
-            <div className="absolute left-0 right-0 top-3.5 h-px bg-white/[0.07]" aria-hidden="true" />
+            <div className="absolute left-0 right-0 top-3.5 h-px bg-text-primary/[0.07]" aria-hidden="true" />
 
             {STAGE_DEFS.map((s, i) => {
               const isCurrent = i === currentIndex;
@@ -191,8 +191,8 @@ export function OpportunityLifecycleCard({
                     className={[
                       "flex items-center justify-center rounded-full border transition-all",
                       isCurrent ? `h-7 w-7 ${s.border} ${s.bg} ring-4 ${s.ring}` :
-                      isPast    ? "h-4 w-4 border-slate-500 bg-slate-600" :
-                                  "h-4 w-4 border-white/10 bg-transparent",
+                      isPast    ? "h-4 w-4 border-surface-border/10 bg-slate-600" :
+                                  "h-4 w-4 border-surface-border/10 bg-transparent",
                     ].join(" ")}
                   >
                     {isCurrent && (
@@ -204,7 +204,7 @@ export function OpportunityLifecycleCard({
                   <span
                     className={[
                       "text-center text-[9px] font-bold uppercase tracking-wide leading-tight max-w-[58px] transition-all",
-                      isCurrent ? s.text : isFuture ? "text-slate-700" : "text-slate-500",
+                      isCurrent ? s.text : isFuture ? "text-text-muted" : "text-text-muted",
                     ].join(" ")}
                   >
                     {s.shortLabel}
@@ -223,7 +223,7 @@ export function OpportunityLifecycleCard({
                   Currently: {current.label}
                 </p>
               </div>
-              <p className="text-[12px] text-slate-300 leading-5">
+              <p className="text-[12px] text-text-secondary leading-5">
                 {description || current.blurb}
               </p>
             </div>
@@ -232,20 +232,20 @@ export function OpportunityLifecycleCard({
           {/* ── Why AI assigned this stage ────────────────────────────── */}
           {whyAssigned && (
             <div>
-              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.10em] text-slate-500">
+              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.10em] text-text-muted">
                 Why This Stage
               </p>
-              <p className="text-[12px] text-slate-400 leading-5">{whyAssigned}</p>
+              <p className="text-[12px] text-text-secondary leading-5">{whyAssigned}</p>
             </div>
           )}
 
           {/* ── Historical comparison ─────────────────────────────────── */}
           {historicalComparison && (
-            <div className="rounded-[12px] border border-white/[0.05] bg-white/[0.02] px-3 py-2.5">
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.10em] text-slate-500">
+            <div className="rounded-[12px] border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2.5">
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.10em] text-text-muted">
                 Historical Comparison
               </p>
-              <p className="text-[12px] text-slate-400 leading-5">{historicalComparison}</p>
+              <p className="text-[12px] text-text-secondary leading-5">{historicalComparison}</p>
             </div>
           )}
 
@@ -257,7 +257,7 @@ export function OpportunityLifecycleCard({
               </p>
               <div className="flex items-start gap-2">
                 <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" aria-hidden="true" />
-                <p className="text-[12px] text-slate-300 leading-5">{expectedEvolution}</p>
+                <p className="text-[12px] text-text-secondary leading-5">{expectedEvolution}</p>
               </div>
             </div>
           )}
@@ -265,13 +265,13 @@ export function OpportunityLifecycleCard({
           {/* ── Stage-specific risks ──────────────────────────────────── */}
           {risks.length > 0 && (
             <details className="group">
-              <summary className="flex cursor-pointer items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-400 transition list-none">
+              <summary className="flex cursor-pointer items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted hover:text-text-secondary transition list-none">
                 <span className="inline-block transition-transform group-open:rotate-90" aria-hidden="true">›</span>
                 Stage Risks ({risks.length})
               </summary>
               <ul className="mt-2 space-y-1.5 pl-3" role="list">
                 {risks.map((r, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-400 leading-5">
+                  <li key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary leading-5">
                     <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-rose-400" aria-hidden="true" />
                     {r}
                   </li>

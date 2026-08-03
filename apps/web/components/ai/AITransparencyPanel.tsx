@@ -84,7 +84,7 @@ export function AITransparencyPanel({
               <Bot className="h-3.5 w-3.5 text-violet-400" aria-hidden="true" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold text-violet-300">
+              <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold text-violet-600 dark:text-violet-300">
                 AI Generated
               </span>
               <ConfidenceBadge score={confidence} size="sm" />
@@ -93,7 +93,7 @@ export function AITransparencyPanel({
 
           <div className="flex items-center gap-2">
             {updatedAt && (
-              <div className="hidden sm:flex items-center gap-1 text-[10px] text-slate-600">
+              <div className="hidden sm:flex items-center gap-1 text-[10px] text-text-muted">
                 <RefreshCw className="h-2.5 w-2.5" aria-hidden="true" />
                 {updatedAt}
               </div>
@@ -109,7 +109,7 @@ export function AITransparencyPanel({
             {compact && (
               <button
                 onClick={() => setExpanded(prev => !prev)}
-                className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 hover:text-white transition"
+                className="flex h-6 w-6 items-center justify-center rounded-full border border-surface-border/10 bg-text-primary/5 text-text-secondary hover:text-text-primary transition"
                 aria-label={expanded ? "Collapse AI analysis" : "Expand AI analysis"}
                 aria-expanded={expanded}
               >
@@ -121,21 +121,21 @@ export function AITransparencyPanel({
 
         {/* Expanded content */}
         {expanded && (
-          <div className="border-t border-white/5 px-4 pb-4 pt-3 space-y-4">
+          <div className="border-t border-surface-border/5 px-4 pb-4 pt-3 space-y-4">
             {/* Summary / Reasoning */}
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted mb-1.5">
                 {summary ? "Summary" : "Reasoning"}
               </p>
-              <p className="text-[12px] text-slate-300 leading-6">
+              <p className="text-[12px] text-text-secondary leading-6">
                 {summary ?? reasoning}
               </p>
               {summary && reasoning !== summary && (
                 <details className="mt-2">
-                  <summary className="cursor-pointer text-[10px] text-violet-400 hover:text-violet-300 transition select-none">
+                  <summary className="cursor-pointer text-[10px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition select-none">
                     Full reasoning →
                   </summary>
-                  <p className="mt-2 text-[11px] text-slate-400 leading-5">{reasoning}</p>
+                  <p className="mt-2 text-[11px] text-text-secondary leading-5">{reasoning}</p>
                 </details>
               )}
             </div>
@@ -157,25 +157,25 @@ export function AITransparencyPanel({
               };
               return (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted mb-2">
                     Confidence Breakdown
                   </p>
                   <div className="space-y-1 mb-2">
                     {Object.entries(evidenceSignals).filter(([, v]) => v !== 0).map(([k, v]) => (
                       <div key={k} className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400">{LABELS[k] ?? k}</span>
-                        <span className="text-slate-300 tabular-nums">{v > 0 ? "+" : ""}{v}</span>
+                        <span className="text-text-secondary">{LABELS[k] ?? k}</span>
+                        <span className="text-text-secondary tabular-nums">{v > 0 ? "+" : ""}{v}</span>
                       </div>
                     ))}
-                    <div className="flex items-center justify-between text-[11px] font-semibold pt-1 border-t border-white/5">
-                      <span className="text-slate-300">Evidence-based subtotal</span>
+                    <div className="flex items-center justify-between text-[11px] font-semibold pt-1 border-t border-surface-border/5">
+                      <span className="text-text-secondary">Evidence-based subtotal</span>
                       <span className="text-emerald-400 tabular-nums">{evidenceTotal}</span>
                     </div>
                   </div>
                   {ai_certainty != null && (
                     <div className="flex items-center justify-between text-[11px] rounded-lg bg-amber-500/[0.06] border border-amber-500/15 px-2 py-1.5">
-                      <span className="text-amber-300/90">AI self-assessed certainty <span className="text-amber-300/60">(not observed evidence)</span></span>
-                      <span className="text-amber-300 tabular-nums font-semibold">+{ai_certainty}</span>
+                      <span className="text-amber-600/90 dark:text-amber-300/90">AI self-assessed certainty <span className="text-amber-600/60 dark:text-amber-300/60">(not observed evidence)</span></span>
+                      <span className="text-amber-600 dark:text-amber-300 tabular-nums font-semibold">+{ai_certainty}</span>
                     </div>
                   )}
                 </div>
@@ -185,7 +185,7 @@ export function AITransparencyPanel({
             {/* Evidence cards */}
             {evidence.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted mb-2">
                   Supporting Evidence
                 </p>
                 <div className="grid gap-1.5 sm:grid-cols-2">
@@ -201,12 +201,12 @@ export function AITransparencyPanel({
               <div className="grid gap-3 sm:grid-cols-3">
                 {events.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-1.5">Events</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted mb-1.5">Events</p>
                     <div className="space-y-1">
                       {events.slice(0, 3).map((ev, i) => (
-                        <p key={i} className="text-[11px] text-slate-400 line-clamp-1">
+                        <p key={i} className="text-[11px] text-text-secondary line-clamp-1">
                           {ev.href ? (
-                            <Link href={ev.href as any} className="hover:text-white transition">
+                            <Link href={ev.href as any} className="hover:text-text-primary transition">
                               {ev.title}
                             </Link>
                           ) : ev.title}
@@ -217,12 +217,12 @@ export function AITransparencyPanel({
                 )}
                 {companies.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-1.5">Companies</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted mb-1.5">Companies</p>
                     <div className="space-y-1">
                       {companies.slice(0, 3).map((co, i) => (
-                        <p key={i} className="text-[11px] text-slate-400 line-clamp-1">
+                        <p key={i} className="text-[11px] text-text-secondary line-clamp-1">
                           {co.href ? (
-                            <Link href={co.href as any} className="hover:text-white transition">
+                            <Link href={co.href as any} className="hover:text-text-primary transition">
                               {isRealSymbol(co.symbol) ? co.symbol : co.name}
                             </Link>
                           ) : (isRealSymbol(co.symbol) ? co.symbol : co.name)}
@@ -233,12 +233,12 @@ export function AITransparencyPanel({
                 )}
                 {stories.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-1.5">Stories</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted mb-1.5">Stories</p>
                     <div className="space-y-1">
                       {stories.slice(0, 3).map((st, i) => (
-                        <p key={i} className="text-[11px] text-slate-400 line-clamp-1">
+                        <p key={i} className="text-[11px] text-text-secondary line-clamp-1">
                           {st.href ? (
-                            <Link href={st.href as any} className="hover:text-white transition">
+                            <Link href={st.href as any} className="hover:text-text-primary transition">
                               {st.title}
                             </Link>
                           ) : st.title}
@@ -255,7 +255,7 @@ export function AITransparencyPanel({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setMethodologyOpen(true)}
-                  className="sm:hidden flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-300 transition"
+                  className="sm:hidden flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition"
                 >
                   <ExternalLink className="h-2.5 w-2.5" />
                   View Methodology

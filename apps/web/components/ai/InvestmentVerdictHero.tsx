@@ -121,21 +121,21 @@ export function InvestmentVerdictHero({ data }: { data: HeroVerdictData }) {
           <span className={`h-1.5 w-1.5 rounded-full ${verdictDot}`} />
           {data.verdictScale}
         </span>
-        <span className="text-[11px] text-slate-500">·</span>
-        <span className="text-[11px] text-slate-400">
-          Confidence <span className="font-semibold text-slate-200 tabular-nums">{data.confidence ?? "—"}%</span>
+        <span className="text-[11px] text-text-muted">·</span>
+        <span className="text-[11px] text-text-secondary">
+          Confidence <span className="font-semibold text-text-primary tabular-nums">{data.confidence ?? "—"}%</span>
         </span>
-        <span className="text-[11px] text-slate-500">·</span>
-        <span className="text-[11px] text-slate-400">{data.horizon}</span>
-        <span className="text-[11px] text-slate-500">·</span>
+        <span className="text-[11px] text-text-muted">·</span>
+        <span className="text-[11px] text-text-secondary">{data.horizon}</span>
+        <span className="text-[11px] text-text-muted">·</span>
         <span className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${data.riskColor}`}>{data.riskLabel} Risk</span>
-        <span className="text-[11px] text-slate-500">·</span>
-        <span className="text-[11px] text-slate-400">{data.suitableFor}</span>
+        <span className="text-[11px] text-text-muted">·</span>
+        <span className="text-[11px] text-text-secondary">{data.suitableFor}</span>
       </div>
 
       {/* One-line AI conclusion */}
       {data.conclusion && (
-        <p className="text-[16px] sm:text-[17px] font-medium leading-snug text-white mb-5 line-clamp-2">
+        <p className="text-[16px] sm:text-[17px] font-medium leading-snug text-text-primary mb-5 line-clamp-2">
           {data.conclusion}
         </p>
       )}
@@ -145,18 +145,18 @@ export function InvestmentVerdictHero({ data }: { data: HeroVerdictData }) {
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] uppercase tracking-widest text-emerald-400/80 font-semibold">Opportunity</span>
-            <span className="text-[11px] font-semibold text-emerald-300 tabular-nums">{data.opportunityPct}%</span>
+            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-300 tabular-nums">{data.opportunityPct}%</span>
           </div>
-          <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+          <div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden">
             <div className="h-full rounded-full bg-emerald-400 transition-all duration-700" style={{ width: `${data.opportunityPct}%` }} />
           </div>
         </div>
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] uppercase tracking-widest text-rose-400/80 font-semibold">Risk</span>
-            <span className="text-[11px] font-semibold text-rose-300 tabular-nums">{data.riskPct}%</span>
+            <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-300 tabular-nums">{data.riskPct}%</span>
           </div>
-          <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+          <div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden">
             <div className="h-full rounded-full bg-rose-400 transition-all duration-700" style={{ width: `${data.riskPct}%` }} />
           </div>
         </div>
@@ -170,7 +170,7 @@ export function InvestmentVerdictHero({ data }: { data: HeroVerdictData }) {
           return (
             <span key={p.key}
               className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11.5px] font-medium transition ${
-                active ? `${verdictBg} ${verdictColor} border-current/40` : "border-white/[0.06] bg-white/[0.02] text-slate-600"
+                active ? `${verdictBg} ${verdictColor} border-current/40` : "border-surface-border/6 bg-text-primary/[0.02] text-text-muted"
               }`}>
               <Icon className="h-3 w-3" strokeWidth={2.5} />
               {p.label}
@@ -180,24 +180,24 @@ export function InvestmentVerdictHero({ data }: { data: HeroVerdictData }) {
       </div>
 
       {/* Evidence score */}
-      <div className="flex items-center gap-2 flex-wrap pt-4 border-t border-white/[0.06]">
+      <div className="flex items-center gap-2 flex-wrap pt-4 border-t border-surface-border/6">
         <div className="flex items-center gap-1 mr-1">
           <ShieldCheck className="h-3.5 w-3.5 text-violet-400" />
-          <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Evidence</span>
-          <span className="text-[11px] font-semibold text-slate-300 tabular-nums ml-0.5">{data.evidenceStars}/5</span>
+          <span className="text-[10px] uppercase tracking-widest text-text-muted font-semibold">Evidence</span>
+          <span className="text-[11px] font-semibold text-text-secondary tabular-nums ml-0.5">{data.evidenceStars}/5</span>
         </div>
         {EVIDENCE_ORDER.filter(k => k in data.evidenceChecklist).map(key => {
           const backed = data.evidenceChecklist[key];
           return (
             <span key={key}
               className={`rounded-md border px-2 py-0.5 text-[10px] font-medium ${
-                backed ? "border-violet-500/25 bg-violet-500/10 text-violet-300" : "border-white/[0.05] bg-white/[0.02] text-slate-600"
+                backed ? "border-violet-500/25 bg-violet-500/10 text-violet-600 dark:text-violet-300" : "border-surface-border/5 bg-text-primary/[0.02] text-text-muted"
               }`}>
               {EVIDENCE_LABELS[key] ?? key}
             </span>
           );
         })}
-        <span className="ml-auto text-[10px] text-slate-600 tabular-nums">{data.sourceCount} source{data.sourceCount === 1 ? "" : "s"}</span>
+        <span className="ml-auto text-[10px] text-text-muted tabular-nums">{data.sourceCount} source{data.sourceCount === 1 ? "" : "s"}</span>
       </div>
     </div>
   );

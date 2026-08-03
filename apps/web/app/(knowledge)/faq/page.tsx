@@ -183,8 +183,8 @@ function AccordionItem({
     <div
       className={`rounded-xl border transition-colors duration-200 ${
         isOpen
-          ? "border-white/[0.12] bg-white/[0.04]"
-          : "border-white/[0.06] bg-transparent hover:border-white/[0.10] hover:bg-white/[0.02]"
+          ? "border-surface-border/[0.12] bg-text-primary/[0.04]"
+          : "border-surface-border/6 bg-transparent hover:border-surface-border/[0.10] hover:bg-text-primary/[0.02]"
       }`}
     >
       <button
@@ -192,12 +192,12 @@ function AccordionItem({
         className="flex w-full items-start justify-between gap-4 px-5 py-4 text-left"
         aria-expanded={isOpen}
       >
-        <span className="text-[14px] font-medium leading-snug text-slate-200">
+        <span className="text-[14px] font-medium leading-snug text-text-primary">
           {q}
         </span>
         <ChevronDown
-          className={`mt-0.5 h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-slate-300" : ""
+          className={`mt-0.5 h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${
+            isOpen ? "rotate-180 text-text-secondary" : ""
           }`}
         />
       </button>
@@ -206,7 +206,7 @@ function AccordionItem({
           isOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
         }`}
       >
-        <p className="px-5 pb-5 text-[13px] leading-6 text-slate-400">{a}</p>
+        <p className="px-5 pb-5 text-[13px] leading-6 text-text-secondary">{a}</p>
       </div>
     </div>
   );
@@ -223,13 +223,13 @@ export default function FAQPage() {
     <main className="min-w-0 pb-10">
       {/* Hero */}
       <div className="mb-10">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Knowledge Centre
         </p>
-        <h1 className="mt-3 text-[28px] font-black leading-tight text-white md:text-[36px]">
+        <h1 className="mt-3 text-[28px] font-black leading-tight text-text-primary md:text-[36px]">
           Frequently Asked Questions
         </h1>
-        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-slate-400">
+        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-secondary">
           Everything you need to know about MarketRipple — how it works, what powers
           the AI, how data is sourced, and what to expect next.
         </p>
@@ -242,7 +242,7 @@ export default function FAQPage() {
               <a
                 key={s.id}
                 href={`#${s.id}`}
-                className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[12px] text-slate-400 transition hover:border-white/[0.14] hover:text-slate-200"
+                className="flex items-center gap-1.5 rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-3 py-1.5 text-[12px] text-text-secondary transition hover:border-surface-border/[0.14] hover:text-text-primary"
               >
                 <Icon className="h-3.5 w-3.5" />
                 {s.label}
@@ -264,14 +264,14 @@ export default function FAQPage() {
                   <Icon className={`h-4 w-4 ${section.color}`} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
                     Section {si + 1} of {SECTIONS.length}
                   </p>
                   <p className={`text-[15px] font-semibold ${section.color}`}>
                     {section.label}
                   </p>
                 </div>
-                <span className="ml-auto text-[12px] text-slate-500">
+                <span className="ml-auto text-[12px] text-text-muted">
                   {section.questions.length} questions
                 </span>
               </div>
@@ -297,8 +297,8 @@ export default function FAQPage() {
       </div>
 
       {/* Footer note */}
-      <div className="mt-12 rounded-xl border border-white/[0.08] bg-[#080c14] p-5 text-center">
-        <p className="text-[13px] text-slate-400">
+      <div className="mt-12 rounded-xl border border-surface-border/8 bg-surface-card p-5 text-center">
+        <p className="text-[13px] text-text-secondary">
           Didn&apos;t find what you were looking for?{" "}
           <a
             href="/contact"

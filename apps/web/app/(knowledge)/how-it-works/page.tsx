@@ -233,36 +233,36 @@ const ACCENT: Record<string, { bg: string; border: string; icon: string; pill: s
     bg: "bg-violet-500/[0.05]",
     border: "border-violet-500/25",
     icon: "text-violet-400",
-    pill: "bg-violet-500/15 text-violet-300 border-violet-500/25",
+    pill: "bg-violet-500/15 text-violet-600 dark:text-violet-300 border-violet-500/25",
     number: "text-violet-500",
   },
   sky: {
     bg: "bg-sky-500/[0.05]",
     border: "border-sky-500/25",
     icon: "text-sky-400",
-    pill: "bg-sky-500/15 text-sky-300 border-sky-500/25",
+    pill: "bg-sky-500/15 text-sky-600 dark:text-sky-300 border-sky-500/25",
     number: "text-sky-500",
   },
   amber: {
     bg: "bg-amber-500/[0.05]",
     border: "border-amber-500/25",
     icon: "text-amber-400",
-    pill: "bg-amber-500/15 text-amber-300 border-amber-500/25",
+    pill: "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/25",
     number: "text-amber-500",
   },
   emerald: {
     bg: "bg-emerald-500/[0.05]",
     border: "border-emerald-500/25",
     icon: "text-emerald-400",
-    pill: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25",
+    pill: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/25",
     number: "text-emerald-500",
   },
 };
 
 const TECH_ACCENT: Record<string, { border: string; icon: string; stat: string }> = {
-  violet: { border: "border-violet-500/20", icon: "text-violet-400", stat: "text-violet-300" },
-  sky:    { border: "border-sky-500/20",    icon: "text-sky-400",    stat: "text-sky-300"    },
-  emerald:{ border: "border-emerald-500/20",icon: "text-emerald-400",stat: "text-emerald-300"},
+  violet: { border: "border-violet-500/20", icon: "text-violet-400", stat: "text-violet-600 dark:text-violet-300" },
+  sky:    { border: "border-sky-500/20",    icon: "text-sky-400",    stat: "text-sky-600 dark:text-sky-300"    },
+  emerald:{ border: "border-emerald-500/20",icon: "text-emerald-400",stat: "text-emerald-600 dark:text-emerald-300"},
 };
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -271,11 +271,11 @@ export default function HowItWorksPage() {
   return (
     <main className="min-w-0 space-y-16 pb-20">
       {/* ── Hero ── */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#0d1028] to-[#080c14] p-8 md:p-12">
+      <section className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-violet-500/[0.06] to-surface-bg p-8 md:p-12">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400">
           How It Works
         </p>
-        <h1 className="mt-4 text-[28px] font-black leading-tight text-white md:text-[42px]">
+        <h1 className="mt-4 text-[28px] font-black leading-tight text-text-primary md:text-[42px]">
           From Breaking News to
           <br />
           <span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">
@@ -284,7 +284,7 @@ export default function HowItWorksPage() {
           <br />
           in Seconds
         </h1>
-        <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 md:text-lg">
+        <p className="mt-5 max-w-2xl text-base leading-7 text-text-secondary md:text-lg">
           MarketRipple operates a multi-stage AI intelligence pipeline — continuously ingesting
           market events, running them through analysis and classification, tracing ripple
           effects across the market graph, and surfacing scored opportunities — all within
@@ -292,9 +292,9 @@ export default function HowItWorksPage() {
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           {[
-            { label: "9-Stage Pipeline", color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
-            { label: "Real-time Processing", color: "border-sky-500/30 bg-sky-500/10 text-sky-300" },
-            { label: "Explainable AI", color: "border-violet-500/30 bg-violet-500/10 text-violet-300" },
+            { label: "9-Stage Pipeline", color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
+            { label: "Real-time Processing", color: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300" },
+            { label: "Explainable AI", color: "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300" },
           ].map((pill) => (
             <span
               key={pill.label}
@@ -308,13 +308,13 @@ export default function HowItWorksPage() {
 
       {/* ── Pipeline ── */}
       <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           The Intelligence Pipeline
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           9 Steps from News to Opportunity
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           Every market event flows through each stage of the pipeline — producing
           richer, more structured intelligence at each step.
         </p>
@@ -340,7 +340,7 @@ export default function HowItWorksPage() {
                   <div className="flex gap-4 md:gap-5">
                     {/* Step icon column */}
                     <div className="flex flex-col items-center gap-2 shrink-0">
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl border ${a.border} bg-[#080c14]`}>
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl border ${a.border} bg-surface-card`}>
                         <step.icon className={`h-5 w-5 ${a.icon}`} aria-hidden="true" />
                       </div>
                     </div>
@@ -356,15 +356,15 @@ export default function HowItWorksPage() {
                         >
                           {step.time}
                         </span>
-                        <span className="text-[10px] text-slate-600">{step.timeLabel}</span>
+                        <span className="text-[10px] text-text-muted">{step.timeLabel}</span>
                       </div>
-                      <h3 className="mt-1.5 text-base font-black text-white md:text-lg">
+                      <h3 className="mt-1.5 text-base font-black text-text-primary md:text-lg">
                         {step.title}
                       </h3>
                       <p className={`text-xs font-semibold ${a.icon} mt-0.5`}>
                         {step.tagline}
                       </p>
-                      <p className="mt-3 text-sm leading-6 text-slate-400">
+                      <p className="mt-3 text-sm leading-6 text-text-secondary">
                         {step.description}
                       </p>
                       <ul
@@ -377,7 +377,7 @@ export default function HowItWorksPage() {
                               className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${a.icon} opacity-70`}
                               aria-hidden="true"
                             />
-                            <span className="text-xs leading-5 text-slate-500">{detail}</span>
+                            <span className="text-xs leading-5 text-text-muted">{detail}</span>
                           </li>
                         ))}
                       </ul>
@@ -392,13 +392,13 @@ export default function HowItWorksPage() {
 
       {/* ── Technology ── */}
       <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Technology
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           What Powers the Pipeline
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           Three technology layers working together to deliver real-time market intelligence
           at institutional quality.
         </p>
@@ -408,20 +408,20 @@ export default function HowItWorksPage() {
             return (
               <article
                 key={card.title}
-                className={`rounded-xl border bg-[#080c14] p-6 ${ta.border}`}
+                className={`rounded-xl border bg-surface-card p-6 ${ta.border}`}
                 aria-label={card.title}
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03]">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.03]">
                     <card.icon className={`h-5 w-5 ${ta.icon}`} aria-hidden="true" />
                   </div>
                   <div className="text-right">
                     <p className={`text-xl font-black ${ta.stat}`}>{card.stat}</p>
-                    <p className="text-[10px] text-slate-600">{card.statLabel}</p>
+                    <p className="text-[10px] text-text-muted">{card.statLabel}</p>
                   </div>
                 </div>
-                <h3 className="mt-4 text-base font-bold text-white">{card.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500">{card.description}</p>
+                <h3 className="mt-4 text-base font-bold text-text-primary">{card.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-text-muted">{card.description}</p>
               </article>
             );
           })}
@@ -429,24 +429,24 @@ export default function HowItWorksPage() {
       </section>
 
       {/* ── Pipeline Summary ── */}
-      <section className="rounded-2xl border border-white/[0.08] bg-[#080c14] p-6 md:p-8">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+      <section className="rounded-2xl border border-surface-border/8 bg-surface-card p-6 md:p-8">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Pipeline Summary
         </p>
-        <h2 className="mt-3 text-lg font-black text-white">
+        <h2 className="mt-3 text-lg font-black text-text-primary">
           From Raw News to Structured Opportunity
         </h2>
         <div className="mt-6 flex flex-wrap items-center gap-2 text-sm">
           {[
-            { label: "News", color: "bg-slate-700 text-slate-300" },
-            { label: "AI Analysis", color: "bg-violet-500/20 text-violet-300" },
-            { label: "Classification", color: "bg-sky-500/20 text-sky-300" },
-            { label: "Ripple Engine", color: "bg-violet-500/20 text-violet-300" },
-            { label: "Graph Build", color: "bg-sky-500/20 text-sky-300" },
-            { label: "Company Tagging", color: "bg-emerald-500/20 text-emerald-300" },
-            { label: "Story Synthesis", color: "bg-violet-500/20 text-violet-300" },
-            { label: "Opportunity Score", color: "bg-amber-500/20 text-amber-300" },
-            { label: "AI Search Ready", color: "bg-emerald-500/20 text-emerald-300" },
+            { label: "News", color: "bg-text-primary/[0.07] text-text-secondary" },
+            { label: "AI Analysis", color: "bg-violet-500/20 text-violet-600 dark:text-violet-300" },
+            { label: "Classification", color: "bg-sky-500/20 text-sky-600 dark:text-sky-300" },
+            { label: "Ripple Engine", color: "bg-violet-500/20 text-violet-600 dark:text-violet-300" },
+            { label: "Graph Build", color: "bg-sky-500/20 text-sky-600 dark:text-sky-300" },
+            { label: "Company Tagging", color: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" },
+            { label: "Story Synthesis", color: "bg-violet-500/20 text-violet-600 dark:text-violet-300" },
+            { label: "Opportunity Score", color: "bg-amber-500/20 text-amber-600 dark:text-amber-300" },
+            { label: "AI Search Ready", color: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" },
           ].map((stage, i, arr) => (
             <div key={stage.label} className="flex items-center gap-2">
               <span className={`rounded-lg px-3 py-1 text-xs font-semibold ${stage.color}`}>
@@ -454,35 +454,35 @@ export default function HowItWorksPage() {
               </span>
               {i < arr.length - 1 && (
                 <ArrowRight
-                  className="h-3 w-3 shrink-0 text-slate-700"
+                  className="h-3 w-3 shrink-0 text-text-muted"
                   aria-hidden="true"
                 />
               )}
             </div>
           ))}
         </div>
-        <p className="mt-4 text-xs text-slate-600">
+        <p className="mt-4 text-xs text-text-muted">
           Total pipeline latency: under 60 seconds from source publication to fully enriched,
           scored, and searchable intelligence.
         </p>
       </section>
 
       {/* ── CTA ── */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#0a0d1a] to-[#080c14] p-8 text-center md:p-12">
+      <section className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-surface-card to-surface-bg p-8 text-center md:p-12">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400">
           Go Deeper
         </p>
-        <h2 className="mt-3 text-[22px] font-black text-white md:text-[28px]">
+        <h2 className="mt-3 text-[22px] font-black text-text-primary md:text-[28px]">
           Understand How MarketRipple Thinks
         </h2>
-        <p className="mt-3 text-sm leading-6 text-slate-400">
+        <p className="mt-3 text-sm leading-6 text-text-secondary">
           Explore the AI reasoning models, evidence standards, and confidence calibration
           that power every output on MarketRipple.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-4">
           <Link
             href="/how-marketripple-thinks"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-sky-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-sky-600 px-6 py-2.5 text-sm font-semibold text-text-primary transition hover:opacity-90"
             aria-label="Learn how MarketRipple thinks and reasons"
           >
             How MarketRipple Thinks
@@ -490,11 +490,11 @@ export default function HowItWorksPage() {
           </Link>
           <Link
             href="/events"
-            className="flex items-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.04] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.07]"
+            className="flex items-center gap-2 rounded-xl border border-surface-border/[0.12] bg-text-primary/[0.04] px-6 py-2.5 text-sm font-semibold text-text-primary transition hover:bg-text-primary/[0.07]"
             aria-label="See live market events"
           >
             See Live Events
-            <ChevronRight className="h-4 w-4 text-slate-400" aria-hidden="true" />
+            <ChevronRight className="h-4 w-4 text-text-secondary" aria-hidden="true" />
           </Link>
         </div>
       </section>

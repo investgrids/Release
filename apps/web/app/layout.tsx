@@ -10,6 +10,7 @@ import { NavLoadingProvider } from "@/components/NavLoadingProvider";
 import { AlertProvider }      from "@/components/AlertProvider";
 import { MarketIntelligenceProvider } from "@/components/MarketIntelligenceProvider";
 import { BreakingNewsAlert }  from "@/components/BreakingNewsAlert";
+import { Breadcrumbs }        from "@/components/Breadcrumbs";
 
 // next/font downloads Inter at build time, self-hosts it, and injects an
 // optimised <link rel="preload"> — no external roundtrip, no FOUT.
@@ -22,7 +23,7 @@ const inter = Inter({
   preload: true,
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -61,7 +62,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // managers) often inject attributes on <html> between SSR and hydration,
     // causing a harmless but noisy hydration mismatch warning.
     <html lang="en-IN" className={inter.variable} suppressHydrationWarning>
-      <body className="min-h-screen bg-[#020617] text-slate-100 font-[family-name:var(--font-inter)]">
+      <head>
+        {/* Theme FOUC prevention — must run before first paint, so it's a
+            plain blocking inline script, not next/script (which defers).
+            Light is the default (bare :root, no attribute needed in
+            globals.css); this only ever needs to ADD data-theme="dark"
+            when that's the visitor's stored choice. Wrapped in try/catch
+            since localStorage can throw in some privacy-mode browsers. */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static script, no interpolated data
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('mr-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-bg text-text-primary font-[family-name:var(--font-inter)]">
         {/* Google Analytics — prod only, so local `next dev` traffic never
             pollutes real analytics. next/script afterInteractive loads it
             off the critical rendering path instead of blocking like a raw
@@ -125,6 +140,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <NavLoadingProvider>
               <SiteHeader />
               <main className="min-h-[calc(100vh-72px)]">
+                {/* Auto-generated from the URL on every page (skips "/" —
+                    see Breadcrumbs.tsx). Pages with a real human-readable
+                    title for a dynamic segment (a company name, an article
+                    headline) should render their own <Breadcrumbs items=.../>
+                    instead, to replace the raw-slug fallback. */}
+                <div className="mx-auto max-w-[1600px] px-6 pt-4">
+                  <Breadcrumbs />
+                </div>
                 {children}
               </main>
               <BreakingNewsAlert />

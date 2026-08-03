@@ -32,7 +32,7 @@ const NODE_COLORS: Record<string, string> = {
   historical:  "#94a3b8",
   risk:        "#fb7185",
   opportunity: "#4ade80",
-  default:     "#64748b",
+  default:     "rgb(var(--text-muted))",
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -88,8 +88,8 @@ export function AISearchGraphReveal({ nodes, edges, className = "" }: Props) {
   );
 
   return (
-    <div className={`rounded-xl border border-[#1e293b] bg-[#0f172a] p-4 ${className}`}>
-      <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Intelligence Graph</p>
+    <div className={`rounded-xl border border-[#1e293b] bg-surface-card p-4 ${className}`}>
+      <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-text-muted">Intelligence Graph</p>
 
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible" aria-label="Intelligence graph of this search's findings">
         {edges.map((e) => {
@@ -130,13 +130,13 @@ export function AISearchGraphReveal({ nodes, edges, className = "" }: Props) {
       <div className="mt-1 flex items-center justify-between">
         <div className="flex flex-wrap gap-2">
           {uniqueTypes.map(t => (
-            <span key={t} className="flex items-center gap-1 text-[10px] text-slate-500">
+            <span key={t} className="flex items-center gap-1 text-[10px] text-text-muted">
               <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: NODE_COLORS[t] || NODE_COLORS.default }} />
               {TYPE_LABELS[t] || t}
             </span>
           ))}
         </div>
-        <span className="text-[10px] text-slate-600">{nodes.length}n · {edges.length}e</span>
+        <span className="text-[10px] text-text-muted">{nodes.length}n · {edges.length}e</span>
       </div>
     </div>
   );

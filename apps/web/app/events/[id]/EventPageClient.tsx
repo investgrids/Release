@@ -75,11 +75,11 @@ const DONUT_COLORS    = ["#f43f5e","#f97316","#eab308","#22c55e"];
 // that into the bottom "Low Impact" bucket, which would claim a real
 // (low) score was computed when none was.
 function scoreColor(s: number | null | undefined) {
-  if (s === null || s === undefined) return { text: "text-slate-500", ring: "#475569", border: "border-slate-700", bg: "bg-slate-800/25" };
+  if (s === null || s === undefined) return { text: "text-text-muted", ring: "#475569", border: "border-surface-border/10", bg: "bg-text-primary/[0.06]" };
   if (s >= 85) return { text: "text-rose-400",  ring: "#f43f5e", border: "border-rose-500",  bg: "bg-rose-500/15"  };
   if (s >= 70) return { text: "text-amber-400", ring: "#f59e0b", border: "border-amber-400", bg: "bg-amber-500/15" };
   if (s >= 50) return { text: "text-sky-400",   ring: "#38bdf8", border: "border-sky-400",   bg: "bg-sky-500/15"   };
-  return               { text: "text-slate-400", ring: "#64748b", border: "border-slate-500", bg: "bg-slate-700/20" };
+  return               { text: "text-text-secondary", ring: "rgb(var(--text-muted))", border: "border-surface-border/10", bg: "bg-text-primary/[0.05]" };
 }
 
 function scoreLabel(s: number | null | undefined) {
@@ -98,10 +98,10 @@ function hasRealScore(s: number | null | undefined): s is number {
 }
 
 function impactBg(v?: string) {
-  if (!v) return "bg-slate-700/40 text-slate-400 border-slate-600/30";
-  if (v === "positive" || v === "bullish") return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
-  if (v === "negative" || v === "bearish") return "bg-rose-500/20 text-rose-300 border-rose-500/30";
-  return "bg-amber-500/20 text-amber-300 border-amber-500/30";
+  if (!v) return "bg-text-primary/[0.09] text-text-secondary border-surface-border/7";
+  if (v === "positive" || v === "bullish") return "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30";
+  if (v === "negative" || v === "bearish") return "bg-rose-500/20 text-rose-600 dark:text-rose-300 border-rose-500/30";
+  return "bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/30";
 }
 
 function fmt(s?: string) {
@@ -137,7 +137,7 @@ function ScoreRing({ score, size = 80 }: { score: number | null | undefined; siz
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size/2} cy={size/2} r={r} stroke="rgba(255,255,255,0.06)" strokeWidth={6} fill="none"/>
+        <circle cx={size/2} cy={size/2} r={r} stroke="rgb(var(--text-primary) / 0.06)" strokeWidth={6} fill="none"/>
         {!unscored && (
           <circle cx={size/2} cy={size/2} r={r} stroke={sc.ring} strokeWidth={6} fill="none"
             strokeLinecap="round" strokeDasharray={`${dash} ${circ}`}
@@ -146,11 +146,11 @@ function ScoreRing({ score, size = 80 }: { score: number | null | undefined; siz
       </svg>
       <div className="absolute text-center">
         {unscored ? (
-          <div className="text-[10px] font-medium leading-tight text-slate-500">N/A</div>
+          <div className="text-[10px] font-medium leading-tight text-text-muted">N/A</div>
         ) : (
           <div className={`text-xl font-black leading-none ${sc.text}`}>{Math.round(score)}</div>
         )}
-        <div className="text-[8px] text-slate-500 mt-0.5">{unscored ? "Unscored" : "/ 100"}</div>
+        <div className="text-[8px] text-text-muted mt-0.5">{unscored ? "Unscored" : "/ 100"}</div>
       </div>
     </div>
   );
@@ -161,13 +161,13 @@ function KpiCard({ label, value, sub, icon, color, border }: {
   label: string; value: string | number; sub: string; icon: ReactNode; color: string; border: string;
 }) {
   return (
-    <div className={`rounded-[20px] border bg-white/[0.025] p-4 transition hover:-translate-y-0.5 hover:shadow-lg ${border}`}>
+    <div className={`rounded-[20px] border bg-text-primary/[0.025] p-4 transition hover:-translate-y-0.5 hover:shadow-lg ${border}`}>
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
-        <span className="text-slate-400">{icon}</span>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">{label}</p>
+        <span className="text-text-secondary">{icon}</span>
       </div>
       <p className={`text-2xl font-black leading-none ${color}`}>{value}</p>
-      <p className="mt-1.5 text-[10px] text-slate-500">{sub}</p>
+      <p className="mt-1.5 text-[10px] text-text-muted">{sub}</p>
     </div>
   );
 }
@@ -176,12 +176,12 @@ function KpiCard({ label, value, sub, icon, color, border }: {
 function Empty({ msg }: { msg: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.04]">
-        <svg className="h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-text-primary/[0.04]">
+        <svg className="h-4 w-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
         </svg>
       </div>
-      <p className="text-[12px] text-slate-600">{msg}</p>
+      <p className="text-[12px] text-text-muted">{msg}</p>
     </div>
   );
 }
@@ -191,10 +191,10 @@ function Card({ title, action, children, className = "" }: {
   title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className={`rounded-[20px] border border-white/8 bg-white/[0.025] p-4 ${className}`}>
+    <div className={`rounded-[20px] border border-surface-border/8 bg-text-primary/[0.025] p-4 ${className}`}>
       {(title || action) && (
         <div className="mb-3 flex items-center justify-between">
-          {title && <h3 className="text-[12px] font-semibold uppercase tracking-wider text-slate-500">{title}</h3>}
+          {title && <h3 className="text-[12px] font-semibold uppercase tracking-wider text-text-muted">{title}</h3>}
           {action}
         </div>
       )}
@@ -220,7 +220,7 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
         <div className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent"/>
           <div>
-            <span className="text-[13px] font-semibold text-amber-300">AI enrichment in progress</span>
+            <span className="text-[13px] font-semibold text-amber-600 dark:text-amber-300">AI enrichment in progress</span>
             <span className="ml-2 text-[11px] text-amber-400/70">Companies, sectors, timeline will populate automatically.</span>
           </div>
         </div>
@@ -237,11 +237,11 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
             </div>
             <div className="flex-1 min-w-0">
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-400">What Happened</p>
-              <p className="text-[13px] leading-5 text-slate-300">{data.summary.text}</p>
+              <p className="text-[13px] leading-5 text-text-secondary">{data.summary.text}</p>
               {data.summary.key_bullets?.length > 0 && (
                 <ul className="mt-3 space-y-1">
                   {data.summary.key_bullets.slice(0, 3).map((b, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[12px] text-slate-400">
+                    <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary">
                       <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400"/>
                       {b}
                     </li>
@@ -257,17 +257,17 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card title="Beneficiaries"
           action={data.beneficiaries.length > 3
-            ? <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-300">View All →</button>
+            ? <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">View All →</button>
             : undefined}>
           {data.beneficiaries.length === 0 ? <Empty msg="No beneficiaries identified yet"/> : (
             <div className="space-y-2">
               {data.beneficiaries.slice(0, 5).map((c, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="w-4 text-[10px] text-slate-600 text-right">{i + 1}</span>
+                  <span className="w-4 text-[10px] text-text-muted text-right">{i + 1}</span>
                   {isRealSymbol(c.symbol) ? (
-                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 hover:text-emerald-300 transition truncate">{c.name || c.symbol}</Link>
+                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-text-primary hover:text-emerald-600 dark:text-emerald-300 transition truncate">{c.name || c.symbol}</Link>
                   ) : (
-                    <span className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 truncate">{c.name}</span>
+                    <span className="flex-1 min-w-0 text-[12px] font-medium text-text-primary truncate">{c.name}</span>
                   )}
                   <span className="shrink-0 text-[12px] font-bold text-emerald-400">{c.impact_score === null || c.impact_score === undefined ? "—" : `+${Math.round(c.impact_score)}`}</span>
                 </div>
@@ -278,17 +278,17 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
 
         <Card title="At Risk"
           action={data.losers.length > 3
-            ? <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-300">View All →</button>
+            ? <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">View All →</button>
             : undefined}>
           {data.losers.length === 0 ? <Empty msg="No negatively affected companies yet"/> : (
             <div className="space-y-2">
               {data.losers.slice(0, 5).map((c, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="w-4 text-[10px] text-slate-600 text-right">{i + 1}</span>
+                  <span className="w-4 text-[10px] text-text-muted text-right">{i + 1}</span>
                   {isRealSymbol(c.symbol) ? (
-                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 hover:text-rose-300 transition truncate">{c.name || c.symbol}</Link>
+                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-text-primary hover:text-rose-600 dark:text-rose-300 transition truncate">{c.name || c.symbol}</Link>
                   ) : (
-                    <span className="flex-1 min-w-0 text-[12px] font-medium text-slate-200 truncate">{c.name}</span>
+                    <span className="flex-1 min-w-0 text-[12px] font-medium text-text-primary truncate">{c.name}</span>
                   )}
                   <span className="shrink-0 text-[12px] font-bold text-rose-400">{c.impact_score === null || c.impact_score === undefined ? "—" : Math.round(c.impact_score)}</span>
                 </div>
@@ -299,13 +299,13 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
 
         <Card title="Affected Sectors"
           action={data.affectedSectors.length > 3
-            ? <button onClick={() => goTab("Sectors")} className="text-[11px] text-sky-400 hover:text-sky-300">View All →</button>
+            ? <button onClick={() => goTab("Sectors")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">View All →</button>
             : undefined}>
           {data.affectedSectors.length === 0 ? <Empty msg="No sectors identified yet"/> : (
             <div className="space-y-2">
               {data.affectedSectors.slice(0, 5).map((s, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="flex-1 text-[12px] text-slate-300 truncate">{s.sector}</span>
+                  <span className="flex-1 text-[12px] text-text-secondary truncate">{s.sector}</span>
                   <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold capitalize ${impactBg(s.impact)}`}>
                     {s.impact === "positive" ? "Positive" : s.impact === "negative" ? "Negative" : "Neutral"}
                   </span>
@@ -320,7 +320,7 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
       <div className="grid grid-cols-2 gap-3">
         <Card title="Timeline"
           action={data.timeline.length > 3
-            ? <button onClick={() => goTab("Timeline")} className="text-[11px] text-sky-400 hover:text-sky-300">Full Timeline →</button>
+            ? <button onClick={() => goTab("Timeline")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">Full Timeline →</button>
             : undefined}>
           {data.timeline.length === 0 ? <Empty msg="Timeline not yet generated"/> : (
             <div>
@@ -328,12 +328,12 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
                 <div key={i} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <div className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${i === 0 ? "bg-violet-400" : "bg-slate-600"}`}/>
-                    {i < Math.min(data.timeline.length - 1, 3) && <div className="w-0.5 flex-1 bg-white/[0.05] my-1 min-h-[16px]"/>}
+                    {i < Math.min(data.timeline.length - 1, 3) && <div className="w-0.5 flex-1 bg-text-primary/[0.05] my-1 min-h-[16px]"/>}
                   </div>
                   <div className="pb-3">
-                    <p className="text-[10px] text-slate-500">{t.date}</p>
-                    <p className="text-[12px] font-semibold text-slate-200">{t.title}</p>
-                    {t.description && <p className="text-[11px] text-slate-500 line-clamp-2">{t.description}</p>}
+                    <p className="text-[10px] text-text-muted">{t.date}</p>
+                    <p className="text-[12px] font-semibold text-text-primary">{t.title}</p>
+                    {t.description && <p className="text-[11px] text-text-muted line-clamp-2">{t.description}</p>}
                   </div>
                 </div>
               ))}
@@ -343,24 +343,24 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
 
         <Card title="Historical Similar Events"
           action={data.historicalEvents.length > 2
-            ? <button onClick={() => goTab("Historical")} className="text-[11px] text-sky-400 hover:text-sky-300">View All →</button>
+            ? <button onClick={() => goTab("Historical")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">View All →</button>
             : undefined}>
           {data.historicalEvents.length === 0 ? <Empty msg="No similar historical events found"/> : (
             <div className="space-y-3">
               {data.historicalEvents.slice(0, 3).map((he, i) => (
                 <Link key={i} href={`/events/${he.id}`}
-                  className="flex items-start gap-3 rounded-xl border border-white/[0.05] p-2.5 hover:border-sky-500/20 hover:bg-sky-500/[0.04] transition block">
-                  <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-xl bg-white/[0.05]">
-                    <span className="text-[14px] font-black text-slate-200">{he.impact_score === null || he.impact_score === undefined ? "—" : Math.round(he.impact_score)}</span>
+                  className="flex items-start gap-3 rounded-xl border border-surface-border/5 p-2.5 hover:border-sky-500/20 hover:bg-sky-500/[0.04] transition block">
+                  <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-xl bg-text-primary/[0.05]">
+                    <span className="text-[14px] font-black text-text-primary">{he.impact_score === null || he.impact_score === undefined ? "—" : Math.round(he.impact_score)}</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-medium text-slate-200 line-clamp-2">{he.title}</p>
+                    <p className="text-[12px] font-medium text-text-primary line-clamp-2">{he.title}</p>
                     {he.similarity_score !== null && he.similarity_score !== undefined && he.similarity_score > 0 && (
                       <div className="mt-1 flex items-center gap-1">
-                        <div className="h-1 flex-1 rounded bg-white/[0.05]">
+                        <div className="h-1 flex-1 rounded bg-text-primary/[0.05]">
                           <div className="h-1 rounded bg-violet-500" style={{ width: `${Math.round(he.similarity_score * 100)}%` }}/>
                         </div>
-                        <span className="text-[9px] text-slate-500">{Math.round(he.similarity_score * 100)}% similar</span>
+                        <span className="text-[9px] text-text-muted">{Math.round(he.similarity_score * 100)}% similar</span>
                       </div>
                     )}
                   </div>
@@ -372,22 +372,22 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
       </div>
 
       {/* Level 3: Deep Research — collapsed by default */}
-      <div className="overflow-hidden rounded-[20px] border border-white/[0.06] bg-white/[0.01]">
+      <div className="overflow-hidden rounded-[20px] border border-surface-border/6 bg-text-primary/[0.01]">
         <button
           onClick={() => setDeepOpen(o => !o)}
-          className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03]"
+          className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-text-primary/[0.03]"
         >
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-slate-300">Deep Research</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">Thesis · Scenarios · Patterns · Monitoring · Multi-horizon outlook</p>
+            <p className="text-[13px] font-semibold text-text-secondary">Deep Research</p>
+            <p className="mt-0.5 text-[11px] text-text-muted">Thesis · Scenarios · Patterns · Monitoring · Multi-horizon outlook</p>
           </div>
-          <svg className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${deepOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${deepOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
           </svg>
         </button>
 
         {deepOpen && (
-          <div className="space-y-4 border-t border-white/[0.06] p-4">
+          <div className="space-y-4 border-t border-surface-border/6 p-4">
             {data.confidence !== null && data.confidence !== undefined && data.confidence > 0 && (
               <AITransparencyPanel
                 confidence={data.confidence ?? undefined}
@@ -499,13 +499,13 @@ function CompaniesTab({ data }: { data: EventDetail }) {
               const real = isRealSymbol(c.symbol);
               const avatar = (
                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold
-                  ${group.color === "emerald" ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}
+                  ${group.color === "emerald" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/20 text-rose-600 dark:text-rose-300"}
                   ${real ? "transition hover:opacity-80" : ""}`}>
                   {(real ? c.symbol : c.name).slice(0, 3)}
                 </div>
               );
               const nameEl = (
-                <span className="text-[13px] font-semibold text-white">{c.name || c.symbol}</span>
+                <span className="text-[13px] font-semibold text-text-primary">{c.name || c.symbol}</span>
               );
               return (
               <div key={i} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5
@@ -513,18 +513,18 @@ function CompaniesTab({ data }: { data: EventDetail }) {
                 {real ? <Link href={`/companies/${c.symbol}`}>{avatar}</Link> : avatar}
                 <div className="min-w-0 flex-1">
                   {real ? (
-                    <Link href={`/companies/${c.symbol}`} className="hover:text-sky-300 transition">{nameEl}</Link>
+                    <Link href={`/companies/${c.symbol}`} className="hover:text-sky-600 dark:text-sky-300 transition">{nameEl}</Link>
                   ) : nameEl}
-                  {c.reason && <p className="text-[11px] text-slate-500 line-clamp-1">{c.reason}</p>}
+                  {c.reason && <p className="text-[11px] text-text-muted line-clamp-1">{c.reason}</p>}
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-[10px] text-slate-500">Impact</p>
-                  <p className={`text-[14px] font-black ${c.impact_score === null || c.impact_score === undefined ? "text-slate-500" : group.color === "emerald" ? "text-emerald-400" : "text-rose-400"}`}>
+                  <p className="text-[10px] text-text-muted">Impact</p>
+                  <p className={`text-[14px] font-black ${c.impact_score === null || c.impact_score === undefined ? "text-text-muted" : group.color === "emerald" ? "text-emerald-400" : "text-rose-400"}`}>
                     {c.impact_score === null || c.impact_score === undefined ? "—" : c.impact_score.toFixed(0)}
                   </p>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold
-                  ${group.color === "emerald" ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}`}>
+                  ${group.color === "emerald" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/20 text-rose-600 dark:text-rose-300"}`}>
                   {group.tag}
                 </span>
               </div>
@@ -552,16 +552,16 @@ function SectorsTab({ data }: { data: EventDetail }) {
           return (
             <div key={i}>
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-[13px] font-medium text-slate-200">{s.sector}</span>
+                <span className="text-[13px] font-medium text-text-primary">{s.sector}</span>
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize ${impactBg(s.impact)}`}>{s.impact}</span>
               </div>
-              <div className="h-1.5 rounded-full bg-white/[0.06]">
+              <div className="h-1.5 rounded-full bg-text-primary/[0.06]">
                 {score !== null && score !== undefined && (
                   <div className={`h-1.5 rounded-full ${s.impact === "positive" ? "bg-emerald-500" : s.impact === "negative" ? "bg-rose-500" : "bg-amber-500"}`}
                     style={{ width: `${(score / maxScore) * 100}%` }}/>
                 )}
               </div>
-              <p className="mt-0.5 text-[10px] text-slate-500">{score !== null && score !== undefined ? `Score: ${score.toFixed(1)}` : "Score: Unscored"}</p>
+              <p className="mt-0.5 text-[10px] text-text-muted">{score !== null && score !== undefined ? `Score: ${score.toFixed(1)}` : "Score: Unscored"}</p>
             </div>
           );
         })}
@@ -579,13 +579,13 @@ function TimelineTab({ data }: { data: EventDetail }) {
         {data.timeline.map((t, i) => (
           <div key={i} className="flex gap-4">
             <div className="flex flex-col items-center">
-              <div className={`mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${i === 0 ? "border-violet-400 bg-violet-400" : "border-slate-600 bg-transparent"}`}/>
-              {i < data.timeline.length - 1 && <div className="w-0.5 flex-1 bg-white/[0.06] my-1 min-h-[24px]"/>}
+              <div className={`mt-1 h-3 w-3 shrink-0 rounded-full border-2 ${i === 0 ? "border-violet-400 bg-violet-400" : "border-surface-border/10 bg-transparent"}`}/>
+              {i < data.timeline.length - 1 && <div className="w-0.5 flex-1 bg-text-primary/[0.06] my-1 min-h-[24px]"/>}
             </div>
             <div className="pb-5">
-              <p className="text-[11px] text-slate-500 mb-0.5">{t.date}</p>
-              <p className="text-[14px] font-semibold text-white">{t.title}</p>
-              {t.description && <p className="mt-1 text-[13px] leading-5 text-slate-400">{t.description}</p>}
+              <p className="text-[11px] text-text-muted mb-0.5">{t.date}</p>
+              <p className="text-[14px] font-semibold text-text-primary">{t.title}</p>
+              {t.description && <p className="mt-1 text-[13px] leading-5 text-text-secondary">{t.description}</p>}
             </div>
           </div>
         ))}
@@ -616,14 +616,14 @@ function NewsTab({ data }: { data: EventDetail }) {
   return (
     <div className="space-y-3">
       {data.relatedNews.map((n, i) => (
-        <div key={i} className="flex items-start gap-3 rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 text-[13px] font-bold text-sky-300">
+        <div key={i} className="flex items-start gap-3 rounded-[20px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 text-[13px] font-bold text-sky-600 dark:text-sky-300">
             {srcInitials(n.source)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-semibold text-white">{n.headline}</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">{n.source} · {n.published_at?.slice(0, 10)}</p>
-            {n.summary && <p className="mt-1.5 text-[12px] text-slate-400 line-clamp-2">{n.summary}</p>}
+            <p className="text-[14px] font-semibold text-text-primary">{n.headline}</p>
+            <p className="mt-0.5 text-[11px] text-text-muted">{n.source} · {n.published_at?.slice(0, 10)}</p>
+            {n.summary && <p className="mt-1.5 text-[12px] text-text-secondary line-clamp-2">{n.summary}</p>}
           </div>
         </div>
       ))}
@@ -643,14 +643,14 @@ function MarketTab({ data }: { data: EventDetail }) {
           { label: "Base Case", v: ai.base_case, color: "text-amber-400",   border: "border-amber-500/20",  prob: 50 },
           { label: "Bear Case", v: ai.bear_case, color: "text-rose-400",    border: "border-rose-500/20",   prob: 20 },
         ].filter(x => x.v).map(x => (
-          <div key={x.label} className={`rounded-[20px] border bg-white/[0.02] p-4 ${x.border}`}>
+          <div key={x.label} className={`rounded-[20px] border bg-text-primary/[0.02] p-4 ${x.border}`}>
             <div className="mb-2 flex items-center justify-between">
               <p className={`text-[10px] font-bold uppercase tracking-wider ${x.color}`}>{x.label}</p>
               <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${x.color} border-current/20`}>
                 {x.prob}%
               </span>
             </div>
-            <p className="text-[13px] leading-5 text-slate-300">{x.v}</p>
+            <p className="text-[13px] leading-5 text-text-secondary">{x.v}</p>
           </div>
         ))}
       </div>
@@ -664,8 +664,8 @@ function MarketTab({ data }: { data: EventDetail }) {
               { label: "Volatility",  v: mr.volatility  },
               { label: "Sentiment",   v: mr.sentiment   },
             ].map(row => (
-              <div key={row.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-center">
-                <p className="text-[10px] text-slate-500">{row.label}</p>
+              <div key={row.label} className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3 text-center">
+                <p className="text-[10px] text-text-muted">{row.label}</p>
                 <span className={`mt-1.5 inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize ${impactBg(row.v)}`}>
                   {row.v || "—"}
                 </span>
@@ -680,7 +680,7 @@ function MarketTab({ data }: { data: EventDetail }) {
           <Card title="Key Risks">
             <ul className="space-y-2">
               {ai.key_risks.map((r, i) => (
-                <li key={i} className="flex items-start gap-2 text-[13px] text-slate-300">
+                <li key={i} className="flex items-start gap-2 text-[13px] text-text-secondary">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"/>{r}
                 </li>
               ))}
@@ -691,7 +691,7 @@ function MarketTab({ data }: { data: EventDetail }) {
           <Card title="Growth Catalysts">
             <ul className="space-y-2">
               {ai.catalysts.map((c, i) => (
-                <li key={i} className="flex items-start gap-2 text-[13px] text-slate-300">
+                <li key={i} className="flex items-start gap-2 text-[13px] text-text-secondary">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400"/>{c}
                 </li>
               ))}
@@ -713,13 +713,13 @@ function GraphTab({ data }: { data: EventDetail }) {
   }));
   const rfEdges = data.graph.edges.map((e, i) => ({
     id: `e${i}`, source: e.source, target: e.target, label: e.relationship,
-    style: { stroke: "rgba(255,255,255,0.15)" }, labelStyle: { fill: "#94a3b8", fontSize: 9 },
+    style: { stroke: "rgb(var(--text-primary) / 0.15)" }, labelStyle: { fill: "#94a3b8", fontSize: 9 },
   }));
   return (
-    <div className="h-[600px] w-full overflow-hidden rounded-[20px] border border-white/10">
+    <div className="h-[600px] w-full overflow-hidden rounded-[20px] border border-surface-border/10">
       <ReactFlow nodes={rfNodes} edges={rfEdges} fitView>
-        <Background color="#1e293b" gap={16}/>
-        <Controls style={{ background: "rgba(255,255,255,0.05)" }}/>
+        <Background color="rgb(var(--surface-border))" gap={16}/>
+        <Controls style={{ background: "rgb(var(--text-primary) / 0.05)" }}/>
       </ReactFlow>
     </div>
   );
@@ -759,15 +759,15 @@ function RightPanel({
         </div>
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-slate-500">Impact Score</span>
+            <span className="text-[11px] text-text-muted">Impact Score</span>
             <span className={`text-[12px] font-bold ${sc.text}`}>{hasRealScore(data.impactScore) ? Math.round(data.impactScore) : "—"}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-slate-500">Confidence</span>
-            <span className="text-[12px] font-bold text-slate-200">{data.confidence === null || data.confidence === undefined ? "—" : `${Math.round(data.confidence)}%`}</span>
+            <span className="text-[11px] text-text-muted">Confidence</span>
+            <span className="text-[12px] font-bold text-text-primary">{data.confidence === null || data.confidence === undefined ? "—" : `${Math.round(data.confidence)}%`}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-slate-500">Assessment</span>
+            <span className="text-[11px] text-text-muted">Assessment</span>
             <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${sc.text} border-current/30`}>
               {scoreLabel(data.impactScore)}
             </span>
@@ -784,7 +784,7 @@ function RightPanel({
                 <Pie data={sectorData} cx="50%" cy="50%" innerRadius={28} outerRadius={44} paddingAngle={2} dataKey="value" strokeWidth={0}>
                   {sectorData.map((e, i) => <Cell key={i} fill={e.color}/>)}
                 </Pie>
-                <RechartsTip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 10 }}/>
+                <RechartsTip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 8, fontSize: 10 }}/>
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -792,7 +792,7 @@ function RightPanel({
             {sectorData.map((s, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <div className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }}/>
-                <span className="flex-1 text-[10px] text-slate-400 truncate">{s.name}</span>
+                <span className="flex-1 text-[10px] text-text-secondary truncate">{s.name}</span>
               </div>
             ))}
           </div>
@@ -802,16 +802,16 @@ function RightPanel({
       {/* Market Chart */}
       <Card>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-[12px] font-semibold uppercase tracking-wider text-slate-500">Market Reaction</h3>
+          <h3 className="text-[12px] font-semibold uppercase tracking-wider text-text-muted">Market Reaction</h3>
           <div className="flex items-center gap-1.5">
             <div className={`h-1.5 w-1.5 rounded-full ${status?.is_open ? "bg-emerald-400 animate-pulse" : "bg-slate-600"}`}/>
-            <span className="text-[10px] text-slate-500 capitalize">{status?.status ?? "—"}</span>
+            <span className="text-[10px] text-text-muted capitalize">{status?.status ?? "—"}</span>
           </div>
         </div>
         <div className="mb-2 flex gap-1">
           {periods.map(p => (
             <button key={p} onClick={() => onPeriod(p)}
-              className={`flex-1 rounded-lg py-1 text-[10px] font-semibold transition ${chartPeriod === p ? "bg-white/[0.10] text-white" : "text-slate-500 hover:text-slate-300"}`}>
+              className={`flex-1 rounded-lg py-1 text-[10px] font-semibold transition ${chartPeriod === p ? "bg-text-primary/[0.10] text-text-primary" : "text-text-muted hover:text-text-secondary"}`}>
               {p}
             </button>
           ))}
@@ -828,21 +828,21 @@ function RightPanel({
                 </defs>
                 <XAxis dataKey="label" hide/>
                 <YAxis domain={["auto","auto"]} hide/>
-                <RechartsTip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 10, padding: "4px 8px" }} formatter={(v: number) => [v.toLocaleString("en-IN"), ""]}/>
+                <RechartsTip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 6, fontSize: 10, padding: "4px 8px" }} formatter={(v: number) => [v.toLocaleString("en-IN"), ""]}/>
                 <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={1.5} fill="url(#aGrad)"/>
               </AreaChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex h-full items-center justify-center">
-              <p className="text-[11px] text-slate-600">Fetching market data…</p>
+              <p className="text-[11px] text-text-muted">Fetching market data…</p>
             </div>
           )}
         </div>
         {indices.length > 0 && (
-          <div className="mt-3 space-y-2 border-t border-white/[0.06] pt-3">
+          <div className="mt-3 space-y-2 border-t border-surface-border/6 pt-3">
             {indices.map((idx, i) => (
               <div key={i} className="flex items-center justify-between">
-                <span className="text-[11px] text-slate-400 truncate">{idx.name}</span>
+                <span className="text-[11px] text-text-secondary truncate">{idx.name}</span>
                 <span className={`text-[12px] font-bold ${idx.positive ? "text-emerald-400" : "text-rose-400"}`}>{idx.change_str || "—"}</span>
               </div>
             ))}
@@ -856,12 +856,12 @@ function RightPanel({
           <div className="space-y-3">
             {data.relatedNews.slice(0, 3).map((n, i) => (
               <div key={i} className="flex items-start gap-2.5">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-[10px] font-bold text-slate-400">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-text-primary/[0.06] text-[10px] font-bold text-text-secondary">
                   {srcInitials(n.source)}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-slate-200 line-clamp-2 leading-4">{n.headline}</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">{n.source} · {n.published_at?.slice(0, 10)}</p>
+                  <p className="text-[11px] font-medium text-text-primary line-clamp-2 leading-4">{n.headline}</p>
+                  <p className="mt-0.5 text-[10px] text-text-muted">{n.source} · {n.published_at?.slice(0, 10)}</p>
                 </div>
               </div>
             ))}
@@ -874,7 +874,7 @@ function RightPanel({
         <Card title="Government Policies">
           <div className="space-y-3">
             {data.governmentPolicies.map((p, i) => (
-              <div key={i} className="flex items-start gap-2.5 border-b border-white/[0.05] pb-3 last:border-0 last:pb-0">
+              <div key={i} className="flex items-start gap-2.5 border-b border-surface-border/5 pb-3 last:border-0 last:pb-0">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/20">
                   <svg className="h-3.5 w-3.5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -882,9 +882,9 @@ function RightPanel({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-1">
-                    <p className="text-[12px] font-medium text-slate-200 line-clamp-2">{p.title}</p>
+                    <p className="text-[12px] font-medium text-text-primary line-clamp-2">{p.title}</p>
                   </div>
-                  <p className="text-[10px] text-slate-500">{p.ministry} · {p.announcement_date?.slice(0, 10)}</p>
+                  <p className="text-[10px] text-text-muted">{p.ministry} · {p.announcement_date?.slice(0, 10)}</p>
                 </div>
               </div>
             ))}
@@ -926,7 +926,7 @@ function VerdictCard({ data }: { data: EventDetail }) {
   const sc = scoreColor(score);
 
   return (
-    <div className="mb-5 rounded-[20px] border border-sky-500/[0.15] bg-gradient-to-r from-[#06101f] to-[#080d1c] p-5">
+    <div className="mb-5 rounded-[20px] border border-sky-500/[0.15] bg-gradient-to-r from-surface-card to-surface-bg p-5">
       <div className="flex items-start gap-5">
         {/* Verdict */}
         <div className="min-w-0 flex-1">
@@ -934,9 +934,9 @@ function VerdictCard({ data }: { data: EventDetail }) {
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-400">AI Verdict</p>
           </div>
-          <p className="text-[15px] font-semibold leading-snug text-white">{verdict}</p>
+          <p className="text-[15px] font-semibold leading-snug text-text-primary">{verdict}</p>
           {whyLine && (
-            <p className="mt-1.5 text-[13px] leading-5 text-slate-400">{whyLine}.</p>
+            <p className="mt-1.5 text-[13px] leading-5 text-text-secondary">{whyLine}.</p>
           )}
         </div>
 
@@ -946,42 +946,42 @@ function VerdictCard({ data }: { data: EventDetail }) {
             <div>
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-500">Top Pick</p>
               <Link href={`/companies/${topBen.symbol}`}
-                className="block text-[14px] font-bold text-emerald-300 transition hover:text-emerald-200">
+                className="block text-[14px] font-bold text-emerald-600 dark:text-emerald-300 transition hover:text-emerald-700 dark:text-emerald-200">
                 {topBen.name || topBen.symbol}
               </Link>
-              <p className="text-[10px] text-slate-500">↑ Benefits most</p>
+              <p className="text-[10px] text-text-muted">↑ Benefits most</p>
             </div>
           )}
           {topRisk && (
             <div>
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-rose-500">Caution</p>
               <Link href={`/companies/${topRisk.symbol}`}
-                className="block text-[14px] font-bold text-rose-300 transition hover:text-rose-200">
+                className="block text-[14px] font-bold text-rose-600 dark:text-rose-300 transition hover:text-rose-700 dark:text-rose-200">
                 {topRisk.name || topRisk.symbol}
               </Link>
-              <p className="text-[10px] text-slate-500">↓ At risk</p>
+              <p className="text-[10px] text-text-muted">↓ At risk</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Action row */}
-      <div className="mt-4 flex items-center gap-3 border-t border-white/[0.05] pt-3">
+      <div className="mt-4 flex items-center gap-3 border-t border-surface-border/5 pt-3">
         <Link
           href={`/ai-search?q=${encodeURIComponent(`What should I do about: ${data.event.title}`)}`}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-[13px] font-bold text-white transition hover:bg-violet-500"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-[13px] font-bold text-text-primary transition hover:bg-violet-500"
         >
           <Sparkles className="h-3.5 w-3.5" />
           Ask AI what this means for me
         </Link>
         {topBen && (
           <Link href={`/companies/${topBen.symbol}`}
-            className="text-[12px] font-medium text-emerald-400 transition hover:text-emerald-300">
+            className="text-[12px] font-medium text-emerald-400 transition hover:text-emerald-600 dark:text-emerald-300">
             Research {topBen.name || topBen.symbol} →
           </Link>
         )}
         <Link href={`/ripple/${data.event.id}`}
-          className="ml-auto text-[12px] font-medium text-slate-500 transition hover:text-slate-300">
+          className="ml-auto text-[12px] font-medium text-text-muted transition hover:text-text-secondary">
           See ripple chain →
         </Link>
       </div>
@@ -1049,18 +1049,18 @@ function WhatNextSection({ data }: { data: EventDetail }) {
 function Skeleton() {
   return (
     <div className="animate-pulse space-y-4">
-      <div className="h-8 w-48 rounded-xl bg-white/[0.04]"/>
-      <div className="h-28 rounded-[20px] bg-white/[0.04]"/>
+      <div className="h-8 w-48 rounded-xl bg-text-primary/[0.04]"/>
+      <div className="h-28 rounded-[20px] bg-text-primary/[0.04]"/>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[1,2,3,4].map(i => <div key={i} className="h-24 rounded-[20px] bg-white/[0.04]"/>)}
+        {[1,2,3,4].map(i => <div key={i} className="h-24 rounded-[20px] bg-text-primary/[0.04]"/>)}
       </div>
-      <div className="h-10 rounded-xl bg-white/[0.04]"/>
+      <div className="h-10 rounded-xl bg-text-primary/[0.04]"/>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
         <div className="space-y-3">
-          {[160,200,140].map((h,i) => <div key={i} className="rounded-[20px] bg-white/[0.04]" style={{ height: h }}/>)}
+          {[160,200,140].map((h,i) => <div key={i} className="rounded-[20px] bg-text-primary/[0.04]" style={{ height: h }}/>)}
         </div>
         <div className="space-y-3">
-          {[140,180,120].map((h,i) => <div key={i} className="rounded-[20px] bg-white/[0.04]" style={{ height: h }}/>)}
+          {[140,180,120].map((h,i) => <div key={i} className="rounded-[20px] bg-text-primary/[0.04]" style={{ height: h }}/>)}
         </div>
       </div>
     </div>
@@ -1132,10 +1132,10 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
 
   if (error || !data) return (
     <main className="min-w-0 pb-10 flex flex-col items-center justify-center py-32">
-      <MailX className="h-8 w-8 text-slate-500 mb-3" />
-      <p className="text-xl font-bold text-slate-400">Event not found</p>
-      <p className="mt-1 text-[13px] text-slate-600">{error}</p>
-      <Link href="/events" className="mt-5 flex items-center gap-1.5 text-sm text-sky-400 hover:text-sky-300 transition">
+      <MailX className="h-8 w-8 text-text-muted mb-3" />
+      <p className="text-xl font-bold text-text-secondary">Event not found</p>
+      <p className="mt-1 text-[13px] text-text-muted">{error}</p>
+      <Link href="/events" className="mt-5 flex items-center gap-1.5 text-sm text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
         </svg>
@@ -1148,15 +1148,15 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
   const sc = scoreColor(data.impactScore);
 
   const CATEGORY_PILL: Record<string,string> = {
-    Government: "bg-violet-500/20 text-violet-300 border-violet-500/30",
-    Policy:     "bg-sky-500/20 text-sky-300 border-sky-500/30",
-    Corporate:  "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-    RBI:        "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
-    Macro:      "bg-amber-500/20 text-amber-300 border-amber-500/30",
-    Global:     "bg-slate-500/30 text-slate-300 border-slate-500/30",
-    Results:    "bg-teal-500/20 text-teal-300 border-teal-500/30",
+    Government: "bg-violet-500/20 text-violet-600 dark:text-violet-300 border-violet-500/30",
+    Policy:     "bg-sky-500/20 text-sky-600 dark:text-sky-300 border-sky-500/30",
+    Corporate:  "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30",
+    RBI:        "bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border-indigo-500/30",
+    Macro:      "bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/30",
+    Global:     "bg-slate-500/30 text-text-secondary border-surface-border/7",
+    Results:    "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/30",
   };
-  const catPill = CATEGORY_PILL[ev.event_type] ?? "bg-slate-500/20 text-slate-300 border-slate-500/30";
+  const catPill = CATEGORY_PILL[ev.event_type] ?? "bg-slate-500/20 text-text-secondary border-surface-border/7";
 
   return (
     <main className="min-w-0 pb-10">
@@ -1165,15 +1165,15 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
 
       {/* ── Breadcrumb + actions ───────────────────────────────────────── */}
       <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-[12px] text-slate-500">
-          <Link href="/events" className="flex items-center gap-1 hover:text-slate-300 transition">
+        <div className="flex items-center gap-2 text-[12px] text-text-muted">
+          <Link href="/events" className="flex items-center gap-1 hover:text-text-secondary transition">
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
             </svg>
             Events
           </Link>
-          <span className="text-slate-700">/</span>
-          <span className="text-slate-400 truncate max-w-[320px]">{ev.title}</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text-secondary truncate max-w-[320px]">{ev.title}</span>
         </div>
         <div className="flex items-center gap-2">
           <ShareInsightCard
@@ -1182,7 +1182,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
             title={ev.title}
             summary={data.summary?.text}
           />
-          <button className="flex items-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[12px] text-violet-300 hover:bg-violet-500/20 transition">
+          <button className="flex items-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[12px] text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 transition">
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
             </svg>
@@ -1194,7 +1194,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
       {/* ── Contextual quick links ────────────────────────────────────── */}
       <div className="mb-4 flex flex-wrap gap-2">
         <Link href="/market-intelligence"
-          className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold text-violet-300 hover:bg-violet-500/20 transition">
+          className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 transition">
           ✦ Intelligence Feed
         </Link>
         <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${ev.title}`)}`} />
@@ -1206,8 +1206,8 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
 
       {/* ── Page title + event header ──────────────────────────────────── */}
       <div className="mb-5">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600">Event Explorer</p>
-        <div className="rounded-[24px] border border-white/8 bg-white/[0.025] p-5">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted">Event Explorer</p>
+        <div className="rounded-[24px] border border-surface-border/8 bg-text-primary/[0.025] p-5">
           <div className="flex items-start gap-5">
             <div className="min-w-0 flex-1">
               <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1218,7 +1218,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
                   </span>
                 )}
                 {ev.enrichment_status !== "done" && (
-                  <span className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
+                  <span className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-600 dark:text-amber-300">
                     <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400"/>
                     AI enriching…
                   </span>
@@ -1229,14 +1229,14 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
                   back to rendering it here too if that fetch ever came
                   back empty. */}
               {initialDetail ? (
-                <p className="text-xl font-bold leading-snug text-white">{ev.title}</p>
+                <p className="text-xl font-bold leading-snug text-text-primary">{ev.title}</p>
               ) : (
-                <h1 className="text-xl font-bold leading-snug text-white">{ev.title}</h1>
+                <h1 className="text-xl font-bold leading-snug text-text-primary">{ev.title}</h1>
               )}
               {data.summary.text && (
-                <p className="mt-2 text-[13px] leading-5 text-slate-400 line-clamp-2">{data.summary.text}</p>
+                <p className="mt-2 text-[13px] leading-5 text-text-secondary line-clamp-2">{data.summary.text}</p>
               )}
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-text-muted">
                 {ev.event_date && <span>{fmt(ev.event_date)}</span>}
                 {ev.source && <><span>·</span><span>{ev.source}</span></>}
               </div>
@@ -1244,11 +1244,11 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
             <div className="flex shrink-0 items-center gap-4">
               <div className="text-center">
                 <ScoreRing score={data.impactScore} size={80}/>
-                <p className="mt-1 text-[10px] text-slate-500">Impact</p>
+                <p className="mt-1 text-[10px] text-text-muted">Impact</p>
               </div>
               <div className="text-center">
                 <ScoreRing score={data.confidence} size={80}/>
-                <p className="mt-1 text-[10px] text-slate-500">Confidence</p>
+                <p className="mt-1 text-[10px] text-text-muted">Confidence</p>
               </div>
             </div>
           </div>
@@ -1274,7 +1274,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
       )}
 
       {/* ── Tab bar ───────────────────────────────────────────────────────── */}
-      <div className="mb-5 flex items-center overflow-x-auto border-b border-white/[0.06] scrollbar-hide" role="tablist">
+      <div className="mb-5 flex items-center overflow-x-auto border-b border-surface-border/6 scrollbar-hide" role="tablist">
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             role="tab"
@@ -1282,15 +1282,15 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
             id={`tab-${tab.toLowerCase().replace(/\s+/g, "-")}`}
             className={`-mb-px whitespace-nowrap px-4 py-2.5 text-[13px] font-medium transition border-b-2 ${
               activeTab === tab
-                ? "border-violet-500 text-white"
-                : "border-transparent text-slate-500 hover:text-slate-300"
+                ? "border-violet-500 text-text-primary"
+                : "border-transparent text-text-muted hover:text-text-secondary"
             }`}>
             {tab}
             {tab === "Companies" && data.companies.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px] text-slate-400">{data.companies.length}</span>
+              <span className="ml-1.5 rounded-full bg-text-primary/[0.08] px-1.5 py-0.5 text-[9px] text-text-secondary">{data.companies.length}</span>
             )}
             {tab === "Related News" && data.relatedNews.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px] text-slate-400">{data.relatedNews.length}</span>
+              <span className="ml-1.5 rounded-full bg-text-primary/[0.08] px-1.5 py-0.5 text-[9px] text-text-secondary">{data.relatedNews.length}</span>
             )}
           </button>
         ))}

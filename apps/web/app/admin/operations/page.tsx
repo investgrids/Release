@@ -105,7 +105,7 @@ const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   market_wrap:              { label: "Wrap",        color: "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" },
   weekly_intelligence:      { label: "Weekly",      color: "bg-purple-500/15 text-purple-400 border-purple-500/25" },
   monthly_intelligence:     { label: "Monthly",     color: "bg-cyan-500/15 text-cyan-400 border-cyan-500/25" },
-  educational_intelligence: { label: "Education",   color: "bg-slate-500/15 text-slate-400 border-slate-600/30" },
+  educational_intelligence: { label: "Education",   color: "bg-slate-500/15 text-text-secondary border-surface-border/7" },
   historical_intelligence:  { label: "Historical",  color: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/25" },
 };
 
@@ -116,7 +116,7 @@ const LC_CFG: Record<string, { icon: React.ElementType; color: string; label: st
   validated:  { icon: Shield,       color: "text-teal-400",     label: "Validated" },
   failed:     { icon: XCircle,      color: "text-rose-400",     label: "Failed" },
   merged:     { icon: GitBranch,    color: "text-amber-400",    label: "Merged" },
-  archived:   { icon: Layers,       color: "text-slate-500",    label: "Archived" },
+  archived:   { icon: Layers,       color: "text-text-muted",    label: "Archived" },
 };
 
 const FILTER_TABS: { key: string; label: string; params: Record<string, string> }[] = [
@@ -170,9 +170,9 @@ function StatusDot({ active }: { active: boolean }) {
 
 function MetricPill({ label, value, warn = false }: { label: string; value: string | number; warn?: boolean }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 min-w-[100px]">
-      <div className={`text-[22px] font-bold tabular-nums ${warn ? "text-rose-400" : "text-white"}`}>{value}</div>
-      <div className="text-[10px] font-medium uppercase tracking-widest text-slate-600 mt-0.5 text-center">{label}</div>
+    <div className="flex flex-col items-center rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] px-4 py-3 min-w-[100px]">
+      <div className={`text-[22px] font-bold tabular-nums ${warn ? "text-rose-400" : "text-text-primary"}`}>{value}</div>
+      <div className="text-[10px] font-medium uppercase tracking-widest text-text-muted mt-0.5 text-center">{label}</div>
     </div>
   );
 }
@@ -186,13 +186,13 @@ const HEALTH_CFG: Record<string, { color: string; dot: string; border: string; b
   degraded: { color: "text-amber-400",   dot: "bg-amber-400",   border: "border-amber-500/20",   bg: "bg-amber-500/[0.03]",   emoji: "🟡" },
   busy:     { color: "text-orange-400",  dot: "bg-orange-400",  border: "border-orange-500/25",  bg: "bg-orange-500/[0.03]",  emoji: "🟠" },
   critical: { color: "text-rose-400",    dot: "bg-rose-400",    border: "border-rose-500/30",    bg: "bg-rose-500/[0.04]",    emoji: "🔴" },
-  offline:  { color: "text-slate-500",   dot: "bg-slate-600",   border: "border-white/[0.06]",   bg: "",                      emoji: "⚫" },
+  offline:  { color: "text-text-muted",   dot: "bg-slate-600",   border: "border-surface-border/6",   bg: "",                      emoji: "⚫" },
 };
 
 function HealthPill({ status, label }: { status: string; label: string }) {
   const cfg = HEALTH_CFG[status] ?? HEALTH_CFG.offline;
   return (
-    <span className={`flex items-center gap-1.5 rounded-full border ${cfg.border} bg-white/[0.02] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${cfg.color}`}>
+    <span className={`flex items-center gap-1.5 rounded-full border ${cfg.border} bg-text-primary/[0.02] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${cfg.color}`}>
       <span aria-hidden>{cfg.emoji}</span>
       {label}
     </span>
@@ -202,18 +202,18 @@ function HealthPill({ status, label }: { status: string; label: string }) {
 function EngineHealthCard({ e }: { e: EngineHealthRow }) {
   const cfg = HEALTH_CFG[e.health_status] ?? HEALTH_CFG.offline;
   return (
-    <div className={`rounded-2xl border ${cfg.border} ${cfg.bg} bg-white/[0.02] p-4`}>
+    <div className={`rounded-2xl border ${cfg.border} ${cfg.bg} bg-text-primary/[0.02] p-4`}>
       <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="text-[12px] font-bold text-white leading-tight">{e.name}</span>
+        <span className="text-[12px] font-bold text-text-primary leading-tight">{e.name}</span>
         <HealthPill status={e.health_status} label={e.health_label} />
       </div>
       <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[10px]">
-        <div className="text-slate-600">Success Rate <span className="block text-slate-300 font-medium tabular-nums">{e.success_rate != null ? `${e.success_rate}%` : "—"}</span></div>
-        <div className="text-slate-600">Queue <span className={`block font-medium tabular-nums ${e.health_status === "busy" ? "text-orange-400" : "text-slate-300"}`}>{e.queue_size}</span></div>
-        <div className="text-slate-600">Latency <span className="block text-slate-300 font-medium tabular-nums">{e.latency_ms != null ? `${Math.round(e.latency_ms)}ms` : "—"}</span></div>
-        <div className="text-slate-600">Last Run <span className="block text-slate-300 font-medium">{relTime(e.last_execution)}</span></div>
-        <div className="text-slate-600">Errors Today <span className={`block font-medium tabular-nums ${e.errors > 0 ? "text-rose-400" : "text-slate-300"}`}>{e.errors}</span></div>
-        <div className="text-slate-600">Version <span className="block text-slate-300 font-medium">{e.version}</span></div>
+        <div className="text-text-muted">Success Rate <span className="block text-text-secondary font-medium tabular-nums">{e.success_rate != null ? `${e.success_rate}%` : "—"}</span></div>
+        <div className="text-text-muted">Queue <span className={`block font-medium tabular-nums ${e.health_status === "busy" ? "text-orange-400" : "text-text-secondary"}`}>{e.queue_size}</span></div>
+        <div className="text-text-muted">Latency <span className="block text-text-secondary font-medium tabular-nums">{e.latency_ms != null ? `${Math.round(e.latency_ms)}ms` : "—"}</span></div>
+        <div className="text-text-muted">Last Run <span className="block text-text-secondary font-medium">{relTime(e.last_execution)}</span></div>
+        <div className="text-text-muted">Errors Today <span className={`block font-medium tabular-nums ${e.errors > 0 ? "text-rose-400" : "text-text-secondary"}`}>{e.errors}</span></div>
+        <div className="text-text-muted">Version <span className="block text-text-secondary font-medium">{e.version}</span></div>
       </div>
     </div>
   );
@@ -223,11 +223,11 @@ function SeoRing({ score }: { score: number }) {
   const r = 14, c = 16, circ = 2 * Math.PI * r;
   const dash = (score / 100) * circ;
   const color = score >= 80 ? "#34d399" : score >= 60 ? "#818cf8" : score > 0 ? "#fb923c" : "#374151";
-  if (!score) return <span className="text-[11px] text-slate-600">—</span>;
+  if (!score) return <span className="text-[11px] text-text-muted">—</span>;
   return (
     <div className="relative flex items-center justify-center" style={{ width: 36, height: 36 }}>
       <svg width={36} height={36} viewBox="0 0 32 32">
-        <circle cx={16} cy={16} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={2.5} />
+        <circle cx={16} cy={16} r={r} fill="none" stroke="rgb(var(--text-primary) / 0.05)" strokeWidth={2.5} />
         <circle cx={16} cy={16} r={r} fill="none" stroke={color} strokeWidth={2.5}
           strokeDasharray={`${dash} ${circ - dash}`} strokeLinecap="round"
           transform="rotate(-90 16 16)" />
@@ -242,10 +242,10 @@ function PerfBar({ label, value, max }: { label: string; value: number; max: num
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] text-slate-400">{label}</span>
-        <span className="text-[11px] font-bold text-white tabular-nums">{value.toFixed(2)}s</span>
+        <span className="text-[11px] text-text-secondary">{label}</span>
+        <span className="text-[11px] font-bold text-text-primary tabular-nums">{value.toFixed(2)}s</span>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+      <div className="h-1.5 w-full rounded-full bg-text-primary/[0.06] overflow-hidden">
         <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all" style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -266,14 +266,14 @@ function CampaignDrilldown({ campaign, onClose }: { campaign: Campaign; onClose:
   }
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 backdrop-blur-sm px-4 py-10" onClick={onClose}>
-      <div className="w-full max-w-2xl rounded-2xl border border-white/[0.1] bg-[#0a0e1a] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-2xl rounded-2xl border border-surface-border/10 bg-surface-card p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-1">Campaign Relationship Graph</div>
-            <h2 className="text-[16px] font-bold text-white leading-snug">{campaign.headline}</h2>
-            <div className="mt-1 text-[10px] font-mono text-slate-600">{campaign.event_group_id}</div>
+            <h2 className="text-[16px] font-bold text-text-primary leading-snug">{campaign.headline}</h2>
+            <div className="mt-1 text-[10px] font-mono text-text-muted">{campaign.event_group_id}</div>
           </div>
-          <button onClick={onClose} className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] text-slate-500 hover:text-white transition">
+          <button onClick={onClose} className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-surface-border/8 text-text-muted hover:text-text-primary transition">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -281,8 +281,8 @@ function CampaignDrilldown({ campaign, onClose }: { campaign: Campaign; onClose:
         <div className="space-y-4">
           {ANGLE_SECTION_ORDER.filter(k => grouped[k]?.length).map(key => (
             <div key={key}>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-2">
-                {ANGLE_SECTION_LABELS[key]} <span className="text-slate-700">({grouped[key].length})</span>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">
+                {ANGLE_SECTION_LABELS[key]} <span className="text-text-muted">({grouped[key].length})</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {grouped[key].map(a => (
@@ -292,7 +292,7 @@ function CampaignDrilldown({ campaign, onClose }: { campaign: Campaign; onClose:
                     target="_blank"
                     className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
                       a.status === "published"
-                        ? "border-white/10 bg-white/[0.03] text-slate-300 hover:border-violet-500/30 hover:text-violet-300"
+                        ? "border-surface-border/10 bg-text-primary/[0.03] text-text-secondary hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300"
                         : "border-rose-500/20 bg-rose-500/5 text-rose-500/70"
                     }`}
                   >
@@ -438,7 +438,7 @@ export default function OperationsIntelligence() {
   ) : 1;
 
   return (
-    <div className="min-h-screen bg-[#020617] pb-16">
+    <div className="min-h-screen bg-surface-card pb-16">
       {drilldown && <CampaignDrilldown campaign={drilldown} onClose={() => setDrilldown(null)} />}
       <div className="mx-auto max-w-[1440px] px-6 py-8">
 
@@ -447,32 +447,32 @@ export default function OperationsIntelligence() {
           <div>
             <div className="flex items-center gap-3 mb-1">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/25">
-                <Brain className="h-5 w-5 text-white" />
+                <Brain className="h-5 w-5 text-text-primary" />
               </div>
               <div>
-                <h1 className="text-[20px] font-bold text-white leading-tight">AI Operations Control Center</h1>
-                <p className="text-[11px] text-slate-500">Internal only — health, throughput &amp; status of the intelligence platform</p>
+                <h1 className="text-[20px] font-bold text-text-primary leading-tight">AI Operations Control Center</h1>
+                <p className="text-[11px] text-text-muted">Internal only — health, throughput &amp; status of the intelligence platform</p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-600" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
               <input
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 placeholder="Search events, companies, sectors, themes…"
-                className="w-64 rounded-xl border border-white/[0.08] bg-white/[0.02] py-2 pl-9 pr-8 text-[11px] text-white placeholder:text-slate-600 outline-none focus:border-violet-500/40"
+                className="w-64 rounded-xl border border-surface-border/8 bg-text-primary/[0.02] py-2 pl-9 pr-8 text-[11px] text-text-primary placeholder:text-text-muted outline-none focus:border-violet-500/40"
               />
               {searchInput && (
-                <button onClick={() => setSearchInput("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white">
+                <button onClick={() => setSearchInput("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
                   <X className="h-3 w-3" />
                 </button>
               )}
             </div>
             {lastRefresh && (
-              <span className="text-[10px] text-slate-600">
+              <span className="text-[10px] text-text-muted">
                 {lastRefresh.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               </span>
             )}
@@ -482,13 +482,13 @@ export default function OperationsIntelligence() {
             <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
               engineRunning
                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                : "border-slate-600/40 bg-slate-800/40 text-slate-400"
+                : "border-surface-border/9 bg-text-primary/[0.09] text-text-secondary"
             }`}>
               <StatusDot active={engineRunning} />
               {engineRunning ? "Engine Running" : "Engine Idle"}
             </div>
             <button onClick={refreshAll}
-              className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2 text-[11px] text-slate-400 hover:text-white transition">
+              className="flex items-center gap-1.5 rounded-xl border border-surface-border/8 bg-text-primary/[0.02] px-3 py-2 text-[11px] text-text-secondary hover:text-text-primary transition">
               <RefreshCw className="h-3.5 w-3.5" /> Refresh
             </button>
           </div>
@@ -497,22 +497,22 @@ export default function OperationsIntelligence() {
         {/* ── Engine Health ─────────────────────────────────────────────────── */}
         <section className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <Server className="h-4 w-4 text-slate-500" />
-            <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Engine Health</span>
+            <Server className="h-4 w-4 text-text-muted" />
+            <span className="text-[12px] font-bold uppercase tracking-widest text-text-muted">Engine Health</span>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {ops
               ? ops.engine_health.map(e => <EngineHealthCard key={e.name} e={e} />)
               : Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className="animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 h-[110px]" />
+                  <div key={i} className="animate-pulse rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-4 h-[110px]" />
                 ))
             }
           </div>
 
           {/* AI Search is user-facing, so it gets extra detail beyond the generic engine card */}
           {ops && (
-            <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.015] p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-3">AI Search — Special Metrics</div>
+            <div className="mt-3 rounded-2xl border border-surface-border/7 bg-text-primary/[0.015] p-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-3">AI Search — Special Metrics</div>
               <div className="flex flex-wrap gap-3">
                 <MetricPill label="Searches Today" value={ops.ai_search_metrics.total_searches_today} />
                 <MetricPill label="Avg Tokens"     value={ops.ai_search_metrics.avg_tokens} />
@@ -528,10 +528,10 @@ export default function OperationsIntelligence() {
         </section>
 
         {/* ── Today's Intelligence Coverage ────────────────────────────────── */}
-        <section className="mb-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+        <section className="mb-6 rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
           <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-4 w-4 text-slate-500" />
-            <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Today's Intelligence Coverage</span>
+            <BarChart3 className="h-4 w-4 text-text-muted" />
+            <span className="text-[12px] font-bold uppercase tracking-widest text-text-muted">Today's Intelligence Coverage</span>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <MetricPill label="Events Processed"      value={ops?.coverage_today.events_processed ?? "—"} />
@@ -552,24 +552,24 @@ export default function OperationsIntelligence() {
 
             {/* Today's Campaigns + Queue Monitor */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_260px]">
-              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.015] overflow-hidden">
-                <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.06] bg-white/[0.02]">
-                  <Zap className="h-3.5 w-3.5 text-slate-500" />
-                  <span className="text-[12px] font-bold text-white">Today's Campaigns</span>
+              <section className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.015] overflow-hidden">
+                <div className="flex items-center gap-2 px-5 py-3.5 border-b border-surface-border/6 bg-text-primary/[0.02]">
+                  <Zap className="h-3.5 w-3.5 text-text-muted" />
+                  <span className="text-[12px] font-bold text-text-primary">Today's Campaigns</span>
                 </div>
                 <div className="max-h-[340px] overflow-y-auto">
                   {!ops ? (
-                    <div className="px-5 py-8 text-center text-[11px] text-slate-600">Loading…</div>
+                    <div className="px-5 py-8 text-center text-[11px] text-text-muted">Loading…</div>
                   ) : ops.todays_campaigns.length === 0 ? (
-                    <div className="px-5 py-8 text-center text-[11px] text-slate-600">No campaigns generated yet today.</div>
+                    <div className="px-5 py-8 text-center text-[11px] text-text-muted">No campaigns generated yet today.</div>
                   ) : ops.todays_campaigns.map((c, i) => (
                     <button key={c.event_group_id} onClick={() => openCampaignDrilldown(c.event_group_id)}
-                      className={`w-full text-left px-5 py-3.5 hover:bg-white/[0.02] transition-colors ${i < ops.todays_campaigns.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
+                      className={`w-full text-left px-5 py-3.5 hover:bg-text-primary/[0.02] transition-colors ${i < ops.todays_campaigns.length - 1 ? "border-b border-surface-border/4" : ""}`}>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-[12px] font-semibold text-white leading-snug line-clamp-1">{c.headline}</span>
+                        <span className="text-[12px] font-semibold text-text-primary leading-snug line-clamp-1">{c.headline}</span>
                         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold ${campaignStatusColor(c.status)}`}>{c.status}</span>
                       </div>
-                      <div className="mt-1.5 flex items-center gap-3 text-[10px] text-slate-600">
+                      <div className="mt-1.5 flex items-center gap-3 text-[10px] text-text-muted">
                         <span>{c.article_count} articles</span>
                         <span className="flex items-center gap-1"><Users className="h-2.5 w-2.5" /> {c.companies} companies</span>
                         <span>{c.sectors} sectors</span>
@@ -580,10 +580,10 @@ export default function OperationsIntelligence() {
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+              <section className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <ListChecks className="h-3.5 w-3.5 text-slate-500" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Queue Monitor</span>
+                  <ListChecks className="h-3.5 w-3.5 text-text-muted" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Queue Monitor</span>
                   <span className="ml-auto flex items-center gap-1 text-[9px] text-emerald-400"><Radio className="h-2.5 w-2.5 animate-pulse" />Live</span>
                 </div>
                 <div className="space-y-2">
@@ -596,8 +596,8 @@ export default function OperationsIntelligence() {
                     ["Failed Queue",     ops?.queue.failed_queue],
                   ].map(([label, val]) => (
                     <div key={label as string} className="flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400">{label}</span>
-                      <span className={`text-[12px] font-bold tabular-nums ${(val as number) > 0 ? "text-amber-400" : "text-slate-300"}`}>{val ?? "—"}</span>
+                      <span className="text-[11px] text-text-secondary">{label}</span>
+                      <span className={`text-[12px] font-bold tabular-nums ${(val as number) > 0 ? "text-amber-400" : "text-text-secondary"}`}>{val ?? "—"}</span>
                     </div>
                   ))}
                 </div>
@@ -606,10 +606,10 @@ export default function OperationsIntelligence() {
 
             {/* AI Usage + Engine Performance */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+              <section className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="h-4 w-4 text-slate-500" />
-                  <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Today's AI Usage</span>
+                  <Sparkles className="h-4 w-4 text-text-muted" />
+                  <span className="text-[12px] font-bold uppercase tracking-widest text-text-muted">Today's AI Usage</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <MetricPill label="LLM Calls"       value={ops?.ai_usage_today.llm_calls ?? "—"} />
@@ -619,13 +619,13 @@ export default function OperationsIntelligence() {
                   <MetricPill label="Cost"            value={ops ? `$${ops.ai_usage_today.cost_usd.toFixed(2)}` : "—"} />
                   <MetricPill label="Failures"        value={ops?.ai_usage_today.failures ?? "—"} warn={(ops?.ai_usage_today.failures ?? 0) > 0} />
                 </div>
-                <div className="mt-2 text-[9px] text-slate-700">Free-tier providers (Gemini / Groq / OpenRouter / Cerebras) — real spend is $0.</div>
+                <div className="mt-2 text-[9px] text-text-muted">Free-tier providers (Gemini / Groq / OpenRouter / Cerebras) — real spend is $0.</div>
               </section>
 
-              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+              <section className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <Timer className="h-4 w-4 text-slate-500" />
-                  <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Engine Performance</span>
+                  <Timer className="h-4 w-4 text-text-muted" />
+                  <span className="text-[12px] font-bold uppercase tracking-widest text-text-muted">Engine Performance</span>
                 </div>
                 <div className="space-y-3.5">
                   <PerfBar label="Publish"    value={ops?.performance.avg_publish_time_s ?? 0}    max={perfMax} />
@@ -638,42 +638,42 @@ export default function OperationsIntelligence() {
 
             {/* Recent Activity + Failure Center */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+              <section className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <CalendarClock className="h-4 w-4 text-slate-500" />
-                  <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Recent Activity</span>
+                  <CalendarClock className="h-4 w-4 text-text-muted" />
+                  <span className="text-[12px] font-bold uppercase tracking-widest text-text-muted">Recent Activity</span>
                 </div>
                 <div className="space-y-0 max-h-[280px] overflow-y-auto">
                   {!ops || ops.recent_activity.length === 0 ? (
-                    <div className="text-[11px] text-slate-600">No activity in the last 6 hours.</div>
+                    <div className="text-[11px] text-text-muted">No activity in the last 6 hours.</div>
                   ) : ops.recent_activity.map((ev, i) => (
                     <div key={i} className="relative flex gap-3 pb-4 last:pb-0">
                       <div className="flex flex-col items-center">
                         <span className={`h-2 w-2 rounded-full shrink-0 mt-1 ${ev.type === "published" ? "bg-emerald-400" : "bg-rose-400"}`} />
-                        {i < ops.recent_activity.length - 1 && <span className="w-px flex-1 bg-white/[0.06] mt-1" />}
+                        {i < ops.recent_activity.length - 1 && <span className="w-px flex-1 bg-text-primary/[0.06] mt-1" />}
                       </div>
                       <div className="min-w-0 pb-0.5">
-                        <div className="text-[11px] text-slate-300 leading-snug line-clamp-2">{ev.label}</div>
-                        <div className="text-[9px] text-slate-600 mt-0.5">{relTime(ev.at)}</div>
+                        <div className="text-[11px] text-text-secondary leading-snug line-clamp-2">{ev.label}</div>
+                        <div className="text-[9px] text-text-muted mt-0.5">{relTime(ev.at)}</div>
                       </div>
                     </div>
                   ))}
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+              <section className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <AlertOctagon className="h-4 w-4 text-rose-500/70" />
-                  <span className="text-[12px] font-bold uppercase tracking-widest text-slate-500">Failure Center</span>
+                  <span className="text-[12px] font-bold uppercase tracking-widest text-text-muted">Failure Center</span>
                 </div>
                 <div className="space-y-2 max-h-[280px] overflow-y-auto">
                   {!ops || ops.failures.length === 0 ? (
-                    <div className="text-[11px] text-slate-600">No recent failures.</div>
+                    <div className="text-[11px] text-text-muted">No recent failures.</div>
                   ) : ops.failures.map(f => (
                     <div key={f.id} className="flex items-start justify-between gap-2 rounded-xl border border-rose-500/10 bg-rose-500/[0.03] px-3 py-2.5">
                       <div className="min-w-0">
-                        <div className="text-[11px] text-slate-300 leading-snug line-clamp-2">{f.headline}</div>
-                        <div className="mt-1 flex items-center gap-2 text-[9px] text-slate-600">
+                        <div className="text-[11px] text-text-secondary leading-snug line-clamp-2">{f.headline}</div>
+                        <div className="mt-1 flex items-center gap-2 text-[9px] text-text-muted">
                           <span>{relTime(f.created_at)}</span>
                           <span className="text-rose-500">{f.validation_failures} validation failure(s)</span>
                         </div>
@@ -681,7 +681,7 @@ export default function OperationsIntelligence() {
                       <button
                         onClick={() => handleRetry(f.id)}
                         disabled={retrying === f.id}
-                        className="shrink-0 flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[10px] font-semibold text-slate-300 hover:border-violet-500/30 hover:text-violet-300 transition disabled:opacity-40"
+                        className="shrink-0 flex items-center gap-1 rounded-lg border border-surface-border/8 bg-text-primary/[0.03] px-2 py-1 text-[10px] font-semibold text-text-secondary hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300 transition disabled:opacity-40"
                       >
                         {retrying === f.id ? <RotateCcw className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3 w-3" />}
                         Retry
@@ -693,17 +693,17 @@ export default function OperationsIntelligence() {
             </div>
 
             {/* Articles / Campaigns table */}
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.015] overflow-hidden">
+            <section className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.015] overflow-hidden">
               {/* Table header */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-white/[0.02] flex-wrap gap-2">
-                <span className="text-[13px] font-bold text-white">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-surface-border/6 bg-text-primary/[0.02] flex-wrap gap-2">
+                <span className="text-[13px] font-bold text-text-primary">
                   {tab === "campaigns" ? "Publishing Campaigns" : "Intelligence Articles"}
                 </span>
                 <div className="flex items-center gap-1 flex-wrap">
                   {FILTER_TABS.map(t => (
                     <button key={t.key} onClick={() => { setTab(t.key); setPage(1); }}
                       className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
-                        tab === t.key ? "bg-violet-600 text-white" : "text-slate-500 hover:text-white hover:bg-white/[0.05]"
+                        tab === t.key ? "bg-violet-600 text-text-primary" : "text-text-muted hover:text-text-primary hover:bg-text-primary/[0.05]"
                       }`}>{t.label}</button>
                   ))}
                 </div>
@@ -713,28 +713,28 @@ export default function OperationsIntelligence() {
                 <>
                   {loading ? (
                     Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="animate-pulse px-5 py-4 border-b border-white/[0.03]">
-                        <div className="h-3 w-2/3 rounded-full bg-white/[0.05] mb-2" />
-                        <div className="h-2 w-1/3 rounded-full bg-white/[0.03]" />
+                      <div key={i} className="animate-pulse px-5 py-4 border-b border-surface-border/3">
+                        <div className="h-3 w-2/3 rounded-full bg-text-primary/[0.05] mb-2" />
+                        <div className="h-2 w-1/3 rounded-full bg-text-primary/[0.03]" />
                       </div>
                     ))
                   ) : campaigns.length === 0 ? (
                     <div className="py-20 text-center">
-                      <GitBranch className="h-8 w-8 text-slate-700 mx-auto mb-3" />
-                      <div className="text-[13px] text-slate-600">
+                      <GitBranch className="h-8 w-8 text-text-muted mx-auto mb-3" />
+                      <div className="text-[13px] text-text-muted">
                         No campaigns yet — a campaign forms once an event fans out into multiple angle articles.
                       </div>
                     </div>
                   ) : campaigns.map((c, i) => (
                     <button key={c.event_group_id} onClick={() => setDrilldown(c)}
-                      className={`w-full text-left px-5 py-4 hover:bg-white/[0.02] transition-colors ${i < campaigns.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
+                      className={`w-full text-left px-5 py-4 hover:bg-text-primary/[0.02] transition-colors ${i < campaigns.length - 1 ? "border-b border-surface-border/4" : ""}`}>
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
                             <Layers className="h-3.5 w-3.5 text-violet-400 shrink-0" />
-                            <span className="text-[13px] font-semibold text-white leading-snug">{c.headline}</span>
+                            <span className="text-[13px] font-semibold text-text-primary leading-snug">{c.headline}</span>
                           </div>
-                          <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-600">
+                          <div className="mt-1 flex items-center gap-3 text-[10px] text-text-muted">
                             <span className="font-mono">{c.event_group_id}</span>
                             {c.last_updated && (
                               <span>Last updated {new Date(c.last_updated).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
@@ -750,7 +750,7 @@ export default function OperationsIntelligence() {
                               {c.failed_count} failed
                             </span>
                           )}
-                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                          <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[10px] font-bold text-text-secondary">
                             {c.article_count} total
                           </span>
                         </div>
@@ -761,7 +761,7 @@ export default function OperationsIntelligence() {
                             key={a.slug}
                             className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${
                               a.status === "published"
-                                ? "border-white/10 bg-white/[0.03] text-slate-300"
+                                ? "border-surface-border/10 bg-text-primary/[0.03] text-text-secondary"
                                 : "border-rose-500/20 bg-rose-500/5 text-rose-500/70"
                             }`}
                           >
@@ -775,37 +775,37 @@ export default function OperationsIntelligence() {
               ) : (
               <>
               {/* Column labels */}
-              <div className="grid items-center gap-2 px-5 py-2 border-b border-white/[0.04] bg-white/[0.01]"
+              <div className="grid items-center gap-2 px-5 py-2 border-b border-surface-border/4 bg-text-primary/[0.01]"
                 style={{ gridTemplateColumns: "1fr 110px 110px 50px 50px 40px 100px 44px" }}>
                 {["ARTICLE", "TYPE", "LIFECYCLE", "CONF.", "QUAL.", "SEO", "PUBLISHED", ""].map(h => (
-                  <div key={h} className="text-[9px] font-bold uppercase tracking-widest text-slate-700">{h}</div>
+                  <div key={h} className="text-[9px] font-bold uppercase tracking-widest text-text-muted">{h}</div>
                 ))}
               </div>
 
               {/* Rows */}
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="grid items-center gap-2 px-5 py-3.5 border-b border-white/[0.03] animate-pulse"
+                  <div key={i} className="grid items-center gap-2 px-5 py-3.5 border-b border-surface-border/3 animate-pulse"
                     style={{ gridTemplateColumns: "1fr 110px 110px 50px 50px 40px 100px 44px" }}>
-                    <div className="space-y-1.5"><div className="h-3 rounded-full bg-white/[0.05] w-3/4" /><div className="h-2 rounded-full bg-white/[0.03] w-1/2" /></div>
-                    {[1,2,3,4,5,6,7].map(n => <div key={n} className="h-4 rounded-full bg-white/[0.04]" />)}
+                    <div className="space-y-1.5"><div className="h-3 rounded-full bg-text-primary/[0.05] w-3/4" /><div className="h-2 rounded-full bg-text-primary/[0.03] w-1/2" /></div>
+                    {[1,2,3,4,5,6,7].map(n => <div key={n} className="h-4 rounded-full bg-text-primary/[0.04]" />)}
                   </div>
                 ))
               ) : articles.length === 0 ? (
                 <div className="py-20 text-center">
-                  <Brain className="h-8 w-8 text-slate-700 mx-auto mb-3" />
-                  <div className="text-[13px] text-slate-600">
+                  <Brain className="h-8 w-8 text-text-muted mx-auto mb-3" />
+                  <div className="text-[13px] text-text-muted">
                     {searchQuery ? `No articles matching "${searchQuery}".` : "No intelligence articles yet. The engine runs every 5 minutes."}
                   </div>
                 </div>
               ) : articles.map((art, i) => {
-                const tc = TYPE_LABELS[art.article_type] ?? { label: art.article_type, color: "bg-slate-700/40 text-slate-400 border-slate-600/30" };
+                const tc = TYPE_LABELS[art.article_type] ?? { label: art.article_type, color: "bg-text-primary/[0.09] text-text-secondary border-surface-border/7" };
                 const lc = LC_CFG[art.lifecycle_status] ?? LC_CFG["generated"];
                 const LCIcon = lc.icon;
 
                 return (
                   <div key={art.id}
-                    className={`grid items-start gap-2 px-5 py-3.5 transition-colors hover:bg-white/[0.02] ${i < articles.length - 1 ? "border-b border-white/[0.03]" : ""}`}
+                    className={`grid items-start gap-2 px-5 py-3.5 transition-colors hover:bg-text-primary/[0.02] ${i < articles.length - 1 ? "border-b border-surface-border/3" : ""}`}
                     style={{ gridTemplateColumns: "1fr 110px 110px 50px 50px 40px 100px 44px" }}>
 
                     {/* Article */}
@@ -813,11 +813,11 @@ export default function OperationsIntelligence() {
                       <div className="flex items-start gap-1.5">
                         <Sparkles className="h-3 w-3 text-violet-400 shrink-0 mt-0.5" />
                         <div className="min-w-0">
-                          <div className="text-[12px] font-semibold text-white leading-snug line-clamp-2">{art.headline}</div>
+                          <div className="text-[12px] font-semibold text-text-primary leading-snug line-clamp-2">{art.headline}</div>
                           {art.key_takeaway && (
-                            <div className="mt-0.5 text-[10px] text-slate-600 line-clamp-1">{art.key_takeaway}</div>
+                            <div className="mt-0.5 text-[10px] text-text-muted line-clamp-1">{art.key_takeaway}</div>
                           )}
-                          <div className="mt-1 flex items-center gap-2 text-[9px] text-slate-600">
+                          <div className="mt-1 flex items-center gap-2 text-[9px] text-text-muted">
                             {art.story_id && <span className="font-mono">story:{art.story_id}</span>}
                             {art.update_count > 0 && (
                               <span className="flex items-center gap-0.5 text-sky-500">
@@ -849,20 +849,20 @@ export default function OperationsIntelligence() {
 
                     {/* Quality */}
                     <div className={`text-[11px] font-bold tabular-nums ${
-                      art.quality_score >= 0.8 ? "text-emerald-400" : "text-slate-400"
+                      art.quality_score >= 0.8 ? "text-emerald-400" : "text-text-secondary"
                     }`}>{Math.round(art.quality_score * 100)}%</div>
 
                     {/* SEO */}
                     <SeoRing score={art.seo_score} />
 
                     {/* Published */}
-                    <div className="text-[10px] text-slate-500 leading-snug">
+                    <div className="text-[10px] text-text-muted leading-snug">
                       {art.published_at
                         ? new Date(art.published_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
                         : art.status === "failed"
                           ? (
                             <button onClick={() => handleRetry(art.id)} disabled={retrying === art.id}
-                              className="text-violet-400 hover:text-violet-300 disabled:opacity-40">
+                              className="text-violet-400 hover:text-violet-600 dark:text-violet-300 disabled:opacity-40">
                               {retrying === art.id ? "Retrying…" : "Retry"}
                             </button>
                           )
@@ -872,7 +872,7 @@ export default function OperationsIntelligence() {
                     {/* View */}
                     {art.slug ? (
                       <Link href={`/intelligence/${art.slug}` as any} target="_blank"
-                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.03] text-slate-500 hover:text-violet-400 hover:border-violet-500/30 transition-all">
+                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-surface-border/7 bg-text-primary/[0.03] text-text-muted hover:text-violet-400 hover:border-violet-500/30 transition-all">
                         <Eye className="h-3.5 w-3.5" />
                       </Link>
                     ) : <div />}
@@ -886,23 +886,23 @@ export default function OperationsIntelligence() {
               {(tab === "campaigns" ? campaignsTotal : total) > PAGE && (() => {
                 const t = tab === "campaigns" ? campaignsTotal : total;
                 return (
-                <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.05] bg-white/[0.01]">
-                  <span className="text-[10px] text-slate-600">
+                <div className="flex items-center justify-between px-5 py-3 border-t border-surface-border/5 bg-text-primary/[0.01]">
+                  <span className="text-[10px] text-text-muted">
                     {Math.min((page - 1) * PAGE + 1, t)}–{Math.min(page * PAGE, t)} of {t}
                   </span>
                   <div className="flex items-center gap-1">
                     <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/[0.07] text-slate-500 disabled:opacity-30 hover:text-white transition">
+                      className="flex h-6 w-6 items-center justify-center rounded-lg border border-surface-border/7 text-text-muted disabled:opacity-30 hover:text-text-primary transition">
                       <ChevronLeft className="h-3.5 w-3.5" />
                     </button>
                     {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => (
                       <button key={i} onClick={() => setPage(i + 1)}
-                        className={`h-6 w-6 rounded-lg text-[10px] font-bold transition ${page === i + 1 ? "bg-violet-600 text-white" : "border border-white/[0.07] text-slate-500 hover:text-white"}`}>
+                        className={`h-6 w-6 rounded-lg text-[10px] font-bold transition ${page === i + 1 ? "bg-violet-600 text-text-primary" : "border border-surface-border/7 text-text-muted hover:text-text-primary"}`}>
                         {i + 1}
                       </button>
                     ))}
                     <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/[0.07] text-slate-500 disabled:opacity-30 hover:text-white transition">
+                      className="flex h-6 w-6 items-center justify-center rounded-lg border border-surface-border/7 text-text-muted disabled:opacity-30 hover:text-text-primary transition">
                       <ChevronRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -916,33 +916,33 @@ export default function OperationsIntelligence() {
           <div className="space-y-4">
 
             {/* Scheduler Status */}
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-3">Scheduler Status</div>
+            <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-3">Scheduler Status</div>
               <div className="space-y-2 max-h-[420px] overflow-y-auto">
                 {!ops || ops.scheduler_jobs.length === 0 ? (
-                  <div className="text-[11px] text-slate-600">Loading…</div>
+                  <div className="text-[11px] text-text-muted">Loading…</div>
                 ) : ops.scheduler_jobs.map(job => (
-                  <div key={job.id} className="flex items-start justify-between gap-2 py-1.5 border-b border-white/[0.04] last:border-0">
+                  <div key={job.id} className="flex items-start justify-between gap-2 py-1.5 border-b border-surface-border/4 last:border-0">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <StatusDot active={job.running} />
-                        <span className="text-[11px] text-slate-300 leading-snug truncate">{job.name}</span>
+                        <span className="text-[11px] text-text-secondary leading-snug truncate">{job.name}</span>
                       </div>
-                      <div className="text-[9px] text-slate-600 mt-0.5 truncate">{job.trigger}</div>
+                      <div className="text-[9px] text-text-muted mt-0.5 truncate">{job.trigger}</div>
                     </div>
-                    <span className="shrink-0 text-[9px] text-slate-500 text-right">
+                    <span className="shrink-0 text-[9px] text-text-muted text-right">
                       {job.next_run ? new Date(job.next_run).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
                     </span>
                   </div>
                 ))}
               </div>
               {/* Legacy slot bar — daily publish quota */}
-              <div className="mt-3 pt-3 border-t border-white/[0.04]">
+              <div className="mt-3 pt-3 border-t border-surface-border/4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] text-slate-500">Slots used today</span>
+                  <span className="text-[10px] text-text-muted">Slots used today</span>
                   <span className="text-[10px] font-bold text-violet-400">{status?.today.published ?? 0}/{status?.today.max_per_day ?? 8}</span>
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                <div className="h-1.5 w-full rounded-full bg-text-primary/[0.06] overflow-hidden">
                   <div className="h-full rounded-full bg-violet-500 transition-all"
                     style={{ width: `${((status?.today.published ?? 0) / (status?.today.max_per_day ?? 8)) * 100}%` }} />
                 </div>
@@ -950,10 +950,10 @@ export default function OperationsIntelligence() {
             </div>
 
             {/* Database Health */}
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Database className="h-3.5 w-3.5 text-slate-500" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Database Health</span>
+                <Database className="h-3.5 w-3.5 text-text-muted" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Database Health</span>
               </div>
               <div className="space-y-1.5">
                 {[
@@ -967,8 +967,8 @@ export default function OperationsIntelligence() {
                   ["Queue Size",         ops?.database_health.queue_size],
                 ].map(([label, val]) => (
                   <div key={label as string} className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400">{label}</span>
-                    <span className="text-[11px] font-bold text-white tabular-nums">{val ?? "—"}</span>
+                    <span className="text-[11px] text-text-secondary">{label}</span>
+                    <span className="text-[11px] font-bold text-text-primary tabular-nums">{val ?? "—"}</span>
                   </div>
                 ))}
               </div>

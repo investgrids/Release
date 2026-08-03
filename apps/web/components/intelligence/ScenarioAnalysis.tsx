@@ -46,7 +46,7 @@ const ACCENT: Record<CaseKey, {
     border: "border-emerald-500/20",
     bg:     "bg-emerald-500/[0.04]",
     text:   "text-emerald-400",
-    badge:  "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+    badge:  "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
     icon:   TrendingUp,
   },
   base: {
@@ -55,7 +55,7 @@ const ACCENT: Record<CaseKey, {
     border: "border-sky-500/20",
     bg:     "bg-sky-500/[0.04]",
     text:   "text-sky-400",
-    badge:  "border-sky-500/30 bg-sky-500/10 text-sky-300",
+    badge:  "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300",
     icon:   Minus,
   },
   bear: {
@@ -64,7 +64,7 @@ const ACCENT: Record<CaseKey, {
     border: "border-rose-500/20",
     bg:     "bg-rose-500/[0.04]",
     text:   "text-rose-400",
-    badge:  "border-rose-500/30 bg-rose-500/10 text-rose-300",
+    badge:  "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300",
     icon:   TrendingDown,
   },
 };
@@ -92,7 +92,7 @@ function ScenarioCard({ caseKey, data }: { caseKey: CaseKey; data: ScenarioBranc
       </div>
 
       {/* Bar */}
-      <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
         <div
           className={`h-full rounded-full transition-all duration-700 ${a.bar}`}
           style={{ width: `${data.probability}%` }}
@@ -100,12 +100,12 @@ function ScenarioCard({ caseKey, data }: { caseKey: CaseKey; data: ScenarioBranc
       </div>
 
       {/* Outcome */}
-      {text && <p className="text-[12px] text-slate-400 leading-5">{text}</p>}
+      {text && <p className="text-[12px] text-text-secondary leading-5">{text}</p>}
 
       {/* Target price */}
       {data.target && (
-        <div className="flex items-center justify-between border-t border-white/[0.05] pt-2">
-          <span className="text-[10px] text-slate-600">Target</span>
+        <div className="flex items-center justify-between border-t border-surface-border/5 pt-2">
+          <span className="text-[10px] text-text-muted">Target</span>
           <span className={`text-[13px] font-black ${a.text}`}>{data.target}</span>
         </div>
       )}
@@ -113,8 +113,8 @@ function ScenarioCard({ caseKey, data }: { caseKey: CaseKey; data: ScenarioBranc
       {/* Confidence */}
       {data.confidence != null && (
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-slate-600">Confidence</span>
-          <span className="text-[10px] text-slate-400">{data.confidence}%</span>
+          <span className="text-[10px] text-text-muted">Confidence</span>
+          <span className="text-[10px] text-text-secondary">{data.confidence}%</span>
         </div>
       )}
 
@@ -131,13 +131,13 @@ function ScenarioCard({ caseKey, data }: { caseKey: CaseKey; data: ScenarioBranc
 
       {/* Expanded detail */}
       {open && hasDetail && (
-        <div className="space-y-2 border-t border-white/[0.05] pt-3">
+        <div className="space-y-2 border-t border-surface-border/5 pt-3">
           {data.key_drivers?.length ? (
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-1">Key Drivers</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-1">Key Drivers</p>
               <ul className="space-y-0.5">
                 {data.key_drivers.map((d, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-400">
+                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary">
                     <span className={`mt-[5px] h-1 w-1 shrink-0 rounded-full ${a.bar}`} />
                     {d}
                   </li>
@@ -148,11 +148,11 @@ function ScenarioCard({ caseKey, data }: { caseKey: CaseKey; data: ScenarioBranc
 
           {data.major_catalysts?.length ? (
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-1">Catalysts</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-1">Catalysts</p>
               <ul className="space-y-0.5">
                 {data.major_catalysts.map((c, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-400">
-                    <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-white/20" />
+                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary">
+                    <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-text-primary/20" />
                     {c}
                   </li>
                 ))}
@@ -161,13 +161,13 @@ function ScenarioCard({ caseKey, data }: { caseKey: CaseKey; data: ScenarioBranc
           ) : null}
 
           {data.supporting_evidence && (
-            <p className="text-[11px] text-slate-500 italic leading-[1.55]">{data.supporting_evidence}</p>
+            <p className="text-[11px] text-text-muted italic leading-[1.55]">{data.supporting_evidence}</p>
           )}
 
           {data.expected_evolution && (
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-1">Expected Evolution</p>
-              <p className="text-[11px] text-slate-400 leading-[1.55]">{data.expected_evolution}</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-1">Expected Evolution</p>
+              <p className="text-[11px] text-text-secondary leading-[1.55]">{data.expected_evolution}</p>
             </div>
           )}
         </div>
@@ -214,18 +214,18 @@ export function ScenarioAnalysis({
   const hasData = !!(bull || base || bear);
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.025] p-5">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.025] p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-sky-500/[0.08] border border-sky-500/20">
             <BarChart2 className="h-3.5 w-3.5 text-sky-400" />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
             Scenario Analysis
           </span>
         </div>
-        {loading && <Loader2 className="h-3 w-3 text-slate-600 animate-spin" />}
+        {loading && <Loader2 className="h-3 w-3 text-text-muted animate-spin" />}
       </div>
 
       {/* Loading skeleton */}
@@ -235,12 +235,12 @@ export function ScenarioAnalysis({
             <div key={k} className={`rounded-[16px] border ${ACCENT[k].border} ${ACCENT[k].bg} p-4 space-y-3`}>
               <div className="flex justify-between">
                 <span className={`text-[10px] font-bold uppercase ${ACCENT[k].text} opacity-40`}>{ACCENT[k].label}</span>
-                <span className="h-5 w-8 rounded-full bg-white/[0.06] animate-pulse" />
+                <span className="h-5 w-8 rounded-full bg-text-primary/[0.06] animate-pulse" />
               </div>
-              <div className="h-1.5 rounded-full bg-white/[0.06] animate-pulse" />
+              <div className="h-1.5 rounded-full bg-text-primary/[0.06] animate-pulse" />
               <div className="space-y-1.5">
-                <div className="h-2.5 w-full rounded bg-white/[0.05] animate-pulse" />
-                <div className="h-2.5 w-4/5 rounded bg-white/[0.05] animate-pulse" />
+                <div className="h-2.5 w-full rounded bg-text-primary/[0.05] animate-pulse" />
+                <div className="h-2.5 w-4/5 rounded bg-text-primary/[0.05] animate-pulse" />
               </div>
             </div>
           ))}
@@ -249,7 +249,7 @@ export function ScenarioAnalysis({
 
       {/* Empty */}
       {!loading && !hasData && (
-        <p className="text-[12px] text-slate-400 leading-5">No data available</p>
+        <p className="text-[12px] text-text-secondary leading-5">No data available</p>
       )}
 
       {/* Cards */}
@@ -263,7 +263,7 @@ export function ScenarioAnalysis({
 
           {/* Probability sanity note */}
           {bull && base && bear && (
-            <p className="mt-3 text-[10px] text-slate-700 text-right">
+            <p className="mt-3 text-[10px] text-text-muted text-right">
               Probabilities: {bull.probability + base.probability + bear.probability}% total · AI-generated, not financial advice
             </p>
           )}

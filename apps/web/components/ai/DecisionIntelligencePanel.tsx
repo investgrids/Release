@@ -82,7 +82,7 @@ const INTENT_LABELS: Record<string, { label: string; color: string }> = {
 const OUTLOOK_CONFIG = {
   positive: { label: "Positive",  icon: TrendingUp,   color: "text-emerald-400" },
   cautious: { label: "Cautious",  icon: AlertTriangle, color: "text-amber-400" },
-  neutral:  { label: "Neutral",   icon: Minus,        color: "text-slate-400" },
+  neutral:  { label: "Neutral",   icon: Minus,        color: "text-text-secondary" },
   negative: { label: "Negative",  icon: TrendingDown, color: "text-rose-400" },
 };
 
@@ -93,7 +93,7 @@ function ScoreRing({ score, size = 44 }: { score: number; size?: number }) {
   const color = score >= 75 ? "#34d399" : score >= 55 ? "#60a5fa" : "#f59e0b";
   return (
     <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--text-primary) / 0.06)" strokeWidth="4" />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="4"
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
         style={{ transition: "stroke-dasharray 0.8s ease" }} />
@@ -171,20 +171,20 @@ export function FollowUpContextPanel({ missing, query, onRefine, detectedHorizon
           <HelpCircle className="h-4 w-4 text-amber-400" />
         </div>
         <div>
-          <p className="text-[13px] font-semibold text-white">Refine Your Analysis</p>
-          <p className="text-[11px] text-slate-400">Adding context improves the quality of the decision intelligence</p>
+          <p className="text-[13px] font-semibold text-text-primary">Refine Your Analysis</p>
+          <p className="text-[11px] text-text-secondary">Adding context improves the quality of the decision intelligence</p>
         </div>
       </div>
 
       {(missing.includes("investment_horizon") || !missing.length) && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-slate-500 mb-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-text-muted mb-2">
             <Clock className="inline h-3 w-3 mr-1" />Investment Horizon
           </p>
           <div className="flex flex-wrap gap-2">
             {HORIZON_OPTS.map(h => (
               <button key={h} onClick={() => setHorizon(h === horizon ? null : h)}
-                className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition ${h === horizon ? "border-amber-400 bg-amber-500/20 text-amber-300" : "border-white/[0.08] text-slate-400 hover:border-white/20 hover:text-slate-300"}`}>
+                className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition ${h === horizon ? "border-amber-400 bg-amber-500/20 text-amber-600 dark:text-amber-300" : "border-surface-border/8 text-text-secondary hover:border-surface-border/20 hover:text-text-secondary"}`}>
                 {h}
               </button>
             ))}
@@ -194,13 +194,13 @@ export function FollowUpContextPanel({ missing, query, onRefine, detectedHorizon
 
       {(missing.includes("risk_preference") || !missing.length) && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-slate-500 mb-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-text-muted mb-2">
             <ShieldAlert className="inline h-3 w-3 mr-1" />Risk Preference
           </p>
           <div className="flex flex-wrap gap-2">
             {RISK_OPTS.map(r => (
               <button key={r} onClick={() => setRisk(r === risk ? null : r)}
-                className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition ${r === risk ? "border-amber-400 bg-amber-500/20 text-amber-300" : "border-white/[0.08] text-slate-400 hover:border-white/20 hover:text-slate-300"}`}>
+                className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition ${r === risk ? "border-amber-400 bg-amber-500/20 text-amber-600 dark:text-amber-300" : "border-surface-border/8 text-text-secondary hover:border-surface-border/20 hover:text-text-secondary"}`}>
                 {r}
               </button>
             ))}
@@ -210,13 +210,13 @@ export function FollowUpContextPanel({ missing, query, onRefine, detectedHorizon
 
       {(missing.includes("investment_goal") || !missing.length) && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-slate-500 mb-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-text-muted mb-2">
             <Target className="inline h-3 w-3 mr-1" />Investment Objective
           </p>
           <div className="flex flex-wrap gap-2">
             {GOAL_OPTS.map(g => (
               <button key={g} onClick={() => setGoal(g === goal ? null : g)}
-                className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition ${g === goal ? "border-amber-400 bg-amber-500/20 text-amber-300" : "border-white/[0.08] text-slate-400 hover:border-white/20 hover:text-slate-300"}`}>
+                className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition ${g === goal ? "border-amber-400 bg-amber-500/20 text-amber-600 dark:text-amber-300" : "border-surface-border/8 text-text-secondary hover:border-surface-border/20 hover:text-text-secondary"}`}>
                 {g}
               </button>
             ))}
@@ -226,7 +226,7 @@ export function FollowUpContextPanel({ missing, query, onRefine, detectedHorizon
 
       {anySelected && (
         <button onClick={buildRefined}
-          className="flex items-center gap-2 rounded-[14px] bg-amber-500/20 border border-amber-500/30 px-4 py-2.5 text-[13px] font-semibold text-amber-300 hover:bg-amber-500/30 transition">
+          className="flex items-center gap-2 rounded-[14px] bg-amber-500/20 border border-amber-500/30 px-4 py-2.5 text-[13px] font-semibold text-amber-600 dark:text-amber-300 hover:bg-amber-500/30 transition">
           <Sparkles className="h-4 w-4" />
           Regenerate with Context
           <ArrowRight className="h-4 w-4 ml-auto" />
@@ -272,12 +272,12 @@ function CompanyAnalysisCard({
           </div>
           <div>
             <p className={`text-[10px] font-bold uppercase tracking-[0.10em] ${labelColor} mb-0.5`}>{label}</p>
-            <p className="text-[15px] font-bold text-white leading-tight">{analysis.entity}</p>
+            <p className="text-[15px] font-bold text-text-primary leading-tight">{analysis.entity}</p>
             {!isNonEquity && analysis.sector && (
-              <p className="text-[11px] text-slate-500">{analysis.sector}</p>
+              <p className="text-[11px] text-text-muted">{analysis.sector}</p>
             )}
             {isCommodity && (
-              <p className="text-[11px] text-slate-500">Commodity · Asset Class</p>
+              <p className="text-[11px] text-text-muted">Commodity · Asset Class</p>
             )}
           </div>
         </div>
@@ -287,17 +287,17 @@ function CompanyAnalysisCard({
               <OutlookIcon className="h-3 w-3" />
               <span className="text-[11px] font-semibold">{outlookCfg.label}</span>
             </div>
-            <p className="text-[9px] text-slate-500">Near-term outlook</p>
+            <p className="text-[9px] text-text-muted">Near-term outlook</p>
           </div>
           {!isNonEquity && <ScoreRing score={analysis.confidence} size={48} />}
-          {open ? <ChevronUp className="h-4 w-4 text-slate-500 shrink-0" /> : <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />}
+          {open ? <ChevronUp className="h-4 w-4 text-text-muted shrink-0" /> : <ChevronDown className="h-4 w-4 text-text-muted shrink-0" />}
         </div>
       </button>
 
       {open && (
-        <div className="px-5 pb-5 space-y-4 border-t border-white/[0.05] pt-4">
+        <div className="px-5 pb-5 space-y-4 border-t border-surface-border/5 pt-4">
           {/* Thesis */}
-          <p className="text-[13px] leading-6 text-slate-200">{analysis.thesis}</p>
+          <p className="text-[13px] leading-6 text-text-primary">{analysis.thesis}</p>
 
           {/* Three columns: strengths, catalysts, risks */}
           <div className="grid grid-cols-3 gap-3">
@@ -305,7 +305,7 @@ function CompanyAnalysisCard({
               <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-emerald-500 mb-2">Strengths</p>
               <ul className="space-y-1.5">
                 {analysis.strengths?.slice(0, 3).map((s, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-300 leading-[1.45]">
+                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.45]">
                     <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />
                     {s}
                   </li>
@@ -316,7 +316,7 @@ function CompanyAnalysisCard({
               <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-sky-500 mb-2">Catalysts</p>
               <ul className="space-y-1.5">
                 {analysis.catalysts?.slice(0, 3).map((c, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-300 leading-[1.45]">
+                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.45]">
                     <Zap className="mt-0.5 h-3 w-3 shrink-0 text-sky-400" />
                     {c}
                   </li>
@@ -327,7 +327,7 @@ function CompanyAnalysisCard({
               <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-rose-500 mb-2">Risks</p>
               <ul className="space-y-1.5">
                 {analysis.risks?.slice(0, 3).map((r, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-300 leading-[1.45]">
+                  <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.45]">
                     <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />
                     {r}
                   </li>
@@ -339,7 +339,7 @@ function CompanyAnalysisCard({
           {/* Company page link — only for equity entities with a known symbol */}
           {!isNonEquity && analysis.symbol && (
             <Link href={`/companies/${analysis.symbol}`}
-              className="inline-flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-300 transition">
+              className="inline-flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
               View full analysis for {analysis.symbol}
               <ArrowRight className="h-3 w-3" />
             </Link>
@@ -362,28 +362,28 @@ function ComparisonGrid({
 }) {
   const advantageBadge = (adv: string, side: "holding" | "target") => {
     if (adv === side)    return "text-emerald-400 font-semibold";
-    if (adv === "neutral") return "text-slate-300";
-    return "text-slate-400";
+    if (adv === "neutral") return "text-text-secondary";
+    return "text-text-secondary";
   };
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center gap-2.5">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-surface-border/6 flex items-center gap-2.5">
         <Scale className="h-4 w-4 text-violet-400" />
-        <p className="text-[14px] font-semibold text-white">Side-by-Side Comparison</p>
+        <p className="text-[14px] font-semibold text-text-primary">Side-by-Side Comparison</p>
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[1fr_1fr_1fr] gap-0 px-5 py-3 border-b border-white/[0.05]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-slate-500">Dimension</p>
+      <div className="grid grid-cols-[1fr_1fr_1fr] gap-0 px-5 py-3 border-b border-surface-border/5">
+        <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-text-muted">Dimension</p>
         <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-sky-500 truncate">{holdingName}</p>
         <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-violet-500 truncate">{targetName}</p>
       </div>
 
-      <div className="divide-y divide-white/[0.04]">
+      <div className="divide-y divide-surface-border/4">
         {rows.map((row, i) => (
-          <div key={i} className="grid grid-cols-[1fr_1fr_1fr] gap-0 px-5 py-3 hover:bg-white/[0.02] transition">
-            <p className="text-[11px] font-semibold text-slate-400 pr-3">{row.dimension}</p>
+          <div key={i} className="grid grid-cols-[1fr_1fr_1fr] gap-0 px-5 py-3 hover:bg-text-primary/[0.02] transition">
+            <p className="text-[11px] font-semibold text-text-secondary pr-3">{row.dimension}</p>
             <p className={`text-[11px] leading-[1.45] pr-3 ${advantageBadge(row.advantage, "holding")}`}>
               {row.holding}
               {row.advantage === "holding" && <span className="ml-1 text-[9px] text-emerald-500">▲</span>}
@@ -410,10 +410,10 @@ function TradeoffAnalysis({
   targetName: string;
 }) {
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center gap-2.5">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-surface-border/6 flex items-center gap-2.5">
         <ArrowLeftRight className="h-4 w-4 text-amber-400" />
-        <p className="text-[14px] font-semibold text-white">Trade-off Analysis</p>
+        <p className="text-[14px] font-semibold text-text-primary">Trade-off Analysis</p>
       </div>
 
       <div className="p-5 space-y-5">
@@ -425,7 +425,7 @@ function TradeoffAnalysis({
             </p>
             <ul className="space-y-2">
               {tradeoff.reasons_to_hold?.map((r, i) => (
-                <li key={i} className="flex items-start gap-2 text-[12px] text-slate-300 leading-[1.5]">
+                <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary leading-[1.5]">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
                   {r}
                 </li>
@@ -439,7 +439,7 @@ function TradeoffAnalysis({
             </p>
             <ul className="space-y-2">
               {tradeoff.reasons_to_switch?.map((r, i) => (
-                <li key={i} className="flex items-start gap-2 text-[12px] text-slate-300 leading-[1.5]">
+                <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary leading-[1.5]">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400" />
                   {r}
                 </li>
@@ -454,7 +454,7 @@ function TradeoffAnalysis({
             <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-rose-400 mb-2">Risks of Staying</p>
             <ul className="space-y-1.5">
               {tradeoff.risks_of_holding?.map((r, i) => (
-                <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-400 leading-[1.45]">
+                <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.45]">
                   <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />{r}
                 </li>
               ))}
@@ -464,7 +464,7 @@ function TradeoffAnalysis({
             <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-amber-400 mb-2">Risks of Switching</p>
             <ul className="space-y-1.5">
               {tradeoff.risks_of_switching?.map((r, i) => (
-                <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-400 leading-[1.45]">
+                <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.45]">
                   <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" />{r}
                 </li>
               ))}
@@ -474,11 +474,11 @@ function TradeoffAnalysis({
 
         {/* When to wait */}
         {tradeoff.when_to_wait && (
-          <div className="flex items-start gap-3 rounded-[14px] border border-slate-700/50 bg-white/[0.02] p-4">
-            <Clock className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 rounded-[14px] border border-surface-border/10 bg-text-primary/[0.02] p-4">
+            <Clock className="h-4 w-4 text-text-secondary shrink-0 mt-0.5" />
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-slate-500 mb-1">When Waiting May Be Appropriate</p>
-              <p className="text-[12px] text-slate-300 leading-[1.55]">{tradeoff.when_to_wait}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-text-muted mb-1">When Waiting May Be Appropriate</p>
+              <p className="text-[12px] text-text-secondary leading-[1.55]">{tradeoff.when_to_wait}</p>
             </div>
           </div>
         )}
@@ -495,7 +495,7 @@ function AIDecisionFramework({ framework }: { framework: DecisionFramework }) {
         <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-500/10 border border-violet-500/20">
           <Brain className="h-3.5 w-3.5 text-violet-400" />
         </div>
-        <p className="text-[14px] font-semibold text-white">AI Decision Framework</p>
+        <p className="text-[14px] font-semibold text-text-primary">AI Decision Framework</p>
       </div>
 
       <div className="p-5 space-y-4">
@@ -505,7 +505,7 @@ function AIDecisionFramework({ framework }: { framework: DecisionFramework }) {
             <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-emerald-500 mb-2">What Supports a Change</p>
             <ul className="space-y-2">
               {framework.supports_switch?.map((s, i) => (
-                <li key={i} className="flex items-start gap-2 text-[12px] text-slate-300 leading-[1.5]">
+                <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary leading-[1.5]">
                   <CircleDot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />{s}
                 </li>
               ))}
@@ -517,7 +517,7 @@ function AIDecisionFramework({ framework }: { framework: DecisionFramework }) {
             <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-rose-400 mb-2">What Argues Against</p>
             <ul className="space-y-2">
               {framework.argues_against?.map((a, i) => (
-                <li key={i} className="flex items-start gap-2 text-[12px] text-slate-300 leading-[1.5]">
+                <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary leading-[1.5]">
                   <CircleDot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" />{a}
                 </li>
               ))}
@@ -533,7 +533,7 @@ function AIDecisionFramework({ framework }: { framework: DecisionFramework }) {
             </p>
             <ul className="space-y-1.5">
               {framework.key_unknowns.map((k, i) => (
-                <li key={i} className="flex items-start gap-2 text-[12px] text-slate-300">
+                <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary">
                   <HelpCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />{k}
                 </li>
               ))}
@@ -547,7 +547,7 @@ function AIDecisionFramework({ framework }: { framework: DecisionFramework }) {
             <Sparkles className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-violet-400 mb-1.5">AI Perspective</p>
-              <p className="text-[12px] leading-[1.6] text-slate-200">{framework.ai_stance}</p>
+              <p className="text-[12px] leading-[1.6] text-text-primary">{framework.ai_stance}</p>
             </div>
           </div>
         )}
@@ -565,7 +565,7 @@ function DecisionSummaryBanner({
   const { intent, detected_holding, detected_target, decision_summary, detected_horizon, detected_risk } = di;
 
   return (
-    <div className="rounded-[20px] border border-white/[0.10] bg-gradient-to-r from-slate-900 to-slate-900/80 overflow-hidden">
+    <div className="rounded-[20px] border border-surface-border/[0.10] bg-gradient-to-r from-slate-900 to-slate-900/80 overflow-hidden">
       {/* Top strip */}
       <div className="h-0.5 bg-gradient-to-r from-sky-500 via-violet-500 to-violet-500/0" />
 
@@ -576,12 +576,12 @@ function DecisionSummaryBanner({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {detected_horizon && (
-              <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] text-slate-400">
+              <span className="flex items-center gap-1 rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2.5 py-1 text-[10px] text-text-secondary">
                 <Clock className="h-3 w-3" />{detected_horizon}
               </span>
             )}
             {detected_risk && (
-              <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] text-slate-400">
+              <span className="flex items-center gap-1 rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2.5 py-1 text-[10px] text-text-secondary">
                 <ShieldAlert className="h-3 w-3" />{detected_risk}
               </span>
             )}
@@ -592,15 +592,15 @@ function DecisionSummaryBanner({
         {(detected_holding || detected_target) && (
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             {detected_holding && (
-              <span className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[12px] font-semibold text-sky-300">
+              <span className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[12px] font-semibold text-sky-600 dark:text-sky-300">
                 <span className="h-2 w-2 rounded-full bg-sky-400" />
                 {detected_holding}
               </span>
             )}
             {detected_target && (
               <>
-                <ArrowLeftRight className="h-4 w-4 text-slate-500" />
-                <span className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[12px] font-semibold text-violet-300">
+                <ArrowLeftRight className="h-4 w-4 text-text-muted" />
+                <span className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[12px] font-semibold text-violet-600 dark:text-violet-300">
                   <span className="h-2 w-2 rounded-full bg-violet-400" />
                   {detected_target}
                 </span>
@@ -611,10 +611,10 @@ function DecisionSummaryBanner({
 
         {/* Summary */}
         {decision_summary && (
-          <p className="text-[13px] leading-6 text-slate-300">{decision_summary}</p>
+          <p className="text-[13px] leading-6 text-text-secondary">{decision_summary}</p>
         )}
 
-        <p className="mt-3 text-[11px] text-slate-500 italic">
+        <p className="mt-3 text-[11px] text-text-muted italic">
           MarketRipple explains the trade-offs and evidence. The investment decision is yours.
         </p>
       </div>
@@ -676,7 +676,7 @@ export function DecisionIntelligencePanel({ di, query, onRefine }: DecisionIntel
       {/* Company Analysis — two cards */}
       {(holding_analysis || target_analysis) && (
         <div className="space-y-3">
-          <p className="text-[15px] font-semibold text-white">Individual Analysis</p>
+          <p className="text-[15px] font-semibold text-text-primary">Individual Analysis</p>
           <div className="grid grid-cols-1 gap-4">
             {holding_analysis && (
               <CompanyAnalysisCard analysis={holding_analysis} side="holding" />
@@ -714,7 +714,7 @@ export function DecisionIntelligencePanel({ di, query, onRefine }: DecisionIntel
       {/* InvestmentThesisCard for each company (via self-fetch) */}
       {holding_analysis?.symbol && (
         <div>
-          <p className="text-[12px] uppercase tracking-[0.10em] text-slate-500 font-bold mb-3">
+          <p className="text-[12px] uppercase tracking-[0.10em] text-text-muted font-bold mb-3">
             Deep Thesis — {holdingName}
           </p>
           <InvestmentThesisCard
@@ -728,7 +728,7 @@ export function DecisionIntelligencePanel({ di, query, onRefine }: DecisionIntel
       )}
       {target_analysis?.symbol && (
         <div>
-          <p className="text-[12px] uppercase tracking-[0.10em] text-slate-500 font-bold mb-3">
+          <p className="text-[12px] uppercase tracking-[0.10em] text-text-muted font-bold mb-3">
             Deep Thesis — {targetName}
           </p>
           <InvestmentThesisCard

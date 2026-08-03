@@ -14,10 +14,10 @@ export function SectorPerformanceCard({ sectors }: { sectors: SectorItem[] }) {
   }, 2);
 
   return (
-    <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-lg h-full">
+    <div className="rounded-[28px] border border-surface-border/10 bg-text-primary/[0.03] p-5 shadow-lg h-full">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-[14px] font-bold text-white">Sector Performance</h2>
-        <Link href="/opportunity-radar" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <h2 className="text-[14px] font-bold text-text-primary">Sector Performance</h2>
+        <Link href="/opportunity-radar" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
       </div>
       <div className="space-y-2.5">
         {sectors.slice(0, 8).map((s) => {
@@ -32,9 +32,9 @@ export function SectorPerformanceCard({ sectors }: { sectors: SectorItem[] }) {
               {/* Colored dot */}
               <div className={`h-2 w-2 shrink-0 rounded-full ${s.positive ? "bg-emerald-400" : "bg-rose-400"}`}/>
               {/* Name */}
-              <p className="w-32 shrink-0 text-[12px] text-slate-300 truncate">{s.name}</p>
+              <p className="w-32 shrink-0 text-[12px] text-text-secondary truncate">{s.name}</p>
               {/* Bar */}
-              <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="flex-1 h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${s.positive ? "bg-emerald-500" : "bg-rose-500"}`}
                   style={{ width: `${pct * 100}%` }}/>

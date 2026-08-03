@@ -17,13 +17,13 @@ export default async function CompanyIntelligencePage(
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <div className="mb-8">
-        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           <Building2 className="h-3 w-3 text-sky-400" /> AI Newsroom
         </p>
-        <h1 className="mt-2 text-[26px] font-black leading-tight text-white md:text-[30px]">
+        <h1 className="mt-2 text-[26px] font-black leading-tight text-text-primary md:text-[30px]">
           Company Intelligence
         </h1>
-        <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-slate-400">
+        <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-text-secondary">
           What's moving individual stocks — earnings, filings, and news, and what it means for investors.
         </p>
       </div>

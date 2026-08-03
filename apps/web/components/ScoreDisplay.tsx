@@ -64,12 +64,12 @@ export function ScoreDisplay({
     return (
       <span className={`inline-flex items-center gap-1.5 text-[12px] ${className}`}>
         {unscored ? (
-          <span className="text-slate-500">{message}</span>
+          <span className="text-text-muted">{message}</span>
         ) : (
           <>
             <span className={`font-bold ${style.text}`}>{Math.round(score as number)}</span>
             {showConfidence && confidence != null && (
-              <span className="text-slate-500">({Math.round(confidence)}% confidence)</span>
+              <span className="text-text-muted">({Math.round(confidence)}% confidence)</span>
             )}
             {dsStyle?.label && (
               <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${dsStyle.text} ${dsStyle.bg}`}>{dsStyle.label}</span>
@@ -83,7 +83,7 @@ export function ScoreDisplay({
   // circle (default)
   return (
     <div className={`flex flex-col items-center gap-1 ${className}`}>
-      {label && <p className="text-[9px] uppercase tracking-wider text-slate-600">{label}</p>}
+      {label && <p className="text-[9px] uppercase tracking-wider text-text-muted">{label}</p>}
       <div className={`flex flex-col items-center justify-center rounded-full border-2 ${style.circle} ${CIRCLE_SIZE[size]}`}>
         {unscored ? (
           <span className="px-1 text-center text-[9px] font-medium leading-tight">N/A</span>
@@ -93,10 +93,10 @@ export function ScoreDisplay({
         <span className="text-[8px] font-medium">{style.label}</span>
       </div>
       {unscored ? (
-        <p className="max-w-[84px] text-center text-[9px] leading-tight text-slate-500">{message}</p>
+        <p className="max-w-[84px] text-center text-[9px] leading-tight text-text-muted">{message}</p>
       ) : (
         showConfidence && confidence != null && (
-          <p className="text-[9px] text-slate-500">{Math.round(confidence)}% confidence</p>
+          <p className="text-[9px] text-text-muted">{Math.round(confidence)}% confidence</p>
         )
       )}
       {!unscored && dsStyle?.label && (
@@ -116,7 +116,7 @@ export function IntelligenceStatus({
 }: { dataStatus?: DataStatus | null; status?: ScoreStatus; className?: string }) {
   if (status === "insufficient_data" || !dataStatus) {
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full border border-slate-700/50 bg-slate-800/30 px-2 py-0.5 text-[10px] font-medium text-slate-500 ${className}`}>
+      <span className={`inline-flex items-center gap-1 rounded-full border border-surface-border/10 bg-text-primary/[0.07] px-2 py-0.5 text-[10px] font-medium text-text-muted ${className}`}>
         Insufficient verified data
       </span>
     );

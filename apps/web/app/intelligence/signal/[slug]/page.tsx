@@ -37,7 +37,7 @@ import { SignalActions } from "@/components/intelligence/SignalActions";
  *     companies_affected; a plain ticker chip is the honest fallback.
  */
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 interface SignalPayload {
   type: "anomaly" | "policy_ripple" | "early_theme" | "historical_match";
@@ -90,10 +90,10 @@ async function fetchSignal(slug: string): Promise<SignalArticle | null> {
 }
 
 const TYPE_META: Record<string, { label: string; icon: React.ReactNode; cls: string; glow: string }> = {
-  anomaly:          { label: "Intelligence Detection", icon: <Radar className="h-3.5 w-3.5" />,    cls: "text-violet-300 border-violet-500/25 bg-violet-500/[0.08]",   glow: "from-violet-500/10" },
-  policy_ripple:    { label: "Policy Intelligence",     icon: <GitBranch className="h-3.5 w-3.5" />, cls: "text-sky-300 border-sky-500/25 bg-sky-500/[0.08]",           glow: "from-sky-500/10" },
-  early_theme:      { label: "Emerging Theme",          icon: <Rocket className="h-3.5 w-3.5" />,    cls: "text-emerald-300 border-emerald-500/25 bg-emerald-500/[0.08]", glow: "from-emerald-500/10" },
-  historical_match: { label: "Pattern Detected",        icon: <History className="h-3.5 w-3.5" />,   cls: "text-amber-300 border-amber-500/25 bg-amber-500/[0.08]",     glow: "from-amber-500/10" },
+  anomaly:          { label: "Intelligence Detection", icon: <Radar className="h-3.5 w-3.5" />,    cls: "text-violet-600 dark:text-violet-300 border-violet-500/25 bg-violet-500/[0.08]",   glow: "from-violet-500/10" },
+  policy_ripple:    { label: "Policy Intelligence",     icon: <GitBranch className="h-3.5 w-3.5" />, cls: "text-sky-600 dark:text-sky-300 border-sky-500/25 bg-sky-500/[0.08]",           glow: "from-sky-500/10" },
+  early_theme:      { label: "Emerging Theme",          icon: <Rocket className="h-3.5 w-3.5" />,    cls: "text-emerald-600 dark:text-emerald-300 border-emerald-500/25 bg-emerald-500/[0.08]", glow: "from-emerald-500/10" },
+  historical_match: { label: "Pattern Detected",        icon: <History className="h-3.5 w-3.5" />,   cls: "text-amber-600 dark:text-amber-300 border-amber-500/25 bg-amber-500/[0.08]",     glow: "from-amber-500/10" },
 };
 
 function timeAgo(iso: string | null | undefined): string {
@@ -138,11 +138,11 @@ function buildSeoSummary(signalType: string, headline: string, p: SignalPayload,
 
 function Card({ title, icon, children, className = "" }: { title?: string; icon?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-[18px] border border-white/[0.08] bg-white/[0.02] p-5 backdrop-blur transition hover:border-white/[0.12] ${className}`}>
+    <section className={`rounded-[18px] border border-surface-border/8 bg-text-primary/[0.02] p-5 backdrop-blur transition hover:border-surface-border/[0.12] ${className}`}>
       {title && (
         <div className="mb-3.5 flex items-center gap-2">
           {icon}
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{title}</h2>
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-text-secondary">{title}</h2>
         </div>
       )}
       {children}
@@ -182,7 +182,7 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
 
   const ctx = a.market_context;
   const p = ctx.payload;
-  const meta = TYPE_META[ctx.signal_type] ?? { label: "Live Intelligence", icon: <Sparkles className="h-3.5 w-3.5" />, cls: "text-slate-300 border-white/20 bg-white/[0.05]", glow: "from-slate-500/10" };
+  const meta = TYPE_META[ctx.signal_type] ?? { label: "Live Intelligence", icon: <Sparkles className="h-3.5 w-3.5" />, cls: "text-text-secondary border-surface-border/20 bg-text-primary/[0.05]", glow: "from-slate-500/10" };
   const url = a.canonical_url || `${SITE}/intelligence/signal/${slug}`;
   const companies = a.companies_affected?.map(c => c.symbol) ?? [];
 
@@ -268,35 +268,35 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
           safeJsonLd() already guards against on the main article page. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
-      <nav className="mb-4 flex items-center gap-2 text-[12px] text-slate-500">
-        <Link href="/" className="hover:text-slate-300 transition">Home</Link>
+      <nav className="mb-4 flex items-center gap-2 text-[12px] text-text-muted">
+        <Link href="/" className="hover:text-text-secondary transition">Home</Link>
         <span>/</span>
-        <span className="text-slate-400">Live Intelligence</span>
+        <span className="text-text-secondary">Live Intelligence</span>
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <div className={`relative overflow-hidden rounded-[22px] border border-white/[0.08] bg-gradient-to-br ${meta.glow} to-transparent p-6 sm:p-7`}>
+      <div className={`relative overflow-hidden rounded-[22px] border border-surface-border/8 bg-gradient-to-br ${meta.glow} to-transparent p-6 sm:p-7`}>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${meta.cls}`}>
             {meta.icon} {meta.label}
           </span>
           {p.is_fallback ? (
-            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="inline-flex items-center rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">
               Recurring — not today&apos;s news
             </span>
           ) : ctx.first_detected_at ? (
-            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-slate-400">
+            <span className="inline-flex items-center rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2.5 py-1 text-[10px] font-semibold text-text-secondary">
               Detected {timeAgo(ctx.first_detected_at)}
             </span>
           ) : null}
           {p.sector && (
-            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold capitalize text-slate-400">
+            <span className="inline-flex items-center rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2.5 py-1 text-[10px] font-semibold capitalize text-text-secondary">
               {p.sector} Sector
             </span>
           )}
         </div>
-        <h1 className="mt-3.5 text-2xl font-black leading-tight tracking-tight text-white sm:text-[32px]">{a.headline}</h1>
-        <p className="mt-2.5 max-w-[760px] text-[13.5px] leading-relaxed text-slate-400">{seoSummary}</p>
+        <h1 className="mt-3.5 text-2xl font-black leading-tight tracking-tight text-text-primary sm:text-[32px]">{a.headline}</h1>
+        <p className="mt-2.5 max-w-[760px] text-[13.5px] leading-relaxed text-text-secondary">{seoSummary}</p>
       </div>
 
       {/* ── Two-column workspace ──────────────────────────────────────────── */}
@@ -307,7 +307,7 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
 
           {a.executive_summary && (
             <Card title="Executive Summary">
-              <p className="line-clamp-4 text-[14px] leading-relaxed text-slate-300">{a.executive_summary}</p>
+              <p className="line-clamp-4 text-[14px] leading-relaxed text-text-secondary">{a.executive_summary}</p>
             </Card>
           )}
 
@@ -315,7 +315,7 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
             <Card title="Why This Matters">
               <ul className="space-y-2">
                 {whyItMatters.map((w, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-[13.5px] leading-snug text-slate-300">
+                  <li key={i} className="flex items-start gap-2.5 text-[13.5px] leading-snug text-text-secondary">
                     <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-violet-400" />
                     {w}
                   </li>
@@ -328,13 +328,13 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
               policy_ripple (the one type that actually has a multi-hop
               path), a real 3-tier signal→sector→companies flow for the
               other three (no fabricated intermediate nodes). */}
-          <Card title="Ripple Analysis" icon={<GitBranch className="h-3.5 w-3.5 text-slate-500" />}>
+          <Card title="Ripple Analysis" icon={<GitBranch className="h-3.5 w-3.5 text-text-muted" />}>
             {ctx.signal_type === "policy_ripple" && p.path && p.path.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2 py-1">
                 {p.path.map((node, i) => (
                   <span key={i} className="flex items-center gap-2">
-                    {i > 0 && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-600" />}
-                    <span className="rounded-[10px] border border-sky-500/20 bg-sky-500/[0.06] px-3 py-1.5 text-[12.5px] font-semibold text-sky-200">{node}</span>
+                    {i > 0 && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />}
+                    <span className="rounded-[10px] border border-sky-500/20 bg-sky-500/[0.06] px-3 py-1.5 text-[12.5px] font-semibold text-sky-700 dark:text-sky-200">{node}</span>
                   </span>
                 ))}
               </div>
@@ -343,14 +343,14 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
                 <span className={`rounded-[10px] border px-3 py-1.5 text-[12.5px] font-semibold ${meta.cls}`}>{meta.label}</span>
                 {p.sector && (
                   <>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-600" />
-                    <span className="rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12.5px] font-semibold capitalize text-slate-200">{p.sector}</span>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                    <span className="rounded-[10px] border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[12.5px] font-semibold capitalize text-text-primary">{p.sector}</span>
                   </>
                 )}
                 {companies.slice(0, 4).map((c, i) => (
                   <span key={c} className="flex items-center gap-2">
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-600" />
-                    <Link href={`/companies/${c}`} className="rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12.5px] font-semibold text-slate-200 transition hover:border-violet-500/30 hover:text-violet-300">{c}</Link>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                    <Link href={`/companies/${c}`} className="rounded-[10px] border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[12.5px] font-semibold text-text-primary transition hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300">{c}</Link>
                   </span>
                 ))}
               </div>
@@ -370,12 +370,12 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
               ].map((row, i, arr) => (
                 <div key={i} className="relative flex gap-3 pb-4 last:pb-0">
                   <div className="flex flex-col items-center">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-violet-400 bg-[#0a0d16]" />
-                    {i < arr.length - 1 && <span className="w-px flex-1 bg-white/10" />}
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-violet-400 bg-surface-card" />
+                    {i < arr.length - 1 && <span className="w-px flex-1 bg-text-primary/10" />}
                   </div>
                   <div className="-mt-0.5">
-                    <p className="text-[12px] font-bold text-white">{row.label}</p>
-                    <p className="text-[11.5px] text-slate-400">{row.value} <span className="text-slate-600">· {row.sub}</span></p>
+                    <p className="text-[12px] font-bold text-text-primary">{row.label}</p>
+                    <p className="text-[11.5px] text-text-secondary">{row.value} <span className="text-text-muted">· {row.sub}</span></p>
                   </div>
                 </div>
               ))}
@@ -387,17 +387,17 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                 {a.companies_affected.map((c, i) => (
                   <Link key={i} href={`/companies/${c.symbol}`}
-                    className="group flex items-center gap-2.5 rounded-[12px] border border-white/[0.07] bg-white/[0.02] p-2.5 transition hover:border-violet-500/25 hover:bg-white/[0.04]">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/20 to-sky-500/20 text-[11px] font-black text-white">
+                    className="group flex items-center gap-2.5 rounded-[12px] border border-surface-border/7 bg-text-primary/[0.02] p-2.5 transition hover:border-violet-500/25 hover:bg-text-primary/[0.04]">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/20 to-sky-500/20 text-[11px] font-black text-text-primary">
                       {c.symbol.slice(0, 2)}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block break-words text-[12.5px] font-bold leading-tight text-white">{c.symbol}</span>
-                      <span className={`block text-[10px] font-semibold capitalize ${c.impact === "positive" ? "text-emerald-400" : c.impact === "negative" ? "text-rose-400" : "text-slate-500"}`}>
+                      <span className="block break-words text-[12.5px] font-bold leading-tight text-text-primary">{c.symbol}</span>
+                      <span className={`block text-[10px] font-semibold capitalize ${c.impact === "positive" ? "text-emerald-400" : c.impact === "negative" ? "text-rose-400" : "text-text-muted"}`}>
                         {c.impact ?? "neutral"}
                       </span>
                     </span>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-600 opacity-0 transition group-hover:opacity-100" />
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-text-muted opacity-0 transition group-hover:opacity-100" />
                   </Link>
                 ))}
               </div>
@@ -410,13 +410,13 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
               rather than showing an empty/placeholder section. */}
           {a.what_happened && (
             <Card title="What Happened" icon={<BookOpen className="h-3.5 w-3.5 text-sky-400" />}>
-              <p className="text-[13px] leading-relaxed text-slate-300">{a.what_happened}</p>
+              <p className="text-[13px] leading-relaxed text-text-secondary">{a.what_happened}</p>
             </Card>
           )}
 
           {a.why_it_matters && (
             <Card title="Why It Matters" icon={<Sparkles className="h-3.5 w-3.5 text-violet-400" />}>
-              <p className="text-[13px] leading-relaxed text-slate-300">{a.why_it_matters}</p>
+              <p className="text-[13px] leading-relaxed text-text-secondary">{a.why_it_matters}</p>
             </Card>
           )}
 
@@ -427,8 +427,8 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
                   <div className="space-y-2.5">
                     {a.opportunities.map((o, i) => (
                       <div key={i} className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-3">
-                        <p className="text-[12.5px] font-bold text-white">{o.title}</p>
-                        <p className="mt-1 text-[12px] leading-relaxed text-slate-400">{o.description}</p>
+                        <p className="text-[12.5px] font-bold text-text-primary">{o.title}</p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-text-secondary">{o.description}</p>
                       </div>
                     ))}
                   </div>
@@ -439,8 +439,8 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
                   <div className="space-y-2.5">
                     {a.risks.map((r, i) => (
                       <div key={i} className="rounded-xl border border-rose-500/15 bg-rose-500/[0.04] p-3">
-                        <p className="text-[12.5px] font-bold text-white">{r.title}</p>
-                        <p className="mt-1 text-[12px] leading-relaxed text-slate-400">{r.description}</p>
+                        <p className="text-[12.5px] font-bold text-text-primary">{r.title}</p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-text-secondary">{r.description}</p>
                       </div>
                     ))}
                   </div>
@@ -450,12 +450,12 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
           ) : null}
 
           {a.faqs && a.faqs.length > 0 && (
-            <Card title="Frequently Asked" icon={<HelpCircle className="h-3.5 w-3.5 text-slate-400" />}>
+            <Card title="Frequently Asked" icon={<HelpCircle className="h-3.5 w-3.5 text-text-secondary" />}>
               <div className="space-y-2">
                 {a.faqs.map((f, i) => (
-                  <details key={i} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-                    <summary className="cursor-pointer text-[12.5px] font-semibold text-white">{f.question}</summary>
-                    <p className="mt-2 text-[12px] leading-relaxed text-slate-400">{f.answer}</p>
+                  <details key={i} className="group rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
+                    <summary className="cursor-pointer text-[12.5px] font-semibold text-text-primary">{f.question}</summary>
+                    <p className="mt-2 text-[12px] leading-relaxed text-text-secondary">{f.answer}</p>
                   </details>
                 ))}
               </div>
@@ -466,29 +466,29 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
             <Card title="Historical Pattern" icon={<History className="h-3.5 w-3.5 text-amber-500" />}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Previous Similar Event</p>
-                  <p className="text-[14px] font-bold text-white">{p.headline}</p>
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">Previous Similar Event</p>
+                  <p className="text-[14px] font-bold text-text-primary">{p.headline}</p>
                   {p.similarity != null && (
-                    <p className="mt-1 text-[12px] text-slate-400">Similarity <span className="font-bold text-amber-300">{Math.round(p.similarity)}%</span></p>
+                    <p className="mt-1 text-[12px] text-text-secondary">Similarity <span className="font-bold text-amber-600 dark:text-amber-300">{Math.round(p.similarity)}%</span></p>
                   )}
                 </div>
                 <div className="flex gap-4">
                   {p.winners?.[0] && (
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">Winner</p>
-                      <Link href={`/companies/${p.winners[0]}`} className="text-[14px] font-bold text-emerald-300 hover:underline">{p.winners[0]}</Link>
+                      <Link href={`/companies/${p.winners[0]}`} className="text-[14px] font-bold text-emerald-600 dark:text-emerald-300 hover:underline">{p.winners[0]}</Link>
                     </div>
                   )}
                   {p.losers?.[0] && (
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-rose-500">Loser</p>
-                      <Link href={`/companies/${p.losers[0]}`} className="text-[14px] font-bold text-rose-300 hover:underline">{p.losers[0]}</Link>
+                      <Link href={`/companies/${p.losers[0]}`} className="text-[14px] font-bold text-rose-600 dark:text-rose-300 hover:underline">{p.losers[0]}</Link>
                     </div>
                   )}
                 </div>
               </div>
               {p.key_lesson && (
-                <p className="mt-3 border-t border-white/[0.06] pt-3 text-[13px] leading-relaxed text-slate-400">{p.key_lesson}</p>
+                <p className="mt-3 border-t border-surface-border/6 pt-3 text-[13px] leading-relaxed text-text-secondary">{p.key_lesson}</p>
               )}
             </Card>
           )}
@@ -498,8 +498,8 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
               <Link href={`/opportunity-radar/${p.opportunity_id}`}
                 className="flex items-center justify-between rounded-[12px] border border-emerald-500/20 bg-emerald-500/[0.05] px-4 py-3 transition hover:border-emerald-500/35">
                 <span>
-                  <span className="block text-[13.5px] font-bold text-white">{a.headline}</span>
-                  <span className="text-[11.5px] text-slate-400">Opportunity Score {p.opportunity_score}</span>
+                  <span className="block text-[13.5px] font-bold text-text-primary">{a.headline}</span>
+                  <span className="text-[11.5px] text-text-secondary">Opportunity Score {p.opportunity_score}</span>
                 </span>
                 <ArrowRight className="h-4 w-4 shrink-0 text-emerald-400" />
               </Link>
@@ -510,13 +510,13 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <Link href={`/ai-search?q=${encodeURIComponent(a.headline)}`}
                 className="flex items-center justify-between rounded-[12px] border border-violet-500/20 bg-violet-500/[0.05] px-4 py-3 transition hover:border-violet-500/35">
-                <span className="text-[13px] font-semibold text-violet-200">Ask MarketRipple AI</span>
+                <span className="text-[13px] font-semibold text-violet-700 dark:text-violet-200">Ask MarketRipple AI</span>
                 <ArrowRight className="h-4 w-4 text-violet-400" />
               </Link>
               <Link href="/research/comparisons"
-                className="flex items-center justify-between rounded-[12px] border border-white/10 bg-white/[0.02] px-4 py-3 transition hover:border-white/20">
-                <span className="text-[13px] font-semibold text-slate-300">Browse Research Hub</span>
-                <ArrowRight className="h-4 w-4 text-slate-500" />
+                className="flex items-center justify-between rounded-[12px] border border-surface-border/10 bg-text-primary/[0.02] px-4 py-3 transition hover:border-surface-border/20">
+                <span className="text-[13px] font-semibold text-text-secondary">Browse Research Hub</span>
+                <ArrowRight className="h-4 w-4 text-text-muted" />
               </Link>
             </div>
           </Card>
@@ -525,29 +525,29 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
         {/* RIGHT — sticky sidebar */}
         <div className="space-y-4 md:sticky md:top-20 md:self-start">
           <Card>
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Intelligence Score</p>
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Intelligence Score</p>
             {score != null ? (
               <div className="flex items-end gap-1.5">
-                <span className="text-4xl font-black text-white">{Math.round(score)}</span>
-                <span className="mb-1 text-[13px] font-bold text-slate-500">%</span>
+                <span className="text-4xl font-black text-text-primary">{Math.round(score)}</span>
+                <span className="mb-1 text-[13px] font-bold text-text-muted">%</span>
               </div>
             ) : (
-              <p className="text-[13px] font-semibold text-slate-500">Not applicable to this signal type</p>
+              <p className="text-[13px] font-semibold text-text-muted">Not applicable to this signal type</p>
             )}
-            <p className="mt-0.5 text-[11px] text-slate-500">{scoreLabel}</p>
+            <p className="mt-0.5 text-[11px] text-text-muted">{scoreLabel}</p>
 
-            <div className="mt-4 space-y-2.5 border-t border-white/[0.06] pt-3.5">
+            <div className="mt-4 space-y-2.5 border-t border-surface-border/6 pt-3.5">
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-slate-500">Occurrence</span>
-                <span className="font-semibold text-white">Seen {ctx.occurrence_count ?? 1}×</span>
+                <span className="text-text-muted">Occurrence</span>
+                <span className="font-semibold text-text-primary">Seen {ctx.occurrence_count ?? 1}×</span>
               </div>
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-slate-500">First Detected</span>
-                <span className="font-semibold text-white">{fmtDate(ctx.first_detected_at)}</span>
+                <span className="text-text-muted">First Detected</span>
+                <span className="font-semibold text-text-primary">{fmtDate(ctx.first_detected_at)}</span>
               </div>
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-slate-500">Last Updated</span>
-                <span className="font-semibold text-white">{timeAgo(ctx.last_seen_at)}</span>
+                <span className="text-text-muted">Last Updated</span>
+                <span className="font-semibold text-text-primary">{timeAgo(ctx.last_seen_at)}</span>
               </div>
             </div>
           </Card>

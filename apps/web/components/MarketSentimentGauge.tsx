@@ -36,9 +36,9 @@ export function MarketSentimentGauge({ score, bias, label }: { score: number; bi
         <line x1={CX} y1={CY} x2={needleX} y2={needleY} stroke="white" strokeWidth="2" strokeLinecap="round" />
         <circle cx={CX} cy={CY} r="4" fill="white" />
       </svg>
-      <p className="text-[26px] font-black leading-none text-white">{Math.round(clamped)}<span className="text-[13px] font-semibold text-slate-500">/100</span></p>
+      <p className="text-[26px] font-black leading-none text-text-primary">{Math.round(clamped)}<span className="text-[13px] font-semibold text-text-muted">/100</span></p>
       <p className="mt-1 text-[13px] font-bold" style={{ color }}>{bias}</p>
-      {label && <p className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">{label}</p>}
+      {label && <p className="mt-0.5 text-[10px] uppercase tracking-wider text-text-muted">{label}</p>}
     </div>
   );
 }

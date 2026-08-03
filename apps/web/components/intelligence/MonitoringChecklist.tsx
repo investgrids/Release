@@ -49,7 +49,7 @@ const IMP_STYLES: Record<ChecklistImportance, { dot: string; badge: string }> = 
 };
 
 const STATUS_STYLES: Record<ChecklistStatus, string> = {
-  pending: "text-slate-400",
+  pending: "text-text-secondary",
   watch:   "text-amber-400",
   ok:      "text-emerald-400",
 };
@@ -63,7 +63,7 @@ const STATUS_DOT: Record<ChecklistStatus, string> = {
 // ── Skeleton ─────────────────────────────────────────────────────────────────
 
 function Skel({ w }: { w: string }) {
-  return <span className={`inline-block h-2.5 rounded ${w} bg-white/[0.06] animate-pulse`} />;
+  return <span className={`inline-block h-2.5 rounded ${w} bg-text-primary/[0.06] animate-pulse`} />;
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -109,21 +109,21 @@ export function MonitoringChecklist({
   const doneCount = checked.length;
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.025] p-5">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.025] p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-sky-500/[0.08] border border-sky-500/20">
             <ClipboardList className="h-3.5 w-3.5 text-sky-400" />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
             Monitoring Checklist
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {loading && <Loader2 className="h-3 w-3 text-slate-600 animate-spin" />}
+          {loading && <Loader2 className="h-3 w-3 text-text-muted animate-spin" />}
           {items.length > 0 && (
-            <span className="text-[10px] text-slate-600">
+            <span className="text-[10px] text-text-muted">
               {doneCount}/{items.length} done
             </span>
           )}
@@ -134,9 +134,9 @@ export function MonitoringChecklist({
       {loading && !items.length && (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-[14px] border border-white/[0.05] px-3 py-2.5">
-              <span className="h-4 w-4 shrink-0 rounded border border-white/20 bg-white/[0.03]" />
-              <span className="h-2 w-2 shrink-0 rounded-full bg-white/10" />
+            <div key={i} className="flex items-center gap-3 rounded-[14px] border border-surface-border/5 px-3 py-2.5">
+              <span className="h-4 w-4 shrink-0 rounded border border-surface-border/20 bg-text-primary/[0.03]" />
+              <span className="h-2 w-2 shrink-0 rounded-full bg-text-primary/10" />
               <Skel w={`w-${["48", "40", "56", "44", "52"][i % 5]}`} />
             </div>
           ))}
@@ -145,7 +145,7 @@ export function MonitoringChecklist({
 
       {/* Empty */}
       {!loading && items.length === 0 && (
-        <p className="text-[12px] text-slate-400 leading-5">No data available</p>
+        <p className="text-[12px] text-text-secondary leading-5">No data available</p>
       )}
 
       {/* List */}
@@ -163,8 +163,8 @@ export function MonitoringChecklist({
                 <div
                   className={`rounded-[14px] border px-3 py-2.5 transition-all ${
                     isDone
-                      ? "border-white/[0.04] bg-white/[0.01] opacity-60"
-                      : "border-white/[0.07] bg-white/[0.02] hover:border-sky-400/20 hover:bg-white/[0.04]"
+                      ? "border-surface-border/4 bg-text-primary/[0.01] opacity-60"
+                      : "border-surface-border/7 bg-text-primary/[0.02] hover:border-sky-400/20 hover:bg-text-primary/[0.04]"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -172,12 +172,12 @@ export function MonitoringChecklist({
                     <button
                       onClick={() => toggle(i)}
                       className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all ${
-                        isDone ? "border-sky-500 bg-sky-500" : "border-white/20 bg-transparent"
+                        isDone ? "border-sky-500 bg-sky-500" : "border-surface-border/20 bg-transparent"
                       }`}
                       aria-label={isDone ? "Mark incomplete" : "Mark done"}
                     >
                       {isDone && (
-                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 10 10" stroke="currentColor">
+                        <svg className="h-2.5 w-2.5 text-text-primary" fill="none" viewBox="0 0 10 10" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1.5 5l2.5 2.5 4.5-4.5" />
                         </svg>
                       )}
@@ -187,13 +187,13 @@ export function MonitoringChecklist({
                     <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[status]}`} title={status} />
 
                     {/* Label */}
-                    <span className={`flex-1 text-[12px] leading-5 ${isDone ? "line-through text-slate-600" : "text-slate-300"}`}>
+                    <span className={`flex-1 text-[12px] leading-5 ${isDone ? "line-through text-text-muted" : "text-text-secondary"}`}>
                       {item.label}
                     </span>
 
                     {/* Frequency */}
                     {item.frequency && (
-                      <span className="shrink-0 text-[9px] text-slate-600 hidden sm:inline">
+                      <span className="shrink-0 text-[9px] text-text-muted hidden sm:inline">
                         {item.frequency}
                       </span>
                     )}
@@ -207,7 +207,7 @@ export function MonitoringChecklist({
                     {item.why_it_matters && (
                       <button
                         onClick={() => toggleExpand(i)}
-                        className="shrink-0 text-slate-600 hover:text-slate-400 transition-colors"
+                        className="shrink-0 text-text-muted hover:text-text-secondary transition-colors"
                         aria-label="Toggle details"
                       >
                         <ChevronRight
@@ -219,7 +219,7 @@ export function MonitoringChecklist({
 
                   {/* Expanded detail */}
                   {isOpen && item.why_it_matters && (
-                    <p className="mt-2 ml-7 text-[11px] text-slate-500 leading-[1.55]">
+                    <p className="mt-2 ml-7 text-[11px] text-text-muted leading-[1.55]">
                       {item.why_it_matters}
                     </p>
                   )}
@@ -232,7 +232,7 @@ export function MonitoringChecklist({
 
       {/* Progress bar */}
       {items.length > 0 && (
-        <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+        <div className="mt-4 h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
           <div
             className="h-full rounded-full bg-sky-500 transition-all duration-500"
             style={{ width: `${(doneCount / items.length) * 100}%` }}

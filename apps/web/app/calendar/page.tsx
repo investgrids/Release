@@ -52,16 +52,16 @@ async function getPolicyIntelligence() {
 }
 
 const CAT_CONFIG: Record<string, { color: string; icon: ReactNode; label: string; why: string }> = {
-  RBI:     { color: "border-indigo-500/30 bg-indigo-500/10 text-indigo-300", icon: <Landmark className="h-3 w-3" />,       label: "Central Bank",        why: "Affects interest rates and bank stocks" },
-  PMI:     { color: "border-sky-500/30 bg-sky-500/10 text-sky-300",         icon: <BarChart2 className="h-3 w-3" />,       label: "Manufacturing Activity", why: "Signals how factories are performing" },
-  GDP:     { color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300", icon: <TrendingUp className="h-3 w-3" />,  label: "Economic Growth",     why: "Shows if India's economy is expanding" },
-  FX:      { color: "border-amber-500/30 bg-amber-500/10 text-amber-300",   icon: <ArrowLeftRight className="h-3 w-3" />,  label: "Currency Data",       why: "USD/INR moves affect IT and import costs" },
-  Results: { color: "border-violet-500/30 bg-violet-500/10 text-violet-300", icon: <ClipboardList className="h-3 w-3" />, label: "Company Earnings",    why: "Quarterly profits can move individual stocks 5-15%" },
-  Policy:  { color: "border-rose-500/30 bg-rose-500/10 text-rose-300",      icon: <ScrollText className="h-3 w-3" />,      label: "Regulations",         why: "New rules can reshape entire sectors" },
+  RBI:     { color: "border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300", icon: <Landmark className="h-3 w-3" />,       label: "Central Bank",        why: "Affects interest rates and bank stocks" },
+  PMI:     { color: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300",         icon: <BarChart2 className="h-3 w-3" />,       label: "Manufacturing Activity", why: "Signals how factories are performing" },
+  GDP:     { color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300", icon: <TrendingUp className="h-3 w-3" />,  label: "Economic Growth",     why: "Shows if India's economy is expanding" },
+  FX:      { color: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300",   icon: <ArrowLeftRight className="h-3 w-3" />,  label: "Currency Data",       why: "USD/INR moves affect IT and import costs" },
+  Results: { color: "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300", icon: <ClipboardList className="h-3 w-3" />, label: "Company Earnings",    why: "Quarterly profits can move individual stocks 5-15%" },
+  Policy:  { color: "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300",      icon: <ScrollText className="h-3 w-3" />,      label: "Regulations",         why: "New rules can reshape entire sectors" },
 };
 
 function catStyle(cat: string) {
-  return CAT_CONFIG[cat] ?? { color: "border-white/10 bg-white/5 text-slate-300", icon: <CalendarDays className="h-3 w-3" /> };
+  return CAT_CONFIG[cat] ?? { color: "border-surface-border/10 bg-text-primary/5 text-text-secondary", icon: <CalendarDays className="h-3 w-3" /> };
 }
 
 function formatDate(dateStr: string) {
@@ -97,9 +97,9 @@ export default async function CalendarPage() {
     <main className="min-w-0 space-y-10 pb-10">
       <MarketContextStrip />
       <div>
-        <p className="text-sm uppercase tracking-[0.24em] text-sky-300">Intelligence & Schedule</p>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">Policy & Calendar</h1>
-        <p className="mt-1 max-w-2xl text-sm text-slate-400">
+        <p className="text-sm uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">Intelligence & Schedule</p>
+        <h1 className="mt-2 text-4xl font-semibold tracking-tight text-text-primary">Policy & Calendar</h1>
+        <p className="mt-1 max-w-2xl text-sm text-text-secondary">
           Government and regulatory decisions that moved the market, plus the scheduled events that
           could move it next — RBI meetings, GDP prints, earnings, and more.
         </p>
@@ -108,7 +108,7 @@ export default async function CalendarPage() {
       {/* ── Upcoming Calendar ─────────────────────────────────────────── */}
       <section aria-labelledby="upcoming-calendar">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-          <h2 id="upcoming-calendar" className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <h2 id="upcoming-calendar" className="text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">
             Upcoming Calendar
           </h2>
           <div className="flex flex-wrap gap-2">
@@ -125,9 +125,9 @@ export default async function CalendarPage() {
             {days.map(([date, items]) => (
               <div key={date}>
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-white/5" />
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-400">{date}</span>
-                  <div className="h-px flex-1 bg-white/5" />
+                  <div className="h-px flex-1 bg-text-primary/5" />
+                  <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-3 py-1 text-xs text-text-secondary">{date}</span>
+                  <div className="h-px flex-1 bg-text-primary/5" />
                 </div>
 
                 <div className="space-y-3">
@@ -135,11 +135,11 @@ export default async function CalendarPage() {
                     const cfg = catStyle(e.category);
                     return (
                       <article key={e.id}
-                        className="rounded-[20px] border border-white/10 bg-white/[0.03] shadow-glow transition hover:-translate-y-0.5 hover:border-white/20">
+                        className="rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] shadow-glow transition hover:-translate-y-0.5 hover:border-surface-border/20">
                         <div className="flex items-stretch">
-                          <div className="flex w-20 shrink-0 flex-col items-center justify-center rounded-l-[20px] bg-white/5 py-4">
-                            <span className="text-2xl font-black text-white">{formatDay(e.date)}</span>
-                            <span className="text-[10px] uppercase tracking-widest text-slate-500">{formatMonth(e.date)}</span>
+                          <div className="flex w-20 shrink-0 flex-col items-center justify-center rounded-l-[20px] bg-text-primary/5 py-4">
+                            <span className="text-2xl font-black text-text-primary">{formatDay(e.date)}</span>
+                            <span className="text-[10px] uppercase tracking-widest text-text-muted">{formatMonth(e.date)}</span>
                           </div>
                           <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 p-4">
                             <div className="flex flex-wrap items-center gap-2">
@@ -147,13 +147,13 @@ export default async function CalendarPage() {
                                 {cfg.icon} {cfg.label}
                               </span>
                               {cfg.why && (
-                                <span className="text-[11px] text-slate-500">— {cfg.why}</span>
+                                <span className="text-[11px] text-text-muted">— {cfg.why}</span>
                               )}
                             </div>
-                            <h3 className="text-base font-semibold text-white">{e.title}</h3>
-                            <p className="text-sm text-slate-400">{e.description}</p>
+                            <h3 className="text-base font-semibold text-text-primary">{e.title}</h3>
+                            <p className="text-sm text-text-secondary">{e.description}</p>
                             <a href={`/ai-search?q=${encodeURIComponent(e.title)}`}
-                              className="mt-1 self-start text-[11px] font-medium text-violet-400 hover:text-violet-300 transition">
+                              className="mt-1 self-start text-[11px] font-medium text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
                               Ask AI about this →
                             </a>
                           </div>
@@ -166,15 +166,15 @@ export default async function CalendarPage() {
             ))}
           </div>
         ) : (
-          <div className="flex items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.03] py-20">
-            <p className="text-slate-500">Start the backend to load calendar events.</p>
+          <div className="flex items-center justify-center rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] py-20">
+            <p className="text-text-muted">Start the backend to load calendar events.</p>
           </div>
         )}
       </section>
 
       {/* ── Recent Policy Events ──────────────────────────────────────── */}
       <section aria-labelledby="recent-policy-events">
-        <h2 id="recent-policy-events" className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <h2 id="recent-policy-events" className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Recent Policy Events
         </h2>
         {intelligence && (
@@ -192,33 +192,33 @@ export default async function CalendarPage() {
         </h3>
         <div className="grid grid-cols-1 gap-4 text-[12px] sm:grid-cols-3">
           <div>
-            <p className="font-semibold text-white">Before the event</p>
-            <p className="mt-1 text-slate-400">Use "Ask AI about this →" to understand what the market expects and which companies are exposed.</p>
+            <p className="font-semibold text-text-primary">Before the event</p>
+            <p className="mt-1 text-text-secondary">Use "Ask AI about this →" to understand what the market expects and which companies are exposed.</p>
           </div>
           <div>
-            <p className="font-semibold text-white">On the day</p>
-            <p className="mt-1 text-slate-400">High-impact events (Central Bank, GDP) can move the entire market. Watch Live Market for real-time reaction.</p>
+            <p className="font-semibold text-text-primary">On the day</p>
+            <p className="mt-1 text-text-secondary">High-impact events (Central Bank, GDP) can move the entire market. Watch Live Market for real-time reaction.</p>
           </div>
           <div>
-            <p className="font-semibold text-white">After the event</p>
-            <p className="mt-1 text-slate-400">Check the Events page for full analysis. Surprise outcomes (better or worse than expected) cause the biggest moves.</p>
+            <p className="font-semibold text-text-primary">After the event</p>
+            <p className="mt-1 text-text-secondary">Check the Events page for full analysis. Surprise outcomes (better or worse than expected) cause the biggest moves.</p>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-4 border-t border-white/[0.05] pt-4">
-          <Link href="/market-intelligence" className="text-[12px] font-medium text-sky-400 transition hover:text-sky-300">
+        <div className="mt-4 flex flex-wrap gap-4 border-t border-surface-border/5 pt-4">
+          <Link href="/market-intelligence" className="text-[12px] font-medium text-sky-400 transition hover:text-sky-600 dark:text-sky-300">
             Watch Live Market →
           </Link>
-          <Link href="/ai-search" className="text-[12px] font-medium text-violet-400 transition hover:text-violet-300">
+          <Link href="/ai-search" className="text-[12px] font-medium text-violet-400 transition hover:text-violet-600 dark:text-violet-300">
             Ask AI about any event →
           </Link>
-          <Link href="/events" className="text-[12px] font-medium text-slate-400 transition hover:text-slate-300">
+          <Link href="/events" className="text-[12px] font-medium text-text-secondary transition hover:text-text-secondary">
             See past event analysis →
           </Link>
         </div>
       </div>
 
       <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/[0.04] p-4">
-        <p className="text-xs text-amber-300">
+        <p className="text-xs text-amber-600 dark:text-amber-300">
           <CalendarDays className="inline h-3.5 w-3.5 mr-1 align-text-bottom" /> <strong>Live Data:</strong> Real-time
           policy notifications and economic calendar events require{" "}
           <strong>SEBI Circular API</strong>, <strong>RBI Press Release RSS</strong>,{" "}

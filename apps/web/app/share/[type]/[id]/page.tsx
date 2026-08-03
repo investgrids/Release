@@ -8,7 +8,7 @@ import {
   TrendingUp, Brain, Shield,
 } from "lucide-react";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.in";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://www.marketripple.in";
 
 type EntityType = "event" | "company" | "story" | "opportunity" | "ripple" | "search" | "article";
 
@@ -203,13 +203,13 @@ export default async function SharePage({
   const label    = TYPE_LABEL[type];
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
+    <main className="min-h-screen bg-bg text-text-primary">
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <div className={`bg-gradient-to-br ${gradient} py-16`}>
         <div className="mx-auto max-w-3xl px-6">
           {/* Branding */}
-          <Link href="/" className="mb-8 inline-flex items-center gap-2 text-white/70 hover:text-white transition">
-            <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-white/20">
+          <Link href="/" className="mb-8 inline-flex items-center gap-2 text-text-primary/70 hover:text-text-primary transition">
+            <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-text-primary/20">
               <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
                 <path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/>
               </svg>
@@ -219,19 +219,19 @@ export default async function SharePage({
 
           {/* Type badge */}
           <div className="mb-4 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-text-primary/20 px-3 py-1 text-xs font-medium text-text-primary">
               {TYPE_ICON[type]}
               {label}
             </span>
             {entity.sector && (
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
+              <span className="rounded-full bg-text-primary/10 px-3 py-1 text-xs text-text-primary/70">
                 {entity.sector}
               </span>
             )}
           </div>
 
           {/* Title */}
-          <h1 className="text-3xl font-bold text-white leading-tight sm:text-4xl">
+          <h1 className="text-3xl font-bold text-text-primary leading-tight sm:text-4xl">
             {entity.title}
           </h1>
 
@@ -240,14 +240,14 @@ export default async function SharePage({
             <div className="mt-4 flex gap-4">
               {entity.score !== undefined && (
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-white">{entity.score}</div>
-                  <div className="text-xs text-white/60">Opportunity Score</div>
+                  <div className="text-2xl font-bold text-text-primary">{entity.score}</div>
+                  <div className="text-xs text-text-primary/60">Opportunity Score</div>
                 </div>
               )}
               {entity.confidence !== undefined && (
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-white">{entity.confidence}%</div>
-                  <div className="text-xs text-white/60">AI Confidence</div>
+                  <div className="text-2xl font-bold text-text-primary">{entity.confidence}%</div>
+                  <div className="text-xs text-text-primary/60">AI Confidence</div>
                 </div>
               )}
             </div>
@@ -259,14 +259,14 @@ export default async function SharePage({
       <div className="mx-auto max-w-3xl px-6 py-12">
         {/* AI Summary */}
         {entity.description && (
-          <div className="mb-8 rounded-xl border border-white/[0.08] bg-white/[0.03] p-6">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-300">
+          <div className="mb-8 rounded-xl border border-surface-border/8 bg-text-primary/[0.03] p-6">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-secondary">
               <Brain className="h-4 w-4 text-violet-400" />
               AI Summary
             </div>
-            <p className="text-slate-300 leading-relaxed">{entity.description}</p>
+            <p className="text-text-secondary leading-relaxed">{entity.description}</p>
             {entity.summary && (
-              <p className="mt-3 text-slate-400 text-sm leading-relaxed">{entity.summary}</p>
+              <p className="mt-3 text-text-secondary text-sm leading-relaxed">{entity.summary}</p>
             )}
           </div>
         )}
@@ -278,25 +278,25 @@ export default async function SharePage({
             { icon: <Shield className="h-5 w-5 text-emerald-400" />, title: "Evidence-Backed", desc: "Every conclusion links to sources you can verify independently." },
             { icon: <TrendingUp className="h-5 w-5 text-sky-400" />, title: "Full Transparency", desc: "See exactly how the AI reached its conclusions." },
           ].map(card => (
-            <div key={card.title} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <div key={card.title} className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-4">
               <div className="mb-2">{card.icon}</div>
-              <div className="mb-1 text-sm font-semibold text-white">{card.title}</div>
-              <div className="text-xs text-slate-400 leading-relaxed">{card.desc}</div>
+              <div className="mb-1 text-sm font-semibold text-text-primary">{card.title}</div>
+              <div className="text-xs text-text-secondary leading-relaxed">{card.desc}</div>
             </div>
           ))}
         </div>
 
         {/* CTA */}
         <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-6 text-center">
-          <p className="mb-2 text-lg font-semibold text-white">
+          <p className="mb-2 text-lg font-semibold text-text-primary">
             Continue Reading on MarketRipple
           </p>
-          <p className="mb-5 text-sm text-slate-400">
+          <p className="mb-5 text-sm text-text-secondary">
             Get the full AI analysis, investment thesis, scenario breakdown, and related intelligence — free, no signup required.
           </p>
           <Link
             href={entity.href as any}
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-500"
+            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-semibold text-text-primary shadow-lg shadow-violet-500/20 transition hover:bg-violet-500"
           >
             View Full Analysis
             <ArrowRight className="h-4 w-4" />
@@ -304,7 +304,7 @@ export default async function SharePage({
         </div>
 
         {/* Disclaimer */}
-        <p className="mt-8 text-center text-xs text-slate-600">
+        <p className="mt-8 text-center text-xs text-text-muted">
           MarketRipple provides AI-generated market intelligence for research and educational purposes only.
           Not investment advice. Users remain responsible for all investment decisions.
         </p>
@@ -313,7 +313,7 @@ export default async function SharePage({
         <div className="mt-6 text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary transition"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             Explore all market intelligence on MarketRipple

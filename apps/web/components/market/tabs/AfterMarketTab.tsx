@@ -11,10 +11,10 @@ import { isRealCompanySymbol } from "@/lib/text";
 
 function StatCard({ label, value, positive, sub }: { label: string; value: string; positive?: boolean; sub?: string }) {
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="text-[24px] font-black leading-none text-white">{value}</p>
-      {sub && <p className={`mt-1 text-[12px] font-semibold ${positive ? "text-emerald-400" : positive === false ? "text-rose-400" : "text-slate-400"}`}>{sub}</p>}
+    <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.03] p-4">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">{label}</p>
+      <p className="text-[24px] font-black leading-none text-text-primary">{value}</p>
+      {sub && <p className={`mt-1 text-[12px] font-semibold ${positive ? "text-emerald-400" : positive === false ? "text-rose-400" : "text-text-secondary"}`}>{sub}</p>}
     </div>
   );
 }
@@ -90,7 +90,7 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
 
   if (loading) return (
     <div className="space-y-4">
-      {[1,2,3].map(i => <div key={i} className="h-32 animate-pulse rounded-2xl border border-white/[0.05] bg-white/[0.02]"/>)}
+      {[1,2,3].map(i => <div key={i} className="h-32 animate-pulse rounded-2xl border border-surface-border/5 bg-text-primary/[0.02]"/>)}
     </div>
   );
 
@@ -134,12 +134,12 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
 
       {/* AI Market Wrap — real story text, not templated boilerplate */}
       {story?.text && (
-        <div className="rounded-2xl border border-violet-500/15 bg-[#080c14] p-5">
+        <div className="rounded-2xl border border-violet-500/15 bg-surface-card p-5">
           <div className="flex items-start gap-4">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400"><Sparkles className="h-4 w-4" /></span>
             <div className="min-w-0">
               <p className="mb-1 text-[12px] font-bold uppercase tracking-wider text-violet-400">AI Closing Market Wrap</p>
-              <p className="text-[13px] leading-6 text-slate-300">{story.text}</p>
+              <p className="text-[13px] leading-6 text-text-secondary">{story.text}</p>
             </div>
           </div>
         </div>
@@ -151,33 +151,33 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
           { title: "Top Gainers", rows: gainers, color: "emerald" },
           { title: "Top Losers",  rows: losers,  color: "rose"    },
         ].map(({ title, rows, color }) => (
-          <div key={title} className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-            <h3 className="mb-3 text-[13px] font-bold text-white">{title}</h3>
+          <div key={title} className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+            <h3 className="mb-3 text-[13px] font-bold text-text-primary">{title}</h3>
             <div className="space-y-2">
               {rows.slice(0, 5).map((r: any) => (
                 <Link key={r.ticker} href={`/companies/${r.ticker}`}
-                  className="flex items-center justify-between rounded-xl border border-white/[0.04] bg-white/[0.02] px-3 py-2 hover:border-sky-500/10 transition">
+                  className="flex items-center justify-between rounded-xl border border-surface-border/4 bg-text-primary/[0.02] px-3 py-2 hover:border-sky-500/10 transition">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-[8px] font-bold text-slate-400">{r.ticker?.slice(0,3)}</div>
-                    <p className="text-[11px] font-semibold text-white">{r.ticker}</p>
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-text-primary/[0.06] text-[8px] font-bold text-text-secondary">{r.ticker?.slice(0,3)}</div>
+                    <p className="text-[11px] font-semibold text-text-primary">{r.ticker}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[11px] text-slate-400">{r.subtitle}</p>
+                    <p className="text-[11px] text-text-secondary">{r.subtitle}</p>
                     <p className={`text-[11px] font-bold text-${color}-400`}>{r.value}</p>
                   </div>
                 </Link>
               ))}
-              {rows.length === 0 && <p className="py-4 text-center text-[11px] text-slate-600">No data available</p>}
+              {rows.length === 0 && <p className="py-4 text-center text-[11px] text-text-muted">No data available</p>}
             </div>
           </div>
         ))}
       </div>
 
       {/* Sector Winners + Losers */}
-      <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-        <h3 className="mb-4 text-[13px] font-bold text-white">Sectoral Close</h3>
+      <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+        <h3 className="mb-4 text-[13px] font-bold text-text-primary">Sectoral Close</h3>
         {sectors.length === 0 ? (
-          <p className="py-4 text-center text-[12px] text-slate-600">Sector data unavailable.</p>
+          <p className="py-4 text-center text-[12px] text-text-muted">Sector data unavailable.</p>
         ) : (
           <div className="grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2">
             {sectors.slice(0, 10).map((s: any) => {
@@ -186,7 +186,7 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
               return (
                 <div key={s.id ?? s.name} className="flex items-center gap-3">
                   <div className={`h-2 w-2 shrink-0 rounded-full ${pos ? "bg-emerald-400" : "bg-rose-400"}`}/>
-                  <p className="flex-1 truncate text-[11px] text-slate-300">{s.name}</p>
+                  <p className="flex-1 truncate text-[11px] text-text-secondary">{s.name}</p>
                   <span className={`text-[11px] font-bold ${pos ? "text-emerald-400" : "text-rose-400"}`}>{val}</span>
                 </div>
               );
@@ -196,33 +196,33 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
       </div>
 
       {/* Tomorrow's Watchlist — real event-linked companies */}
-      <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+      <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-[13px] font-bold text-white">Tomorrow's Watchlist</h3>
-          <Link href="/companies" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+          <h3 className="text-[13px] font-bold text-text-primary">Tomorrow's Watchlist</h3>
+          <Link href="/companies" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
         </div>
         {watchlist.length === 0 ? (
-          <p className="py-4 text-center text-[12px] text-slate-600">No scored events to derive a watchlist from yet.</p>
+          <p className="py-4 text-center text-[12px] text-text-muted">No scored events to derive a watchlist from yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {watchlist.map((w) => {
               const style = impactToStyle(w.score);
               return (
                 <Link key={w.ticker} href={`/companies/${w.ticker}`}
-                  className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 hover:border-sky-500/15 transition">
+                  className="rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-4 hover:border-sky-500/15 transition">
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.07] text-[9px] font-bold text-slate-300">{w.ticker.slice(0,3)}</div>
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-text-primary/[0.07] text-[9px] font-bold text-text-secondary">{w.ticker.slice(0,3)}</div>
                       <div>
-                        <p className="text-[12px] font-bold text-white">{w.ticker}</p>
-                        <p className="truncate text-[9px] text-slate-500">{w.name}</p>
+                        <p className="text-[12px] font-bold text-text-primary">{w.ticker}</p>
+                        <p className="truncate text-[9px] text-text-muted">{w.name}</p>
                       </div>
                     </div>
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${style.circle}`}>
                       {w.score != null ? Math.round(w.score) : "—"}
                     </div>
                   </div>
-                  <p className="line-clamp-2 text-[10px] leading-snug text-slate-400">{w.reason}</p>
+                  <p className="line-clamp-2 text-[10px] leading-snug text-text-secondary">{w.reason}</p>
                 </Link>
               );
             })}
@@ -231,47 +231,47 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
       </div>
 
       {/* Tomorrow Opening Prediction — real 5-layer signal service */}
-      <div className="rounded-2xl border border-sky-500/10 bg-[#080c14] p-5">
+      <div className="rounded-2xl border border-sky-500/10 bg-surface-card p-5">
         <div className="mb-3 flex items-center gap-2">
-          <Telescope className="h-4 w-4 text-slate-400" />
-          <h3 className="text-[13px] font-bold text-white">Tomorrow Opening Prediction</h3>
+          <Telescope className="h-4 w-4 text-text-secondary" />
+          <h3 className="text-[13px] font-bold text-text-primary">Tomorrow Opening Prediction</h3>
         </div>
         {predLoading ? (
-          <div className="space-y-2">{[1, 2].map(i => <div key={i} className="h-6 animate-pulse rounded bg-white/[0.03]" />)}</div>
+          <div className="space-y-2">{[1, 2].map(i => <div key={i} className="h-6 animate-pulse rounded bg-text-primary/[0.03]" />)}</div>
         ) : !pred ? (
-          <p className="py-4 text-center text-[12px] text-slate-600">Prediction unavailable.</p>
+          <p className="py-4 text-center text-[12px] text-text-muted">Prediction unavailable.</p>
         ) : (
           <>
             <div className="flex items-baseline gap-3">
               <span className={`text-[30px] font-black leading-none ${predCls}`}>{pred.confidence}%</span>
               <span className={`text-[14px] font-bold ${predCls}`}>{predLabel}</span>
-              {pred.ai_generated === false && <span className="text-[10px] text-slate-600">Signal-based estimate</span>}
+              {pred.ai_generated === false && <span className="text-[10px] text-text-muted">Signal-based estimate</span>}
             </div>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">Main Drivers</p>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">Main Drivers</p>
                 <div className="space-y-1">
                   {(pred.primary_drivers ?? []).slice(0, 3).map((d: string, i: number) => (
                     <div key={i} className="flex items-start gap-1.5">
                       <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" />
-                      <span className="text-[11px] leading-snug text-slate-400">{d}</span>
+                      <span className="text-[11px] leading-snug text-text-secondary">{d}</span>
                     </div>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">Key Risks</p>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">Key Risks</p>
                 <div className="space-y-1">
                   {(pred.risks ?? []).slice(0, 3).map((d: string, i: number) => (
                     <div key={i} className="flex items-start gap-1.5">
                       <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-rose-400" />
-                      <span className="text-[11px] leading-snug text-slate-400">{d}</span>
+                      <span className="text-[11px] leading-snug text-text-secondary">{d}</span>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-            {pred.reasoning && <p className="mt-4 text-[12px] leading-5 text-slate-400">{pred.reasoning}</p>}
+            {pred.reasoning && <p className="mt-4 text-[12px] leading-5 text-text-secondary">{pred.reasoning}</p>}
           </>
         )}
       </div>

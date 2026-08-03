@@ -5,9 +5,9 @@ import { join } from "node:path";
 /**
  * Favicon (Phase 1 SEO fix — see the SEO/Growth audit's Critical Finding
  * #4: the site had no favicon at all). The source mark
- * (public/marketripple-mark.png) is 379×250, not square — letterboxed
- * onto a square black canvas here rather than served as-is, so browser
- * tabs and Google's SERP favicon slot don't crop the M/R glyphs.
+ * (public/marketripple-mark.png) is square (450×450) — letterboxed onto a
+ * square dark canvas here rather than served as-is, so browser tabs and
+ * Google's SERP favicon slot get consistent padding around the M/R glyph.
  */
 
 export const size = { width: 32, height: 32 };
@@ -31,7 +31,7 @@ export default async function Icon() {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse's satori renderer requires a plain <img>, not next/image */}
-        <img src={markSrc} width={28} height={18.5} alt="" />
+        <img src={markSrc} width={24} height={24} alt="" />
       </div>
     ),
     { ...size }

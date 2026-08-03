@@ -13,10 +13,10 @@ function moodIcon(mood: string) {
 function moodTheme(mood: string) {
   const m = (mood ?? "").toLowerCase();
   if (/bull|strong|positive/.test(m))
-    return { wrap: "border-emerald-500/20 bg-emerald-500/[0.05]", icon: "text-emerald-400", label: "text-emerald-500", text: "text-emerald-200/80", link: "text-emerald-400 hover:text-emerald-300" };
+    return { wrap: "border-emerald-500/20 bg-emerald-500/[0.05]", icon: "text-emerald-400", label: "text-emerald-500", text: "text-emerald-700/80 dark:text-emerald-200/80", link: "text-emerald-400 hover:text-emerald-600 dark:text-emerald-300" };
   if (/bear|weak|negative/.test(m))
-    return { wrap: "border-rose-500/20 bg-rose-500/[0.05]", icon: "text-rose-400", label: "text-rose-500", text: "text-rose-200/80", link: "text-rose-400 hover:text-rose-300" };
-  return { wrap: "border-amber-500/20 bg-amber-500/[0.05]", icon: "text-amber-400", label: "text-amber-500", text: "text-amber-200/80", link: "text-amber-400 hover:text-amber-300" };
+    return { wrap: "border-rose-500/20 bg-rose-500/[0.05]", icon: "text-rose-400", label: "text-rose-500", text: "text-rose-700/80 dark:text-rose-200/80", link: "text-rose-400 hover:text-rose-600 dark:text-rose-300" };
+  return { wrap: "border-amber-500/20 bg-amber-500/[0.05]", icon: "text-amber-400", label: "text-amber-500", text: "text-amber-700/80 dark:text-amber-200/80", link: "text-amber-400 hover:text-amber-600 dark:text-amber-300" };
 }
 
 export function MarketContextStrip() {

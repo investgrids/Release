@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 type Metrics = { fcp: number | null; lcp: number | null };
 
 function grade(ms: number | null): { letter: string; color: string } {
-  if (ms === null) return { letter: "…",  color: "text-slate-500" };
+  if (ms === null) return { letter: "…",  color: "text-text-muted" };
   if (ms < 300)   return { letter: "A+",  color: "text-emerald-400" };
   if (ms < 600)   return { letter: "A",   color: "text-emerald-400" };
   if (ms < 1000)  return { letter: "B",   color: "text-amber-400" };
@@ -49,19 +49,19 @@ export function PerfBadge() {
   const lGrade = grade(m.lcp);
 
   return (
-    <div className="fixed bottom-20 right-4 z-50 rounded-2xl border border-white/10 bg-black/85 px-4 py-3 shadow-2xl font-mono select-none">
+    <div className="fixed bottom-20 right-4 z-50 rounded-2xl border border-surface-border/10 bg-black/85 px-4 py-3 shadow-2xl font-mono select-none">
       <div className="flex items-center justify-between gap-4 mb-2">
         <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Fake Glass · Perf</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-text-secondary">Fake Glass · Perf</p>
         </div>
-        <button onClick={() => setVisible(false)} className="text-slate-600 hover:text-slate-400 flex items-center"><X size={12} strokeWidth={2}/></button>
+        <button onClick={() => setVisible(false)} className="text-text-muted hover:text-text-secondary flex items-center"><X size={12} strokeWidth={2}/></button>
       </div>
       <div className="space-y-1">
         <Row label="FCP" ms={m.fcp} g={fGrade} />
         <Row label="LCP" ms={m.lcp} g={lGrade} />
       </div>
-      <p className="mt-2 text-[8px] text-slate-700">no backdrop-filter · 0 compositing layers</p>
+      <p className="mt-2 text-[8px] text-text-muted">no backdrop-filter · 0 compositing layers</p>
     </div>
   );
 }
@@ -69,8 +69,8 @@ export function PerfBadge() {
 function Row({ label, ms, g }: { label: string; ms: number | null; g: { letter: string; color: string } }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="w-7 text-[10px] text-slate-500">{label}</span>
-      <span className="text-[13px] font-bold text-white w-16">{ms != null ? `${ms}ms` : "loading"}</span>
+      <span className="w-7 text-[10px] text-text-muted">{label}</span>
+      <span className="text-[13px] font-bold text-text-primary w-16">{ms != null ? `${ms}ms` : "loading"}</span>
       <span className={`text-[11px] font-black ${g.color}`}>{g.letter}</span>
     </div>
   );

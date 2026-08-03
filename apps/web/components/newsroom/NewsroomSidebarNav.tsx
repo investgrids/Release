@@ -37,10 +37,10 @@ export function NewsroomSidebarNav() {
             key={n.href}
             href={n.href}
             className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition ${
-              active ? "bg-white/[0.08] text-white" : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+              active ? "bg-text-primary/[0.08] text-text-primary" : "text-text-secondary hover:bg-text-primary/[0.04] hover:text-text-primary"
             }`}
           >
-            <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? "text-sky-400" : "text-slate-500"}`} />
+            <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? "text-sky-400" : "text-text-muted"}`} />
             {n.label}
           </Link>
         );

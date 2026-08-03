@@ -139,13 +139,13 @@ export function ShareInsightCard({
       {/* Trigger button */}
       <button
         onClick={() => setOpen(v => !v)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-300"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border/8 bg-text-primary/[0.04] px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:text-violet-300"
         aria-label="Share this insight"
         aria-expanded={open}
       >
         <Share2 className="h-3.5 w-3.5" />
         {label ?? "Share"}
-        {count != null && <span className="text-slate-500">· {count.toLocaleString("en-IN")}</span>}
+        {count != null && <span className="text-text-muted">· {count.toLocaleString("en-IN")}</span>}
       </button>
 
       {/* Popover */}
@@ -154,17 +154,17 @@ export function ShareInsightCard({
           ref={dialogRef}
           role="dialog"
           aria-label="Share insight"
-          className="absolute right-0 top-full z-50 mt-2 w-72 origin-top-right rounded-xl border border-white/[0.08] bg-slate-900 p-4 shadow-2xl shadow-black/60"
+          className="absolute right-0 top-full z-50 mt-2 w-72 origin-top-right rounded-xl border border-surface-border/8 bg-surface-card p-4 shadow-2xl shadow-black/60"
         >
           {/* Header */}
           <div className="mb-3 flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-semibold text-white">Share Insight</p>
-              <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-400">{title}</p>
+              <p className="text-xs font-semibold text-text-primary">Share Insight</p>
+              <p className="mt-0.5 line-clamp-2 text-[11px] text-text-secondary">{title}</p>
             </div>
             <button
               onClick={() => setOpen(false)}
-              className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-white/[0.06] hover:text-slate-300"
+              className="shrink-0 rounded-md p-1 text-text-muted hover:bg-text-primary/[0.06] hover:text-text-secondary"
               aria-label="Close"
             >
               <X className="h-3.5 w-3.5" />
@@ -179,7 +179,7 @@ export function ShareInsightCard({
                 href={ch.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-white transition ${ch.color}`}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-text-primary transition ${ch.color}`}
                 onClick={() => { trackShare(); setOpen(false); }}
               >
                 {ch.icon}
@@ -189,15 +189,15 @@ export function ShareInsightCard({
           </div>
 
           {/* Copy link row */}
-          <div className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
-            <LinkIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-            <span className="flex-1 truncate text-[11px] text-slate-400">{url}</span>
+          <div className="flex items-center gap-2 rounded-lg border border-surface-border/6 bg-text-primary/[0.03] px-3 py-2">
+            <LinkIcon className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+            <span className="flex-1 truncate text-[11px] text-text-secondary">{url}</span>
             <button
               onClick={handleCopy}
               className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold transition ${
                 copied
                   ? "bg-emerald-500/20 text-emerald-400"
-                  : "bg-white/[0.06] text-slate-300 hover:bg-white/[0.1]"
+                  : "bg-text-primary/[0.06] text-text-secondary hover:bg-text-primary/[0.1]"
               }`}
               aria-label="Copy link"
             >
@@ -210,7 +210,7 @@ export function ShareInsightCard({
           </div>
 
           {/* Branding footer */}
-          <p className="mt-2 text-center text-[10px] text-slate-600">
+          <p className="mt-2 text-center text-[10px] text-text-muted">
             Powered by MarketRipple · AI Market Intelligence
           </p>
         </div>

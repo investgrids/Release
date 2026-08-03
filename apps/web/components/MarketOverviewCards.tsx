@@ -84,7 +84,7 @@ export function MarketIndexCard({ indices }: { indices: IndexData[] }) {
   const tickInterval = Math.max(1, Math.floor(tickCount / 5));
 
   return (
-    <div className="rounded-[24px] border border-white/10 bg-slate-950/80 p-5 shadow-glow h-full flex flex-col">
+    <div className="rounded-[24px] border border-surface-border/10 bg-bg/80 p-5 shadow-glow h-full flex flex-col">
 
       {/* Index selector */}
       <div className="flex items-center justify-between mb-3">
@@ -96,7 +96,7 @@ export function MarketIndexCard({ indices }: { indices: IndexData[] }) {
               className={`px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide transition-colors ${
                 i === activeIdx
                   ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
-                  : "text-slate-500 hover:text-slate-300"
+                  : "text-text-muted hover:text-text-secondary"
               }`}
             >
               {idx.title}
@@ -112,8 +112,8 @@ export function MarketIndexCard({ indices }: { indices: IndexData[] }) {
               onClick={() => setPeriod(p)}
               className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
                 p === period
-                  ? "bg-white/10 text-white"
-                  : "text-slate-500 hover:text-slate-400"
+                  ? "bg-text-primary/10 text-text-primary"
+                  : "text-text-muted hover:text-text-secondary"
               }`}
             >
               {p}
@@ -125,14 +125,14 @@ export function MarketIndexCard({ indices }: { indices: IndexData[] }) {
       {/* Value row */}
       <div className="flex items-end justify-between mb-3">
         <div>
-          <p className="text-3xl font-bold text-white tracking-tight">{card.value}</p>
+          <p className="text-3xl font-bold text-text-primary tracking-tight">{card.value}</p>
           <p className={`mt-0.5 text-sm font-medium ${card.positive ? "text-emerald-400" : "text-rose-400"}`}>
             {card.change}
           </p>
         </div>
-        <div className="text-right text-[11px] text-slate-500">
-          <div>H <span className="text-slate-300 font-medium">{card.high}</span></div>
-          <div>L <span className="text-slate-300 font-medium">{card.low}</span></div>
+        <div className="text-right text-[11px] text-text-muted">
+          <div>H <span className="text-text-secondary font-medium">{card.high}</span></div>
+          <div>L <span className="text-text-secondary font-medium">{card.low}</span></div>
         </div>
       </div>
 
@@ -156,13 +156,13 @@ export function MarketIndexCard({ indices }: { indices: IndexData[] }) {
                 dataKey="label"
                 interval={tickInterval}
                 tickFormatter={raw => formatLabel(raw, period)}
-                tick={{ fill: "#64748b", fontSize: 10 }}
+                tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 domain={["auto", "auto"]}
-                tick={{ fill: "#64748b", fontSize: 10 }}
+                tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 width={55}
@@ -170,8 +170,8 @@ export function MarketIndexCard({ indices }: { indices: IndexData[] }) {
               />
               <Tooltip
                 contentStyle={{
-                  background: "#0f172a",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: "rgb(var(--surface-card))",
+                  border: "1px solid rgb(var(--text-primary) / 0.08)",
                   borderRadius: 10,
                   fontSize: 11,
                 }}
@@ -193,7 +193,7 @@ export function MarketIndexCard({ indices }: { indices: IndexData[] }) {
           </ResponsiveContainer>
         )}
         {!loading && chartData.length === 0 && (
-          <div className="flex h-full items-center justify-center text-[11px] text-slate-600">
+          <div className="flex h-full items-center justify-center text-[11px] text-text-muted">
             No data
           </div>
         )}

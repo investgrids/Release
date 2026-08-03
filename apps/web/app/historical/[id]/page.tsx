@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Clock, TrendingUp, TrendingDown, BookOpen, ArrowLeft, Landmark } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText, safeJsonLd } from "@/lib/text";
+import { NextSteps } from "@/components/NextSteps";
 
 /**
  * Historical Memory detail page — SEO audit's "no page, engine exists"
@@ -15,7 +16,7 @@ import { cleanText, safeJsonLd } from "@/lib/text";
  * relevant long after the event itself fades from search.
  */
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 interface HistoricalWinner {
   symbol: string; name: string;
@@ -59,7 +60,7 @@ function pct(v: number | null | undefined, decimals = 1): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(decimals)}%`;
 }
 function pctCls(v: number | null | undefined): string {
-  if (v == null) return "text-slate-500";
+  if (v == null) return "text-text-muted";
   return v >= 0 ? "text-emerald-400" : "text-rose-400";
 }
 function bestReturn(w: HistoricalWinner): number {
@@ -69,7 +70,7 @@ const SENTIMENT_STYLE: Record<string, string> = {
   bullish: "text-emerald-400 border-emerald-500/25 bg-emerald-500/10",
   bearish: "text-rose-400 border-rose-500/25 bg-rose-500/10",
   mixed:   "text-amber-400 border-amber-500/25 bg-amber-500/10",
-  neutral: "text-slate-400 border-white/15 bg-white/5",
+  neutral: "text-text-secondary border-surface-border/15 bg-text-primary/5",
 };
 
 // Data has near-duplicate category casings ("Monetary Policy" / "monetary
@@ -160,29 +161,29 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
     <main className="mx-auto max-w-[900px] px-5 py-8 pb-16 sm:px-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
-      <nav className="mb-5 flex items-center gap-2 text-[12px] text-slate-500">
-        <Link href="/historical" className="flex items-center gap-1 hover:text-slate-300 transition">
+      <nav className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
+        <Link href="/historical" className="flex items-center gap-1 hover:text-text-secondary transition">
           <ArrowLeft className="h-3 w-3" /> Historical Patterns
         </Link>
       </nav>
 
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{category}</span>
+        <span className="rounded-full bg-text-primary/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">{category}</span>
         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${sentimentCls}`}>{d.sentiment ?? "Neutral"}</span>
-        <span className="flex items-center gap-1 text-[11px] text-slate-500"><Clock className="h-3 w-3" /> {d.event_date}</span>
+        <span className="flex items-center gap-1 text-[11px] text-text-muted"><Clock className="h-3 w-3" /> {d.event_date}</span>
       </div>
 
-      <h1 className="text-[26px] font-black leading-tight text-white md:text-[32px]">{d.event_title}</h1>
+      <h1 className="text-[26px] font-black leading-tight text-text-primary md:text-[32px]">{d.event_title}</h1>
 
       {d.key_lesson && (
-        <p className="mt-3 max-w-[700px] text-[15px] leading-relaxed text-slate-400">{d.key_lesson}</p>
+        <p className="mt-3 max-w-[700px] text-[15px] leading-relaxed text-text-secondary">{d.key_lesson}</p>
       )}
 
       {/* Nifty reaction strip — the real, verified data this whole page exists to surface */}
-      <div className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-surface-border/8 bg-text-primary/[0.03] p-5 sm:grid-cols-4">
         {[["1 Day", d.nifty_1d], ["3 Days", d.nifty_3d], ["1 Week", d.nifty_1w], ["1 Month", d.nifty_1m]].map(([label, val]) => (
           <div key={label as string} className="text-center">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Nifty {label}</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Nifty {label}</p>
             <p className={`mt-1 text-[20px] font-black tabular-nums ${pctCls(val as number | null)}`}>{pct(val as number | null)}</p>
           </div>
         ))}
@@ -190,10 +191,10 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
 
       {d.what_happened && (
         <section className="mt-8">
-          <h2 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+          <h2 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-text-muted">
             <BookOpen className="h-3.5 w-3.5" /> What Happened
           </h2>
-          <p className="text-[14px] leading-relaxed text-slate-300">{d.what_happened}</p>
+          <p className="text-[14px] leading-relaxed text-text-secondary">{d.what_happened}</p>
         </section>
       )}
 
@@ -208,14 +209,14 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
                 {d.historical_winners.map((w, i) => (
                   <div key={i}>
                     <div className="flex items-center justify-between">
-                      <Link href={`/companies/${w.symbol}`} className="text-[13px] font-semibold text-white hover:text-emerald-300 transition">{w.name || w.symbol}</Link>
+                      <Link href={`/companies/${w.symbol}`} className="text-[13px] font-semibold text-text-primary hover:text-emerald-600 dark:text-emerald-300 transition">{w.name || w.symbol}</Link>
                       <span className="text-[13px] font-bold text-emerald-400 tabular-nums">{pct(bestReturn(w))}</span>
                     </div>
-                    {w.reason && <p className="mt-0.5 text-[11px] text-slate-500">{w.reason}</p>}
+                    {w.reason && <p className="mt-0.5 text-[11px] text-text-muted">{w.reason}</p>}
                   </div>
                 ))}
               </div>
-            ) : <p className="text-[12px] text-slate-600">No clear winners in the historical data.</p>}
+            ) : <p className="text-[12px] text-text-muted">No clear winners in the historical data.</p>}
           </div>
           <div className="rounded-2xl border border-rose-500/15 bg-rose-500/[0.04] p-4">
             <h2 className="mb-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-rose-500">
@@ -226,21 +227,21 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
                 {d.historical_losers.map((l, i) => (
                   <div key={i}>
                     <div className="flex items-center justify-between">
-                      <Link href={`/companies/${l.symbol}`} className="text-[13px] font-semibold text-white hover:text-rose-300 transition">{l.name || l.symbol}</Link>
+                      <Link href={`/companies/${l.symbol}`} className="text-[13px] font-semibold text-text-primary hover:text-rose-600 dark:text-rose-300 transition">{l.name || l.symbol}</Link>
                       <span className="text-[13px] font-bold text-rose-400 tabular-nums">{pct(bestReturn(l))}</span>
                     </div>
-                    {l.reason && <p className="mt-0.5 text-[11px] text-slate-500">{l.reason}</p>}
+                    {l.reason && <p className="mt-0.5 text-[11px] text-text-muted">{l.reason}</p>}
                   </div>
                 ))}
               </div>
-            ) : <p className="text-[12px] text-slate-600">No significant laggards in the historical data.</p>}
+            ) : <p className="text-[12px] text-text-muted">No significant laggards in the historical data.</p>}
           </div>
         </section>
       )}
 
       {Object.keys(d.sector_reactions).length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">Sector Reactions</h2>
+          <h2 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">Sector Reactions</h2>
           <div className="flex flex-wrap gap-2">
             {Object.entries(d.sector_reactions).map(([sec, chg]) => (
               <span key={sec} className={`rounded-full px-3 py-1 text-[12px] font-semibold ${chg >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
@@ -253,36 +254,36 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
 
       {faqs.length > 0 && (
         <section className="mt-10">
-          <h2 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">Frequently Asked</h2>
+          <h2 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">Frequently Asked</h2>
           <div className="space-y-2">
             {faqs.map((f, i) => (
-              <details key={i} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                <summary className="cursor-pointer text-[13px] font-semibold text-white">{f.q}</summary>
-                <p className="mt-2 text-[13px] leading-relaxed text-slate-400">{f.a}</p>
+              <details key={i} className="group rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-4">
+                <summary className="cursor-pointer text-[13px] font-semibold text-text-primary">{f.q}</summary>
+                <p className="mt-2 text-[13px] leading-relaxed text-text-secondary">{f.a}</p>
               </details>
             ))}
           </div>
         </section>
       )}
 
-      <section className="mt-10 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-        <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Market Context Then</h2>
+      <section className="mt-10 rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-5">
+        <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-text-muted">Market Context Then</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {d.market_regime && <div><p className="text-[9px] uppercase text-slate-600">Regime</p><p className="text-[12px] font-semibold text-slate-300 capitalize">{d.market_regime}</p></div>}
-          {d.interest_rate_level != null && <div><p className="text-[9px] uppercase text-slate-600">Repo Rate</p><p className="text-[12px] font-semibold text-slate-300">{d.interest_rate_level}%</p></div>}
-          {d.vix_level != null && <div><p className="text-[9px] uppercase text-slate-600">India VIX</p><p className="text-[12px] font-semibold text-slate-300">{d.vix_level.toFixed(1)}</p></div>}
-          {d.confidence != null && <div><p className="text-[9px] uppercase text-slate-600">Data Confidence</p><p className="text-[12px] font-semibold text-slate-300">{d.confidence}%</p></div>}
+          {d.market_regime && <div><p className="text-[9px] uppercase text-text-muted">Regime</p><p className="text-[12px] font-semibold text-text-secondary capitalize">{d.market_regime}</p></div>}
+          {d.interest_rate_level != null && <div><p className="text-[9px] uppercase text-text-muted">Repo Rate</p><p className="text-[12px] font-semibold text-text-secondary">{d.interest_rate_level}%</p></div>}
+          {d.vix_level != null && <div><p className="text-[9px] uppercase text-text-muted">India VIX</p><p className="text-[12px] font-semibold text-text-secondary">{d.vix_level.toFixed(1)}</p></div>}
+          {d.confidence != null && <div><p className="text-[9px] uppercase text-text-muted">Data Confidence</p><p className="text-[12px] font-semibold text-text-secondary">{d.confidence}%</p></div>}
         </div>
       </section>
 
       {d.companies.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+          <h2 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-text-muted">
             <Landmark className="h-3.5 w-3.5" /> Companies Involved
           </h2>
           <div className="flex flex-wrap gap-2">
             {d.companies.map(sym => (
-              <Link key={sym} href={`/companies/${sym}`} className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[12px] font-semibold text-slate-300 hover:border-sky-500/30 hover:text-sky-300 transition">
+              <Link key={sym} href={`/companies/${sym}`} className="rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-3 py-1 text-[12px] font-semibold text-text-secondary hover:border-sky-500/30 hover:text-sky-600 dark:text-sky-300 transition">
                 {sym}
               </Link>
             ))}
@@ -290,9 +291,45 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
         </section>
       )}
 
-      <div className="mt-10 flex items-center justify-between border-t border-white/[0.06] pt-5">
-        <Link href="/historical" className="text-[12px] font-semibold text-sky-400 hover:text-sky-300 transition">← All Historical Patterns</Link>
-        <Link href="/ai-search" className="text-[12px] font-semibold text-slate-500 hover:text-slate-300 transition">Ask AI about this pattern →</Link>
+      <div className="mt-10">
+        <NextSteps config={{
+          takeaway: d.key_lesson || `${cleanText(d.event_title)} is real historical precedent — see who actually won and lost, then check if a similar setup is forming today.`,
+          primary: {
+            label: "See Historical Winners & Losers",
+            why:   "Because knowing which companies actually gained or lost last time is the whole point of a historical pattern — not just that the market moved.",
+            href:  "/ripple?tab=winners",
+          },
+          groups: [
+            ...(d.companies.length > 0 ? [{
+              label: "Explore Further",
+              actions: d.companies.slice(0, 3).map(sym => ({
+                label: `Research ${sym}`,
+                why:   `Because ${sym} was directly involved in this historical pattern — its current setup is worth comparing.`,
+                href:  `/companies/${sym}`,
+              })),
+            }] : []),
+            {
+              label: "Continue Research",
+              actions: [
+                {
+                  label: "Trace a similar event's ripple effects",
+                  why:   "Because a historical pattern is only useful if you connect it to what's happening right now.",
+                  href:  "/ripple",
+                },
+                {
+                  label: `Ask AI: does this pattern apply today?`,
+                  why:   "Because market conditions change — an AI read on today's setup vs. this historical one adds context a static page can't.",
+                  href:  `/ai-search?q=${encodeURIComponent(`Does the historical pattern from "${d.event_title}" apply to current market conditions?`)}`,
+                },
+              ],
+            },
+          ],
+          path: [d.category, "Historical Validation", "Investment Decision"].filter(Boolean),
+        }} />
+      </div>
+
+      <div className="mt-6 flex items-center justify-between border-t border-surface-border/6 pt-5">
+        <Link href="/historical" className="text-[12px] font-semibold text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">← All Historical Patterns</Link>
       </div>
     </main>
   );

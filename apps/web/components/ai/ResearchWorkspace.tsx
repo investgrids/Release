@@ -89,10 +89,10 @@ export function ResearchWorkspace({
   }
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-4">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[12px] font-semibold text-slate-200">Current Research</p>
-        <button onClick={onClear} title="Clear session" className="text-slate-600 hover:text-rose-400 transition">
+        <p className="text-[12px] font-semibold text-text-primary">Current Research</p>
+        <button onClick={onClear} title="Clear session" className="text-text-muted hover:text-rose-400 transition">
           <Trash2 size={12} strokeWidth={1.8} />
         </button>
       </div>
@@ -100,13 +100,13 @@ export function ResearchWorkspace({
       <div className="space-y-3">
         {session.companies.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-slate-500">Companies</p>
+            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-text-muted">Companies</p>
             <div className="space-y-1">
               {session.companies.map(c => (
                 <button key={c.symbol} onClick={() => onExploreCompany(c.symbol)}
-                  className="flex w-full items-center gap-1.5 rounded-[8px] px-1.5 py-1 text-left transition hover:bg-white/[0.05]">
+                  className="flex w-full items-center gap-1.5 rounded-[8px] px-1.5 py-1 text-left transition hover:bg-text-primary/[0.05]">
                   <Check className="h-3 w-3 shrink-0 text-emerald-400" />
-                  <span className="truncate text-[11px] text-slate-300">{c.symbol}</span>
+                  <span className="truncate text-[11px] text-text-secondary">{c.symbol}</span>
                 </button>
               ))}
             </div>
@@ -115,13 +115,13 @@ export function ResearchWorkspace({
 
         {session.sectors.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-slate-500">Sectors</p>
+            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-text-muted">Sectors</p>
             <div className="space-y-1">
               {session.sectors.map(s => (
                 <button key={s} onClick={() => onExploreSector(s)}
-                  className="flex w-full items-center gap-1.5 rounded-[8px] px-1.5 py-1 text-left transition hover:bg-white/[0.05]">
+                  className="flex w-full items-center gap-1.5 rounded-[8px] px-1.5 py-1 text-left transition hover:bg-text-primary/[0.05]">
                   <Check className="h-3 w-3 shrink-0 text-sky-400" />
-                  <span className="truncate text-[11px] text-slate-300">{s}</span>
+                  <span className="truncate text-[11px] text-text-secondary">{s}</span>
                 </button>
               ))}
             </div>
@@ -130,12 +130,12 @@ export function ResearchWorkspace({
 
         {session.events.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-slate-500">Events</p>
+            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-text-muted">Events</p>
             <div className="space-y-1">
               {session.events.slice(0, 4).map(e => (
                 <div key={e} className="flex items-center gap-1.5 px-1.5 py-0.5">
                   <Check className="h-3 w-3 shrink-0 text-amber-400" />
-                  <span className="truncate text-[11px] text-slate-400">{e}</span>
+                  <span className="truncate text-[11px] text-text-secondary">{e}</span>
                 </div>
               ))}
             </div>
@@ -144,12 +144,12 @@ export function ResearchWorkspace({
 
         {session.policies.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-slate-500">Policies</p>
+            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-text-muted">Policies</p>
             <div className="space-y-1">
               {session.policies.slice(0, 4).map(p => (
                 <div key={p} className="flex items-center gap-1.5 px-1.5 py-0.5">
                   <Check className="h-3 w-3 shrink-0 text-violet-400" />
-                  <span className="truncate text-[11px] text-slate-400">{p}</span>
+                  <span className="truncate text-[11px] text-text-secondary">{p}</span>
                 </div>
               ))}
             </div>
@@ -158,15 +158,15 @@ export function ResearchWorkspace({
 
         {session.queries.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-slate-500">Queries</p>
+            <p className="mb-1.5 text-[9px] uppercase tracking-wider text-text-muted">Queries</p>
             <div className="relative space-y-0.5 pl-3">
-              <div className="absolute left-[3px] top-1 bottom-1 w-px bg-white/[0.08]" />
+              <div className="absolute left-[3px] top-1 bottom-1 w-px bg-text-primary/[0.08]" />
               {session.queries.slice(-6).map(q => (
                 <button key={q.id} onClick={() => onReopenQuery(q.text)}
-                  className="group relative flex w-full items-start gap-2 rounded-[8px] py-1 pl-2 text-left transition hover:bg-white/[0.05]">
+                  className="group relative flex w-full items-start gap-2 rounded-[8px] py-1 pl-2 text-left transition hover:bg-text-primary/[0.05]">
                   <span className="absolute -left-3 top-[7px] h-1.5 w-1.5 rounded-full bg-violet-400" />
-                  <span className="truncate text-[11px] text-slate-400 group-hover:text-violet-300 transition">{q.text}</span>
-                  <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-slate-600 opacity-0 group-hover:opacity-100 transition" />
+                  <span className="truncate text-[11px] text-text-secondary group-hover:text-violet-600 dark:text-violet-300 transition">{q.text}</span>
+                  <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-text-muted opacity-0 group-hover:opacity-100 transition" />
                 </button>
               ))}
             </div>
@@ -174,10 +174,10 @@ export function ResearchWorkspace({
         )}
       </div>
 
-      <div className="mt-3 border-t border-white/[0.06] pt-3">
+      <div className="mt-3 border-t border-surface-border/6 pt-3">
         {!summary ? (
           <button onClick={generateSummary} disabled={status === "loading"}
-            className="flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-slate-300 transition hover:bg-white/[0.06] disabled:opacity-50">
+            className="flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-surface-border/10 bg-text-primary/[0.03] px-3 py-1.5 text-[11px] font-medium text-text-secondary transition hover:bg-text-primary/[0.06] disabled:opacity-50">
             {status === "loading" ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
             {status === "loading" ? "Generating…" : "Generate Research Summary"}
           </button>
@@ -185,35 +185,35 @@ export function ResearchWorkspace({
           <div className="space-y-2.5 text-[11px]">
             {summary.key_conclusions.length > 0 && (
               <div>
-                <p className="mb-1 font-semibold text-slate-300">Key Conclusions</p>
-                <ul className="space-y-0.5 text-slate-400">
+                <p className="mb-1 font-semibold text-text-secondary">Key Conclusions</p>
+                <ul className="space-y-0.5 text-text-secondary">
                   {summary.key_conclusions.map((c, i) => <li key={i}>• {c}</li>)}
                 </ul>
               </div>
             )}
             {summary.risks_identified.length > 0 && (
               <div>
-                <p className="mb-1 font-semibold text-slate-300">Risks Identified</p>
-                <ul className="space-y-0.5 text-slate-400">
+                <p className="mb-1 font-semibold text-text-secondary">Risks Identified</p>
+                <ul className="space-y-0.5 text-text-secondary">
                   {summary.risks_identified.map((c, i) => <li key={i}>• {c}</li>)}
                 </ul>
               </div>
             )}
             {summary.open_questions.length > 0 && (
               <div>
-                <p className="mb-1 font-semibold text-slate-300">Open Questions</p>
-                <ul className="space-y-0.5 text-slate-400">
+                <p className="mb-1 font-semibold text-text-secondary">Open Questions</p>
+                <ul className="space-y-0.5 text-text-secondary">
                   {summary.open_questions.map((c, i) => <li key={i}>• {c}</li>)}
                 </ul>
               </div>
             )}
             {summary.suggested_next_research.length > 0 && (
               <div>
-                <p className="mb-1 font-semibold text-slate-300">Suggested Next Research</p>
+                <p className="mb-1 font-semibold text-text-secondary">Suggested Next Research</p>
                 <div className="flex flex-col gap-1">
                   {summary.suggested_next_research.map((q, i) => (
                     <button key={i} onClick={() => onReopenQuery(q)}
-                      className="rounded-[8px] border border-violet-500/20 bg-violet-500/[0.06] px-2 py-1 text-left text-violet-300 transition hover:bg-violet-500/10">
+                      className="rounded-[8px] border border-violet-500/20 bg-violet-500/[0.06] px-2 py-1 text-left text-violet-600 dark:text-violet-300 transition hover:bg-violet-500/10">
                       {q}
                     </button>
                   ))}
@@ -221,7 +221,7 @@ export function ResearchWorkspace({
               </div>
             )}
             <button onClick={downloadSummaryMarkdown}
-              className="flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-slate-300 transition hover:bg-white/[0.06]">
+              className="flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-surface-border/10 bg-text-primary/[0.03] px-3 py-1.5 text-[11px] font-medium text-text-secondary transition hover:bg-text-primary/[0.06]">
               <Download className="h-3 w-3" /> Export as Markdown
             </button>
           </div>

@@ -17,7 +17,7 @@ import { buildSitemapXml, type SitemapEntry } from "@/lib/xmlSitemap";
 
 export const revalidate = 3600;
 
-const base  = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://marketripple.in";
+const base  = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://www.marketripple.in";
 const now   = new Date().toISOString();
 
 async function safeJson<T>(url: string, fallback: T): Promise<T> {

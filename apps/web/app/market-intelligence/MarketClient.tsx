@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, Zap, Target, BarChart2 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -16,7 +16,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 // five tabs' bundles loading up front on every /market-intelligence visit.
 const TabSkeleton = () => (
   <div className="space-y-5">
-    {[1, 2, 3].map(i => <div key={i} className="h-36 animate-pulse rounded-2xl border border-white/[0.05] bg-white/[0.02]" />)}
+    {[1, 2, 3].map(i => <div key={i} className="h-36 animate-pulse rounded-2xl border border-surface-border/5 bg-text-primary/[0.02]" />)}
   </div>
 );
 const PreMarketTab     = dynamic(() => import("@/components/market/tabs/PreMarketTab").then(m => m.PreMarketTab),         { loading: TabSkeleton });
@@ -24,14 +24,17 @@ const LiveMarketTab    = dynamic(() => import("@/components/market/tabs/LiveMark
 const AfterMarketTab   = dynamic(() => import("@/components/market/tabs/AfterMarketTab").then(m => m.AfterMarketTab),     { loading: TabSkeleton });
 const GlobalMarketsTab = dynamic(() => import("@/components/market/tabs/GlobalMarketsTab").then(m => m.GlobalMarketsTab), { loading: TabSkeleton });
 
-type TabId = "overview" | "pre-market" | "live-market" | "after-market" | "global-markets";
+type TabId = "overview" | "pre-market" | "live-market" | "after-market" | "global-markets" | "commodities" | "calendar" | "sector-intelligence";
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: "overview",           label: "Overview"          },
-  { id: "pre-market",         label: "Pre-Market"        },
-  { id: "live-market",        label: "Live Market"       },
-  { id: "after-market",       label: "After Market"      },
-  { id: "global-markets",     label: "Global Markets"    },
+  { id: "overview",             label: "Overview"            },
+  { id: "pre-market",           label: "Pre-Market"          },
+  { id: "live-market",          label: "Live Market"         },
+  { id: "after-market",         label: "After Market"        },
+  { id: "global-markets",       label: "Global Markets"      },
+  { id: "commodities",          label: "Commodities"         },
+  { id: "calendar",             label: "Economic Calendar"   },
+  { id: "sector-intelligence",  label: "Sector Intelligence" },
 ];
 
 const SESSION_COLORS: Record<string, string> = {
@@ -39,7 +42,7 @@ const SESSION_COLORS: Record<string, string> = {
   pre_open:     "border-amber-500/20 bg-amber-500/10 text-amber-400",
   open:         "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
   after_market: "border-sky-500/20 bg-sky-500/10 text-sky-400",
-  weekend:      "border-slate-500/20 bg-slate-500/10 text-slate-400",
+  weekend:      "border-surface-border/5 bg-slate-500/10 text-text-secondary",
   closed:       "border-rose-500/20 bg-rose-500/10 text-rose-400",
 };
 const SESSION_LABELS: Record<string, string> = {
@@ -61,6 +64,9 @@ export function MarketClient({
   initialCalendar,
   initialInsights,
   initialMovers,
+  commoditiesContent,
+  calendarContent,
+  sectorContent,
 }: {
   initialSession:       any;
   initialOverview:      any;
@@ -70,8 +76,12 @@ export function MarketClient({
   initialCalendar:      any[];
   initialInsights:      any;
   initialMovers:        any;
+  commoditiesContent?:  React.ReactNode;
+  calendarContent?:     React.ReactNode;
+  sectorContent?:       React.ReactNode;
 }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const VALID_TABS = new Set(TABS.map(t => t.id));
   const isTabId = (v: string | null): v is TabId => !!v && VALID_TABS.has(v as TabId);
   const tabParam = searchParams.get("tab");
@@ -117,7 +127,7 @@ export function MarketClient({
       <div className="min-w-0 space-y-5 pb-8">
 
         {/* Hero header card */}
-        <div className="rounded-xl border border-white/[0.08] bg-[#080c14] px-5 py-4">
+        <div className="rounded-xl border border-surface-border/8 bg-surface-card px-5 py-4">
 
           <div className="flex flex-wrap items-start justify-between gap-4">
             {/* Left: title + greeting + summary */}
@@ -126,22 +136,22 @@ export function MarketClient({
                 <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${sessColor}`}>
                   ● {sessLabel}
                 </span>
-                <span className="text-[10px] text-slate-600">{session?.date} · {timeIST} IST</span>
+                <span className="text-[10px] text-text-muted">{session?.date} · {timeIST} IST</span>
               </div>
-              <h1 className="text-[20px] font-black text-white leading-tight mb-1.5">
+              <h1 className="text-[20px] font-black text-text-primary leading-tight mb-1.5">
                 Market Intelligence
-                <span className="ml-2.5 text-[13px] text-slate-500 font-normal">Command Center</span>
+                <span className="ml-2.5 text-[13px] text-text-muted font-normal">Command Center</span>
               </h1>
-              <p className="text-[12px] text-slate-400 leading-5 max-w-lg">
+              <p className="text-[12px] text-text-secondary leading-5 max-w-lg">
                 Real-time market insights, AI analysis &amp; actionable intelligence across all sessions.
               </p>
               {/* Quick actions */}
               <div className="mt-3 flex gap-2 flex-wrap">
                 {([
-                  { icon: <Sparkles className="h-3.5 w-3.5" />, label: "Ask AI",            href: "#",                 color: "flex items-center gap-1.5 bg-gradient-to-r from-violet-600/80 to-sky-600/60 hover:from-violet-600 hover:to-sky-600 text-white" },
-                  { icon: <Zap className="h-3.5 w-3.5" />,      label: "Explore Events",    href: "/events",           color: "flex items-center gap-1.5 border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] text-slate-300" },
-                  { icon: <Target className="h-3.5 w-3.5" />,   label: "Opportunity Radar", href: "/opportunity-radar",color: "flex items-center gap-1.5 border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] text-slate-300" },
-                  { icon: <BarChart2 className="h-3.5 w-3.5" />,label: "Market Wrap",       href: "#after-market",     color: "flex items-center gap-1.5 border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] text-slate-300" },
+                  { icon: <Sparkles className="h-3.5 w-3.5" />, label: "Ask AI",            href: "#",                 color: "flex items-center gap-1.5 bg-gradient-to-r from-violet-600/80 to-sky-600/60 hover:from-violet-600 hover:to-sky-600 text-text-primary" },
+                  { icon: <Zap className="h-3.5 w-3.5" />,      label: "Explore Events",    href: "/events",           color: "flex items-center gap-1.5 border border-surface-border/10 bg-text-primary/[0.04] hover:bg-text-primary/[0.07] text-text-secondary" },
+                  { icon: <Target className="h-3.5 w-3.5" />,   label: "Opportunity Radar", href: "/opportunity-radar",color: "flex items-center gap-1.5 border border-surface-border/10 bg-text-primary/[0.04] hover:bg-text-primary/[0.07] text-text-secondary" },
+                  { icon: <BarChart2 className="h-3.5 w-3.5" />,label: "Market Wrap",       href: "#after-market",     color: "flex items-center gap-1.5 border border-surface-border/10 bg-text-primary/[0.04] hover:bg-text-primary/[0.07] text-text-secondary" },
                 ] as { icon: ReactNode; label: string; href: string; color: string }[]).map(b => (
                   <Link key={b.label} href={b.href}
                     className={`rounded-xl px-4 py-2 text-[12px] font-semibold transition ${b.color}`}
@@ -171,9 +181,9 @@ export function MarketClient({
                 { label: "Events Today",  value: String(initialEvents?.length ?? 0),          color: "text-sky-400"    },
                 { label: "Opportunities", value: String(initialOpportunities?.length ?? 0),   color: "text-emerald-400"},
               ].map(k => (
-                <div key={k.label} className="rounded-lg border border-white/[0.06] bg-[#0d1120] px-2.5 py-2 min-w-[78px]">
+                <div key={k.label} className="rounded-lg border border-surface-border/6 bg-surface-card px-2.5 py-2 min-w-[78px]">
                   <p className={`${k.small ? "text-[12px]" : "text-[15px]"} font-black leading-none tabular-nums truncate ${k.color}`}>{k.value}</p>
-                  <p className="text-[9px] text-slate-600 mt-0.5 uppercase tracking-wider">{k.label}</p>
+                  <p className="text-[9px] text-text-muted mt-0.5 uppercase tracking-wider">{k.label}</p>
                 </div>
               ))}
             </div>
@@ -181,15 +191,21 @@ export function MarketClient({
         </div>
 
         {/* Session Tabs */}
-        <div className="flex gap-0.5 overflow-x-auto rounded-xl border border-white/[0.07] bg-[#080c14] p-1 scrollbar-hide">
+        <div className="flex gap-0.5 overflow-x-auto rounded-xl border border-surface-border/7 bg-surface-card p-1 scrollbar-hide">
           {TABS.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                // Keep the URL in sync so a tab is bookmarkable/shareable —
+                // previously only read ?tab= on first load, never wrote it
+                // back on click.
+                router.replace(`/market-intelligence?tab=${tab.id}`, { scroll: false });
+              }}
               className={`flex-1 min-w-[120px] rounded-xl px-4 py-2.5 text-[12px] font-semibold whitespace-nowrap transition ${
                 activeTab === tab.id
-                  ? "bg-gradient-to-r from-sky-600/25 to-violet-600/20 text-white border border-sky-500/20"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]"
+                  ? "bg-gradient-to-r from-sky-600/25 to-violet-600/20 text-text-primary border border-sky-500/20"
+                  : "text-text-muted hover:text-text-secondary hover:bg-text-primary/[0.03]"
               }`}
             >
               {tab.label}
@@ -210,6 +226,9 @@ export function MarketClient({
           {activeTab === "live-market"       && <LiveMarketTab initialData={overview}/>}
           {activeTab === "after-market"      && <AfterMarketTab initialData={overview}/>}
           {activeTab === "global-markets"    && <GlobalMarketsTab/>}
+          {activeTab === "commodities"       && (commoditiesContent ?? <TabSkeleton/>)}
+          {activeTab === "calendar"          && (calendarContent ?? <TabSkeleton/>)}
+          {activeTab === "sector-intelligence" && (sectorContent ?? <TabSkeleton/>)}
         </div>
       </div>
 
@@ -217,7 +236,7 @@ export function MarketClient({
       {/* Hidden on Live Market: that tab now carries its own Market Sentiment /
           AI Confidence / Upcoming Today widgets (sourced from real endpoints)
           in its own grid, so this sidebar would only duplicate them. */}
-      {activeTab !== "live-market" && (
+      {!["live-market", "commodities", "calendar", "sector-intelligence"].includes(activeTab) && (
         <aside className="hidden xl:flex xl:flex-col gap-0 min-w-0 sticky top-[88px] self-start max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-hide pb-16">
           <MarketIntelligenceSidebar
             insights={initialInsights}

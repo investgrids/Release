@@ -234,10 +234,10 @@ const COMING_SOON = [
 
 const BADGE_STYLES: Record<ChangeType, string> = {
   Feature:
-    "bg-violet-500/15 text-violet-300 border border-violet-500/30",
+    "bg-violet-500/15 text-violet-600 dark:text-violet-300 border border-violet-500/30",
   Improvement:
-    "bg-sky-500/15 text-sky-300 border border-sky-500/30",
-  Fix: "bg-amber-500/15 text-amber-300 border border-amber-500/30",
+    "bg-sky-500/15 text-sky-600 dark:text-sky-300 border border-sky-500/30",
+  Fix: "bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30",
 };
 
 const BADGE_ICONS: Record<ChangeType, typeof Sparkles> = {
@@ -265,13 +265,13 @@ export default function WhatsNewPage() {
     <main className="min-w-0 pb-10">
       {/* Hero */}
       <div className="mb-10">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Release Notes
         </p>
-        <h1 className="mt-3 text-[28px] font-black leading-tight text-white md:text-[36px]">
+        <h1 className="mt-3 text-[28px] font-black leading-tight text-text-primary md:text-[36px]">
           What&apos;s New in MarketRipple
         </h1>
-        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-slate-400">
+        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-secondary">
           MarketRipple ships continuous improvements — new AI capabilities, richer
           data, and refined experiences delivered regularly. Here is a full
           record of every release.
@@ -287,10 +287,10 @@ export default function WhatsNewPage() {
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] px-4 py-3 text-center"
+              className="rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3 text-center"
             >
-              <p className="text-[22px] font-black text-white">{s.value}</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              <p className="text-[22px] font-black text-text-primary">{s.value}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                 {s.label}
               </p>
             </div>
@@ -301,7 +301,7 @@ export default function WhatsNewPage() {
       {/* Timeline */}
       <div className="relative space-y-0">
         {/* Vertical line */}
-        <div className="absolute left-[19px] top-6 bottom-6 hidden w-px bg-white/[0.06] md:block" />
+        <div className="absolute left-[19px] top-6 bottom-6 hidden w-px bg-text-primary/[0.06] md:block" />
 
         {RELEASES.map((release, idx) => (
           <div key={release.version} className="relative mb-10 md:pl-12">
@@ -310,18 +310,18 @@ export default function WhatsNewPage() {
               className={`absolute left-0 top-5 hidden h-10 w-10 items-center justify-center rounded-full border md:flex ${
                 idx === 0
                   ? "border-violet-500/50 bg-violet-500/20"
-                  : "border-white/[0.10] bg-[#080c14]"
+                  : "border-surface-border/[0.10] bg-surface-card"
               }`}
             >
               {idx === 0 ? (
                 <CircleDot className="h-4 w-4 text-violet-400" />
               ) : (
-                <CheckCircle2 className="h-4 w-4 text-slate-500" />
+                <CheckCircle2 className="h-4 w-4 text-text-muted" />
               )}
             </div>
 
             {/* Card */}
-            <article className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5">
+            <article className="rounded-xl border border-surface-border/8 bg-surface-card p-5">
               {/* Header */}
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -329,13 +329,13 @@ export default function WhatsNewPage() {
                     <span
                       className={`rounded-full px-3 py-1 text-[11px] font-black tracking-wide ${
                         idx === 0
-                          ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
-                          : "bg-white/[0.06] text-slate-300 border border-white/[0.08]"
+                          ? "bg-violet-500/20 text-violet-600 dark:text-violet-300 border border-violet-500/30"
+                          : "bg-text-primary/[0.06] text-text-secondary border border-surface-border/8"
                       }`}
                     >
                       v{release.version}
                     </span>
-                    <span className="rounded-full border border-white/[0.06] bg-white/[0.03] px-2.5 py-0.5 text-[11px] text-slate-400">
+                    <span className="rounded-full border border-surface-border/6 bg-text-primary/[0.03] px-2.5 py-0.5 text-[11px] text-text-secondary">
                       {release.codename}
                     </span>
                     {idx === 0 && (
@@ -344,18 +344,18 @@ export default function WhatsNewPage() {
                       </span>
                     )}
                   </div>
-                  <h2 className="mt-2 text-[18px] font-bold text-white">
+                  <h2 className="mt-2 text-[18px] font-bold text-text-primary">
                     Version {release.version} — {release.codename}
                   </h2>
                 </div>
-                <div className="flex items-center gap-1.5 text-slate-500">
+                <div className="flex items-center gap-1.5 text-text-muted">
                   <Clock className="h-3.5 w-3.5" />
                   <span className="text-[12px]">{release.date}</span>
                 </div>
               </div>
 
               {/* Headline */}
-              <p className="mt-3 text-[13px] leading-6 text-slate-400">
+              <p className="mt-3 text-[13px] leading-6 text-text-secondary">
                 {release.headline}
               </p>
 
@@ -364,7 +364,7 @@ export default function WhatsNewPage() {
                 {release.changes.map((change, ci) => (
                   <div key={ci} className="flex items-start gap-3">
                     <ChangeBadge type={change.type} />
-                    <p className="text-[13px] leading-5 text-slate-300">
+                    <p className="text-[13px] leading-5 text-text-secondary">
                       {change.text}
                     </p>
                   </div>
@@ -372,7 +372,7 @@ export default function WhatsNewPage() {
               </div>
 
               {/* Change count badges */}
-              <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-surface-border/6 pt-4">
                 {(["Feature", "Improvement", "Fix"] as ChangeType[]).map((type) => {
                   const count = release.changes.filter(
                     (c) => c.type === type
@@ -400,10 +400,10 @@ export default function WhatsNewPage() {
             <Rocket className="h-4 w-4 text-amber-400" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
               Roadmap
             </p>
-            <h2 className="text-[18px] font-bold text-white">Coming Soon</h2>
+            <h2 className="text-[18px] font-bold text-text-primary">Coming Soon</h2>
           </div>
         </div>
 
@@ -411,20 +411,20 @@ export default function WhatsNewPage() {
           {COMING_SOON.map((item) => (
             <div
               key={item.title}
-              className="rounded-xl border border-dashed border-white/[0.10] bg-white/[0.02] p-4"
+              className="rounded-xl border border-dashed border-surface-border/[0.10] bg-text-primary/[0.02] p-4"
             >
               <div className="mb-1.5 flex items-center gap-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-amber-400/60" />
-                <p className="text-[13px] font-semibold text-slate-200">
+                <p className="text-[13px] font-semibold text-text-primary">
                   {item.title}
                 </p>
               </div>
-              <p className="text-[12px] leading-5 text-slate-500">{item.desc}</p>
+              <p className="text-[12px] leading-5 text-text-muted">{item.desc}</p>
             </div>
           ))}
         </div>
 
-        <p className="mt-5 text-[12px] text-slate-500">
+        <p className="mt-5 text-[12px] text-text-muted">
           Have a feature request?{" "}
           <a
             href="/contact"

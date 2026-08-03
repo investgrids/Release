@@ -40,7 +40,7 @@ export function HomepageRefresher() {
 
   return (
     <div className="fixed left-1/2 top-20 z-50 -translate-x-1/2">
-      <div className="flex items-center gap-2 rounded-full border border-violet-500/35 bg-[#0d0820]/95 px-4 py-2 text-[12px] font-semibold text-violet-300 shadow-xl backdrop-blur">
+      <div className="flex items-center gap-2 rounded-full border border-violet-500/35 bg-violet-500/10 px-4 py-2 text-[12px] font-semibold text-violet-600 dark:text-violet-300 shadow-xl backdrop-blur">
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400" />
         Market intelligence updated
       </div>

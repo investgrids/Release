@@ -20,7 +20,7 @@ const EVIDENCE_CONFIG: Record<EvidenceType, { label: string; icon: typeof Landma
   earnings:   { label: "Company Earnings",          icon: TrendingUp,  cls: "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400" },
   indicator:  { label: "Economic Indicator",        icon: BarChart2,   cls: "border-amber-500/20 bg-amber-500/[0.06] text-amber-400" },
   news:       { label: "Breaking News",             icon: Newspaper,   cls: "border-rose-500/20 bg-rose-500/[0.06] text-rose-400" },
-  historical: { label: "Historical Pattern",        icon: History,     cls: "border-slate-500/20 bg-slate-500/[0.06] text-slate-400" },
+  historical: { label: "Historical Pattern",        icon: History,     cls: "border-surface-border/5 bg-slate-500/[0.06] text-text-secondary" },
   company:    { label: "Company Report",            icon: Building2,   cls: "border-teal-500/20 bg-teal-500/[0.06] text-teal-400" },
   global:     { label: "Global Event",              icon: Globe,       cls: "border-indigo-500/20 bg-indigo-500/[0.06] text-indigo-400" },
 };
@@ -46,11 +46,11 @@ export function EvidenceCard({ type, title, summary, href, date }: EvidenceCardP
       <Icon className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-[11px] font-semibold text-white leading-snug line-clamp-2">{title}</p>
-          {date && <span className="text-[10px] text-slate-500 shrink-0">{date}</span>}
+          <p className="text-[11px] font-semibold text-text-primary leading-snug line-clamp-2">{title}</p>
+          {date && <span className="text-[10px] text-text-muted shrink-0">{date}</span>}
         </div>
         {summary && (
-          <p className="mt-0.5 text-[10px] text-slate-400 line-clamp-2">{summary}</p>
+          <p className="mt-0.5 text-[10px] text-text-secondary line-clamp-2">{summary}</p>
         )}
         <span className="mt-1 inline-block text-[9px] font-medium uppercase tracking-wider opacity-70">
           {config.label}
@@ -84,7 +84,7 @@ export function EvidenceGrid({ items, maxVisible = 3 }: EvidenceGridProps) {
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
         Supporting Evidence
       </p>
       <div className="grid gap-1.5 sm:grid-cols-2">
@@ -93,7 +93,7 @@ export function EvidenceGrid({ items, maxVisible = 3 }: EvidenceGridProps) {
         ))}
       </div>
       {remaining > 0 && (
-        <p className="text-[11px] text-slate-500">+{remaining} more sources</p>
+        <p className="text-[11px] text-text-muted">+{remaining} more sources</p>
       )}
     </div>
   );

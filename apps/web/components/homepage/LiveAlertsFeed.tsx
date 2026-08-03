@@ -26,10 +26,10 @@ function AlertIcon({ headline }: { headline: string }) {
 }
 
 function urgCls(u: number) {
-  if (u >= 9) return { dot: "bg-rose-400",   badge: "bg-rose-500/20 text-rose-300"   };
-  if (u >= 7) return { dot: "bg-amber-400",  badge: "bg-amber-500/20 text-amber-300" };
-  if (u >= 5) return { dot: "bg-sky-400",    badge: "bg-sky-500/20 text-sky-300"     };
-  return            { dot: "bg-slate-600",   badge: "bg-white/10 text-slate-400"     };
+  if (u >= 9) return { dot: "bg-rose-400",   badge: "bg-rose-500/20 text-rose-600 dark:text-rose-300"   };
+  if (u >= 7) return { dot: "bg-amber-400",  badge: "bg-amber-500/20 text-amber-600 dark:text-amber-300" };
+  if (u >= 5) return { dot: "bg-sky-400",    badge: "bg-sky-500/20 text-sky-600 dark:text-sky-300"     };
+  return            { dot: "bg-slate-600",   badge: "bg-text-primary/10 text-text-secondary"     };
 }
 
 /** Normalize a DB feed item into IntelligenceEvent shape */
@@ -99,7 +99,7 @@ export function LiveAlertsFeed({ seed = [] }: { seed?: IntelligenceEvent[] }) {
     <div>
       <div className="mb-3 flex items-center gap-2">
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400" />
-        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-white">Live AI Alerts</p>
+        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-text-primary">Live AI Alerts</p>
         {feed.length > 0 && (
           <span className="ml-auto rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-bold text-violet-400">
             {feed.length}
@@ -110,15 +110,15 @@ export function LiveAlertsFeed({ seed = [] }: { seed?: IntelligenceEvent[] }) {
       {feed.length === 0 ? (
         <div className="space-y-1.5">
           {[1, 2, 3].map(i => (
-            <div key={i} className="flex items-start gap-2 rounded-lg border border-white/[0.05] px-2.5 py-2">
-              <div className="mt-1 h-1.5 w-1.5 rounded-full bg-slate-700" />
+            <div key={i} className="flex items-start gap-2 rounded-lg border border-surface-border/5 px-2.5 py-2">
+              <div className="mt-1 h-1.5 w-1.5 rounded-full bg-text-primary/[0.07]" />
               <div className="flex-1">
-                <div className="mb-1 h-2 w-3/4 rounded bg-white/[0.04]" />
-                <div className="h-2 w-1/2 rounded bg-white/[0.03]" />
+                <div className="mb-1 h-2 w-3/4 rounded bg-text-primary/[0.04]" />
+                <div className="h-2 w-1/2 rounded bg-text-primary/[0.03]" />
               </div>
             </div>
           ))}
-          <p className="px-1 text-[10px] text-slate-600">Monitoring market for significant events…</p>
+          <p className="px-1 text-[10px] text-text-muted">Monitoring market for significant events…</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -126,13 +126,13 @@ export function LiveAlertsFeed({ seed = [] }: { seed?: IntelligenceEvent[] }) {
             const cls = urgCls(evt.urgency);
             return (
               <div key={evt.id}
-                className="flex items-start gap-2 rounded-lg border border-white/[0.05] bg-white/[0.02] px-2.5 py-2 transition hover:border-violet-500/15">
+                className="flex items-start gap-2 rounded-lg border border-surface-border/5 bg-text-primary/[0.02] px-2.5 py-2 transition hover:border-violet-500/15">
                 <div className="mt-1 shrink-0">
                   <AlertIcon headline={evt.headline} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start gap-1.5">
-                    <p className="flex-1 line-clamp-2 text-[11px] font-semibold leading-snug text-slate-200">
+                    <p className="flex-1 line-clamp-2 text-[11px] font-semibold leading-snug text-text-primary">
                       {evt.headline}
                     </p>
                     <span className={`shrink-0 rounded-full px-1 py-0.5 text-[8px] font-black ${cls.badge}`}>
@@ -140,7 +140,7 @@ export function LiveAlertsFeed({ seed = [] }: { seed?: IntelligenceEvent[] }) {
                     </span>
                   </div>
                   {evt.one_liner && evt.one_liner !== evt.headline && (
-                    <p className="mt-0.5 line-clamp-1 text-[9px] leading-[1.4] text-slate-500">{evt.one_liner}</p>
+                    <p className="mt-0.5 line-clamp-1 text-[9px] leading-[1.4] text-text-muted">{evt.one_liner}</p>
                   )}
                   <div className="mt-1 flex items-center gap-1 flex-wrap">
                     {(evt.sectors ?? []).slice(0, 1).map(s => (
@@ -149,7 +149,7 @@ export function LiveAlertsFeed({ seed = [] }: { seed?: IntelligenceEvent[] }) {
                     {(evt.tickers ?? []).slice(0, 1).map(t => (
                       <span key={t} className="rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[8px] text-sky-400">{t}</span>
                     ))}
-                    <span className="ml-auto text-[9px] text-slate-600">{timeAgo(evt.ts)}</span>
+                    <span className="ml-auto text-[9px] text-text-muted">{timeAgo(evt.ts)}</span>
                   </div>
                 </div>
               </div>

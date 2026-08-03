@@ -70,14 +70,14 @@ export function AISearchHistory({ onReopen, activeQuery }: { onReopen: (query: s
   }
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <History size={14} strokeWidth={1.8} className="text-violet-400" />
-          <p className="text-[12px] font-semibold text-slate-300">Research History</p>
+          <p className="text-[12px] font-semibold text-text-secondary">Research History</p>
         </div>
         <button onClick={clearAll} title="Clear history"
-          className="text-slate-600 hover:text-rose-400 transition">
+          className="text-text-muted hover:text-rose-400 transition">
           <Trash2 size={13} strokeWidth={1.8} />
         </button>
       </div>
@@ -85,7 +85,7 @@ export function AISearchHistory({ onReopen, activeQuery }: { onReopen: (query: s
       <div className="space-y-3 max-h-[280px] overflow-y-auto" style={{ scrollbarWidth: "none" }}>
         {[...groups.entries()].map(([label, items]) => (
           <div key={label}>
-            <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1.5">{label}</p>
+            <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1.5">{label}</p>
             <div className="space-y-0.5">
               {items.map(e => {
                 const isActive = activeQuery && e.title === activeQuery;
@@ -93,10 +93,10 @@ export function AISearchHistory({ onReopen, activeQuery }: { onReopen: (query: s
                   <button
                     key={e.id}
                     onClick={() => onReopen(e.title)}
-                    className={`flex w-full items-start gap-2 rounded-[10px] px-2 py-1.5 text-left transition hover:bg-white/[0.05] ${isActive ? "bg-violet-500/10" : ""}`}
+                    className={`flex w-full items-start gap-2 rounded-[10px] px-2 py-1.5 text-left transition hover:bg-text-primary/[0.05] ${isActive ? "bg-violet-500/10" : ""}`}
                   >
                     <span className={`mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full ${isActive ? "bg-violet-400" : "bg-emerald-500/70"}`} />
-                    <span className={`text-[11px] leading-4 line-clamp-2 ${isActive ? "text-violet-300 font-medium" : "text-slate-400"}`}>
+                    <span className={`text-[11px] leading-4 line-clamp-2 ${isActive ? "text-violet-600 dark:text-violet-300 font-medium" : "text-text-secondary"}`}>
                       {e.title}
                     </span>
                   </button>

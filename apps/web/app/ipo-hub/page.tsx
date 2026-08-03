@@ -32,9 +32,9 @@ type DetailTab = "overview" | "financials" | "objects" | "risks" | "peers";
 type Filter = "all" | "upcoming" | "ongoing" | "listed";
 
 const STATUS_BADGE: Record<string, string> = {
-  Upcoming: "bg-sky-500/10 text-sky-300 border border-sky-500/20",
-  Ongoing:  "bg-amber-500/10 text-amber-300 border border-amber-500/20",
-  Listed:   "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20",
+  Upcoming: "bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/20",
+  Ongoing:  "bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/20",
+  Listed:   "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20",
 };
 const RATING_COLOR: Record<string, string> = {
   Bullish: "text-emerald-400", Neutral: "text-amber-400", Bearish: "text-rose-400",
@@ -90,10 +90,10 @@ function SentimentGauge({ score, label }: { score: number; label: string }) {
             const ny = 50 + 32 * Math.sin(rad);
             return <line x1="50" y1="50" x2={nx} y2={ny} stroke="white" strokeWidth="2" strokeLinecap="round" />;
           })()}
-          <circle cx="50" cy="50" r="5" fill="#1e293b" stroke="white" strokeWidth="1.5" />
+          <circle cx="50" cy="50" r="5" fill="rgb(var(--surface-border))" stroke="white" strokeWidth="1.5" />
         </svg>
       </div>
-      <p className="text-3xl font-bold text-white mt-1">{score}</p>
+      <p className="text-3xl font-bold text-text-primary mt-1">{score}</p>
       <p className="text-sm font-semibold text-emerald-400">{label}</p>
     </div>
   );
@@ -101,27 +101,27 @@ function SentimentGauge({ score, label }: { score: number; label: string }) {
 
 function IPORow({ ipo, selected, onClick }: { ipo: IPO; selected: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`w-full text-left px-3 py-3 rounded-[14px] transition hover:bg-white/[0.04] border ${selected ? "border-violet-500/30 bg-violet-500/[0.05]" : "border-transparent"}`}>
+    <button onClick={onClick} className={`w-full text-left px-3 py-3 rounded-[14px] transition hover:bg-text-primary/[0.04] border ${selected ? "border-violet-500/30 bg-violet-500/[0.05]" : "border-transparent"}`}>
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white/[0.06] text-base font-bold text-white">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-text-primary/[0.06] text-base font-bold text-text-primary">
           {ipo.name.charAt(0)}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="text-xs font-semibold text-white truncate">{ipo.name}</p>
-            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${ipo.type === "SME" ? "bg-amber-500/15 text-amber-300" : "bg-indigo-500/15 text-indigo-300"}`}>
+            <p className="text-xs font-semibold text-text-primary truncate">{ipo.name}</p>
+            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${ipo.type === "SME" ? "bg-amber-500/15 text-amber-600 dark:text-amber-300" : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300"}`}>
               {ipo.type}
             </span>
           </div>
           <div className="flex items-center gap-3 mt-0.5">
-            <p className="text-[10px] text-slate-500">{ipo.sector}</p>
+            <p className="text-[10px] text-text-muted">{ipo.sector}</p>
             <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${STATUS_BADGE[ipo.status]}`}>
               {ipo.status}
             </span>
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-xs font-semibold text-white">₹{ipo.priceMin}–{ipo.priceMax}</p>
+          <p className="text-xs font-semibold text-text-primary">₹{ipo.priceMin}–{ipo.priceMax}</p>
           <p className="text-[10px] text-emerald-400">
             ₹{ipo.gmp} ({ipo.gmpPct > 0 ? "+" : ""}{ipo.gmpPct.toFixed(2)}%)
           </p>
@@ -142,40 +142,40 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
   ];
 
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.02] flex flex-col h-full overflow-hidden">
+    <div className="rounded-[24px] border border-surface-border/10 bg-text-primary/[0.02] flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-white/8">
+      <div className="p-4 border-b border-surface-border/8">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-violet-500/20 to-sky-500/20 text-xl font-bold text-white border border-white/10">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-violet-500/20 to-sky-500/20 text-xl font-bold text-text-primary border border-surface-border/10">
               {ipo.name.charAt(0)}
             </div>
             <div>
-              <p className="text-sm font-bold text-white">{ipo.name}</p>
-              <p className="text-xs text-slate-400">{ipo.sector}</p>
+              <p className="text-sm font-bold text-text-primary">{ipo.name}</p>
+              <p className="text-xs text-text-secondary">{ipo.sector}</p>
               <div className="flex items-center gap-1.5 mt-1">
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE[ipo.status]}`}>
                   {ipo.status} IPO
                 </span>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ipo.type === "SME" ? "bg-amber-500/15 text-amber-300" : "bg-indigo-500/15 text-indigo-300"}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ipo.type === "SME" ? "bg-amber-500/15 text-amber-600 dark:text-amber-300" : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300"}`}>
                   {ipo.type}
                 </span>
               </div>
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Price Band</p>
-            <p className="text-lg font-bold text-white">₹{ipo.priceMin} – ₹{ipo.priceMax}</p>
+            <p className="text-[10px] text-text-muted uppercase tracking-wider">Price Band</p>
+            <p className="text-lg font-bold text-text-primary">₹{ipo.priceMin} – ₹{ipo.priceMax}</p>
           </div>
         </div>
 
         {/* Action buttons */}
         <div className="flex gap-2 mt-3">
-          <button className="flex items-center gap-1.5 rounded-[10px] border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-slate-300 hover:bg-white/10 transition">
+          <button className="flex items-center gap-1.5 rounded-[10px] border border-surface-border/10 bg-text-primary/5 px-3 py-1.5 text-[11px] text-text-secondary hover:bg-text-primary/10 transition">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Download DRHP
           </button>
-          <button className="flex items-center gap-1.5 rounded-[10px] border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-[11px] text-violet-300 hover:bg-violet-500/15 transition">
+          <button className="flex items-center gap-1.5 rounded-[10px] border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-[11px] text-violet-600 dark:text-violet-300 hover:bg-violet-500/15 transition">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
             Add to Watchlist
           </button>
@@ -190,9 +190,9 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
             ["Offer for Sale", ipo.offerForSale], ["Lot Size", `${ipo.lotSize} Shares`],
             ["Listing On", ipo.listingOn],
           ].map(([label, val]) => (
-            <div key={label} className="rounded-[12px] border border-white/8 bg-white/[0.02] p-2.5">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</p>
-              <p className="text-xs font-semibold text-white mt-0.5">{val}</p>
+            <div key={label} className="rounded-[12px] border border-surface-border/8 bg-text-primary/[0.02] p-2.5">
+              <p className="text-[10px] text-text-muted uppercase tracking-wider">{label}</p>
+              <p className="text-xs font-semibold text-text-primary mt-0.5">{val}</p>
             </div>
           ))}
         </div>
@@ -201,7 +201,7 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
         <div className="grid sm:grid-cols-2 gap-3">
           {/* Important Dates */}
           <div>
-            <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">Important Dates</p>
+            <p className="text-[10px] font-bold tracking-widest text-text-secondary uppercase mb-2">Important Dates</p>
             <div className="space-y-1.5">
               {[
                 ["IPO Open Date", ipo.openDate], ["IPO Close Date", ipo.closeDate],
@@ -209,8 +209,8 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
                 ["Credit of Shares", ipo.creditDate], ["Listing Date", ipo.listingDate],
               ].map(([label, val]) => (
                 <div key={label} className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-slate-500">{label}</span>
-                  <span className="text-[10px] font-medium text-white">{val}</span>
+                  <span className="text-[10px] text-text-muted">{label}</span>
+                  <span className="text-[10px] font-medium text-text-primary">{val}</span>
                 </div>
               ))}
             </div>
@@ -218,18 +218,18 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
 
           {/* GMP */}
           <div>
-            <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">GMP & Market Sentiment</p>
+            <p className="text-[10px] font-bold tracking-widest text-text-secondary uppercase mb-2">GMP & Market Sentiment</p>
             <div className="flex items-center justify-between mb-2">
               <div>
-                <p className="text-2xl font-bold text-white">₹{ipo.gmp}</p>
-                <p className="text-[10px] text-slate-500">GMP (Grey Market Premium)</p>
+                <p className="text-2xl font-bold text-text-primary">₹{ipo.gmp}</p>
+                <p className="text-[10px] text-text-muted">GMP (Grey Market Premium)</p>
               </div>
               <div className="text-right">
                 <p className="text-xl font-bold text-emerald-400">{ipo.gmpPct.toFixed(2)}%</p>
-                <p className="text-[10px] text-slate-500">Premium %</p>
+                <p className="text-[10px] text-text-muted">Premium %</p>
               </div>
             </div>
-            <p className="text-[10px] text-slate-500 mb-1">GMP Trend (Last 7 Days)</p>
+            <p className="text-[10px] text-text-muted mb-1">GMP Trend (Last 7 Days)</p>
             <div className="h-16">
               <GmpChart data={ipo.gmpTrend} />
             </div>
@@ -243,8 +243,8 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`shrink-0 rounded-[10px] px-3 py-1.5 text-[11px] font-medium transition ${
                   tab === t.id
-                    ? "bg-white/10 text-white"
-                    : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]"
+                    ? "bg-text-primary/10 text-text-primary"
+                    : "text-text-muted hover:text-text-secondary hover:bg-text-primary/[0.04]"
                 }`}>
                 {t.label}
               </button>
@@ -255,25 +255,25 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
             {tab === "overview" && (
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">About the Company</p>
-                  <p className="text-xs text-slate-300 leading-relaxed">{ipo.description}</p>
+                  <p className="text-[10px] font-bold tracking-widest text-text-secondary uppercase mb-2">About the Company</p>
+                  <p className="text-xs text-text-secondary leading-relaxed">{ipo.description}</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     {[["Founded", ipo.founded], ["Headquarters", ipo.headquarters],
                       ["Promoters", ipo.promoters], ["Website", ipo.website]].map(([k, v]) => (
                       <div key={k}>
-                        <p className="text-[10px] text-slate-500">{k}</p>
-                        <p className="text-[11px] font-medium text-white mt-0.5">{v}</p>
+                        <p className="text-[10px] text-text-muted">{k}</p>
+                        <p className="text-[11px] font-medium text-text-primary mt-0.5">{v}</p>
                       </div>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">Key Highlights</p>
+                  <p className="text-[10px] font-bold tracking-widest text-text-secondary uppercase mb-2">Key Highlights</p>
                   <ul className="space-y-1.5">
                     {ipo.highlights.map((h, i) => (
                       <li key={i} className="flex items-start gap-2">
                         <span className="mt-0.5 h-3.5 w-3.5 shrink-0 flex items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 text-[8px]">✓</span>
-                        <span className="text-[11px] text-slate-300">{h}</span>
+                        <span className="text-[11px] text-text-secondary">{h}</span>
                       </li>
                     ))}
                   </ul>
@@ -281,12 +281,12 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
               </div>
             )}
             {tab === "financials" && (
-              <div className="text-xs text-slate-400 text-center py-6">
+              <div className="text-xs text-text-secondary text-center py-6">
                 Detailed financials available in the DRHP. Download above for full analysis.
               </div>
             )}
             {tab === "objects" && (
-              <div className="text-xs text-slate-300 space-y-2">
+              <div className="text-xs text-text-secondary space-y-2">
                 <p>• Expansion of manufacturing capacity</p>
                 <p>• Repayment of outstanding borrowings</p>
                 <p>• Working capital requirements</p>
@@ -296,14 +296,14 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
             {tab === "risks" && (
               <div className="space-y-2">
                 {["Revenue concentration in few clients", "Raw material price volatility", "Regulatory and compliance risks", "Competition from global players"].map((r, i) => (
-                  <div key={i} className="flex items-start gap-2 text-[11px] text-slate-400">
+                  <div key={i} className="flex items-start gap-2 text-[11px] text-text-secondary">
                     <span className="text-rose-400 shrink-0">⚠</span> {r}
                   </div>
                 ))}
               </div>
             )}
             {tab === "peers" && (
-              <div className="text-xs text-slate-400 text-center py-6">
+              <div className="text-xs text-text-secondary text-center py-6">
                 Peer comparison data will be available after listing.
               </div>
             )}
@@ -314,16 +314,16 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
         <div className="rounded-[16px] border border-violet-500/15 bg-violet-500/[0.04] p-3">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <span className="text-violet-300"><svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg></span>
-              <p className="text-[10px] font-bold tracking-widest text-violet-300 uppercase">AI IPO Summary</p>
+              <span className="text-violet-600 dark:text-violet-300"><svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg></span>
+              <p className="text-[10px] font-bold tracking-widest text-violet-600 dark:text-violet-300 uppercase">AI IPO Summary</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <p className="text-[10px] text-slate-500">IPO Rating</p>
-              <span className={`text-[11px] font-bold ${RATING_COLOR[ipo.aiRating] ?? "text-white"}`}>{ipo.aiRating}</span>
+              <p className="text-[10px] text-text-muted">IPO Rating</p>
+              <span className={`text-[11px] font-bold ${RATING_COLOR[ipo.aiRating] ?? "text-text-primary"}`}>{ipo.aiRating}</span>
             </div>
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed">{ipo.aiSummary}</p>
-          <button className="mt-2 text-[11px] text-violet-400 hover:text-violet-300 transition">
+          <p className="text-xs text-text-secondary leading-relaxed">{ipo.aiSummary}</p>
+          <button className="mt-2 text-[11px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
             View Full Analysis →
           </button>
         </div>
@@ -331,12 +331,12 @@ function DetailPanel({ ipo }: { ipo: IPO }) {
         {/* Subscription */}
         {ipo.subscriptionRetail !== null && (
           <div>
-            <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">Subscription Status</p>
+            <p className="text-[10px] font-bold tracking-widest text-text-secondary uppercase mb-2">Subscription Status</p>
             <div className="grid grid-cols-3 gap-2">
               {[["Retail", ipo.subscriptionRetail], ["HNI / NII", ipo.subscriptionHNI], ["QIB", ipo.subscriptionQIB]].map(([label, val]) => (
-                <div key={label as string} className="rounded-[12px] border border-white/8 bg-white/[0.02] p-2.5 text-center">
-                  <p className="text-[10px] text-slate-500">{label as string}</p>
-                  <p className={`text-sm font-bold mt-0.5 ${(val as number) >= 1 ? "text-emerald-400" : "text-white"}`}>
+                <div key={label as string} className="rounded-[12px] border border-surface-border/8 bg-text-primary/[0.02] p-2.5 text-center">
+                  <p className="text-[10px] text-text-muted">{label as string}</p>
+                  <p className={`text-sm font-bold mt-0.5 ${(val as number) >= 1 ? "text-emerald-400" : "text-text-primary"}`}>
                     {(val as number).toFixed(2)}x
                   </p>
                 </div>
@@ -392,20 +392,20 @@ export default function IPOHubPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
-            <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-gradient-to-br from-violet-500/20 to-sky-500/20 border border-white/10 text-violet-300">
+            <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-gradient-to-br from-violet-500/20 to-sky-500/20 border border-surface-border/10 text-violet-600 dark:text-violet-300">
               <ClipboardList className="h-5 w-5" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">IPO HUB</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-text-primary">IPO HUB</h1>
           </div>
-          <p className="text-sm text-slate-400">Live IPO updates, insights & analysis</p>
+          <p className="text-sm text-text-secondary">Live IPO updates, insights & analysis</p>
         </div>
         <div className="rounded-[16px] border border-violet-500/20 bg-violet-500/[0.06] p-4 max-w-xs">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-violet-300"><svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg></span>
-            <p className="text-[10px] font-bold tracking-widest text-violet-300 uppercase">AI Daily Insight</p>
+            <span className="text-violet-600 dark:text-violet-300"><svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg></span>
+            <p className="text-[10px] font-bold tracking-widest text-violet-600 dark:text-violet-300 uppercase">AI Daily Insight</p>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">{data?.ai_insight ?? "Loading IPO insights…"}</p>
-          <button className="mt-2 text-[11px] text-violet-400 hover:text-violet-300 transition">
+          <p className="text-xs text-text-secondary leading-relaxed">{data?.ai_insight ?? "Loading IPO insights…"}</p>
+          <button className="mt-2 text-[11px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
             View Insight →
           </button>
         </div>
@@ -418,12 +418,12 @@ export default function IPOHubPage() {
           { label: "Ongoing IPOs",  value: stats.ongoing,  sub: "2 closing soon",     color: "text-amber-400",   dot: "bg-amber-400" },
           { label: "Listed This Month", value: stats.listed, sub: `Avg. Gain ${stats.avg_listing_gain}%`, color: "text-emerald-400", dot: "bg-emerald-400" },
         ].map(s => (
-          <div key={s.label} className="rounded-[18px] border border-white/10 bg-white/[0.02] p-4">
+          <div key={s.label} className="rounded-[18px] border border-surface-border/10 bg-text-primary/[0.02] p-4">
             <div className="flex items-center gap-2">
-              <span className={`text-2xl font-bold text-white`}>{s.value}</span>
+              <span className={`text-2xl font-bold text-text-primary`}>{s.value}</span>
               <span className={`h-2 w-2 rounded-full ${s.dot} animate-pulse`} />
             </div>
-            <p className="text-xs font-semibold text-white mt-0.5">{s.label}</p>
+            <p className="text-xs font-semibold text-text-primary mt-0.5">{s.label}</p>
             <p className={`text-[11px] mt-0.5 ${s.color}`}>▲ {s.sub}</p>
           </div>
         ))}
@@ -435,8 +435,8 @@ export default function IPOHubPage() {
           <button key={t.id} onClick={() => setMainTab(t.id)}
             className={`shrink-0 rounded-[12px] px-4 py-2 text-sm font-medium transition ${
               mainTab === t.id
-                ? "bg-white/10 text-white"
-                : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+                ? "bg-text-primary/10 text-text-primary"
+                : "text-text-secondary hover:bg-text-primary/[0.04] hover:text-text-primary"
             }`}>
             {t.label}
           </button>
@@ -445,26 +445,26 @@ export default function IPOHubPage() {
 
       {/* Main content: list + detail */}
       {mainTab === "calendar" ? (
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-5">
-          <p className="text-sm font-semibold text-white mb-4">Upcoming IPO Calendar — May 2025</p>
+        <div className="rounded-[24px] border border-surface-border/10 bg-text-primary/[0.02] p-5">
+          <p className="text-sm font-semibold text-text-primary mb-4">Upcoming IPO Calendar — May 2025</p>
           <div className="space-y-2">
             {ipos.filter(i => i.status !== "Listed").map(ipo => (
-              <div key={ipo.id} className="flex items-center justify-between gap-4 rounded-[12px] border border-white/8 bg-white/[0.02] px-4 py-3">
+              <div key={ipo.id} className="flex items-center justify-between gap-4 rounded-[12px] border border-surface-border/8 bg-text-primary/[0.02] px-4 py-3">
                 <div>
-                  <p className="text-xs font-semibold text-white">{ipo.name}</p>
-                  <p className="text-[10px] text-slate-500">{ipo.sector} • {ipo.type}</p>
+                  <p className="text-xs font-semibold text-text-primary">{ipo.name}</p>
+                  <p className="text-[10px] text-text-muted">{ipo.sector} • {ipo.type}</p>
                 </div>
                 <div className="text-center hidden sm:block">
-                  <p className="text-[10px] text-slate-500">Open</p>
-                  <p className="text-[11px] text-white font-medium">{ipo.openDate}</p>
+                  <p className="text-[10px] text-text-muted">Open</p>
+                  <p className="text-[11px] text-text-primary font-medium">{ipo.openDate}</p>
                 </div>
                 <div className="text-center hidden sm:block">
-                  <p className="text-[10px] text-slate-500">Close</p>
-                  <p className="text-[11px] text-white font-medium">{ipo.closeDate}</p>
+                  <p className="text-[10px] text-text-muted">Close</p>
+                  <p className="text-[11px] text-text-primary font-medium">{ipo.closeDate}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-[10px] text-slate-500">Listing</p>
-                  <p className="text-[11px] text-white font-medium">{ipo.listingDate}</p>
+                  <p className="text-[10px] text-text-muted">Listing</p>
+                  <p className="text-[11px] text-text-primary font-medium">{ipo.listingDate}</p>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE[ipo.status]}`}>
                   {ipo.status}
@@ -476,10 +476,10 @@ export default function IPOHubPage() {
       ) : (
         <div className="grid gap-4 xl:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_480px]">
           {/* IPO List */}
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-4">
+          <div className="rounded-[24px] border border-surface-border/10 bg-text-primary/[0.02] p-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold text-white">IPO Overview</p>
-              <p className="text-xs text-slate-500">Track all live, upcoming and recently listed IPOs</p>
+              <p className="text-sm font-semibold text-text-primary">IPO Overview</p>
+              <p className="text-xs text-text-muted">Track all live, upcoming and recently listed IPOs</p>
             </div>
 
             {/* Filter tabs */}
@@ -488,8 +488,8 @@ export default function IPOHubPage() {
                 <button key={f} onClick={() => setFilter(f)}
                   className={`rounded-[10px] px-3 py-1.5 text-[11px] font-medium capitalize transition ${
                     filter === f
-                      ? "bg-white/10 text-white"
-                      : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]"
+                      ? "bg-text-primary/10 text-text-primary"
+                      : "text-text-muted hover:text-text-secondary hover:bg-text-primary/[0.04]"
                   }`}>
                   {f === "all" ? `All (${ipos.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${ipos.filter(i => i.status.toLowerCase() === f).length})`}
                 </button>
@@ -498,7 +498,7 @@ export default function IPOHubPage() {
 
             <div className="space-y-0.5 max-h-[520px] overflow-y-auto pr-1">
               {displayed.length === 0 ? (
-                <p className="text-center text-sm text-slate-500 py-8">No IPOs in this category</p>
+                <p className="text-center text-sm text-text-muted py-8">No IPOs in this category</p>
               ) : (
                 displayed.map(ipo => (
                   <IPORow key={ipo.id} ipo={ipo} selected={selected?.id === ipo.id} onClick={() => setSelected(ipo)} />
@@ -506,7 +506,7 @@ export default function IPOHubPage() {
               )}
             </div>
 
-            <button className="mt-3 w-full rounded-[14px] border border-violet-500/20 bg-violet-500/[0.06] py-2.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/10 transition">
+            <button className="mt-3 w-full rounded-[14px] border border-violet-500/20 bg-violet-500/[0.06] py-2.5 text-xs font-semibold text-violet-600 dark:text-violet-300 hover:bg-violet-500/10 transition">
               View All Upcoming IPOs →
             </button>
           </div>
@@ -516,8 +516,8 @@ export default function IPOHubPage() {
             {selected ? (
               <DetailPanel ipo={selected} />
             ) : (
-              <div className="flex h-full items-center justify-center rounded-[24px] border border-white/10 bg-white/[0.02]">
-                <p className="text-sm text-slate-500">Select an IPO to view details</p>
+              <div className="flex h-full items-center justify-center rounded-[24px] border border-surface-border/10 bg-text-primary/[0.02]">
+                <p className="text-sm text-text-muted">Select an IPO to view details</p>
               </div>
             )}
           </div>
@@ -526,9 +526,9 @@ export default function IPOHubPage() {
 
       {/* Bottom: Sentiment + Sector Trends */}
       <div className="grid sm:grid-cols-2 gap-4">
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-5">
-          <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-4">IPO Market Sentiment</p>
-          <p className="text-[11px] text-slate-500 mb-3">Overall market sentiment for upcoming IPOs</p>
+        <div className="rounded-[24px] border border-surface-border/10 bg-text-primary/[0.02] p-5">
+          <p className="text-[10px] font-bold tracking-widest text-text-secondary uppercase mb-4">IPO Market Sentiment</p>
+          <p className="text-[11px] text-text-muted mb-3">Overall market sentiment for upcoming IPOs</p>
           <div className="flex items-start gap-6">
             <SentimentGauge score={sentiment.score} label={sentiment.label} />
             <div className="space-y-2 flex-1">
@@ -539,20 +539,20 @@ export default function IPOHubPage() {
                 ["Overall Sentiment",      sentiment.overall,    "text-emerald-400"],
               ].map(([label, val, color]) => (
                 <div key={label as string} className="flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400">{label as string}</span>
+                  <span className="text-[11px] text-text-secondary">{label as string}</span>
                   <span className={`text-[11px] font-semibold ${color as string}`}>{val as string}</span>
                 </div>
               ))}
             </div>
           </div>
-          <p className="mt-3 text-[10px] text-slate-500">
+          <p className="mt-3 text-[10px] text-text-muted">
             AI Insight: Strong retail participation expected in solar, EV and tech IPOs.
           </p>
         </div>
 
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.02] p-5">
-          <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">IPO Sector Trends</p>
-          <p className="text-[11px] text-slate-500 mb-3">Number of upcoming IPOs by sector</p>
+        <div className="rounded-[24px] border border-surface-border/10 bg-text-primary/[0.02] p-5">
+          <p className="text-[10px] font-bold tracking-widest text-text-secondary uppercase mb-1">IPO Sector Trends</p>
+          <p className="text-[11px] text-text-muted mb-3">Number of upcoming IPOs by sector</p>
           <div className="flex items-center gap-4">
             <div className="h-36 w-36 shrink-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -562,7 +562,7 @@ export default function IPOHubPage() {
                     {sectorTrends.map((s, i) => <Cell key={i} fill={s.color} />)}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ background: "#020617", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }}
+                    contentStyle={{ background: "#020617", border: "1px solid rgb(var(--text-primary) / 0.1)", borderRadius: 8 }}
                     formatter={(v: number, n: string) => [`${v} IPOs`, n]}
                   />
                 </PieChart>
@@ -573,14 +573,14 @@ export default function IPOHubPage() {
                 <div key={s.name} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} />
-                    <span className="text-[11px] text-slate-400">{s.name}</span>
+                    <span className="text-[11px] text-text-secondary">{s.name}</span>
                   </div>
-                  <span className="text-[11px] font-medium text-white">{s.count} ({s.pct}%)</span>
+                  <span className="text-[11px] font-medium text-text-primary">{s.count} ({s.pct}%)</span>
                 </div>
               ))}
             </div>
           </div>
-          <p className="mt-3 text-[10px] text-slate-500">
+          <p className="mt-3 text-[10px] text-text-muted">
             Manufacturing and Tech sectors lead the IPO pipeline.
           </p>
         </div>

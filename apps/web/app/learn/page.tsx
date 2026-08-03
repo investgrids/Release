@@ -41,11 +41,11 @@ export default function LearnHubPage() {
   return (
     <div className="space-y-10">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Knowledge Library</p>
-        <h1 className="mt-3 text-[28px] font-black leading-tight text-white md:text-[36px]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Knowledge Library</p>
+        <h1 className="mt-3 text-[28px] font-black leading-tight text-text-primary md:text-[36px]">
           Understand Markets. Not Just Watch Them.
         </h1>
-        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-slate-400">
+        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-secondary">
           A glossary of real market terminology, guides to MarketRipple's own features, and
           investor education articles — all in one place, all written to be actually useful,
           not filler.
@@ -64,10 +64,10 @@ export default function LearnHubPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-[18px] font-bold text-white">{s.title}</h2>
+                      <h2 className="text-[18px] font-bold text-text-primary">{s.title}</h2>
                       <span className={`text-[10px] font-bold uppercase tracking-wider ${s.color}`}>{s.count}</span>
                     </div>
-                    <p className="mt-1 max-w-xl text-[13px] leading-6 text-slate-400">{s.desc}</p>
+                    <p className="mt-1 max-w-xl text-[13px] leading-6 text-text-secondary">{s.desc}</p>
                   </div>
                 </div>
                 <Link href={s.href as any} className={`shrink-0 flex items-center gap-1 text-[12px] font-semibold ${s.color} hover:underline`}>
@@ -79,7 +79,7 @@ export default function LearnHubPage() {
                   <Link
                     key={item.slug}
                     href={`${s.href}/${item.slug}` as any}
-                    className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 text-[11px] font-semibold text-slate-300 transition hover:border-white/[0.12] hover:text-white"
+                    className="rounded-lg border border-surface-border/6 bg-text-primary/[0.03] px-3 py-2.5 text-[11px] font-semibold text-text-secondary transition hover:border-surface-border/[0.12] hover:text-text-primary"
                   >
                     {item.term ?? item.title}
                   </Link>

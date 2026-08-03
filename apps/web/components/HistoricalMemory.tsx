@@ -61,22 +61,22 @@ function pct(v: number | null | undefined, decimals = 1): string {
 }
 
 function pctCls(v: number | null | undefined): string {
-  if (v == null) return "text-slate-500";
+  if (v == null) return "text-text-muted";
   return v >= 0 ? "text-emerald-400" : "text-rose-400";
 }
 
 function sentimentBadge(s: string | null): { label: string; cls: string } {
-  if (!s) return { label: "Neutral", cls: "bg-slate-700/60 text-slate-400" };
+  if (!s) return { label: "Neutral", cls: "bg-text-primary/[0.12] text-text-secondary" };
   if (s === "bullish")  return { label: "Bullish",  cls: "bg-emerald-500/15 text-emerald-400" };
   if (s === "bearish")  return { label: "Bearish",  cls: "bg-rose-500/15 text-rose-400" };
   if (s === "mixed")    return { label: "Mixed",    cls: "bg-amber-500/15 text-amber-400" };
-  return { label: s, cls: "bg-slate-700/60 text-slate-400" };
+  return { label: s, cls: "bg-text-primary/[0.12] text-text-secondary" };
 }
 
 function similarityColor(sim: number): string {
   if (sim >= 75) return "#22c55e";
   if (sim >= 50) return "#f59e0b";
-  return "#64748b";
+  return "rgb(var(--text-muted))";
 }
 
 function bestReturn(w: HistoricalWinner): number {
@@ -94,7 +94,7 @@ function SimilarityRing({ pct: sim }: { pct: number }) {
   return (
     <div className="relative flex items-center justify-center" style={{ width: 44, height: 44 }}>
       <svg width="44" height="44" className="-rotate-90">
-        <circle cx="22" cy="22" r={radius} fill="none" stroke="#1e293b" strokeWidth="3" />
+        <circle cx="22" cy="22" r={radius} fill="none" stroke="rgb(var(--surface-border))" strokeWidth="3" />
         <circle cx="22" cy="22" r={radius} fill="none" stroke={color}
           strokeWidth="3" strokeDasharray={`${stroke} ${circ}`} strokeLinecap="round" />
       </svg>
@@ -110,7 +110,7 @@ function NiftyBadge({ label, value }: { label: string; value: number | null }) {
   const pos = value >= 0;
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[8px] font-semibold uppercase tracking-wider text-slate-600">{label}</span>
+      <span className="text-[8px] font-semibold uppercase tracking-wider text-text-muted">{label}</span>
       <span className={`text-[12px] font-black ${pos ? "text-emerald-400" : "text-rose-400"}`}>
         {pct(value)}
       </span>
@@ -125,31 +125,31 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
   const topLosers  = ev.historical_losers.slice(0, 3);
 
   return (
-    <div className="overflow-hidden rounded-[16px] border border-white/[0.06] bg-[#0a1628]/80">
+    <div className="overflow-hidden rounded-[16px] border border-surface-border/6 bg-surface-card/80">
       {/* Header row */}
       <button
-        className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition hover:bg-white/[0.02]"
+        className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition hover:bg-text-primary/[0.02]"
         onClick={() => setExpanded(e => !e)}
       >
         {/* Rank */}
-        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[9px] font-black text-slate-400">
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-text-primary/[0.07] text-[9px] font-black text-text-secondary">
           {index + 1}
         </span>
 
         {/* Content */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="text-[13px] font-semibold text-white leading-snug">{ev.event_title}</span>
+            <span className="text-[13px] font-semibold text-text-primary leading-snug">{ev.event_title}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] text-slate-500 flex items-center gap-1">
+            <span className="text-[10px] text-text-muted flex items-center gap-1">
               <Clock className="h-2.5 w-2.5" /> {ev.event_date}
             </span>
             <span className={`rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider ${sb.cls}`}
               style={{ borderColor: "transparent" }}>
               {sb.label}
             </span>
-            <span className="rounded-full bg-slate-800 px-1.5 py-0.5 text-[8px] text-slate-400">
+            <span className="rounded-full bg-text-primary/[0.07] px-1.5 py-0.5 text-[8px] text-text-secondary">
               {ev.category}
             </span>
           </div>
@@ -160,8 +160,8 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
       </button>
 
       {/* Nifty reaction strip */}
-      <div className="flex items-center gap-4 border-t border-white/[0.05] bg-[#060d1b] px-4 py-2.5">
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">Nifty Reaction</span>
+      <div className="flex items-center gap-4 border-t border-surface-border/5 bg-surface-card px-4 py-2.5">
+        <span className="text-[9px] font-black uppercase tracking-widest text-text-muted">Nifty Reaction</span>
         <div className="flex items-center gap-4 ml-auto">
           <NiftyBadge label="1 Day"  value={ev.nifty_1d} />
           <NiftyBadge label="3 Day"  value={ev.nifty_3d} />
@@ -171,9 +171,9 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
       </div>
 
       {/* Winners + Losers (always visible) */}
-      <div className="grid grid-cols-2 gap-px border-t border-white/[0.05]">
+      <div className="grid grid-cols-2 gap-px border-t border-surface-border/5">
         {/* Winners */}
-        <div className="bg-[#060d1b] px-3 py-2.5">
+        <div className="bg-surface-card px-3 py-2.5">
           <p className="mb-1.5 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-emerald-600">
             <TrendingUp className="h-2.5 w-2.5" /> Historical Winners
           </p>
@@ -181,7 +181,7 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
             <div className="space-y-1">
               {topWinners.map((w, i) => (
                 <div key={i} className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold text-slate-300 truncate">{w.name || w.symbol}</span>
+                  <span className="text-[11px] font-semibold text-text-secondary truncate">{w.name || w.symbol}</span>
                   <span className="shrink-0 text-[11px] font-black text-emerald-400">
                     {pct(bestReturn(w))}
                   </span>
@@ -189,12 +189,12 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
               ))}
             </div>
           ) : (
-            <p className="text-[11px] text-slate-600">No clear sector winners</p>
+            <p className="text-[11px] text-text-muted">No clear sector winners</p>
           )}
         </div>
 
         {/* Losers */}
-        <div className="border-l border-white/[0.05] bg-[#060d1b] px-3 py-2.5">
+        <div className="border-l border-surface-border/5 bg-surface-card px-3 py-2.5">
           <p className="mb-1.5 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-rose-700">
             <TrendingDown className="h-2.5 w-2.5" /> Historical Losers
           </p>
@@ -202,7 +202,7 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
             <div className="space-y-1">
               {topLosers.map((l, i) => (
                 <div key={i} className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold text-slate-300 truncate">{l.name || l.symbol}</span>
+                  <span className="text-[11px] font-semibold text-text-secondary truncate">{l.name || l.symbol}</span>
                   <span className="shrink-0 text-[11px] font-black text-rose-400">
                     {pct(bestReturn(l))}
                   </span>
@@ -210,30 +210,30 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
               ))}
             </div>
           ) : (
-            <p className="text-[11px] text-slate-600">No significant losers</p>
+            <p className="text-[11px] text-text-muted">No significant losers</p>
           )}
         </div>
       </div>
 
       {/* Expandable detail */}
       {expanded && (
-        <div className="border-t border-white/[0.05] bg-[#060d1b] px-4 py-3 space-y-3">
+        <div className="border-t border-surface-border/5 bg-surface-card px-4 py-3 space-y-3">
           {ev.what_happened && (
             <div>
-              <p className="mb-1 text-[8px] font-black uppercase tracking-widest text-slate-600">What Happened</p>
-              <p className="text-[12px] leading-[1.6] text-slate-400">{ev.what_happened}</p>
+              <p className="mb-1 text-[8px] font-black uppercase tracking-widest text-text-muted">What Happened</p>
+              <p className="text-[12px] leading-[1.6] text-text-secondary">{ev.what_happened}</p>
             </div>
           )}
           {ev.key_lesson && (
             <div className="rounded-xl border border-amber-500/[0.15] bg-amber-500/[0.05] px-3 py-2.5">
               <p className="mb-1 text-[8px] font-black uppercase tracking-widest text-amber-500/70">Key Lesson</p>
-              <p className="text-[12px] leading-[1.6] text-amber-200/80">{ev.key_lesson}</p>
+              <p className="text-[12px] leading-[1.6] text-amber-700/80 dark:text-amber-200/80">{ev.key_lesson}</p>
             </div>
           )}
           {/* Sector reactions */}
           {Object.keys(ev.sector_reactions).length > 0 && (
             <div>
-              <p className="mb-1.5 text-[8px] font-black uppercase tracking-widest text-slate-600">Sector Reactions</p>
+              <p className="mb-1.5 text-[8px] font-black uppercase tracking-widest text-text-muted">Sector Reactions</p>
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(ev.sector_reactions).map(([sec, chg]) => (
                   <span key={sec}
@@ -247,18 +247,18 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
           {/* Meta */}
           <div className="flex flex-wrap gap-3 pt-0.5">
             {ev.confidence && (
-              <span className="text-[10px] text-slate-600">
-                Data confidence: <span className="text-slate-400">{ev.confidence}%</span>
+              <span className="text-[10px] text-text-muted">
+                Data confidence: <span className="text-text-secondary">{ev.confidence}%</span>
               </span>
             )}
             {ev.interest_rate_level && (
-              <span className="text-[10px] text-slate-600">
-                Repo rate then: <span className="text-slate-400">{ev.interest_rate_level}%</span>
+              <span className="text-[10px] text-text-muted">
+                Repo rate then: <span className="text-text-secondary">{ev.interest_rate_level}%</span>
               </span>
             )}
             {ev.vix_level && (
-              <span className="text-[10px] text-slate-600">
-                VIX then: <span className="text-slate-400">{ev.vix_level.toFixed(1)}</span>
+              <span className="text-[10px] text-text-muted">
+                VIX then: <span className="text-text-secondary">{ev.vix_level.toFixed(1)}</span>
               </span>
             )}
           </div>
@@ -268,7 +268,7 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
       {/* Expand toggle */}
       <button
         onClick={() => setExpanded(e => !e)}
-        className="flex w-full items-center justify-center gap-1 border-t border-white/[0.04] py-1.5 text-[9px] font-semibold uppercase tracking-wider text-slate-600 transition hover:text-slate-400"
+        className="flex w-full items-center justify-center gap-1 border-t border-surface-border/4 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-text-muted transition hover:text-text-secondary"
       >
         {expanded ? "Less detail" : "Key lesson + sectors"}
         <ChevronRight className={`h-2.5 w-2.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
@@ -279,7 +279,7 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
           /historical/{id} now exists as the real destination. */}
       <Link
         href={`/historical/${ev.id}`}
-        className="flex w-full items-center justify-center gap-1 border-t border-white/[0.04] bg-sky-500/[0.04] py-2 text-[10px] font-bold uppercase tracking-wider text-sky-400 transition hover:bg-sky-500/[0.08] hover:text-sky-300"
+        className="flex w-full items-center justify-center gap-1 border-t border-surface-border/4 bg-sky-500/[0.04] py-2 text-[10px] font-bold uppercase tracking-wider text-sky-400 transition hover:bg-sky-500/[0.08] hover:text-sky-600 dark:text-sky-300"
       >
         View Full Analysis <ChevronRight className="h-3 w-3" />
       </Link>
@@ -315,17 +315,17 @@ function InsightBar({ events }: { events: HistoricalEvent[] }) {
       <p className="mb-2 text-[8px] font-black uppercase tracking-widest text-sky-600">Pattern Across {events.length} Similar Events</p>
       <div className="flex flex-wrap gap-x-6 gap-y-1.5">
         {avgNifty1w != null && (
-          <span className="text-[12px] text-slate-400">
+          <span className="text-[12px] text-text-secondary">
             Avg Nifty 1W: <span className={`font-black ${avgNifty1w >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{pct(avgNifty1w)}</span>
           </span>
         )}
-        <span className="text-[12px] text-slate-400">
-          Recovered in 1W: <span className="font-black text-white">{recovered}/{withReaction.length}</span>
+        <span className="text-[12px] text-text-secondary">
+          Recovered in 1W: <span className="font-black text-text-primary">{recovered}/{withReaction.length}</span>
         </span>
         {topStock && (
-          <span className="text-[12px] text-slate-400">
-            Most consistent winner: <span className="font-black text-emerald-300">{topStock[0]}</span>
-            <span className="text-slate-600"> ({topStock[1]}× in similar events)</span>
+          <span className="text-[12px] text-text-secondary">
+            Most consistent winner: <span className="font-black text-emerald-600 dark:text-emerald-300">{topStock[0]}</span>
+            <span className="text-text-muted"> ({topStock[1]}× in similar events)</span>
           </span>
         )}
       </div>
@@ -370,7 +370,7 @@ export function HistoricalMemory({
     return (
       <div className={`space-y-2 ${className}`}>
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-24 animate-pulse rounded-[16px] bg-white/[0.03]" />
+          <div key={i} className="h-24 animate-pulse rounded-[16px] bg-text-primary/[0.03]" />
         ))}
       </div>
     );
@@ -383,11 +383,11 @@ export function HistoricalMemory({
       {/* Section header */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <BookOpen className="h-3.5 w-3.5 text-slate-500" />
-          <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
+          <BookOpen className="h-3.5 w-3.5 text-text-muted" />
+          <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-text-secondary">
             Historical Precedents
           </h3>
-          <span className="rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">
+          <span className="rounded-full bg-text-primary/[0.07] px-1.5 py-0.5 text-[9px] font-semibold text-text-muted">
             {events.length} similar events
           </span>
         </div>
@@ -407,7 +407,7 @@ export function HistoricalMemory({
         ))}
       </div>
 
-      <p className="mt-3 text-[10px] text-slate-700 text-center">
+      <p className="mt-3 text-[10px] text-text-muted text-center">
         Reactions are real historical data points, not AI estimates. Similarity scored on category · sector · sentiment · market regime.
       </p>
     </div>

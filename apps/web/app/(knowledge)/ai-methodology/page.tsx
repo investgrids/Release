@@ -40,7 +40,7 @@ export const metadata: Metadata = {
 function Section({
   id,
   badge,
-  badgeColor = "text-slate-500",
+  badgeColor = "text-text-muted",
   title,
   subtitle,
   children,
@@ -58,10 +58,10 @@ function Section({
         <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${badgeColor}`}>
           {badge}
         </p>
-        <h2 id={id} className="mt-2 text-[22px] font-black text-white md:text-[28px]">
+        <h2 id={id} className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]">
           {title}
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{subtitle}</p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">{subtitle}</p>
       </div>
       {children}
     </section>
@@ -73,7 +73,7 @@ function StatTile({
   label,
   value,
   sub,
-  color = "text-white",
+  color = "text-text-primary",
 }: {
   label: string;
   value: string;
@@ -81,12 +81,12 @@ function StatTile({
   color?: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-[#080c14] px-4 py-3">
-      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+    <div className="rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">
         {label}
       </p>
       <p className={`mt-1 text-2xl font-black ${color}`}>{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500">{sub}</p>
+      <p className="mt-0.5 text-[11px] text-text-muted">{sub}</p>
     </div>
   );
 }
@@ -106,7 +106,7 @@ function StepCard({
   color: string;
 }) {
   return (
-    <div className="relative rounded-xl border border-white/[0.08] bg-[#080c14] p-5">
+    <div className="relative rounded-xl border border-surface-border/8 bg-surface-card p-5">
       <div className="mb-4 flex items-center justify-between">
         <div
           className={`flex h-10 w-10 items-center justify-center rounded-xl border ${color}`}
@@ -114,12 +114,12 @@ function StepCard({
         >
           {icon}
         </div>
-        <span className="text-[32px] font-black text-white/[0.05] leading-none select-none">
+        <span className="text-[32px] font-black text-text-primary/[0.05] leading-none select-none">
           {number}
         </span>
       </div>
-      <h3 className="text-[14px] font-bold text-white">{title}</h3>
-      <p className="mt-2 text-[12px] leading-5 text-slate-400">{description}</p>
+      <h3 className="text-[14px] font-bold text-text-primary">{title}</h3>
+      <p className="mt-2 text-[12px] leading-5 text-text-secondary">{description}</p>
     </div>
   );
 }
@@ -348,12 +348,12 @@ const limitations = [
 
 // ── Example Query Walkthrough ─────────────────────────────────────────────────
 const exampleQuerySteps = [
-  { step: "Query", content: "\"Which sectors benefit from a weak rupee?\"", color: "text-slate-300" },
-  { step: "Entity Extraction", content: "Entity: INR (Indian Rupee) · Relationship: weakness/depreciation · Outcome: sector beneficiaries", color: "text-violet-300" },
-  { step: "Intent Classification", content: "Intent: Causal analysis → sector screening → beneficiary identification", color: "text-sky-300" },
-  { step: "Graph Traversal", content: "INR depreciation node → outgoing edges to: IT Services (positive, conf 88%), Pharmaceuticals (positive, conf 82%), OMCs (negative, conf 79%), Airlines (negative, conf 81%)", color: "text-emerald-300" },
-  { step: "Evidence Retrieval", content: "Pulled: 14-year INR/sector performance correlation, Infosys FY24 earnings call (INR hedge ratio), historical ATF-INR relationship data", color: "text-amber-300" },
-  { step: "Response Generated", content: "Primary beneficiaries: IT (dollar revenue, INR costs), Pharma exporters (US market revenue). Primary losers: Airlines (USD fuel), OMCs (crude imports). With citations.", color: "text-white" },
+  { step: "Query", content: "\"Which sectors benefit from a weak rupee?\"", color: "text-text-secondary" },
+  { step: "Entity Extraction", content: "Entity: INR (Indian Rupee) · Relationship: weakness/depreciation · Outcome: sector beneficiaries", color: "text-violet-600 dark:text-violet-300" },
+  { step: "Intent Classification", content: "Intent: Causal analysis → sector screening → beneficiary identification", color: "text-sky-600 dark:text-sky-300" },
+  { step: "Graph Traversal", content: "INR depreciation node → outgoing edges to: IT Services (positive, conf 88%), Pharmaceuticals (positive, conf 82%), OMCs (negative, conf 79%), Airlines (negative, conf 81%)", color: "text-emerald-600 dark:text-emerald-300" },
+  { step: "Evidence Retrieval", content: "Pulled: 14-year INR/sector performance correlation, Infosys FY24 earnings call (INR hedge ratio), historical ATF-INR relationship data", color: "text-amber-600 dark:text-amber-300" },
+  { step: "Response Generated", content: "Primary beneficiaries: IT (dollar revenue, INR costs), Pharma exporters (US market revenue). Primary losers: Airlines (USD fuel), OMCs (crude imports). With citations.", color: "text-text-primary" },
 ];
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -363,18 +363,18 @@ export default function AIMethodologyPage() {
 
       {/* ── HERO ──────────────────────────────────────────────────────── */}
       <section aria-labelledby="hero-heading">
-        <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-indigo-950/60 via-[#080c14] to-sky-950/40 px-8 py-12 md:px-12 md:py-16">
+        <div className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-indigo-950/60 via-[#080c14] to-sky-950/40 px-8 py-12 md:px-12 md:py-16">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-400">
             AI & Methodology
           </p>
           <h1
             id="hero-heading"
-            className="mt-3 text-[28px] font-black leading-tight text-white md:text-[40px]"
+            className="mt-3 text-[28px] font-black leading-tight text-text-primary md:text-[40px]"
           >
             Transparent AI.{" "}
             <span className="text-sky-400">Explainable Decisions.</span>
           </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300 md:text-lg">
+          <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary md:text-lg">
             We believe investors deserve to understand not just what the AI concludes,
             but how it reached that conclusion. Every model, every score, every
             confidence level — explained in plain language.
@@ -400,7 +400,7 @@ export default function AIMethodologyPage() {
           {aiSearchSteps.map((s) => (
             <div
               key={s.step}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5"
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
             >
               <div className="mb-3 flex items-center gap-2.5">
                 <div
@@ -409,34 +409,34 @@ export default function AIMethodologyPage() {
                 >
                   {s.icon}
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">
                   Step {s.step}
                 </span>
               </div>
-              <h3 className="text-[14px] font-bold text-white">{s.title}</h3>
-              <p className="mt-2 text-[12px] leading-5 text-slate-400">{s.detail}</p>
+              <h3 className="text-[14px] font-bold text-text-primary">{s.title}</h3>
+              <p className="mt-2 text-[12px] leading-5 text-text-secondary">{s.detail}</p>
             </div>
           ))}
         </div>
 
         {/* Example walkthrough */}
-        <div className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5 md:p-7">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-4">
+        <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5 md:p-7">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted mb-4">
             Example: Query Processing Walkthrough
           </p>
           <div className="space-y-3">
             {exampleQuerySteps.map((item, i) => (
               <div key={i} className="flex gap-4">
                 <div className="flex flex-col items-center">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[10px] font-bold text-slate-400">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-text-primary/[0.06] text-[10px] font-bold text-text-secondary">
                     {i + 1}
                   </div>
                   {i < exampleQuerySteps.length - 1 && (
-                    <div className="mt-1 w-px flex-1 bg-white/[0.06]" />
+                    <div className="mt-1 w-px flex-1 bg-text-primary/[0.06]" />
                   )}
                 </div>
                 <div className="pb-3 min-w-0 flex-1">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                     {item.step}
                   </p>
                   <p className={`mt-1 text-[12px] leading-5 font-medium ${item.color}`}>
@@ -479,14 +479,14 @@ export default function AIMethodologyPage() {
         title="Opportunity Radar: Score Methodology"
         subtitle="Every opportunity on the Radar is assigned a composite score (0–100) built from five independently weighted factors. Here is exactly how the maths works."
       >
-        <div className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5 md:p-7">
+        <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5 md:p-7">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
               <Target className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[12px] font-bold text-white">Opportunity Score Formula</p>
-              <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+              <p className="text-[12px] font-bold text-text-primary">Opportunity Score Formula</p>
+              <p className="text-[11px] text-text-muted font-mono mt-0.5">
                 Score = Σ (factor_score × weight) — normalised to 0–100
               </p>
             </div>
@@ -498,13 +498,13 @@ export default function AIMethodologyPage() {
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2.5">
                     <div
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] ${item.textColor}`}
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.04] ${item.textColor}`}
                       aria-hidden="true"
                     >
                       {item.icon}
                     </div>
                     <div>
-                      <p className="text-[13px] font-bold text-white">{item.factor}</p>
+                      <p className="text-[13px] font-bold text-text-primary">{item.factor}</p>
                       <p className={`text-[10px] font-bold ${item.textColor}`}>
                         Weight: {item.weight}%
                       </p>
@@ -514,14 +514,14 @@ export default function AIMethodologyPage() {
                     {item.weight}%
                   </span>
                 </div>
-                <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.05]">
+                <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-text-primary/[0.05]">
                   <div
                     className={`h-full rounded-full ${item.color}`}
                     style={{ width: `${item.weight * 3.33}%` }}
                     aria-label={`${item.weight}% weight`}
                   />
                 </div>
-                <p className="text-[12px] leading-5 text-slate-400">{item.description}</p>
+                <p className="text-[12px] leading-5 text-text-secondary">{item.description}</p>
               </div>
             ))}
           </div>
@@ -540,7 +540,7 @@ export default function AIMethodologyPage() {
           {storiesSteps.map((step, i) => (
             <div
               key={step.title}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5"
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
             >
               <div className="mb-3 flex items-center gap-2.5">
                 <div
@@ -549,12 +549,12 @@ export default function AIMethodologyPage() {
                 >
                   {step.icon}
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">
                   Stage {i + 1}
                 </span>
               </div>
-              <h3 className="text-[14px] font-bold text-white">{step.title}</h3>
-              <p className="mt-2 text-[12px] leading-5 text-slate-400">{step.description}</p>
+              <h3 className="text-[14px] font-bold text-text-primary">{step.title}</h3>
+              <p className="mt-2 text-[12px] leading-5 text-text-secondary">{step.description}</p>
             </div>
           ))}
         </div>
@@ -613,7 +613,7 @@ export default function AIMethodologyPage() {
           ].map((item) => (
             <div
               key={item.factor}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5"
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
             >
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5">
@@ -624,14 +624,14 @@ export default function AIMethodologyPage() {
                     {item.icon}
                   </div>
                   <div>
-                    <p className="text-[14px] font-bold text-white">{item.factor}</p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-[14px] font-bold text-text-primary">{item.factor}</p>
+                    <p className="text-[10px] text-text-muted">
                       Contributes {item.weight} of total confidence
                     </p>
                   </div>
                 </div>
               </div>
-              <p className="text-[12px] leading-5 text-slate-400">{item.detail}</p>
+              <p className="text-[12px] leading-5 text-text-secondary">{item.detail}</p>
             </div>
           ))}
         </div>
@@ -652,13 +652,13 @@ export default function AIMethodologyPage() {
                 ? "border-rose-500/20 bg-rose-500/[0.04]"
                 : lim.severity === "medium"
                 ? "border-amber-500/20 bg-amber-500/[0.04]"
-                : "border-slate-600/30 bg-white/[0.02]";
+                : "border-surface-border/7 bg-text-primary/[0.02]";
             const iconColor =
               lim.severity === "high"
                 ? "text-rose-400 bg-rose-500/10 border-rose-500/25"
                 : lim.severity === "medium"
                 ? "text-amber-400 bg-amber-500/10 border-amber-500/25"
-                : "text-slate-400 bg-slate-700/20 border-slate-600/30";
+                : "text-text-secondary bg-text-primary/[0.05] border-surface-border/7";
             return (
               <div
                 key={lim.title}
@@ -670,8 +670,8 @@ export default function AIMethodologyPage() {
                 >
                   {lim.icon}
                 </div>
-                <h3 className="text-[14px] font-bold text-white">{lim.title}</h3>
-                <p className="mt-2 text-[12px] leading-5 text-slate-400">
+                <h3 className="text-[14px] font-bold text-text-primary">{lim.title}</h3>
+                <p className="mt-2 text-[12px] leading-5 text-text-secondary">
                   {lim.description}
                 </p>
               </div>
@@ -682,7 +682,7 @@ export default function AIMethodologyPage() {
 
       {/* ── WHY INDEPENDENT RESEARCH MATTERS ─────────────────────────── */}
       <section aria-labelledby="human-judgment-heading">
-        <div className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6 md:p-8">
+        <div className="rounded-xl border border-surface-border/8 bg-surface-card p-6 md:p-8">
           <div className="flex items-start gap-4">
             <div
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-sky-500/25 bg-sky-500/10 text-sky-400"
@@ -691,28 +691,28 @@ export default function AIMethodologyPage() {
               <UserCheck className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted mb-1">
                 Human Judgment
               </p>
               <h2
                 id="human-judgment-heading"
-                className="text-xl font-black text-white"
+                className="text-xl font-black text-text-primary"
               >
                 Why Independent Research Matters
               </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-400 max-w-2xl">
+              <p className="mt-3 text-sm leading-6 text-text-secondary max-w-2xl">
                 MarketRipple is designed to augment human investment judgment, not replace it.
                 AI excels at processing large volumes of structured information, identifying
                 historical patterns, and surfacing non-obvious connections across thousands
                 of data points simultaneously.
               </p>
-              <p className="mt-3 text-sm leading-6 text-slate-400 max-w-2xl">
+              <p className="mt-3 text-sm leading-6 text-text-secondary max-w-2xl">
                 Human investors bring irreplaceable judgment: qualitative assessment of
                 management quality, reading between the lines of regulatory intent,
                 contrarian thinking that departs from consensus, and the lived experience
                 of navigating market cycles.
               </p>
-              <p className="mt-3 text-sm leading-6 text-slate-400 max-w-2xl">
+              <p className="mt-3 text-sm leading-6 text-text-secondary max-w-2xl">
                 We recommend using MarketRipple to generate and stress-test hypotheses, then
                 verifying your conclusions against primary sources (BSE/NSE filings, RBI
                 releases, company annual reports) before making any investment decision.
@@ -721,7 +721,7 @@ export default function AIMethodologyPage() {
               </p>
               <div className="mt-5 flex items-center gap-2 rounded-xl border border-sky-500/20 bg-sky-500/[0.06] p-3">
                 <ShieldAlert className="h-4 w-4 shrink-0 text-sky-400" aria-hidden="true" />
-                <p className="text-[12px] text-sky-300">
+                <p className="text-[12px] text-sky-600 dark:text-sky-300">
                   MarketRipple does not provide personalised investment advice. All analysis
                   is for informational purposes only. Past patterns do not guarantee future outcomes.
                 </p>
@@ -732,20 +732,20 @@ export default function AIMethodologyPage() {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────────────────── */}
-      <section aria-label="Related pages" className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6 md:p-8">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+      <section aria-label="Related pages" className="rounded-xl border border-surface-border/8 bg-surface-card p-6 md:p-8">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Continue Exploring
         </p>
-        <h2 className="mt-2 text-xl font-black text-white">
+        <h2 className="mt-2 text-xl font-black text-text-primary">
           See the system in action
         </h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-2 text-sm text-text-secondary">
           Explore how MarketRipple reasons through real market events — and discover where all the underlying data comes from.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href="/how-marketripple-thinks"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-5 py-2.5 text-sm font-semibold text-text-primary transition hover:opacity-90"
             aria-label="See How MarketRipple Thinks"
           >
             <Brain className="h-4 w-4" />
@@ -754,7 +754,7 @@ export default function AIMethodologyPage() {
           </Link>
           <Link
             href="/data-sources"
-            className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-white/25 hover:text-white"
+            className="flex items-center gap-2 rounded-xl border border-surface-border/15 bg-text-primary/[0.04] px-5 py-2.5 text-sm font-semibold text-text-secondary transition hover:border-surface-border/25 hover:text-text-primary"
             aria-label="View Data Sources"
           >
             <Link2 className="h-4 w-4" />

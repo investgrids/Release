@@ -34,7 +34,7 @@ const LEVEL_CONFIG: Record<ConfidenceLevel, { label: string; cls: string; bar: s
   },
   unscored: {
     label: "Unscored",
-    cls: "border-slate-700/50 bg-slate-800/30 text-slate-500",
+    cls: "border-surface-border/10 bg-text-primary/[0.07] text-text-muted",
     bar: "bg-slate-600",
   },
 };
@@ -66,7 +66,7 @@ export function ConfidenceBadge({
       aria-label={unscored ? "AI confidence: insufficient verified data" : `AI confidence: ${config.label} (${score}%)`}
     >
       {showBar && (
-        <span className="flex h-1.5 w-12 overflow-hidden rounded-full bg-white/10">
+        <span className="flex h-1.5 w-12 overflow-hidden rounded-full bg-text-primary/10">
           <span
             className={`h-full rounded-full transition-all ${config.bar}`}
             style={{ width: unscored ? "0%" : `${score}%` }}
@@ -87,12 +87,12 @@ export function ConfidenceMeter({ score }: { score: number | null | undefined })
   return (
     <div className="space-y-1.5" aria-label={unscored ? "Confidence meter: insufficient verified data" : `Confidence meter: ${score}%`}>
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-slate-500">AI Confidence</span>
+        <span className="text-[11px] text-text-muted">AI Confidence</span>
         <span className={`text-[11px] font-bold ${config.cls.split(" ").find(c => c.startsWith("text-"))}`}>
           {unscored ? "Insufficient verified data" : `${config.label} · ${score}%`}
         </span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-text-primary/[0.06]">
         <div
           className={`h-full rounded-full transition-all duration-500 ${config.bar}`}
           style={{ width: unscored ? "0%" : `${score}%` }}

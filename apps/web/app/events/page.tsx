@@ -54,13 +54,13 @@ const CATEGORY_ICON: Record<string, ReactNode> = {
 };
 
 const CATEGORY_COLOR: Record<string, { pill: string; icon_bg: string }> = {
-  Government: { pill: "bg-violet-500/20 text-violet-300 border-violet-500/30", icon_bg: "bg-violet-500/20 text-violet-300" },
-  Policy:     { pill: "bg-sky-500/20 text-sky-300 border-sky-500/30",          icon_bg: "bg-sky-500/20 text-sky-300"       },
-  Corporate:  { pill: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", icon_bg: "bg-emerald-500/20 text-emerald-300" },
-  RBI:        { pill: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30", icon_bg: "bg-indigo-500/20 text-indigo-300" },
-  Macro:      { pill: "bg-amber-500/20 text-amber-300 border-amber-500/30",    icon_bg: "bg-amber-500/20 text-amber-300"   },
-  Global:     { pill: "bg-slate-500/30 text-slate-300 border-slate-500/30",    icon_bg: "bg-slate-500/20 text-slate-300"   },
-  Results:    { pill: "bg-teal-500/20 text-teal-300 border-teal-500/30",       icon_bg: "bg-teal-500/20 text-teal-300"     },
+  Government: { pill: "bg-violet-500/20 text-violet-600 dark:text-violet-300 border-violet-500/30", icon_bg: "bg-violet-500/20 text-violet-600 dark:text-violet-300" },
+  Policy:     { pill: "bg-sky-500/20 text-sky-600 dark:text-sky-300 border-sky-500/30",          icon_bg: "bg-sky-500/20 text-sky-600 dark:text-sky-300"       },
+  Corporate:  { pill: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30", icon_bg: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" },
+  RBI:        { pill: "bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border-indigo-500/30", icon_bg: "bg-indigo-500/20 text-indigo-600 dark:text-indigo-300" },
+  Macro:      { pill: "bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/30",    icon_bg: "bg-amber-500/20 text-amber-600 dark:text-amber-300"   },
+  Global:     { pill: "bg-slate-500/30 text-text-secondary border-surface-border/7",    icon_bg: "bg-slate-500/20 text-text-secondary"   },
+  Results:    { pill: "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/30",       icon_bg: "bg-teal-500/20 text-teal-600 dark:text-teal-300"     },
 };
 
 const SECTOR_ICONS: Record<string, ReactNode> = {
@@ -97,11 +97,11 @@ function impactLabel(s: number | null): string {
 
 function impactStyle(s: number | null) {
   const n = norm(s);
-  if (n === null) return { circle: "border-slate-700 bg-slate-800/30 text-slate-500", pill: "bg-slate-800/30 text-slate-500 border-slate-700/40" };
-  if (n >= 90) return { circle: "border-rose-500 bg-rose-500/20 text-rose-400",    pill: "bg-rose-500/15 text-rose-300 border-rose-500/30"    };
-  if (n >= 75) return { circle: "border-amber-400 bg-amber-500/20 text-amber-400", pill: "bg-amber-500/15 text-amber-300 border-amber-500/30"  };
-  if (n >= 55) return { circle: "border-sky-400 bg-sky-500/20 text-sky-400",       pill: "bg-sky-500/15 text-sky-300 border-sky-500/30"        };
-  return        { circle: "border-slate-500 bg-slate-700/30 text-slate-400",        pill: "bg-slate-700/30 text-slate-400 border-slate-500/30"  };
+  if (n === null) return { circle: "border-surface-border/10 bg-text-primary/[0.07] text-text-muted", pill: "bg-text-primary/[0.07] text-text-muted border-surface-border/9" };
+  if (n >= 90) return { circle: "border-rose-500 bg-rose-500/20 text-rose-400",    pill: "bg-rose-500/15 text-rose-600 dark:text-rose-300 border-rose-500/30"    };
+  if (n >= 75) return { circle: "border-amber-400 bg-amber-500/20 text-amber-400", pill: "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30"  };
+  if (n >= 55) return { circle: "border-sky-400 bg-sky-500/20 text-sky-400",       pill: "bg-sky-500/15 text-sky-600 dark:text-sky-300 border-sky-500/30"        };
+  return        { circle: "border-surface-border/10 bg-text-primary/[0.07] text-text-secondary",        pill: "bg-text-primary/[0.07] text-text-secondary border-surface-border/7"  };
 }
 
 function companySymbol(c: string | { symbol: string; name: string }) {
@@ -130,6 +130,17 @@ function groupByDate(events: Event[]): [string, Event[]][] {
     if (b[0] === "Unknown") return 1;
     return b[0].localeCompare(a[0]);
   });
+}
+
+// Compact "23 Jul, 7:26 AM" for inline card timestamps — ev.time is never
+// actually populated by the API (EventSummary has no time field), so
+// `ev.time || ev.date` always fell back to ev.date's raw ISO string
+// (e.g. "2026-07-23T07:26:35.584511") rendered with no formatting at all.
+function formatCompactTimestamp(dateStr: string | undefined): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -182,7 +193,7 @@ function EventCard({ ev }: { ev: Event }) {
   const sects   = Array.isArray(ev.sectors)   ? ev.sectors   : [];
 
   return (
-    <div className="group flex gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.025] p-4 hover:border-white/[0.15] hover:bg-white/[0.04] transition">
+    <div className="group flex gap-4 rounded-[18px] border border-surface-border/8 bg-text-primary/[0.025] p-4 hover:border-surface-border/15 hover:bg-text-primary/[0.04] transition">
       {/* Category icon */}
       <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${catCfg.icon_bg}`}>
         {icon}
@@ -194,19 +205,19 @@ function EventCard({ ev }: { ev: Event }) {
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${catCfg.pill}`}>{ev.category}</span>
           {sects.slice(0, 2).map(s => (
-            <span key={s} className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">{s}</span>
+            <span key={s} className="rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] text-text-secondary">{s}</span>
           ))}
           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${ist.pill}`}>{impactLabel(ev.impact_score)} Impact</span>
-          <span className="ml-auto text-[10px] text-slate-500">{ev.time || ev.date}</span>
-          {ev.source && <span className="text-[10px] text-slate-600">· {ev.source}</span>}
+          <span className="ml-auto text-[10px] text-text-muted">{formatCompactTimestamp(ev.time || ev.date)}</span>
+          {ev.source && <span className="text-[10px] text-text-muted">· {ev.source}</span>}
         </div>
 
         {/* Title */}
-        <h3 className="text-[14px] font-semibold leading-snug text-white group-hover:text-sky-100 transition">{ev.title}</h3>
+        <h3 className="text-[14px] font-semibold leading-snug text-text-primary group-hover:text-sky-800 dark:text-sky-100 transition">{ev.title}</h3>
 
         {/* Summary */}
         {ev.summary && (
-          <p className="mt-1.5 text-[12px] leading-5 text-slate-400 line-clamp-2">{ev.summary}</p>
+          <p className="mt-1.5 text-[12px] leading-5 text-text-secondary line-clamp-2">{ev.summary}</p>
         )}
 
         {/* Companies row */}
@@ -216,7 +227,7 @@ function EventCard({ ev }: { ev: Event }) {
               const sym = companySymbol(c);
               return (
                 <Link key={ci} href={`/companies/${sym}`} title={companyLabel(c)}
-                  className="flex h-6 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 text-[10px] text-slate-400 hover:border-sky-500/30 hover:text-sky-300 transition">
+                  className="flex h-6 items-center gap-1 rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 text-[10px] text-text-secondary hover:border-sky-500/30 hover:text-sky-600 dark:text-sky-300 transition">
                   {sym.slice(0, 6)}
                 </Link>
               );
@@ -225,21 +236,21 @@ function EventCard({ ev }: { ev: Event }) {
         )}
 
         {/* Action row */}
-        <div className="mt-3 pt-2.5 border-t border-white/[0.05] flex items-center gap-3 flex-wrap">
+        <div className="mt-3 pt-2.5 border-t border-surface-border/5 flex items-center gap-3 flex-wrap">
           <Link href={`/intel/event/${ev.id}`}
-            className="flex items-center gap-1 text-[12px] font-bold text-violet-400 hover:text-violet-300 transition">
+            className="flex items-center gap-1 text-[12px] font-bold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
             Intelligence Report →
           </Link>
           <Link href={`/events/${ev.id}`}
-            className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-300 transition">
+            className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
             Full Story →
           </Link>
           <Link href={`/ripple?event=${ev.id}`}
-            className="flex items-center gap-1 text-[12px] font-medium text-indigo-400 hover:text-indigo-300 transition">
+            className="flex items-center gap-1 text-[12px] font-medium text-indigo-400 hover:text-indigo-600 dark:text-indigo-300 transition">
             Ripple Effect →
           </Link>
           <Link href={`/ai-search?q=${encodeURIComponent(ev.title)}`}
-            className="ml-auto flex items-center gap-1 text-[11px] font-medium text-violet-400 hover:text-violet-300 transition">
+            className="ml-auto flex items-center gap-1 text-[11px] font-medium text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
             Ask AI →
           </Link>
         </div>
@@ -247,7 +258,7 @@ function EventCard({ ev }: { ev: Event }) {
 
       {/* Impact score circle */}
       <div className="shrink-0 flex flex-col items-center gap-1 pt-1">
-        <p className="text-[9px] uppercase tracking-wider text-slate-600">Impact</p>
+        <p className="text-[9px] uppercase tracking-wider text-text-muted">Impact</p>
         <div className={`flex h-14 w-14 flex-col items-center justify-center rounded-full border-2 ${ist.circle}`}>
           <span className="text-[18px] font-black leading-none">{score === null ? "—" : score}</span>
           <span className="text-[8px] font-medium">{impactLabel(ev.impact_score)}</span>
@@ -258,13 +269,13 @@ function EventCard({ ev }: { ev: Event }) {
             item={{ id: ev.id, type: "event", label: ev.title, subtitle: ev.category }}
             size="sm"
           />
-          <button className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/8 bg-white/[0.03] text-slate-500 hover:text-white transition" title="Share">
+          <button className="flex h-6 w-6 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.03] text-text-muted hover:text-text-primary transition" title="Share">
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
             </svg>
           </button>
           <Link href={`/events/${ev.id}`} title="View Details"
-            className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/8 bg-white/[0.03] text-slate-500 hover:text-sky-400 hover:border-sky-500/30 transition">
+            className="flex h-6 w-6 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.03] text-text-muted hover:text-sky-400 hover:border-sky-500/30 transition">
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
@@ -296,14 +307,14 @@ function PriorityEventsBar({ events }: { events: Event[] }) {
   if (top3.length === 0) return null;
 
   const ROWS = [
-    { label: "Must Watch",     cls: "border-rose-500/30 bg-rose-500/[0.07] text-rose-300",   dot: "bg-rose-400"   },
-    { label: "Worth Reading",  cls: "border-amber-500/30 bg-amber-500/[0.07] text-amber-300", dot: "bg-amber-400"  },
-    { label: "Monitor",        cls: "border-sky-500/30 bg-sky-500/[0.07] text-sky-300",       dot: "bg-sky-400"    },
+    { label: "Must Watch",     cls: "border-rose-500/30 bg-rose-500/[0.07] text-rose-600 dark:text-rose-300",   dot: "bg-rose-400"   },
+    { label: "Worth Reading",  cls: "border-amber-500/30 bg-amber-500/[0.07] text-amber-600 dark:text-amber-300", dot: "bg-amber-400"  },
+    { label: "Monitor",        cls: "border-sky-500/30 bg-sky-500/[0.07] text-sky-600 dark:text-sky-300",       dot: "bg-sky-400"    },
   ];
 
   return (
     <div className="mb-6">
-      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-text-muted">
         Today's Priority Events
       </p>
       <div className="space-y-2">
@@ -314,7 +325,7 @@ function PriorityEventsBar({ events }: { events: Event[] }) {
               className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition hover:brightness-110 ${row.cls}`}>
               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${row.dot}`} />
               <span className="w-[90px] shrink-0 text-[10px] font-black uppercase tracking-wider">{row.label}</span>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{ev.title}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-text-primary">{ev.title}</span>
               {ev.time && <span className="shrink-0 text-[11px] opacity-60">{ev.time}</span>}
               <span className="shrink-0 text-[11px] font-semibold opacity-80">
                 {impactLabel(ev.impact_score)} Impact
@@ -346,15 +357,23 @@ export default function EventsPage() {
   const trendData = useMemo(() => buildTrendData(events), [events]);
 
   useEffect(() => {
-    fetch(`${API}/api/events/?sort_by=impact_score&limit=${limit}`, { cache: "no-store" })
+    // Chronological (published_at), not impact_score: the impact-sorted
+    // endpoint (events.py) pools recent events, splits recent-vs-older,
+    // sorts each by score and returns recent+older — but real recent NSE
+    // filings are overwhelmingly unscored (impact_score null, confirmed
+    // live: 27 of 30 most-recent events had score:null), so that pool's
+    // "recent" bucket is nearly all nulls with 1-2 scored events mixed in,
+    // and (since recent alone already fills the limit) genuinely
+    // higher-scored older events never get a chance to backfill. The
+    // symptom: the page showed exactly one event, three weeks old, and
+    // nothing from today — reads as broken, not "ranked by impact".
+    // Timeline View already groups by date; sorting by date here is what
+    // that view's own premise assumes, and every event still carries its
+    // real score for the score circle / impact badge / Impact filter chips
+    // to rank and filter with client-side.
+    fetch(`${API}/api/events/?sort_by=published_at&limit=${limit}`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : [])
-      // Unscored events (impact_score null — the API now returns real null,
-      // never a fake 0) and genuine zero/near-zero scores aren't worth an
-      // investor's attention here, so both are excluded rather than shown
-      // ranked alongside real scores as if "lowest impact". Real "Low"
-      // impact events (score 1-54) are excluded too, same reasoning —
-      // this page is meant to surface events worth attention, not noise.
-      .then(d => { if (Array.isArray(d)) setEvents(d.filter((e: Event) => e.impact_score !== null && e.impact_score !== 0 && impactLabel(e.impact_score) !== "Low")); })
+      .then(d => { if (Array.isArray(d)) setEvents(d); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [limit]);
@@ -386,6 +405,18 @@ export default function EventsPage() {
     return e.impact_score !== null && e.impact_score >= 90 && !Number.isNaN(t) && t >= recentCutoff;
   }).length;
 
+  // Real per-category "today" counts for the Events Overview deltas below —
+  // those were hardcoded ("+12 today") or fabricated from arbitrary
+  // percentages of the all-time count (veryHigh * 0.2 etc.), never tied to
+  // any actual date, so they showed the same numbers regardless of what
+  // actually happened today.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = (dateStr: string) => (dateStr ?? "").slice(0, 10) === todayStr;
+  const totalToday    = events.filter(e => isToday(e.date)).length;
+  const veryHighToday = events.filter(e => isToday(e.date) && e.impact_score !== null && e.impact_score >= 90).length;
+  const highToday      = events.filter(e => isToday(e.date) && e.impact_score !== null && e.impact_score >= 75 && e.impact_score < 90).length;
+  const mediumToday    = events.filter(e => isToday(e.date) && e.impact_score !== null && e.impact_score >= 55 && e.impact_score < 75).length;
+
   // Sector counts
   const sectorCounts: Record<string, number> = {};
   for (const ev of events) {
@@ -411,14 +442,14 @@ export default function EventsPage() {
       {/* Header */}
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Events</h1>
-          <p className="mt-0.5 text-sm text-slate-400">
+          <h1 className="text-2xl font-bold text-text-primary">Events</h1>
+          <p className="mt-0.5 text-sm text-text-secondary">
             {todayVeryHigh > 0
               ? `${todayVeryHigh} very high-impact event${todayVeryHigh > 1 ? "s" : ""} today — start with those first.`
               : "Events ranked by market impact. Start with the highest."}
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-[13px] text-slate-300 hover:border-white/20 hover:text-white transition">
+        <button className="flex items-center gap-2 rounded-xl border border-surface-border/10 bg-text-primary/[0.04] px-4 py-2 text-[13px] text-text-secondary hover:border-surface-border/20 hover:text-text-primary transition">
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
           </svg>
@@ -435,23 +466,23 @@ export default function EventsPage() {
       <div className="mb-5 space-y-3">
         {/* Search */}
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
           <input value={query} onChange={e => setQuery(e.target.value)}
             placeholder="Search events, companies, sectors..."
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-2 pl-9 pr-3 text-[13px] text-white placeholder-slate-500 outline-none focus:border-sky-500/40"/>
+            className="w-full rounded-xl border border-surface-border/10 bg-text-primary/[0.03] py-2 pl-9 pr-3 text-[13px] text-text-primary placeholder-slate-500 outline-none focus:border-sky-500/40"/>
         </div>
 
         {/* Impact pill row */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-semibold text-slate-500 mr-1">Impact:</span>
+          <span className="text-[11px] font-semibold text-text-muted mr-1">Impact:</span>
           {IMPACT_PILLS.map(p => (
             <button key={p} onClick={() => setImpactFilter(p)}
               className={`rounded-full border px-3 py-1 text-[11px] font-medium transition ${
                 impactFilter === p
-                  ? "border-violet-500/50 bg-violet-500/20 text-violet-300"
-                  : "border-white/[0.08] bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-slate-200"
+                  ? "border-violet-500/50 bg-violet-500/20 text-violet-600 dark:text-violet-300"
+                  : "border-surface-border/8 bg-text-primary/[0.02] text-text-secondary hover:border-surface-border/20 hover:text-text-primary"
               }`}>
               {p}
             </button>
@@ -460,13 +491,13 @@ export default function EventsPage() {
 
         {/* Category pill row */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-semibold text-slate-500 mr-1">Category:</span>
+          <span className="text-[11px] font-semibold text-text-muted mr-1">Category:</span>
           {CATEGORY_PILLS.map(p => (
             <button key={p.value} onClick={() => setCategoryFilter(p.value)}
               className={`rounded-full border px-3 py-1 text-[11px] font-medium transition ${
                 categoryFilter === p.value
-                  ? "border-sky-500/50 bg-sky-500/20 text-sky-300"
-                  : "border-white/[0.08] bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-slate-200"
+                  ? "border-sky-500/50 bg-sky-500/20 text-sky-600 dark:text-sky-300"
+                  : "border-surface-border/8 bg-text-primary/[0.02] text-text-secondary hover:border-surface-border/20 hover:text-text-primary"
               }`}>
               {p.label}
             </button>
@@ -480,12 +511,12 @@ export default function EventsPage() {
         {/* ── LEFT: Timeline / List ─────────────────────────────────── */}
         <div className="min-w-0">
           {/* View toggle */}
-          <div className="mb-4 flex gap-1 border-b border-white/[0.06] pb-1">
+          <div className="mb-4 flex gap-1 border-b border-surface-border/6 pb-1">
             {(["timeline", "list"] as const).map(v => (
               <button key={v} onClick={() => setView(v)}
                 aria-label={`${v.charAt(0).toUpperCase() + v.slice(1)} View`}
                 className={`px-4 py-1.5 text-[13px] font-medium transition border-b-2 -mb-[1px] capitalize ${
-                  view === v ? "border-violet-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"
+                  view === v ? "border-violet-500 text-text-primary" : "border-transparent text-text-muted hover:text-text-secondary"
                 }`}>
                 {v.charAt(0).toUpperCase() + v.slice(1)} View
               </button>
@@ -496,12 +527,12 @@ export default function EventsPage() {
           {loading && events.length === 0 ? (
             <div className="space-y-3">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-24 animate-pulse rounded-[18px] border border-white/[0.06] bg-white/[0.02]" />
+                <div key={i} className="h-24 animate-pulse rounded-[18px] border border-surface-border/6 bg-text-primary/[0.02]" />
               ))}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.03] py-20">
-              <p className="text-sm text-slate-500">No events match the filter.</p>
+            <div className="flex items-center justify-center rounded-[18px] border border-surface-border/10 bg-text-primary/[0.03] py-20">
+              <p className="text-sm text-text-muted">No events match the filter.</p>
             </div>
           ) : view === "timeline" ? (
             <div className="space-y-6">
@@ -511,15 +542,15 @@ export default function EventsPage() {
                   <div key={date} className="flex gap-4">
                     {/* Date column */}
                     <div className="w-[100px] shrink-0 pt-1 text-right">
-                      <p className="text-[13px] font-semibold text-white leading-tight">{line1}</p>
-                      <p className="text-[11px] text-slate-500">{line2 || ""}</p>
+                      <p className="text-[13px] font-semibold text-text-primary leading-tight">{line1}</p>
+                      <p className="text-[11px] text-text-muted">{line2 || ""}</p>
                       <div className="mt-2 flex justify-end">
                         <div className="h-2.5 w-2.5 rounded-full bg-violet-500 ring-2 ring-violet-500/30"/>
                       </div>
                     </div>
 
                     {/* Events for this date */}
-                    <div className="flex-1 min-w-0 space-y-3 border-l border-white/[0.06] pl-5">
+                    <div className="flex-1 min-w-0 space-y-3 border-l border-surface-border/6 pl-5">
                       {evts.map(ev => <EventCard key={ev.id} ev={ev} />)}
                     </div>
                   </div>
@@ -529,7 +560,7 @@ export default function EventsPage() {
               {/* Load more */}
               {filtered.length >= 10 && (
                 <button onClick={() => setLimit(l => l + 20)}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] py-3 text-[13px] text-slate-400 hover:text-white hover:border-white/20 transition">
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-surface-border/10 bg-text-primary/[0.02] py-3 text-[13px] text-text-secondary hover:text-text-primary hover:border-surface-border/20 transition">
                   Load More Events
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
@@ -549,17 +580,17 @@ export default function EventsPage() {
         <aside className="space-y-4 lg:sticky lg:top-[84px]">
 
           {/* Events Overview */}
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
-            <h3 className="mb-3 text-[13px] font-semibold text-white">Events Overview</h3>
+          <div className="rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-4">
+            <h3 className="mb-3 text-[13px] font-semibold text-text-primary">Events Overview</h3>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: "Total Events",     value: total,     delta: "+12 today",  color: "text-white",       delta_c: "text-emerald-400" },
-                { label: "Very High Impact", value: veryHigh,  delta: `+${Math.max(0, Math.round(veryHigh * 0.2))} today`, color: "text-white",    delta_c: "text-emerald-400" },
-                { label: "High Impact",      value: high,      delta: `+${Math.max(0, Math.round(high * 0.08))} today`,    color: "text-amber-400", delta_c: "text-emerald-400" },
-                { label: "Medium Impact",    value: medium,    delta: `+${Math.max(0, Math.round(medium * 0.04))} today`,  color: "text-sky-400",   delta_c: "text-emerald-400" },
+                { label: "Total Events",     value: total,     delta: `+${totalToday} today`,     color: "text-text-primary",       delta_c: "text-emerald-400" },
+                { label: "Very High Impact", value: veryHigh,  delta: `+${veryHighToday} today`,   color: "text-text-primary",    delta_c: "text-emerald-400" },
+                { label: "High Impact",      value: high,      delta: `+${highToday} today`,        color: "text-amber-400", delta_c: "text-emerald-400" },
+                { label: "Medium Impact",    value: medium,    delta: `+${mediumToday} today`,      color: "text-sky-400",   delta_c: "text-emerald-400" },
               ].map(s => (
-                <div key={s.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                  <p className="text-[10px] text-slate-500">{s.label}</p>
+                <div key={s.label} className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3">
+                  <p className="text-[10px] text-text-muted">{s.label}</p>
                   <p className={`mt-1 text-2xl font-black ${s.color}`}>{s.value}</p>
                   <p className={`text-[10px] ${s.delta_c}`}>{s.delta}</p>
                 </div>
@@ -568,10 +599,10 @@ export default function EventsPage() {
           </div>
 
           {/* Impact Trend Chart */}
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
+          <div className="rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[13px] font-semibold text-white">Impact Trend</h3>
-              <select className="appearance-none rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-slate-400 outline-none">
+              <h3 className="text-[13px] font-semibold text-text-primary">Impact Trend</h3>
+              <select className="appearance-none rounded-lg border border-surface-border/10 bg-text-primary/[0.04] px-2 py-1 text-[10px] text-text-secondary outline-none">
                 <option>7 Days</option>
                 <option>30 Days</option>
               </select>
@@ -585,16 +616,16 @@ export default function EventsPage() {
               ].map(s => (
                 <div key={s.key} className="flex items-center gap-1">
                   <span className="h-2 w-2 rounded-full" style={{ background: s.color }}/>
-                  <span className="text-[10px] text-slate-400">{s.label}</span>
+                  <span className="text-[10px] text-text-secondary">{s.label}</span>
                 </div>
               ))}
             </div>
             <div className="h-[140px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="day" tick={{ fill: "#64748b", fontSize: 9 }} axisLine={false} tickLine={false}/>
-                  <YAxis tick={{ fill: "#64748b", fontSize: 9 }} axisLine={false} tickLine={false}/>
-                  <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 10 }} labelStyle={{ color: "#94a3b8" }}/>
+                  <XAxis dataKey="day" tick={{ fill: "rgb(var(--text-muted))", fontSize: 9 }} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{ fill: "rgb(var(--text-muted))", fontSize: 9 }} axisLine={false} tickLine={false}/>
+                  <Tooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 8, fontSize: 10 }} labelStyle={{ color: "#94a3b8" }}/>
                   <Line type="monotone" dataKey="veryHigh" stroke="#f43f5e" strokeWidth={1.5} dot={{ fill: "#f43f5e", r: 2 }} name="Very High"/>
                   <Line type="monotone" dataKey="high"     stroke="#f59e0b" strokeWidth={1.5} dot={{ fill: "#f59e0b", r: 2 }} name="High"/>
                   <Line type="monotone" dataKey="medium"   stroke="#6366f1" strokeWidth={1.5} dot={{ fill: "#6366f1", r: 2 }} name="Medium"/>
@@ -605,23 +636,23 @@ export default function EventsPage() {
           </div>
 
           {/* Top Sectors Affected */}
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
+          <div className="rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[13px] font-semibold text-white">Top Sectors Affected</h3>
-              <button className="text-[10px] text-violet-400 hover:text-violet-300 transition">View All</button>
+              <h3 className="text-[13px] font-semibold text-text-primary">Top Sectors Affected</h3>
+              <button className="text-[10px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">View All</button>
             </div>
             {topSectors.length === 0 ? (
-              <p className="text-[12px] text-slate-500">Loading...</p>
+              <p className="text-[12px] text-text-muted">Loading...</p>
             ) : (
               <div className="space-y-2.5">
                 {topSectors.map(([sector, count]) => (
                   <div key={sector} className="flex items-center gap-2">
-                    <span className="text-slate-400">{SECTOR_ICONS[sector] ?? <Pin className="h-3.5 w-3.5" />}</span>
-                    <span className="flex-1 min-w-0 text-[12px] text-slate-300 truncate">{sector}</span>
-                    <div className="w-20 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                    <span className="text-text-secondary">{SECTOR_ICONS[sector] ?? <Pin className="h-3.5 w-3.5" />}</span>
+                    <span className="flex-1 min-w-0 text-[12px] text-text-secondary truncate">{sector}</span>
+                    <div className="w-20 h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
                       <div className="h-full rounded-full bg-violet-500" style={{ width: `${(count / maxSectorCount) * 100}%` }}/>
                     </div>
-                    <span className="w-14 shrink-0 text-right text-[10px] text-slate-400">{count} events</span>
+                    <span className="w-14 shrink-0 text-right text-[10px] text-text-secondary">{count} events</span>
                   </div>
                 ))}
               </div>
@@ -629,13 +660,13 @@ export default function EventsPage() {
           </div>
 
           {/* Recent Alerts */}
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
+          <div className="rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[13px] font-semibold text-white">Recent Alerts</h3>
-              <button className="text-[10px] text-violet-400 hover:text-violet-300 transition">View All</button>
+              <h3 className="text-[13px] font-semibold text-text-primary">Recent Alerts</h3>
+              <button className="text-[10px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">View All</button>
             </div>
             {recentAlerts.length === 0 ? (
-              <p className="text-[12px] text-slate-500">No recent alerts.</p>
+              <p className="text-[12px] text-text-muted">No recent alerts.</p>
             ) : (
               <div className="space-y-2.5">
                 {recentAlerts.map((ev, i) => {
@@ -644,8 +675,8 @@ export default function EventsPage() {
                     <div key={i} className="flex items-start gap-2">
                       <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`}/>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] text-slate-300 leading-4 line-clamp-2">{ev.title}</p>
-                        <p className="mt-0.5 text-[10px] text-slate-600">{ev.date ? ev.date : "Recent"}</p>
+                        <p className="text-[11px] text-text-secondary leading-4 line-clamp-2">{ev.title}</p>
+                        <p className="mt-0.5 text-[10px] text-text-muted">{ev.date ? formatCompactTimestamp(ev.date) : "Recent"}</p>
                       </div>
                     </div>
                   );

@@ -40,7 +40,7 @@ export function LearningEngine() {
   }, []);
 
   if (loading) return (
-    <div className="h-24 animate-pulse rounded-2xl bg-white/[0.03]" />
+    <div className="h-24 animate-pulse rounded-2xl bg-text-primary/[0.03]" />
   );
   if (!stats || stats.total_predictions === 0) return null;
 
@@ -48,7 +48,7 @@ export function LearningEngine() {
   const conclusive = correct + partial + incorrect;
 
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+    <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -58,8 +58,8 @@ export function LearningEngine() {
             </svg>
           </div>
           <div>
-            <p className="text-[13px] font-semibold text-white leading-none">Learning Engine</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">
+            <p className="text-[13px] font-semibold text-text-primary leading-none">Learning Engine</p>
+            <p className="mt-0.5 text-[11px] text-text-muted">
               {stats.total_predictions.toLocaleString()} predictions tracked
             </p>
           </div>
@@ -67,10 +67,10 @@ export function LearningEngine() {
 
         {stats.overall_accuracy !== null && (
           <div className="text-right">
-            <p className="text-[22px] font-bold tabular-nums text-white leading-none">
+            <p className="text-[22px] font-bold tabular-nums text-text-primary leading-none">
               {stats.overall_accuracy}%
             </p>
-            <p className="text-[10px] text-slate-500">overall accuracy</p>
+            <p className="text-[10px] text-text-muted">overall accuracy</p>
           </div>
         )}
       </div>
@@ -78,16 +78,16 @@ export function LearningEngine() {
       {/* Verdict bar */}
       {conclusive > 0 && (
         <div className="mb-4">
-          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-text-primary/[0.06]">
             <div className="h-full bg-emerald-500/70" style={{ width: `${(correct / conclusive) * 100}%` }} />
             <div className="h-full bg-amber-500/60"  style={{ width: `${(partial / conclusive) * 100}%` }} />
             <div className="h-full bg-rose-500/60"   style={{ width: `${(incorrect / conclusive) * 100}%` }} />
           </div>
-          <div className="mt-1.5 flex items-center gap-3 text-[10px] text-slate-500">
+          <div className="mt-1.5 flex items-center gap-3 text-[10px] text-text-muted">
             <span><span className="font-semibold text-emerald-400">{correct}</span> correct</span>
             <span><span className="font-semibold text-amber-400">{partial}</span> partial</span>
             <span><span className="font-semibold text-rose-400">{incorrect}</span> incorrect</span>
-            {inconclusive > 0 && <span><span className="font-semibold text-slate-600">{inconclusive}</span> pending</span>}
+            {inconclusive > 0 && <span><span className="font-semibold text-text-muted">{inconclusive}</span> pending</span>}
           </div>
         </div>
       )}
@@ -95,12 +95,12 @@ export function LearningEngine() {
       {/* Calibration table */}
       {stats.calibration.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
             Calibration by confidence level
           </p>
           {stats.calibration.map(row => {
             if (row.total === 0) return null;
-            const color = LEVEL_COLOR[row.level] || "#64748b";
+            const color = LEVEL_COLOR[row.level] || "rgb(var(--text-muted))";
             const acc   = row.accuracy_rate;
             const calib = row.calibration_factor;
             return (
@@ -109,23 +109,23 @@ export function LearningEngine() {
                   {row.level}
                 </div>
                 <div className="flex-1">
-                  <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
                     <div className="h-full rounded-full" style={{ width: `${acc}%`, backgroundColor: color + "99" }} />
                   </div>
                 </div>
-                <div className="w-10 text-right text-[11px] tabular-nums text-slate-300 font-semibold">
+                <div className="w-10 text-right text-[11px] tabular-nums text-text-secondary font-semibold">
                   {acc}%
                 </div>
-                <div className={`w-14 text-right text-[10px] tabular-nums ${calib < 0.9 ? "text-rose-400" : calib > 1.1 ? "text-emerald-400" : "text-slate-500"}`}>
+                <div className={`w-14 text-right text-[10px] tabular-nums ${calib < 0.9 ? "text-rose-400" : calib > 1.1 ? "text-emerald-400" : "text-text-muted"}`}>
                   {calib < 0.9 ? "↓" : calib > 1.1 ? "↑" : "≈"} {calib.toFixed(2)}×
                 </div>
-                <div className="w-10 text-right text-[10px] tabular-nums text-slate-600">
+                <div className="w-10 text-right text-[10px] tabular-nums text-text-muted">
                   n={row.total}
                 </div>
               </div>
             );
           })}
-          <p className="mt-1 text-[9px] text-slate-600">
+          <p className="mt-1 text-[9px] text-text-muted">
             Calibration factor auto-adjusts future confidence scores.
             Updates daily at 4:00 PM IST after market close.
           </p>

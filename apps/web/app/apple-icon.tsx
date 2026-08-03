@@ -4,7 +4,8 @@ import { join } from "node:path";
 
 /**
  * Apple touch icon (Phase 1 SEO fix, see icon.tsx's docstring for the full
- * reasoning) — same composition at Apple's requested 180×180.
+ * reasoning) — same composition at Apple's requested 180×180. Source mark
+ * is square (450×450).
  */
 
 export const size = { width: 180, height: 180 };
@@ -28,7 +29,7 @@ export default async function AppleIcon() {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse's satori renderer requires a plain <img>, not next/image */}
-        <img src={markSrc} width={130} height={85.75} alt="" />
+        <img src={markSrc} width={120} height={120} alt="" />
       </div>
     ),
     { ...size }

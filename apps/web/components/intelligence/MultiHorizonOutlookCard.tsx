@@ -50,7 +50,7 @@ const LEVEL_CONFIG: Record<OutlookLevel, {
   dot: string; badge: string; label: string;
 }> = {
   5: { dot: "bg-emerald-400", badge: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10", label: "text-emerald-400" },
-  4: { dot: "bg-emerald-400", badge: "text-emerald-300 border-emerald-500/25 bg-emerald-500/8",  label: "text-emerald-300" },
+  4: { dot: "bg-emerald-400", badge: "text-emerald-600 dark:text-emerald-300 border-emerald-500/25 bg-emerald-500/8",  label: "text-emerald-600 dark:text-emerald-300" },
   3: { dot: "bg-sky-400",     badge: "text-sky-400 border-sky-500/30 bg-sky-500/10",             label: "text-sky-400"     },
   2: { dot: "bg-amber-400",   badge: "text-amber-400 border-amber-500/30 bg-amber-500/10",       label: "text-amber-400"   },
   1: { dot: "bg-orange-400",  badge: "text-orange-400 border-orange-500/30 bg-orange-500/10",    label: "text-orange-400"  },
@@ -86,7 +86,7 @@ function ConfidenceBar({ value, level }: { value: number | null | undefined; lev
   const hasValue = value !== null && value !== undefined;
   return (
     <div className="flex items-center gap-2 mt-1">
-      <div className="h-1 flex-1 rounded-full bg-white/[0.06] overflow-hidden">
+      <div className="h-1 flex-1 rounded-full bg-text-primary/[0.06] overflow-hidden">
         {hasValue && (
           <div
             className={`h-full rounded-full transition-all duration-700 ${cfg.dot}`}
@@ -119,11 +119,11 @@ function HorizonRow({
     <div className="relative flex gap-3.5">
       {/* ── Timeline spine ─────────────────────────────────────────────────── */}
       <div className="flex flex-col items-center">
-        <div className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-slate-900 flex items-center justify-center shadow-sm ${cfg.dot}`}>
+        <div className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-bg flex items-center justify-center shadow-sm ${cfg.dot}`}>
           {(() => { const LvlIcon = LEVEL_ICON[level]; return <LvlIcon className="h-2.5 w-2.5 text-slate-900" />; })()}
         </div>
         {!isLast && (
-          <div className="mt-1 w-px flex-1 min-h-[28px] bg-white/[0.07]" />
+          <div className="mt-1 w-px flex-1 min-h-[28px] bg-text-primary/[0.07]" />
         )}
       </div>
 
@@ -132,10 +132,10 @@ function HorizonRow({
         {/* Header row */}
         <div className="flex items-start justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
-            {(() => { const HIcon = HORIZON_ICON[horizon.id] ?? Zap; return <HIcon className="h-4 w-4 text-slate-400" />; })()}
+            {(() => { const HIcon = HORIZON_ICON[horizon.id] ?? Zap; return <HIcon className="h-4 w-4 text-text-secondary" />; })()}
             <div>
-              <span className="text-[12px] font-bold text-white">{horizon.label}</span>
-              <span className="ml-1.5 text-[10px] text-slate-500">{horizon.range}</span>
+              <span className="text-[12px] font-bold text-text-primary">{horizon.label}</span>
+              <span className="ml-1.5 text-[10px] text-text-muted">{horizon.range}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -146,7 +146,7 @@ function HorizonRow({
             {!compact && hasDetails && (
               <button
                 onClick={() => setOpen(v => !v)}
-                className="rounded-lg border border-white/[0.07] bg-white/[0.03] p-0.5 text-slate-500 hover:text-slate-300 transition"
+                className="rounded-lg border border-surface-border/7 bg-text-primary/[0.03] p-0.5 text-text-muted hover:text-text-secondary transition"
                 aria-label={open ? "Collapse" : "Expand"}
               >
                 {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -159,7 +159,7 @@ function HorizonRow({
         <ConfidenceBar value={horizon.confidence} level={level} />
 
         {/* Reason */}
-        <p className="mt-2 text-[12px] leading-[1.55] text-slate-300">{horizon.reason}</p>
+        <p className="mt-2 text-[12px] leading-[1.55] text-text-secondary">{horizon.reason}</p>
 
         {/* Expanded details */}
         {!compact && open && hasDetails && (
@@ -171,7 +171,7 @@ function HorizonRow({
                 </p>
                 <ul className="space-y-1">
                   {horizon.catalysts.map((c, i) => (
-                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-300 leading-[1.4]">
+                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.4]">
                       <ChevronRight className="mt-0.5 h-2.5 w-2.5 shrink-0 text-emerald-400" />
                       {c}
                     </li>
@@ -186,7 +186,7 @@ function HorizonRow({
                 </p>
                 <ul className="space-y-1">
                   {horizon.risks.map((r, i) => (
-                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-300 leading-[1.4]">
+                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.4]">
                       <ChevronRight className="mt-0.5 h-2.5 w-2.5 shrink-0 text-rose-400" />
                       {r}
                     </li>
@@ -208,15 +208,15 @@ function HorizonSkeleton() {
     <div className="space-y-5 animate-pulse">
       {[0, 1, 2, 3, 4].map(i => (
         <div key={i} className="flex gap-3.5">
-          <div className="h-5 w-5 shrink-0 rounded-full bg-white/[0.06]" />
+          <div className="h-5 w-5 shrink-0 rounded-full bg-text-primary/[0.06]" />
           <div className="flex-1 space-y-2 pt-0.5">
             <div className="flex items-center gap-2">
-              <div className="h-3 w-20 rounded bg-white/[0.06]" />
-              <div className="h-4 w-24 rounded-full bg-white/[0.06]" />
+              <div className="h-3 w-20 rounded bg-text-primary/[0.06]" />
+              <div className="h-4 w-24 rounded-full bg-text-primary/[0.06]" />
             </div>
-            <div className="h-1.5 w-full rounded-full bg-white/[0.04]" />
-            <div className="h-3 w-full rounded bg-white/[0.04]" />
-            <div className="h-3 w-4/5 rounded bg-white/[0.04]" />
+            <div className="h-1.5 w-full rounded-full bg-text-primary/[0.04]" />
+            <div className="h-3 w-full rounded bg-text-primary/[0.04]" />
+            <div className="h-3 w-4/5 rounded bg-text-primary/[0.04]" />
           </div>
         </div>
       ))}
@@ -296,14 +296,14 @@ export function MultiHorizonOutlookCard({
           <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-500/[0.08] border border-violet-500/20">
             <Zap className="h-3.5 w-3.5 text-violet-400" />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
             {title}
           </span>
         </div>
         {error && !loading && (
           <button
             onClick={load}
-            className="flex items-center gap-1 rounded-lg border border-white/[0.07] bg-white/[0.03] px-2 py-1 text-[10px] text-slate-500 hover:text-slate-300 transition"
+            className="flex items-center gap-1 rounded-lg border border-surface-border/7 bg-text-primary/[0.03] px-2 py-1 text-[10px] text-text-muted hover:text-text-secondary transition"
           >
             <RefreshCw className="h-3 w-3" /> Retry
           </button>
@@ -314,13 +314,13 @@ export function MultiHorizonOutlookCard({
       {loading && <HorizonSkeleton />}
 
       {!loading && error && (
-        <p className="text-[12px] text-slate-500">
-          Could not load horizon analysis. <button onClick={load} className="underline hover:text-slate-300 transition">Try again</button>
+        <p className="text-[12px] text-text-muted">
+          Could not load horizon analysis. <button onClick={load} className="underline hover:text-text-secondary transition">Try again</button>
         </p>
       )}
 
       {!loading && !error && visible.length === 0 && (
-        <p className="text-[12px] text-slate-500">No horizon data available.</p>
+        <p className="text-[12px] text-text-muted">No horizon data available.</p>
       )}
 
       {!loading && !error && visible.length > 0 && (
@@ -338,20 +338,20 @@ export function MultiHorizonOutlookCard({
 
       {/* ── Legend ─────────────────────────────────────────────────────────── */}
       {!loading && !error && visible.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-white/[0.04] pt-3">
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-surface-border/4 pt-3">
           {([
             { color: "bg-emerald-400", label: "Positive" },
             { color: "bg-amber-400",   label: "Neutral"  },
             { color: "bg-orange-400",  label: "Cautious" },
             { color: "bg-rose-400",    label: "Negative" },
           ] as const).map(l => (
-            <span key={l.label} className="flex items-center gap-1 text-[10px] text-slate-600">
+            <span key={l.label} className="flex items-center gap-1 text-[10px] text-text-muted">
               <span className={`h-1.5 w-1.5 rounded-full ${l.color}`} />
               {l.label}
             </span>
           ))}
           {!compact && (
-            <span className="ml-auto text-[10px] text-slate-700">Click any row to expand catalysts &amp; risks</span>
+            <span className="ml-auto text-[10px] text-text-muted">Click any row to expand catalysts &amp; risks</span>
           )}
         </div>
       )}

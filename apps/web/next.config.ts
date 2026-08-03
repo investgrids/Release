@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+// Same origin the CSP's img-src/connect-src already trust (see headers()
+// below) — computed once here too so next/image's remotePatterns allowlist
+// stays in sync with it instead of drifting as a second hardcoded value.
+const apiOriginUrl = new URL(process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000");
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   compress: true,
@@ -105,6 +110,18 @@ const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 3600,
+    // Backend-served hero images (/api/media/*.jpg) previously couldn't use
+    // next/image at all (no allowlisted remote domain), forcing a raw <img>
+    // with no width/height — a real, measured CLS source. This is the same
+    // origin the CSP already trusts (img-src/connect-src above).
+    remotePatterns: [
+      {
+        protocol: apiOriginUrl.protocol.replace(":", "") as "http" | "https",
+        hostname: apiOriginUrl.hostname,
+        port: apiOriginUrl.port || undefined,
+        pathname: "/api/media/**",
+      },
+    ],
   },
 };
 

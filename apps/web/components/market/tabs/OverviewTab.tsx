@@ -12,19 +12,19 @@ function AIExecutiveSummary({ data, storyConfidence, storyText }: { data: any; s
   const score = data?.sentiment_score ?? null;
   const unscored = score === null || score === undefined;
   const label = unscored ? "Unscored" : score >= 65 ? "Bullish" : score >= 45 ? "Neutral" : "Bearish";
-  const color = unscored ? "text-slate-400" : score >= 65 ? "text-emerald-400" : score >= 45 ? "text-amber-400" : "text-rose-400";
+  const color = unscored ? "text-text-secondary" : score >= 65 ? "text-emerald-400" : score >= 45 ? "text-amber-400" : "text-rose-400";
   return (
-    <div className="rounded-2xl border border-sky-500/10 bg-[#080c14] p-5">
+    <div className="rounded-2xl border border-sky-500/10 bg-surface-card p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center gap-2">
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400"><Sparkles className="h-3 w-3" /></span>
             <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-400">AI Executive Summary</span>
           </div>
-          <h2 className="mb-1.5 text-[14px] font-black leading-snug text-white">
+          <h2 className="mb-1.5 text-[14px] font-black leading-snug text-text-primary">
             Market Sentiment: <span className={color}>{label}</span>
           </h2>
-          <p className="text-[12px] leading-5 text-slate-400">
+          <p className="text-[12px] leading-5 text-text-secondary">
             {storyText || `Indian markets are showing ${label.toLowerCase()} momentum${!unscored ? ` with ${score >= 65 ? "strong" : "mixed"} institutional participation` : ""}.`}
           </p>
         </div>
@@ -35,10 +35,10 @@ function AIExecutiveSummary({ data, storyConfidence, storyText }: { data: any; s
             { label: "Events Today",    value: String(data?.events?.length ?? 0),        color: "text-amber-400",  icon: <Zap className="h-3.5 w-3.5" /> },
             { label: "Opportunities",   value: String(data?.opportunities?.length ?? 0), color: "text-emerald-400", icon: <Target className="h-3.5 w-3.5" /> },
           ] as { label: string; value: string; color: string; icon: ReactNode }[]).map(s => (
-            <div key={s.label} className="min-w-[90px] rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2">
-              <span className="mb-0.5 block text-slate-400">{s.icon}</span>
+            <div key={s.label} className="min-w-[90px] rounded-xl border border-surface-border/6 bg-text-primary/[0.03] px-2.5 py-2">
+              <span className="mb-0.5 block text-text-secondary">{s.icon}</span>
               <p className={`text-[14px] font-black ${s.color}`}>{s.value}</p>
-              <p className="text-[9px] text-slate-500">{s.label}</p>
+              <p className="text-[9px] text-text-muted">{s.label}</p>
             </div>
           ))}
         </div>
@@ -54,13 +54,13 @@ function SectorOverview({ sectors }: { sectors: any[] }) {
     Math.abs(parseFloat(a.value?.replace(/[^0-9.-]/g, "") ?? "0"))
   );
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[13px] font-bold text-white">Sector Performance</h3>
-        <Link href="/newsroom/themes" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <h3 className="text-[13px] font-bold text-text-primary">Sector Performance</h3>
+        <Link href="/newsroom/themes" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
       </div>
       {sorted.length === 0 ? (
-        <p className="py-6 text-center text-[12px] text-slate-600">Sector data unavailable.</p>
+        <p className="py-6 text-center text-[12px] text-text-muted">Sector data unavailable.</p>
       ) : (
         <div className="space-y-2.5">
           {sorted.slice(0, 8).map((s) => {
@@ -72,8 +72,8 @@ function SectorOverview({ sectors }: { sectors: any[] }) {
             return (
               <div key={s.id ?? s.name} className="flex items-center gap-3">
                 <div className={`h-2 w-2 shrink-0 rounded-full ${pos ? "bg-emerald-400" : "bg-rose-400"}`}/>
-                <p className="w-24 shrink-0 truncate text-[11px] text-slate-300 sm:w-28">{s.name}</p>
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
+                <p className="w-24 shrink-0 truncate text-[11px] text-text-secondary sm:w-28">{s.name}</p>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-primary/[0.05]">
                   <div className={`h-full rounded-full transition-all duration-700 ${pos ? "bg-emerald-500" : "bg-rose-500"}`} style={{ width: `${pct}%` }}/>
                 </div>
                 <span className={`w-12 shrink-0 text-right text-[11px] font-semibold ${pos ? "text-emerald-400" : "text-rose-400"}`}>{display}</span>
@@ -89,10 +89,10 @@ function SectorOverview({ sectors }: { sectors: any[] }) {
 // ── Top Movers ────────────────────────────────────────────────────────────────
 function TopMoversOverview({ movers }: { movers: any }) {
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[13px] font-bold text-white">Top Movers</h3>
-        <Link href="/companies" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <h3 className="text-[13px] font-bold text-text-primary">Top Movers</h3>
+        <Link href="/companies" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {[
@@ -104,13 +104,13 @@ function TopMoversOverview({ movers }: { movers: any }) {
             <div className="space-y-1.5">
               {(movers?.[key] ?? []).slice(0, 4).map((r: any) => (
                 <Link key={r.ticker} href={`/companies/${r.ticker}`}
-                  className="flex items-center justify-between rounded-xl border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5 hover:border-sky-500/10 transition">
-                  <p className="text-[11px] font-semibold text-white">{r.ticker}</p>
+                  className="flex items-center justify-between rounded-xl border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5 hover:border-sky-500/10 transition">
+                  <p className="text-[11px] font-semibold text-text-primary">{r.ticker}</p>
                   <p className={`text-[11px] font-bold text-${color}-400`}>{r.value}</p>
                 </Link>
               ))}
               {(movers?.[key] ?? []).length === 0 && (
-                <p className="py-2 text-center text-[10px] text-slate-600">Loading…</p>
+                <p className="py-2 text-center text-[10px] text-text-muted">Loading…</p>
               )}
             </div>
           </div>
@@ -123,27 +123,27 @@ function TopMoversOverview({ movers }: { movers: any }) {
 // ── Latest News Preview ───────────────────────────────────────────────────────
 function NewsPreview({ news }: { news: any[] }) {
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[13px] font-bold text-white">Latest News</h3>
-        <Link href="/news" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <h3 className="text-[13px] font-bold text-text-primary">Latest News</h3>
+        <Link href="/news" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
       </div>
       {news.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <Newspaper className="mb-2 h-7 w-7 text-slate-500" />
-          <p className="text-[12px] text-slate-500">No news at the moment. Check back soon.</p>
+          <Newspaper className="mb-2 h-7 w-7 text-text-muted" />
+          <p className="text-[12px] text-text-muted">No news at the moment. Check back soon.</p>
         </div>
       ) : (
         <div className="space-y-2">
           {news.slice(0, 4).map((n) => (
             <Link key={n.id} href={`/news/${n.id}`}
-              className="flex items-start gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] p-3 hover:border-sky-500/10 transition">
+              className="flex items-start gap-3 rounded-xl border border-surface-border/4 bg-text-primary/[0.02] p-3 hover:border-sky-500/10 transition">
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-black ${
                 n.impact_score !== null && n.impact_score !== undefined && n.impact_score >= 80 ? "bg-emerald-500/15 text-emerald-400" : "bg-sky-500/15 text-sky-400"
               }`}>{n.impact_score === null || n.impact_score === undefined ? "—" : n.impact_score}</div>
               <div className="min-w-0">
-                <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-white">{n.headline}</p>
-                <p className="mt-0.5 text-[10px] text-slate-600">{n.source}</p>
+                <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-text-primary">{n.headline}</p>
+                <p className="mt-0.5 text-[10px] text-text-muted">{n.source}</p>
               </div>
             </Link>
           ))}
@@ -156,15 +156,15 @@ function NewsPreview({ news }: { news: any[] }) {
 // ── Upcoming Economic Events ──────────────────────────────────────────────────
 function UpcomingEvents({ events }: { events: any[] }) {
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[13px] font-bold text-white">Upcoming Economic Events</h3>
-        <Link href="/calendar" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <h3 className="text-[13px] font-bold text-text-primary">Upcoming Economic Events</h3>
+        <Link href="/calendar" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
       </div>
       {events.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <CalendarDays className="mb-2 h-7 w-7 text-slate-500" />
-          <p className="text-[12px] text-slate-500">No events scheduled.</p>
+          <CalendarDays className="mb-2 h-7 w-7 text-text-muted" />
+          <p className="text-[12px] text-text-muted">No events scheduled.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -172,13 +172,13 @@ function UpcomingEvents({ events }: { events: any[] }) {
             const imp = e.impact?.toLowerCase() ?? "medium";
             const col = imp === "high" ? "text-rose-400 bg-rose-500/10" : imp === "medium" ? "text-amber-400 bg-amber-500/10" : "text-sky-400 bg-sky-500/10";
             return (
-              <div key={e.id} className="flex items-start gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] px-3 py-2.5">
+              <div key={e.id} className="flex items-start gap-3 rounded-xl border border-surface-border/4 bg-text-primary/[0.02] px-3 py-2.5">
                 <div className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-bold uppercase ${col}`}>{imp}</div>
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-white">{e.title}</p>
-                  <p className="text-[9px] text-slate-600">{e.category}</p>
+                  <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-text-primary">{e.title}</p>
+                  <p className="text-[9px] text-text-muted">{e.category}</p>
                 </div>
-                <p className="shrink-0 text-[10px] text-slate-500">{e.date}</p>
+                <p className="shrink-0 text-[10px] text-text-muted">{e.date}</p>
               </div>
             );
           })}
@@ -190,12 +190,12 @@ function UpcomingEvents({ events }: { events: any[] }) {
 
 // ── Skeleton pulse block ─────────────────────────────────────────────────────
 function Skeleton({ className }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-white/[0.05] ${className ?? ""}`}/>;
+  return <div className={`animate-pulse rounded-xl bg-text-primary/[0.05] ${className ?? ""}`}/>;
 }
 
 function OverviewSkeleton() {
   return (
-    <div className="space-y-3 rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="space-y-3 rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <Skeleton className="h-4 w-40"/>
       <Skeleton className="h-3 w-full"/>
       <Skeleton className="h-3 w-5/6"/>

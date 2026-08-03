@@ -15,7 +15,7 @@ import { AskAICta } from "@/components/AskAICta";
  * sectors.py's own docstring) — no new intelligence generated.
  */
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 interface SectorStock { symbol: string; name: string; price: string; change: string; positive: boolean }
 interface SectorOpportunity { id: number; slug: string; title: string; opportunity_score: number | null; confidence: number | null }
@@ -202,29 +202,29 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
     <main className="mx-auto max-w-[1400px] space-y-6 px-6 py-6 pb-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
-      <nav className="flex items-center gap-2 text-[12px] text-slate-500">
-        <Link href="/sectors" className="hover:text-slate-300 transition">Sectors</Link>
+      <nav className="flex items-center gap-2 text-[12px] text-text-muted">
+        <Link href="/sectors" className="hover:text-text-secondary transition">Sectors</Link>
         <span>/</span>
-        <span className="text-slate-400">{d.name}</span>
+        <span className="text-text-secondary">{d.name}</span>
       </nav>
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400">Sector Intelligence</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-white">{d.name} Sector</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-text-primary">{d.name} Sector</h1>
+          <p className="mt-1 text-sm text-text-secondary">
             Live NSE {d.name} sector performance, constituent stocks, and AI-driven opportunity and event analysis.
           </p>
         </div>
         {d.value ? (
           <div className={`rounded-2xl border px-5 py-3 ${d.positive ? "bg-emerald-500/10 border-emerald-500/20" : "bg-rose-500/10 border-rose-500/20"}`}>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Today</p>
-            <p className={`mt-1 text-2xl font-black ${d.positive ? "text-emerald-300" : "text-rose-300"}`}>{d.value}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Today</p>
+            <p className={`mt-1 text-2xl font-black ${d.positive ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>{d.value}</p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Companies</p>
-            <p className="mt-1 text-2xl font-black text-white">{d.stocks.length}</p>
+          <div className="rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] px-5 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Companies</p>
+            <p className="mt-1 text-2xl font-black text-text-primary">{d.stocks.length}</p>
           </div>
         )}
       </div>
@@ -234,24 +234,24 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
           yet keep price/change only, appended after the ranked ones. */}
       {rankedStocks.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[15px] font-semibold text-white">Companies in {d.name}</h2>
+          <h2 className="mb-3 text-[15px] font-semibold text-text-primary">Companies in {d.name}</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rankedStocks.map((s, i) => {
               const ranked = scores.get(s.symbol);
               return (
                 <Link key={s.symbol} href={`/companies/${s.symbol}`}
-                  className="group flex flex-col gap-2 rounded-[16px] border border-white/[0.08] bg-[#0c1422] px-4 py-3 transition hover:border-white/[0.15]">
+                  className="group flex flex-col gap-2 rounded-[16px] border border-surface-border/8 bg-surface-card px-4 py-3 transition hover:border-surface-border/15">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {ranked && <span className="text-[10px] font-bold text-slate-600">#{i + 1}</span>}
+                      {ranked && <span className="text-[10px] font-bold text-text-muted">#{i + 1}</span>}
                       <div>
-                        <p className="text-[13px] font-bold text-white">{s.symbol}</p>
-                        <p className="text-[11px] text-slate-500">{s.price !== "—" ? `₹${s.price.replace("₹", "")}` : "—"}</p>
+                        <p className="text-[13px] font-bold text-text-primary">{s.symbol}</p>
+                        <p className="text-[11px] text-text-muted">{s.price !== "—" ? `₹${s.price.replace("₹", "")}` : "—"}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {ranked && (
-                        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
                           {Math.round(ranked.score)}
                         </span>
                       )}
@@ -259,7 +259,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
                     </div>
                   </div>
                   {ranked?.reason && (
-                    <p className="line-clamp-1 text-[10.5px] text-slate-600">{ranked.reason}</p>
+                    <p className="line-clamp-1 text-[10.5px] text-text-muted">{ranked.reason}</p>
                   )}
                 </Link>
               );
@@ -271,39 +271,39 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
       {/* Opportunities + Events */}
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-3 text-[15px] font-semibold text-white">Opportunities in {d.name}</h2>
+          <h2 className="mb-3 text-[15px] font-semibold text-text-primary">Opportunities in {d.name}</h2>
           {d.opportunities.length > 0 ? (
             <div className="space-y-2">
               {d.opportunities.map((o) => (
                 <Link key={o.id} href={`/opportunity-radar/${o.id}`}
-                  className="flex items-center justify-between rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-emerald-500/25">
-                  <p className="text-[13px] text-slate-200 line-clamp-1">{o.title}</p>
+                  className="flex items-center justify-between rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 transition hover:border-emerald-500/25">
+                  <p className="text-[13px] text-text-primary line-clamp-1">{o.title}</p>
                   {o.opportunity_score != null && (
-                    <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-300">{Math.round(o.opportunity_score)}</span>
+                    <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-300">{Math.round(o.opportunity_score)}</span>
                   )}
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="text-[12px] text-slate-500">No sector-specific opportunities identified right now.</p>
+            <p className="text-[12px] text-text-muted">No sector-specific opportunities identified right now.</p>
           )}
         </section>
         <section>
-          <h2 className="mb-3 text-[15px] font-semibold text-white">Recent Events Affecting {d.name}</h2>
+          <h2 className="mb-3 text-[15px] font-semibold text-text-primary">Recent Events Affecting {d.name}</h2>
           {d.events.length > 0 ? (
             <div className="space-y-2">
               {d.events.map((e) => (
                 <Link key={e.id} href={`/events/${e.id}`}
-                  className="flex items-center justify-between rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-violet-500/25">
-                  <p className="text-[13px] text-slate-200 line-clamp-1">{e.title}</p>
+                  className="flex items-center justify-between rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 transition hover:border-violet-500/25">
+                  <p className="text-[13px] text-text-primary line-clamp-1">{e.title}</p>
                   {e.impact_score != null && (
-                    <span className="shrink-0 rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] font-bold text-violet-300">{Math.round(e.impact_score)}</span>
+                    <span className="shrink-0 rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] font-bold text-violet-600 dark:text-violet-300">{Math.round(e.impact_score)}</span>
                   )}
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="text-[12px] text-slate-500">No recent events specifically affecting {d.name} right now.</p>
+            <p className="text-[12px] text-text-muted">No recent events specifically affecting {d.name} right now.</p>
           )}
         </section>
       </div>
@@ -316,12 +316,12 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
       <div className="grid gap-6 lg:grid-cols-3">
         {comparisons.length > 0 && (
           <section>
-            <h2 className="mb-3 text-[15px] font-semibold text-white">Related Research</h2>
+            <h2 className="mb-3 text-[15px] font-semibold text-text-primary">Related Research</h2>
             <div className="space-y-2">
               {comparisons.map((c) => (
                 <Link key={c.slug} href={`/research/${c.slug}`}
-                  className="flex items-center justify-between rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-sky-500/25">
-                  <p className="text-[13px] text-slate-200 line-clamp-1">{c.companies_affected?.map(x => x.symbol).join(" vs ")}</p>
+                  className="flex items-center justify-between rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 transition hover:border-sky-500/25">
+                  <p className="text-[13px] text-text-primary line-clamp-1">{c.companies_affected?.map(x => x.symbol).join(" vs ")}</p>
                   <span className="shrink-0 text-[11px] font-semibold text-sky-400">Compare →</span>
                 </Link>
               ))}
@@ -331,12 +331,12 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
 
         {signals.length > 0 && (
           <section>
-            <h2 className="mb-3 text-[15px] font-semibold text-white">Latest Intelligence Signals</h2>
+            <h2 className="mb-3 text-[15px] font-semibold text-text-primary">Latest Intelligence Signals</h2>
             <div className="space-y-2">
               {signals.map((s) => (
                 <Link key={s.slug} href={`/intelligence/signal/${s.slug}`}
-                  className="flex items-center justify-between rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-amber-500/25">
-                  <p className="text-[13px] text-slate-200 line-clamp-1">{s.headline}</p>
+                  className="flex items-center justify-between rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 transition hover:border-amber-500/25">
+                  <p className="text-[13px] text-text-primary line-clamp-1">{s.headline}</p>
                 </Link>
               ))}
             </div>
@@ -345,12 +345,12 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
 
         {articles.length > 0 && (
           <section>
-            <h2 className="mb-3 text-[15px] font-semibold text-white">Recent AI Articles</h2>
+            <h2 className="mb-3 text-[15px] font-semibold text-text-primary">Recent AI Articles</h2>
             <div className="space-y-2">
               {articles.map((a) => (
                 <Link key={a.slug} href={`/newsroom/article/${a.slug}`}
-                  className="flex items-center justify-between rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-emerald-500/25">
-                  <p className="text-[13px] text-slate-200 line-clamp-1">{a.headline}</p>
+                  className="flex items-center justify-between rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 transition hover:border-emerald-500/25">
+                  <p className="text-[13px] text-text-primary line-clamp-1">{a.headline}</p>
                 </Link>
               ))}
             </div>
@@ -359,7 +359,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
       </div>
 
       <div className="rounded-[16px] border border-violet-500/20 bg-violet-500/[0.04] px-5 py-4">
-        <p className="text-[13px] text-slate-300">
+        <p className="text-[13px] text-text-secondary">
           Want a deeper read on {d.name}?{" "}
           <AskAICta query={`What is the outlook for the ${d.name} sector?`} source="sector_page" />
         </p>

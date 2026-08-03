@@ -124,7 +124,7 @@ export function DashboardHero({ date, status, greeting, timeIST, stats }: Dashbo
   ];
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#030812] shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+    <div className="relative overflow-hidden rounded-[28px] border border-surface-border/10 bg-surface-card shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
       {/* Animated gradient background */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-20 left-[10%] h-64 w-64 rounded-full bg-sky-600/8 blur-3xl"/>
@@ -137,30 +137,30 @@ export function DashboardHero({ date, status, greeting, timeIST, stats }: Dashbo
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <span className={`flex h-2 w-2 rounded-full ${open ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`}/>
-            <span className={`text-[11px] font-medium ${open ? "text-emerald-400" : "text-slate-500"}`}>{status}</span>
-            <span className="text-slate-700">·</span>
-            <span className="text-[11px] text-slate-500">{date} · {timeIST} IST</span>
+            <span className={`text-[11px] font-medium ${open ? "text-emerald-400" : "text-text-muted"}`}>{status}</span>
+            <span className="text-text-muted">·</span>
+            <span className="text-[11px] text-text-muted">{date} · {timeIST} IST</span>
           </div>
           <motion.h1
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="text-[28px] font-black text-white tracking-tight leading-tight max-w-2xl">
+            className="text-[28px] font-black text-text-primary tracking-tight leading-tight max-w-2xl">
             Not just what happened —{" "}
             <span className="bg-gradient-to-r from-sky-400 to-violet-400 bg-clip-text text-transparent">
               what it means for your investments
             </span>
           </motion.h1>
-          <p className="mt-2 text-[14px] text-slate-400 max-w-xl leading-relaxed">
+          <p className="mt-2 text-[14px] text-text-secondary max-w-xl leading-relaxed">
             MarketRipple explains why markets move, which companies are affected, and where opportunities may emerge — with full AI transparency.
           </p>
           <div className="mt-4 flex items-center gap-3">
             <Link href="/events"
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-violet-500 px-5 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-violet-500/25 hover:opacity-90 transition">
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-violet-500 px-5 py-2.5 text-[13px] font-semibold text-text-primary shadow-lg shadow-violet-500/25 hover:opacity-90 transition">
               Explore Today&apos;s Market
             </Link>
             <Link href="/ai-search"
-              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-5 py-2.5 text-[13px] font-medium text-white hover:bg-white/[0.09] transition">
+              className="flex items-center gap-2 rounded-xl border border-surface-border/15 bg-text-primary/[0.05] px-5 py-2.5 text-[13px] font-medium text-text-primary hover:bg-text-primary/[0.09] transition">
               Ask Market AI →
             </Link>
           </div>
@@ -176,15 +176,15 @@ export function DashboardHero({ date, status, greeting, timeIST, stats }: Dashbo
               transition={{ duration: 0.35, delay: i * 0.06 }}
               className={`relative overflow-hidden rounded-2xl border ${kpi.border} bg-gradient-to-br ${kpi.glow} p-4`}>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">{kpi.label}</p>
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/[0.05]">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted">{kpi.label}</p>
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-text-primary/[0.05]">
                   {kpi.icon}
                 </div>
               </div>
               <div className="flex items-end justify-between">
                 <div>
                   <p className={`text-[26px] font-black leading-none ${kpi.color}`}>{kpi.value}</p>
-                  {kpi.sub && <p className="mt-0.5 text-[11px] text-slate-400">{kpi.sub}</p>}
+                  {kpi.sub && <p className="mt-0.5 text-[11px] text-text-secondary">{kpi.sub}</p>}
                 </div>
                 {kpi.sparkline && (
                   <svg viewBox="0 0 60 28" className="h-7 w-14 shrink-0" fill="none">
@@ -195,7 +195,7 @@ export function DashboardHero({ date, status, greeting, timeIST, stats }: Dashbo
                   </svg>
                 )}
               </div>
-              <p className="mt-2 text-[10px] text-slate-500">{kpi.vs}</p>
+              <p className="mt-2 text-[10px] text-text-muted">{kpi.vs}</p>
             </motion.div>
           ))}
         </div>
@@ -203,17 +203,17 @@ export function DashboardHero({ date, status, greeting, timeIST, stats }: Dashbo
         {/* Quick action buttons */}
         <div className="mt-4 flex gap-2">
           <Link href="/events"
-            className="flex items-center gap-2 rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 py-2 text-[12px] font-medium text-sky-300 hover:bg-sky-500/18 transition">
+            className="flex items-center gap-2 rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 py-2 text-[12px] font-medium text-sky-600 dark:text-sky-300 hover:bg-sky-500/18 transition">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             AI Market Wrap
           </Link>
           <Link href="/events"
-            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-[12px] font-medium text-slate-300 hover:bg-white/[0.08] transition">
+            className="flex items-center gap-2 rounded-xl border border-surface-border/10 bg-text-primary/[0.04] px-4 py-2 text-[12px] font-medium text-text-secondary hover:bg-text-primary/[0.08] transition">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
             Explore Events
           </Link>
           <Link href="/opportunity-radar"
-            className="flex items-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 px-4 py-2 text-[12px] font-medium text-violet-300 hover:bg-violet-500/18 transition">
+            className="flex items-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 px-4 py-2 text-[12px] font-medium text-violet-600 dark:text-violet-300 hover:bg-violet-500/18 transition">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
             Opportunity Radar
           </Link>

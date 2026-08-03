@@ -132,13 +132,13 @@ export default function ContactPage() {
     <main className="min-w-0 pb-10">
       {/* Hero */}
       <div className="mb-10">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Get in Touch
         </p>
-        <h1 className="mt-3 text-[28px] font-black leading-tight text-white md:text-[36px]">
+        <h1 className="mt-3 text-[28px] font-black leading-tight text-text-primary md:text-[36px]">
           We&apos;d Love to Hear From You
         </h1>
-        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-slate-400">
+        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-secondary">
           Whether you have a support question, a product idea, or a partnership
           proposal — the MarketRipple team reads every message. Choose the right
           channel below for the fastest response.
@@ -149,7 +149,7 @@ export default function ContactPage() {
       <section aria-labelledby="contact-categories">
         <h2
           id="contact-categories"
-          className="mb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500"
+          className="mb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted"
         >
           Contact Channels
         </h2>
@@ -166,10 +166,10 @@ export default function ContactPage() {
                 >
                   <Icon className={`h-5 w-5 ${cat.iconColor}`} />
                 </div>
-                <h3 className="text-[15px] font-semibold text-white">
+                <h3 className="text-[15px] font-semibold text-text-primary">
                   {cat.title}
                 </h3>
-                <p className="mt-1.5 text-[12px] leading-5 text-slate-400">
+                <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">
                   {cat.desc}
                 </p>
                 <div className="mt-4">
@@ -201,11 +201,11 @@ export default function ContactPage() {
       <section aria-labelledby="contact-form" className="mt-10">
         <h2
           id="contact-form"
-          className="mb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500"
+          className="mb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted"
         >
           Or Send Us a Message Directly
         </h2>
-        <Suspense fallback={<div className="h-[420px] rounded-xl border border-white/[0.08] bg-white/[0.02]" />}>
+        <Suspense fallback={<div className="h-[420px] rounded-xl border border-surface-border/8 bg-text-primary/[0.02]" />}>
           <ContactForm />
         </Suspense>
       </section>
@@ -222,11 +222,11 @@ export default function ContactPage() {
           <div>
             <h2
               id="feature-requests"
-              className="text-[16px] font-bold text-white"
+              className="text-[16px] font-bold text-text-primary"
             >
               Feature Requests
             </h2>
-            <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+            <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
               Your ideas directly shape what MarketRipple builds next. Every feature
               request is reviewed and discussed internally. High-demand requests
               are prioritised on our public roadmap. To submit a feature request,
@@ -238,7 +238,7 @@ export default function ContactPage() {
                 support@marketripple.in
               </a>{" "}
               with{" "}
-              <span className="rounded-md border border-white/[0.08] bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-slate-300">
+              <span className="rounded-md border border-surface-border/8 bg-text-primary/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-text-secondary">
                 Feature Request
               </span>{" "}
               in the subject line. Please include the problem you want solved and
@@ -251,48 +251,48 @@ export default function ContactPage() {
       {/* Response Time Table */}
       <section aria-labelledby="response-times" className="mt-10">
         <div className="mb-4 flex items-center gap-2">
-          <Clock className="h-4 w-4 text-slate-400" />
+          <Clock className="h-4 w-4 text-text-secondary" />
           <h2
             id="response-times"
-            className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500"
+            className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted"
           >
             Expected Response Times
           </h2>
         </div>
-        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+        <div className="overflow-x-auto rounded-xl border border-surface-border/8">
           <table className="w-full text-[13px]">
             <thead>
-              <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              <tr className="border-b border-surface-border/6 bg-text-primary/[0.02]">
+                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                   Category
                 </th>
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                   Response Time
                 </th>
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                   Note
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04]">
+            <tbody className="divide-y divide-surface-border/4">
               {RESPONSE_TIMES.map((row) => (
                 <tr
                   key={row.category}
-                  className="transition-colors hover:bg-white/[0.02]"
+                  className="transition-colors hover:bg-text-primary/[0.02]"
                 >
-                  <td className="px-5 py-3.5 font-medium text-slate-200">
+                  <td className="px-5 py-3.5 font-medium text-text-primary">
                     {row.category}
                   </td>
                   <td className="px-5 py-3.5 font-semibold text-emerald-400">
                     {row.time}
                   </td>
-                  <td className="px-5 py-3.5 text-slate-500">{row.note}</td>
+                  <td className="px-5 py-3.5 text-text-muted">{row.note}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-[11px] text-slate-600">
+        <p className="mt-3 text-[11px] text-text-muted">
           Business days: Monday to Friday, excluding Indian public holidays.
           Response times are targets, not guarantees.
         </p>
@@ -300,7 +300,7 @@ export default function ContactPage() {
 
       {/* Community */}
       <section aria-labelledby="community" className="mt-10">
-        <div className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6">
+        <div className="rounded-xl border border-surface-border/8 bg-surface-card p-6">
           <div className="flex items-start gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/15">
               <Users className="h-5 w-5 text-sky-400" />
@@ -308,11 +308,11 @@ export default function ContactPage() {
             <div>
               <h2
                 id="community"
-                className="text-[16px] font-bold text-white"
+                className="text-[16px] font-bold text-text-primary"
               >
                 Community
               </h2>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 A community forum and Discord server for MarketRipple users are in
                 active planning. These channels will allow users to share
                 research, discuss event impacts, and collaborate on investment

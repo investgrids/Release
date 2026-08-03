@@ -26,14 +26,14 @@ export function DashboardMarketTabs() {
   const [activeTab, setActiveTab] = useState<TabId>(getDefaultTab);
 
   return (
-    <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.02] p-5">
+    <div className="rounded-[28px] border border-surface-border/6 bg-text-primary/[0.02] p-5">
 
       {/* ── Header: tab strip (left) + View Full link (right) ──────────────── */}
       <div className="mb-5 flex items-start justify-between gap-4">
 
         <div className="flex flex-col gap-1.5">
           {/* Tab strip */}
-          <div className="inline-flex gap-1 rounded-full border border-white/10 bg-slate-900/50 p-1">
+          <div className="inline-flex gap-1 rounded-full border border-surface-border/10 bg-surface-card p-1">
             {TABS.map(tab => (
               <button
                 key={tab.id}
@@ -41,8 +41,8 @@ export function DashboardMarketTabs() {
                 className={[
                   "rounded-full px-3 py-1.5 text-[12px] transition",
                   activeTab === tab.id
-                    ? "border border-indigo-500/30 bg-indigo-600/20 font-medium text-white"
-                    : "border border-transparent text-slate-400 hover:text-white",
+                    ? "border border-indigo-500/30 bg-indigo-600/20 font-medium text-text-primary"
+                    : "border border-transparent text-text-secondary hover:text-text-primary",
                 ].join(" ")}
               >
                 {tab.label}
@@ -50,12 +50,12 @@ export function DashboardMarketTabs() {
             ))}
           </div>
           {/* Subtext */}
-          <p className="text-[10px] text-slate-600">NSE Opens 9:15 AM IST</p>
+          <p className="text-[10px] text-text-muted">NSE Opens 9:15 AM IST</p>
         </div>
 
         <Link
           href={`/market-intelligence?tab=${activeTab}`}
-          className="shrink-0 text-[11px] font-medium text-sky-400 transition hover:text-sky-300"
+          className="shrink-0 text-[11px] font-medium text-sky-400 transition hover:text-sky-600 dark:text-sky-300"
         >
           View Full →
         </Link>

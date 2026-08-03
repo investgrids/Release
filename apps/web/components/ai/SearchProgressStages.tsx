@@ -36,18 +36,18 @@ export function SearchProgressStages({
   const inProgress = loading ? stageHistory[stageHistory.length - 1] : null;
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-6">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-6">
       <div className="flex items-start gap-4 mb-6">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
           <Sparkles className="h-5 w-5" />
         </div>
         <div className="flex-1">
           <p className="text-[11px] uppercase tracking-widest text-violet-400 mb-1">AI Answer</p>
-          <p className="text-sm text-slate-400">
-            Researching: <span className="text-white font-medium">{query}</span>
+          <p className="text-sm text-text-secondary">
+            Researching: <span className="text-text-primary font-medium">{query}</span>
           </p>
         </div>
-        <span className="text-[10px] text-slate-600 tabular-nums shrink-0 mt-1">{fmtSec(elapsedMs)} elapsed</span>
+        <span className="text-[10px] text-text-muted tabular-nums shrink-0 mt-1">{fmtSec(elapsedMs)} elapsed</span>
       </div>
 
       <ol className="space-y-2.5">
@@ -63,8 +63,8 @@ export function SearchProgressStages({
               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
                 <Check className="h-2.5 w-2.5" strokeWidth={3} />
               </span>
-              <span className="text-slate-300">{s.label}</span>
-              <span className="ml-auto shrink-0 text-[11px] tabular-nums text-slate-600">{fmtSec(s.elapsedMs)}</span>
+              <span className="text-text-secondary">{s.label}</span>
+              <span className="ml-auto shrink-0 text-[11px] tabular-nums text-text-muted">{fmtSec(s.elapsedMs)}</span>
             </motion.li>
           ))}
         </AnimatePresence>
@@ -76,7 +76,7 @@ export function SearchProgressStages({
             className="flex items-center gap-2.5 text-[13px]"
           >
             <span className="h-1.5 w-1.5 shrink-0 ml-1 rounded-full bg-violet-400 animate-pulse" />
-            <span className="text-white font-medium">{inProgress.label}</span>
+            <span className="text-text-primary font-medium">{inProgress.label}</span>
           </motion.li>
         )}
       </ol>

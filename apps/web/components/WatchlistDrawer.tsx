@@ -71,7 +71,7 @@ export function WatchlistDrawer({ open, onClose }: Props) {
       <div style={{
         position: "absolute", top: 0, right: 0, bottom: 0, zIndex: 200,
         width: 360, background: "#0a0f1c",
-        borderLeft: "1px solid rgba(255,255,255,0.07)",
+        borderLeft: "1px solid rgb(var(--text-primary) / 0.07)",
         display: "flex", flexDirection: "column",
         transform: open ? "translateX(0)" : "translateX(100%)",
         transition: "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
@@ -80,7 +80,7 @@ export function WatchlistDrawer({ open, onClose }: Props) {
       }}>
 
         {/* Header */}
-        <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid rgb(var(--text-primary) / 0.06)", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
               <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -99,7 +99,7 @@ export function WatchlistDrawer({ open, onClose }: Props) {
                   <Trash2 width={11} height={11}/> Clear
                 </button>
               )}
-              <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#475569" }}>
+              <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: "rgb(var(--text-primary) / 0.06)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#475569" }}>
                 <X width={14} height={14}/>
               </button>
             </div>
@@ -119,7 +119,7 @@ export function WatchlistDrawer({ open, onClose }: Props) {
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 7, width: "100%" }}>
                 {[{ label: "Browse Companies", href: "/companies", icon: <Building2 width={13} height={13}/> }, { label: "Explore Events", href: "/events", icon: <Zap width={13} height={13}/> }, { label: "AI Search", href: "/ai-search", icon: <Search width={13} height={13}/> }].map(l => (
-                  <Link key={l.href} href={l.href as any} onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", borderRadius: 11, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", textDecoration: "none" }}>
+                  <Link key={l.href} href={l.href as any} onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", borderRadius: 11, background: "rgb(var(--text-primary) / 0.03)", border: "1px solid rgb(var(--text-primary) / 0.06)", textDecoration: "none" }}>
                     <span style={{ color: "#7c3aed" }}>{l.icon}</span>
                     <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>{l.label}</span>
                     <ArrowRight width={11} height={11} style={{ color: "#334155", marginLeft: "auto" }}/>
@@ -137,11 +137,11 @@ export function WatchlistDrawer({ open, onClose }: Props) {
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                       <span style={{ color: meta.color, opacity: 0.8 }}>{meta.icon}</span>
                       <span style={{ fontSize: 10, fontWeight: 800, color: "#334155", textTransform: "uppercase", letterSpacing: "0.08em" }}>{meta.label}s</span>
-                      <span style={{ fontSize: 10, color: "#1e293b", marginLeft: 2 }}>({grpItems.length})</span>
+                      <span style={{ fontSize: 10, color: "rgb(var(--surface-border))", marginLeft: 2 }}>({grpItems.length})</span>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       {grpItems.map(item => (
-                        <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 11, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 11, background: "rgb(var(--text-primary) / 0.03)", border: "1px solid rgb(var(--text-primary) / 0.06)" }}>
                           <div style={{ width: 32, height: 32, borderRadius: 9, background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: meta.color }}>
                             {meta.icon}
                           </div>
@@ -168,7 +168,7 @@ export function WatchlistDrawer({ open, onClose }: Props) {
         </div>
 
         {/* Footer — future sign-in nudge */}
-        <div style={{ padding: "12px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        <div style={{ padding: "12px 14px", borderTop: "1px solid rgb(var(--text-primary) / 0.06)", flexShrink: 0 }}>
           <div style={{ padding: "10px 12px", borderRadius: 11, background: "linear-gradient(135deg,rgba(124,58,237,0.1),rgba(59,130,246,0.08))", border: "1px solid rgba(124,58,237,0.2)", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 11.5, fontWeight: 700, color: "#c4b5fd", lineHeight: 1 }}>Sync across devices</p>

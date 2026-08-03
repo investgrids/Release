@@ -44,20 +44,20 @@ export interface TodaysMarketRippleProps {
 // ── Static lookup tables ───────────────────────────────────────────────────────
 const SECTOR_COLORS: Record<string, string> = {
   Banking:        "border-blue-500/20 bg-blue-500/10 text-blue-300",
-  NBFC:           "border-indigo-500/20 bg-indigo-500/10 text-indigo-300",
-  "Real Estate":  "border-amber-500/20 bg-amber-500/10 text-amber-300",
-  Energy:         "border-orange-500/20 bg-orange-500/10 text-orange-300",
+  NBFC:           "border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300",
+  "Real Estate":  "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300",
+  Energy:         "border-orange-500/20 bg-orange-500/10 text-orange-600 dark:text-orange-300",
   IT:             "border-cyan-500/20 bg-cyan-500/10 text-cyan-300",
   Technology:     "border-cyan-500/20 bg-cyan-500/10 text-cyan-300",
   Pharma:         "border-green-500/20 bg-green-500/10 text-green-300",
-  Auto:           "border-teal-500/20 bg-teal-500/10 text-teal-300",
-  Infrastructure: "border-violet-500/20 bg-violet-500/10 text-violet-300",
+  Auto:           "border-teal-500/20 bg-teal-500/10 text-teal-600 dark:text-teal-300",
+  Infrastructure: "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-300",
   Metals:         "border-stone-500/20 bg-stone-500/10 text-stone-300",
-  Macro:          "border-slate-500/20 bg-slate-500/10 text-slate-300",
-  Defence:        "border-rose-500/20 bg-rose-500/10 text-rose-300",
+  Macro:          "border-surface-border/5 bg-slate-500/10 text-text-secondary",
+  Defence:        "border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-300",
   FMCG:           "border-lime-500/20 bg-lime-500/10 text-lime-300",
 };
-const DEFAULT_SECTOR_COLOR = "border-violet-500/20 bg-violet-500/10 text-violet-300";
+const DEFAULT_SECTOR_COLOR = "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-300";
 
 const CATEGORY_PATTERNS: Record<string, { name: string; similarity: number; outcome: string }> = {
   Macro:      { name: "Post-Budget Infra Rally (2023)",    similarity: 84, outcome: "Infra sector gained 22% over 3 months after similar macro pivot" },
@@ -191,12 +191,12 @@ export function TodaysMarketRipple({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-[18px] font-bold text-white">Today's Market Ripple</h2>
+                <h2 className="text-[18px] font-bold text-text-primary">Today's Market Ripple</h2>
                 <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-400">
                   AI Powered
                 </span>
               </div>
-              <p className="text-[12px] text-slate-500 mt-0.5">{heroDate} · What matters most in Indian markets today</p>
+              <p className="text-[12px] text-text-muted mt-0.5">{heroDate} · What matters most in Indian markets today</p>
             </div>
           </div>
 
@@ -204,7 +204,7 @@ export function TodaysMarketRipple({
             <span className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold ${
               isOpen
                 ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                : "border border-slate-600/30 bg-slate-700/20 text-slate-400"
+                : "border border-surface-border/7 bg-text-primary/[0.05] text-text-secondary"
             }`}>
               <span className={`h-1.5 w-1.5 rounded-full ${isOpen ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`} />
               {marketStatus}
@@ -214,12 +214,12 @@ export function TodaysMarketRipple({
 
         {/* ── Executive Brief + Why It Matters ────────────────────────────── */}
         <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
-          <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.03] p-4">
+          <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.03] p-4">
             <div className="mb-2 flex items-center gap-2">
               <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
               <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Executive Brief</span>
             </div>
-            <p className="text-[13px] leading-6 text-slate-300">{aiSummary}</p>
+            <p className="text-[13px] leading-6 text-text-secondary">{aiSummary}</p>
           </div>
 
           <div className="rounded-[16px] border border-amber-500/15 bg-amber-500/[0.04] p-4">
@@ -228,15 +228,15 @@ export function TodaysMarketRipple({
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Why It Matters</span>
             </div>
             {topEvent && (
-              <p className="mb-1 text-[11px] font-semibold text-white line-clamp-1">{topEvent.title}</p>
+              <p className="mb-1 text-[11px] font-semibold text-text-primary line-clamp-1">{topEvent.title}</p>
             )}
-            <p className="text-[12px] leading-5 text-slate-400 line-clamp-4">{whyItMatters}</p>
+            <p className="text-[12px] leading-5 text-text-secondary line-clamp-4">{whyItMatters}</p>
           </div>
         </div>
 
         {/* ── Key Market Drivers ──────────────────────────────────────────── */}
         <div className="mb-4">
-          <h3 className="mb-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Key Market Drivers</h3>
+          <h3 className="mb-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">Key Market Drivers</h3>
           <div className="grid gap-3 sm:grid-cols-3">
             {drivers.map(d => (
               <div
@@ -265,13 +265,13 @@ export function TodaysMarketRipple({
                       ? "bg-rose-500/20 text-rose-400"
                       : d.importance === "high"
                       ? "bg-amber-500/20 text-amber-400"
-                      : "bg-slate-500/20 text-slate-400"
+                      : "bg-slate-500/20 text-text-secondary"
                   }`}>
                     {d.importance}
                   </span>
                 </div>
-                <p className="text-[11px] font-semibold text-white leading-snug line-clamp-2">{d.title}</p>
-                <p className="mt-1 text-[10px] leading-[14px] text-slate-500 line-clamp-2">{d.detail}</p>
+                <p className="text-[11px] font-semibold text-text-primary leading-snug line-clamp-2">{d.title}</p>
+                <p className="mt-1 text-[10px] leading-[14px] text-text-muted line-clamp-2">{d.detail}</p>
               </div>
             ))}
           </div>
@@ -288,17 +288,17 @@ export function TodaysMarketRipple({
             </div>
 
             {topEvent && (
-              <div className="mb-3 rounded-[10px] border border-white/[0.06] bg-white/[0.03] p-2.5">
+              <div className="mb-3 rounded-[10px] border border-surface-border/6 bg-text-primary/[0.03] p-2.5">
                 <p className="mb-0.5 text-[9px] font-bold uppercase tracking-wide text-indigo-400">Trigger Event</p>
-                <p className="text-[11px] font-medium text-white line-clamp-2 leading-snug">{topEvent.title}</p>
+                <p className="text-[11px] font-medium text-text-primary line-clamp-2 leading-snug">{topEvent.title}</p>
                 <div className="mt-1.5 flex items-center gap-1.5">
-                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/5">
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-text-primary/5">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500"
                       style={{ width: `${Math.min(topEvent.impact_score, 100)}%` }}
                     />
                   </div>
-                  <span className="text-[9px] font-bold text-indigo-300">{Math.round(topEvent.impact_score)}</span>
+                  <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-300">{Math.round(topEvent.impact_score)}</span>
                 </div>
               </div>
             )}
@@ -306,10 +306,10 @@ export function TodaysMarketRipple({
             <div className="space-y-1.5">
               {rippleChain.slice(0, 4).map((sector, i) => (
                 <div key={`${sector}-${i}`} className="flex items-center gap-2">
-                  <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-[9px] font-bold text-indigo-300">
+                  <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-[9px] font-bold text-indigo-600 dark:text-indigo-300">
                     {i + 1}
                   </div>
-                  <ArrowRight className="h-3 w-3 shrink-0 text-slate-600" />
+                  <ArrowRight className="h-3 w-3 shrink-0 text-text-muted" />
                   <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${sectorColor(sector)}`}>
                     {sector}
                   </span>
@@ -319,7 +319,7 @@ export function TodaysMarketRipple({
 
             <Link
               href={topEvent ? `/ripple/${topEvent.id}` : "/ripple"}
-              className="mt-3 flex items-center gap-1 text-[10px] font-medium text-indigo-400 transition hover:text-indigo-300"
+              className="mt-3 flex items-center gap-1 text-[10px] font-medium text-indigo-400 transition hover:text-indigo-600 dark:text-indigo-300"
             >
               View full analysis <ChevronRight className="h-3 w-3" />
             </Link>
@@ -338,10 +338,10 @@ export function TodaysMarketRipple({
                   <Link
                     key={String(op.id)}
                     href={`/radar/${op.slug ?? op.id}`}
-                    className="group block rounded-[10px] border border-white/[0.05] bg-white/[0.02] p-2.5 transition hover:border-emerald-500/20 hover:bg-emerald-500/[0.04]"
+                    className="group block rounded-[10px] border border-surface-border/5 bg-text-primary/[0.02] p-2.5 transition hover:border-emerald-500/20 hover:bg-emerald-500/[0.04]"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-[11px] font-medium text-white leading-snug line-clamp-2 transition group-hover:text-emerald-200">
+                      <p className="text-[11px] font-medium text-text-primary leading-snug line-clamp-2 transition group-hover:text-emerald-700 dark:text-emerald-200">
                         {op.title}
                       </p>
                       <span className="shrink-0 text-[13px] font-black text-emerald-400">
@@ -357,12 +357,12 @@ export function TodaysMarketRipple({
                 ))}
               </div>
             ) : (
-              <p className="text-[11px] text-slate-500">AI radar scanning for opportunities…</p>
+              <p className="text-[11px] text-text-muted">AI radar scanning for opportunities…</p>
             )}
 
             <Link
               href="/radar"
-              className="mt-3 flex items-center gap-1 text-[10px] font-medium text-emerald-400 transition hover:text-emerald-300"
+              className="mt-3 flex items-center gap-1 text-[10px] font-medium text-emerald-400 transition hover:text-emerald-600 dark:text-emerald-300"
             >
               View all opportunities <ChevronRight className="h-3 w-3" />
             </Link>
@@ -378,7 +378,7 @@ export function TodaysMarketRipple({
             {risks.length > 0 ? (
               <div className="space-y-2">
                 {risks.map((risk, i) => (
-                  <div key={i} className="rounded-[10px] border border-white/[0.05] bg-white/[0.02] p-2.5">
+                  <div key={i} className="rounded-[10px] border border-surface-border/5 bg-text-primary/[0.02] p-2.5">
                     <div className="flex items-start gap-2">
                       <span className={`mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
                         risk.severity === "critical"
@@ -389,7 +389,7 @@ export function TodaysMarketRipple({
                       }`}>
                         {risk.severity}
                       </span>
-                      <p className="text-[11px] text-slate-300 leading-snug line-clamp-2">{risk.label}</p>
+                      <p className="text-[11px] text-text-secondary leading-snug line-clamp-2">{risk.label}</p>
                     </div>
                     {risk.sectors.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
@@ -402,8 +402,8 @@ export function TodaysMarketRipple({
                 ))}
               </div>
             ) : (
-              <div className="rounded-[10px] border border-white/[0.05] bg-white/[0.02] p-2.5">
-                <p className="text-[11px] text-slate-500">No critical risk alerts at this time. Markets stable.</p>
+              <div className="rounded-[10px] border border-surface-border/5 bg-text-primary/[0.02] p-2.5">
+                <p className="text-[11px] text-text-muted">No critical risk alerts at this time. Markets stable.</p>
               </div>
             )}
           </div>
@@ -414,7 +414,7 @@ export function TodaysMarketRipple({
 
           {/* AI Insights */}
           {insights.length > 0 && (
-            <div className="rounded-[14px] border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="rounded-[14px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles className="h-3.5 w-3.5 text-amber-400" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Today's AI Insights</span>
@@ -426,7 +426,7 @@ export function TodaysMarketRipple({
                       {i + 1}
                     </span>
                     <div>
-                      <p className="text-[11px] text-slate-300 leading-[15px] line-clamp-2">{ins.text}</p>
+                      <p className="text-[11px] text-text-secondary leading-[15px] line-clamp-2">{ins.text}</p>
                       <span className={`mt-1 inline-block rounded-full border px-1.5 py-0.5 text-[9px] ${sectorColor(ins.sector)}`}>
                         {ins.sector}
                       </span>
@@ -445,14 +445,14 @@ export function TodaysMarketRipple({
                 <Activity className="h-3.5 w-3.5 text-violet-400" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400">Today's Pattern Match</span>
               </div>
-              <div className="rounded-[10px] border border-white/[0.06] bg-white/[0.03] p-2.5">
+              <div className="rounded-[10px] border border-surface-border/6 bg-text-primary/[0.03] p-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-semibold text-white leading-snug">{pattern.name}</p>
-                  <span className="shrink-0 rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-bold text-violet-300">
+                  <p className="text-[11px] font-semibold text-text-primary leading-snug">{pattern.name}</p>
+                  <span className="shrink-0 rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-bold text-violet-600 dark:text-violet-300">
                     {pattern.similarity}%
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] leading-[13px] text-slate-500 line-clamp-2">{pattern.outcome}</p>
+                <p className="mt-1 text-[10px] leading-[13px] text-text-muted line-clamp-2">{pattern.outcome}</p>
               </div>
             </div>
 
@@ -471,7 +471,7 @@ export function TodaysMarketRipple({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-[9px] font-bold text-violet-400 whitespace-nowrap">{ev.phase}</span>
-                        <p className="text-[10px] text-slate-400 leading-[13px] line-clamp-1">{ev.desc}</p>
+                        <p className="text-[10px] text-text-secondary leading-[13px] line-clamp-1">{ev.desc}</p>
                       </div>
                     </div>
                   </div>
@@ -485,7 +485,7 @@ export function TodaysMarketRipple({
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/ripple"
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-indigo-500"
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-[12px] font-semibold text-text-primary transition hover:bg-indigo-500"
           >
             <Waves className="h-3.5 w-3.5" />
             Explore Ripple Intelligence
@@ -499,7 +499,7 @@ export function TodaysMarketRipple({
           </Link>
           <Link
             href="/ai-search"
-            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-[12px] font-medium text-slate-300 transition hover:bg-white/[0.08]"
+            className="flex items-center gap-2 rounded-xl border border-surface-border/10 bg-text-primary/[0.04] px-4 py-2 text-[12px] font-medium text-text-secondary transition hover:bg-text-primary/[0.08]"
           >
             <Sparkles className="h-3.5 w-3.5" />
             Ask AI About Today

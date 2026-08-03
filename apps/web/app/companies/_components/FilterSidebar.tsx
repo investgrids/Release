@@ -36,16 +36,16 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
   }
 
   const selectCls =
-    "w-full rounded-lg border border-white/10 bg-[#131826] px-3 py-2 text-[12px] text-white outline-none transition focus:border-indigo-500/50 cursor-pointer";
+    "w-full rounded-lg border border-surface-border/10 bg-surface-card px-3 py-2 text-[12px] text-text-primary outline-none transition focus:border-indigo-500/50 cursor-pointer";
 
   return (
-    <aside className="w-[220px] shrink-0 space-y-5 rounded-xl border border-white/[0.07] bg-[#0a0d16] p-4 self-start">
+    <aside className="w-[220px] shrink-0 space-y-5 rounded-xl border border-surface-border/7 bg-surface-card p-4 self-start">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-bold text-white">Filters</span>
+        <span className="text-[13px] font-bold text-text-primary">Filters</span>
         <button
           onClick={reset}
-          className="text-[11px] text-sky-400 hover:text-sky-300 transition"
+          className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition"
         >
           Reset
         </button>
@@ -53,7 +53,7 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
 
       {/* Sector */}
       <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sector</p>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Sector</p>
         <select value={sector} onChange={e => setSector(e.target.value)} className={selectCls}>
           <option value="">All Sectors</option>
           {sectors.map(s => (
@@ -64,7 +64,7 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
 
       {/* Market Cap */}
       <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Market Cap</p>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Market Cap</p>
         <select value={cap} onChange={e => setCap(e.target.value)} className={selectCls}>
           <option value="">All Market Caps</option>
           <option value="large">Large Cap</option>
@@ -75,7 +75,7 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
 
       {/* Sort */}
       <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sort By</p>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Sort By</p>
         <select value={sort} onChange={e => setSort(e.target.value)} className={selectCls}>
           <option value="name">Name A–Z</option>
           <option value="cap">Market Cap</option>
@@ -86,7 +86,7 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
       {/* Apply */}
       <button
         onClick={apply}
-        className="w-full rounded-lg bg-indigo-600 py-2.5 text-[13px] font-bold text-white transition hover:bg-indigo-500 active:scale-[0.98]"
+        className="w-full rounded-lg bg-indigo-600 py-2.5 text-[13px] font-bold text-text-primary transition hover:bg-indigo-500 active:scale-[0.98]"
       >
         Apply Filters
       </button>

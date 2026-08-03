@@ -40,7 +40,7 @@ export const metadata: Metadata = {
 function SectionHeading({
   id,
   badge,
-  badgeColor = "text-slate-500",
+  badgeColor = "text-text-muted",
   title,
   subtitle,
 }: {
@@ -55,10 +55,10 @@ function SectionHeading({
       <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${badgeColor}`}>
         {badge}
       </p>
-      <h2 id={id} className="mt-2 text-[22px] font-black text-white md:text-[28px]">
+      <h2 id={id} className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]">
         {title}
       </h2>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{subtitle}</p>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">{subtitle}</p>
     </div>
   );
 }
@@ -80,7 +80,7 @@ function SourceCard({
   color: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-[#080c14] p-4">
+    <div className="rounded-xl border border-surface-border/8 bg-surface-card p-4">
       <div className="mb-3 flex items-start gap-3">
         <div
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${color}`}
@@ -89,8 +89,8 @@ function SourceCard({
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[13px] font-bold text-white">{name}</h3>
-          <p className="mt-1 text-[12px] leading-5 text-slate-400">{description}</p>
+          <h3 className="text-[13px] font-bold text-text-primary">{name}</h3>
+          <p className="mt-1 text-[12px] leading-5 text-text-secondary">{description}</p>
         </div>
       </div>
       {tags && tags.length > 0 && (
@@ -98,7 +98,7 @@ function SourceCard({
           {tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] text-slate-400"
+              className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2 py-0.5 text-[10px] text-text-secondary"
             >
               {tag}
             </span>
@@ -106,7 +106,7 @@ function SourceCard({
         </div>
       )}
       {note && (
-        <p className="mt-2 text-[11px] italic text-slate-500">{note}</p>
+        <p className="mt-2 text-[11px] italic text-text-muted">{note}</p>
       )}
     </div>
   );
@@ -399,44 +399,44 @@ export default function DataSourcesPage() {
 
       {/* ── HERO ──────────────────────────────────────────────────────── */}
       <section aria-labelledby="hero-heading">
-        <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-emerald-950/60 via-[#080c14] to-sky-950/40 px-8 py-12 md:px-12 md:py-16">
+        <div className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-emerald-950/60 via-[#080c14] to-sky-950/40 px-8 py-12 md:px-12 md:py-16">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400">
             Data Philosophy
           </p>
           <h1
             id="hero-heading"
-            className="mt-3 text-[28px] font-black leading-tight text-white md:text-[40px]"
+            className="mt-3 text-[28px] font-black leading-tight text-text-primary md:text-[40px]"
           >
             Intelligence Is Only as Good
             <br />
             as Its Sources
           </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300 md:text-lg">
+          <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary md:text-lg">
             MarketRipple aggregates data from 40+ verified sources across Indian and global
             markets. We prioritise official primary sources, apply multi-layer
             verification, and are transparent about the origin and latency of every
             data point.
           </p>
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl border border-white/[0.08] bg-[#080c14] px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">Data Sources</p>
+            <div className="rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">Data Sources</p>
               <p className="mt-1 text-2xl font-black text-emerald-400">40+</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">Verified feeds</p>
+              <p className="mt-0.5 text-[11px] text-text-muted">Verified feeds</p>
             </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[#080c14] px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">News Latency</p>
+            <div className="rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">News Latency</p>
               <p className="mt-1 text-2xl font-black text-sky-400">&lt;5 min</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">Target from source</p>
+              <p className="mt-0.5 text-[11px] text-text-muted">Target from source</p>
             </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[#080c14] px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">Companies Covered</p>
+            <div className="rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">Companies Covered</p>
               <p className="mt-1 text-2xl font-black text-violet-400">5,400+</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">BSE-listed securities</p>
+              <p className="mt-0.5 text-[11px] text-text-muted">BSE-listed securities</p>
             </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[#080c14] px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">History</p>
+            <div className="rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">History</p>
               <p className="mt-1 text-2xl font-black text-amber-400">14 yrs</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">2010–2024 backtested</p>
+              <p className="mt-0.5 text-[11px] text-text-muted">2010–2024 backtested</p>
             </div>
           </div>
         </div>
@@ -503,7 +503,7 @@ export default function DataSourcesPage() {
           {newsSources.map((cat) => (
             <div
               key={cat.category}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5"
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
             >
               <div className="mb-3 flex items-center gap-2.5">
                 <div
@@ -512,11 +512,11 @@ export default function DataSourcesPage() {
                 >
                   {cat.icon}
                 </div>
-                <h3 className="text-[13px] font-bold text-white">{cat.category}</h3>
+                <h3 className="text-[13px] font-bold text-text-primary">{cat.category}</h3>
               </div>
               <ul className="space-y-1.5" aria-label={`${cat.category} sources`}>
                 {cat.sources.map((source) => (
-                  <li key={source} className="flex items-start gap-2 text-[12px] text-slate-400">
+                  <li key={source} className="flex items-start gap-2 text-[12px] text-text-secondary">
                     <CheckCircle2
                       className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500"
                       aria-hidden="true"
@@ -532,10 +532,10 @@ export default function DataSourcesPage() {
           <div className="flex items-start gap-3">
             <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" aria-hidden="true" />
             <div>
-              <p className="text-[12px] font-bold text-amber-300">
+              <p className="text-[12px] font-bold text-amber-600 dark:text-amber-300">
                 AI-Powered Relevance Filtering
               </p>
-              <p className="mt-1 text-[12px] leading-5 text-slate-400">
+              <p className="mt-1 text-[12px] leading-5 text-text-secondary">
                 MarketRipple processes hundreds of news items daily. An NLP relevance classifier filters out
                 opinion pieces, sponsored content, and low-signal articles — surfacing only events with
                 genuine market implications. The classifier is trained on 3 years of annotated financial
@@ -555,38 +555,38 @@ export default function DataSourcesPage() {
           title="Refresh Frequency"
           subtitle="How often each data type is updated — so you always know how current your analysis is."
         />
-        <div className="rounded-xl border border-white/[0.08] bg-[#080c14] overflow-hidden">
+        <div className="rounded-xl border border-surface-border/8 bg-surface-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]" aria-label="Data refresh frequency table">
               <thead>
-                <tr className="border-b border-white/[0.08] bg-white/[0.02]">
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                <tr className="border-b border-surface-border/8 bg-text-primary/[0.02]">
+                  <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">
                     Data Type
                   </th>
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                  <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">
                     Frequency
                   </th>
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 hidden sm:table-cell">
+                  <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted hidden sm:table-cell">
                     Window
                   </th>
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 hidden md:table-cell">
+                  <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted hidden md:table-cell">
                     Latency / Notes
                   </th>
-                  <th className="px-5 py-3.5 text-center text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                  <th className="px-5 py-3.5 text-center text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">
                     Type
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.04]">
+              <tbody className="divide-y divide-surface-border/4">
                 {refreshFrequencies.map((row) => {
                   const statusBadge =
                     row.status === "live"
-                      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/25"
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/25"
                       : row.status === "event"
-                      ? "bg-sky-500/15 text-sky-300 border-sky-500/25"
+                      ? "bg-sky-500/15 text-sky-600 dark:text-sky-300 border-sky-500/25"
                       : row.status === "daily"
-                      ? "bg-violet-500/15 text-violet-300 border-violet-500/25"
-                      : "bg-slate-700/30 text-slate-400 border-slate-600/30";
+                      ? "bg-violet-500/15 text-violet-600 dark:text-violet-300 border-violet-500/25"
+                      : "bg-text-primary/[0.07] text-text-secondary border-surface-border/7";
                   const statusLabel =
                     row.status === "live"
                       ? "Live"
@@ -598,16 +598,16 @@ export default function DataSourcesPage() {
                   return (
                     <tr
                       key={row.dataType}
-                      className="hover:bg-white/[0.02] transition"
+                      className="hover:bg-text-primary/[0.02] transition"
                     >
-                      <td className="px-5 py-3.5 font-semibold text-slate-200">
+                      <td className="px-5 py-3.5 font-semibold text-text-primary">
                         {row.dataType}
                       </td>
-                      <td className="px-5 py-3.5 text-slate-300">{row.frequency}</td>
-                      <td className="px-5 py-3.5 text-slate-500 hidden sm:table-cell">
+                      <td className="px-5 py-3.5 text-text-secondary">{row.frequency}</td>
+                      <td className="px-5 py-3.5 text-text-muted hidden sm:table-cell">
                         {row.during}
                       </td>
-                      <td className="px-5 py-3.5 text-slate-500 hidden md:table-cell">
+                      <td className="px-5 py-3.5 text-text-muted hidden md:table-cell">
                         {row.latency}
                       </td>
                       <td className="px-5 py-3.5 text-center">
@@ -638,7 +638,7 @@ export default function DataSourcesPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {pipelineSteps.map((step, i) => (
             <div key={step.label} className="relative">
-              <div className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5 h-full">
+              <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5 h-full">
                 <div className="mb-4 flex items-center justify-between">
                   <div
                     className={`flex h-10 w-10 items-center justify-center rounded-xl border ${step.color}`}
@@ -646,19 +646,19 @@ export default function DataSourcesPage() {
                   >
                     {step.icon}
                   </div>
-                  <span className="text-[32px] font-black text-white/[0.05] select-none leading-none">
+                  <span className="text-[32px] font-black text-text-primary/[0.05] select-none leading-none">
                     {String(i + 1).padStart(2, "0")}
                   </span>
                 </div>
-                <h3 className="text-[15px] font-bold text-white">{step.label}</h3>
-                <p className="mt-2 text-[12px] leading-5 text-slate-400">{step.description}</p>
+                <h3 className="text-[15px] font-bold text-text-primary">{step.label}</h3>
+                <p className="mt-2 text-[12px] leading-5 text-text-secondary">{step.description}</p>
               </div>
               {i < pipelineSteps.length - 1 && (
                 <div
                   className="absolute -right-2 top-1/2 hidden -translate-y-1/2 xl:block"
                   aria-hidden="true"
                 >
-                  <ArrowRight className="h-4 w-4 text-slate-700" />
+                  <ArrowRight className="h-4 w-4 text-text-muted" />
                 </div>
               )}
             </div>
@@ -677,11 +677,11 @@ export default function DataSourcesPage() {
             <div>
               <h2
                 id="disclaimer-heading"
-                className="text-[16px] font-black text-white"
+                className="text-[16px] font-black text-text-primary"
               >
                 Important Disclaimer
               </h2>
-              <p className="mt-3 text-[13px] leading-6 text-slate-300">
+              <p className="mt-3 text-[13px] leading-6 text-text-secondary">
                 MarketRipple aggregates, analyses, and explains publicly available information.
                 It does not replace official disclosures. Always verify information against
                 primary sources before making investment decisions:
@@ -697,17 +697,17 @@ export default function DataSourcesPage() {
                 ].map((source) => (
                   <div
                     key={source.name}
-                    className="flex items-start gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3"
+                    className="flex items-start gap-2 rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-3"
                   >
-                    <Database className="h-3.5 w-3.5 shrink-0 mt-0.5 text-slate-500" aria-hidden="true" />
+                    <Database className="h-3.5 w-3.5 shrink-0 mt-0.5 text-text-muted" aria-hidden="true" />
                     <div>
-                      <p className="text-[12px] font-semibold text-slate-200">{source.name}</p>
-                      <p className="text-[11px] text-slate-500">{source.desc}</p>
+                      <p className="text-[12px] font-semibold text-text-primary">{source.name}</p>
+                      <p className="text-[11px] text-text-muted">{source.desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="mt-4 text-[12px] leading-5 text-slate-400">
+              <p className="mt-4 text-[12px] leading-5 text-text-secondary">
                 MarketRipple is not a licensed investment adviser, stockbroker, or research analyst under
                 SEBI regulations. All analysis is provided for informational and educational purposes
                 only. Past market patterns do not guarantee future performance.
@@ -718,21 +718,21 @@ export default function DataSourcesPage() {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────────────────── */}
-      <section aria-label="Related pages" className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6 md:p-8">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+      <section aria-label="Related pages" className="rounded-xl border border-surface-border/8 bg-surface-card p-6 md:p-8">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Continue Exploring
         </p>
-        <h2 className="mt-2 text-xl font-black text-white">
+        <h2 className="mt-2 text-xl font-black text-text-primary">
           Understand how the data becomes intelligence
         </h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-2 text-sm text-text-secondary">
           Learn how MarketRipple processes this data into market insights, ripple chains,
           and opportunity scores.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href="/how-marketripple-thinks"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-5 py-2.5 text-sm font-semibold text-text-primary transition hover:opacity-90"
             aria-label="See How MarketRipple Thinks"
           >
             <Brain className="h-4 w-4" />
@@ -741,7 +741,7 @@ export default function DataSourcesPage() {
           </Link>
           <Link
             href="/ai-methodology"
-            className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-white/25 hover:text-white"
+            className="flex items-center gap-2 rounded-xl border border-surface-border/15 bg-text-primary/[0.04] px-5 py-2.5 text-sm font-semibold text-text-secondary transition hover:border-surface-border/25 hover:text-text-primary"
             aria-label="Read AI Methodology"
           >
             <Activity className="h-4 w-4" />

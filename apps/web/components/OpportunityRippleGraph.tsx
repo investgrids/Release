@@ -10,7 +10,7 @@ const TYPE_COLOR: Record<string, string> = {
   sector: "#34d399",
   company: "#818cf8",
   policy: "#38bdf8",
-  concept: "#64748b",
+  concept: "rgb(var(--text-muted))",
 };
 
 /**
@@ -38,8 +38,8 @@ export function OpportunityRippleGraph({ nodes, edges }: { nodes: Node[]; edges:
   });
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-[#070e1b] p-4">
-      <p className="mb-2 text-[9px] font-black uppercase tracking-[0.14em] text-slate-600">Ripple Analysis</p>
+    <div className="rounded-[20px] border border-surface-border/7 bg-surface-card p-4">
+      <p className="mb-2 text-[9px] font-black uppercase tracking-[0.14em] text-text-muted">Ripple Analysis</p>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
         {edges.map((e, i) => {
           const s = pos.get(e.source), t = pos.get(e.target);

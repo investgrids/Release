@@ -69,40 +69,40 @@ export function RefineAnalysisPanel({
   }
 
   return (
-    <div className="rounded-[14px] border border-white/[0.06] bg-white/[0.02]">
+    <div className="rounded-[14px] border border-surface-border/6 bg-text-primary/[0.02]">
       <button
         onClick={() => setOpen(o => !o)}
         className="flex w-full items-center justify-between gap-3 px-4 py-3"
       >
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-3.5 w-3.5 text-violet-400" />
-          <span className="text-[12px] font-medium text-slate-300">Refine for your situation</span>
+          <span className="text-[12px] font-medium text-text-secondary">Refine for your situation</span>
           {activeCount > 0 && (
-            <span className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-violet-300">
+            <span className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-300">
               {activeCount}
             </span>
           )}
         </div>
-        <ChevronDown className={`h-3.5 w-3.5 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-3.5 w-3.5 text-text-muted transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="border-t border-white/[0.06] px-4 py-3">
-          <p className="mb-3 text-[11px] text-slate-500">
+        <div className="border-t border-surface-border/6 px-4 py-3">
+          <p className="mb-3 text-[11px] text-text-muted">
             Adjust your situation — the AI re-derives the decision from the same evidence, without re-running the whole search.
           </p>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {FIELDS.map(f => (
               <div key={f.key}>
-                <label className="mb-1 block text-[10px] uppercase tracking-wide text-slate-600">{f.label}</label>
+                <label className="mb-1 block text-[10px] uppercase tracking-wide text-text-muted">{f.label}</label>
                 <select
                   value={params[f.key] ?? ""}
                   onChange={e => setParams(p => ({ ...p, [f.key]: e.target.value }))}
-                  className="w-full rounded-[8px] border border-white/10 bg-white/[0.03] px-2 py-1.5 text-[11.5px] text-slate-300 focus:border-violet-500/40 focus:outline-none"
+                  className="w-full rounded-[8px] border border-surface-border/10 bg-text-primary/[0.03] px-2 py-1.5 text-[11.5px] text-text-secondary focus:border-violet-500/40 focus:outline-none"
                 >
                   <option value="">Any</option>
                   {f.options.map(o => (
-                    <option key={o} value={o} className="bg-[#0d1117]">
+                    <option key={o} value={o} className="bg-surface-card">
                       {o}
                     </option>
                   ))}
@@ -114,7 +114,7 @@ export function RefineAnalysisPanel({
           <button
             onClick={regenerate}
             disabled={status === "loading"}
-            className="mt-3 flex items-center gap-1.5 rounded-[10px] border border-violet-500/30 bg-violet-500/15 px-3 py-1.5 text-[11.5px] font-medium text-violet-300 transition hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-3 flex items-center gap-1.5 rounded-[10px] border border-violet-500/30 bg-violet-500/15 px-3 py-1.5 text-[11.5px] font-medium text-violet-600 dark:text-violet-300 transition hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw className={`h-3 w-3 ${status === "loading" ? "animate-spin" : ""}`} />
             {status === "loading" ? "Regenerating decision…" : "Regenerate Decision"}

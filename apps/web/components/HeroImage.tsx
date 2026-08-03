@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { ArticleArt } from "@/components/ArticleArt";
 import { API_BASE_URL as API } from "@/lib/api";
 
@@ -8,6 +9,13 @@ import { API_BASE_URL as API } from "@/lib/api";
  * is only ever set once generation actually succeeds, so its mere
  * presence is the "ready" signal; there's no separate loading state to
  * thread through here.
+ *
+ * Uses next/image now that the backend media origin is allowlisted in
+ * next.config.ts's remotePatterns (previously a raw <img> with no width/
+ * height — a real, measured CLS source). `fill` inside an aspect-ratio
+ * wrapper reserves layout space before the image loads, so this component
+ * still expects the caller's className to size the wrapper (as it always
+ * did) — only the img tag itself changed.
  */
 export function HeroImage({
   heroImageUrl, headline, articleType, sectors = [], className = "",
@@ -20,17 +28,16 @@ export function HeroImage({
 }) {
   if (heroImageUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- external/self-hosted
-      // media path (backend-served, not in the Next.js image loader's domain
-      // list), and this is a low-volume feed (a few images/day), not a
-      // performance-critical image gallery — next/image's build-time
-      // optimization isn't worth the extra config here.
-      <img
-        src={`${API}${heroImageUrl}`}
-        alt={headline}
-        className={`object-cover ${className}`}
-        loading="lazy"
-      />
+      <div className={`relative overflow-hidden ${className}`}>
+        <Image
+          src={`${API}${heroImageUrl}`}
+          alt={headline}
+          fill
+          sizes="(max-width: 768px) 100vw, 768px"
+          className="object-cover"
+          loading="lazy"
+        />
+      </div>
     );
   }
   return <ArticleArt headline={headline} articleType={articleType} sectors={sectors} className={className} />;

@@ -16,7 +16,7 @@ export function AskAICta({ query, source }: { query: string; source: string }) {
     <Link
       href={`/ai-search?q=${encodeURIComponent(query)}` as any}
       onClick={() => trackEvent("ai_search_cta_click", { source })}
-      className="font-semibold text-violet-300 hover:text-violet-200 transition"
+      className="font-semibold text-violet-600 dark:text-violet-300 hover:text-violet-700 dark:text-violet-200 transition"
     >
       Ask MarketRipple AI →
     </Link>

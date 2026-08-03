@@ -31,7 +31,7 @@ const NODE_COLORS: Record<string, string> = {
   index:     "#a78bfa",
   policy:    "#f87171",
   event:     "#94a3b8",
-  default:   "#64748b",
+  default:   "rgb(var(--text-muted))",
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -91,8 +91,8 @@ export default function MiniIntelligenceGraph({ nodeId, title = "Intelligence Gr
 
   if (loading) {
     return (
-      <div className={`rounded-xl border border-[#1e293b] bg-[#0f172a] p-4 ${className}`}>
-        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">{title}</p>
+      <div className={`rounded-xl border border-[#1e293b] bg-surface-card p-4 ${className}`}>
+        <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">{title}</p>
         <div className="flex items-center justify-center h-36 gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "0ms" }} />
           <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "120ms" }} />
@@ -125,8 +125,8 @@ export default function MiniIntelligenceGraph({ nodeId, title = "Intelligence Gr
   const uniqueTypes = [...new Set(data.nodes.map((n) => n.node_type))].slice(0, 4);
 
   return (
-    <div className={`rounded-xl border border-[#1e293b] bg-[#0f172a] p-4 ${className}`}>
-      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1">{title}</p>
+    <div className={`rounded-xl border border-[#1e293b] bg-surface-card p-4 ${className}`}>
+      <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">{title}</p>
 
       <svg
         ref={svgRef}
@@ -205,7 +205,7 @@ export default function MiniIntelligenceGraph({ nodeId, title = "Intelligence Gr
       <div className="mt-1 flex items-center justify-between">
         <div className="flex gap-2 flex-wrap">
           {uniqueTypes.map((t) => (
-            <span key={t} className="flex items-center gap-1 text-[10px] text-slate-500">
+            <span key={t} className="flex items-center gap-1 text-[10px] text-text-muted">
               <span
                 className="inline-block w-1.5 h-1.5 rounded-full"
                 style={{ background: NODE_COLORS[t] || NODE_COLORS.default }}
@@ -214,7 +214,7 @@ export default function MiniIntelligenceGraph({ nodeId, title = "Intelligence Gr
             </span>
           ))}
         </div>
-        <span className="text-[10px] text-slate-600">
+        <span className="text-[10px] text-text-muted">
           {data.nodes.length}n · {data.edges.length}e
         </span>
       </div>

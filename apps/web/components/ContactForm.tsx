@@ -70,13 +70,13 @@ export function ContactForm() {
     return (
       <div className="flex max-w-2xl flex-col items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-8 text-center">
         <CheckCircle2 className="h-8 w-8 text-emerald-400" />
-        <p className="text-[15px] font-semibold text-white">Message sent</p>
-        <p className="text-[13px] text-slate-400">
+        <p className="text-[15px] font-semibold text-text-primary">Message sent</p>
+        <p className="text-[13px] text-text-secondary">
           Thanks for reaching out — our team reads every message and will get back to you at the email you provided.
         </p>
         <button
           onClick={() => setStatus("idle")}
-          className="mt-2 text-[12px] font-medium text-sky-400 hover:text-sky-300 transition"
+          className="mt-2 text-[12px] font-medium text-sky-400 hover:text-sky-600 dark:text-sky-300 transition"
         >
           Send another message
         </button>
@@ -85,11 +85,11 @@ export function ContactForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-4 rounded-xl border border-white/[0.08] bg-white/[0.02] p-6">
+    <form onSubmit={handleSubmit} className="max-w-2xl space-y-4 rounded-xl border border-surface-border/8 bg-text-primary/[0.02] p-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="cf-name" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Name <span className="text-slate-700">(optional)</span>
+          <label htmlFor="cf-name" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+            Name <span className="text-text-muted">(optional)</span>
           </label>
           <input
             id="cf-name"
@@ -97,12 +97,12 @@ export function ContactForm() {
             value={name}
             onChange={e => setName(e.target.value)}
             maxLength={128}
-            className="w-full rounded-lg border border-white/10 bg-[#0a0d16] px-3 py-2.5 text-[13px] text-white outline-none transition focus:border-sky-500/50"
+            className="w-full rounded-lg border border-surface-border/10 bg-surface-card px-3 py-2.5 text-[13px] text-text-primary outline-none transition focus:border-sky-500/50"
             placeholder="Your name"
           />
         </div>
         <div>
-          <label htmlFor="cf-email" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <label htmlFor="cf-email" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             Email <span className="text-rose-500">*</span>
           </label>
           <input
@@ -111,28 +111,28 @@ export function ContactForm() {
             required
             value={email}
             onChange={e => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-[#0a0d16] px-3 py-2.5 text-[13px] text-white outline-none transition focus:border-sky-500/50"
+            className="w-full rounded-lg border border-surface-border/10 bg-surface-card px-3 py-2.5 text-[13px] text-text-primary outline-none transition focus:border-sky-500/50"
             placeholder="you@example.com"
           />
         </div>
       </div>
 
       <div>
-        <label htmlFor="cf-category" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <label htmlFor="cf-category" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Category
         </label>
         <select
           id="cf-category"
           value={category}
           onChange={e => setCategory(e.target.value)}
-          className="w-full cursor-pointer rounded-lg border border-white/10 bg-[#0a0d16] px-3 py-2.5 text-[13px] text-white outline-none transition focus:border-sky-500/50"
+          className="w-full cursor-pointer rounded-lg border border-surface-border/10 bg-surface-card px-3 py-2.5 text-[13px] text-text-primary outline-none transition focus:border-sky-500/50"
         >
           {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
       </div>
 
       <div>
-        <label htmlFor="cf-message" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <label htmlFor="cf-message" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Message <span className="text-rose-500">*</span>
         </label>
         <textarea
@@ -143,7 +143,7 @@ export function ContactForm() {
           rows={5}
           value={message}
           onChange={e => setMessage(e.target.value)}
-          className="w-full resize-y rounded-lg border border-white/10 bg-[#0a0d16] px-3 py-2.5 text-[13px] text-white outline-none transition focus:border-sky-500/50"
+          className="w-full resize-y rounded-lg border border-surface-border/10 bg-surface-card px-3 py-2.5 text-[13px] text-text-primary outline-none transition focus:border-sky-500/50"
           placeholder="Tell us what's on your mind — a question, feedback, or a bug you ran into."
         />
       </div>
@@ -151,14 +151,14 @@ export function ContactForm() {
       {status === "error" && error && (
         <div className="flex items-start gap-2 rounded-lg border border-rose-500/20 bg-rose-500/[0.06] px-3 py-2.5">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" />
-          <p className="text-[12px] text-rose-300">{error}</p>
+          <p className="text-[12px] text-rose-600 dark:text-rose-300">{error}</p>
         </div>
       )}
 
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-sky-500 py-3 text-[13px] font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-sky-500 py-3 text-[13px] font-bold text-text-primary transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {status === "submitting" ? (
           <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>

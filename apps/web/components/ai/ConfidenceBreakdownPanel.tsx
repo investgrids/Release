@@ -39,14 +39,14 @@ export function ConfidenceBreakdownPanel({ breakdown }: { breakdown: ConfidenceB
   if (!breakdown) return null;
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Gauge size={14} strokeWidth={1.8} className="text-violet-400" />
-          <p className="text-[15px] font-semibold text-white">Why This Confidence Score</p>
+          <p className="text-[15px] font-semibold text-text-primary">Why This Confidence Score</p>
         </div>
-        <p className="text-[12px] font-bold tabular-nums text-white">
-          {Math.round(breakdown.final_confidence)}% <span className="text-slate-500 font-medium">· {breakdown.level}</span>
+        <p className="text-[12px] font-bold tabular-nums text-text-primary">
+          {Math.round(breakdown.final_confidence)}% <span className="text-text-muted font-medium">· {breakdown.level}</span>
         </p>
       </div>
 
@@ -56,24 +56,24 @@ export function ConfidenceBreakdownPanel({ breakdown }: { breakdown: ConfidenceB
           return (
             <div key={f.key}>
               <div className="mb-1 flex items-baseline justify-between">
-                <p className="text-[11px] font-medium text-slate-300">{f.label}</p>
-                <p className="text-[10px] tabular-nums text-slate-500">{Math.round(v)}%</p>
+                <p className="text-[11px] font-medium text-text-secondary">{f.label}</p>
+                <p className="text-[10px] tabular-nums text-text-muted">{Math.round(v)}%</p>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
                 <div className={`h-full rounded-full bg-gradient-to-r ${barColor(v)}`} style={{ width: `${v}%` }} />
               </div>
-              <p className="mt-0.5 text-[9.5px] text-slate-500">{f.hint}</p>
+              <p className="mt-0.5 text-[9.5px] text-text-muted">{f.hint}</p>
             </div>
           );
         })}
       </div>
 
       {breakdown.reasons?.length > 0 && (
-        <div className="mt-4 border-t border-white/[0.06] pt-3">
-          <p className="mb-1.5 text-[9px] uppercase tracking-wider text-slate-500">Why</p>
+        <div className="mt-4 border-t border-surface-border/6 pt-3">
+          <p className="mb-1.5 text-[9px] uppercase tracking-wider text-text-muted">Why</p>
           <ul className="space-y-1">
             {breakdown.reasons.slice(0, 4).map((r, i) => (
-              <li key={i} className="text-[11px] leading-snug text-slate-400">• {r}</li>
+              <li key={i} className="text-[11px] leading-snug text-text-secondary">• {r}</li>
             ))}
           </ul>
         </div>

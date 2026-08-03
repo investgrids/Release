@@ -44,8 +44,8 @@ export function NavLoadingProvider({ children }: { children: React.ReactNode }) 
         <>
           {/* Blur backdrop — covers content + sidebar below header */}
           <div
-            className="fixed inset-0 z-40 pointer-events-none"
-            style={{ backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", background: "rgba(6,7,10,0.45)" }}
+            className="fixed inset-0 z-40 pointer-events-none bg-bg/45"
+            style={{ backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
           />
 
           {/* Centered spinner — above blur */}
@@ -54,20 +54,20 @@ export function NavLoadingProvider({ children }: { children: React.ReactNode }) 
               {/* Rings */}
               <div className="relative h-16 w-16">
                 {/* Track ring */}
-                <div className="absolute inset-0 rounded-full border-[2.5px] border-white/[0.07]" />
+                <div className="absolute inset-0 rounded-full border-[2.5px] border-surface-border/70" />
                 {/* Outer spinning ring */}
-                <div className="absolute inset-0 animate-spin rounded-full border-[2.5px] border-t-indigo-500 border-r-transparent border-b-transparent border-l-transparent [animation-duration:1s]" />
+                <div className="absolute inset-0 animate-spin rounded-full border-[2.5px] border-t-violet-500 border-r-transparent border-b-transparent border-l-transparent [animation-duration:1s]" />
                 {/* Inner counter-spinning ring */}
-                <div className="absolute inset-[6px] animate-spin rounded-full border-[2px] border-t-violet-400 border-r-transparent border-b-transparent border-l-transparent [animation-duration:700ms] [animation-direction:reverse]" />
+                <div className="absolute inset-[6px] animate-spin rounded-full border-[2px] border-t-sky-400 border-r-transparent border-b-transparent border-l-transparent [animation-duration:700ms] [animation-direction:reverse]" />
                 {/* Center pulse */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-2 w-2 rounded-full bg-indigo-400 opacity-90 animate-pulse" />
+                  <div className="h-2 w-2 rounded-full bg-violet-400 opacity-90 animate-pulse" />
                 </div>
               </div>
 
               {/* Label */}
               <div className="flex flex-col items-center gap-1">
-                <p className="text-xs font-semibold tracking-[0.22em] uppercase text-white/70">
+                <p className="text-xs font-semibold tracking-[0.22em] uppercase text-text-secondary">
                   Loading
                 </p>
                 {/* Animated dots */}
@@ -75,7 +75,7 @@ export function NavLoadingProvider({ children }: { children: React.ReactNode }) 
                   {[0, 1, 2].map(i => (
                     <span
                       key={i}
-                      className="h-1 w-1 rounded-full bg-indigo-400/60 animate-pulse"
+                      className="h-1 w-1 rounded-full bg-violet-400/60 animate-pulse"
                       style={{ animationDelay: `${i * 200}ms` }}
                     />
                   ))}

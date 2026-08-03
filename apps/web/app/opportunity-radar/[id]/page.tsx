@@ -11,7 +11,7 @@ import RadarDetailPage, { type OpportunityDetail } from "./OpportunityPageClient
  * /api/radar/{id} endpoint the client component already calls.
  */
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 async function fetchOpportunity(id: string): Promise<OpportunityDetail | null> {
   try {
@@ -94,11 +94,11 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       )}
       {detail && (
-        <section className="mb-4 border-b border-white/[0.06] pb-4">
+        <section className="mb-4 border-b border-surface-border/6 pb-4">
           {/* The single real <h1> for this page — the client component's
               own header renders the same title as a <p>, not a second <h1>. */}
-          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-slate-500">{detail.title}</h1>
-          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-slate-400">{description}</p>
+          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">{detail.title}</h1>
+          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-text-secondary">{description}</p>
         </section>
       )}
       <RadarDetailPage params={params} initialDetail={detail} initialRelated={related} />

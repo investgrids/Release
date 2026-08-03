@@ -63,7 +63,7 @@ export function ArticleArt({
         backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
         backgroundSize: "24px 24px",
       }} />
-      <Icon className="h-10 w-10 text-white/25" strokeWidth={1.5} />
+      <Icon className="h-10 w-10 text-text-primary/25" strokeWidth={1.5} />
     </div>
   );
 }

@@ -86,55 +86,55 @@ export function InvestmentWatchPanel({ subject }: { subject: WatchSubject | null
   const label = subject.subject_type === "company" ? subject.subject_label : `${subject.subject_label} sector`;
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
       <div className="mb-4 flex items-center gap-2">
         <Eye size={14} strokeWidth={1.8} className="text-violet-400" />
-        <p className="text-[13px] font-semibold text-white">Investment Watch</p>
-        <span className="ml-auto truncate text-[10px] text-slate-500">{label}</span>
+        <p className="text-[13px] font-semibold text-text-primary">Investment Watch</p>
+        <span className="ml-auto truncate text-[10px] text-text-muted">{label}</span>
       </div>
 
       {/* Current verdict */}
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Current Verdict</p>
-          <p className={`text-[15px] font-bold ${VERDICT_TONE[current_verdict.verdict_scale || ""] ?? "text-slate-300"}`}>
+          <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Current Verdict</p>
+          <p className={`text-[15px] font-bold ${VERDICT_TONE[current_verdict.verdict_scale || ""] ?? "text-text-secondary"}`}>
             {current_verdict.verdict_scale || "—"}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Confidence</p>
-          <p className="text-[15px] font-bold text-white">{current_verdict.confidence}%</p>
+          <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Confidence</p>
+          <p className="text-[15px] font-bold text-text-primary">{current_verdict.confidence}%</p>
         </div>
       </div>
 
       {/* Last change */}
       {last_change && (
-        <div className="mb-4 rounded-[12px] border border-white/[0.06] bg-white/[0.02] p-3">
-          <p className="mb-1.5 flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-slate-500">
+        <div className="mb-4 rounded-[12px] border border-surface-border/6 bg-text-primary/[0.02] p-3">
+          <p className="mb-1.5 flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-text-muted">
             {delta === "up" ? <TrendingUp className="h-3 w-3 text-emerald-400" />
               : delta === "down" ? <TrendingDown className="h-3 w-3 text-rose-400" />
-              : <Minus className="h-3 w-3 text-slate-500" />}
+              : <Minus className="h-3 w-3 text-text-muted" />}
             Last Change · {last_change.from_date} → {last_change.to_date}
           </p>
-          <p className="flex items-center gap-1.5 text-[12px] font-medium text-slate-200">
-            <span className={VERDICT_TONE[last_change.from] ?? "text-slate-400"}>{last_change.from}</span>
-            <ArrowRight className="h-3 w-3 text-slate-600" />
-            <span className={VERDICT_TONE[last_change.to] ?? "text-slate-400"}>{last_change.to}</span>
+          <p className="flex items-center gap-1.5 text-[12px] font-medium text-text-primary">
+            <span className={VERDICT_TONE[last_change.from] ?? "text-text-secondary"}>{last_change.from}</span>
+            <ArrowRight className="h-3 w-3 text-text-muted" />
+            <span className={VERDICT_TONE[last_change.to] ?? "text-text-secondary"}>{last_change.to}</span>
           </p>
-          {last_change.why && <p className="mt-1.5 text-[11px] leading-snug text-slate-400">{last_change.why}</p>}
+          {last_change.why && <p className="mt-1.5 text-[11px] leading-snug text-text-secondary">{last_change.why}</p>}
         </div>
       )}
 
       {/* Watching */}
       {watching && watching.length > 0 && (
         <div className="mb-4">
-          <p className="mb-1.5 text-[9px] uppercase tracking-wider text-slate-500">Watching</p>
+          <p className="mb-1.5 text-[9px] uppercase tracking-wider text-text-muted">Watching</p>
           <div className="space-y-1.5">
             {watching.map((w, i) => (
               <div key={i} className="flex items-center gap-2 text-[11px]">
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusTone(w.status).replace("text-", "bg-")}`} />
-                <span className="text-slate-300 shrink-0">{w.label}</span>
-                <span className="ml-auto truncate text-slate-500">{w.detail}</span>
+                <span className="text-text-secondary shrink-0">{w.label}</span>
+                <span className="ml-auto truncate text-text-muted">{w.detail}</span>
               </div>
             ))}
           </div>
@@ -144,11 +144,11 @@ export function InvestmentWatchPanel({ subject }: { subject: WatchSubject | null
       {/* Next possible trigger */}
       {next_trigger && (
         <div className="rounded-[12px] border border-violet-500/15 bg-violet-500/[0.05] p-3">
-          <p className="mb-1 flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-violet-300">
+          <p className="mb-1 flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-violet-600 dark:text-violet-300">
             <CalendarClock className="h-3 w-3" /> Next Possible Trigger
           </p>
-          <p className="text-[12px] font-medium text-slate-200">{next_trigger.label}</p>
-          <p className="mt-0.5 text-[10px] text-slate-500">
+          <p className="text-[12px] font-medium text-text-primary">{next_trigger.label}</p>
+          <p className="mt-0.5 text-[10px] text-text-muted">
             {next_trigger.date} · in {next_trigger.days_until}d
           </p>
         </div>

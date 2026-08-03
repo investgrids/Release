@@ -34,7 +34,7 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
   question_intelligence:   { label: "Investor Q&A",           color: "text-pink-400 border-pink-500/30 bg-pink-500/10" },
   historical_intelligence: { label: "Historical Intelligence", color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
 };
-const DEFAULT_TYPE_META = { label: "Market Intelligence", color: "text-slate-400 border-white/20 bg-white/5" };
+const DEFAULT_TYPE_META = { label: "Market Intelligence", color: "text-text-secondary border-surface-border/20 bg-text-primary/5" };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -158,7 +158,7 @@ function fmtRelative(iso?: string): string {
 const IMPACT_STYLE: Record<string, string> = {
   positive: "border-emerald-500/25 bg-emerald-500/10 text-emerald-400",
   negative: "border-rose-500/25 bg-rose-500/10 text-rose-400",
-  neutral:  "border-white/10 bg-white/5 text-slate-400",
+  neutral:  "border-surface-border/50 bg-text-primary/5 text-text-secondary",
 };
 const IMPACT_DOT: Record<string, string> = { positive: "🟢", negative: "🔴", neutral: "⚪" };
 const RISK_DOT: Record<string, string> = { low: "🟢", medium: "🟡", high: "🔴" };
@@ -183,7 +183,7 @@ const HORIZON_LABEL: Record<string, string> = {
 // historical content by nature (never "resolves", it's timeless by design).
 function deriveEventStatus(article: { article_type: string; is_evergreen?: boolean; last_updated?: string; published_at?: string }): { label: string; color: string; icon: typeof Activity } {
   if (article.is_evergreen || article.article_type === "historical_intelligence" || article.article_type === "educational_intelligence") {
-    return { label: "Historical", color: "text-slate-400 border-white/15 bg-white/5", icon: BookOpen };
+    return { label: "Historical", color: "text-text-secondary border-surface-border/15 bg-text-primary/5", icon: BookOpen };
   }
   const anchor = article.last_updated || article.published_at;
   const hoursSince = anchor ? (Date.now() - new Date(anchor).getTime()) / 3_600_000 : Infinity;
@@ -219,7 +219,7 @@ const STANCE_STYLE: Record<string, { color: string; icon: typeof TrendingUp; bg:
   Bullish: { color: "text-emerald-400", icon: TrendingUp, bg: "from-emerald-500/15 to-transparent border-emerald-500/25" },
   Bearish: { color: "text-rose-400", icon: TrendingDown, bg: "from-rose-500/15 to-transparent border-rose-500/25" },
   Mixed:   { color: "text-amber-400", icon: Activity, bg: "from-amber-500/15 to-transparent border-amber-500/25" },
-  Neutral: { color: "text-slate-400", icon: Activity, bg: "from-white/10 to-transparent border-white/15" },
+  Neutral: { color: "text-text-secondary", icon: Activity, bg: "from-text-primary/10 to-transparent border-surface-border/15" },
 };
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
@@ -266,12 +266,18 @@ export async function generateMetadata(
 
 // ── Small presentational helpers ────────────────────────────────────────────
 
+// Same opaque-fill technique as .glass-card/.card-content (globals.css) —
+// backdrop-blur is a real GPU compositing cost; an opaque token-driven fill
+// reads identically without it. Using the plain classes here (not the
+// .card-content utility class) since most Card usages on this page are
+// static content containers, not the hover-lift teaser card that class
+// implies.
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-surface-border/50 bg-surface-card/90 ${className}`}>{children}</div>;
 }
 function Eyebrow({ icon: Icon, children }: { icon: typeof Activity; children: React.ReactNode }) {
   return (
-    <h2 className="mb-4 flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500">
+    <h2 className="mb-4 flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-text-muted">
       <Icon className="h-3.5 w-3.5" /> {children}
     </h2>
   );
@@ -337,7 +343,7 @@ export default async function ArticlePage(
     : article.json_ld;
 
   return (
-    <main className="min-h-screen bg-[#040711] text-white">
+    <main className="min-h-screen bg-bg text-text-primary">
       {jsonLd && (
         <script
           type="application/ld+json"
@@ -360,12 +366,12 @@ export default async function ArticlePage(
 
         {/* Breadcrumb */}
         <div className="mb-6 flex items-center justify-between gap-3">
-          <nav className="flex min-w-0 items-center gap-2 text-[11px] text-slate-600">
-            <Link href="/" className="hover:text-slate-400 transition">MarketRipple</Link>
+          <nav className="flex min-w-0 items-center gap-2 text-[11px] text-text-muted">
+            <Link href="/" className="hover:text-text-secondary transition">MarketRipple</Link>
             <span>/</span>
-            <Link href="/newsroom" className="hover:text-slate-400 transition">AI Newsroom</Link>
+            <Link href="/newsroom" className="hover:text-text-secondary transition">AI Newsroom</Link>
             <span>/</span>
-            <span className="truncate text-slate-400">{article.headline}</span>
+            <span className="truncate text-text-secondary">{article.headline}</span>
           </nav>
           <ShareInsightCard
             entityType="article"
@@ -394,12 +400,12 @@ export default async function ArticlePage(
               <StatusIcon className="h-2.5 w-2.5" /> {status.label}
             </span>
             {article.angle_entity && article.angle !== "primary" && (
-              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-medium text-slate-400">
+              <span className="inline-flex items-center rounded-full border border-surface-border/10 bg-text-primary/5 px-2.5 py-0.5 text-[10px] font-medium text-text-secondary">
                 Focused on {article.angle_entity}
               </span>
             )}
           </div>
-          <h1 className="mt-3 text-[28px] font-black leading-tight text-white sm:text-[34px]">
+          <h1 className="mt-3 text-[28px] font-black leading-tight text-text-primary sm:text-[34px]">
             {article.headline}
           </h1>
           {/* Visible author/publisher disclosure — the JSON-LD schema below
@@ -409,13 +415,13 @@ export default async function ArticlePage(
               data invisible to the eye — same "genuinely visible, not
               cloaked" principle used for every SSR summary block this
               session. */}
-          <p className="mt-2 flex items-center gap-1.5 text-[12px] text-slate-500">
+          <p className="mt-2 flex items-center gap-1.5 text-[12px] text-text-muted">
             <Brain className="h-3.5 w-3.5 text-violet-400" />
-            By <span className="font-semibold text-slate-300">MarketRipple AI Intelligence Engine</span> — AI-generated from real market data, not written by a human reporter.
+            By <span className="font-semibold text-text-secondary">MarketRipple AI Intelligence Engine</span> — AI-generated from real market data, not written by a human reporter.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
             {article.published_at && (
-              <span className="flex items-center gap-1 text-[11px] text-slate-500">
+              <span className="flex items-center gap-1 text-[11px] text-text-muted">
                 <Clock className="h-3 w-3" /> Published {fmtRelative(article.published_at)}
               </span>
             )}
@@ -424,7 +430,7 @@ export default async function ArticlePage(
                 <Eye className="h-3 w-3" /> Updated {article.update_count}× · last {fmtRelative(article.last_updated)}
               </span>
             )}
-            <span className="flex items-center gap-1 text-[11px] text-slate-500">
+            <span className="flex items-center gap-1 text-[11px] text-text-muted">
               <Eye className="h-3 w-3" /> {(article.views ?? 0).toLocaleString("en-IN")} read this
             </span>
             {article.parent_event_group_id && (
@@ -439,21 +445,21 @@ export default async function ArticlePage(
         <Card className={`mb-8 overflow-hidden bg-gradient-to-br p-6 sm:p-8 ${STANCE_STYLE[verdict.stance].bg}`}>
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">AI Investment Verdict</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">AI Investment Verdict</p>
               <div className="mt-2 flex items-center gap-2.5">
                 <VerdictIcon className={`h-7 w-7 ${STANCE_STYLE[verdict.stance].color}`} />
                 <span className={`text-[28px] font-black ${STANCE_STYLE[verdict.stance].color}`}>{verdict.stance}</span>
               </div>
               {verdict.focus && (
-                <p className="mt-1 text-[13px] text-slate-400">
-                  Current view: <span className="font-semibold text-slate-200">{verdict.stance} on {verdict.focus}</span>
+                <p className="mt-1 text-[13px] text-text-secondary">
+                  Current view: <span className="font-semibold text-text-primary">{verdict.stance} on {verdict.focus}</span>
                 </p>
               )}
             </div>
             {article.confidence_score != null && (
               <div className="text-right">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Confidence</p>
-                <p className="text-[28px] font-black text-white">{Math.round(article.confidence_score * 100)}%</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Confidence</p>
+                <p className="text-[28px] font-black text-text-primary">{Math.round(article.confidence_score * 100)}%</p>
               </div>
             )}
           </div>
@@ -461,26 +467,26 @@ export default async function ArticlePage(
           {verdict.horizons.length > 0 && (
             <div className="mt-5 flex flex-wrap gap-2">
               {verdict.horizons.map(h => (
-                <span key={h} className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold text-slate-300">{h}</span>
+                <span key={h} className="rounded-full border border-surface-border/15 bg-text-primary/5 px-3 py-1 text-[11px] font-semibold text-text-secondary">{h}</span>
               ))}
             </div>
           )}
 
           {opportunities.length > 0 && (
-            <div className="mt-5 border-t border-white/10 pt-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Action</p>
-              <p className="text-[15px] font-bold text-white">{opportunities[0].title}</p>
-              <p className="mt-1 text-[13px] leading-6 text-slate-400">{opportunities[0].description}</p>
+            <div className="mt-5 border-t border-surface-border/10 pt-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Action</p>
+              <p className="text-[15px] font-bold text-text-primary">{opportunities[0].title}</p>
+              <p className="mt-1 text-[13px] leading-6 text-text-secondary">{opportunities[0].description}</p>
             </div>
           )}
 
           {(companies.length > 0 || sectors.length > 0) && (
-            <div className="mt-5 border-t border-white/10 pt-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Reasons</p>
+            <div className="mt-5 border-t border-surface-border/10 pt-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Reasons</p>
               <ul className="space-y-1.5">
                 {[...companies, ...sectors].filter(x => x.reason).slice(0, 3).map((x, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[13px] leading-5 text-slate-300">
-                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-600" /> {x.reason}
+                  <li key={i} className="flex items-start gap-2 text-[13px] leading-5 text-text-secondary">
+                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted" /> {x.reason}
                   </li>
                 ))}
               </ul>
@@ -492,7 +498,7 @@ export default async function ArticlePage(
         {article.key_takeaway && (
           <div className="mb-8 rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">TL;DR — 30 Seconds</p>
-            <p className="text-[15px] font-semibold leading-snug text-white">{article.key_takeaway}</p>
+            <p className="text-[15px] font-semibold leading-snug text-text-primary">{article.key_takeaway}</p>
           </div>
         )}
 
@@ -500,66 +506,72 @@ export default async function ArticlePage(
         {article.why_it_matters && (
           <section className="mb-8">
             <Eyebrow icon={Sparkles}>Why It Matters</Eyebrow>
-            <p className="whitespace-pre-line text-[14px] leading-7 text-slate-300">{article.why_it_matters}</p>
+            <p className="whitespace-pre-line text-[14px] leading-7 text-text-secondary">{article.why_it_matters}</p>
           </section>
         )}
         {article.what_happened && (
           <section className="mb-8">
             <Eyebrow icon={Activity}>What Happened</Eyebrow>
-            <p className="whitespace-pre-line text-[14px] leading-7 text-slate-300">{article.what_happened}</p>
+            <p className="whitespace-pre-line text-[14px] leading-7 text-text-secondary">{article.what_happened}</p>
           </section>
         )}
 
-        {/* ══════════ 4. WHY THIS MATTERS TO EACH SECTOR ══════════ */}
-        {sectors.length > 0 && (
-          <section className="mb-8">
-            <Eyebrow icon={Layers}>Sector Impact</Eyebrow>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {sectors.map((s, i) => (
-                <Card key={i} className="p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-bold text-white">{s.name}</span>
-                    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${IMPACT_STYLE[s.impact ?? "neutral"]}`}>{s.impact ?? "neutral"}</span>
-                  </div>
-                  {s.magnitude && (
-                    <div className="mt-2 flex items-center gap-1">
-                      {[1, 2, 3, 4].map(n => (
-                        <span key={n} className={`h-1.5 w-5 rounded-full ${n <= MAGNITUDE_BARS[s.magnitude!] ? (s.impact === "negative" ? "bg-rose-400" : "bg-emerald-400") : "bg-white/10"}`} />
-                      ))}
-                      <span className="ml-1.5 text-[10px] uppercase tracking-wide text-slate-600">{s.magnitude} magnitude</span>
-                    </div>
-                  )}
-                  {s.reason && <p className="mt-2 text-[12px] leading-5 text-slate-400">{s.reason}</p>}
-                </Card>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ══════════ 5. RIPPLE EFFECT CHAIN ══════════ */}
-        {rippleLinks.length > 0 && (
-          <section className="mb-8">
-            <Eyebrow icon={Compass}>Ripple Effect</Eyebrow>
-            <Card className="p-5">
-              <div className="space-y-4">
-                {rippleLinks.map((r, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="flex flex-col items-center pt-1">
-                      <span className="h-2.5 w-2.5 rounded-full bg-violet-400" />
-                      {i < rippleLinks.length - 1 && <span className="mt-1 h-8 w-px bg-white/10" />}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-white">
-                        {r.from_entity} <ArrowRight className="h-3.5 w-3.5 text-violet-400" /> {r.to_entity}
+        {/* ══════════ 4/5. SECTOR IMPACT + RIPPLE EFFECT (paired — both are
+            short, non-linearly-read reference blocks, not part of the main
+            narrative flow, so they pair well side by side on wide screens
+            instead of each claiming a full-width row) ══════════ */}
+        {(sectors.length > 0 || rippleLinks.length > 0) && (
+          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {sectors.length > 0 && (
+              <section>
+                <Eyebrow icon={Layers}>Sector Impact</Eyebrow>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {sectors.map((s, i) => (
+                    <Card key={i} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-bold text-text-primary">{s.name}</span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${IMPACT_STYLE[s.impact ?? "neutral"]}`}>{s.impact ?? "neutral"}</span>
                       </div>
-                      <p className="mt-1 text-[12px] leading-5 text-slate-400">{r.mechanism}</p>
-                      {r.timeframe && <span className="mt-1 inline-block text-[10px] uppercase tracking-wide text-slate-600">{r.timeframe}-term</span>}
-                    </div>
+                      {s.magnitude && (
+                        <div className="mt-2 flex items-center gap-1">
+                          {[1, 2, 3, 4].map(n => (
+                            <span key={n} className={`h-1.5 w-5 rounded-full ${n <= MAGNITUDE_BARS[s.magnitude!] ? (s.impact === "negative" ? "bg-rose-400" : "bg-emerald-400") : "bg-text-primary/10"}`} />
+                          ))}
+                          <span className="ml-1.5 text-[10px] uppercase tracking-wide text-text-muted">{s.magnitude} magnitude</span>
+                        </div>
+                      )}
+                      {s.reason && <p className="mt-2 text-[12px] leading-5 text-text-secondary">{s.reason}</p>}
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {rippleLinks.length > 0 && (
+              <section>
+                <Eyebrow icon={Compass}>Ripple Effect</Eyebrow>
+                <Card className="p-5">
+                  <div className="space-y-4">
+                    {rippleLinks.map((r, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <div className="flex flex-col items-center pt-1">
+                          <span className="h-2.5 w-2.5 rounded-full bg-violet-400" />
+                          {i < rippleLinks.length - 1 && <span className="mt-1 h-8 w-px bg-text-primary/10" />}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-text-primary">
+                            {r.from_entity} <ArrowRight className="h-3.5 w-3.5 text-violet-400" /> {r.to_entity}
+                          </div>
+                          <p className="mt-1 text-[12px] leading-5 text-text-secondary">{r.mechanism}</p>
+                          {r.timeframe && <span className="mt-1 inline-block text-[10px] uppercase tracking-wide text-text-muted">{r.timeframe}-term</span>}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </Card>
-          </section>
+                </Card>
+              </section>
+            )}
+          </div>
         )}
 
         {/* ══════════ 6. COMPANY IMPACT TABLE ══════════ */}
@@ -567,20 +579,20 @@ export default async function ArticlePage(
           <section className="mb-8">
             <Eyebrow icon={Building2}>Company Impact</Eyebrow>
             <Card className="overflow-hidden">
-              <div className="grid grid-cols-[1fr_auto_2fr_auto] items-center gap-3 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-slate-600">
+              <div className="grid grid-cols-[1fr_auto_2fr_auto] items-center gap-3 border-b border-surface-border/6 bg-text-primary/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
                 <span>Company</span><span>AI Impact</span><span>Why</span><span className="text-right">Expected Horizon</span>
               </div>
               {companies.map((c, i) => (
-                <div key={i} className={`grid grid-cols-[1fr_auto_2fr_auto] items-center gap-3 px-4 py-3 ${i < companies.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
+                <div key={i} className={`grid grid-cols-[1fr_auto_2fr_auto] items-center gap-3 px-4 py-3 ${i < companies.length - 1 ? "border-b border-surface-border/4" : ""}`}>
                   <div className="min-w-0">
-                    <Link href={`/companies/${c.symbol}`} className="block text-[13px] font-bold text-sky-300 hover:text-sky-200 transition">{c.symbol}</Link>
-                    <span className="truncate text-[11px] text-slate-500">{c.name}</span>
+                    <Link href={`/companies/${c.symbol}`} className="block text-[13px] font-bold text-sky-600 dark:text-sky-300 hover:text-sky-700 dark:text-sky-200 transition">{c.symbol}</Link>
+                    <span className="truncate text-[11px] text-text-muted">{c.name}</span>
                   </div>
                   <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>
                     {IMPACT_DOT[c.impact] ?? IMPACT_DOT.neutral} {c.impact}
                   </span>
-                  <span className="min-w-0 text-[12px] leading-5 text-slate-400">{c.reason || "—"}</span>
-                  <span className="shrink-0 text-right text-[11px] text-slate-500">{c.timeframe ? (HORIZON_LABEL[c.timeframe] ?? c.timeframe) : "—"}</span>
+                  <span className="min-w-0 text-[12px] leading-5 text-text-secondary">{c.reason || "—"}</span>
+                  <span className="shrink-0 text-right text-[11px] text-text-muted">{c.timeframe ? (HORIZON_LABEL[c.timeframe] ?? c.timeframe) : "—"}</span>
                 </div>
               ))}
             </Card>
@@ -597,7 +609,7 @@ export default async function ArticlePage(
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {winners.map((c, i) => (
-                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-[12px] font-semibold text-emerald-300 hover:text-emerald-200 transition">
+                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-300 hover:text-emerald-700 dark:text-emerald-200 transition">
                       {c.name}
                     </Link>
                   ))}
@@ -611,7 +623,7 @@ export default async function ArticlePage(
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {losers.map((c, i) => (
-                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-rose-500/25 bg-rose-500/10 px-3 py-1.5 text-[12px] font-semibold text-rose-300 hover:text-rose-200 transition">
+                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-rose-500/25 bg-rose-500/10 px-3 py-1.5 text-[12px] font-semibold text-rose-600 dark:text-rose-300 hover:text-rose-700 dark:text-rose-200 transition">
                       {c.name}
                     </Link>
                   ))}
@@ -621,150 +633,156 @@ export default async function ArticlePage(
           </section>
         )}
 
-        {/* ══════════ 8. INVESTMENT OPPORTUNITIES ══════════ */}
-        {opportunities.length > 0 && (
-          <section className="mb-8">
-            <Eyebrow icon={Target}>Investment Opportunities</Eyebrow>
-            <div className="space-y-3">
-              {opportunities.map((o, i) => (
-                <Card key={i} className="p-4">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
-                    <div className="col-span-2 sm:col-span-4">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Recommendation</p>
-                      <p className="mt-1 text-[14px] font-bold text-white">{o.title}</p>
-                    </div>
-                    {o.timeframe && (
-                      <div>
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Expected Duration</p>
-                        <p className="mt-1 text-[12px] font-semibold text-slate-300">{OPPORTUNITY_DURATION_LABEL[o.timeframe] ?? o.timeframe}</p>
+        {/* ══════════ 8/Risks. INVESTMENT OPPORTUNITIES + RISKS (paired) ══════════ */}
+        {(opportunities.length > 0 || risks.length > 0) && (
+          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {opportunities.length > 0 && (
+              <section>
+                <Eyebrow icon={Target}>Investment Opportunities</Eyebrow>
+                <div className="space-y-3">
+                  {opportunities.map((o, i) => (
+                    <Card key={i} className="p-4">
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+                        <div className="col-span-2 sm:col-span-4">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Recommendation</p>
+                          <p className="mt-1 text-[14px] font-bold text-text-primary">{o.title}</p>
+                        </div>
+                        {o.timeframe && (
+                          <div>
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Expected Duration</p>
+                            <p className="mt-1 text-[12px] font-semibold text-text-secondary">{OPPORTUNITY_DURATION_LABEL[o.timeframe] ?? o.timeframe}</p>
+                          </div>
+                        )}
+                        {o.risk && (
+                          <div>
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Risk</p>
+                            <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold capitalize text-text-secondary">
+                              {RISK_DOT[o.risk] ?? RISK_DOT.medium} {o.risk}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {o.risk && (
-                      <div>
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Risk</p>
-                        <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold capitalize text-slate-300">
-                          {RISK_DOT[o.risk] ?? RISK_DOT.medium} {o.risk}
+                      {o.description && (
+                        <div className="mt-3 border-t border-surface-border/6 pt-3">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Why?</p>
+                          <p className="mt-1 text-[12px] leading-5 text-text-secondary">{o.description}</p>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {risks.length > 0 && (
+              <section>
+                <Eyebrow icon={AlertTriangle}>Risks</Eyebrow>
+                <div className="space-y-3">
+                  {risks.map((r, i) => (
+                    <div key={i} className={`rounded-xl border p-4 ${
+                      r.severity === "high" ? "border-rose-500/20 bg-rose-500/[0.04]" : "border-amber-500/15 bg-amber-500/[0.04]"
+                    }`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className={`text-[13px] font-semibold ${r.severity === "high" ? "text-rose-600 dark:text-rose-300" : "text-amber-600 dark:text-amber-300"}`}>
+                          {r.title}
+                        </h3>
+                        {r.severity && (
+                          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] capitalize ${
+                            r.severity === "high"
+                              ? "border-rose-500/20 bg-rose-500/10 text-rose-400"
+                              : "border-amber-500/20 bg-amber-500/10 text-amber-400"
+                          }`}>{r.severity}</span>
+                        )}
+                      </div>
+                      <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{r.description}</p>
+                      {r.mitigation && (
+                        <p className="mt-1.5 text-[11px] leading-5 text-text-muted">
+                          <span className="font-semibold text-text-muted">How to manage: </span>{r.mitigation}
                         </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {/* ══════════ 9/10. HISTORICAL INTELLIGENCE + INTELLIGENCE TIMELINE (paired) ══════════ */}
+        {(historical.length > 0 || updateHistory.length > 0) && (
+          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {historical.length > 0 && (
+              <section>
+                <Eyebrow icon={Database}>Historical Intelligence</Eyebrow>
+                <Card className="p-5">
+                  <div className="space-y-2.5">
+                    {historical.map((h, i) => (
+                      <div key={i} className="flex items-start justify-between gap-3 text-[13px]">
+                        <div>
+                          <span className="text-text-secondary">{h.event}</span>
+                          {h.category && <span className="ml-2 text-[10px] uppercase tracking-wider text-text-muted">{h.category}</span>}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2 text-text-muted">
+                          <span>{h.date}</span>
+                          {h.outcome != null && (
+                            <span className={h.outcome >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                              {h.outcome >= 0 ? "+" : ""}{h.outcome}%
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                  {o.description && (
-                    <div className="mt-3 border-t border-white/[0.06] pt-3">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Why?</p>
-                      <p className="mt-1 text-[12px] leading-5 text-slate-400">{o.description}</p>
+                  {positiveOutcomeRate != null && (
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
+                      <span className="text-[22px] font-black text-emerald-400">{positiveOutcomeRate}%</span>
+                      <span className="text-[12px] leading-5 text-text-secondary">
+                        of {measuredOutcomes.length} similar historical events saw a positive outcome
+                      </span>
                     </div>
                   )}
                 </Card>
-              ))}
-            </div>
-          </section>
-        )}
+              </section>
+            )}
 
-        {/* Risks */}
-        {risks.length > 0 && (
-          <section className="mb-8">
-            <Eyebrow icon={AlertTriangle}>Risks</Eyebrow>
-            <div className="space-y-3">
-              {risks.map((r, i) => (
-                <div key={i} className={`rounded-xl border p-4 ${
-                  r.severity === "high" ? "border-rose-500/20 bg-rose-500/[0.04]" : "border-amber-500/15 bg-amber-500/[0.04]"
-                }`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className={`text-[13px] font-semibold ${r.severity === "high" ? "text-rose-300" : "text-amber-300"}`}>
-                      {r.title}
-                    </h3>
-                    {r.severity && (
-                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] capitalize ${
-                        r.severity === "high"
-                          ? "border-rose-500/20 bg-rose-500/10 text-rose-400"
-                          : "border-amber-500/20 bg-amber-500/10 text-amber-400"
-                      }`}>{r.severity}</span>
-                    )}
-                  </div>
-                  <p className="mt-1.5 text-[12px] leading-5 text-slate-400">{r.description}</p>
-                  {r.mitigation && (
-                    <p className="mt-1.5 text-[11px] leading-5 text-slate-600">
-                      <span className="font-semibold text-slate-500">How to manage: </span>{r.mitigation}
+            {updateHistory.length > 0 && (
+              <section>
+                <Eyebrow icon={Activity}>Intelligence Timeline</Eyebrow>
+                <div className="space-y-0">
+                  <div className="relative pl-6 pb-5">
+                    <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-sky-500" />
+                    <span className="absolute left-[5px] top-4 bottom-0 w-px bg-text-primary/10" />
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
+                      {fmtDate(article.created_at || article.published_at)}
                     </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ══════════ 9. HISTORICAL INTELLIGENCE ══════════ */}
-        {historical.length > 0 && (
-          <section className="mb-8">
-            <Eyebrow icon={Database}>Historical Intelligence</Eyebrow>
-            <Card className="p-5">
-              <div className="space-y-2.5">
-                {historical.map((h, i) => (
-                  <div key={i} className="flex items-start justify-between gap-3 text-[13px]">
-                    <div>
-                      <span className="text-slate-300">{h.event}</span>
-                      {h.category && <span className="ml-2 text-[10px] uppercase tracking-wider text-slate-600">{h.category}</span>}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2 text-slate-500">
-                      <span>{h.date}</span>
-                      {h.outcome != null && (
-                        <span className={h.outcome >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                          {h.outcome >= 0 ? "+" : ""}{h.outcome}%
-                        </span>
-                      )}
-                    </div>
+                    <p className="text-[13px] font-semibold text-text-primary">Article Published</p>
+                    {article.key_takeaway && <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{article.key_takeaway}</p>}
                   </div>
-                ))}
-              </div>
-              {positiveOutcomeRate != null && (
-                <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-                  <span className="text-[22px] font-black text-emerald-400">{positiveOutcomeRate}%</span>
-                  <span className="text-[12px] leading-5 text-slate-400">
-                    of {measuredOutcomes.length} similar historical events saw a positive outcome
-                  </span>
+                  {updateHistory.map((u, i) => {
+                    const prevConf = i === 0 ? article.confidence_score : updateHistory[i - 1].confidence;
+                    return (
+                      <div key={i} className="relative pl-6 pb-5">
+                        <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-emerald-500" />
+                        {i < updateHistory.length - 1 && <span className="absolute left-[5px] top-4 bottom-0 w-px bg-text-primary/10" />}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">{fmtDate(u.at)} · v{u.version}</p>
+                          {u.confidence != null && prevConf != null && u.confidence !== prevConf && (
+                            <span className="text-[10px] font-bold text-text-secondary">
+                              Confidence {Math.round(prevConf * 100)}%→{Math.round(u.confidence * 100)}%
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[13px] font-semibold text-text-primary">{u.reason}</p>
+                        {u.new_takeaway && u.new_takeaway !== u.previous_takeaway && (
+                          <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{u.new_takeaway}</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </Card>
-          </section>
-        )}
-
-        {/* ══════════ 10. INTELLIGENCE TIMELINE ══════════ */}
-        {updateHistory.length > 0 && (
-          <section className="mb-8">
-            <Eyebrow icon={Activity}>Intelligence Timeline</Eyebrow>
-            <div className="space-y-0">
-              <div className="relative pl-6 pb-5">
-                <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-sky-500" />
-                <span className="absolute left-[5px] top-4 bottom-0 w-px bg-white/10" />
-                <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
-                  {fmtDate(article.created_at || article.published_at)}
-                </p>
-                <p className="text-[13px] font-semibold text-white">Article Published</p>
-                {article.key_takeaway && <p className="mt-0.5 text-[12px] text-slate-500 line-clamp-2">{article.key_takeaway}</p>}
-              </div>
-              {updateHistory.map((u, i) => {
-                const prevConf = i === 0 ? article.confidence_score : updateHistory[i - 1].confidence;
-                return (
-                  <div key={i} className="relative pl-6 pb-5">
-                    <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-emerald-500" />
-                    {i < updateHistory.length - 1 && <span className="absolute left-[5px] top-4 bottom-0 w-px bg-white/10" />}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">{fmtDate(u.at)} · v{u.version}</p>
-                      {u.confidence != null && prevConf != null && u.confidence !== prevConf && (
-                        <span className="text-[10px] font-bold text-slate-400">
-                          Confidence {Math.round(prevConf * 100)}%→{Math.round(u.confidence * 100)}%
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[13px] font-semibold text-white">{u.reason}</p>
-                    {u.new_takeaway && u.new_takeaway !== u.previous_takeaway && (
-                      <p className="mt-0.5 text-[12px] text-slate-500 line-clamp-2">{u.new_takeaway}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+              </section>
+            )}
+          </div>
         )}
 
         {/* ══════════ 11. AI OPINION EVOLUTION ══════════ */}
@@ -773,16 +791,16 @@ export default async function ArticlePage(
             <Eyebrow icon={Brain}>AI Opinion Evolution</Eyebrow>
             <Card className="p-5">
               <div className="space-y-3">
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Original — {fmtDate(article.created_at || article.published_at)}</p>
-                  <p className="mt-1.5 text-[12px] leading-5 text-slate-400">{updateHistory[0].previous_takeaway ?? article.key_takeaway}</p>
+                <div className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Original — {fmtDate(article.created_at || article.published_at)}</p>
+                  <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{updateHistory[0].previous_takeaway ?? article.key_takeaway}</p>
                 </div>
                 {updateHistory.map((u, i) => (
-                  <div key={i} className={`ml-4 rounded-xl border p-3.5 ${i === updateHistory.length - 1 ? "border-emerald-500/15 bg-emerald-500/[0.04]" : "border-white/[0.06] bg-white/[0.02]"}`}>
-                    <p className={`text-[9px] font-bold uppercase tracking-wider ${i === updateHistory.length - 1 ? "text-emerald-500" : "text-slate-600"}`}>
+                  <div key={i} className={`ml-4 rounded-xl border p-3.5 ${i === updateHistory.length - 1 ? "border-emerald-500/15 bg-emerald-500/[0.04]" : "border-surface-border/6 bg-text-primary/[0.02]"}`}>
+                    <p className={`text-[9px] font-bold uppercase tracking-wider ${i === updateHistory.length - 1 ? "text-emerald-500" : "text-text-muted"}`}>
                       {i === updateHistory.length - 1 ? "Current" : `v${u.version}`} — {fmtDate(u.at)}
                     </p>
-                    <p className={`mt-1.5 text-[12px] leading-5 ${i === updateHistory.length - 1 ? "text-slate-300" : "text-slate-400"}`}>
+                    <p className={`mt-1.5 text-[12px] leading-5 ${i === updateHistory.length - 1 ? "text-text-secondary" : "text-text-secondary"}`}>
                       {u.new_takeaway ?? u.summary}
                     </p>
                   </div>
@@ -801,18 +819,18 @@ export default async function ArticlePage(
               </span>
               <div>
                 <p className="text-[12px] font-bold uppercase tracking-widest text-sky-400">Live Article — Auto-Updating</p>
-                <p className="text-[11px] text-slate-500">Last update {fmtRelative(article.last_updated || article.published_at)}</p>
+                <p className="text-[11px] text-text-muted">Last update {fmtRelative(article.last_updated || article.published_at)}</p>
               </div>
             </div>
             <div className="flex gap-5 text-right">
               <div>
-                <p className="text-[18px] font-black text-white">{article.update_count ?? 0}</p>
-                <p className="text-[9px] uppercase tracking-wide text-slate-600">Updates</p>
+                <p className="text-[18px] font-black text-text-primary">{article.update_count ?? 0}</p>
+                <p className="text-[9px] uppercase tracking-wide text-text-muted">Updates</p>
               </div>
               {watch.length > 0 && (
                 <div>
-                  <p className="text-[18px] font-black text-white">{watch.length}</p>
-                  <p className="text-[9px] uppercase tracking-wide text-slate-600">Signals Tracked</p>
+                  <p className="text-[18px] font-black text-text-primary">{watch.length}</p>
+                  <p className="text-[9px] uppercase tracking-wide text-text-muted">Signals Tracked</p>
                 </div>
               )}
             </div>
@@ -825,7 +843,7 @@ export default async function ArticlePage(
             <Eyebrow icon={ListChecks}>What to Watch Next</Eyebrow>
             <ul className="space-y-2">
               {watch.map((pt, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-[13px] text-slate-400">
+                <li key={i} className="flex items-start gap-2.5 text-[13px] text-text-secondary">
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />
                   {pt}
                 </li>
@@ -840,11 +858,11 @@ export default async function ArticlePage(
             <Eyebrow icon={HelpCircle}>Frequently Asked Questions</Eyebrow>
             <div className="space-y-2">
               {faqs.map((f, i) => (
-                <details key={i} className="group rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 open:bg-white/[0.045]">
-                  <summary className="cursor-pointer list-none text-[13px] font-semibold text-slate-200 marker:content-none">
+                <details key={i} className="group rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-3 open:bg-text-primary/[0.045]">
+                  <summary className="cursor-pointer list-none text-[13px] font-semibold text-text-primary marker:content-none">
                     {f.question}
                   </summary>
-                  <p className="mt-2 text-[12px] leading-6 text-slate-400">{f.answer}</p>
+                  <p className="mt-2 text-[12px] leading-6 text-text-secondary">{f.answer}</p>
                 </details>
               ))}
             </div>
@@ -859,7 +877,7 @@ export default async function ArticlePage(
               {questionSiblings.map((r, i) => (
                 <Link key={i} href={`/newsroom/article/${r.slug}`}
                   className="flex items-center justify-between rounded-xl border border-pink-500/15 bg-pink-500/[0.03] px-4 py-3 hover:border-pink-500/30 transition">
-                  <p className="text-[13px] font-medium text-slate-200">{r.headline}</p>
+                  <p className="text-[13px] font-medium text-text-primary">{r.headline}</p>
                   <ArrowLeft className="h-3.5 w-3.5 shrink-0 rotate-180 text-pink-400" />
                 </Link>
               ))}
@@ -874,7 +892,7 @@ export default async function ArticlePage(
             <div className="flex flex-wrap gap-2">
               {askPrompts.map((q, i) => (
                 <Link key={i} href={`/ai-search?q=${encodeURIComponent(q)}`}
-                  className="rounded-full border border-violet-500/25 bg-violet-500/[0.06] px-4 py-2 text-[12px] font-semibold text-violet-300 hover:bg-violet-500/15 hover:text-violet-200 transition">
+                  className="rounded-full border border-violet-500/25 bg-violet-500/[0.06] px-4 py-2 text-[12px] font-semibold text-violet-600 dark:text-violet-300 hover:bg-violet-500/15 hover:text-violet-700 dark:text-violet-200 transition">
                   {q}
                 </Link>
               ))}
@@ -886,30 +904,30 @@ export default async function ArticlePage(
         {relatedArticles.length > 0 && (
           <section className="mb-8">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500">
+              <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-text-muted">
                 <Layers className="h-3.5 w-3.5 text-violet-400" /> Related Campaign
               </h2>
-              <span className="text-[10px] text-slate-600">{relatedArticles.length + 1} articles</span>
+              <span className="text-[10px] text-text-muted">{relatedArticles.length + 1} articles</span>
             </div>
-            <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] text-slate-500">
-              {campaignCompanies > 0 && <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{campaignCompanies} {campaignCompanies === 1 ? "company" : "companies"}</span>}
-              {campaignSectors > 0 && <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{campaignSectors} sector</span>}
-              {campaignThemes > 0 && <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{campaignThemes} theme</span>}
-              {questionSiblings.length > 0 && <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{questionSiblings.length} Q&amp;A</span>}
+            <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] text-text-muted">
+              {campaignCompanies > 0 && <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5">{campaignCompanies} {campaignCompanies === 1 ? "company" : "companies"}</span>}
+              {campaignSectors > 0 && <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5">{campaignSectors} sector</span>}
+              {campaignThemes > 0 && <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5">{campaignThemes} theme</span>}
+              {questionSiblings.length > 0 && <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5">{questionSiblings.length} Q&amp;A</span>}
             </div>
             <div className="space-y-2">
               {relatedArticles.map((r, i) => (
                 <Link key={i} href={`/newsroom/article/${r.slug}`}
-                  className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 hover:border-white/20 transition">
+                  className="flex items-center justify-between rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-3 hover:border-surface-border/20 transition">
                   <div>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-600">
+                    <span className="text-[10px] uppercase tracking-wider text-text-muted">
                       {r.angle === "per_company" ? r.angle_entity
                         : r.angle === "sector_rollup" ? `${r.angle_entity} Sector`
                         : r.angle === "theme" ? `${r.angle_entity} Theme`
                         : r.angle === "question" ? "Q&A"
                         : (TYPE_META[r.article_type] ?? DEFAULT_TYPE_META).label}
                     </span>
-                    <p className="text-[12px] font-medium text-slate-300">{r.headline}</p>
+                    <p className="text-[12px] font-medium text-text-secondary">{r.headline}</p>
                   </div>
                 </Link>
               ))}
@@ -924,13 +942,13 @@ export default async function ArticlePage(
             <div className="flex flex-wrap gap-2">
               {relatedCompanies.map((c, i) => (
                 <Link key={`co-${i}`} href={c.link}
-                  className="rounded-full border border-sky-500/20 bg-sky-500/[0.06] px-3 py-1.5 text-[11px] font-medium text-sky-300 hover:text-sky-200 transition">
+                  className="rounded-full border border-sky-500/20 bg-sky-500/[0.06] px-3 py-1.5 text-[11px] font-medium text-sky-600 dark:text-sky-300 hover:text-sky-700 dark:text-sky-200 transition">
                   {c.name}
                 </Link>
               ))}
               {relatedThemes.map((t, i) => (
                 <Link key={`th-${i}`} href={t.link}
-                  className="rounded-full border border-violet-500/20 bg-violet-500/[0.06] px-3 py-1.5 text-[11px] font-medium text-violet-300 hover:text-violet-200 transition">
+                  className="rounded-full border border-violet-500/20 bg-violet-500/[0.06] px-3 py-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-300 hover:text-violet-700 dark:text-violet-200 transition">
                   {t.theme}
                 </Link>
               ))}
@@ -939,29 +957,29 @@ export default async function ArticlePage(
         )}
 
         {/* ══════════ EVIDENCE PANEL (collapsible) ══════════ */}
-        <details className="group mb-8 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 open:bg-white/[0.03]">
+        <details className="group mb-8 rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-5 open:bg-text-primary/[0.03]">
           <summary className="flex cursor-pointer list-none items-center justify-between marker:content-none">
-            <span className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500">
+            <span className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-text-muted">
               <Shield className="h-3.5 w-3.5" /> Evidence Panel
             </span>
-            <ChevronRight className="h-4 w-4 text-slate-600 transition group-open:rotate-90" />
+            <ChevronRight className="h-4 w-4 text-text-muted transition group-open:rotate-90" />
           </summary>
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">AI Confidence</p>
-              <p className="mt-1 text-[16px] font-bold text-white">{article.confidence_score != null ? `${Math.round(article.confidence_score * 100)}%` : "—"}</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">AI Confidence</p>
+              <p className="mt-1 text-[16px] font-bold text-text-primary">{article.confidence_score != null ? `${Math.round(article.confidence_score * 100)}%` : "—"}</p>
             </div>
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Sources</p>
-              <p className="mt-1 text-[16px] font-bold text-white">{sources.length || "—"}</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Sources</p>
+              <p className="mt-1 text-[16px] font-bold text-text-primary">{sources.length || "—"}</p>
             </div>
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Historical Data</p>
-              <p className="mt-1 text-[16px] font-bold text-white">{historical.length} events</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Historical Data</p>
+              <p className="mt-1 text-[16px] font-bold text-text-primary">{historical.length} events</p>
             </div>
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Story Version</p>
-              <p className="mt-1 text-[16px] font-bold text-white">v{article.story_version ?? 1}</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Story Version</p>
+              <p className="mt-1 text-[16px] font-bold text-text-primary">v{article.story_version ?? 1}</p>
             </div>
           </div>
         </details>
@@ -969,12 +987,12 @@ export default async function ArticlePage(
         {/* ══════════ SOURCES USED — attribution, never the primary CTA ══════════ */}
         {sources.length > 0 && (
           <div className="mb-8">
-            <p className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-              <Database className="h-3 w-3 text-slate-500" /> Sources Used
+            <p className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+              <Database className="h-3 w-3 text-text-muted" /> Sources Used
             </p>
             <div className="flex flex-wrap gap-1.5">
               {sources.map((s, i) => (
-                <span key={i} className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[11px] text-slate-400">
+                <span key={i} className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-1 text-[11px] text-text-secondary">
                   {s}
                 </span>
               ))}
@@ -982,7 +1000,7 @@ export default async function ArticlePage(
           </div>
         )}
 
-        <p className="mb-8 text-[10px] leading-5 text-slate-700">
+        <p className="mb-8 text-[10px] leading-5 text-text-muted">
           Generated by MarketRipple&apos;s AI Intelligence Engine from real market data and events.
           Not investment advice — always do your own research before making investment decisions.
         </p>

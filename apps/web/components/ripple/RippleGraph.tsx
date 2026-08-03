@@ -44,19 +44,19 @@ export interface RippleEdgeData {
 
 // ── Color config ──────────────────────────────────────────────────────────────
 const NODE_STYLES: Record<string, { border: string; bg: string; label: string; glow: string }> = {
-  event:     { border: "border-indigo-500/60",  bg: "bg-[#1a1040]",  label: "text-indigo-400",  glow: "shadow-indigo-900/40" },
-  commodity: { border: "border-amber-500/50",   bg: "bg-[#1a1200]",  label: "text-amber-400",   glow: "shadow-amber-900/30" },
-  sector:    { border: "border-sky-500/50",     bg: "bg-[#001a2a]",  label: "text-sky-400",     glow: "shadow-sky-900/30" },
-  company:   { border: "border-emerald-500/40", bg: "bg-[#001a10]",  label: "text-emerald-400", glow: "shadow-emerald-900/20" },
-  currency:  { border: "border-teal-500/50",    bg: "bg-[#001a1a]",  label: "text-teal-400",    glow: "shadow-teal-900/30" },
-  policy:    { border: "border-violet-500/50",  bg: "bg-[#14001a]",  label: "text-violet-400",  glow: "shadow-violet-900/30" },
-  indicator: { border: "border-orange-500/40",  bg: "bg-[#1a0d00]",  label: "text-orange-400",  glow: "shadow-orange-900/20" },
+  event:     { border: "border-indigo-500/60",  bg: "bg-indigo-500/12",  label: "text-indigo-400",  glow: "shadow-indigo-900/40" },
+  commodity: { border: "border-amber-500/50",   bg: "bg-amber-500/12",  label: "text-amber-400",   glow: "shadow-amber-900/30" },
+  sector:    { border: "border-sky-500/50",     bg: "bg-sky-500/12",  label: "text-sky-400",     glow: "shadow-sky-900/30" },
+  company:   { border: "border-emerald-500/40", bg: "bg-emerald-500/12",  label: "text-emerald-400", glow: "shadow-emerald-900/20" },
+  currency:  { border: "border-teal-500/50",    bg: "bg-teal-500/12",  label: "text-teal-400",    glow: "shadow-teal-900/30" },
+  policy:    { border: "border-violet-500/50",  bg: "bg-violet-500/12",  label: "text-violet-400",  glow: "shadow-violet-900/30" },
+  indicator: { border: "border-orange-500/40",  bg: "bg-orange-500/12",  label: "text-orange-400",  glow: "shadow-orange-900/20" },
 };
 
 const IMPACT_COLORS: Record<string, string> = {
   positive: "text-emerald-400",
   negative: "text-rose-400",
-  neutral:  "text-slate-400",
+  neutral:  "text-text-secondary",
   mixed:    "text-amber-400",
 };
 
@@ -116,7 +116,7 @@ function computeRadialLayout(
 // ── Custom: Event Center Node ─────────────────────────────────────────────────
 function EventCenterNode({ data }: NodeProps<RippleNodeData>) {
   return (
-    <div className="relative flex flex-col items-center justify-center rounded-full border-2 border-indigo-500 bg-[#120833] shadow-2xl shadow-indigo-900/60"
+    <div className="relative flex flex-col items-center justify-center rounded-full border-2 border-indigo-500 bg-indigo-500/10 shadow-2xl shadow-indigo-900/60"
       style={{ width: 130, height: 130 }}>
       {/* Pulsing ring */}
       <div className="absolute inset-[-6px] rounded-full border border-indigo-500/20 animate-ping" style={{ animationDuration: "3s" }}/>
@@ -129,10 +129,10 @@ function EventCenterNode({ data }: NodeProps<RippleNodeData>) {
       <Handle type="target" position={Position.Left}   className="!opacity-0 !w-1 !h-1" />
       <Handle type="target" position={Position.Right}  className="!opacity-0 !w-1 !h-1" />
       <span className="text-2xl mb-1 select-none">{data.icon}</span>
-      <p className="text-[10px] font-bold text-white text-center leading-snug px-3 line-clamp-2">
+      <p className="text-[10px] font-bold text-text-primary text-center leading-snug px-3 line-clamp-2">
         {data.label}
       </p>
-      <span className="mt-0.5 text-[9px] text-indigo-300 tabular-nums">{data.subtitle}</span>
+      <span className="mt-0.5 text-[9px] text-indigo-600 dark:text-indigo-300 tabular-nums">{data.subtitle}</span>
     </div>
   );
 }
@@ -140,7 +140,7 @@ function EventCenterNode({ data }: NodeProps<RippleNodeData>) {
 // ── Custom: Standard Ripple Node ──────────────────────────────────────────────
 function StandardRippleNode({ data }: NodeProps<RippleNodeData>) {
   const style = NODE_STYLES[data.type] || NODE_STYLES.indicator;
-  const impactColor = IMPACT_COLORS[data.impact] || "text-slate-400";
+  const impactColor = IMPACT_COLORS[data.impact] || "text-text-secondary";
   const arrow = data.change_direction === "up" ? "↑" : data.change_direction === "down" ? "↓" : "→";
 
   // Company nodes: color by impact
@@ -148,7 +148,7 @@ function StandardRippleNode({ data }: NodeProps<RippleNodeData>) {
     ? data.impact === "positive" ? "border-emerald-500/50" : "border-rose-500/50"
     : style.border;
   const bgClass = data.type === "company"
-    ? data.impact === "positive" ? "bg-[#001a10]" : "bg-[#1a0008]"
+    ? data.impact === "positive" ? "bg-emerald-500/12" : "bg-rose-500/12"
     : style.bg;
 
   return (
@@ -167,7 +167,7 @@ function StandardRippleNode({ data }: NodeProps<RippleNodeData>) {
         </span>
       </div>
       {/* Main label */}
-      <p className="text-[11px] font-semibold text-white leading-tight truncate">{data.label}</p>
+      <p className="text-[11px] font-semibold text-text-primary leading-tight truncate">{data.label}</p>
       {/* Subtitle with direction arrow */}
       {data.subtitle && (
         <p className={`mt-1 text-[10px] font-bold tabular-nums ${impactColor}`}>
@@ -175,7 +175,7 @@ function StandardRippleNode({ data }: NodeProps<RippleNodeData>) {
         </p>
       )}
       {/* Impact bar — omitted entirely when unscored, rather than drawn at a fabricated midpoint */}
-      <div className="mt-2 h-0.5 rounded-full bg-white/5 overflow-hidden">
+      <div className="mt-2 h-0.5 rounded-full bg-text-primary/5 overflow-hidden">
         {data.impact_strength !== null && data.impact_strength !== undefined && (
           <div
             className={`h-full rounded-full transition-all ${
@@ -246,8 +246,8 @@ function DepthRingNode({ data }: NodeProps<{ radius: number; label: string }>) {
   return (
     <div style={{ width: d, height: d, marginLeft: -data.radius, marginTop: -data.radius }}
       className="pointer-events-none select-none">
-      <div className="absolute inset-0 rounded-full border border-white/[0.04]" />
-      <span className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] text-slate-600 whitespace-nowrap">
+      <div className="absolute inset-0 rounded-full border border-surface-border/4" />
+      <span className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] text-text-muted whitespace-nowrap">
         {data.label}
       </span>
     </div>
@@ -352,7 +352,7 @@ export function RippleGraph({
         <Controls
           style={{
             background: "rgba(10,13,24,0.95)",
-            border: "1px solid rgba(255,255,255,0.07)",
+            border: "1px solid rgb(var(--text-primary) / 0.07)",
             borderRadius: 10,
           }}
           showInteractive={false}
@@ -369,7 +369,7 @@ export function RippleGraph({
           maskColor="rgba(6,9,18,0.85)"
           style={{
             background: "rgba(10,13,24,0.95)",
-            border: "1px solid rgba(255,255,255,0.07)",
+            border: "1px solid rgb(var(--text-primary) / 0.07)",
             borderRadius: 10,
           }}
           pannable
@@ -395,16 +395,16 @@ export function RippleLegend() {
     { color: "bg-violet-400",  label: "Supports" },
   ];
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-2.5 border-t border-white/[0.05]">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-2.5 border-t border-surface-border/5">
       {impacts.map(i => (
-        <span key={i.label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
+        <span key={i.label} className="flex items-center gap-1.5 text-[10px] text-text-muted">
           <span className={`h-2 w-2 rounded-full ${i.color}`} />
           {i.label}
         </span>
       ))}
-      <span className="text-slate-700">·</span>
+      <span className="text-text-muted">·</span>
       {relations.map(r => (
-        <span key={r.label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
+        <span key={r.label} className="flex items-center gap-1.5 text-[10px] text-text-muted">
           <span className={`h-0.5 w-4 ${r.color} opacity-70`} />
           {r.label}
         </span>

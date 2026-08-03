@@ -40,7 +40,7 @@ function MiniChart({ data, positive, id }: { data: any[]; positive: boolean; id:
             </linearGradient>
           </defs>
           <Tooltip
-            contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 10 }}
+            contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 8, fontSize: 10 }}
             formatter={(v: number) => [v.toLocaleString("en-IN"), ""]}
             labelFormatter={() => ""}
           />
@@ -68,16 +68,16 @@ function IndexCardItem({ card, period, idx }: { card: IndexCard; period: Period;
   }, [card.title, period]);
 
   return (
-    <div className="flex flex-col gap-1 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4 hover:border-sky-500/20 hover:bg-white/[0.05] transition">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{card.title}</p>
-      <p className="text-[20px] font-black text-white leading-none mt-0.5">{card.value}</p>
+    <div className="flex flex-col gap-1 rounded-2xl border border-surface-border/7 bg-text-primary/[0.03] p-4 hover:border-sky-500/20 hover:bg-text-primary/[0.05] transition">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{card.title}</p>
+      <p className="text-[20px] font-black text-text-primary leading-none mt-0.5">{card.value}</p>
       <p className={`text-[11px] font-semibold ${card.positive ? "text-emerald-400" : "text-rose-400"}`}>
         {card.change}
       </p>
       <div className="mt-1">
         {loading ? (
           <div className="flex h-14 items-center justify-center">
-            <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/10 border-t-slate-400"/>
+            <div className="h-3 w-3 animate-spin rounded-full border-2 border-surface-border/10 border-t-slate-400"/>
           </div>
         ) : (
           <MiniChart data={chartData} positive={card.positive} id={`${card.title}-${idx}`}/>
@@ -91,14 +91,14 @@ export function MarketOverviewSection({ indices }: { indices: IndexCard[] }) {
   const [period, setPeriod] = useState<Period>("1D");
 
   return (
-    <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-lg">
+    <div className="rounded-[28px] border border-surface-border/10 bg-text-primary/[0.03] p-5 shadow-lg">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-[14px] font-bold text-white">Market Overview</h2>
-        <div className="flex gap-0.5 rounded-xl bg-white/[0.04] p-0.5">
+        <h2 className="text-[14px] font-bold text-text-primary">Market Overview</h2>
+        <div className="flex gap-0.5 rounded-xl bg-text-primary/[0.04] p-0.5">
           {PERIODS.map(p => (
             <button key={p} onClick={() => setPeriod(p)}
               className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${
-                p === period ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"}`}>
+                p === period ? "bg-text-primary/10 text-text-primary" : "text-text-muted hover:text-text-secondary"}`}>
               {p}
             </button>
           ))}

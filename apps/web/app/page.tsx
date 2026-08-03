@@ -181,13 +181,13 @@ function EventIcon({ title, category }: { title: string; category?: string }) {
     return <div className={`${base} bg-teal-500/20`}><DollarSign className="h-4 w-4 text-teal-400"/></div>;
   if (/infra|power|energy|coal|gas/.test(t))
     return <div className={`${base} bg-amber-500/20`}><FlameKindling className="h-4 w-4 text-amber-400"/></div>;
-  return <div className={`${base} bg-slate-500/20`}><Calendar className="h-4 w-4 text-slate-400"/></div>;
+  return <div className={`${base} bg-slate-500/20`}><Calendar className="h-4 w-4 text-text-secondary"/></div>;
 }
 
 // Skeleton
 function Sk({ h = 200, r = "rounded-2xl" }: { h?: number; r?: string }) {
   return (
-    <div className={`animate-pulse border border-white/[0.05] bg-white/[0.02] ${r}`} style={{ height: h }} />
+    <div className={`animate-pulse border border-surface-border/5 bg-text-primary/[0.02] ${r}`} style={{ height: h }} />
   );
 }
 
@@ -195,9 +195,9 @@ function Sk({ h = 200, r = "rounded-2xl" }: { h?: number; r?: string }) {
 function CardHeader({ title, href, badge }: { title: string; href?: string; badge?: React.ReactNode }) {
   return (
     <div className="mb-3 flex items-center justify-between">
-      <h3 className="text-[13px] font-black text-white">{title}</h3>
+      <h3 className="text-[13px] font-black text-text-primary">{title}</h3>
       {badge ?? (href && (
-        <Link href={href as any} className="flex items-center gap-1 text-[11px] font-semibold text-violet-400 hover:text-violet-300 transition">
+        <Link href={href as any} className="flex items-center gap-1 text-[11px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
           View All <ChevronRight className="h-3 w-3" />
         </Link>
       ))}
@@ -228,14 +228,14 @@ async function TickerStrip() {
   const statusLabel = isOpen ? "Market Open" : session?.session === "weekend" ? "Weekend" : "Market Closed";
 
   return (
-    <div className="flex items-stretch divide-x divide-white/[0.06] overflow-x-auto rounded-2xl border border-white/[0.07] bg-[#060e1e] scrollbar-hide">
+    <div className="flex items-stretch divide-x divide-surface-border/6 overflow-x-auto rounded-2xl border border-surface-border/7 bg-surface-card scrollbar-hide">
       {cells.map((c: any) => {
         const chart = ((c.chart as any[] | undefined) ?? []).map((p: any) => p.value).filter((v: any) => typeof v === "number");
         return (
           <div key={c.label} className="flex min-w-[150px] flex-1 items-center justify-between gap-3 px-5 py-3.5">
             <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-600">{c.label}</p>
-              <p className="text-[16px] font-black tabular-nums text-white leading-tight">{c.value}</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-text-muted">{c.label}</p>
+              <p className="text-[16px] font-black tabular-nums text-text-primary leading-tight">{c.value}</p>
               <p className={`text-[10px] font-bold tabular-nums ${c.positive ? "text-emerald-400" : "text-rose-400"}`}>{c.change}</p>
             </div>
             {chart.length >= 2 && <MiniSparkline data={chart} positive={c.positive !== false} w={56} h={26} />}
@@ -244,14 +244,14 @@ async function TickerStrip() {
       })}
       {usdinr && (
         <div className="flex min-w-[130px] flex-1 flex-col justify-center gap-0.5 px-5 py-3.5">
-          <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-600">USD/INR</p>
-          <p className="text-[16px] font-black tabular-nums text-white leading-tight">₹{usdinr.value}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-text-muted">USD/INR</p>
+          <p className="text-[16px] font-black tabular-nums text-text-primary leading-tight">₹{usdinr.value}</p>
           <p className={`text-[10px] font-bold tabular-nums ${usdinr.positive ? "text-emerald-400" : "text-rose-400"}`}>{usdinr.change_str ?? usdinr.change}</p>
         </div>
       )}
       <div className="flex min-w-[150px] flex-1 flex-col justify-center gap-1 px-5 py-3.5">
-        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-600">Market Status</p>
-        <p className={`text-[13px] font-black ${isOpen ? "text-emerald-400" : "text-slate-400"}`}>{statusLabel}</p>
+        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-text-muted">Market Status</p>
+        <p className={`text-[13px] font-black ${isOpen ? "text-emerald-400" : "text-text-secondary"}`}>{statusLabel}</p>
       </div>
     </div>
   );
@@ -275,7 +275,7 @@ function greeting(): string {
 function Stars({ n }: { n: number }) {
   return (
     <span className="text-amber-400 tracking-tight" aria-label={`${n} of 5`}>
-      {"★".repeat(n)}<span className="text-white/15">{"★".repeat(5 - n)}</span>
+      {"★".repeat(n)}<span className="text-text-muted/40">{"★".repeat(5 - n)}</span>
     </span>
   );
 }
@@ -288,12 +288,12 @@ function Stars({ n }: { n: number }) {
 // from nothing; always traceable back to the same sectors_affected array
 // rendered elsewhere on this same hero.
 function deriveOutlook(posCount: number, negCount: number): { label: string; cls: string; dot: string } {
-  if (posCount === 0 && negCount === 0) return { label: "Neutral", cls: "text-slate-300 bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400" };
-  if (posCount >= negCount * 2 && posCount >= 2) return { label: "Bullish", cls: "text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
-  if (posCount > negCount) return { label: "Cautiously Bullish", cls: "text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
-  if (negCount >= posCount * 2 && negCount >= 2) return { label: "Bearish", cls: "text-rose-300 bg-rose-500/10 border-rose-500/20", dot: "bg-rose-400" };
-  if (negCount > posCount) return { label: "Cautious", cls: "text-amber-300 bg-amber-500/10 border-amber-500/20", dot: "bg-amber-400" };
-  return { label: "Neutral", cls: "text-slate-300 bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400" };
+  if (posCount === 0 && negCount === 0) return { label: "Neutral", cls: "text-text-secondary bg-slate-500/10 border-surface-border/5", dot: "bg-slate-400" };
+  if (posCount >= negCount * 2 && posCount >= 2) return { label: "Bullish", cls: "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
+  if (posCount > negCount) return { label: "Cautiously Bullish", cls: "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
+  if (negCount >= posCount * 2 && negCount >= 2) return { label: "Bearish", cls: "text-rose-600 dark:text-rose-300 bg-rose-500/10 border-rose-500/20", dot: "bg-rose-400" };
+  if (negCount > posCount) return { label: "Cautious", cls: "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/20", dot: "bg-amber-400" };
+  return { label: "Neutral", cls: "text-text-secondary bg-slate-500/10 border-surface-border/5", dot: "bg-slate-400" };
 }
 
 // Same label/style vocabulary as deriveOutlook above, driven by MIE's real
@@ -307,15 +307,15 @@ function deriveOutlookFromMie(pulse: string | undefined, confidence: number | nu
   const conf = confidence ?? 50;
   if (pulse === "+") {
     return conf >= 65
-      ? { label: "Bullish", cls: "text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" }
-      : { label: "Cautiously Bullish", cls: "text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
+      ? { label: "Bullish", cls: "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" }
+      : { label: "Cautiously Bullish", cls: "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
   }
   if (pulse === "-") {
     return conf >= 65
-      ? { label: "Bearish", cls: "text-rose-300 bg-rose-500/10 border-rose-500/20", dot: "bg-rose-400" }
-      : { label: "Cautious", cls: "text-amber-300 bg-amber-500/10 border-amber-500/20", dot: "bg-amber-400" };
+      ? { label: "Bearish", cls: "text-rose-600 dark:text-rose-300 bg-rose-500/10 border-rose-500/20", dot: "bg-rose-400" }
+      : { label: "Cautious", cls: "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/20", dot: "bg-amber-400" };
   }
-  return { label: "Neutral", cls: "text-slate-300 bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400" };
+  return { label: "Neutral", cls: "text-text-secondary bg-slate-500/10 border-surface-border/5", dot: "bg-slate-400" };
 }
 
 // Real delta magnitude → 1-4 dot strength, same honest-derivation
@@ -531,16 +531,16 @@ async function HomepageIntelligenceHero() {
   })();
 
   return (
-    <div className="rounded-[24px] border border-white/[0.07] bg-gradient-to-br from-[#0b1220] to-[#060e1e] p-6 md:p-7">
+    <div className="rounded-[24px] border border-surface-border/7 bg-gradient-to-br from-surface-card to-surface-bg p-6 md:p-7">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-400">
             <Sparkles className="h-3.5 w-3.5" /> {greeting()}
           </p>
-          <h1 className="mt-1 text-[22px] font-black leading-tight text-white md:text-[26px]">Today&apos;s Market Outlook</h1>
+          <h1 className="mt-1 text-[22px] font-black leading-tight text-text-primary md:text-[26px]">Today&apos;s Market Outlook</h1>
           {/* Status strip — real counts only, no "N min ago" copy of what's
               already in the footer timestamp; this is the "feels alive" row. */}
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-text-muted">
             {heroFreshnessLabel && <span>{heroFreshnessLabel}</span>}
             {liveEventCount > 0 && <span>· {liveEventCount} live events</span>}
             {opportunityCount > 0 && <span>· {opportunityCount} active opportunities</span>}
@@ -548,21 +548,21 @@ async function HomepageIntelligenceHero() {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Market Conviction</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Market Conviction</p>
           <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-bold ${outlook.cls}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${outlook.dot}`} /> {outlook.label}
           </span>
           {marketConfPct != null && (
             <div className="mt-1.5 flex items-center justify-end gap-1.5">
-              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/[0.08]">
-                <div className="h-full rounded-full bg-white" style={{ width: `${marketConfPct}%` }} />
+              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-text-primary/[0.08]">
+                <div className="h-full rounded-full bg-accent-violet" style={{ width: `${marketConfPct}%` }} />
               </div>
-              <span className="text-[11px] font-bold tabular-nums text-white">{marketConfPct}%</span>
+              <span className="text-[11px] font-bold tabular-nums text-text-primary">{marketConfPct}%</span>
             </div>
           )}
           {/* Evidence behind the conviction label, not just the label
               itself — real counts already computed above. */}
-          <p className="mt-1 text-[10px] text-slate-500">{positiveSectors.length} positive · {negativeSectors.length} negative signals</p>
+          <p className="mt-1 text-[10px] text-text-muted">{positiveSectors.length} positive · {negativeSectors.length} negative signals</p>
         </div>
       </div>
 
@@ -572,17 +572,17 @@ async function HomepageIntelligenceHero() {
             to the right column entirely. */}
         <div className="space-y-4">
           {(focusSector || macroTheme || highestRisk) && (
-            <div className="rounded-[18px] border border-white/[0.1] bg-gradient-to-br from-white/[0.05] to-transparent p-5">
-              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300">Today&apos;s AI Action</p>
+            <div className="rounded-[18px] border border-surface-border/10 bg-gradient-to-br from-text-primary/[0.05] to-transparent p-5">
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-text-secondary">Today&apos;s AI Action</p>
               <div className="grid grid-cols-2 gap-4 text-[13px]">
                 {focusSector ? (
-                  <div><span className="text-[10px] uppercase tracking-wide text-slate-500">Focus</span><p className="mt-0.5 text-[19px] font-black text-emerald-300">{focusSector}</p></div>
+                  <div><span className="text-[10px] uppercase tracking-wide text-text-muted">Focus</span><p className="mt-0.5 text-[19px] font-black text-emerald-600 dark:text-emerald-300">{focusSector}</p></div>
                 ) : macroTheme ? (
-                  <div><span className="text-[10px] uppercase tracking-wide text-slate-500">Macro Theme</span><p className="mt-0.5 text-[19px] font-black text-emerald-300">{macroTheme}</p></div>
+                  <div><span className="text-[10px] uppercase tracking-wide text-text-muted">Macro Theme</span><p className="mt-0.5 text-[19px] font-black text-emerald-600 dark:text-emerald-300">{macroTheme}</p></div>
                 ) : null}
-                <div><span className="text-[10px] uppercase tracking-wide text-slate-500">Avoid</span><p className="mt-0.5 text-[15px] font-black leading-snug text-rose-300">{highestRiskDisplay}</p></div>
-                <div className="col-span-2 flex items-center justify-between border-t border-white/[0.08] pt-3">
-                  <span className="text-[10px] uppercase tracking-wide text-slate-500">Market Conviction</span>
+                <div><span className="text-[10px] uppercase tracking-wide text-text-muted">Avoid</span><p className="mt-0.5 text-[15px] font-black leading-snug text-rose-600 dark:text-rose-300">{highestRiskDisplay}</p></div>
+                <div className="col-span-2 flex items-center justify-between border-t border-surface-border/8 pt-3">
+                  <span className="text-[10px] uppercase tracking-wide text-text-muted">Market Conviction</span>
                   <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-bold ${outlook.cls}`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${outlook.dot}`} /> {convictionStrength ?? outlook.label}
                   </span>
@@ -593,55 +593,55 @@ async function HomepageIntelligenceHero() {
 
           {ex.ai_prediction && focusSector && (
             <div className="rounded-[16px] border border-violet-500/15 bg-violet-500/[0.06] p-4">
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-violet-300">AI Market Call</p>
-              <p className="text-[16px] font-black leading-snug text-white">Overweight {focusSector}</p>
-              <p className="mt-1.5 text-[12px] leading-5 text-slate-400"><span className="text-slate-500">Driven by —</span> {ex.ai_prediction}</p>
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-violet-600 dark:text-violet-300">AI Market Call</p>
+              <p className="text-[16px] font-black leading-snug text-text-primary">Overweight {focusSector}</p>
+              <p className="mt-1.5 text-[12px] leading-5 text-text-secondary"><span className="text-text-muted">Driven by —</span> {ex.ai_prediction}</p>
               {/* Today's Summary — same underlying signal as the call
                   above (outlook / focus / risk / ai_prediction), composed
                   into one retail-readable paragraph, capped at 50 words. */}
-              <p className="mt-2.5 border-t border-white/[0.08] pt-2.5 text-[11.5px] leading-relaxed text-slate-300">{todaysSummary}</p>
+              <p className="mt-2.5 border-t border-surface-border/8 pt-2.5 text-[11.5px] leading-relaxed text-text-secondary">{todaysSummary}</p>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-[14px] border border-emerald-500/15 bg-emerald-500/[0.05] p-3.5">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-400">🔥 Biggest Opportunity</p>
-              <p className="mt-1 text-[14px] font-bold text-white">{secondaryOpportunity ?? "No second opportunity signal today"}</p>
+              <p className="mt-1 text-[14px] font-bold text-text-primary">{secondaryOpportunity ?? "No second opportunity signal today"}</p>
             </div>
             <div className="rounded-[14px] border border-rose-500/15 bg-rose-500/[0.05] p-3.5">
               <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-400">⚠ Biggest Risk</p>
-              <p className="mt-1 text-[13px] font-bold leading-snug text-white">{highestRiskDisplay}</p>
+              <p className="mt-1 text-[13px] font-bold leading-snug text-text-primary">{highestRiskDisplay}</p>
             </div>
           </div>
         </div>
 
         {/* RIGHT — Evidence */}
         <div className="space-y-4">
-          <Link href={ev ? `/events/${ev.id}` as any : "/events"} className="block rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-violet-500/25">
+          <Link href={ev ? `/events/${ev.id}` as any : "/events"} className="block rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4 transition hover:border-violet-500/25">
             <div className="mb-1 flex items-center justify-between">
-              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Why Today Matters</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Why Today Matters</p>
               {ev?.lifecycle && _LIFECYCLE_BADGE[ev.lifecycle] && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase ${_LIFECYCLE_BADGE[ev.lifecycle]}`}>{ev.lifecycle}</span>
               )}
             </div>
-            <p className="text-[15px] font-semibold leading-snug text-white">{expandAcronyms(cleanText(storyTitle))}</p>
+            <p className="text-[15px] font-semibold leading-snug text-text-primary">{expandAcronyms(cleanText(storyTitle))}</p>
             {storySummary && (
-              <p className="mt-1.5 line-clamp-2 text-[12px] leading-5 text-slate-400">{cleanText(storySummary)}</p>
+              <p className="mt-1.5 line-clamp-2 text-[12px] leading-5 text-text-secondary">{cleanText(storySummary)}</p>
             )}
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-text-muted">
               <span>Expected Market Impact</span> <Stars n={stars} />
             </div>
           </Link>
 
           {drivers.length > 0 && (
-            <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4">
-              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Today&apos;s Drivers</p>
+            <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Today&apos;s Drivers</p>
               <div className="flex flex-wrap gap-1.5">
                 {drivers.map((d, i) => (
                   <span key={i} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                    d.positive ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : "border-rose-500/20 bg-rose-500/[0.06] text-rose-300"
+                    d.positive ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-600 dark:text-emerald-300" : "border-rose-500/20 bg-rose-500/[0.06] text-rose-600 dark:text-rose-300"
                   }`}>
-                    {d.positive ? "🟢" : "🔴"} {d.label} <span className="text-slate-400 font-normal">{d.value}</span>
+                    {d.positive ? "🟢" : "🔴"} {d.label} <span className="text-text-secondary font-normal">{d.value}</span>
                   </span>
                 ))}
               </div>
@@ -649,13 +649,13 @@ async function HomepageIntelligenceHero() {
           )}
 
           {companies.length > 0 && (
-            <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4">
-              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Stocks To Watch</p>
+            <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Stocks To Watch</p>
               <div className="grid grid-cols-2 gap-2">
                 {companies.map((c: any, i: number) => (
                   <Link key={i} href={`/companies/${c.symbol}` as any}
                     className={`flex items-center justify-between rounded-[10px] border px-2.5 py-1.5 text-[11.5px] font-semibold transition hover:opacity-80 ${
-                      c.impact === "positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-300"
+                      c.impact === "positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300"
                     }`}>
                     {cleanText(c.symbol || c.name)} <span>{c.impact === "positive" ? "▲" : "▼"}</span>
                   </Link>
@@ -664,24 +664,24 @@ async function HomepageIntelligenceHero() {
             </div>
           )}
 
-          <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4">
-            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">What Changed Since Yesterday</p>
+          <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">What Changed Since Yesterday</p>
             {changes.length === 0 ? (
-              <p className="text-[11px] text-slate-600">Not enough history yet — check back tomorrow.</p>
+              <p className="text-[11px] text-text-muted">Not enough history yet — check back tomorrow.</p>
             ) : (
               <ul className="space-y-1.5">
                 {changes.map((c, i) => (
                   <li key={i} className="flex items-center gap-2 text-[12px] font-medium">
                     <span className={c.direction === "up" ? "text-emerald-400" : "text-rose-400"}>{c.direction === "up" ? "↑" : "↓"}</span>
-                    <span className="text-white">{c.name}</span>
+                    <span className="text-text-primary">{c.name}</span>
                     {c.is_new ? (
-                      <span className="text-[10px] font-normal text-slate-500">newly in focus today</span>
+                      <span className="text-[10px] font-normal text-text-muted">newly in focus today</span>
                     ) : (
                       <>
                         <span className={c.direction === "up" ? "text-emerald-400" : "text-rose-400"}>{c.direction === "up" ? "+" : ""}{c.delta}</span>
                         <span className="ml-auto flex gap-0.5">
                           {Array.from({ length: 4 }).map((_, di) => (
-                            <span key={di} className={`h-1.5 w-1.5 rounded-full ${di < deltaStrength(c.delta) ? (c.direction === "up" ? "bg-emerald-400" : "bg-rose-400") : "bg-white/10"}`} />
+                            <span key={di} className={`h-1.5 w-1.5 rounded-full ${di < deltaStrength(c.delta) ? (c.direction === "up" ? "bg-emerald-400" : "bg-rose-400") : "bg-text-primary/10"}`} />
                           ))}
                         </span>
                       </>
@@ -694,10 +694,10 @@ async function HomepageIntelligenceHero() {
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between border-t border-white/[0.06] pt-4">
-        {brief.published_at && <span className="text-[10px] text-slate-600">{briefTimeLabel(brief.published_at)}</span>}
+      <div className="mt-5 flex items-center justify-between border-t border-surface-border/6 pt-4">
+        {brief.published_at && <span className="text-[10px] text-text-muted">{briefTimeLabel(brief.published_at)}</span>}
         <Link href="/newsroom/daily-brief"
-          className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-slate-900 transition hover:bg-slate-100">
+          className="inline-flex items-center gap-1.5 rounded-full bg-accent-violet px-4 py-2 text-[11px] font-bold text-text-primary transition hover:opacity-90">
           Read Today&apos;s Market Brief <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -715,10 +715,10 @@ function _magRank(m: string): number {
 // which real signal backs each of these 4 card types.
 // ═══════════════════════════════════════════════════════════════════════════════
 const _LI_META: Record<string, { label: string; icon: React.ReactNode; cls: string }> = {
-  anomaly:           { label: "Intelligence Detection", icon: <Radar className="h-3.5 w-3.5" />,     cls: "text-violet-300 border-violet-500/25 bg-violet-500/[0.08]" },
-  policy_ripple:     { label: "Policy Intelligence",     icon: <GitBranch className="h-3.5 w-3.5" />, cls: "text-sky-300 border-sky-500/25 bg-sky-500/[0.08]" },
-  early_theme:       { label: "Emerging Theme",          icon: <Rocket className="h-3.5 w-3.5" />,    cls: "text-emerald-300 border-emerald-500/25 bg-emerald-500/[0.08]" },
-  historical_match:  { label: "Pattern Detected",        icon: <History className="h-3.5 w-3.5" />,   cls: "text-amber-300 border-amber-500/25 bg-amber-500/[0.08]" },
+  anomaly:           { label: "Intelligence Detection", icon: <Radar className="h-3.5 w-3.5" />,     cls: "text-violet-600 dark:text-violet-300 border-violet-500/25 bg-violet-500/[0.08]" },
+  policy_ripple:     { label: "Policy Intelligence",     icon: <GitBranch className="h-3.5 w-3.5" />, cls: "text-sky-600 dark:text-sky-300 border-sky-500/25 bg-sky-500/[0.08]" },
+  early_theme:       { label: "Emerging Theme",          icon: <Rocket className="h-3.5 w-3.5" />,    cls: "text-emerald-600 dark:text-emerald-300 border-emerald-500/25 bg-emerald-500/[0.08]" },
+  historical_match:  { label: "Pattern Detected",        icon: <History className="h-3.5 w-3.5" />,   cls: "text-amber-600 dark:text-amber-300 border-amber-500/25 bg-amber-500/[0.08]" },
 };
 
 // Every card links to its own permanent /intelligence/signal/{slug} page
@@ -734,7 +734,7 @@ function LiveIntelligenceCard({ item }: { item: any }) {
   const href = item.slug ? `/intelligence/signal/${item.slug}` : null;
 
   return (
-    <div className="group relative flex h-full flex-col rounded-[18px] border border-white/[0.07] bg-white/[0.02] p-4 transition hover:border-violet-500/25">
+    <div className="group relative flex h-full flex-col rounded-[18px] border border-surface-border/7 bg-text-primary/[0.02] p-4 transition hover:border-violet-500/25">
       {href && (
         <Link href={href as any} className="absolute inset-0 z-0 rounded-[18px]" aria-label={`View full intelligence: ${cleanText(item.headline)}`} />
       )}
@@ -744,28 +744,28 @@ function LiveIntelligenceCard({ item }: { item: any }) {
             {meta.icon} {meta.label}
           </span>
           {item.is_fallback ? (
-            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="inline-flex items-center rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-text-muted">
               Recurring, not today
             </span>
           ) : item.detected_at ? (
-            <span className="text-[9.5px] text-slate-600">{timeAgo(item.detected_at)}</span>
+            <span className="text-[9.5px] text-text-muted">{timeAgo(item.detected_at)}</span>
           ) : null}
         </div>
-        <p className="mt-2.5 text-[13.5px] font-semibold leading-snug text-white transition group-hover:text-violet-200">{cleanText(item.headline)}</p>
+        <p className="mt-2.5 text-[13.5px] font-semibold leading-snug text-text-primary transition group-hover:text-violet-700 dark:text-violet-200">{cleanText(item.headline)}</p>
 
         {item.type === "anomaly" && (
           <>
-            {item.why_it_matters && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-5 text-slate-400">Why this matters: {cleanText(item.why_it_matters)}</p>}
-            {item.similarity != null && <p className="mt-1.5 text-[10px] text-slate-500">Historical similarity <span className="font-bold text-white">{Math.round(item.similarity)}%</span></p>}
+            {item.why_it_matters && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-5 text-text-secondary">Why this matters: {cleanText(item.why_it_matters)}</p>}
+            {item.similarity != null && <p className="mt-1.5 text-[10px] text-text-muted">Historical similarity <span className="font-bold text-text-primary">{Math.round(item.similarity)}%</span></p>}
           </>
         )}
 
         {item.type === "policy_ripple" && item.path?.length > 0 && (
-          <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-slate-300">
+          <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-text-secondary">
             {item.path.map((p: string, i: number) => (
               <span key={i} className="flex items-center gap-1">
-                {i > 0 && <ArrowRight className="h-2.5 w-2.5 text-slate-600" />}
-                <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5">{cleanText(p)}</span>
+                {i > 0 && <ArrowRight className="h-2.5 w-2.5 text-text-muted" />}
+                <span className="rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-2 py-0.5">{cleanText(p)}</span>
               </span>
             ))}
           </div>
@@ -773,21 +773,21 @@ function LiveIntelligenceCard({ item }: { item: any }) {
 
         {item.type === "early_theme" && (
           <div className="mt-2 flex items-center gap-4 text-[11px]">
-            <span className="text-slate-500">Stage <span className="font-bold text-emerald-400">Early</span></span>
-            {item.opportunity_score != null && <span className="text-slate-500">Opportunity Score <span className="font-bold text-white">{item.opportunity_score}</span></span>}
+            <span className="text-text-muted">Stage <span className="font-bold text-emerald-400">Early</span></span>
+            {item.opportunity_score != null && <span className="text-text-muted">Opportunity Score <span className="font-bold text-text-primary">{item.opportunity_score}</span></span>}
           </div>
         )}
 
         {item.type === "historical_match" && (
           <>
-            {item.similarity != null && <p className="mt-1.5 text-[10px] text-slate-500">Similarity <span className="font-bold text-white">{Math.round(item.similarity)}%</span></p>}
-            {item.key_lesson && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-400">{cleanText(item.key_lesson)}</p>}
+            {item.similarity != null && <p className="mt-1.5 text-[10px] text-text-muted">Similarity <span className="font-bold text-text-primary">{Math.round(item.similarity)}%</span></p>}
+            {item.key_lesson && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-text-secondary">{cleanText(item.key_lesson)}</p>}
             <div className="pointer-events-auto mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-[10.5px]">
               {(item.winners ?? []).slice(0, 3).map((w: string, i: number) => (
-                <Link key={`w${i}`} href={`/companies/${w}` as any} className="text-emerald-400 hover:text-emerald-300 hover:underline">▲ {w}</Link>
+                <Link key={`w${i}`} href={`/companies/${w}` as any} className="text-emerald-400 hover:text-emerald-600 dark:text-emerald-300 hover:underline">▲ {w}</Link>
               ))}
               {(item.losers ?? []).slice(0, 2).map((l: string, i: number) => (
-                <Link key={`l${i}`} href={`/companies/${l}` as any} className="text-rose-400 hover:text-rose-300 hover:underline">▼ {l}</Link>
+                <Link key={`l${i}`} href={`/companies/${l}` as any} className="text-rose-400 hover:text-rose-600 dark:text-rose-300 hover:underline">▼ {l}</Link>
               ))}
             </div>
           </>
@@ -797,7 +797,7 @@ function LiveIntelligenceCard({ item }: { item: any }) {
           <div className="pointer-events-auto mt-auto flex flex-wrap gap-1 pt-2.5">
             {item.companies.slice(0, 5).map((c: string, i: number) => (
               <Link key={i} href={`/companies/${c}` as any}
-                className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-300 transition hover:border-violet-500/30 hover:text-violet-300">
+                className="rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-2 py-0.5 text-[10px] font-semibold text-text-secondary transition hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300">
                 {c}
               </Link>
             ))}
@@ -817,8 +817,8 @@ async function LiveIntelligenceSection() {
     <div>
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-violet-400" />
-        <h2 className="text-[15px] font-black text-white">Live Intelligence</h2>
-        <span className="text-[11px] text-slate-500">— Ripple Signals</span>
+        <h2 className="text-[15px] font-black text-text-primary">Live Intelligence</h2>
+        <span className="text-[11px] text-text-muted">— Ripple Signals</span>
       </div>
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((item: any, i: number) => <LiveIntelligenceCard key={i} item={item} />)}
@@ -870,10 +870,10 @@ async function TodaysBiggestEventsCard() {
   const rest = items.slice(1, 4);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Other Major Events" href="/events" />
       {rest.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No other scored events available right now.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">No other scored events available right now.</p>
       ) : (
         <div className="flex-1 space-y-3">
           {rest.map((e, idx) => {
@@ -882,34 +882,34 @@ async function TodaysBiggestEventsCard() {
             const companies = (e.companies ?? []) as { symbol: string; name: string; impact: string }[];
             const reason = _rankReason(e.lifecycle, idx + 2);
             return (
-              <div key={e.id} className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-3.5">
+              <div key={e.id} className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-1.5">
-                    <span className="rounded-full border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[8px] font-black text-slate-300">
+                    <span className="rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-1.5 py-0.5 text-[8px] font-black text-text-secondary">
                       {reason.emoji} {reason.text}
                     </span>
                     <span className={`rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase tabular-nums ${style.circle}`}>
                       {style.label} Impact
                     </span>
                   </div>
-                  <span className="shrink-0 text-[11px] font-black tabular-nums text-slate-400">
+                  <span className="shrink-0 text-[11px] font-black tabular-nums text-text-secondary">
                     {e.impact_score != null ? Math.round(e.impact_score) : "—"}
                   </span>
                 </div>
                 <Link href={`/events/${e.id}` as any} className="group mt-1.5 block">
-                  <p className="text-[13px] font-bold leading-snug text-white group-hover:text-violet-200 transition line-clamp-2">{cleanText(e.title)}</p>
+                  <p className="text-[13px] font-bold leading-snug text-text-primary group-hover:text-violet-700 dark:text-violet-200 transition line-clamp-2">{cleanText(e.title)}</p>
                 </Link>
                 {sectors.length > 0 && (
-                  <p className="mt-1.5 text-[10.5px] text-slate-500">{sectors.slice(0, 3).join(" • ")}</p>
+                  <p className="mt-1.5 text-[10.5px] text-text-muted">{sectors.slice(0, 3).join(" • ")}</p>
                 )}
                 {companies.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {companies.slice(0, 5).map((c, i) => (
                       <Link key={i} href={`/companies/${c.symbol}` as any}
                         className={`rounded-full border px-1.5 py-0.5 text-[9.5px] font-semibold transition hover:opacity-80 ${
-                          c.impact === "Positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
-                          : c.impact === "Negative" ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
-                          : "border-white/10 bg-white/[0.03] text-slate-400"
+                          c.impact === "Positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                          : c.impact === "Negative" ? "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300"
+                          : "border-surface-border/10 bg-text-primary/[0.03] text-text-secondary"
                         }`}>
                         {c.symbol || c.name}
                       </Link>
@@ -920,18 +920,18 @@ async function TodaysBiggestEventsCard() {
                     "Impacted Companies" / "Opportunities" / "Historical
                     Similar Events" as separate views don't exist yet, and
                     a broken/placeholder link is worse than not having it. */}
-                <div className="mt-2.5 flex items-center gap-3 border-t border-white/[0.05] pt-2">
-                  <Link href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${e.title}`)}` as any} className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition">Analyze with AI →</Link>
-                  <Link href={`/ripple?event=${e.id}` as any} className="text-[10px] font-semibold text-sky-400 hover:text-sky-300 transition">Ripple Analysis →</Link>
-                  <Link href={`/events/${e.id}` as any} className="text-[10px] font-semibold text-slate-500 hover:text-slate-300 transition">Full Event Analysis →</Link>
-                  {e.confidence != null && <span className="ml-auto text-[10px] text-slate-600">Confidence <span className="font-bold text-slate-400">{Math.round(e.confidence)}%</span></span>}
+                <div className="mt-2.5 flex items-center gap-3 border-t border-surface-border/5 pt-2">
+                  <Link href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${e.title}`)}` as any} className="text-[10px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">Analyze with AI →</Link>
+                  <Link href={`/ripple?event=${e.id}` as any} className="text-[10px] font-semibold text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">Ripple Analysis →</Link>
+                  <Link href={`/events/${e.id}` as any} className="text-[10px] font-semibold text-text-muted hover:text-text-secondary transition">Full Event Analysis →</Link>
+                  {e.confidence != null && <span className="ml-auto text-[10px] text-text-muted">Confidence <span className="font-bold text-text-secondary">{Math.round(e.confidence)}%</span></span>}
                 </div>
               </div>
             );
           })}
         </div>
       )}
-      <Link href="/events" className="mt-4 text-center text-[11px] font-semibold text-slate-500 hover:text-slate-300 transition">
+      <Link href="/events" className="mt-4 text-center text-[11px] font-semibold text-text-muted hover:text-text-secondary transition">
         View All Events →
       </Link>
     </div>
@@ -944,7 +944,7 @@ async function MarketSnapshotCard() {
   const isOpen = session?.is_open;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader
         title="Market Snapshot"
         badge={
@@ -955,18 +955,18 @@ async function MarketSnapshotCard() {
         }
       />
       {sectors.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">Sector data unavailable.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">Sector data unavailable.</p>
       ) : (
         <div className="grid flex-1 grid-cols-2 gap-2 content-start sm:grid-cols-3">
           {sectors.map((s: any) => (
             <div key={s.id ?? s.name} className={`flex flex-col justify-center rounded-xl p-3 ${s.positive ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
-              <p className={`text-[9px] font-black uppercase tracking-wide leading-tight ${s.positive ? "text-emerald-300" : "text-rose-300"}`}>{s.name}</p>
+              <p className={`text-[9px] font-black uppercase tracking-wide leading-tight ${s.positive ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>{s.name}</p>
               <p className={`mt-1 text-[13px] font-black tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.value}</p>
             </div>
           ))}
         </div>
       )}
-      <div className="mt-4 flex items-center gap-4 text-[10px] text-slate-500">
+      <div className="mt-4 flex items-center gap-4 text-[10px] text-text-muted">
         <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Top Gainers</span>
         <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-400" /> Top Losers</span>
       </div>
@@ -1018,13 +1018,13 @@ async function CompaniesToWatchTable() {
   }
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Companies to Watch" href="/companies" />
       {rows.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No high-relevance company signals right now.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">No high-relevance company signals right now.</p>
       ) : (
         <div className="flex-1">
-          <div className="mb-1.5 grid grid-cols-[1fr_44px] gap-2 text-[8px] font-bold uppercase tracking-wider text-slate-700">
+          <div className="mb-1.5 grid grid-cols-[1fr_44px] gap-2 text-[8px] font-bold uppercase tracking-wider text-text-muted">
             <span>Company · Reason</span>
             <span className="text-right">Score</span>
           </div>
@@ -1034,12 +1034,12 @@ async function CompaniesToWatchTable() {
               return (
                 <Link key={r.ticker} href={`/companies/${r.ticker}` as any} className="group grid grid-cols-[1fr_44px] items-center gap-2">
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-[8px] font-black text-white ${AVATAR_GRADIENT[i % 6]}`}>
+                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-[8px] font-black text-text-primary ${AVATAR_GRADIENT[i % 6]}`}>
                       {r.ticker.slice(0, 2)}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-[11px] font-bold text-white group-hover:text-violet-200 transition">{cleanText(r.name)}</p>
-                      <p className="truncate text-[9px] text-slate-500">{cleanText(r.reason)} <span className="text-slate-600">· {r.freshness}</span></p>
+                      <p className="truncate text-[11px] font-bold text-text-primary group-hover:text-violet-700 dark:text-violet-200 transition">{cleanText(r.name)}</p>
+                      <p className="truncate text-[9px] text-text-muted">{cleanText(r.reason)} <span className="text-text-muted">· {r.freshness}</span></p>
                     </div>
                   </div>
                   <span className={`text-right text-[12px] font-black tabular-nums ${style.text}`}>
@@ -1060,10 +1060,10 @@ async function TopOpportunitiesCard() {
   const items = (((radar as any)?.items ?? []) as any[]).slice(0, 3);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Top Opportunities" href="/opportunity-radar" />
       {items.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">AI is scanning for opportunities.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">AI is scanning for opportunities.</p>
       ) : (
         <div className="flex-1 space-y-3">
           {items.map((r: any) => (
@@ -1072,8 +1072,8 @@ async function TopOpportunitiesCard() {
                 <TrendingUp className="h-4 w-4 text-emerald-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-bold leading-snug text-white group-hover:text-emerald-200 transition line-clamp-1">{cleanText(r.title)}</p>
-                <p className="mt-0.5 text-[10px] text-slate-500 line-clamp-1">{cleanText(r.summary)}</p>
+                <p className="text-[12px] font-bold leading-snug text-text-primary group-hover:text-emerald-700 dark:text-emerald-200 transition line-clamp-1">{cleanText(r.title)}</p>
+                <p className="mt-0.5 text-[10px] text-text-muted line-clamp-1">{cleanText(r.summary)}</p>
               </div>
               <span className="shrink-0 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-black tabular-nums text-emerald-400">
                 {r.opportunity_score != null ? Math.round(r.opportunity_score) : "—"}
@@ -1094,10 +1094,10 @@ async function KeyRisksCard() {
   const risks = (brief?.risks ?? []) as { title: string; description: string; severity?: string }[];
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Key Risks" href="/newsroom/daily-brief" />
       {risks.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No elevated risks in today's brief.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">No elevated risks in today's brief.</p>
       ) : (
         <div className="flex-1 space-y-3">
           {risks.slice(0, 3).map((r, i) => {
@@ -1108,8 +1108,8 @@ async function KeyRisksCard() {
                   <Building2 className="h-4 w-4 text-rose-400" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-bold leading-snug text-white group-hover:text-rose-200 transition line-clamp-1">{cleanText(r.title)}</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500 line-clamp-1">{cleanText(r.description)}</p>
+                  <p className="text-[12px] font-bold leading-snug text-text-primary group-hover:text-rose-700 dark:text-rose-200 transition line-clamp-1">{cleanText(r.title)}</p>
+                  <p className="mt-0.5 text-[10px] text-text-muted line-clamp-1">{cleanText(r.description)}</p>
                 </div>
                 <span className={`shrink-0 text-[11px] font-black ${level === "high" ? "text-rose-400" : "text-amber-400"}`}>
                   {level === "high" ? "High" : level === "low" ? "Low" : "Medium"}
@@ -1131,10 +1131,10 @@ async function ThemeStrengthCard() {
   const themes = (((radar as any)?.items ?? []) as any[]).slice(0, 5);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Theme Strength" href="/newsroom/themes" />
       {themes.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">Theme data is loading.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">Theme data is loading.</p>
       ) : (
         <div className="flex-1 space-y-3">
           {themes.map((t: any) => {
@@ -1143,13 +1143,13 @@ async function ThemeStrengthCard() {
             return (
               <Link key={t.id} href={`/newsroom/themes/${t.slug}`} className="group block">
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="line-clamp-1 text-[11px] font-semibold text-slate-300 group-hover:text-white transition">{cleanText(t.title)}</span>
-                  <span className="shrink-0 text-[11px] font-black tabular-nums text-white">{Math.round(score)}</span>
+                  <span className="line-clamp-1 text-[11px] font-semibold text-text-secondary group-hover:text-text-primary transition">{cleanText(t.title)}</span>
+                  <span className="shrink-0 text-[11px] font-black tabular-nums text-text-primary">{Math.round(score)}</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-text-primary/[0.06]">
                   <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
                 </div>
-                <div className="mt-1 flex items-center gap-2 text-[9.5px] text-slate-600">
+                <div className="mt-1 flex items-center gap-2 text-[9.5px] text-text-muted">
                   <span>{Math.round((t.confidence ?? 0) * 100)}% confidence</span>
                   {t.risk_level && <span>· {t.risk_level} risk</span>}
                 </div>
@@ -1179,20 +1179,20 @@ async function WatchTomorrowCard() {
     .slice(0, 3);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Watch Tomorrow" href="/market-intelligence?tab=live-market" />
       {items.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No upcoming events in the next 7 days.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">No upcoming events in the next 7 days.</p>
       ) : (
         <div className="flex-1 space-y-3">
           {items.map((e: any) => (
             <div key={e.id} className="flex items-start gap-3">
               <EventIcon title={e.title} category={e.category} />
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-bold leading-snug text-white line-clamp-1">{e.title}</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">{e.category ?? "Event"}</p>
+                <p className="text-[12px] font-bold leading-snug text-text-primary line-clamp-1">{e.title}</p>
+                <p className="mt-0.5 text-[10px] text-text-muted">{e.category ?? "Event"}</p>
               </div>
-              <span className="shrink-0 text-[10px] font-semibold text-slate-500">{e.date}</span>
+              <span className="shrink-0 text-[10px] font-semibold text-text-muted">{e.date}</span>
             </div>
           ))}
         </div>
@@ -1201,23 +1201,53 @@ async function WatchTomorrowCard() {
   );
 }
 
+// Same per-type color coding as the article page's TYPE_META (newsroom/
+// article/[slug]/page.tsx) — this card grid mixes several article types in
+// one row (LIVE SIGNAL, COMPANY INTELLIGENCE, RIPPLE INTELLIGENCE, ...) and
+// was rendering all of them as the same flat neutral-gray pill, so the type
+// wasn't scannable at a glance the way it is everywhere else this badge
+// appears.
+const ARTICLE_TYPE_COLOR: Record<string, string> = {
+  breaking_intelligence:     "text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-500/10",
+  live_signal:               "text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-500/10",
+  morning_intelligence:      "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10",
+  market_wrap:               "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10",
+  historical_intelligence:   "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10",
+  company_intelligence:      "text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10",
+  weekly_intelligence:       "text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10",
+  monthly_intelligence:      "text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10",
+  news_intelligence:         "text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10",
+  sector_intelligence:       "text-violet-600 dark:text-violet-400 border-violet-500/30 bg-violet-500/10",
+  theme_intelligence:        "text-violet-600 dark:text-violet-400 border-violet-500/30 bg-violet-500/10",
+  comparison_intelligence:   "text-violet-600 dark:text-violet-400 border-violet-500/30 bg-violet-500/10",
+  decision_intelligence:     "text-violet-600 dark:text-violet-400 border-violet-500/30 bg-violet-500/10",
+  policy_intelligence:       "text-indigo-600 dark:text-indigo-400 border-indigo-500/30 bg-indigo-500/10",
+  ripple_intelligence:       "text-cyan-600 dark:text-cyan-400 border-cyan-500/30 bg-cyan-500/10",
+  timeline_intelligence:     "text-cyan-600 dark:text-cyan-400 border-cyan-500/30 bg-cyan-500/10",
+  opportunity_intelligence:  "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+  educational_intelligence:  "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+  question_intelligence:     "text-pink-600 dark:text-pink-400 border-pink-500/30 bg-pink-500/10",
+  default:                   "text-text-secondary border-surface-border/10 bg-text-primary/5",
+};
+
 async function LatestIntelligenceRow() {
   const insights = await getInsights();
   const items = (((insights as any)?.items ?? []) as any[]).slice(0, 4);
   if (items.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
+    <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Latest Intelligence Articles" href="/newsroom" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((a: any) => {
           const publishedLabel = a.published_at
             ? new Date(a.published_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })
             : null;
+          const typeCls = ARTICLE_TYPE_COLOR[a.article_type as string] ?? ARTICLE_TYPE_COLOR.default;
           return (
-            <Link key={a.slug} href={`/newsroom/article/${a.slug}`} className="group flex flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:border-white/20 hover:bg-white/[0.04]">
+            <Link key={a.slug} href={`/newsroom/article/${a.slug}`} className="group flex flex-col rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5 transition-colors hover:border-surface-border/20 hover:bg-text-primary/[0.04]">
               <div className="flex items-center justify-between gap-2">
-                <span className="w-fit rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                <span className={`w-fit rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${typeCls}`}>
                   {(a.article_type ?? "intelligence").replace(/_/g, " ")}
                 </span>
                 {!a.views && (
@@ -1226,17 +1256,17 @@ async function LatestIntelligenceRow() {
                   </span>
                 )}
               </div>
-              <p className="mt-2 flex-1 text-[12px] font-bold leading-snug text-white group-hover:text-sky-200 transition line-clamp-3">
+              <p className="mt-2 flex-1 text-[12px] font-bold leading-snug text-text-primary group-hover:text-sky-700 dark:text-sky-200 transition line-clamp-3">
                 {a.headline}
               </p>
-              <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-white/[0.05] pt-2.5 text-[9px] text-slate-500">
+              <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-surface-border/5 pt-2.5 text-[9px] text-text-muted">
                 {publishedLabel && <span>Published {publishedLabel}</span>}
                 <span>{a.read_time_minutes ?? 1} min read</span>
                 {a.confidence_score != null && <span className="text-sky-400 font-semibold">{Math.round(a.confidence_score * 100)}% confidence</span>}
                 {a.impact_score != null && <span className="text-violet-400 font-semibold">Impact {Math.round(a.impact_score)}</span>}
                 {!!a.views && <span>{a.views.toLocaleString("en-IN")} {a.views === 1 ? "view" : "views"}</span>}
               </div>
-              <span className="mt-2 flex items-center gap-1 text-[10px] font-bold text-violet-400 group-hover:text-violet-300 transition">
+              <span className="mt-2 flex items-center gap-1 text-[10px] font-bold text-violet-400 group-hover:text-violet-600 dark:text-violet-300 transition">
                 Read <ArrowRight className="h-2.5 w-2.5" />
               </span>
             </Link>

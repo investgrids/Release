@@ -58,8 +58,8 @@ export function FollowUpIntelligence({
   if (!groups || groups.length === 0) return null;
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-      <p className="mb-4 text-[13px] font-semibold text-white">Continue Your Research</p>
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+      <p className="mb-4 text-[13px] font-semibold text-text-primary">Continue Your Research</p>
       <div className="space-y-4">
         {groups.map(group => {
           const Icon = ICONS[group.icon] ?? GitCompare;
@@ -67,7 +67,7 @@ export function FollowUpIntelligence({
             <div key={group.key}>
               <div className="mb-2 flex items-center gap-1.5">
                 <Icon className="h-3.5 w-3.5 text-violet-400" />
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{group.label}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">{group.label}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {group.items.map((item, i) => (
@@ -77,10 +77,10 @@ export function FollowUpIntelligence({
                       trackClick(responseId, group, item, i);
                       onFollowUp(item.query);
                     }}
-                    className="group flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-left text-[11.5px] text-slate-300 transition hover:border-violet-500/30 hover:bg-violet-500/[0.08] hover:text-violet-300"
+                    className="group flex items-center gap-1 rounded-full border border-surface-border/8 bg-text-primary/[0.02] px-3 py-1.5 text-left text-[11.5px] text-text-secondary transition hover:border-violet-500/30 hover:bg-violet-500/[0.08] hover:text-violet-600 dark:text-violet-300"
                   >
                     {item.text}
-                    <ChevronRight className="h-3 w-3 shrink-0 text-slate-600 transition group-hover:text-violet-400" />
+                    <ChevronRight className="h-3 w-3 shrink-0 text-text-muted transition group-hover:text-violet-400" />
                   </button>
                 ))}
               </div>

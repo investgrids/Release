@@ -101,25 +101,25 @@ function meta(sym: string) {
 
 function highlight(values: number[], lowerBetter = false): string[] {
   const valid = values.filter(v => v > 0);
-  if (valid.length < 2) return values.map(() => "text-white");
+  if (valid.length < 2) return values.map(() => "text-text-primary");
   const best = lowerBetter ? Math.min(...valid) : Math.max(...valid);
   const worst = lowerBetter ? Math.max(...valid) : Math.min(...valid);
   return values.map(v =>
-    v <= 0 ? "text-slate-500" :
+    v <= 0 ? "text-text-muted" :
     v === best  ? "text-emerald-400 font-bold" :
-    v === worst ? "text-rose-400" : "text-white"
+    v === worst ? "text-rose-400" : "text-text-primary"
   );
 }
 
 // ── Micro-components ──────────────────────────────────────────────────────────
 
 function Spinner() {
-  return <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-sky-400" />;
+  return <div className="h-4 w-4 animate-spin rounded-full border-2 border-surface-border/20 border-t-sky-400" />;
 }
 
 function Avatar({ sym, idx, size = 40 }: { sym: string; idx: number; size?: number }) {
   return (
-    <div className="flex shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
+    <div className="flex shrink-0 items-center justify-center rounded-xl text-xs font-bold text-text-primary"
       style={{ width: size, height: size, background: `${color(idx)}28`, border: `1px solid ${color(idx)}44` }}>
       {sym.slice(0, 2)}
     </div>
@@ -128,7 +128,7 @@ function Avatar({ sym, idx, size = 40 }: { sym: string; idx: number; size?: numb
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 backdrop-blur-sm ${className}`}>
+    <div className={`rounded-2xl border border-surface-border/8 bg-text-primary/[0.025] p-5 backdrop-blur-sm ${className}`}>
       {children}
     </div>
   );
@@ -137,16 +137,16 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
 function CardTitle({ children, sub }: { children: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <div className="mb-4 flex items-center justify-between">
-      <span className="text-sm font-semibold text-white">{children}</span>
-      {sub && <span className="text-[11px] text-slate-500">{sub}</span>}
+      <span className="text-sm font-semibold text-text-primary">{children}</span>
+      {sub && <span className="text-[11px] text-text-muted">{sub}</span>}
     </div>
   );
 }
 
-function KVRow({ label, value, cls = "text-white" }: { label: string; value: string; cls?: string }) {
+function KVRow({ label, value, cls = "text-text-primary" }: { label: string; value: string; cls?: string }) {
   return (
-    <div className="flex items-center justify-between gap-2 border-b border-white/[0.04] py-1.5 last:border-0">
-      <span className="text-[11px] text-slate-500 shrink-0">{label}</span>
+    <div className="flex items-center justify-between gap-2 border-b border-surface-border/4 py-1.5 last:border-0">
+      <span className="text-[11px] text-text-muted shrink-0">{label}</span>
       <span className={`text-[12px] font-semibold text-right ${cls}`}>{value || "—"}</span>
     </div>
   );
@@ -154,7 +154,7 @@ function KVRow({ label, value, cls = "text-white" }: { label: string; value: str
 
 function MiniBar({ pct, col }: { pct: number; col: string }) {
   return (
-    <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/[0.05]">
+    <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-text-primary/[0.05]">
       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: col }} />
     </div>
   );
@@ -165,13 +165,13 @@ function MiniBar({ pct, col }: { pct: number; col: string }) {
 function PerfTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0f1e] px-3 py-2 text-[11px] shadow-xl">
-      <p className="mb-1 text-slate-400">{label}</p>
+    <div className="rounded-xl border border-surface-border/10 bg-surface-card px-3 py-2 text-[11px] shadow-xl">
+      <p className="mb-1 text-text-secondary">{label}</p>
       {payload.map((p: any) => (
         <div key={p.dataKey} className="flex items-center gap-2">
           <div className="h-1.5 w-3 rounded-full" style={{ background: p.color }} />
-          <span className="text-slate-300">{p.dataKey}</span>
-          <span className="font-semibold text-white">{p.value > 0 ? "+" : ""}{p.value?.toFixed(2)}%</span>
+          <span className="text-text-secondary">{p.dataKey}</span>
+          <span className="font-semibold text-text-primary">{p.value > 0 ? "+" : ""}{p.value?.toFixed(2)}%</span>
         </div>
       ))}
     </div>
@@ -187,8 +187,8 @@ function CmpRow({ label, values, fmt, lowerBetter = false }: {
   const cls = highlight(nums, lowerBetter);
   const display = fmt ? values.map(fmt) : values.map(v => String(v));
   return (
-    <tr className="border-b border-white/[0.04] last:border-0">
-      <td className="py-2 pr-4 text-[11px] text-slate-500 whitespace-nowrap">{label}</td>
+    <tr className="border-b border-surface-border/4 last:border-0">
+      <td className="py-2 pr-4 text-[11px] text-text-muted whitespace-nowrap">{label}</td>
       {display.map((d, i) => (
         <td key={i} className={`py-2 text-right text-[12px] font-medium ${cls[i]}`}>{d || "—"}</td>
       ))}
@@ -204,13 +204,13 @@ function ScoreRing({ score, label, col }: { score: number; label: string; col: s
   return (
     <div className="flex flex-col items-center gap-1">
       <svg width="76" height="76" viewBox="0 0 76 76">
-        <circle cx="38" cy="38" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+        <circle cx="38" cy="38" r={r} fill="none" stroke="rgb(var(--text-primary) / 0.06)" strokeWidth="6" />
         <circle cx="38" cy="38" r={r} fill="none" stroke={col} strokeWidth="6"
           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" transform="rotate(-90 38 38)"
           style={{ transition: "stroke-dasharray 1s ease" }} />
         <text x="38" y="42" textAnchor="middle" fill="white" fontSize="14" fontWeight="700" fontFamily="sans-serif">{score}</text>
       </svg>
-      <span className="text-[10px] text-slate-400 text-center leading-tight">{label}</span>
+      <span className="text-[10px] text-text-secondary text-center leading-tight">{label}</span>
     </div>
   );
 }
@@ -403,11 +403,11 @@ function ComparePageInner() {
 
   const recBadge = (r: string) => {
     const map: Record<string, string> = {
-      "strong buy": "border-emerald-500/40 bg-emerald-500/15 text-emerald-300",
-      "buy":        "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-      "hold":       "border-amber-500/30  bg-amber-500/10  text-amber-300",
-      "sell":       "border-rose-500/30   bg-rose-500/10   text-rose-300",
-      "strong sell":"border-rose-500/40   bg-rose-500/15   text-rose-300",
+      "strong buy": "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+      "buy":        "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+      "hold":       "border-amber-500/30  bg-amber-500/10  text-amber-600 dark:text-amber-300",
+      "sell":       "border-rose-500/30   bg-rose-500/10   text-rose-600 dark:text-rose-300",
+      "strong sell":"border-rose-500/40   bg-rose-500/15   text-rose-600 dark:text-rose-300",
     };
     return map[r] ?? map["hold"];
   };
@@ -427,11 +427,11 @@ function ComparePageInner() {
             {/* Performance Chart */}
             <Card>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-white">Performance Chart</h3>
+                <h3 className="text-sm font-semibold text-text-primary">Performance Chart</h3>
                 <div className="flex gap-0.5">
                   {PERIODS.map(p => (
                     <button key={p} onClick={() => setPeriod(p)}
-                      className={`rounded-md px-2 py-1 text-[10px] font-medium transition ${period === p ? "bg-sky-500/20 text-sky-300" : "text-slate-500 hover:text-slate-300"}`}>
+                      className={`rounded-md px-2 py-1 text-[10px] font-medium transition ${period === p ? "bg-sky-500/20 text-sky-600 dark:text-sky-300" : "text-text-muted hover:text-text-secondary"}`}>
                       {p}
                     </button>
                   ))}
@@ -443,13 +443,13 @@ function ComparePageInner() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={mergedChart}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--text-primary) / 0.03)" vertical={false} />
                       <XAxis dataKey="label" stroke="#475569" axisLine={false} tickLine={false}
-                        tick={{ fontSize: 9, fill: "#64748b" }} interval="preserveStartEnd" />
+                        tick={{ fontSize: 9, fill: "rgb(var(--text-muted))" }} interval="preserveStartEnd" />
                       <YAxis stroke="#475569" axisLine={false} tickLine={false} width={50}
-                        tick={{ fontSize: 9, fill: "#64748b" }}
+                        tick={{ fontSize: 9, fill: "rgb(var(--text-muted))" }}
                         tickFormatter={v => `${v > 0 ? "+" : ""}${v.toFixed(0)}%`} />
-                      <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" />
+                      <ReferenceLine y={0} stroke="rgb(var(--text-primary) / 0.08)" />
                       <Tooltip content={<PerfTooltip />} />
                       {selected.map((sym, i) => (
                         <Line key={sym} type="monotone" dataKey={sym} stroke={color(i)}
@@ -459,18 +459,18 @@ function ComparePageInner() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="flex h-64 items-center justify-center rounded-xl border border-white/5 bg-white/[0.02]">
-                  <p className="text-sm text-slate-500">No chart data available</p>
+                <div className="flex h-64 items-center justify-center rounded-xl border border-surface-border/5 bg-text-primary/[0.02]">
+                  <p className="text-sm text-text-muted">No chart data available</p>
                 </div>
               )}
-              <div className="mt-3 flex flex-wrap gap-4 border-t border-white/5 pt-3">
+              <div className="mt-3 flex flex-wrap gap-4 border-t border-surface-border/5 pt-3">
                 {selected.map((sym, i) => {
                   const pct = stocks[sym]?.pct_change || 0;
                   const isPos = pct >= 0;
                   return (
                     <div key={sym} className="flex items-center gap-2">
                       <div className="h-0.5 w-5 rounded-full" style={{ background: color(i) }} />
-                      <span className="text-[11px] font-semibold text-slate-300">{sym}</span>
+                      <span className="text-[11px] font-semibold text-text-secondary">{sym}</span>
                       <span className={`text-[11px] font-bold ${isPos ? "text-emerald-400" : "text-rose-400"}`}>
                         {isPos ? "+" : ""}{pct.toFixed(2)}%
                       </span>
@@ -486,8 +486,8 @@ function ComparePageInner() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-white/[0.06]">
-                      <th className="pb-2 text-left text-[10px] font-medium text-slate-500 w-36">Metric</th>
+                    <tr className="border-b border-surface-border/6">
+                      <th className="pb-2 text-left text-[10px] font-medium text-text-muted w-36">Metric</th>
                       {companies.map((c, i) => (
                         <th key={c.symbol} className="pb-2 text-right text-[10px] font-semibold" style={{ color: color(i) }}>{c.symbol}</th>
                       ))}
@@ -517,32 +517,32 @@ function ComparePageInner() {
             <Card className="border-violet-500/10">
               <div className="mb-4 flex items-center gap-2">
                 <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 shrink-0 text-violet-400"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
-                <h3 className="text-sm font-semibold text-white">AI Comparison Summary</h3>
+                <h3 className="text-sm font-semibold text-text-primary">AI Comparison Summary</h3>
               </div>
-              <p className="mb-4 text-[12px] leading-5 text-slate-300">
+              <p className="mb-4 text-[12px] leading-5 text-text-secondary">
                 {companies[winnerIdx]?.name || companies[0]?.name || "—"} leads on risk-adjusted return metrics.
                 {companies.length > 1 ? ` ${companies.find((_, i) => i !== winnerIdx)?.name ?? ""} offers stability with lower volatility.` : ""}
                 {companies.length > 2 ? " Consider sector exposure and time horizon before comparing." : ""}
               </p>
               <div className="space-y-2">
                 {([
-                  { icon: <Trophy className="h-4 w-4" />, label: "Best Performer",      col: "text-amber-300",   val: companies.reduce((b, c) => parseN(c.roe) > parseN(b.roe) ? c : b, companies[0])?.name || "—" },
-                  { icon: <Shield className="h-4 w-4" />, label: "Most Stable",         col: "text-sky-300",     val: companies.reduce((b, c) => { const bn = parseN(b.beta); const cn = parseN(c.beta); return (cn > 0 && cn < bn) || bn <= 0 ? c : b; }, companies[0])?.name || "—" },
-                  { icon: <Leaf className="h-4 w-4" />,   label: "Best Future Potential",col: "text-emerald-300", val: companies.reduce((b, c) => aiScores[companies.indexOf(c)] > aiScores[companies.indexOf(b)] ? c : b, companies[0])?.name || "—" },
+                  { icon: <Trophy className="h-4 w-4" />, label: "Best Performer",      col: "text-amber-600 dark:text-amber-300",   val: companies.reduce((b, c) => parseN(c.roe) > parseN(b.roe) ? c : b, companies[0])?.name || "—" },
+                  { icon: <Shield className="h-4 w-4" />, label: "Most Stable",         col: "text-sky-600 dark:text-sky-300",     val: companies.reduce((b, c) => { const bn = parseN(b.beta); const cn = parseN(c.beta); return (cn > 0 && cn < bn) || bn <= 0 ? c : b; }, companies[0])?.name || "—" },
+                  { icon: <Leaf className="h-4 w-4" />,   label: "Best Future Potential",col: "text-emerald-600 dark:text-emerald-300", val: companies.reduce((b, c) => aiScores[companies.indexOf(c)] > aiScores[companies.indexOf(b)] ? c : b, companies[0])?.name || "—" },
                 ] as { icon: ReactNode; label: string; col: string; val: string }[]).map(item => (
                   <div key={item.label}
-                    className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5">
+                    className="flex items-center justify-between rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-400">{item.icon}</span>
+                      <span className="text-text-secondary">{item.icon}</span>
                       <span className={`text-[11px] font-medium ${item.col}`}>{item.label}</span>
                     </div>
-                    <span className="max-w-[110px] truncate text-right text-[11px] font-semibold text-white">{item.val}</span>
+                    <span className="max-w-[110px] truncate text-right text-[11px] font-semibold text-text-primary">{item.val}</span>
                   </div>
                 ))}
               </div>
               <button
                 onClick={() => setActiveTab("AI Analysis")}
-                className="mt-4 w-full rounded-xl border border-violet-500/20 bg-gradient-to-r from-violet-500/15 to-sky-500/10 py-2.5 text-[12px] font-medium text-violet-300 transition hover:from-violet-500/25 hover:to-sky-500/15">
+                className="mt-4 w-full rounded-xl border border-violet-500/20 bg-gradient-to-r from-violet-500/15 to-sky-500/10 py-2.5 text-[12px] font-medium text-violet-600 dark:text-violet-300 transition hover:from-violet-500/25 hover:to-sky-500/15">
                 View Detailed AI Analysis →
               </button>
             </Card>
@@ -552,8 +552,8 @@ function ComparePageInner() {
               <CardTitle>Valuation Metrics</CardTitle>
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/[0.06]">
-                    <th className="pb-2 text-left text-[10px] font-medium text-slate-500">Metric</th>
+                  <tr className="border-b border-surface-border/6">
+                    <th className="pb-2 text-left text-[10px] font-medium text-text-muted">Metric</th>
                     {companies.map((c, i) => (
                       <th key={c.symbol} className="pb-2 text-right text-[10px] font-semibold" style={{ color: color(i) }}>{c.symbol}</th>
                     ))}
@@ -576,23 +576,23 @@ function ComparePageInner() {
                 {companies.flatMap((c, i) =>
                   (c.events || []).slice(0, 2).map((e, j) => (
                     <div key={`${c.symbol}-${j}`}
-                      className="flex items-start gap-2.5 rounded-xl border border-white/5 bg-white/[0.02] p-2.5">
+                      className="flex items-start gap-2.5 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-2.5">
                       <Avatar sym={c.symbol} idx={i} size={28} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-medium text-white leading-snug line-clamp-2">{e.title}</p>
+                        <p className="text-[11px] font-medium text-text-primary leading-snug line-clamp-2">{e.title}</p>
                         <div className="mt-1 flex items-center gap-2">
                           <span className="text-[9px] font-semibold" style={{ color: color(i) }}>{c.symbol}</span>
-                          <span className="text-[9px] text-slate-500">{e.date}</span>
+                          <span className="text-[9px] text-text-muted">{e.date}</span>
                         </div>
                       </div>
                     </div>
                   ))
                 ).slice(0, 5)}
                 {companies.every(c => !c.events?.length) && (
-                  <p className="py-4 text-center text-[11px] text-slate-500">No events for selected companies</p>
+                  <p className="py-4 text-center text-[11px] text-text-muted">No events for selected companies</p>
                 )}
               </div>
-              <Link href="/events" className="mt-3 block text-center text-[11px] text-sky-400 hover:text-sky-300 transition">
+              <Link href="/events" className="mt-3 block text-center text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
                 View All Events →
               </Link>
             </Card>
@@ -605,8 +605,8 @@ function ComparePageInner() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="pb-2 text-left text-[10px] font-medium text-slate-500 w-40">Metric</th>
+                <tr className="border-b border-surface-border/6">
+                  <th className="pb-2 text-left text-[10px] font-medium text-text-muted w-40">Metric</th>
                   {companies.map((c, i) => (
                     <th key={c.symbol} className="pb-2">
                       <div className="flex items-center justify-end gap-1.5">
@@ -629,8 +629,8 @@ function ComparePageInner() {
                   const max = Math.max(...vals.filter(v => v > 0), 1);
                   const cls = highlight(vals, row.lowerBetter);
                   return (
-                    <tr key={row.label} className="border-b border-white/[0.04] last:border-0">
-                      <td className="py-2.5 text-[11px] text-slate-500">{row.label}</td>
+                    <tr key={row.label} className="border-b border-surface-border/4 last:border-0">
+                      <td className="py-2.5 text-[11px] text-text-muted">{row.label}</td>
                       {companies.map((c, i) => {
                         const v = vals[i];
                         const w = max > 0 ? (v / max) * 100 : 0;
@@ -638,11 +638,11 @@ function ComparePageInner() {
                         return (
                           <td key={c.symbol} className="py-2.5 text-right">
                             {c.loading
-                              ? <span className="text-[11px] text-slate-600">…</span>
+                              ? <span className="text-[11px] text-text-muted">…</span>
                               : <div className="inline-flex flex-col items-end gap-1">
                                   <span className={`text-[12px] font-semibold ${cls[i]}`}>{display || "—"}</span>
                                   {w > 0 && (
-                                    <div className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.05]">
+                                    <div className="h-1 w-16 overflow-hidden rounded-full bg-text-primary/[0.05]">
                                       <div className="h-full rounded-full" style={{ width: `${w}%`, background: color(i) }} />
                                     </div>
                                   )}
@@ -671,35 +671,35 @@ function ComparePageInner() {
               <div className="mb-3 flex items-center gap-2">
                 <Avatar sym={c.symbol} idx={i} size={32} />
                 <div>
-                  <p className="text-[13px] font-semibold text-white">{c.symbol}</p>
-                  <p className="text-[10px] text-slate-500">{c.sector}</p>
+                  <p className="text-[13px] font-semibold text-text-primary">{c.symbol}</p>
+                  <p className="text-[10px] text-text-muted">{c.sector}</p>
                 </div>
               </div>
               {c.quarterly_revenue.length > 0 ? (
                 <div className="h-28">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Quarterly Revenue</p>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">Quarterly Revenue</p>
                   <div className="flex h-20 items-end gap-1">
                     {c.quarterly_revenue.map((d, j) => {
                       const maxV = Math.max(...c.quarterly_revenue.map(x => x.value), 1);
                       const pct = (d.value / maxV) * 100;
                       return (
                         <div key={j} className="group flex flex-1 flex-col items-center gap-0.5">
-                          <span className="text-[8px] text-slate-600 group-hover:text-slate-400 transition">
+                          <span className="text-[8px] text-text-muted group-hover:text-text-secondary transition">
                             {d.value > 999 ? `${(d.value / 1000).toFixed(0)}K` : d.value}
                           </span>
                           <div className="flex w-full flex-1 items-end">
                             <div className="w-full rounded-t" style={{ height: `${Math.max(pct, 4)}%`, background: `${color(i)}99` }} />
                           </div>
-                          <span className="text-[8px] text-slate-600">{d.label}</span>
+                          <span className="text-[8px] text-text-muted">{d.label}</span>
                         </div>
                       );
                     })}
                   </div>
                 </div>
               ) : (
-                <div className="flex h-24 items-center justify-center text-[11px] text-slate-600">No data</div>
+                <div className="flex h-24 items-center justify-center text-[11px] text-text-muted">No data</div>
               )}
-              <div className="mt-3 space-y-0 border-t border-white/5 pt-3">
+              <div className="mt-3 space-y-0 border-t border-surface-border/5 pt-3">
                 <KVRow label="Revenue"        value={c.revenue} />
                 <KVRow label="Net Profit"     value={c.profit} />
                 <KVRow label="Gross Margin"   value={c.gross_margins} />
@@ -723,24 +723,24 @@ function ComparePageInner() {
                   </div>
                   <table className="w-full text-[12px]">
                     <thead>
-                      <tr className="border-b border-white/[0.06]">
-                        <th className="pb-2 text-left text-[10px] text-slate-500 font-medium">₹ Cr</th>
+                      <tr className="border-b border-surface-border/6">
+                        <th className="pb-2 text-left text-[10px] text-text-muted font-medium">₹ Cr</th>
                         {c.annual_financials.map(f => (
-                          <th key={f.year} className="pb-2 text-right text-[10px] text-slate-500 font-medium">{f.year}</th>
+                          <th key={f.year} className="pb-2 text-right text-[10px] text-text-muted font-medium">{f.year}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b border-white/[0.04]">
-                        <td className="py-2 text-slate-400">Revenue</td>
+                      <tr className="border-b border-surface-border/4">
+                        <td className="py-2 text-text-secondary">Revenue</td>
                         {c.annual_financials.map(f => (
-                          <td key={f.year} className="py-2 text-right font-semibold text-white">{f.revenue.toLocaleString()}</td>
+                          <td key={f.year} className="py-2 text-right font-semibold text-text-primary">{f.revenue.toLocaleString()}</td>
                         ))}
                       </tr>
                       <tr>
-                        <td className="py-2 text-slate-400">Net Profit</td>
+                        <td className="py-2 text-text-secondary">Net Profit</td>
                         {c.annual_financials.map(f => (
-                          <td key={f.year} className={`py-2 text-right font-semibold ${f.net_income >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                          <td key={f.year} className={`py-2 text-right font-semibold ${f.net_income >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>
                             {f.net_income.toLocaleString()}
                           </td>
                         ))}
@@ -772,8 +772,8 @@ function ComparePageInner() {
           <CardTitle>Valuation Multiples</CardTitle>
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="pb-2 text-left text-[10px] font-medium text-slate-500 w-36">Metric</th>
+              <tr className="border-b border-surface-border/6">
+                <th className="pb-2 text-left text-[10px] font-medium text-text-muted w-36">Metric</th>
                 {companies.map((c, i) => (
                   <th key={c.symbol} className="pb-2 text-right text-[10px] font-semibold" style={{ color: color(i) }}>{c.symbol}</th>
                 ))}
@@ -791,13 +791,13 @@ function ComparePageInner() {
               <div key={c.symbol} className="flex flex-col items-center gap-3">
                 <ScoreRing score={aiScores[i]} label={c.symbol} col={color(i)} />
                 <div className="text-center">
-                  <p className="text-[10px] text-slate-500">Valuation Score</p>
-                  <p className="text-[12px] font-bold text-white">{aiScores[i]}/100</p>
+                  <p className="text-[10px] text-text-muted">Valuation Score</p>
+                  <p className="text-[12px] font-bold text-text-primary">{aiScores[i]}/100</p>
                 </div>
               </div>
             ))}
           </div>
-          <p className="mt-4 text-[10px] text-slate-600 text-center">
+          <p className="mt-4 text-[10px] text-text-muted text-center">
             Score derived from ROE, PE, D/E, gross margins, and dividend yield.
           </p>
         </Card>
@@ -821,7 +821,7 @@ function ComparePageInner() {
             <Card key={c.symbol}>
               <div className="mb-3 flex items-center gap-2">
                 <Avatar sym={c.symbol} idx={i} size={32} />
-                <span className="text-[13px] font-semibold text-white">{c.symbol}</span>
+                <span className="text-[13px] font-semibold text-text-primary">{c.symbol}</span>
               </div>
               <div className="space-y-3">
                 {rows.map(r => {
@@ -830,10 +830,10 @@ function ComparePageInner() {
                   return (
                     <div key={r.key}>
                       <div className="mb-1 flex justify-between text-[11px]">
-                        <span className="text-slate-400">{r.label}</span>
-                        <span className="font-semibold text-white">{val || "—"}</span>
+                        <span className="text-text-secondary">{r.label}</span>
+                        <span className="font-semibold text-text-primary">{val || "—"}</span>
                       </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
+                      <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.05]">
                         <div className="h-full rounded-full transition-all duration-700"
                           style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: color(i) }} />
                       </div>
@@ -848,8 +848,8 @@ function ComparePageInner() {
           <CardTitle>Margin Comparison</CardTitle>
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="pb-2 text-left text-[10px] font-medium text-slate-500 w-36">Margin</th>
+              <tr className="border-b border-surface-border/6">
+                <th className="pb-2 text-left text-[10px] font-medium text-text-muted w-36">Margin</th>
                 {companies.map((c, i) => (
                   <th key={c.symbol} className="pb-2 text-right text-[10px] font-semibold" style={{ color: color(i) }}>{c.symbol}</th>
                 ))}
@@ -870,8 +870,8 @@ function ComparePageInner() {
         <CardTitle>Balance Sheet Ratios</CardTitle>
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/[0.06]">
-              <th className="pb-2 text-left text-[10px] font-medium text-slate-500 w-40">Metric</th>
+            <tr className="border-b border-surface-border/6">
+              <th className="pb-2 text-left text-[10px] font-medium text-text-muted w-40">Metric</th>
               {companies.map((c, i) => (
                 <th key={c.symbol} className="pb-2 text-right text-[10px] font-semibold" style={{ color: color(i) }}>{c.symbol}</th>
               ))}
@@ -896,8 +896,8 @@ function ComparePageInner() {
           <CardTitle>Dividend Summary</CardTitle>
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="pb-2 text-left text-[10px] font-medium text-slate-500 w-36">Metric</th>
+              <tr className="border-b border-surface-border/6">
+                <th className="pb-2 text-left text-[10px] font-medium text-text-muted w-36">Metric</th>
                 {companies.map((c, i) => (
                   <th key={c.symbol} className="pb-2 text-right text-[10px] font-semibold" style={{ color: color(i) }}>{c.symbol}</th>
                 ))}
@@ -921,7 +921,7 @@ function ComparePageInner() {
                   <div className="mb-1.5 flex items-center justify-between text-[12px]">
                     <div className="flex items-center gap-2">
                       <Avatar sym={c.symbol} idx={i} size={24} />
-                      <span className="font-semibold text-white">{c.symbol}</span>
+                      <span className="font-semibold text-text-primary">{c.symbol}</span>
                     </div>
                     <span className="font-bold text-emerald-400">{c.dividend_yield}</span>
                   </div>
@@ -943,25 +943,25 @@ function ComparePageInner() {
             <div className="mb-3 flex items-center gap-2">
               <Avatar sym={c.symbol} idx={i} size={32} />
               <div>
-                <p className="text-[13px] font-semibold text-white">{c.symbol}</p>
-                <p className="text-[10px] text-slate-500">{c.sector}</p>
+                <p className="text-[13px] font-semibold text-text-primary">{c.symbol}</p>
+                <p className="text-[10px] text-text-muted">{c.sector}</p>
               </div>
             </div>
             {c.peers.length > 0 ? (
               <div className="space-y-1.5">
                 {c.peers.map(p => (
                   <Link key={p} href={`/companies/${p}`}
-                    className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 hover:border-white/10 hover:bg-white/[0.04] transition">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-[9px] font-bold text-slate-300">
+                    className="flex items-center gap-2.5 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2 hover:border-surface-border/10 hover:bg-text-primary/[0.04] transition">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-text-primary/[0.06] text-[9px] font-bold text-text-secondary">
                       {p.slice(0, 2)}
                     </div>
-                    <span className="text-[12px] font-medium text-white">{p}</span>
+                    <span className="text-[12px] font-medium text-text-primary">{p}</span>
                     <span className="ml-auto text-[10px] text-sky-400">→</span>
                   </Link>
                 ))}
               </div>
             ) : (
-              <p className="py-6 text-center text-[11px] text-slate-500">No peer data</p>
+              <p className="py-6 text-center text-[11px] text-text-muted">No peer data</p>
             )}
           </Card>
         ))}
@@ -979,13 +979,13 @@ function ComparePageInner() {
         {allEvents.length > 0 ? (
           <div className="space-y-2">
             {allEvents.map((e, j) => (
-              <div key={j} className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3.5">
+              <div key={j} className="flex items-start gap-3 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-3.5">
                 <Avatar sym={e.sym} idx={e.idx} size={32} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-medium text-white leading-snug">{e.title}</p>
+                  <p className="text-[13px] font-medium text-text-primary leading-snug">{e.title}</p>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="text-[10px] font-semibold" style={{ color: color(e.idx) }}>{e.sym}</span>
-                    <span className="text-[10px] text-slate-500">{e.date}</span>
+                    <span className="text-[10px] text-text-muted">{e.date}</span>
                   </div>
                 </div>
               </div>
@@ -993,9 +993,9 @@ function ComparePageInner() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <ClipboardList className="h-8 w-8 text-slate-500" />
-            <p className="text-sm text-slate-400">No events found for the selected companies.</p>
-            <Link href="/events" className="text-sm text-sky-400 hover:text-sky-300 transition">Browse all events →</Link>
+            <ClipboardList className="h-8 w-8 text-text-muted" />
+            <p className="text-sm text-text-secondary">No events found for the selected companies.</p>
+            <Link href="/events" className="text-sm text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">Browse all events →</Link>
           </div>
         )}
       </Card>
@@ -1026,8 +1026,8 @@ function ComparePageInner() {
                   <div className="flex items-center gap-2.5">
                     <Avatar sym={c.symbol} idx={i} size={36} />
                     <div>
-                      <p className="text-[13px] font-semibold text-white">{c.name}</p>
-                      <p className="text-[10px] text-slate-500">{c.symbol} · {c.sector}</p>
+                      <p className="text-[13px] font-semibold text-text-primary">{c.name}</p>
+                      <p className="text-[10px] text-text-muted">{c.symbol} · {c.sector}</p>
                     </div>
                   </div>
                   <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${recBadge(c.recommendation)}`}>
@@ -1041,27 +1041,27 @@ function ComparePageInner() {
                     {strengths.length > 0 ? (
                       <ul className="space-y-1">
                         {strengths.map((s, j) => (
-                          <li key={j} className="flex items-start gap-1 text-[11px] text-slate-300">
+                          <li key={j} className="flex items-start gap-1 text-[11px] text-text-secondary">
                             <span className="mt-0.5 text-emerald-400 shrink-0">•</span>{s}
                           </li>
                         ))}
                       </ul>
-                    ) : <p className="text-[11px] text-slate-500">Loading…</p>}
+                    ) : <p className="text-[11px] text-text-muted">Loading…</p>}
                   </div>
                   <div>
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-rose-400">Risks</p>
                     {risks.length > 0 ? (
                       <ul className="space-y-1">
                         {risks.map((r, j) => (
-                          <li key={j} className="flex items-start gap-1 text-[11px] text-slate-300">
+                          <li key={j} className="flex items-start gap-1 text-[11px] text-text-secondary">
                             <span className="mt-0.5 text-rose-400 shrink-0">•</span>{r}
                           </li>
                         ))}
                       </ul>
-                    ) : <p className="text-[11px] text-slate-500">No major risks identified</p>}
+                    ) : <p className="text-[11px] text-text-muted">No major risks identified</p>}
                   </div>
                 </div>
-                <div className="mt-3 space-y-0 border-t border-white/5 pt-3">
+                <div className="mt-3 space-y-0 border-t border-surface-border/5 pt-3">
                   <KVRow label="Target Mean"     value={c.target_mean} />
                   <KVRow label="Target High"     value={c.target_high} />
                   <KVRow label="Target Low"      value={c.target_low} />
@@ -1079,8 +1079,8 @@ function ComparePageInner() {
             <Award className="h-7 w-7 text-violet-400" />
             <div className="flex-1">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400">AI Recommended Pick</p>
-              <p className="mt-0.5 text-xl font-bold text-white">{companies[winnerIdx]?.name || "—"}</p>
-              <p className="mt-1 text-[12px] text-slate-300">
+              <p className="mt-0.5 text-xl font-bold text-text-primary">{companies[winnerIdx]?.name || "—"}</p>
+              <p className="mt-1 text-[12px] text-text-secondary">
                 Scores highest ({aiScores[winnerIdx]}/100) on risk-adjusted return metrics among the compared companies.
                 Based on ROE, valuation multiples, debt levels, and dividend returns.
               </p>
@@ -1088,14 +1088,14 @@ function ComparePageInner() {
             <div className="flex gap-4">
               {companies.map((c, i) => (
                 <div key={c.symbol} className="text-center">
-                  <p className="text-[10px] text-slate-500">{c.symbol}</p>
+                  <p className="text-[10px] text-text-muted">{c.symbol}</p>
                   <p className="text-[20px] font-black" style={{ color: color(i) }}>{aiScores[i]}</p>
-                  <p className="text-[9px] text-slate-600">/100</p>
+                  <p className="text-[9px] text-text-muted">/100</p>
                 </div>
               ))}
             </div>
           </div>
-          <button className="mt-4 rounded-xl border border-violet-500/20 bg-gradient-to-r from-violet-500/15 to-sky-500/10 px-5 py-2.5 text-[12px] font-medium text-violet-300 transition hover:from-violet-500/25 hover:to-sky-500/20">
+          <button className="mt-4 rounded-xl border border-violet-500/20 bg-gradient-to-r from-violet-500/15 to-sky-500/10 px-5 py-2.5 text-[12px] font-medium text-violet-600 dark:text-violet-300 transition hover:from-violet-500/25 hover:to-sky-500/20">
             View Detailed AI Analysis →
           </button>
         </Card>
@@ -1107,9 +1107,9 @@ function ComparePageInner() {
     return (
       <Card>
         <div className="flex flex-col items-center gap-3 py-20 text-center">
-          <BarChart2 className="h-8 w-8 text-slate-500" />
-          <p className="text-sm font-semibold text-white">{tab}</p>
-          <p className="text-sm text-slate-500">Detailed {tab.toLowerCase()} data coming soon.</p>
+          <BarChart2 className="h-8 w-8 text-text-muted" />
+          <p className="text-sm font-semibold text-text-primary">{tab}</p>
+          <p className="text-sm text-text-muted">Detailed {tab.toLowerCase()} data coming soon.</p>
         </div>
       </Card>
     );
@@ -1123,20 +1123,20 @@ function ComparePageInner() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.24em] text-sky-300">Research</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">Compare Companies</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="text-sm uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">Research</p>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-text-primary">Compare Companies</h1>
+          <p className="mt-1 text-sm text-text-secondary">
             Compare financials, valuation, market performance, events and AI insights side by side.
           </p>
         </div>
         <div className="mt-2 flex items-center gap-2">
-          <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-medium text-slate-300 transition hover:border-white/20 hover:text-white">
+          <button className="flex items-center gap-2 rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-xs font-medium text-text-secondary transition hover:border-surface-border/20 hover:text-text-primary">
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Export PDF
           </button>
-          <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-medium text-slate-300 transition hover:border-white/20 hover:text-white">
+          <button className="flex items-center gap-2 rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-xs font-medium text-text-secondary transition hover:border-surface-border/20 hover:text-text-primary">
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
@@ -1151,25 +1151,25 @@ function ComparePageInner() {
           "Company summary cards" grid below (later in DOM order, its own
           z-index:auto) painted over it regardless, since z-50 doesn't
           escape to compete against elements outside this subtree. */}
-      <div className="relative z-20 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 backdrop-blur-sm">
+      <div className="relative z-20 rounded-2xl border border-surface-border/8 bg-text-primary/[0.025] p-4 backdrop-blur-sm">
         <div className="flex flex-wrap items-center gap-3">
           {selected.map((sym, i) => {
             const m = meta(sym);
             return (
               <div key={sym} className="flex items-center gap-2">
-                {i > 0 && <span className="text-xs font-bold text-slate-600">VS</span>}
+                {i > 0 && <span className="text-xs font-bold text-text-muted">VS</span>}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-2 rounded-xl border bg-white/[0.04] px-3 py-2 transition"
+                  className="flex items-center gap-2 rounded-xl border bg-text-primary/[0.04] px-3 py-2 transition"
                   style={{ borderColor: `${color(i)}33` }}>
                   <Avatar sym={sym} idx={i} size={28} />
                   <div>
-                    <p className="max-w-[120px] truncate text-[11px] font-semibold text-white leading-tight">{m.name}</p>
-                    <p className="text-[9px] text-slate-500">{sym}</p>
+                    <p className="max-w-[120px] truncate text-[11px] font-semibold text-text-primary leading-tight">{m.name}</p>
+                    <p className="text-[9px] text-text-muted">{sym}</p>
                   </div>
                   <button
                     onClick={() => removeCompany(sym)}
-                    className="ml-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-white/10 hover:text-white">
+                    className="ml-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-text-muted transition hover:bg-text-primary/10 hover:text-text-primary">
                     <X className="h-3 w-3" />
                   </button>
                 </motion.div>
@@ -1181,36 +1181,36 @@ function ComparePageInner() {
             <div ref={searchRef} className="relative">
               <button
                 onClick={() => setShowSearch(v => !v)}
-                className="flex items-center gap-1.5 rounded-xl border border-dashed border-white/20 px-3 py-2 text-xs text-slate-400 transition hover:border-white/40 hover:text-white">
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-surface-border/20 px-3 py-2 text-xs text-text-secondary transition hover:border-surface-border/40 hover:text-text-primary">
                 <span className="text-base leading-none font-light">+</span> Add Company
               </button>
               <AnimatePresence>
                 {showSearch && (
                   <motion.div
                     initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                    className="absolute left-0 top-full z-50 mt-2 w-72 rounded-xl border border-white/10 bg-[#080d1c] p-2 shadow-2xl">
+                    className="absolute left-0 top-full z-50 mt-2 w-72 rounded-xl border border-surface-border/10 bg-surface-card p-2 shadow-2xl">
                     <input
                       autoFocus
                       value={search}
                       onChange={e => setSearch(e.target.value)}
                       placeholder="Search company or symbol…"
-                      className="w-full rounded-lg border border-white/5 bg-white/[0.04] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-500 focus:border-sky-500/30"
+                      className="w-full rounded-lg border border-surface-border/5 bg-text-primary/[0.04] px-3 py-2 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-sky-500/30"
                     />
                     <div className="mt-2 max-h-48 overflow-y-auto space-y-0.5">
                       {filteredSearch.map(c => (
                         <button key={c.symbol} onClick={() => addCompany(c.symbol)}
-                          className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-white/[0.04]">
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-white/[0.06] text-[9px] font-bold text-slate-300">
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-text-primary/[0.04]">
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-text-primary/[0.06] text-[9px] font-bold text-text-secondary">
                             {c.symbol.slice(0, 2)}
                           </div>
                           <div>
-                            <p className="text-[11px] font-medium text-white">{c.name}</p>
-                            <p className="text-[10px] text-slate-500">{c.symbol} · {c.sector}</p>
+                            <p className="text-[11px] font-medium text-text-primary">{c.name}</p>
+                            <p className="text-[10px] text-text-muted">{c.symbol} · {c.sector}</p>
                           </div>
                         </button>
                       ))}
                       {filteredSearch.length === 0 && (
-                        <p className="py-3 text-center text-[11px] text-slate-500">No results found</p>
+                        <p className="py-3 text-center text-[11px] text-text-muted">No results found</p>
                       )}
                     </div>
                   </motion.div>
@@ -1230,7 +1230,7 @@ function ComparePageInner() {
               <motion.div key={c.symbol}
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.07 }}
-                className="rounded-2xl border bg-white/[0.025] p-4 backdrop-blur-sm transition hover:-translate-y-0.5"
+                className="rounded-2xl border bg-text-primary/[0.025] p-4 backdrop-blur-sm transition hover:-translate-y-0.5"
                 style={{ borderColor: `${color(i)}22` }}>
                 {c.loading ? (
                   <div className="flex h-32 items-center justify-center"><Spinner /></div>
@@ -1239,9 +1239,9 @@ function ComparePageInner() {
                     <div className="flex items-start gap-2.5">
                       <Avatar sym={c.symbol} idx={i} size={40} />
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-semibold text-white">{c.name}</p>
+                        <p className="truncate text-[13px] font-semibold text-text-primary">{c.name}</p>
                         <div className="mt-0.5 flex items-center gap-1.5">
-                          <span className="text-[10px] text-slate-400">{c.symbol}</span>
+                          <span className="text-[10px] text-text-secondary">{c.symbol}</span>
                           <span className="flex items-center gap-0.5 rounded border border-emerald-500/20 bg-emerald-500/10 px-1 py-px text-[8px] font-semibold text-emerald-400">
                             <span className="h-1 w-1 rounded-full bg-emerald-400 inline-block" /> NSE
                           </span>
@@ -1250,24 +1250,24 @@ function ComparePageInner() {
                     </div>
                     <div className="mt-3">
                       <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-[22px] font-black text-white">₹{c.price}</span>
+                        <span className="text-[22px] font-black text-text-primary">₹{c.price}</span>
                         <span className={`text-xs font-semibold ${isPos ? "text-emerald-400" : "text-rose-400"}`}>
                           {isPos ? "+" : ""}{c.change_abs} ({isPos ? "+" : ""}{(c.pct_change || 0).toFixed(2)}%) {isPos ? "▲" : "▼"}
                         </span>
                       </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-1 border-t border-white/5 pt-3">
+                    <div className="mt-3 grid grid-cols-3 gap-1 border-t border-surface-border/5 pt-3">
                       <div>
-                        <p className="text-[9px] text-slate-500">Market Cap</p>
-                        <p className="truncate text-[11px] font-semibold text-white">{c.market_cap}</p>
+                        <p className="text-[9px] text-text-muted">Market Cap</p>
+                        <p className="truncate text-[11px] font-semibold text-text-primary">{c.market_cap}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] text-slate-500">Sector</p>
-                        <p className="truncate text-[11px] font-semibold text-white">{c.sector}</p>
+                        <p className="text-[9px] text-text-muted">Sector</p>
+                        <p className="truncate text-[11px] font-semibold text-text-primary">{c.sector}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] text-slate-500">52W H/L</p>
-                        <p className="truncate text-[11px] font-semibold text-white">{c.week52_high}/{c.week52_low}</p>
+                        <p className="text-[9px] text-text-muted">52W H/L</p>
+                        <p className="truncate text-[11px] font-semibold text-text-primary">{c.week52_high}/{c.week52_low}</p>
                       </div>
                     </div>
                   </>
@@ -1279,13 +1279,13 @@ function ComparePageInner() {
       )}
 
       {/* Tab bar */}
-      <div className="flex gap-0.5 overflow-x-auto border-b border-white/5 scrollbar-hide">
+      <div className="flex gap-0.5 overflow-x-auto border-b border-surface-border/5 scrollbar-hide">
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-2.5 text-[12px] font-medium transition ${
               activeTab === tab
-                ? "border-sky-400 text-white"
-                : "border-transparent text-slate-500 hover:text-slate-300"
+                ? "border-sky-400 text-text-primary"
+                : "border-transparent text-text-muted hover:text-text-secondary"
             }`}>
             {tab}
           </button>
@@ -1311,7 +1311,7 @@ function ComparePageInner() {
 
       {companies.every(c => c.price === "—" && !c.loading) && companies.length > 0 && (
         <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/[0.04] p-4">
-          <p className="text-xs text-amber-300">Fetching live data from market — values will appear shortly.</p>
+          <p className="text-xs text-amber-600 dark:text-amber-300">Fetching live data from market — values will appear shortly.</p>
         </div>
       )}
     </main>

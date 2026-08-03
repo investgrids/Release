@@ -32,37 +32,37 @@ const VARIANT_DEFS: Record<SmartCTAVariant, {
   "ask-ai": {
     icon:         <Bot className="h-3.5 w-3.5" />,
     defaultLabel: "Ask AI About This",
-    color:        "border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50",
+    color:        "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50",
   },
   "view-ripple": {
     icon:         <Activity className="h-3.5 w-3.5" />,
     defaultLabel: "View Ripple Intelligence",
-    color:        "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/50",
+    color:        "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/50",
   },
   "explore-opportunity": {
     icon:         <Target className="h-3.5 w-3.5" />,
     defaultLabel: "Explore Opportunity",
-    color:        "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50",
+    color:        "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50",
   },
   "read-story": {
     icon:         <BookOpen className="h-3.5 w-3.5" />,
     defaultLabel: "Read Similar Story",
-    color:        "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/50",
+    color:        "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/50",
   },
   "see-companies": {
     icon:         <Building2 className="h-3.5 w-3.5" />,
     defaultLabel: "See Related Companies",
-    color:        "border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50",
+    color:        "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50",
   },
   "search-topic": {
     icon:         <Search className="h-3.5 w-3.5" />,
     defaultLabel: "Search This Topic",
-    color:        "border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:border-white/20",
+    color:        "border-surface-border/10 bg-text-primary/[0.04] text-text-secondary hover:bg-text-primary/[0.08] hover:border-surface-border/20",
   },
   "view-event": {
     icon:         <Zap className="h-3.5 w-3.5" />,
     defaultLabel: "View Event Details",
-    color:        "border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50",
+    color:        "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50",
   },
 };
 

@@ -37,14 +37,14 @@ const TABS = ["Overview", "Market Impact", "Companies", "Related Events", "AI An
 type Tab = (typeof TABS)[number];
 
 const SOURCE_COLORS: Record<string, string> = {
-  "Economic Times":   "text-amber-300 bg-amber-500/10 border-amber-500/20",
-  "Business Standard":"text-sky-300 bg-sky-500/10 border-sky-500/20",
-  "LiveMint":         "text-emerald-300 bg-emerald-500/10 border-emerald-500/20",
-  "Reuters":          "text-violet-300 bg-violet-500/10 border-violet-500/20",
+  "Economic Times":   "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/20",
+  "Business Standard":"text-sky-600 dark:text-sky-300 bg-sky-500/10 border-sky-500/20",
+  "LiveMint":         "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20",
+  "Reuters":          "text-violet-600 dark:text-violet-300 bg-violet-500/10 border-violet-500/20",
   "Moneycontrol":     "text-blue-300 bg-blue-500/10 border-blue-500/20",
-  "Google News":      "text-rose-300 bg-rose-500/10 border-rose-500/20",
+  "Google News":      "text-rose-600 dark:text-rose-300 bg-rose-500/10 border-rose-500/20",
   "Yahoo Finance":    "text-purple-300 bg-purple-500/10 border-purple-500/20",
-  "Mint":             "text-teal-300 bg-teal-500/10 border-teal-500/20",
+  "Mint":             "text-teal-600 dark:text-teal-300 bg-teal-500/10 border-teal-500/20",
 };
 
 const SECTOR_ICONS: Record<string, ReactNode> = {
@@ -156,11 +156,11 @@ const SECTOR_RISKS: Record<string, string[]> = {
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 function impactLabel(s: number | null | undefined) {
-  if (s === null || s === undefined) return { label: "Unscored", color: "text-slate-500 bg-slate-800/10 border-slate-700/20", ring: "stroke-slate-600", bar: "from-slate-600 to-slate-500" };
-  if (s >= 85) return { label: "Very High Impact", color: "text-rose-300 bg-rose-500/10 border-rose-500/20",   ring: "stroke-rose-500",    bar: "from-rose-500 to-rose-400"    };
-  if (s >= 70) return { label: "High Impact",      color: "text-amber-300 bg-amber-500/10 border-amber-500/20", ring: "stroke-amber-500",   bar: "from-amber-500 to-yellow-400"  };
-  if (s >= 50) return { label: "Medium Impact",    color: "text-sky-300 bg-sky-500/10 border-sky-500/20",       ring: "stroke-sky-500",     bar: "from-sky-500 to-cyan-400"     };
-  return              { label: "Low Impact",        color: "text-slate-400 bg-slate-500/10 border-slate-500/20", ring: "stroke-slate-500",   bar: "from-slate-500 to-slate-400"  };
+  if (s === null || s === undefined) return { label: "Unscored", color: "text-text-muted bg-text-primary/[0.03] border-surface-border/5", ring: "stroke-slate-600", bar: "from-slate-600 to-slate-500" };
+  if (s >= 85) return { label: "Very High Impact", color: "text-rose-600 dark:text-rose-300 bg-rose-500/10 border-rose-500/20",   ring: "stroke-rose-500",    bar: "from-rose-500 to-rose-400"    };
+  if (s >= 70) return { label: "High Impact",      color: "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/20", ring: "stroke-amber-500",   bar: "from-amber-500 to-yellow-400"  };
+  if (s >= 50) return { label: "Medium Impact",    color: "text-sky-600 dark:text-sky-300 bg-sky-500/10 border-sky-500/20",       ring: "stroke-sky-500",     bar: "from-sky-500 to-cyan-400"     };
+  return              { label: "Low Impact",        color: "text-text-secondary bg-slate-500/10 border-surface-border/5", ring: "stroke-slate-500",   bar: "from-slate-500 to-slate-400"  };
 }
 
 function deriveSentiment(article: NewsArticle): "Bullish" | "Neutral" | "Bearish" {
@@ -226,7 +226,7 @@ function companySymbol(name: string): string {
 function Spinner() {
   return (
     <div className="flex h-40 items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-sky-400" />
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-surface-border/10 border-t-sky-400" />
     </div>
   );
 }
@@ -245,13 +245,13 @@ function ScoreRing({ score, size = 96 }: { score: number | null | undefined; siz
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(255,255,255,0.06)" strokeWidth={6} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="rgb(var(--text-primary) / 0.06)" strokeWidth={6} fill="none" />
         <circle cx={size / 2} cy={size / 2} r={r} className={imp.ring} strokeWidth={6} fill="none"
           strokeLinecap="round" strokeDasharray={`${dash} ${circ}`} style={{ transition: "stroke-dasharray 1s ease" }} />
       </svg>
       <div className="absolute text-center">
-        <div className="text-2xl font-black text-white leading-none">{unscored ? "N/A" : Math.round(score)}</div>
-        <div className="text-[9px] text-slate-500 mt-0.5">{unscored ? "Unscored" : "/ 100"}</div>
+        <div className="text-2xl font-black text-text-primary leading-none">{unscored ? "N/A" : Math.round(score)}</div>
+        <div className="text-[9px] text-text-muted mt-0.5">{unscored ? "Unscored" : "/ 100"}</div>
       </div>
     </div>
   );
@@ -259,9 +259,9 @@ function ScoreRing({ score, size = 96 }: { score: number | null | undefined; siz
 
 function SentimentBadge({ sentiment }: { sentiment: "Bullish" | "Neutral" | "Bearish" }) {
   const cfg = {
-    Bullish: { color: "text-emerald-300 bg-emerald-500/15 border-emerald-500/30", icon: "↑" },
-    Neutral: { color: "text-amber-300 bg-amber-500/15 border-amber-500/30",       icon: "→" },
-    Bearish: { color: "text-rose-300 bg-rose-500/15 border-rose-500/30",           icon: "↓" },
+    Bullish: { color: "text-emerald-600 dark:text-emerald-300 bg-emerald-500/15 border-emerald-500/30", icon: "↑" },
+    Neutral: { color: "text-amber-600 dark:text-amber-300 bg-amber-500/15 border-amber-500/30",       icon: "→" },
+    Bearish: { color: "text-rose-600 dark:text-rose-300 bg-rose-500/15 border-rose-500/30",           icon: "↓" },
   }[sentiment];
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold ${cfg.color}`}>
@@ -272,8 +272,8 @@ function SentimentBadge({ sentiment }: { sentiment: "Bullish" | "Neutral" | "Bea
 
 function Card({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-[20px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm ${className}`}>
-      {title && <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{title}</h3>}
+    <div className={`rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-5 backdrop-blur-sm ${className}`}>
+      {title && <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-text-secondary">{title}</h3>}
       {children}
     </div>
   );
@@ -283,21 +283,21 @@ function SectorBar({ label, icon, pct, color }: { label: string; icon: string; p
   return (
     <div className="flex items-center gap-3">
       <span className="text-lg w-6 shrink-0">{icon}</span>
-      <span className="min-w-[120px] text-[13px] font-medium text-slate-200">{label}</span>
-      <div className="flex-1 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+      <span className="min-w-[120px] text-[13px] font-medium text-text-primary">{label}</span>
+      <div className="flex-1 h-2 overflow-hidden rounded-full bg-text-primary/[0.06]">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%`, transition: "width 0.8s ease" }} />
       </div>
-      <span className="w-8 text-right text-[11px] font-semibold text-white">{Math.round(pct)}</span>
+      <span className="w-8 text-right text-[11px] font-semibold text-text-primary">{Math.round(pct)}</span>
     </div>
   );
 }
 
 function EmptyState({ icon, title, sub }: { icon: ReactNode; title: string; sub: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.02] py-16 text-center">
-      <span className="text-slate-500 mb-1">{icon}</span>
-      <p className="mt-3 text-sm font-semibold text-white">{title}</p>
-      <p className="mt-1 text-xs text-slate-500">{sub}</p>
+    <div className="flex flex-col items-center justify-center rounded-[20px] border border-surface-border/10 bg-text-primary/[0.02] py-16 text-center">
+      <span className="text-text-muted mb-1">{icon}</span>
+      <p className="mt-3 text-sm font-semibold text-text-primary">{title}</p>
+      <p className="mt-1 text-xs text-text-muted">{sub}</p>
     </div>
   );
 }
@@ -308,33 +308,33 @@ function CompanyCard({ name, stockInfo, idx, sentiment }: { name: string; stockI
   const impact = sentiment === "Bullish" ? "Positive" : sentiment === "Bearish" ? "Negative" : "Neutral";
   const impactColor = impact === "Positive" ? "text-emerald-400" : impact === "Negative" ? "text-rose-400" : "text-amber-400";
   return (
-    <div className="flex flex-col rounded-[18px] border border-white/10 bg-white/[0.03] p-4 hover:border-white/20 hover:-translate-y-0.5 transition">
+    <div className="flex flex-col rounded-[18px] border border-surface-border/10 bg-text-primary/[0.03] p-4 hover:border-surface-border/20 hover:-translate-y-0.5 transition">
       <div className="flex items-center gap-3 mb-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-text-primary"
           style={{ background: `${PALETTE[idx % PALETTE.length]}20`, border: `1px solid ${PALETTE[idx % PALETTE.length]}30` }}>
           {sym.slice(0, 2)}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold text-white">{sym}</p>
-          <p className="truncate text-[11px] text-slate-500">{name}</p>
+          <p className="truncate text-[13px] font-semibold text-text-primary">{sym}</p>
+          <p className="truncate text-[11px] text-text-muted">{name}</p>
         </div>
       </div>
       {!stockInfo ? (
         <div className="space-y-1.5">
-          <div className="h-4 w-24 animate-pulse rounded bg-white/[0.06]" />
-          <div className="h-3 w-14 animate-pulse rounded bg-white/[0.04]" />
+          <div className="h-4 w-24 animate-pulse rounded bg-text-primary/[0.06]" />
+          <div className="h-3 w-14 animate-pulse rounded bg-text-primary/[0.04]" />
         </div>
       ) : (
         <div className="mb-2">
-          <p className="text-base font-bold text-white">₹{stockInfo.price}</p>
+          <p className="text-base font-bold text-text-primary">₹{stockInfo.price}</p>
           <p className={`text-xs font-medium ${isPos ? "text-emerald-400" : "text-rose-400"}`}>
             {isPos ? "+" : ""}{(stockInfo.pct_change ?? 0).toFixed(2)}%
           </p>
         </div>
       )}
-      <div className="mt-auto flex items-center justify-between pt-2 border-t border-white/[0.05]">
+      <div className="mt-auto flex items-center justify-between pt-2 border-t border-surface-border/5">
         <span className={`text-[10px] font-medium ${impactColor}`}>{impact} impact</span>
-        <Link href={`/companies/${sym}`} className="text-[11px] text-sky-400 hover:text-sky-300 transition">
+        <Link href={`/companies/${sym}`} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
           View Stock →
         </Link>
       </div>
@@ -347,18 +347,18 @@ function RelatedEventCard({ ev }: { ev: Event }) {
   const rawImpact = ev.impact_score;
   const unscored = rawImpact === null || rawImpact === undefined;
   const score = unscored ? null : Math.round(rawImpact);
-  const scoreColor = unscored ? "border-slate-600 bg-slate-800/20 text-slate-500" : score! >= 85 ? "border-rose-500 bg-rose-500/10 text-rose-400" : score! >= 70 ? "border-amber-400 bg-amber-500/10 text-amber-400" : "border-sky-400 bg-sky-500/10 text-sky-400";
+  const scoreColor = unscored ? "border-surface-border/10 bg-text-primary/[0.05] text-text-muted" : score! >= 85 ? "border-rose-500 bg-rose-500/10 text-rose-400" : score! >= 70 ? "border-amber-400 bg-amber-500/10 text-amber-400" : "border-sky-400 bg-sky-500/10 text-sky-400";
   return (
-    <div className="flex gap-3 rounded-[16px] border border-white/8 bg-white/[0.02] p-3 hover:border-white/15 hover:bg-white/[0.035] transition">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-slate-400">
+    <div className="flex gap-3 rounded-[16px] border border-surface-border/8 bg-text-primary/[0.02] p-3 hover:border-surface-border/15 hover:bg-text-primary/[0.035] transition">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-text-primary/5 text-text-secondary">
         {ICONS[ev.category] ?? <Pin className="h-4 w-4" />}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-semibold leading-snug text-white line-clamp-2">{ev.title}</p>
+        <p className="text-[12px] font-semibold leading-snug text-text-primary line-clamp-2">{ev.title}</p>
         <div className="mt-1.5 flex items-center gap-2">
-          <span className="text-[10px] text-slate-500">{ev.date}</span>
-          <span className="text-[10px] text-slate-600">•</span>
-          <Link href={`/events/${ev.id}`} className="text-[10px] text-sky-400 hover:text-sky-300 transition">View Details →</Link>
+          <span className="text-[10px] text-text-muted">{ev.date}</span>
+          <span className="text-[10px] text-text-muted">•</span>
+          <Link href={`/events/${ev.id}`} className="text-[10px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View Details →</Link>
         </div>
       </div>
       <div className={`flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-full border ${scoreColor}`}>
@@ -370,16 +370,16 @@ function RelatedEventCard({ ev }: { ev: Event }) {
 
 function RelatedArticleCard({ article }: { article: NewsArticle }) {
   const imp = impactLabel(article.impact_score);
-  const srcCls = SOURCE_COLORS[article.source] ?? "text-slate-400 bg-white/5 border-white/10";
+  const srcCls = SOURCE_COLORS[article.source] ?? "text-text-secondary bg-text-primary/5 border-surface-border/10";
   return (
     <Link href={`/news/${article.id}`}
-      className="group rounded-[16px] border border-white/8 bg-white/[0.02] p-4 hover:border-white/15 hover:bg-white/[0.035] hover:-translate-y-0.5 transition block">
+      className="group rounded-[16px] border border-surface-border/8 bg-text-primary/[0.02] p-4 hover:border-surface-border/15 hover:bg-text-primary/[0.035] hover:-translate-y-0.5 transition block">
       <div className="flex flex-wrap items-center gap-1.5 mb-2">
         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${imp.color}`}>{imp.label}</span>
         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${srcCls}`}>{article.source}</span>
-        <span className="text-[10px] text-slate-600 ml-auto">{article.published_at}</span>
+        <span className="text-[10px] text-text-muted ml-auto">{article.published_at}</span>
       </div>
-      <p className="text-[13px] font-semibold leading-snug text-white group-hover:text-sky-300 transition line-clamp-2">{article.headline}</p>
+      <p className="text-[13px] font-semibold leading-snug text-text-primary group-hover:text-sky-600 dark:text-sky-300 transition line-clamp-2">{article.headline}</p>
     </Link>
   );
 }
@@ -395,14 +395,14 @@ function OverviewTab({ article, relatedEvents }: { article: NewsArticle; related
       {/* LEFT */}
       <div className="space-y-4">
         <Card title="Article Summary">
-          <p className="text-[14px] leading-7 text-slate-200">{article.summary}</p>
+          <p className="text-[14px] leading-7 text-text-primary">{article.summary}</p>
           {bullets.length > 0 && (
-            <div className="mt-5 space-y-2 border-t border-white/[0.05] pt-4">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-3">Key Highlights</p>
+            <div className="mt-5 space-y-2 border-t border-surface-border/5 pt-4">
+              <p className="text-[10px] uppercase tracking-widest text-text-muted mb-3">Key Highlights</p>
               {bullets.map((b, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" />
-                  <p className="text-[13px] leading-5 text-slate-300">{b.trim()}.</p>
+                  <p className="text-[13px] leading-5 text-text-secondary">{b.trim()}.</p>
                 </div>
               ))}
             </div>
@@ -417,9 +417,9 @@ function OverviewTab({ article, relatedEvents }: { article: NewsArticle; related
               { label: "Impact Score", value: article.impact_score === null || article.impact_score === undefined ? "Unscored" : `${Math.round(article.impact_score)} / 100` },
               { label: "Category",     value: (article.sectors ?? [])[0] ?? "Indian Markets" },
             ].map(({ label, value }) => (
-              <div key={label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                <p className="text-[10px] text-slate-500">{label}</p>
-                <p className="mt-1 text-[13px] font-semibold text-white">{value}</p>
+              <div key={label} className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3">
+                <p className="text-[10px] text-text-muted">{label}</p>
+                <p className="mt-1 text-[13px] font-semibold text-text-primary">{value}</p>
               </div>
             ))}
           </div>
@@ -430,13 +430,13 @@ function OverviewTab({ article, relatedEvents }: { article: NewsArticle; related
       <div className="space-y-4 lg:sticky lg:top-[84px]">
         <Card title="AI Summary">
           <SentimentBadge sentiment={ins.sentiment} />
-          <p className="mt-3 text-[12px] leading-5 text-slate-400">{ins.shortTerm}</p>
-          <div className="mt-3 space-y-1.5 border-t border-white/[0.05] pt-3">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500">What this means</p>
+          <p className="mt-3 text-[12px] leading-5 text-text-secondary">{ins.shortTerm}</p>
+          <div className="mt-3 space-y-1.5 border-t border-surface-border/5 pt-3">
+            <p className="text-[10px] uppercase tracking-widest text-text-muted">What this means</p>
             {ins.themes.map(t => (
               <div key={t} className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
-                <span className="text-[12px] text-slate-300">{t}</span>
+                <span className="text-[12px] text-text-secondary">{t}</span>
               </div>
             ))}
           </div>
@@ -444,19 +444,19 @@ function OverviewTab({ article, relatedEvents }: { article: NewsArticle; related
 
         <Card title="Related Events">
           {top3Events.length === 0 ? (
-            <p className="text-[12px] text-slate-500">No linked events found.</p>
+            <p className="text-[12px] text-text-muted">No linked events found.</p>
           ) : (
             <div className="space-y-2.5">
               {top3Events.map(ev => (
                 <div key={ev.id} className="flex items-start gap-2">
                   <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
                   <div className="min-w-0">
-                    <p className="text-[12px] text-slate-300 leading-4 line-clamp-1">{ev.title}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-600">{ev.date}</p>
+                    <p className="text-[12px] text-text-secondary leading-4 line-clamp-1">{ev.title}</p>
+                    <p className="mt-0.5 text-[10px] text-text-muted">{ev.date}</p>
                   </div>
                 </div>
               ))}
-              <Link href="/events" className="mt-2 flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-300 transition">
+              <Link href="/events" className="mt-2 flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
                 View All Events →
               </Link>
             </div>
@@ -513,20 +513,20 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
     : status?.status === "weekend" ? "Weekend"
     : "Market Closed";
   const statusColor = status?.is_open
-    ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/25"
-    : "text-rose-300 bg-rose-500/10 border-rose-500/25";
+    ? "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/25"
+    : "text-rose-600 dark:text-rose-300 bg-rose-500/10 border-rose-500/25";
 
   return (
     <div className="space-y-4">
       {/* Market status header */}
       {!loadingMkt && status && (
-        <div className="flex items-center justify-between rounded-[16px] border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+        <div className="flex items-center justify-between rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] px-4 py-3">
           <div className="flex items-center gap-3">
             <div className={`h-2 w-2 rounded-full ${status.is_open ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`} />
             <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusColor}`}>{statusLabel}</span>
-            <span className="text-[12px] text-slate-400">NSE · {status.time_ist} IST</span>
+            <span className="text-[12px] text-text-secondary">NSE · {status.time_ist} IST</span>
           </div>
-          <span className="text-[11px] text-slate-500">{status.date}</span>
+          <span className="text-[11px] text-text-muted">{status.date}</span>
         </div>
       )}
 
@@ -534,7 +534,7 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
       <Card title="Live Index Performance">
         {loadingMkt ? (
           <div className="space-y-2">
-            {[1,2,3].map(i => <div key={i} className="h-12 animate-pulse rounded-xl bg-white/[0.04]" />)}
+            {[1,2,3].map(i => <div key={i} className="h-12 animate-pulse rounded-xl bg-text-primary/[0.04]" />)}
           </div>
         ) : (mktData?.marketIndices?.length ?? 0) > 0 ? (
           <div className="space-y-2">
@@ -544,19 +544,19 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
               const barW = Math.min(100, (absPct / 5) * 100);
               const barColor = idx.positive ? "bg-gradient-to-r from-emerald-500 to-teal-400" : "bg-gradient-to-r from-rose-500 to-rose-400";
               return (
-                <div key={idx.ticker} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+                <div key={idx.ticker} className="flex items-center gap-3 rounded-xl border border-surface-border/6 bg-text-primary/[0.02] px-3 py-2.5">
                   <div className="min-w-[130px]">
-                    <p className="text-[13px] font-semibold text-white">{idx.name}</p>
-                    <p className="text-[10px] text-slate-500">{idx.ticker}</p>
+                    <p className="text-[13px] font-semibold text-text-primary">{idx.name}</p>
+                    <p className="text-[10px] text-text-muted">{idx.ticker}</p>
                   </div>
                   <div className="flex-1">
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
                       <div className={`h-full rounded-full ${barColor}`}
                         style={{ width: `${barW}%`, transition: "width 0.8s ease" }} />
                     </div>
                   </div>
                   <div className="text-right shrink-0 w-24">
-                    <p className="text-[13px] font-bold text-white">{idx.value}</p>
+                    <p className="text-[13px] font-bold text-text-primary">{idx.value}</p>
                     <p className={`text-[11px] font-semibold ${idx.positive ? "text-emerald-400" : "text-rose-400"}`}>
                       {idx.change_str}
                     </p>
@@ -566,27 +566,27 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
             })}
           </div>
         ) : (
-          <p className="text-[12px] text-slate-500">Index data unavailable — backend may be starting up.</p>
+          <p className="text-[12px] text-text-muted">Index data unavailable — backend may be starting up.</p>
         )}
       </Card>
 
       {/* Sectors affected */}
       <div>
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
           Sectors Affected by This Article
         </p>
         {loadingMkt ? (
           <div className="grid grid-cols-2 gap-3">
-            {[1,2,3,4].map(i => <div key={i} className="h-28 animate-pulse rounded-[18px] bg-white/[0.04]" />)}
+            {[1,2,3,4].map(i => <div key={i} className="h-28 animate-pulse rounded-[18px] bg-text-primary/[0.04]" />)}
           </div>
         ) : (mktData?.sectorDetails?.length ?? 0) > 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {mktData!.sectorDetails.map(sd => {
               const barW = Math.min(100, (Math.abs(sd.pct_change) / 3) * 100);
               const impactColors: Record<string, string> = {
-                High:   "text-rose-300 bg-rose-500/10 border-rose-500/25",
-                Medium: "text-amber-300 bg-amber-500/10 border-amber-500/25",
-                Low:    "text-slate-400 bg-white/[0.04] border-white/10",
+                High:   "text-rose-600 dark:text-rose-300 bg-rose-500/10 border-rose-500/25",
+                Medium: "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/25",
+                Low:    "text-text-secondary bg-text-primary/[0.04] border-surface-border/10",
               };
               const barGrad = sd.positive
                 ? "from-emerald-500 to-teal-400"
@@ -595,12 +595,12 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
               const arrow = sd.positive ? "↑" : "↓";
               return (
                 <div key={sd.sector}
-                  className="flex flex-col gap-2.5 rounded-[18px] border border-white/[0.07] bg-white/[0.03] p-4 backdrop-blur-sm">
+                  className="flex flex-col gap-2.5 rounded-[18px] border border-surface-border/7 bg-text-primary/[0.03] p-4 backdrop-blur-sm">
                   {/* Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xl leading-none">{sd.icon}</span>
-                      <span className="text-[13px] font-semibold text-white leading-tight">{sd.sector}</span>
+                      <span className="text-[13px] font-semibold text-text-primary leading-tight">{sd.sector}</span>
                     </div>
                     <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${impactColors[sd.impactLevel]}`}>
                       {sd.impactLevel}
@@ -609,22 +609,22 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
 
                   {/* Index chip + value */}
                   <div className="flex items-center justify-between">
-                    <span className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">
+                    <span className="rounded-lg border border-surface-border/8 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] text-text-secondary">
                       {sd.indexName}
                     </span>
-                    <span className="text-[12px] font-bold text-slate-200">{sd.value}</span>
+                    <span className="text-[12px] font-bold text-text-primary">{sd.value}</span>
                   </div>
 
                   {/* Bar + change */}
                   <div className="space-y-1.5">
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
                       <div
                         className={`h-full rounded-full bg-gradient-to-r ${barGrad}`}
                         style={{ width: `${barW}%`, transition: "width 0.9s ease" }}
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-600">{sd.indexTicker}</span>
+                      <span className="text-[10px] text-text-muted">{sd.indexTicker}</span>
                       <span className={`text-[12px] font-bold ${changeColor}`}>
                         {arrow} {sd.change_str}
                       </span>
@@ -639,11 +639,11 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
           <div className="grid grid-cols-2 gap-3">
             {(article.sectors ?? []).map(sector => (
               <div key={sector}
-                className="flex items-center gap-3 rounded-[18px] border border-white/[0.07] bg-white/[0.03] p-4">
-                <span className="text-slate-400">{SECTOR_ICONS[sector] ?? <Pin className="h-4 w-4" />}</span>
+                className="flex items-center gap-3 rounded-[18px] border border-surface-border/7 bg-text-primary/[0.03] p-4">
+                <span className="text-text-secondary">{SECTOR_ICONS[sector] ?? <Pin className="h-4 w-4" />}</span>
                 <div>
-                  <p className="text-[13px] font-semibold text-white">{sector}</p>
-                  <p className="text-[10px] text-slate-500">No live data</p>
+                  <p className="text-[13px] font-semibold text-text-primary">{sector}</p>
+                  <p className="text-[10px] text-text-muted">No live data</p>
                 </div>
               </div>
             ))}
@@ -655,17 +655,17 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
       <div className="grid grid-cols-2 gap-4">
         <Card title="Flow Implication">
           <div className="space-y-3">
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-              <p className="text-[10px] text-slate-500 mb-1">FII / DII Activity</p>
-              <p className="text-[12px] text-slate-300">{fiiNote}</p>
+            <div className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3">
+              <p className="text-[10px] text-text-muted mb-1">FII / DII Activity</p>
+              <p className="text-[12px] text-text-secondary">{fiiNote}</p>
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-              <p className="text-[10px] text-slate-500 mb-1">Market Breadth</p>
-              <p className="text-[12px] text-slate-300">{breadth}</p>
+            <div className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3">
+              <p className="text-[10px] text-text-muted mb-1">Market Breadth</p>
+              <p className="text-[12px] text-text-secondary">{breadth}</p>
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-              <p className="text-[10px] text-slate-500 mb-1">Impact Duration</p>
-              <p className="text-[12px] text-slate-300">
+            <div className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3">
+              <p className="text-[10px] text-text-muted mb-1">Impact Duration</p>
+              <p className="text-[12px] text-text-secondary">
                 {score === null || score === undefined ? "Impact duration is still being analysed." : score >= 85 ? "Multi-day sustained impact likely" : score >= 65 ? "1–2 session immediate reaction" : "Intraday effect, normalises quickly"}
               </p>
             </div>
@@ -675,25 +675,25 @@ function MarketImpactTab({ article }: { article: NewsArticle }) {
         <Card title="Market Context">
           <div className="space-y-3">
             {loadingMkt ? (
-              <div className="h-32 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-32 animate-pulse rounded-xl bg-text-primary/[0.04]" />
             ) : (
               <>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                  <p className="text-[10px] text-slate-500 mb-1">Trading Session</p>
-                  <p className="text-[12px] text-slate-300">{statusLabel} · {status?.time_ist} IST</p>
+                <div className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3">
+                  <p className="text-[10px] text-text-muted mb-1">Trading Session</p>
+                  <p className="text-[12px] text-text-secondary">{statusLabel} · {status?.time_ist} IST</p>
                 </div>
                 {mktData?.marketIndices?.[0] && (
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                    <p className="text-[10px] text-slate-500 mb-1">Primary Index</p>
-                    <p className="text-[13px] font-bold text-white">{mktData.marketIndices[0].name}</p>
+                  <div className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3">
+                    <p className="text-[10px] text-text-muted mb-1">Primary Index</p>
+                    <p className="text-[13px] font-bold text-text-primary">{mktData.marketIndices[0].name}</p>
                     <p className={`text-[12px] font-semibold ${mktData.marketIndices[0].positive ? "text-emerald-400" : "text-rose-400"}`}>
                       {mktData.marketIndices[0].value} ({mktData.marketIndices[0].change_str})
                     </p>
                   </div>
                 )}
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                  <p className="text-[10px] text-slate-500 mb-1">Sectors Monitored</p>
-                  <p className="text-[12px] text-slate-300">{(mktData?.sectors ?? article.sectors ?? []).join(", ") || "Indian Markets"}</p>
+                <div className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3">
+                  <p className="text-[10px] text-text-muted mb-1">Sectors Monitored</p>
+                  <p className="text-[12px] text-text-secondary">{(mktData?.sectors ?? article.sectors ?? []).join(", ") || "Indian Markets"}</p>
                 </div>
               </>
             )}
@@ -717,7 +717,7 @@ function CompaniesTab({ article, stockData }: { article: NewsArticle; stockData:
   return (
     <div className="space-y-3">
       {(article.companies ?? []).length === 0 && (
-        <p className="text-[11px] text-slate-500 italic">Companies detected from article content</p>
+        <p className="text-[11px] text-text-muted italic">Companies detected from article content</p>
       )}
       <div className="grid grid-cols-2 gap-4">
         {companies.slice(0, 6).map((name, idx) => (
@@ -760,7 +760,7 @@ function RelatedEventsTab({ events, article }: { events: Event[]; article: NewsA
   return (
     <div className="space-y-3">
       {isFallback && (
-        <p className="text-[11px] text-slate-500 italic">Showing top market events — no exact matches for this article</p>
+        <p className="text-[11px] text-text-muted italic">Showing top market events — no exact matches for this article</p>
       )}
       {related.map(ev => <RelatedEventCard key={ev.id} ev={ev} />)}
     </div>
@@ -779,9 +779,9 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
   const neutPct = !hasScore ? 0 : Math.max(0, 100 - bullPct - bearPct);
 
   const action = !hasScore ? "Monitor" : score >= 80 ? "Research" : score >= 60 ? "Watch" : "Monitor";
-  const actionColor = action === "Research" ? "text-emerald-300 bg-emerald-500/15 border-emerald-500/30"
-                    : action === "Watch"    ? "text-amber-300 bg-amber-500/15 border-amber-500/30"
-                    : "text-sky-300 bg-sky-500/15 border-sky-500/30";
+  const actionColor = action === "Research" ? "text-emerald-600 dark:text-emerald-300 bg-emerald-500/15 border-emerald-500/30"
+                    : action === "Watch"    ? "text-amber-600 dark:text-amber-300 bg-amber-500/15 border-amber-500/30"
+                    : "text-sky-600 dark:text-sky-300 bg-sky-500/15 border-sky-500/30";
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_260px]">
@@ -791,10 +791,10 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
           <div className="flex items-center gap-4 mb-4">
             <SentimentBadge sentiment={ins.sentiment} />
             <div className="flex-1">
-              <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+              <div className="flex justify-between text-[10px] text-text-muted mb-1">
                 <span>Confidence</span><span>{hasScore ? `${Math.round(score)}%` : "Unscored"}</span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
                 {hasScore && (
                   <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400"
                     style={{ width: `${score}%`, transition: "width 0.8s ease" }} />
@@ -810,16 +810,16 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
                 { label: "Bearish", pct: bearPct, color: "bg-rose-500" },
               ].map(s => (
                 <div key={s.label} className="flex items-center gap-2">
-                  <span className="w-12 text-[11px] text-slate-400">{s.label}</span>
-                  <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                  <span className="w-12 text-[11px] text-text-secondary">{s.label}</span>
+                  <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
                     <div className={`h-full rounded-full ${s.color}`} style={{ width: `${s.pct}%`, transition: "width 0.8s ease" }} />
                   </div>
-                  <span className="w-7 text-right text-[11px] font-semibold text-white">{s.pct}%</span>
+                  <span className="w-7 text-right text-[11px] font-semibold text-text-primary">{s.pct}%</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-[11px] text-slate-500">Sentiment breakdown requires a computed impact score.</p>
+            <p className="text-[11px] text-text-muted">Sentiment breakdown requires a computed impact score.</p>
           )}
         </Card>
 
@@ -829,7 +829,7 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
               {ins.bullishFactors.map((f, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <span className="mt-1 text-emerald-400 text-xs">✓</span>
-                  <p className="text-[13px] text-slate-300">{f}</p>
+                  <p className="text-[13px] text-text-secondary">{f}</p>
                 </div>
               ))}
             </div>
@@ -841,7 +841,7 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
             {ins.risks.map((r, i) => (
               <div key={i} className="flex items-start gap-2">
                 <span className="mt-1 text-rose-400 text-xs">!</span>
-                <p className="text-[13px] text-slate-300">{r}</p>
+                <p className="text-[13px] text-text-secondary">{r}</p>
               </div>
             ))}
           </div>
@@ -857,9 +857,9 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
               { period: "Medium-term (3–12M)", text: "Monitor sector execution and policy follow-through. Sector rotation likely if macro environment shifts." },
               { period: "Long-term (1Y+)", text: ins.longTerm },
             ].map(({ period, text }) => (
-              <div key={period} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                <p className="text-[10px] text-slate-500 mb-1">{period}</p>
-                <p className="text-[12px] text-slate-300 leading-5">{text}</p>
+              <div key={period} className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3">
+                <p className="text-[10px] text-text-muted mb-1">{period}</p>
+                <p className="text-[12px] text-text-secondary leading-5">{text}</p>
               </div>
             ))}
           </div>
@@ -867,14 +867,14 @@ function AIAnalysisTab({ article }: { article: NewsArticle }) {
 
         <Card title="Investment Signal">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[12px] text-slate-400">Recommended action</p>
+            <p className="text-[12px] text-text-secondary">Recommended action</p>
             <span className={`rounded-full border px-3 py-1 text-xs font-bold ${actionColor}`}>{action}</span>
           </div>
           <div className="space-y-2">
-            <p className="text-[10px] text-slate-500 mb-2">Sectors to watch</p>
+            <p className="text-[10px] text-text-muted mb-2">Sectors to watch</p>
             <div className="flex flex-wrap gap-1.5">
               {(article.sectors ?? []).map(s => (
-                <span key={s} className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-300">{s}</span>
+                <span key={s} className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-600 dark:text-violet-300">{s}</span>
               ))}
             </div>
           </div>
@@ -969,10 +969,10 @@ export default function NewsDetailPage({ initialArticle }: { initialArticle?: Ne
   if (loading) {
     return (
       <main className="min-w-0 pb-10">
-        <div className="mb-5 h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
+        <div className="mb-5 h-4 w-32 animate-pulse rounded bg-text-primary/[0.06]" />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_284px]">
-          <div className="h-56 animate-pulse rounded-[24px] bg-white/[0.03]" />
-          <div className="h-56 animate-pulse rounded-[20px] bg-white/[0.03]" />
+          <div className="h-56 animate-pulse rounded-[24px] bg-text-primary/[0.03]" />
+          <div className="h-56 animate-pulse rounded-[20px] bg-text-primary/[0.03]" />
         </div>
         <Spinner />
       </main>
@@ -982,10 +982,10 @@ export default function NewsDetailPage({ initialArticle }: { initialArticle?: Ne
   if (notFound || !article) {
     return (
       <main className="min-w-0 flex flex-col items-center justify-center gap-4 py-24 text-center">
-        <Newspaper className="h-12 w-12 text-slate-500" />
-        <h1 className="text-2xl font-semibold text-white">Article not found</h1>
-        <p className="text-slate-400">This article may have expired from the live feed.</p>
-        <Link href="/news" className="mt-2 rounded-full bg-sky-500/15 px-5 py-2 text-sm text-sky-300 hover:bg-sky-500/25 transition">
+        <Newspaper className="h-12 w-12 text-text-muted" />
+        <h1 className="text-2xl font-semibold text-text-primary">Article not found</h1>
+        <p className="text-text-secondary">This article may have expired from the live feed.</p>
+        <Link href="/news" className="mt-2 rounded-full bg-sky-500/15 px-5 py-2 text-sm text-sky-600 dark:text-sky-300 hover:bg-sky-500/25 transition">
           ← Back to News
         </Link>
       </main>
@@ -994,70 +994,70 @@ export default function NewsDetailPage({ initialArticle }: { initialArticle?: Ne
 
   const imp = impactLabel(article.impact_score);
   const sentiment = deriveSentiment(article);
-  const srcCls = SOURCE_COLORS[article.source] ?? "text-slate-400 bg-white/5 border-white/10";
+  const srcCls = SOURCE_COLORS[article.source] ?? "text-text-secondary bg-text-primary/5 border-surface-border/10";
 
   return (
     <main className="min-w-0 space-y-5 pb-10">
       <TrackPageVisit type="news" id={article.id} title={article.headline} subtitle={article.source} href={`/news/${article.id}`} />
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-[13px] text-slate-500">
-        <Link href="/news" className="hover:text-slate-300 transition">← News</Link>
+      <nav className="flex items-center gap-2 text-[13px] text-text-muted">
+        <Link href="/news" className="hover:text-text-secondary transition">← News</Link>
         <span>/</span>
-        <span className="truncate text-slate-400 max-w-[320px]">{article.headline.slice(0, 60)}{article.headline.length > 60 ? "…" : ""}</span>
+        <span className="truncate text-text-secondary max-w-[320px]">{article.headline.slice(0, 60)}{article.headline.length > 60 ? "…" : ""}</span>
       </nav>
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_284px]">
         {/* Article header */}
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-sm">
+        <div className="rounded-[24px] border border-surface-border/10 bg-text-primary/[0.03] p-6 backdrop-blur-sm">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full border px-3 py-0.5 text-[11px] font-medium ${imp.color}`}>{imp.label}</span>
             <span className={`rounded-full border px-3 py-0.5 text-[11px] font-medium ${srcCls}`}>{article.source}</span>
-            <span className="text-[12px] text-slate-500">{article.published_at}</span>
+            <span className="text-[12px] text-text-muted">{article.published_at}</span>
           </div>
           {/* The server wrapper (page.tsx) renders the real <h1> when it
               found the article server-side (the common case) — falls back
               to rendering it here too if that fetch ever came back empty,
               so the page is never left with zero <h1>s. */}
           {initialArticle ? (
-            <p className="mt-4 text-2xl font-bold leading-snug text-white sm:text-[26px]">{article.headline}</p>
+            <p className="mt-4 text-2xl font-bold leading-snug text-text-primary sm:text-[26px]">{article.headline}</p>
           ) : (
-            <h1 className="mt-4 text-2xl font-bold leading-snug text-white sm:text-[26px]">{article.headline}</h1>
+            <h1 className="mt-4 text-2xl font-bold leading-snug text-text-primary sm:text-[26px]">{article.headline}</h1>
           )}
           {(article.sectors ?? []).length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {(article.sectors ?? []).map(s => (
-                <span key={s} className="flex items-center gap-1 rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-0.5 text-[11px] text-violet-300">
+                <span key={s} className="flex items-center gap-1 rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-0.5 text-[11px] text-violet-600 dark:text-violet-300">
                   {SECTOR_ICONS[s] ?? <Pin className="h-3 w-3" />} {s}
                 </span>
               ))}
             </div>
           )}
           <div className="mt-5 flex items-center gap-2">
-            <button className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-400 hover:text-white transition">
+            <button className="flex h-8 w-8 items-center justify-center rounded-xl border border-surface-border/10 bg-text-primary/[0.03] text-text-secondary hover:text-text-primary transition">
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
             </button>
-            <button className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-400 hover:text-white transition">
+            <button className="flex h-8 w-8 items-center justify-center rounded-xl border border-surface-border/10 bg-text-primary/[0.03] text-text-secondary hover:text-text-primary transition">
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
             </button>
           </div>
         </div>
 
         {/* Impact card */}
-        <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm flex flex-col items-center text-center gap-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500">Impact Score</p>
+        <div className="rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-5 backdrop-blur-sm flex flex-col items-center text-center gap-3">
+          <p className="text-[10px] uppercase tracking-widest text-text-muted">Impact Score</p>
           <ScoreRing score={article.impact_score} size={96} />
           <span className={`rounded-full border px-3 py-0.5 text-[11px] font-medium ${imp.color}`}>{imp.label}</span>
-          <div className="w-full border-t border-white/[0.05] pt-3">
-            <p className="text-[10px] text-slate-500 mb-2">Market Sentiment</p>
+          <div className="w-full border-t border-surface-border/5 pt-3">
+            <p className="text-[10px] text-text-muted mb-2">Market Sentiment</p>
             <SentimentBadge sentiment={sentiment} />
           </div>
           {(article.sectors ?? []).length > 0 && (
-            <div className="w-full border-t border-white/[0.05] pt-3 text-left">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Primary Sectors</p>
+            <div className="w-full border-t border-surface-border/5 pt-3 text-left">
+              <p className="text-[10px] uppercase tracking-widest text-text-muted mb-2">Primary Sectors</p>
               <div className="flex flex-wrap gap-1">
                 {(article.sectors ?? []).slice(0, 3).map(s => (
-                  <span key={s} className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-slate-400">{s}</span>
+                  <span key={s} className="rounded-full bg-text-primary/[0.05] px-2 py-0.5 text-[10px] text-text-secondary">{s}</span>
                 ))}
               </div>
             </div>
@@ -1071,13 +1071,13 @@ export default function NewsDetailPage({ initialArticle }: { initialArticle?: Ne
       )}
 
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 overflow-x-auto border-b border-white/[0.06] pb-px scrollbar-hide">
+      <div className="flex gap-1 overflow-x-auto border-b border-surface-border/6 pb-px scrollbar-hide">
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-[13px] font-medium transition border-b-2 -mb-px ${
               activeTab === tab
-                ? "border-violet-500 text-white"
-                : "border-transparent text-slate-500 hover:text-slate-300"
+                ? "border-violet-500 text-text-primary"
+                : "border-transparent text-text-muted hover:text-text-secondary"
             }`}>
             {tab}
           </button>
@@ -1100,7 +1100,7 @@ export default function NewsDetailPage({ initialArticle }: { initialArticle?: Ne
       {/* ── Related articles ──────────────────────────────────────────────── */}
       {related.length > 0 && (
         <div>
-          <p className="mb-3 text-[10px] uppercase tracking-widest text-slate-500">More Market News</p>
+          <p className="mb-3 text-[10px] uppercase tracking-widest text-text-muted">More Market News</p>
           <div className="grid gap-3 xl:grid-cols-2">
             {related.map(a => <RelatedArticleCard key={a.id} article={a} />)}
           </div>

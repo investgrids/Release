@@ -75,15 +75,15 @@ const STANCE_STYLE: Record<string, { icon: React.ReactNode; cls: string; bg: str
   },
   neutral: {
     icon: <Minus className="h-3.5 w-3.5" />,
-    cls:  "text-slate-400",
-    bg:   "bg-slate-500/10 border-slate-500/20",
+    cls:  "text-text-secondary",
+    bg:   "bg-slate-500/10 border-surface-border/5",
   },
 };
 
 const SEV_STYLE: Record<string, string> = {
-  high:   "bg-rose-500/15 border-rose-500/25 text-rose-300",
-  medium: "bg-amber-500/15 border-amber-500/25 text-amber-300",
-  low:    "bg-slate-500/10 border-slate-500/20 text-slate-400",
+  high:   "bg-rose-500/15 border-rose-500/25 text-rose-600 dark:text-rose-300",
+  medium: "bg-amber-500/15 border-amber-500/25 text-amber-600 dark:text-amber-300",
+  low:    "bg-slate-500/10 border-surface-border/5 text-text-secondary",
 };
 
 const OUTLOOK_DOT: Record<string, string> = {
@@ -99,17 +99,17 @@ const HORIZON_LABEL: Record<string, string> = {
 };
 
 const STRENGTH_COLOR: Record<string, string> = {
-  strong:   "text-violet-300 bg-violet-500/15",
-  moderate: "text-sky-300 bg-sky-500/15",
-  weak:     "text-slate-400 bg-slate-500/10",
+  strong:   "text-violet-600 dark:text-violet-300 bg-violet-500/15",
+  moderate: "text-sky-600 dark:text-sky-300 bg-sky-500/15",
+  weak:     "text-text-secondary bg-slate-500/10",
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      <div className="text-slate-500">{icon}</div>
-      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">{label}</span>
+      <div className="text-text-muted">{icon}</div>
+      <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">{label}</span>
     </div>
   );
 }
@@ -118,16 +118,16 @@ function OpportunityCard({ op }: { op: IntelligenceOpportunity }) {
   return (
     <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-3.5">
       <div className="mb-1.5 flex items-start justify-between gap-2">
-        <p className="text-[12px] font-semibold text-emerald-300 leading-snug">{op.title}</p>
+        <p className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-300 leading-snug">{op.title}</p>
         <span className="shrink-0 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-400">
           {HORIZON_LABEL[op.horizon] || op.horizon}
         </span>
       </div>
-      <p className="text-[11px] text-slate-400 leading-relaxed">{op.description}</p>
+      <p className="text-[11px] text-text-secondary leading-relaxed">{op.description}</p>
       {op.companies.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {op.companies.map(sym => (
-            <span key={sym} className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-mono text-slate-300">
+            <span key={sym} className="rounded bg-text-primary/[0.05] px-1.5 py-0.5 text-[10px] font-mono text-text-secondary">
               {sym}
             </span>
           ))}
@@ -158,10 +158,10 @@ function CompanyPill({ co }: { co: IntelligenceCompany }) {
     <div className={`rounded-xl border p-3 ${s.bg}`}>
       <div className="mb-1 flex items-center gap-1.5">
         <span className={s.cls}>{s.icon}</span>
-        <span className="text-[11px] font-bold text-white">{isRealSymbol(co.symbol) ? co.symbol : co.name}</span>
-        <span className="ml-auto text-[10px] tabular-nums text-slate-600">{co.confidence === null || co.confidence === undefined ? "—" : `${co.confidence}%`}</span>
+        <span className="text-[11px] font-bold text-text-primary">{isRealSymbol(co.symbol) ? co.symbol : co.name}</span>
+        <span className="ml-auto text-[10px] tabular-nums text-text-muted">{co.confidence === null || co.confidence === undefined ? "—" : `${co.confidence}%`}</span>
       </div>
-      <p className="text-[10px] text-slate-400 leading-snug">{co.reason}</p>
+      <p className="text-[10px] text-text-secondary leading-snug">{co.reason}</p>
     </div>
   );
 }
@@ -171,8 +171,8 @@ function SectorBar({ sec }: { sec: IntelligenceSector }) {
   return (
     <div className="flex items-center gap-2.5">
       <div className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
-      <span className="min-w-0 flex-1 truncate text-[11px] text-slate-300">{sec.name}</span>
-      <div className="h-1 w-20 overflow-hidden rounded-full bg-white/[0.06]">
+      <span className="min-w-0 flex-1 truncate text-[11px] text-text-secondary">{sec.name}</span>
+      <div className="h-1 w-20 overflow-hidden rounded-full bg-text-primary/[0.06]">
         {sec.score !== null && sec.score !== undefined && (
           <div
             className={`h-full rounded-full transition-all ${
@@ -183,7 +183,7 @@ function SectorBar({ sec }: { sec: IntelligenceSector }) {
           />
         )}
       </div>
-      <span className="w-8 shrink-0 text-right text-[10px] tabular-nums text-slate-600">{sec.score === null || sec.score === undefined ? "—" : sec.score}</span>
+      <span className="w-8 shrink-0 text-right text-[10px] tabular-nums text-text-muted">{sec.score === null || sec.score === undefined ? "—" : sec.score}</span>
     </div>
   );
 }
@@ -204,35 +204,35 @@ export function IntelligenceBlock({
   if (!hasContent) return null;
 
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+    <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setExpanded(e => !e)}
-        className="flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
+        className="flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-text-primary/[0.02] transition-colors"
       >
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/20">
           <Sparkles className="h-3.5 w-3.5 text-violet-400" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-white leading-none">{label}</p>
+          <p className="text-[13px] font-semibold text-text-primary leading-none">{label}</p>
           {data.market_story && (
-            <p className="mt-0.5 truncate text-[11px] text-slate-500">{data.market_story.slice(0, 80)}…</p>
+            <p className="mt-0.5 truncate text-[11px] text-text-muted">{data.market_story.slice(0, 80)}…</p>
           )}
         </div>
         <ConfidenceBadge data={data.confidence as any} />
-        <div className="ml-2 text-slate-600">
+        <div className="ml-2 text-text-muted">
           {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </button>
 
       {/* Expandable body */}
       {expanded && (
-        <div className="border-t border-white/[0.05] px-5 pb-5 pt-4 space-y-5">
+        <div className="border-t border-surface-border/5 px-5 pb-5 pt-4 space-y-5">
           {/* Key Takeaway */}
           {data.key_takeaway && (
             <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500 mb-1">Key Takeaway</p>
-              <p className="text-[13px] font-medium text-violet-100 leading-relaxed">{data.key_takeaway}</p>
+              <p className="text-[13px] font-medium text-violet-800 dark:text-violet-100 leading-relaxed">{data.key_takeaway}</p>
             </div>
           )}
 
@@ -240,7 +240,7 @@ export function IntelligenceBlock({
           {data.market_story && (
             <div>
               <SectionHeader icon={<Sparkles className="h-3.5 w-3.5" />} label="Market Story" />
-              <p className="text-[12px] text-slate-400 leading-relaxed">{data.market_story}</p>
+              <p className="text-[12px] text-text-secondary leading-relaxed">{data.market_story}</p>
             </div>
           )}
 
@@ -314,7 +314,7 @@ export function IntelligenceBlock({
           {data.historical_context && (
             <div>
               <SectionHeader icon={<History className="h-3.5 w-3.5" />} label="Historical Context" />
-              <p className="text-[11px] text-slate-500 leading-relaxed italic">{data.historical_context}</p>
+              <p className="text-[11px] text-text-muted leading-relaxed italic">{data.historical_context}</p>
             </div>
           )}
 
@@ -324,7 +324,7 @@ export function IntelligenceBlock({
               <SectionHeader icon={<Eye className="h-3.5 w-3.5" />} label="What to Watch" />
               <ul className="space-y-1">
                 {data.monitoring_points.map((pt, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[11px] text-slate-400">
+                  <li key={i} className="flex items-start gap-2 text-[11px] text-text-secondary">
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-600" />
                     {pt}
                   </li>
@@ -334,7 +334,7 @@ export function IntelligenceBlock({
           )}
 
           {/* Footer */}
-          <p className="text-[9px] text-slate-700 border-t border-white/[0.04] pt-3">
+          <p className="text-[9px] text-text-muted border-t border-surface-border/4 pt-3">
             Generated {new Date(data.generated_at).toLocaleTimeString()} · AI intelligence, not financial advice
           </p>
         </div>

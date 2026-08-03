@@ -163,14 +163,14 @@ export default async function NewsroomHomePage() {
           active for this specific request, just always prepended), which
           overstated what had genuinely been verified. Hidden per request
           rather than left implying a check that wasn't happening. */}
-      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3">
         <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
         </span>
-        <span className="text-[12px] font-bold text-white">AI Intelligence Engine</span>
+        <span className="text-[12px] font-bold text-text-primary">AI Intelligence Engine</span>
         {mie.generated_at && (
-          <span className="text-[11px] text-slate-500">· Updated {fmtRelative(mie.generated_at)}</span>
+          <span className="text-[11px] text-text-muted">· Updated {fmtRelative(mie.generated_at)}</span>
         )}
       </div>
 
@@ -192,26 +192,26 @@ export default async function NewsroomHomePage() {
 
           {/* Hero — Today's Morning Brief */}
           <section>
-            <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
               <Sparkles className="h-3 w-3 text-amber-400" /> Today&apos;s Morning Brief
             </p>
             {hero ? (
               <Link
                 href={`/newsroom/article/${hero.slug}`}
-                className="group mt-3 block rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02] p-6 transition hover:border-white/20"
+                className="group mt-3 block rounded-2xl border border-surface-border/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02] p-6 transition hover:border-surface-border/20"
               >
                 <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
                   {TYPE_LABEL[hero.article_type] ?? "Brief"}
                 </span>
-                <h1 className="mt-3 text-[24px] font-black leading-tight text-white group-hover:text-sky-200 md:text-[28px]">
+                <h1 className="mt-3 text-[24px] font-black leading-tight text-text-primary group-hover:text-sky-700 dark:text-sky-200 md:text-[28px]">
                   {cleanText(hero.headline)}
                 </h1>
                 {(hero.key_takeaway || hero.executive_summary) && (
-                  <p className="mt-2 max-w-3xl text-[14px] leading-6 text-slate-400">
+                  <p className="mt-2 max-w-3xl text-[14px] leading-6 text-text-secondary">
                     {cleanText(hero.key_takeaway ?? hero.executive_summary)}
                   </p>
                 )}
-                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-muted">
                   {hero.published_at && (
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(hero.published_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} IST</span>
                   )}
@@ -224,7 +224,7 @@ export default async function NewsroomHomePage() {
                 </span>
               </Link>
             ) : (
-              <p className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6 text-[13px] text-slate-500">
+              <p className="mt-3 rounded-2xl border border-surface-border/7 bg-text-primary/[0.03] p-6 text-[13px] text-text-muted">
                 No brief published yet today — check back soon.
               </p>
             )}
@@ -247,10 +247,10 @@ export default async function NewsroomHomePage() {
             {themes.length === 0 ? (
               <EmptyRow text="No scored themes available right now." />
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-white/[0.07]">
+              <div className="overflow-x-auto rounded-xl border border-surface-border/7">
                 <table className="w-full text-left text-[12.5px]">
                   <thead>
-                    <tr className="border-b border-white/[0.07] text-[10px] uppercase tracking-wider text-slate-500">
+                    <tr className="border-b border-surface-border/7 text-[10px] uppercase tracking-wider text-text-muted">
                       <th className="px-4 py-2.5 font-semibold">Theme</th>
                       <th className="px-4 py-2.5 font-semibold">Score</th>
                       <th className="px-4 py-2.5 font-semibold">Confidence</th>
@@ -258,24 +258,24 @@ export default async function NewsroomHomePage() {
                       <th className="px-4 py-2.5 font-semibold">Trend</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/[0.05]">
+                  <tbody className="divide-y divide-surface-border/5">
                     {themes.map((t) => (
-                      <tr key={t.id} className="transition hover:bg-white/[0.03]">
+                      <tr key={t.id} className="transition hover:bg-text-primary/[0.03]">
                         <td className="px-4 py-2.5">
-                          <Link href={`/newsroom/themes/${t.slug}`} className="font-semibold text-white hover:text-sky-300">
+                          <Link href={`/newsroom/themes/${t.slug}`} className="font-semibold text-text-primary hover:text-sky-600 dark:text-sky-300">
                             {cleanText(t.title)}
                           </Link>
                         </td>
                         <td className="px-4 py-2.5 font-bold text-emerald-400">{Math.round(t.opportunity_score)}</td>
-                        <td className="px-4 py-2.5 text-slate-400">{Math.round(t.confidence * 100)}%</td>
-                        <td className="px-4 py-2.5 text-slate-400">{t.risk_level}</td>
+                        <td className="px-4 py-2.5 text-text-secondary">{Math.round(t.confidence * 100)}%</td>
+                        <td className="px-4 py-2.5 text-text-secondary">{t.risk_level}</td>
                         <td className="px-4 py-2.5">
                           {t.trend?.toLowerCase().includes("positive") ? (
                             <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
                           ) : t.trend?.toLowerCase().includes("negative") ? (
                             <TrendingDown className="h-3.5 w-3.5 text-rose-400" />
                           ) : (
-                            <span className="text-slate-500">—</span>
+                            <span className="text-text-muted">—</span>
                           )}
                         </td>
                       </tr>
@@ -291,30 +291,30 @@ export default async function NewsroomHomePage() {
             {companies.length === 0 ? (
               <EmptyRow text="No company intelligence published in the last cycle." />
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-white/[0.07]">
+              <div className="overflow-x-auto rounded-xl border border-surface-border/7">
                 <table className="w-full text-left text-[12.5px]">
-                  <tbody className="divide-y divide-white/[0.05]">
+                  <tbody className="divide-y divide-surface-border/5">
                     {groupCompanyArticles(companies).slice(0, 6).map(({ key, representative: a, symbols }) => {
                       const primary = a.primary_entity ?? a.companies_affected?.[0];
                       const sentiment = (primary?.impact ?? "neutral").toLowerCase();
                       return (
-                        <tr key={key} className="transition hover:bg-white/[0.03]">
+                        <tr key={key} className="transition hover:bg-text-primary/[0.03]">
                           <td className="px-4 py-2.5">
-                            <Link href={`/newsroom/article/${a.slug}`} className="font-semibold text-white hover:text-sky-300">
+                            <Link href={`/newsroom/article/${a.slug}`} className="font-semibold text-text-primary hover:text-sky-600 dark:text-sky-300">
                               {symbols.length > 0 ? symbols.join(", ") : (primary?.name ?? "—")}
                             </Link>
                           </td>
-                          <td className="px-4 py-2.5 max-w-md truncate text-slate-400">
+                          <td className="px-4 py-2.5 max-w-md truncate text-text-secondary">
                             {cleanText(a.key_takeaway ?? a.executive_summary ?? "")}
                           </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap text-[11px] text-slate-600">
+                          <td className="px-4 py-2.5 whitespace-nowrap text-[11px] text-text-muted">
                             {a.published_at ? fmtRelative(a.published_at) : ""}
                           </td>
                           <td className="px-4 py-2.5 text-right">
                             <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
                               sentiment === "positive" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                               : sentiment === "negative" ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
-                              : "border-white/10 bg-white/5 text-slate-400"
+                              : "border-surface-border/10 bg-text-primary/5 text-text-secondary"
                             }`}>
                               {sentiment}
                             </span>
@@ -342,21 +342,21 @@ export default async function NewsroomHomePage() {
                 label={mie.market_health.label}
               />
             ) : (
-              <p className="text-[12px] text-slate-500">Sentiment unavailable right now.</p>
+              <p className="text-[12px] text-text-muted">Sentiment unavailable right now.</p>
             )}
           </SidebarCard>
 
           {/* Indices Snapshot — real live index data */}
           <SidebarCard title="Indices Snapshot" icon={<BarChart3 className="h-3.5 w-3.5 text-sky-400" />}>
             {indices.length === 0 ? (
-              <p className="text-[12px] text-slate-500">No live index data right now.</p>
+              <p className="text-[12px] text-text-muted">No live index data right now.</p>
             ) : (
               <div className="space-y-2">
                 {indices.map((idx) => (
                   <div key={idx.name} className="flex items-center justify-between text-[12px]">
-                    <span className="font-medium text-slate-300">{idx.name}</span>
+                    <span className="font-medium text-text-secondary">{idx.name}</span>
                     <div className="text-right">
-                      <p className="font-semibold text-white">{idx.value}</p>
+                      <p className="font-semibold text-text-primary">{idx.value}</p>
                       <p className={idx.positive ? "text-emerald-400" : "text-rose-400"}>{idx.change}</p>
                     </div>
                   </div>
@@ -419,10 +419,10 @@ function Section({ title, icon, href, children }: { title: string; icon: React.R
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
-        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           {icon} {title}
         </p>
-        <Link href={href} className="flex items-center gap-0.5 text-[11.5px] font-medium text-slate-500 hover:text-white">
+        <Link href={href} className="flex items-center gap-0.5 text-[11.5px] font-medium text-text-muted hover:text-text-primary">
           View all <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
@@ -433,13 +433,13 @@ function Section({ title, icon, href, children }: { title: string; icon: React.R
 
 function SidebarCard({ title, icon, href, children }: { title: string; icon: React.ReactNode; href?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+    <div className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4">
       <div className="mb-3 flex items-center justify-between">
-        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           {icon} {title}
         </p>
         {href && (
-          <Link href={href} className="text-[10.5px] font-medium text-slate-500 hover:text-white">
+          <Link href={href} className="text-[10.5px] font-medium text-text-muted hover:text-text-primary">
             View all
           </Link>
         )}
@@ -451,16 +451,16 @@ function SidebarCard({ title, icon, href, children }: { title: string; icon: Rea
 
 function StatTile({ label, value }: { label: string; value?: number | string }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-center">
-      <p className="text-[18px] font-black leading-none text-white">{value ?? "—"}</p>
-      <p className="mt-1 text-[9px] uppercase tracking-wider text-slate-500">{label}</p>
+    <div className="rounded-xl border border-surface-border/7 bg-text-primary/[0.02] px-3 py-2.5 text-center">
+      <p className="text-[18px] font-black leading-none text-text-primary">{value ?? "—"}</p>
+      <p className="mt-1 text-[9px] uppercase tracking-wider text-text-muted">{label}</p>
     </div>
   );
 }
 
 function EmptyRow({ text }: { text: string }) {
   return (
-    <p className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 text-[12.5px] text-slate-500">
+    <p className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 text-[12.5px] text-text-muted">
       {text}
     </p>
   );
@@ -477,7 +477,7 @@ function ArticleCard({ a }: { a: InsightCard }) {
   return (
     <Link
       href={`/newsroom/article/${a.slug}`}
-      className="group block rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 transition hover:border-white/20 hover:bg-white/[0.05]"
+      className="group block rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 transition hover:border-surface-border/20 hover:bg-text-primary/[0.05]"
     >
       <div className="flex items-center justify-between gap-2">
         <span className={`rounded-full border px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider ${accentCls}`}>
@@ -488,14 +488,14 @@ function ArticleCard({ a }: { a: InsightCard }) {
             New
           </span>
         ) : (
-          a.published_at && <span className="text-[10px] text-slate-600">{fmtRelative(a.published_at)}</span>
+          a.published_at && <span className="text-[10px] text-text-muted">{fmtRelative(a.published_at)}</span>
         )}
       </div>
-      <p className="mt-2 line-clamp-2 text-[13.5px] font-semibold leading-snug text-white group-hover:text-sky-200">
+      <p className="mt-2 line-clamp-2 text-[13.5px] font-semibold leading-snug text-text-primary group-hover:text-sky-700 dark:text-sky-200">
         {cleanText(a.headline)}
       </p>
       {!!a.views && (
-        <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-600">
+        <p className="mt-2 flex items-center gap-1 text-[10px] text-text-muted">
           <Eye className="h-2.5 w-2.5" /> {a.views.toLocaleString("en-IN")} {a.views === 1 ? "view" : "views"}
         </p>
       )}

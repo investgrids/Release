@@ -27,7 +27,7 @@ export function AISearchFindingsRecap({ sourcesCount, companies, sectors, topHis
   if (sourcesCount > 0) {
     rows.push({
       key: "sources",
-      node: <p className="text-[12.5px] text-slate-300">✓ {sourcesCount} source{sourcesCount === 1 ? "" : "s"} reviewed</p>,
+      node: <p className="text-[12.5px] text-text-secondary">✓ {sourcesCount} source{sourcesCount === 1 ? "" : "s"} reviewed</p>,
     });
   }
 
@@ -36,14 +36,14 @@ export function AISearchFindingsRecap({ sourcesCount, companies, sectors, topHis
       key: "companies",
       node: (
         <div>
-          <p className="text-[12.5px] text-slate-300">✓ {companies.length} compan{companies.length === 1 ? "y" : "ies"} identified</p>
+          <p className="text-[12.5px] text-text-secondary">✓ {companies.length} compan{companies.length === 1 ? "y" : "ies"} identified</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {companies.slice(0, 3).map(c => (
               <span key={c.symbol}
                 className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                  c.impact_type === "beneficiary" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
-                  : c.impact_type === "at_risk"    ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
-                  : "border-white/10 bg-white/5 text-slate-300"
+                  c.impact_type === "beneficiary" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                  : c.impact_type === "at_risk"    ? "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300"
+                  : "border-surface-border/10 bg-text-primary/5 text-text-secondary"
                 }`}>
                 {c.symbol}
               </span>
@@ -59,12 +59,12 @@ export function AISearchFindingsRecap({ sourcesCount, companies, sectors, topHis
       key: "sectors",
       node: (
         <div>
-          <p className="text-[12.5px] text-slate-300">✓ {sectors.length} sector{sectors.length === 1 ? "" : "s"} affected</p>
+          <p className="text-[12.5px] text-text-secondary">✓ {sectors.length} sector{sectors.length === 1 ? "" : "s"} affected</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {sectors.slice(0, 5).map(s => (
               <span key={s.name}
                 className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                  s.positive ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-300"
+                  s.positive ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300"
                 }`}>
                 {s.name}
               </span>
@@ -80,7 +80,7 @@ export function AISearchFindingsRecap({ sourcesCount, companies, sectors, topHis
       key: "historical",
       node: (
         <div className="flex items-center gap-2">
-          <p className="text-[12.5px] text-slate-300">✓ Historical match: {topHistoricalMatch.event_title}</p>
+          <p className="text-[12.5px] text-text-secondary">✓ Historical match: {topHistoricalMatch.event_title}</p>
           <ConfidenceBadge score={Math.round(topHistoricalMatch.similarity)} showLabel={false} size="sm" />
         </div>
       ),
@@ -90,8 +90,8 @@ export function AISearchFindingsRecap({ sourcesCount, companies, sectors, topHis
   if (rows.length === 0) return null;
 
   return (
-    <div className={`rounded-xl border border-[#1e293b] bg-[#0f172a] p-4 ${className}`}>
-      <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">What we found</p>
+    <div className={`rounded-xl border border-[#1e293b] bg-surface-card p-4 ${className}`}>
+      <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">What we found</p>
       <div className="space-y-2.5">
         {rows.map((row, i) => (
           <motion.div key={row.key}

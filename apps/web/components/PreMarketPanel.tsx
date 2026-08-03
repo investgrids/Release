@@ -25,12 +25,12 @@ function MiniChart({ chart, positive }: { chart?: { value: number }[]; positive:
 // Hero pre-market card (Gift Nifty / India VIX / US Futures / Commodity)
 function PreMarketCard({ q, idx }: { q: any; idx: number }) {
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-white/[0.07] bg-white/[0.03] p-3.5">
+    <div className="flex flex-col justify-between rounded-2xl border border-surface-border/7 bg-text-primary/[0.03] p-3.5">
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-[11px] font-semibold text-slate-300 leading-tight">{q.name}</p>
+        <p className="text-[11px] font-semibold text-text-secondary leading-tight">{q.name}</p>
         <MiniChart chart={q.chart} positive={q.positive !== false} />
       </div>
-      <p className="text-[15px] font-black text-white leading-none">{q.value}</p>
+      <p className="text-[15px] font-black text-text-primary leading-none">{q.value}</p>
       <p className={`mt-1 text-[11px] font-semibold ${q.positive !== false ? "text-emerald-400" : "text-rose-400"}`}>
         {q.change_str ?? q.pct ?? "—"}
       </p>
@@ -40,7 +40,7 @@ function PreMarketCard({ q, idx }: { q: any; idx: number }) {
           ${q.color === "emerald" ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400" :
             q.color === "amber"   ? "bg-amber-500/10  border-amber-500/25  text-amber-400"   :
             q.color === "rose"    ? "bg-rose-500/10   border-rose-500/25   text-rose-400"    :
-                                    "bg-slate-500/10  border-slate-500/25  text-slate-400"}`}>
+                                    "bg-slate-500/10  border-surface-border/6  text-text-secondary"}`}>
           {q.level_label}
         </span>
       )}
@@ -145,15 +145,15 @@ export function PreMarketPanel({ data, timeIST }: { data: any | null; timeIST: s
             </svg>
           </div>
           <div>
-            <p className="text-[13px] font-bold text-white">Pre-Market Overview</p>
-            <p className="text-[10px] text-slate-500">As of {timeIST} IST · NSE opens 9:15 AM</p>
+            <p className="text-[13px] font-bold text-text-primary">Pre-Market Overview</p>
+            <p className="text-[10px] text-text-muted">As of {timeIST} IST · NSE opens 9:15 AM</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
             Pre-Open
           </span>
-          <Link href="/market-intelligence?tab=pre-market" className="text-[11px] text-sky-400 hover:text-sky-300 transition">
+          <Link href="/market-intelligence?tab=pre-market" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
             View All →
           </Link>
         </div>
@@ -168,13 +168,13 @@ export function PreMarketPanel({ data, timeIST }: { data: any | null; timeIST: s
         </div>
 
         {/* Right: dynamic AI insights (no hardcoding) */}
-        <div className="w-[220px] shrink-0 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-3.5">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        <div className="w-[220px] shrink-0 rounded-2xl border border-surface-border/7 bg-text-primary/[0.03] p-3.5">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Pre-Market Signals
           </p>
           <ul className="space-y-1.5">
             {insights.map((ins, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-300">
+              <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary">
                 <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
                 {ins}
               </li>
@@ -183,7 +183,7 @@ export function PreMarketPanel({ data, timeIST }: { data: any | null; timeIST: s
         </div>
       </div>
 
-      <p className="mt-2.5 text-[10px] text-slate-700">
+      <p className="mt-2.5 text-[10px] text-text-muted">
         Data via yfinance · refreshed every 15 min · Gift Nifty = NSE near-month futures proxy
       </p>
     </div>

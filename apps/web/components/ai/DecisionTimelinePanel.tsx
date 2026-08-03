@@ -32,18 +32,18 @@ export function DecisionTimelinePanel({ timeline }: { timeline: TimelineIntellig
   if (stages.length === 0) return null;
 
   return (
-    <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-      <p className="mb-5 text-[15px] font-semibold text-white">Decision Timeline</p>
+    <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+      <p className="mb-5 text-[15px] font-semibold text-text-primary">Decision Timeline</p>
 
       <div className="relative grid gap-4" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
-        <div className="absolute left-0 right-0 top-[15px] hidden h-px bg-white/[0.08] sm:block" />
+        <div className="absolute left-0 right-0 top-[15px] hidden h-px bg-text-primary/[0.08] sm:block" />
         {stages.map(s => (
           <div key={s.key} className="relative flex flex-col items-center text-center">
-            <div className="z-10 flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-[#0d1117] text-violet-300">
+            <div className="z-10 flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-surface-card text-violet-600 dark:text-violet-300">
               {s.icon}
             </div>
-            <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{s.label}</p>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-300">{timeline?.[s.key]}</p>
+            <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">{s.label}</p>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">{timeline?.[s.key]}</p>
           </div>
         ))}
       </div>

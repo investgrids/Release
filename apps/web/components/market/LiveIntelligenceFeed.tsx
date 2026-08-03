@@ -35,13 +35,13 @@ export function LiveIntelligenceFeed({ compact = false, limit = 5 }: { compact?:
   const entries = useLiveFeed(limit, { criticalHighOnly: true });
 
   return (
-    <div className={`flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] ${compact ? "p-4" : "p-5"}`}>
+    <div className={`flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card ${compact ? "p-4" : "p-5"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-y-1">
         <div className="flex items-center gap-2">
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-          <h3 className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.04em] text-white">Live Activity</h3>
+          <h3 className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.04em] text-text-primary">Live Activity</h3>
         </div>
-        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-text-muted">
           <Radio className="h-3 w-3 text-emerald-400" />
           Live
         </span>
@@ -49,14 +49,14 @@ export function LiveIntelligenceFeed({ compact = false, limit = 5 }: { compact?:
 
       {entries.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
-          <p className="text-[12px] text-slate-500">Watching for the next real-time signal…</p>
-          <p className="mt-1 text-[10px] text-slate-600">Every new event, score change, and alert appears here as it happens — nothing simulated.</p>
+          <p className="text-[12px] text-text-muted">Watching for the next real-time signal…</p>
+          <p className="mt-1 text-[10px] text-text-muted">Every new event, score change, and alert appears here as it happens — nothing simulated.</p>
         </div>
       ) : (
         <div className="sidebar-scroll max-h-[420px] space-y-2 overflow-y-auto pr-1">
           {entries.map(entry => (
-            <div key={entry.key} className="flex items-start gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] p-2.5 hover:border-white/[0.1] transition">
-              <span className="w-11 shrink-0 pt-0.5 text-[10px] tabular-nums text-slate-600">{timeLabel(entry.ts)}</span>
+            <div key={entry.key} className="flex items-start gap-3 rounded-xl border border-surface-border/4 bg-text-primary/[0.02] p-2.5 hover:border-surface-border/10 transition">
+              <span className="w-11 shrink-0 pt-0.5 text-[10px] tabular-nums text-text-muted">{timeLabel(entry.ts)}</span>
               <div className="min-w-0 flex-1">
                 <div className="mb-0.5 flex items-center gap-1.5">
                   <span className={`rounded-full border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider ${entry.badge.cls}`}>
@@ -69,13 +69,13 @@ export function LiveIntelligenceFeed({ compact = false, limit = 5 }: { compact?:
                   )}
                 </div>
                 {entry.href ? (
-                  <Link href={entry.href} className="text-[12px] font-medium text-slate-200 hover:text-sky-300 transition line-clamp-2">
+                  <Link href={entry.href} className="text-[12px] font-medium text-text-primary hover:text-sky-600 dark:text-sky-300 transition line-clamp-2">
                     {entry.headline}
                   </Link>
                 ) : (
-                  <p className="text-[12px] font-medium text-slate-200 line-clamp-2">{entry.headline}</p>
+                  <p className="text-[12px] font-medium text-text-primary line-clamp-2">{entry.headline}</p>
                 )}
-                {entry.sub && <p className="mt-0.5 text-[10px] text-slate-600 line-clamp-1">{entry.sub}</p>}
+                {entry.sub && <p className="mt-0.5 text-[10px] text-text-muted line-clamp-1">{entry.sub}</p>}
               </div>
             </div>
           ))}

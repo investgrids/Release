@@ -1,7 +1,7 @@
 import { API_BASE_URL as API } from "@/lib/api";
 import RipplePage, { type RippleData } from "./RipplePageClient";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 /**
  * Server wrapper — newly-discovered Phase 1-class gap (found while wiring
@@ -70,11 +70,11 @@ export default async function RippleDetailPage({ params }: { params: Promise<{ i
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}
       {data && (
-        <section className="mb-4 border-b border-white/[0.06] pb-4">
+        <section className="mb-4 border-b border-surface-border/6 pb-4">
           {/* The single real <h1> for this page — the client component's
               own header renders the same title as a <p>, not a second <h1>. */}
-          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-slate-500">{data.event_title}</h1>
-          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-slate-400">{description}</p>
+          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">{data.event_title}</h1>
+          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-text-secondary">{description}</p>
         </section>
       )}
       <RipplePage initialData={data} initialRelated={related} />

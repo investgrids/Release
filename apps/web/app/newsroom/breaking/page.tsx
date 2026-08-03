@@ -81,20 +81,20 @@ export default async function BreakingIntelligencePage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <div className="mb-8">
-        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           <Radio className="h-3 w-3 text-rose-400" /> AI Newsroom
         </p>
-        <h1 className="mt-2 text-[26px] font-black leading-tight text-white md:text-[30px]">
+        <h1 className="mt-2 text-[26px] font-black leading-tight text-text-primary md:text-[30px]">
           Breaking Intelligence
         </h1>
-        <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-slate-400">
+        <p className="mt-2 max-w-2xl text-[13.5px] leading-6 text-text-secondary">
           High-impact AI analysis as market-moving developments happen — any article
           type, ranked by real impact, not just ones literally tagged &quot;breaking.&quot;
         </p>
       </div>
 
       {articles.length === 0 ? (
-        <p className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-8 text-center text-[13px] text-slate-500">
+        <p className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-8 text-center text-[13px] text-text-muted">
           No high-impact intelligence in the last cycle — check back soon.
         </p>
       ) : (
@@ -103,30 +103,30 @@ export default async function BreakingIntelligencePage() {
             <Link
               key={a.slug}
               href={`/newsroom/article/${a.slug}`}
-              className="group block rounded-xl border border-white/[0.07] bg-white/[0.03] p-5 transition-colors hover:border-white/20 hover:bg-white/[0.05]"
+              className="group block rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-5 transition-colors hover:border-surface-border/20 hover:bg-text-primary/[0.05]"
             >
               <div className="flex items-center gap-2">
                 <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-400">
                   {TYPE_LABEL[a.article_type] ?? "Intelligence"}
                 </span>
                 {a.published_at && (
-                  <span className="flex items-center gap-1 text-[10px] text-slate-600">
+                  <span className="flex items-center gap-1 text-[10px] text-text-muted">
                     <Clock className="h-2.5 w-2.5" /> {fmtRelative(a.published_at)}
                   </span>
                 )}
               </div>
-              <h2 className="mt-2 text-[16px] font-bold leading-snug text-white group-hover:text-sky-200 transition">
+              <h2 className="mt-2 text-[16px] font-bold leading-snug text-text-primary group-hover:text-sky-700 dark:text-sky-200 transition">
                 {cleanText(a.headline)}
               </h2>
               {(a.key_takeaway || a.executive_summary) && (
-                <p className="mt-1.5 line-clamp-2 text-[13px] leading-5 text-slate-400">
+                <p className="mt-1.5 line-clamp-2 text-[13px] leading-5 text-text-secondary">
                   {cleanText(a.key_takeaway ?? a.executive_summary ?? "")}
                 </p>
               )}
               {a.companies_affected?.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {a.companies_affected.filter(c => isRealSymbol(c.symbol)).slice(0, 4).map((c, i) => (
-                    <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">
+                    <span key={i} className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[10px] text-text-secondary">
                       {c.symbol}
                     </span>
                   ))}

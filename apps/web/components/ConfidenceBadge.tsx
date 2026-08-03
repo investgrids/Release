@@ -12,19 +12,19 @@ export interface ConfidenceData {
 const LEVEL: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   "Very High": {
     bg:     "bg-emerald-500/15",
-    text:   "text-emerald-300",
+    text:   "text-emerald-600 dark:text-emerald-300",
     border: "border-emerald-500/30",
     dot:    "bg-emerald-400",
   },
   "High": {
     bg:     "bg-sky-500/15",
-    text:   "text-sky-300",
+    text:   "text-sky-600 dark:text-sky-300",
     border: "border-sky-500/30",
     dot:    "bg-sky-400",
   },
   "Medium": {
     bg:     "bg-amber-500/15",
-    text:   "text-amber-300",
+    text:   "text-amber-600 dark:text-amber-300",
     border: "border-amber-500/30",
     dot:    "bg-amber-400",
   },
@@ -71,16 +71,16 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
 
       {open && data.reasons.length > 0 && (
         <div
-          className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-white/[0.08] bg-[#0e1826] p-3 shadow-2xl"
+          className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-surface-border/8 bg-surface-card p-3 shadow-2xl"
           onClick={e => e.stopPropagation()}
         >
           {/* Score bar */}
           <div className="mb-2.5">
             <div className="mb-1 flex items-center justify-between text-[10px]">
-              <span className="font-semibold text-slate-400">Confidence Score</span>
+              <span className="font-semibold text-text-secondary">Confidence Score</span>
               <span className={`font-bold tabular-nums ${style.text}`}>{hasScore ? `${data.score}%` : "Unscored"}</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
               {hasScore && (
                 <div
                   className={`h-full rounded-full transition-all ${style.dot}`}
@@ -91,12 +91,12 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
           </div>
 
           {/* Reasons */}
-          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600">
+          <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
             High Confidence Because:
           </p>
           <ul className="space-y-1">
             {data.reasons.map((r, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-400">
+              <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary">
                 <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-600" />
                 {r}
               </li>
@@ -105,14 +105,14 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
 
           {/* Score breakdown */}
           {data.breakdown && Object.keys(data.breakdown).length > 0 && (
-            <div className="mt-2.5 border-t border-white/[0.05] pt-2">
-              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600">
+            <div className="mt-2.5 border-t border-surface-border/5 pt-2">
+              <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
                 Score Breakdown
               </p>
               {Object.entries(data.breakdown).map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between text-[10px]">
-                  <span className="capitalize text-slate-500">{k.replace(/_/g, " ")}</span>
-                  <span className="tabular-nums text-slate-400">+{v.toFixed(1)}</span>
+                  <span className="capitalize text-text-muted">{k.replace(/_/g, " ")}</span>
+                  <span className="tabular-nums text-text-secondary">+{v.toFixed(1)}</span>
                 </div>
               ))}
             </div>

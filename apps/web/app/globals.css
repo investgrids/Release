@@ -3,37 +3,53 @@
 @tailwind utilities;
 
 /* ── Design tokens ───────────────────────────────────────────────────────────── */
+/* Light is the default (bare :root, no data-theme attribute needed) — the
+   product default per the redesign. Dark is the explicit opt-in via
+   data-theme="dark", stamped by the FOUC-prevention script in layout.tsx
+   before first paint whenever the visitor has chosen it. Every surface/text
+   token is a bare "R G B" triple (matching how --accent-* were already
+   stored) so Tailwind's rgb(var(--x) / <alpha-value>) pattern can apply
+   opacity modifiers to them. */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
 
-  /* Accent — violet/sky split used across all components */
+  /* Accent — identical across both themes, used strictly for accents/CTAs/
+     state, never as background washes (see redesign plan's palette note). */
   --accent-violet: 99 102 241;   /* #6366f1 */
   --accent-sky:    56 189 248;   /* #38bdf8 */
   --accent-emerald:52 211 153;   /* #34d399 */
   --accent-rose:   251 113 133;  /* #fb7185 */
 
-  /* Surface tokens (dark default) */
-  --surface-bg:        #020617;
-  --surface-header:    rgba(2, 6, 23, 0.92);
-  --surface-card:      rgba(10, 13, 24, 0.92);
-  --surface-border:    rgba(255, 255, 255, 0.08);
-  --text-primary:      #f1f5f9;
-  --text-secondary:    #94a3b8;
-  --text-muted:        #475569;
+  /* Surface tokens — light (default). Cool paper white (#f6f7fb) rather
+     than pure #fff: reduces glare, reads like a trading-terminal surface
+     instead of a generic SaaS page. */
+  --surface-bg:        246 247 251;  /* #f6f7fb */
+  --surface-header:    248 250 252;  /* #f8fafc, used at ~0.95 alpha */
+  --surface-card:      255 255 255;  /* #ffffff, used at ~0.9 alpha */
+  --surface-border:    15 23 42;     /* #0f172a, used at ~0.08 alpha */
+  --text-primary:      15 23 42;     /* #0f172a */
+  --text-secondary:    71 85 105;    /* #475569 */
+  /* Was 148 163 184 (#94a3b8, slate-400) — only ~2.5:1 contrast against the
+     white/near-white card and pill backgrounds this token sits on
+     everywhere (labels, timestamps, badge text), confirmed live via real
+     screenshots ("NIFTY" ticker label, "40% confidence" badge both
+     unreadable). slate-500 clears ~4.3:1, legible while still reading as
+     the dimmest text tier below secondary. */
+  --text-muted:        100 116 139; /* #64748b */
 }
 
-/* Light theme overrides — applied when the theme toggle stamps data-theme="light" */
-:root[data-theme="light"] {
-  color-scheme: light;
-  --surface-bg:        #f1f5f9;
-  --surface-header:    rgba(248, 250, 252, 0.95);
-  --surface-card:      rgba(255, 255, 255, 0.95);
-  --surface-border:    rgba(0, 0, 0, 0.09);
-  --text-primary:      #0f172a;
-  --text-secondary:    #475569;
-  --text-muted:        #94a3b8;
+/* Dark theme — explicit opt-in via the toggle. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-bg:        8 11 22;      /* #080b16 */
+  --surface-header:    8 11 22;      /* used at ~0.92 alpha */
+  --surface-card:      15 19 33;     /* #0f1321, used at ~0.85 alpha */
+  --surface-border:    255 255 255;  /* used at ~0.08 alpha */
+  --text-primary:      236 240 247;  /* #ecf0f7 */
+  --text-secondary:    148 163 184;  /* #94a3b8 */
+  --text-muted:        71 85 105;    /* #475569 */
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────────── */
@@ -41,8 +57,7 @@ html {
   /* Flat colour only — no gradient here, see body::before for the ambient glow.
      Putting a gradient on <html> makes the document root a compositing context,
      stacking every repaint on top of it. Flat colour is a single rasterised layer. */
-  background: #020617;
-  color-scheme: dark;
+  background: rgb(var(--surface-bg));
   scroll-behavior: smooth;
   /* subpixel AA on macOS, greyscale on others — net: sharper, lighter strokes */
   -webkit-font-smoothing: antialiased;
@@ -54,7 +69,9 @@ html {
 /* Ambient radial glow — fixed pseudo so it:
      1. paints exactly once into its own layer
      2. composites cheaply below all content
-     3. never triggers a repaint when content changes           */
+     3. never triggers a repaint when content changes
+   Dialled back on light (a visible glow reads as a smudge on white; it was
+   tuned for a near-black background). */
 body::before {
   content: "";
   position: fixed;
@@ -62,24 +79,31 @@ body::before {
   z-index: -1;
   background: radial-gradient(
     circle at 50% 0%,
-    rgba(96, 165, 250, 0.07) 0%,
+    rgba(96, 165, 250, 0.05) 0%,
     transparent 55%
   );
   pointer-events: none;
   will-change: transform; /* pin to compositor thread */
 }
+:root[data-theme="dark"] body::before {
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(96, 165, 250, 0.07) 0%,
+    transparent 55%
+  );
+}
 
 body {
   min-height: 100vh;
   background: transparent;
-  color: #e2e8f0;
+  color: rgb(var(--text-primary));
   font-family: var(--font-sans);
 }
 
 /* ── Selection ───────────────────────────────────────────────────────────────── */
 ::selection {
   background: rgba(99, 102, 241, 0.35);
-  color: #f1f5f9;
+  color: rgb(var(--text-primary));
 }
 
 /* ── Focus ───────────────────────────────────────────────────────────────────── */
@@ -117,74 +141,38 @@ select {
    Rules:
      • NO backdrop-filter        — eliminates GPU stencil/composite pass
      • NO blurred box-shadow     — blur radius > 0 forces same CPU paint pass
-     • Opaque dark base          — alpha blend once, no compositing stack
+     • Opaque base               — alpha blend once, no compositing stack
      • Zero-blur inset only      — draws a 1px line, no blur kernel, free
-   On #020617, rgba(10,13,24,0.92) is visually identical to blur(24px)
-   over near-black content. 100% of the gain, nothing to rasterise.
+   Token-driven so pages that use these classes (not every page is migrated
+   to the new card recipes this pass) still render correctly in both themes
+   instead of showing a dark card floating on a light page.
    ───────────────────────────────────────────────────────────────────────── */
 
 .glass-card {
-  background: rgba(10, 13, 24, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: rgb(var(--surface-card) / 0.92);
+  box-shadow: inset 0 1px 0 rgb(var(--text-primary) / 0.06);
   contain: layout style;
 }
 
 .glass-rose {
-  background: rgba(14, 7, 11, 0.92);
-  box-shadow: inset 0 1px 0 rgba(248, 113, 113, 0.07);
+  background: rgb(var(--surface-card) / 0.92);
+  box-shadow: inset 0 1px 0 rgba(248, 113, 113, 0.1);
   contain: layout style;
 }
 
 .glass-hero {
   background: linear-gradient(
     135deg,
-    rgba(11, 15, 30, 0.98) 0%,
-    rgba(7, 10, 21, 0.95)  100%
+    rgb(var(--surface-card) / 0.98) 0%,
+    rgb(var(--surface-card) / 0.9)  100%
   );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgb(var(--text-primary) / 0.08);
 }
 
-/* Dark near-opaque surface for fixed bars (ticker, header) — no blur */
+/* Near-opaque surface for fixed bars (ticker, header) — no blur */
 .glass-bar {
-  background: rgba(2, 6, 23, 0.97);
-  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.05);
-}
-
-/* ── Theme-aware header surfaces ─────────────────────────────────────────────── */
-/* The SiteHeader uses both classes so we can override per data-theme */
-.dark-header {
-  background: rgba(2, 6, 23, 0.90);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-}
-
-:root[data-theme="light"] .light-header {
-  background: rgba(248, 250, 252, 0.96) !important;
-  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05), 0 4px 24px rgba(0, 0, 0, 0.06) !important;
-}
-
-/* Light theme: re-colour nav text and inputs in the header */
-:root[data-theme="light"] .light-header a,
-:root[data-theme="light"] .light-header nav,
-:root[data-theme="light"] .light-header span {
-  color: #334155;
-}
-:root[data-theme="light"] .light-header input::placeholder {
-  color: #94a3b8;
-}
-:root[data-theme="light"] .light-header input {
-  color: #0f172a;
-}
-:root[data-theme="light"] .light-header form > div {
-  background: rgba(241, 245, 249, 0.9);
-  border-color: rgba(0, 0, 0, 0.10);
-}
-
-/* Light theme: page background */
-:root[data-theme="light"] html,
-:root[data-theme="light"] body {
-  background: var(--surface-bg) !important;
-  color: var(--text-primary) !important;
+  background: rgb(var(--surface-header) / 0.97);
+  box-shadow: 0 -1px 0 rgb(var(--surface-border) / 0.5);
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────────────────────── */
@@ -242,9 +230,9 @@ select {
 .animate-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(255,255,255,0.03) 25%,
-    rgba(255,255,255,0.07) 50%,
-    rgba(255,255,255,0.03) 75%
+    rgb(var(--text-primary) / 0.03) 25%,
+    rgb(var(--text-primary) / 0.07) 50%,
+    rgb(var(--text-primary) / 0.03) 75%
   );
   background-size: 200% auto;
   animation: shimmer 1.8s linear infinite;
@@ -254,12 +242,58 @@ select {
 .react-flow__attribution { display: none !important; }
 
 .react-flow__controls-button {
-  background: rgba(10, 13, 24, 0.95) !important;
-  border-color: rgba(255, 255, 255, 0.07) !important;
-  color: rgba(148, 163, 184, 1) !important;
-  fill: rgba(148, 163, 184, 1) !important;
+  background: rgb(var(--surface-card) / 0.95) !important;
+  border-color: rgb(var(--surface-border) / 0.5) !important;
+  color: rgb(var(--text-secondary)) !important;
+  fill: rgb(var(--text-secondary)) !important;
 }
 .react-flow__controls-button:hover {
-  background: rgba(20, 26, 48, 0.98) !important;
+  background: rgb(var(--surface-card)) !important;
 }
 .react-flow__edge-path { stroke-width: 1.5px !important; }
+
+/* ── Card recipes ────────────────────────────────────────────────────────────
+   The two token-driven card treatments from the redesign — same className
+   set works unchanged in both themes since the colors resolve via CSS vars.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Data card — stats/scores/tickers. A colored 2px top rule (set via
+   --card-accent, per metric direction) reads as an instrument panel rather
+   than a flat tinted tile. */
+.card-data {
+  position: relative;
+  border-radius: 1rem;
+  border: 1px solid rgb(var(--surface-border) / 0.5);
+  background: rgb(var(--surface-card) / 0.9);
+  box-shadow: 0 1px 2px rgb(var(--text-primary) / 0.04);
+}
+.card-data::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 1rem 1rem 0 0;
+  background: var(--card-accent, rgb(var(--accent-violet)));
+}
+
+/* Content card — article/news teasers. */
+.card-content {
+  border-radius: 1rem;
+  border: 1px solid rgb(var(--surface-border) / 0.5);
+  background: rgb(var(--surface-card) / 0.9);
+  overflow: hidden;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.card-content:hover {
+  border-color: rgb(var(--accent-violet) / 0.3);
+  transform: translateY(-2px);
+}
+
+/* ── Theme-conditional visibility ────────────────────────────────────────────
+   For assets that can't be token-driven (flat raster images — the wordmark
+   logo bakes in a fixed text color per file, unlike CSS-drawn text). Pure
+   CSS, zero JS: works identically in server components (Footer) and client
+   components (SiteHeader) alike, no theme hook/re-render needed. */
+.theme-dark-only { display: none; }
+:root[data-theme="dark"] .theme-dark-only { display: block; }
+:root[data-theme="dark"] .theme-light-only { display: none; }

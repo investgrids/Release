@@ -18,7 +18,7 @@ const data = [
 
 export function StockChart() {
   return (
-    <div className="h-72 rounded-3xl border border-white/10 bg-slate-950/80 p-4">
+    <div className="h-72 rounded-3xl border border-surface-border/10 bg-bg/80 p-4">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
@@ -30,7 +30,7 @@ export function StockChart() {
           <CartesianGrid stroke="rgba(148,163,184,0.12)" vertical={false} />
           <XAxis dataKey="time" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} width={36} />
-          <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(148,163,184,0.2)", color: "#fff" }} cursor={{ stroke: "rgba(56,189,248,0.25)", strokeWidth: 2 }} />
+          <Tooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgba(148,163,184,0.2)", color: "#fff" }} cursor={{ stroke: "rgba(56,189,248,0.25)", strokeWidth: 2 }} />
           <Area type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
         </AreaChart>
       </ResponsiveContainer>

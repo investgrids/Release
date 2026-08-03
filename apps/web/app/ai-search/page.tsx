@@ -207,15 +207,15 @@ const EXAMPLES = [
 ];
 
 const CATEGORY_COLOR: Record<string, string> = {
-  Government:          "bg-violet-500/20 text-violet-300 border-violet-500/30",
-  "Government Policy": "bg-violet-500/20 text-violet-300 border-violet-500/30",
-  Policy:              "bg-sky-500/20 text-sky-300 border-sky-500/30",
-  Corporate:           "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  "Economic Event":    "bg-teal-500/20 text-teal-300 border-teal-500/30",
-  "Industry Update":   "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  RBI:                 "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
-  Macro:               "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  Market:              "bg-teal-500/20 text-teal-300 border-teal-500/30",
+  Government:          "bg-violet-500/20 text-violet-600 dark:text-violet-300 border-violet-500/30",
+  "Government Policy": "bg-violet-500/20 text-violet-600 dark:text-violet-300 border-violet-500/30",
+  Policy:              "bg-sky-500/20 text-sky-600 dark:text-sky-300 border-sky-500/30",
+  Corporate:           "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30",
+  "Economic Event":    "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/30",
+  "Industry Update":   "bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/30",
+  RBI:                 "bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border-indigo-500/30",
+  Macro:               "bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/30",
+  Market:              "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/30",
 };
 
 const EVENT_STATUS_COLORS: Record<string, { dot: string; label: string; bg: string }> = {
@@ -244,19 +244,19 @@ const DRIVER_ICON_MAP: Record<string, ReactNode> = {
 };
 
 const RIPPLE_TYPE_COLOR: Record<string, string> = {
-  policy:    "border-violet-500/30 bg-violet-500/10 text-violet-300",
-  sector:    "border-sky-500/30 bg-sky-500/10 text-sky-300",
-  commodity: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-  company:   "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  event:     "border-rose-500/30 bg-rose-500/10 text-rose-300",
+  policy:    "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300",
+  sector:    "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300",
+  commodity: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300",
+  company:   "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+  event:     "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300",
 };
 
 const RIPPLE_POSITION_COLOR: Record<string, string> = {
-  "Primary Beneficiary":   "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  "Primary Beneficiary":   "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30",
   "Secondary Beneficiary": "bg-emerald-500/10 text-emerald-400/80 border-emerald-500/20",
-  "Primary Pressure":      "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  "Primary Pressure":      "bg-rose-500/15 text-rose-600 dark:text-rose-300 border-rose-500/30",
   "Secondary Pressure":    "bg-rose-500/10 text-rose-400/80 border-rose-500/20",
-  "Indirect Exposure":     "bg-slate-500/10 text-slate-400 border-slate-500/20",
+  "Indirect Exposure":     "bg-slate-500/10 text-text-secondary border-surface-border/5",
 };
 
 const SECTOR_STATUS_COLOR: Record<string, string> = {
@@ -299,10 +299,10 @@ function BigGauge({ score, size = 120 }: { score: number | null | undefined; siz
   const cx = size / 2, cy = size / 2;
   const circ = 2 * Math.PI * r;
   const dash = unscored ? 0 : (score / 100) * circ;
-  const color = unscored ? "#64748b" : score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
+  const color = unscored ? "rgb(var(--text-muted))" : score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8"/>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgb(var(--text-primary) / 0.06)" strokeWidth="8"/>
       {!unscored && (
         <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="8"
           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
@@ -323,10 +323,10 @@ function SmallRing({ score, size = 36 }: { score: number | null | undefined; siz
   const r = (size - 6) / 2;
   const circ = 2 * Math.PI * r;
   const dash = unscored ? 0 : (score / 100) * circ;
-  const color = unscored ? "#64748b" : score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
+  const color = unscored ? "rgb(var(--text-muted))" : score >= 80 ? "#22c55e" : score >= 60 ? "#60a5fa" : "#f59e0b";
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgb(var(--text-primary) / 0.08)" strokeWidth="3"/>
       {!unscored && (
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="3"
           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
@@ -342,7 +342,7 @@ function SmallRing({ score, size = 36 }: { score: number | null | undefined; siz
 
 /** Mini sparkline for company chart */
 function MiniSparkline({ data, positive, width = 72, height = 28 }: { data: number[]; positive: boolean; width?: number; height?: number }) {
-  if (!data?.length) return <div style={{ width, height }} className="rounded bg-white/[0.03]"/>;
+  if (!data?.length) return <div style={{ width, height }} className="rounded bg-text-primary/[0.03]"/>;
   const min = Math.min(...data), max = Math.max(...data), range = max - min || 1;
   const pts = data.map((v, i) => {
     const x = (i / Math.max(data.length - 1, 1)) * width;
@@ -399,7 +399,7 @@ function displayConfidence(result: Pick<SearchResult, "confidence_data" | "answe
 
 /** Derive risk level from confidence */
 function riskLevel(confidence: number | null | undefined): { label: string; color: string } {
-  if (confidence === null || confidence === undefined) return { label: "Unscored", color: "text-slate-500 bg-slate-800/20 border-slate-700/30" };
+  if (confidence === null || confidence === undefined) return { label: "Unscored", color: "text-text-muted bg-text-primary/[0.05] border-surface-border/7" };
   if (confidence >= 85) return { label: "Low", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" };
   if (confidence >= 65) return { label: "Medium", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" };
   return { label: "High", color: "text-rose-400 bg-rose-500/10 border-rose-500/20" };
@@ -474,23 +474,23 @@ function SearchWaitingState({ query }: { query: string }) {
 
   return (
     <div className="space-y-4 pb-10">
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-6">
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-6">
         <div className="flex items-start gap-4 mb-6">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
             <Sparkles className="h-5 w-5" />
           </div>
           <div className="flex-1">
             <p className="text-[11px] uppercase tracking-widest text-violet-400 mb-1">AI Answer</p>
-            <p className="text-sm text-slate-400">Researching: <span className="text-white font-medium">{query}</span></p>
+            <p className="text-sm text-text-secondary">Researching: <span className="text-text-primary font-medium">{query}</span></p>
           </div>
-          <span className="text-[10px] text-slate-600 tabular-nums shrink-0 mt-1">{elapsedSec}s elapsed</span>
+          <span className="text-[10px] text-text-muted tabular-nums shrink-0 mt-1">{elapsedSec}s elapsed</span>
         </div>
 
         <AnimatePresence mode="wait">
           <motion.p key={phraseIdx}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.4 }}
-            className="flex items-center gap-2 text-[13px] text-slate-300">
+            className="flex items-center gap-2 text-[13px] text-text-secondary">
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400 animate-pulse" />
             {WAITING_PHRASES[phraseIdx]}
           </motion.p>
@@ -501,7 +501,7 @@ function SearchWaitingState({ query }: { query: string }) {
         </div>
       </div>
       {[1, 2].map(i => (
-        <div key={i} className="h-40 animate-pulse rounded-[20px] bg-white/[0.03]"/>
+        <div key={i} className="h-40 animate-pulse rounded-[20px] bg-text-primary/[0.03]"/>
       ))}
     </div>
   );
@@ -518,17 +518,17 @@ function EmptyState({ onSearch }: { onSearch: (q: string) => void }) {
         <div className="absolute -inset-4 rounded-full bg-violet-500/5 blur-xl"/>
       </div>
       <div>
-        <h2 className="text-xl font-semibold text-white mb-2">AI Decision Intelligence Engine</h2>
-        <p className="text-sm text-slate-400 max-w-md leading-relaxed">Ask any investment decision question — hold, switch, compare, or analyse. Get explainable AI reasoning, evidence, and trade-offs.</p>
+        <h2 className="text-xl font-semibold text-text-primary mb-2">AI Decision Intelligence Engine</h2>
+        <p className="text-sm text-text-secondary max-w-md leading-relaxed">Ask any investment decision question — hold, switch, compare, or analyse. Get explainable AI reasoning, evidence, and trade-offs.</p>
       </div>
       <div className="w-full max-w-xl space-y-2">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-3">Try these searches</p>
+        <p className="text-[10px] uppercase tracking-widest text-text-muted mb-3">Try these searches</p>
         {EXAMPLES.map(q => (
           <button key={q} onClick={() => onSearch(q)}
-            className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-left text-[13px] text-slate-300 transition hover:border-violet-500/30 hover:bg-violet-500/[0.04] hover:text-white">
+            className="group flex w-full items-center gap-3 rounded-[14px] border border-surface-border/6 bg-text-primary/[0.02] px-4 py-3 text-left text-[13px] text-text-secondary transition hover:border-violet-500/30 hover:bg-violet-500/[0.04] hover:text-text-primary">
             <Search className="h-4 w-4 text-violet-400 shrink-0" />
             {q}
-            <span className="ml-auto text-slate-600 group-hover:text-violet-400 transition text-sm">→</span>
+            <span className="ml-auto text-text-muted group-hover:text-violet-400 transition text-sm">→</span>
           </button>
         ))}
       </div>
@@ -546,9 +546,9 @@ function EmptyState({ onSearch }: { onSearch: (q: string) => void }) {
 // sentence, ai_conclusion, and what_to_watch_summary — never the lists
 // themselves.
 const TIER_CLS: Record<string, string> = {
-  High:   "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  Medium: "border-sky-500/30 bg-sky-500/10 text-sky-300",
-  Low:    "border-slate-500/30 bg-slate-500/10 text-slate-400",
+  High:   "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+  Medium: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300",
+  Low:    "border-surface-border/7 bg-slate-500/10 text-text-secondary",
 };
 
 // Multi-line chart for MarketChart — real data (yfinance-backed, built server
@@ -571,7 +571,7 @@ function MultiLineChart({ chart, height = 160 }: { chart: MarketChart; height?: 
   return (
     <div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ height }}>
-        <line x1={pad} y1={zeroY} x2={width - pad} y2={zeroY} stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
+        <line x1={pad} y1={zeroY} x2={width - pad} y2={zeroY} stroke="rgb(var(--text-primary) / 0.08)" strokeWidth="1"/>
         {series.map((s, si) => (
           <polyline key={si} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
             points={s.data.map((v, i) => `${x(i)},${y(v)}`).join(" ")}/>
@@ -581,7 +581,7 @@ function MultiLineChart({ chart, height = 160 }: { chart: MarketChart; height?: 
         {series.map((s, si) => {
           const last = s.data[s.data.length - 1];
           return (
-            <span key={si} className="flex items-center gap-1.5 text-[10px] text-slate-400">
+            <span key={si} className="flex items-center gap-1.5 text-[10px] text-text-secondary">
               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }}/>
               {s.name} <span className={`tabular-nums font-semibold ${last >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{last >= 0 ? "+" : ""}{last.toFixed(2)}%</span>
             </span>
@@ -598,7 +598,7 @@ function MultiLineChart({ chart, height = 160 }: { chart: MarketChart; height?: 
 const DEGRADED_CARD_CLS = "border-amber-500/30 bg-amber-500/[0.04]";
 function DegradedBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
+    <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-300">
       <AlertTriangle className="h-2.5 w-2.5"/>
       Generic Analysis
     </span>
@@ -620,11 +620,11 @@ function VerifiedDriverChip({ d }: { d: VerifiedDriver }) {
 
 function PulseMoverCard({ m }: { m: PulseMover }) {
   return (
-    <div className="rounded-[16px] border border-white/[0.07] bg-white/[0.03] p-4">
+    <div className="rounded-[16px] border border-surface-border/7 bg-text-primary/[0.03] p-4">
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div>
-          <p className="text-[13px] font-bold text-white">{m.company}</p>
-          <p className="text-[10px] text-slate-500">{m.ticker} · {m.subtitle}</p>
+          <p className="text-[13px] font-bold text-text-primary">{m.company}</p>
+          <p className="text-[10px] text-text-muted">{m.ticker} · {m.subtitle}</p>
         </div>
         <span className={`text-[14px] font-black tabular-nums ${m.positive ? "text-emerald-400" : "text-rose-400"}`}>{m.value}</span>
       </div>
@@ -633,13 +633,13 @@ function PulseMoverCard({ m }: { m: PulseMover }) {
           {m.verified_drivers.map((d, i) => <VerifiedDriverChip key={i} d={d}/>)}
         </div>
       ) : (
-        <span className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-500 mb-1.5">
+        <span className="inline-flex items-center gap-1 rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2 py-0.5 text-[10px] font-semibold text-text-muted mb-1.5">
           <AlertTriangle className="h-3 w-3"/>
           No verified driver identified
         </span>
       )}
-      <p className="mb-2 text-[9px] uppercase tracking-wider text-slate-600">Evidence Strength <span className="tabular-nums text-slate-500">{Math.round(m.evidence_strength)}%</span></p>
-      <p className="text-[11.5px] leading-5 text-slate-400">{m.narrative}</p>
+      <p className="mb-2 text-[9px] uppercase tracking-wider text-text-muted">Evidence Strength <span className="tabular-nums text-text-muted">{Math.round(m.evidence_strength)}%</span></p>
+      <p className="text-[11.5px] leading-5 text-text-secondary">{m.narrative}</p>
     </div>
   );
 }
@@ -651,10 +651,10 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
   return (
     <div className="space-y-4 pb-36">
       {/* Query header */}
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] px-5 py-4">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5">Market Pulse</p>
-        <h1 className="text-[18px] font-bold text-white leading-snug">{result.query}</h1>
-        <p className="mt-1 text-[11px] text-slate-500">
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] px-5 py-4">
+        <p className="text-[10px] uppercase tracking-widest text-text-muted mb-1.5">Market Pulse</p>
+        <h1 className="text-[18px] font-bold text-text-primary leading-snug">{result.query}</h1>
+        <p className="mt-1 text-[11px] text-text-muted">
           {result.market_status?.status ? `Market ${result.market_status.status.replace("_", " ")}` : ""}
           {result.market_status?.time_ist ? ` · ${result.market_status.time_ist} IST` : ""}
         </p>
@@ -663,8 +663,8 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
       {result.synthesis_incomplete && (
         <div className="flex items-start gap-3 rounded-[16px] border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400"/>
-          <p className="text-[12.5px] leading-5 text-amber-200/90">
-            <span className="font-semibold text-amber-300">AI narrative couldn&apos;t be generated for this query.</span>{" "}
+          <p className="text-[12.5px] leading-5 text-amber-700/90 dark:text-amber-200/90">
+            <span className="font-semibold text-amber-600 dark:text-amber-300">AI narrative couldn&apos;t be generated for this query.</span>{" "}
             Every number below is still real, live market data — only the written explanations are unavailable right now.
           </p>
         </div>
@@ -679,21 +679,21 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
           </div>
           {result.market_mood && <span className={`text-[12px] font-bold ${moodColor}`}>{result.market_mood}</span>}
         </div>
-        <p className="text-[14px] text-white leading-relaxed mb-3">{result.market_summary}</p>
+        <p className="text-[14px] text-text-primary leading-relaxed mb-3">{result.market_summary}</p>
         <div className="flex flex-wrap gap-2 mb-3">
-          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold text-slate-300">
-            Market Confidence <span className="tabular-nums text-white">{Math.round(result.scores.market_confidence.score)}%</span> · {result.scores.market_confidence.level}
+          <span className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-1 text-[10px] font-semibold text-text-secondary">
+            Market Confidence <span className="tabular-nums text-text-primary">{Math.round(result.scores.market_confidence.score)}%</span> · {result.scores.market_confidence.level}
           </span>
-          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold text-slate-300">
-            Catalyst Score <span className="tabular-nums text-white">{Math.round(result.scores.catalyst_score)}%</span>
+          <span className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-1 text-[10px] font-semibold text-text-secondary">
+            Catalyst Score <span className="tabular-nums text-text-primary">{Math.round(result.scores.catalyst_score)}%</span>
           </span>
         </div>
         {result.indices.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {result.indices.map(idx => (
-              <div key={idx.ticker} className="rounded-[12px] border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-                <p className="text-[9px] uppercase tracking-wider text-slate-500">{idx.name}</p>
-                <p className="text-[12px] font-bold text-white">{idx.value}</p>
+              <div key={idx.ticker} className="rounded-[12px] border border-surface-border/6 bg-text-primary/[0.02] px-3 py-2">
+                <p className="text-[9px] uppercase tracking-wider text-text-muted">{idx.name}</p>
+                <p className="text-[12px] font-bold text-text-primary">{idx.value}</p>
                 <p className={`text-[10px] font-semibold ${idx.positive ? "text-emerald-400" : "text-rose-400"}`}>{idx.change}</p>
               </div>
             ))}
@@ -703,19 +703,19 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
 
       {/* 2. Sector Rotation */}
       {(result.leading_sectors.length > 0 || result.lagging_sectors.length > 0) && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <p className="text-[13px] font-semibold text-white mb-1">Sector Rotation</p>
-          {result.sector_narrative && <p className="text-[12px] text-slate-400 mb-3">{result.sector_narrative}</p>}
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-text-primary mb-1">Sector Rotation</p>
+          {result.sector_narrative && <p className="text-[12px] text-text-secondary mb-3">{result.sector_narrative}</p>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="text-[9px] uppercase tracking-wider text-emerald-400 font-semibold mb-1.5">Leading</p>
               <div className="space-y-1.5">
                 {result.leading_sectors.map(s => (
-                  <div key={s.id} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-                    <span className="text-[11px] font-semibold text-white">{s.name}</span>
+                  <div key={s.id} className="flex items-center justify-between rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5">
+                    <span className="text-[11px] font-semibold text-text-primary">{s.name}</span>
                     <span className="flex items-center gap-1.5">
                       <span className={`text-[11px] font-black tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.value}</span>
-                      <span className="text-[9px] tabular-nums text-slate-600">({Math.round(s.momentum_score)})</span>
+                      <span className="text-[9px] tabular-nums text-text-muted">({Math.round(s.momentum_score)})</span>
                     </span>
                   </div>
                 ))}
@@ -725,11 +725,11 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
               <p className="text-[9px] uppercase tracking-wider text-rose-400 font-semibold mb-1.5">Lagging</p>
               <div className="space-y-1.5">
                 {result.lagging_sectors.map(s => (
-                  <div key={s.id} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-                    <span className="text-[11px] font-semibold text-white">{s.name}</span>
+                  <div key={s.id} className="flex items-center justify-between rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5">
+                    <span className="text-[11px] font-semibold text-text-primary">{s.name}</span>
                     <span className="flex items-center gap-1.5">
                       <span className={`text-[11px] font-black tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.value}</span>
-                      <span className="text-[9px] tabular-nums text-slate-600">({Math.round(s.momentum_score)})</span>
+                      <span className="text-[9px] tabular-nums text-text-muted">({Math.round(s.momentum_score)})</span>
                     </span>
                   </div>
                 ))}
@@ -740,14 +740,14 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
       )}
 
       {/* 3. Top Performing Stocks */}
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-        <p className="text-[13px] font-semibold text-white mb-3">Top Performing Stocks</p>
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+        <p className="text-[13px] font-semibold text-text-primary mb-3">Top Performing Stocks</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           {result.top_gainers.map(m => <PulseMoverCard key={m.ticker} m={m}/>)}
         </div>
         {result.top_losers.length > 0 && (
           <>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-2 mt-4">Biggest Losers</p>
+            <p className="text-[11px] uppercase tracking-wider text-text-muted font-semibold mb-2 mt-4">Biggest Losers</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {result.top_losers.map(m => <PulseMoverCard key={m.ticker} m={m}/>)}
             </div>
@@ -766,8 +766,8 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
                   <span className="text-[11px] font-black tabular-nums text-emerald-400">{Math.round(result.scores.opportunity_score)}%</span>
                 )}
               </div>
-              <p className="text-[13px] font-bold text-white">{result.biggest_opportunity.title}</p>
-              {result.biggest_opportunity.summary && <p className="text-[11px] text-slate-400 mt-1">{result.biggest_opportunity.summary}</p>}
+              <p className="text-[13px] font-bold text-text-primary">{result.biggest_opportunity.title}</p>
+              {result.biggest_opportunity.summary && <p className="text-[11px] text-text-secondary mt-1">{result.biggest_opportunity.summary}</p>}
             </div>
           )}
           {result.biggest_risk && (
@@ -776,7 +776,7 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
                 <p className="text-[10px] uppercase tracking-wider text-rose-400 font-semibold">Biggest Risk on Record</p>
                 <span className="text-[11px] font-black tabular-nums text-rose-400">{Math.round(result.scores.risk_score)}%</span>
               </div>
-              <p className="text-[13px] font-bold text-white">{result.biggest_risk.headline || result.biggest_risk.reason}</p>
+              <p className="text-[13px] font-bold text-text-primary">{result.biggest_risk.headline || result.biggest_risk.reason}</p>
             </div>
           )}
         </div>
@@ -784,31 +784,31 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
 
       {/* 4. AI Conclusion */}
       {result.ai_conclusion && (
-        <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-white/[0.07] bg-white/[0.03]"}`}>
+        <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-surface-border/7 bg-text-primary/[0.03]"}`}>
           <div className="flex items-center gap-2 mb-2">
             <Bot className="h-4 w-4 text-violet-400"/>
-            <p className="text-[13px] font-semibold text-white">AI Conclusion</p>
+            <p className="text-[13px] font-semibold text-text-primary">AI Conclusion</p>
             {result.synthesis_incomplete && <DegradedBadge/>}
           </div>
-          <p className="text-[13px] leading-6 text-slate-300">{result.ai_conclusion}</p>
+          <p className="text-[13px] leading-6 text-text-secondary">{result.ai_conclusion}</p>
         </div>
       )}
 
       {/* 5. What to Watch Next */}
       {result.what_to_watch_next.length > 0 && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <p className="text-[13px] font-semibold text-white mb-1">What to Watch Next</p>
-          {result.what_to_watch_summary && <p className="text-[12px] text-slate-400 mb-3">{result.what_to_watch_summary}</p>}
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-text-primary mb-1">What to Watch Next</p>
+          {result.what_to_watch_summary && <p className="text-[12px] text-text-secondary mb-3">{result.what_to_watch_summary}</p>}
           <div className="space-y-2">
             {result.what_to_watch_next.map(w => (
-              <div key={w.id} className="flex items-start gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2">
-                <Clock className="h-3.5 w-3.5 shrink-0 mt-0.5 text-slate-500"/>
+              <div key={w.id} className="flex items-start gap-3 rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-3 py-2">
+                <Clock className="h-3.5 w-3.5 shrink-0 mt-0.5 text-text-muted"/>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-white">{w.title}</span>
-                    <span className="text-[9px] uppercase tracking-wider text-slate-500">{w.category}</span>
+                    <span className="text-[11px] font-bold text-text-primary">{w.title}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-text-muted">{w.category}</span>
                   </div>
-                  <p className="text-[10px] text-slate-500">{w.date}</p>
+                  <p className="text-[10px] text-text-muted">{w.date}</p>
                 </div>
               </div>
             ))}
@@ -955,25 +955,25 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
     <div className="space-y-4 pb-36">
 
       {/* ── Query Header ─────────────────────────────────────────────────────── */}
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] px-5 py-4">
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] px-5 py-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5">Search Answer</p>
-            <h1 className="text-[18px] font-bold text-white leading-snug">{result.query}</h1>
-            <p className="mt-1 text-[11px] text-slate-500">
+            <p className="text-[10px] uppercase tracking-widest text-text-muted mb-1.5">Search Answer</p>
+            <h1 className="text-[18px] font-bold text-text-primary leading-snug">{result.query}</h1>
+            <p className="mt-1 text-[11px] text-text-muted">
               Generated {minAgo} min ago
-              <span className="mx-1.5 text-slate-700">·</span>
+              <span className="mx-1.5 text-text-muted">·</span>
               AI Model: MarketRipple Intelligence (v2.7)
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0 mt-0.5">
             <button onClick={() => onFollowUp("")}
-              className="flex items-center gap-1.5 rounded-[12px] border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12px] font-medium text-slate-300 hover:bg-white/[0.08] transition">
+              className="flex items-center gap-1.5 rounded-[12px] border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[12px] font-medium text-text-secondary hover:bg-text-primary/[0.08] transition">
               <Plus className="h-3.5 w-3.5"/>
               New Search
             </button>
             <button onClick={handleSave}
-              className={`flex h-8 w-8 items-center justify-center rounded-[10px] border transition ${saved ? "border-violet-500/40 bg-violet-500/20 text-violet-300" : "border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/[0.08]"}`}>
+              className={`flex h-8 w-8 items-center justify-center rounded-[10px] border transition ${saved ? "border-violet-500/40 bg-violet-500/20 text-violet-600 dark:text-violet-300" : "border-surface-border/10 bg-text-primary/[0.04] text-text-secondary hover:bg-text-primary/[0.08]"}`}>
               <Bookmark className="h-4 w-4"/>
             </button>
           </div>
@@ -988,11 +988,11 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           something to THIS answer — honestly reflects context_used from the
           backend, never a guess about what "probably" happened. */}
       {((context_used?.companies.length ?? 0) + (context_used?.sectors.length ?? 0)) > 0 && (
-        <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+        <p className="flex items-center gap-1.5 text-[11px] text-text-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
           Using current research context
-          {context_used!.companies.length > 0 && <span className="text-slate-400"> · Companies {context_used!.companies.length}</span>}
-          {context_used!.sectors.length > 0 && <span className="text-slate-400"> · Sectors {context_used!.sectors.length}</span>}
+          {context_used!.companies.length > 0 && <span className="text-text-secondary"> · Companies {context_used!.companies.length}</span>}
+          {context_used!.sectors.length > 0 && <span className="text-text-secondary"> · Sectors {context_used!.sectors.length}</span>}
         </p>
       )}
 
@@ -1033,8 +1033,8 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       {result.synthesis_incomplete && (
         <div className="flex items-start gap-3 rounded-[16px] border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400"/>
-          <p className="text-[12.5px] leading-5 text-amber-200/90">
-            <span className="font-semibold text-amber-300">Full AI analysis wasn&apos;t available for this query.</span>{" "}
+          <p className="text-[12.5px] leading-5 text-amber-700/90 dark:text-amber-200/90">
+            <span className="font-semibold text-amber-600 dark:text-amber-300">Full AI analysis wasn&apos;t available for this query.</span>{" "}
             The events, news, and sources below are real and were used to inform confidence scoring — but the AI
             reasoning, scenarios, and verdict couldn&apos;t be generated right now. Try again shortly, or rephrase your question.
           </p>
@@ -1050,10 +1050,10 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       )}
 
       {/* ── 1. Research Outlook ───────────────────────────────────────────────── */}
-      <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-white/[0.07] bg-white/[0.03]"}`}>
+      <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-surface-border/7 bg-text-primary/[0.03]"}`}>
         <div className="flex items-center gap-2 mb-4">
-          <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-0.5 text-[10px] font-bold text-violet-300 uppercase tracking-wider">Research Outlook</span>
-          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5 text-[10px] font-medium text-slate-400">Not investment advice</span>
+          <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-0.5 text-[10px] font-bold text-violet-600 dark:text-violet-300 uppercase tracking-wider">Research Outlook</span>
+          <span className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-0.5 text-[10px] font-medium text-text-secondary">Not investment advice</span>
           {result.synthesis_incomplete && <DegradedBadge/>}
         </div>
 
@@ -1069,12 +1069,12 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
         <div className="grid grid-cols-4 gap-2">
           {[
             { label: "Confidence", value: conf != null ? `${conf}%` : "Unscored", color: "text-emerald-400" },
-            { label: "Time Horizon", value: investment_verdict?.horizon || "Not specified", color: investment_verdict?.horizon ? "text-slate-200" : "text-slate-500" },
+            { label: "Time Horizon", value: investment_verdict?.horizon || "Not specified", color: investment_verdict?.horizon ? "text-text-primary" : "text-text-muted" },
             { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0] },
-            { label: "Suitable For", value: suitableForLabel, color: "text-slate-200" },
+            { label: "Suitable For", value: suitableForLabel, color: "text-text-primary" },
           ].map(s => (
-            <div key={s.label} className="rounded-[12px] border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-              <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-0.5">{s.label}</p>
+            <div key={s.label} className="rounded-[12px] border border-surface-border/6 bg-text-primary/[0.02] px-3 py-2">
+              <p className="text-[9px] uppercase tracking-wider text-text-muted mb-0.5">{s.label}</p>
               <p className={`text-[12px] font-semibold ${s.color}`}>{s.value}</p>
             </div>
           ))}
@@ -1087,25 +1087,25 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           <p className="text-[11px] uppercase tracking-wider text-violet-400 font-semibold">Executive Summary</p>
           {result.synthesis_incomplete && <DegradedBadge/>}
         </div>
-        <p className="text-[14px] text-white leading-relaxed">
+        <p className="text-[14px] text-text-primary leading-relaxed">
           {answer?.bottom_line || answer?.summary || "No direct answer generated for this query."}
         </p>
       </div>
 
       {/* ── 3. Why AI Thinks This ─────────────────────────────────────────────── */}
       {key_drivers?.length > 0 && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <p className="text-[15px] font-semibold text-white mb-4">Why AI Thinks This</p>
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[15px] font-semibold text-text-primary mb-4">Why AI Thinks This</p>
           <div className="grid grid-cols-3 gap-3">
             {key_drivers.slice(0, 6).map((kd, i) => (
-              <div key={i} className="rounded-[14px] border border-white/[0.07] bg-white/[0.02] p-4">
+              <div key={i} className="rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600 dark:text-violet-300">
                     {DRIVER_ICON_MAP[kd.icon] ?? <Sparkles className="h-4 w-4"/>}
                   </div>
-                  <p className="text-[12px] font-semibold text-white leading-tight">{kd.title}</p>
+                  <p className="text-[12px] font-semibold text-text-primary leading-tight">{kd.title}</p>
                 </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">{kd.explanation}</p>
+                <p className="text-[11px] text-text-secondary leading-relaxed">{kd.explanation}</p>
                 {/* No per-driver confidence % shown here — unlike Market
                     Pulse's driver_strength (a real formula over driver_type +
                     event urgency), this card's kd.confidence is the model's
@@ -1121,34 +1121,34 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       {/* ── 3b. Market Chart — real price/index data, computed every request but
           previously never rendered anywhere on this page. ────────────────── */}
       {market_chart?.series?.length > 0 && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <p className="text-[15px] font-semibold text-white mb-1">Price Movement</p>
-          <p className="text-[10px] text-slate-500 mb-3">Normalized % change — real intraday data for the companies/indices this query concerns.</p>
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[15px] font-semibold text-text-primary mb-1">Price Movement</p>
+          <p className="text-[10px] text-text-muted mb-3">Normalized % change — real intraday data for the companies/indices this query concerns.</p>
           <MultiLineChart chart={market_chart}/>
         </div>
       )}
 
       {/* ── 4. Ripple Analysis ────────────────────────────────────────────────── */}
       {ripple_chain?.length > 1 && (
-        <div id="ripple-analysis" className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <div id="ripple-analysis" className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
           <div className="flex items-center gap-2 mb-1">
             <GitBranch className="h-4 w-4 text-violet-400"/>
-            <p className="text-[15px] font-semibold text-white">Ripple Analysis</p>
+            <p className="text-[15px] font-semibold text-text-primary">Ripple Analysis</p>
           </div>
-          <p className="text-[10px] text-slate-500 mb-4">How the impact propagates through the economy — first, second and third-order effects, from the intelligence graph.</p>
+          <p className="text-[10px] text-text-muted mb-4">How the impact propagates through the economy — first, second and third-order effects, from the intelligence graph.</p>
           <div className="overflow-x-auto pb-1">
             <div className="flex items-stretch gap-2 min-w-max">
               {ripple_chain.map((level, li) => (
                 <div key={level.depth} className="flex items-center">
                   <div className="flex flex-col gap-2 justify-center">
-                    <p className="text-[8px] uppercase tracking-wider text-slate-600 text-center">
+                    <p className="text-[8px] uppercase tracking-wider text-text-muted text-center">
                       {li === 0 ? "Source" : li === 1 ? "1st Order" : li === 2 ? "2nd Order" : "3rd Order+"}
                     </p>
                     {level.nodes.map((node, ni) => (
                       <button
                         key={`${level.depth}-${node.id ?? ni}`}
                         onClick={() => setActiveRippleNode(node.id === activeRippleNode ? null : node.id)}
-                        className={`rounded-[12px] border px-3 py-2 text-left transition ${RIPPLE_TYPE_COLOR[node.type] ?? "border-white/10 bg-white/[0.03] text-slate-300"} ${activeRippleNode === node.id ? "ring-2 ring-violet-400/50" : "hover:brightness-125"}`}>
+                        className={`rounded-[12px] border px-3 py-2 text-left transition ${RIPPLE_TYPE_COLOR[node.type] ?? "border-surface-border/10 bg-text-primary/[0.03] text-text-secondary"} ${activeRippleNode === node.id ? "ring-2 ring-violet-400/50" : "hover:brightness-125"}`}>
                         <div className="flex items-center gap-1.5">
                           <p className="text-[9px] uppercase tracking-wider opacity-70">{node.type}</p>
                           {node.direction === "positive" && <TrendingUp className="h-2.5 w-2.5 text-emerald-400"/>}
@@ -1159,7 +1159,7 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
                     ))}
                   </div>
                   {li < ripple_chain.length - 1 && (
-                    <ArrowRight className="h-4 w-4 text-slate-700 mx-2 shrink-0"/>
+                    <ArrowRight className="h-4 w-4 text-text-muted mx-2 shrink-0"/>
                   )}
                 </div>
               ))}
@@ -1170,21 +1170,21 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
 
       {/* ── 5. Companies That Matter ──────────────────────────────────────────── */}
       {companies?.length > 0 && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-baseline gap-2">
-              <p className="text-[15px] font-semibold text-white">Companies That Matter</p>
-              <span className="text-[10px] text-slate-500">Ranked by impact score</span>
+              <p className="text-[15px] font-semibold text-text-primary">Companies That Matter</p>
+              <span className="text-[10px] text-text-muted">Ranked by impact score</span>
             </div>
             <div className="flex items-center gap-3">
               {companies.length >= 2 && (
                 <Link
                   href={`/compare?a=${companies[0].symbol}&b=${companies[1].symbol}`}
-                  className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/20 transition">
+                  className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold text-sky-600 dark:text-sky-300 hover:bg-sky-500/20 transition">
                   ↔ Compare {companies[0].symbol} vs {companies[1].symbol}
                 </Link>
               )}
-              <Link href="/companies" className="text-[12px] text-violet-400 hover:text-violet-300 transition">
+              <Link href="/companies" className="text-[12px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
                 View All →
               </Link>
             </div>
@@ -1194,21 +1194,21 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
               const avatarColors = ["bg-red-700", "bg-blue-700", "bg-orange-700", "bg-teal-700", "bg-violet-700", "bg-indigo-700"];
               const av = avatarColors[idx % avatarColors.length];
               return (
-                <div key={co.symbol} className="rounded-[16px] border border-white/[0.07] bg-white/[0.02] p-4">
+                <div key={co.symbol} className="rounded-[16px] border border-surface-border/7 bg-text-primary/[0.02] p-4">
                   {/* Header */}
                   <div className="flex items-center gap-2.5 mb-2.5">
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${av} text-[11px] font-bold text-white`}>
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${av} text-[11px] font-bold text-text-primary`}>
                       {co.symbol.slice(0, 2)}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[13px] font-bold text-white truncate">{co.symbol}</p>
+                      <p className="text-[13px] font-bold text-text-primary truncate">{co.symbol}</p>
                       {co.price && co.price !== "—" ? (
                         <p className="text-[11px] tabular-nums">
-                          <span className="text-slate-300">₹{co.price}</span>
+                          <span className="text-text-secondary">₹{co.price}</span>
                           <span className={`ml-1 font-semibold ${co.positive ? "text-emerald-400" : "text-rose-400"}`}>{co.change}</span>
                         </p>
                       ) : (
-                        <p className="text-[10px] text-slate-600">—</p>
+                        <p className="text-[10px] text-text-muted">—</p>
                       )}
                     </div>
                     <div className="ml-auto shrink-0">
@@ -1218,25 +1218,25 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
 
                   {/* Ripple position badge */}
                   {co.ripple_position && (
-                    <span className={`inline-block mb-2 rounded border px-1.5 py-0.5 text-[9px] font-semibold ${RIPPLE_POSITION_COLOR[co.ripple_position] ?? "bg-slate-500/10 text-slate-400 border-slate-500/20"}`}>
+                    <span className={`inline-block mb-2 rounded border px-1.5 py-0.5 text-[9px] font-semibold ${RIPPLE_POSITION_COLOR[co.ripple_position] ?? "bg-slate-500/10 text-text-secondary border-surface-border/5"}`}>
                       {co.ripple_position}
                     </span>
                   )}
 
                   {/* Why it matters */}
                   <div className="mb-3">
-                    <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Why it matters</p>
-                    <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-2">{co.why_it_matters || co.reason || "Directly impacted by this event"}</p>
+                    <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Why it matters</p>
+                    <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-2">{co.why_it_matters || co.reason || "Directly impacted by this event"}</p>
                   </div>
 
                   {/* Footer */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <SmallRing score={(() => { const v = co.confidence ?? co.impact_score; return v === null || v === undefined ? null : Math.round(v); })()} size={32}/>
-                      <p className="text-[10px] text-slate-500">Confidence</p>
+                      <p className="text-[10px] text-text-muted">Confidence</p>
                     </div>
                     <Link href={`/companies/${co.symbol}`}
-                      className="text-[11px] font-medium text-violet-400 hover:text-violet-300 transition">
+                      className="text-[11px] font-medium text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
                       Open Analysis →
                     </Link>
                   </div>
@@ -1252,26 +1252,26 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
 
         {/* Sector Impact */}
         {sectors?.length > 0 && (
-          <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-            <p className="text-[14px] font-semibold text-white mb-4">Sector Impact</p>
+          <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+            <p className="text-[14px] font-semibold text-text-primary mb-4">Sector Impact</p>
             <div className="w-full">
               <div className="grid grid-cols-[1.3fr_0.6fr_0.7fr_1fr_0.8fr] gap-x-2 mb-2">
                 {["Sector", "Impact", "Confidence", "Status", "Horizon"].map(h => (
-                  <p key={h} className="text-[9px] uppercase tracking-wider text-slate-500 font-semibold">{h}</p>
+                  <p key={h} className="text-[9px] uppercase tracking-wider text-text-muted font-semibold">{h}</p>
                 ))}
               </div>
               <div className="space-y-3">
                 {sectors.slice(0, 5).map(s => (
                   <div key={s.name}>
                     <div className="grid grid-cols-[1.3fr_0.6fr_0.7fr_1fr_0.8fr] gap-x-2 items-center">
-                      <p className="text-[12px] font-medium text-slate-200 truncate">{s.name}</p>
-                      <p className="text-[12px] font-bold tabular-nums text-white">{s.score === null || s.score === undefined ? "—" : (s.score / 10).toFixed(1)}</p>
-                      <p className="text-[11px] tabular-nums text-slate-400">{s.confidence === null || s.confidence === undefined ? "—" : `${s.confidence}%`}</p>
-                      <p className={`text-[11px] font-medium truncate ${SECTOR_STATUS_COLOR[s.status ?? ""] ?? "text-slate-300"}`}>{s.status || s.outlook || "—"}</p>
-                      <p className="text-[10px] text-slate-500">{fixMojibake(s.time_horizon) || "—"}</p>
+                      <p className="text-[12px] font-medium text-text-primary truncate">{s.name}</p>
+                      <p className="text-[12px] font-bold tabular-nums text-text-primary">{s.score === null || s.score === undefined ? "—" : (s.score / 10).toFixed(1)}</p>
+                      <p className="text-[11px] tabular-nums text-text-secondary">{s.confidence === null || s.confidence === undefined ? "—" : `${s.confidence}%`}</p>
+                      <p className={`text-[11px] font-medium truncate ${SECTOR_STATUS_COLOR[s.status ?? ""] ?? "text-text-secondary"}`}>{s.status || s.outlook || "—"}</p>
+                      <p className="text-[10px] text-text-muted">{fixMojibake(s.time_horizon) || "—"}</p>
                     </div>
                     {s.explanation && (
-                      <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5 line-clamp-1">{s.explanation}</p>
+                      <p className="text-[10px] text-text-muted leading-relaxed mt-0.5 line-clamp-1">{s.explanation}</p>
                     )}
                   </div>
                 ))}
@@ -1282,13 +1282,13 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
 
         {/* Related Events Timeline */}
         {related_events?.length > 0 && (
-          <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+          <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5 text-slate-400"/>
-                <p className="text-[14px] font-semibold text-white">Related Events Timeline</p>
+                <Clock className="h-3.5 w-3.5 text-text-secondary"/>
+                <p className="text-[14px] font-semibold text-text-primary">Related Events Timeline</p>
               </div>
-              <Link href="/events" className="text-[11px] text-violet-400 hover:text-violet-300 transition">View All Events →</Link>
+              <Link href="/events" className="text-[11px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">View All Events →</Link>
             </div>
             <div className="relative overflow-x-auto">
               <div className="flex items-start gap-0 min-w-max">
@@ -1300,16 +1300,16 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
                     <div key={ev.id} className="flex items-start">
                       <div className="flex flex-col items-center w-32">
                         <div className="flex items-center w-full">
-                          {i > 0 && <div className="flex-1 h-px bg-white/[0.08]"/>}
+                          {i > 0 && <div className="flex-1 h-px bg-text-primary/[0.08]"/>}
                           <div className={`h-3 w-3 shrink-0 rounded-full border-2 border-[#0d1117] ${sc.dot}`}/>
-                          {!isLast && <div className="flex-1 h-px bg-white/[0.08]"/>}
+                          {!isLast && <div className="flex-1 h-px bg-text-primary/[0.08]"/>}
                         </div>
                         <div className="mt-2 px-1 text-center">
                           <Link href={`/events/${ev.id}`}
-                            className="block text-[11px] font-medium text-slate-200 hover:text-white transition line-clamp-2 leading-tight text-center">
+                            className="block text-[11px] font-medium text-text-primary hover:text-text-primary transition line-clamp-2 leading-tight text-center">
                             {ev.title.length > 35 ? ev.title.slice(0, 32) + "…" : ev.title}
                           </Link>
-                          <p className="text-[9px] text-slate-600 mt-1">{ev.date?.split(",")[0] || ev.date}</p>
+                          <p className="text-[9px] text-text-muted mt-1">{ev.date?.split(",")[0] || ev.date}</p>
                           <span className={`mt-1 inline-block rounded border px-1.5 py-0.5 text-[9px] font-medium ${sc.bg}`}>
                             {sc.label}
                           </span>
@@ -1329,47 +1329,47 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           needs in under 30 seconds. Everything below is Deep Research —
           historical precedent, scenarios, valuation context, methodology. */}
       <div className="flex items-center gap-3 pt-2 pb-1">
-        <div className="h-px flex-1 bg-white/[0.07]"/>
-        <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+        <div className="h-px flex-1 bg-text-primary/[0.07]"/>
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
           <ListChecks className="h-3 w-3"/>
           Deep Research
         </span>
-        <div className="h-px flex-1 bg-white/[0.07]"/>
+        <div className="h-px flex-1 bg-text-primary/[0.07]"/>
       </div>
 
       {/* ── 7. Market Context ─────────────────────────────────────────────────── */}
       {answer?.what_priced_in && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
           <div className="flex items-center gap-2 mb-2">
             <Eye className="h-4 w-4 text-sky-400"/>
-            <p className="text-[15px] font-semibold text-white">Market Context</p>
-            <span className="text-[10px] text-slate-500">— is this already priced in?</span>
+            <p className="text-[15px] font-semibold text-text-primary">Market Context</p>
+            <span className="text-[10px] text-text-muted">— is this already priced in?</span>
           </div>
-          <p className="text-[12px] text-slate-300 leading-relaxed">{answer.what_priced_in}</p>
+          <p className="text-[12px] text-text-secondary leading-relaxed">{answer.what_priced_in}</p>
         </div>
       )}
 
       {/* ── 8. Market Impact — Immediate / Next Quarter / Long Term ──────────── */}
       {market_impact_horizons?.length > 0 && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <p className="text-[15px] font-semibold text-white mb-4">Market Impact Over Time</p>
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[15px] font-semibold text-text-primary mb-4">Market Impact Over Time</p>
           <div className="grid grid-cols-3 gap-3">
             {market_impact_horizons.map(h => {
               const dirColor = h.direction === "positive" ? "text-emerald-400" : h.direction === "negative" ? "text-rose-400" : "text-amber-400";
               const barColor = h.direction === "positive" ? "from-emerald-500 to-emerald-300" : h.direction === "negative" ? "from-rose-500 to-rose-300" : "from-amber-500 to-amber-300";
               return (
-                <div key={h.horizon} className="rounded-[14px] border border-white/[0.07] bg-white/[0.02] p-4">
-                  <p className="text-[12px] font-semibold text-white">{h.horizon}</p>
-                  <p className="text-[9px] text-slate-500 mb-2">{h.window}</p>
+                <div key={h.horizon} className="rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] p-4">
+                  <p className="text-[12px] font-semibold text-text-primary">{h.horizon}</p>
+                  <p className="text-[9px] text-text-muted mb-2">{h.window}</p>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
                       {h.confidence !== null && h.confidence !== undefined && (
                         <div className={`h-full rounded-full bg-gradient-to-r ${barColor}`} style={{ width: `${h.confidence}%` }}/>
                       )}
                     </div>
                     <p className={`text-[10px] font-semibold tabular-nums ${dirColor}`}>{h.confidence === null || h.confidence === undefined ? "Unscored" : `${h.confidence}%`}</p>
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-3">{h.description}</p>
+                  <p className="text-[10px] text-text-secondary leading-relaxed line-clamp-3">{h.description}</p>
                 </div>
               );
             })}
@@ -1386,25 +1386,25 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       <ConfidenceBreakdownPanel breakdown={confidence_breakdown ?? null} />
 
       {/* ── 9. Historical Comparison ──────────────────────────────────────────── */}
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-        <p className="text-[15px] font-semibold text-white mb-4">Historical Comparison</p>
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+        <p className="text-[15px] font-semibold text-text-primary mb-4">Historical Comparison</p>
         {historical_comparison?.length > 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {historical_comparison.slice(0, 2).map((h, i) => (
-              <div key={i} className="rounded-[14px] border border-white/[0.07] bg-white/[0.02] p-4">
+              <div key={i} className="rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] p-4">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-[12px] font-medium text-violet-300">{h.event_title}</p>
+                  <p className="text-[12px] font-medium text-violet-600 dark:text-violet-300">{h.event_title}</p>
                   <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold ${
-                    h.similarity >= 60 ? "bg-violet-500/15 text-violet-300"
-                    : h.similarity >= 40 ? "bg-amber-500/15 text-amber-300"
-                    : "bg-rose-500/15 text-rose-300"
+                    h.similarity >= 60 ? "bg-violet-500/15 text-violet-600 dark:text-violet-300"
+                    : h.similarity >= 40 ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
+                    : "bg-rose-500/15 text-rose-600 dark:text-rose-300"
                   }`}>
                     {Math.round(h.similarity)}% match{h.similarity < 40 ? " — weak" : ""}
                   </span>
                 </div>
-                <p className="text-[9px] text-slate-500 mb-2">{h.event_date}</p>
+                <p className="text-[9px] text-text-muted mb-2">{h.event_date}</p>
                 {h.similarity < 40 && (
-                  <p className="mb-2 text-[9.5px] leading-4 text-amber-300/80">
+                  <p className="mb-2 text-[9.5px] leading-4 text-amber-600/80 dark:text-amber-300/80">
                     Low similarity score — treat this as a loose reference, not a strong precedent.
                   </p>
                 )}
@@ -1414,20 +1414,20 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
                   <div className="flex items-center gap-4 mb-2.5">
                     {h.nifty_1w != null && (
                       <div>
-                        <p className="text-[8px] uppercase tracking-wider text-slate-500">Nifty · 1 Week</p>
+                        <p className="text-[8px] uppercase tracking-wider text-text-muted">Nifty · 1 Week</p>
                         <p className={`text-[13px] font-bold tabular-nums ${h.nifty_1w >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{h.nifty_1w >= 0 ? "+" : ""}{h.nifty_1w}%</p>
                       </div>
                     )}
                     {h.nifty_1m != null && (
                       <div>
-                        <p className="text-[8px] uppercase tracking-wider text-slate-500">Nifty · 1 Month</p>
+                        <p className="text-[8px] uppercase tracking-wider text-text-muted">Nifty · 1 Month</p>
                         <p className={`text-[13px] font-bold tabular-nums ${h.nifty_1m >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{h.nifty_1m >= 0 ? "+" : ""}{h.nifty_1m}%</p>
                       </div>
                     )}
                   </div>
                 )}
 
-                <p className="text-[11px] text-slate-400 leading-relaxed mb-3 line-clamp-3">{h.key_lesson || h.what_happened}</p>
+                <p className="text-[11px] text-text-secondary leading-relaxed mb-3 line-clamp-3">{h.key_lesson || h.what_happened}</p>
                 {h.historical_winners?.length > 0 && (
                   <div className="mb-2">
                     <p className="text-[9px] uppercase tracking-wider text-emerald-500/70 mb-1">Winners</p>
@@ -1459,23 +1459,23 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
                   </div>
                 )}
                 {h.key_difference && (
-                  <div className="pt-2 border-t border-white/[0.06]">
+                  <div className="pt-2 border-t border-surface-border/6">
                     <p className="text-[8px] uppercase tracking-wider text-amber-500/70 mb-0.5">Key Difference</p>
-                    <p className="text-[10px] text-amber-300/70 leading-relaxed">{h.key_difference}</p>
+                    <p className="text-[10px] text-amber-600/70 dark:text-amber-300/70 leading-relaxed">{h.key_difference}</p>
                   </div>
                 )}
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-slate-500 text-center py-4">No closely matching historical precedent found for this query.</p>
+          <p className="text-[12px] text-text-muted text-center py-4">No closely matching historical precedent found for this query.</p>
         )}
       </div>
 
       {/* ── 10. Scenarios: Bull / Base / Bear ─────────────────────────────────── */}
       {scenarios && !scenarios.degraded && (scenarios.bull || scenarios.base || scenarios.bear) && (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <p className="text-[15px] font-semibold text-white mb-4">Scenarios</p>
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[15px] font-semibold text-text-primary mb-4">Scenarios</p>
           <div className="grid grid-cols-3 gap-3">
             {([
               { key: "bull", label: "Bull Case", data: scenarios.bull, color: "text-emerald-400", bg: "border-emerald-500/20 bg-emerald-500/[0.04]" },
@@ -1485,9 +1485,9 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
               <div key={sc.key} className={`rounded-[14px] border p-4 ${sc.bg}`}>
                 <div className="flex items-center justify-between mb-2">
                   <p className={`text-[12px] font-bold ${sc.color}`}>{sc.label}</p>
-                  <p className="text-[10px] tabular-nums text-slate-500">{sc.data.probability}%</p>
+                  <p className="text-[10px] tabular-nums text-text-muted">{sc.data.probability}%</p>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-4">{sc.data.outcome}</p>
+                <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-4">{sc.data.outcome}</p>
               </div>
             ))}
           </div>
@@ -1498,9 +1498,9 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       <div className="grid grid-cols-3 gap-4">
 
         {/* Risks & Counterarguments */}
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-semibold text-white">Risks & Counterarguments</p>
+            <p className="text-[13px] font-semibold text-text-primary">Risks & Counterarguments</p>
             {(answer?.risks?.length ?? 0) > 4 && (
               <button onClick={() => setShowMore(v => !v)} className="text-[10px] text-violet-400">View All →</button>
             )}
@@ -1510,20 +1510,20 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
               <div key={i} className="flex items-start gap-2">
                 <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-rose-500/70 mt-1.5"/>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-2">{r}</p>
+                  <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-2">{r}</p>
                 </div>
                 <RiskSeverity text={r}/>
               </div>
             ))}
             {!(answer?.risks?.length || investment_verdict?.risks?.length) && (
-              <p className="text-[11px] text-slate-500">No specific risks identified for this query.</p>
+              <p className="text-[11px] text-text-muted">No specific risks identified for this query.</p>
             )}
           </div>
         </div>
 
         {/* What To Monitor */}
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <p className="text-[13px] font-semibold text-white mb-3">What To Monitor</p>
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-text-primary mb-3">What To Monitor</p>
           <div className="space-y-2.5">
             {(what_to_monitor?.length ? what_to_monitor : []).slice(0, 5).map((m, i) => (
               <div key={i} className="flex items-start gap-2">
@@ -1531,44 +1531,44 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
                   <svg className="h-2.5 w-2.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] text-slate-300 leading-relaxed line-clamp-1">{m.title}</p>
-                  <p className="text-[9px] text-slate-500">{m.frequency}{m.frequency && m.importance ? " · " : ""}{m.importance}</p>
+                  <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-1">{m.title}</p>
+                  <p className="text-[9px] text-text-muted">{m.frequency}{m.frequency && m.importance ? " · " : ""}{m.importance}</p>
                 </div>
               </div>
             ))}
             {!what_to_monitor?.length && (
-              <p className="text-[11px] text-slate-500">No monitoring checklist generated.</p>
+              <p className="text-[11px] text-text-muted">No monitoring checklist generated.</p>
             )}
           </div>
         </div>
 
         {/* AI Reasoning */}
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
           <div className="flex items-center gap-2 mb-3">
             <ListChecks className="h-3.5 w-3.5 text-violet-400"/>
-            <p className="text-[13px] font-semibold text-white">AI Reasoning</p>
+            <p className="text-[13px] font-semibold text-text-primary">AI Reasoning</p>
           </div>
           <div className="space-y-1.5">
             {(ai_reasoning_methods ?? []).map((m, i) => (
               <div key={i} className="flex items-center gap-2">
-                <div className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ${m.used ? "bg-emerald-500/20" : "bg-slate-700/40"}`}>
+                <div className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ${m.used ? "bg-emerald-500/20" : "bg-text-primary/[0.09]"}`}>
                   {m.used
                     ? <svg className="h-2 w-2 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
-                    : <Minus className="h-2 w-2 text-slate-600"/>}
+                    : <Minus className="h-2 w-2 text-text-muted"/>}
                 </div>
-                <p className={`text-[10.5px] leading-tight ${m.used ? "text-slate-300" : "text-slate-600"}`}>{m.label}</p>
+                <p className={`text-[10.5px] leading-tight ${m.used ? "text-text-secondary" : "text-text-muted"}`}>{m.label}</p>
               </div>
             ))}
             {!ai_reasoning_methods?.length && (
-              <p className="text-[11px] text-slate-500">No reasoning-source breakdown available for this query.</p>
+              <p className="text-[11px] text-text-muted">No reasoning-source breakdown available for this query.</p>
             )}
           </div>
           {(confidence_data?.caveats?.length ?? 0) > 0 && (
-            <div className="mt-3 pt-3 border-t border-white/[0.06]">
+            <div className="mt-3 pt-3 border-t border-surface-border/6">
               <p className="text-[9px] uppercase tracking-wider text-amber-500/70 mb-1.5">Lower confidence if</p>
               <div className="space-y-1">
                 {confidence_data!.caveats.slice(0, 3).map((c, i) => (
-                  <p key={i} className="text-[10px] text-amber-300/70 leading-tight">{c}</p>
+                  <p key={i} className="text-[10px] text-amber-600/70 dark:text-amber-300/70 leading-tight">{c}</p>
                 ))}
               </div>
             </div>
@@ -1584,8 +1584,8 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           to section 13 per the Follow-up Intelligence spec. Hidden entirely
           when nothing applies, rather than showing an empty card. */}
       {hasContinueResearchCta && (
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-        <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-3">Related Actions</p>
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+        <p className="text-[11px] uppercase tracking-wider text-text-muted mb-3">Related Actions</p>
         <div className="grid grid-cols-3 gap-3">
           {[
             topCo ? {
@@ -1633,23 +1633,23 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           ].filter(Boolean).map((cta, i) => (
             cta!.action ? (
               <button key={i} onClick={cta!.action}
-                className="group flex items-center gap-3 rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-left transition hover:border-violet-500/30 hover:bg-violet-500/[0.04]">
-                <span className="text-slate-400 flex items-center">{cta!.icon}</span>
+                className="group flex items-center gap-3 rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 text-left transition hover:border-violet-500/30 hover:bg-violet-500/[0.04]">
+                <span className="text-text-secondary flex items-center">{cta!.icon}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-medium text-white line-clamp-1">{cta!.label}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{cta!.sub}</p>
+                  <p className="text-[12px] font-medium text-text-primary line-clamp-1">{cta!.label}</p>
+                  <p className="text-[10px] text-text-muted mt-0.5">{cta!.sub}</p>
                 </div>
-                <ChevronRight size={13} strokeWidth={1.8} className="text-slate-600 group-hover:text-violet-400 transition"/>
+                <ChevronRight size={13} strokeWidth={1.8} className="text-text-muted group-hover:text-violet-400 transition"/>
               </button>
             ) : (
               <Link key={i} href={(cta as any).href as any}
-                className="group flex items-center gap-3 rounded-[14px] border border-white/[0.07] bg-white/[0.02] px-4 py-3 transition hover:border-violet-500/30 hover:bg-violet-500/[0.04]">
-                <span className="text-slate-400 flex items-center">{cta!.icon}</span>
+                className="group flex items-center gap-3 rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 transition hover:border-violet-500/30 hover:bg-violet-500/[0.04]">
+                <span className="text-text-secondary flex items-center">{cta!.icon}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-medium text-white line-clamp-1">{cta!.label}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{cta!.sub}</p>
+                  <p className="text-[12px] font-medium text-text-primary line-clamp-1">{cta!.label}</p>
+                  <p className="text-[10px] text-text-muted mt-0.5">{cta!.sub}</p>
                 </div>
-                <ChevronRight size={13} strokeWidth={1.8} className="text-slate-600 group-hover:text-violet-400 transition"/>
+                <ChevronRight size={13} strokeWidth={1.8} className="text-text-muted group-hover:text-violet-400 transition"/>
               </Link>
             )
           ))}
@@ -1669,14 +1669,14 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           onFollowUp={onFollowUp}
         />
       ) : follow_up_questions?.length > 0 ? (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
-          <p className="text-[13px] font-semibold text-white mb-3">Follow-up Questions</p>
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-text-primary mb-3">Follow-up Questions</p>
           <div className="grid grid-cols-2 gap-2">
             {follow_up_questions.slice(0, 4).map((q, i) => (
               <button key={i} onClick={() => onFollowUp(q)}
-                className="group flex items-start gap-2 text-left transition hover:text-violet-300">
-                <span className="mt-0.5 text-slate-600 group-hover:text-violet-400 transition text-xs">›</span>
-                <p className="text-[11px] text-slate-400 group-hover:text-violet-300 transition leading-relaxed line-clamp-2">{q}</p>
+                className="group flex items-start gap-2 text-left transition hover:text-violet-600 dark:text-violet-300">
+                <span className="mt-0.5 text-text-muted group-hover:text-violet-400 transition text-xs">›</span>
+                <p className="text-[11px] text-text-secondary group-hover:text-violet-600 dark:text-violet-300 transition leading-relaxed line-clamp-2">{q}</p>
               </button>
             ))}
           </div>
@@ -1725,7 +1725,7 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
             : v.risk_level === "Medium" ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
             : "text-rose-400 bg-rose-500/10 border-rose-500/20" }
         : riskLevel(score))
-    : { label: "—", color: "text-slate-400" };
+    : { label: "—", color: "text-text-secondary" };
 
   const QUICK_ACTIONS = [
     { icon: <Bot className="h-4 w-4"/>,      label: "Ask Follow-up Question", action: "followup" },
@@ -1758,10 +1758,10 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
     <aside className="hidden xl:flex xl:flex-col w-[280px] shrink-0 sticky top-[92px] self-start max-h-[calc(100vh-92px)] overflow-y-auto space-y-3 pr-1" style={{ scrollbarWidth: "none" }}>
 
       {/* Research Outlook */}
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-5">
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
         <div className="flex items-center gap-2 mb-4">
           <Target size={14} strokeWidth={1.8} className="text-violet-400"/>
-          <p className="text-[13px] font-semibold text-white">Research Outlook</p>
+          <p className="text-[13px] font-semibold text-text-primary">Research Outlook</p>
         </div>
 
         {result ? (
@@ -1769,14 +1769,14 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
             {/* Top row: Overall View + Risk */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Overall View</p>
+                <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Overall View</p>
                 <p className={`flex items-center gap-1.5 text-[14px] font-bold leading-tight ${verdictColor}`}>
                   <span className={`h-2 w-2 shrink-0 rounded-full ${OUTLOOK_DOT[verdictLabel] ?? "bg-amber-400"}`}/>
                   {verdictLabel}
                 </p>
               </div>
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Risk</p>
+                <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Risk</p>
                 <p className={`text-[15px] font-bold ${riskInfo.color.split(" ")[0]}`}>{riskInfo.label}</p>
               </div>
             </div>
@@ -1789,24 +1789,24 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
             {/* Bottom row: Time Horizon + Best For */}
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Time Horizon</p>
-                <p className={`text-[12px] font-semibold ${v?.horizon ? "text-white" : "text-slate-500"}`}>{v?.horizon || "Not specified"}</p>
+                <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Time Horizon</p>
+                <p className={`text-[12px] font-semibold ${v?.horizon ? "text-text-primary" : "text-text-muted"}`}>{v?.horizon || "Not specified"}</p>
               </div>
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-slate-500 mb-1">Best For</p>
-                <p className="text-[12px] font-semibold text-white">{v?.suitable_for || suitableFor(v?.horizon || "")}</p>
+                <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Best For</p>
+                <p className="text-[12px] font-semibold text-text-primary">{v?.suitable_for || suitableFor(v?.horizon || "")}</p>
               </div>
             </div>
 
             {/* Data point count */}
-            <p className="mt-3 text-center text-[10px] text-slate-500">
+            <p className="mt-3 text-center text-[10px] text-text-muted">
               AI evaluated {(result.related_events?.length ?? 0) + (result.companies?.length ?? 0) + (result.news?.length ?? 0)} data points
             </p>
           </>
         ) : (
           <div className="flex flex-col items-center justify-center my-6 gap-2">
             <BigGauge score={null} size={120}/>
-            <p className="text-[10px] uppercase tracking-wider text-slate-500">Awaiting Analysis</p>
+            <p className="text-[10px] uppercase tracking-wider text-text-muted">Awaiting Analysis</p>
           </div>
         )}
       </div>
@@ -1827,24 +1827,24 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
       <AISearchHistory onReopen={onReopenSearch} activeQuery={activeQuery} />
 
       {/* Quick Actions */}
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
-        <p className="text-[12px] font-semibold text-slate-300 mb-3">Quick Actions</p>
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-4">
+        <p className="text-[12px] font-semibold text-text-secondary mb-3">Quick Actions</p>
         <div className="space-y-1">
           {QUICK_ACTIONS.map(a => (
             <button key={a.action} onClick={() => handleAction(a.action)}
-              className={`flex w-full items-center gap-3 rounded-[12px] p-2.5 text-left transition hover:bg-white/[0.05] ${!result && a.action !== "copy" ? "opacity-40 pointer-events-none" : ""}`}>
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.05] text-slate-400">
+              className={`flex w-full items-center gap-3 rounded-[12px] p-2.5 text-left transition hover:bg-text-primary/[0.05] ${!result && a.action !== "copy" ? "opacity-40 pointer-events-none" : ""}`}>
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-text-primary/[0.05] text-text-secondary">
                 {a.icon}
               </div>
-              <p className="text-[12px] text-slate-300">{a.label}</p>
+              <p className="text-[12px] text-text-secondary">{a.label}</p>
             </button>
           ))}
         </div>
       </div>
 
       {/* Sources & Transparency */}
-      <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
-        <p className="text-[12px] font-semibold text-slate-300 mb-3">Sources & Transparency</p>
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-4">
+        <p className="text-[12px] font-semibold text-text-secondary mb-3">Sources & Transparency</p>
         <div className="space-y-2.5">
           {[
             { label: "News Articles",       value: result?.news?.length ?? 0 },
@@ -1854,22 +1854,22 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
             { label: "Historical Matches",   value: result?.historical_comparison?.length ?? 0 },
           ].map(s => (
             <div key={s.label} className="flex items-center justify-between">
-              <p className="text-[11px] text-slate-400">{s.label}</p>
-              <p className="text-[12px] font-bold text-white tabular-nums">{s.value}</p>
+              <p className="text-[11px] text-text-secondary">{s.label}</p>
+              <p className="text-[12px] font-bold text-text-primary tabular-nums">{s.value}</p>
             </div>
           ))}
         </div>
 
         {result && (
           <>
-            <div className="mt-3 pt-3 border-t border-white/[0.06]">
+            <div className="mt-3 pt-3 border-t border-surface-border/6">
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[11px] text-slate-400">Confidence Score</p>
-                <p className="text-[12px] font-bold text-violet-300 tabular-nums">
+                <p className="text-[11px] text-text-secondary">Confidence Score</p>
+                <p className="text-[12px] font-bold text-violet-600 dark:text-violet-300 tabular-nums">
                   {score != null ? `${score}%` : "Unscored"}
                 </p>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
                 {score != null && (
                   <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400"
                     style={{ width: `${score}%`, transition: "width 0.8s" }}/>
@@ -1877,8 +1877,8 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
               </div>
             </div>
             <div className="mt-2.5 flex items-center justify-between">
-              <p className="text-[10px] text-slate-500">Last Updated</p>
-              <p className="text-[10px] text-slate-400">just now</p>
+              <p className="text-[10px] text-text-muted">Last Updated</p>
+              <p className="text-[10px] text-text-secondary">just now</p>
             </div>
           </>
         )}
@@ -1886,21 +1886,21 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
 
       {/* Related news (compact) */}
       {result?.news?.length ? (
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.03] p-4">
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[12px] font-semibold text-slate-300">Sources</p>
-            <Link href="/news" className="text-[10px] text-violet-400 hover:text-violet-300 transition">View All →</Link>
+            <p className="text-[12px] font-semibold text-text-secondary">Sources</p>
+            <Link href="/news" className="text-[10px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">View All →</Link>
           </div>
           <div className="space-y-2">
             {result.news.slice(0, 4).map(n => (
               <Link key={n.id} href={`/news/${n.id}`}
-                className="flex items-start gap-2.5 rounded-[10px] p-1.5 transition hover:bg-white/[0.04]">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-[9px] font-bold text-white">
+                className="flex items-start gap-2.5 rounded-[10px] p-1.5 transition hover:bg-text-primary/[0.04]">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-text-primary/[0.07] text-[9px] font-bold text-text-primary">
                   {n.source.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-medium text-slate-300 line-clamp-1">{n.source}</p>
-                  <p className="text-[9px] text-slate-600 line-clamp-1">{n.headline}</p>
+                  <p className="text-[10px] font-medium text-text-secondary line-clamp-1">{n.source}</p>
+                  <p className="text-[9px] text-text-muted line-clamp-1">{n.headline}</p>
                 </div>
               </Link>
             ))}
@@ -1912,8 +1912,8 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
       {!result && (
         <div className="rounded-[20px] border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.06] to-sky-500/[0.02] p-4 text-center">
           <Search className="h-5 w-5 text-violet-400 mb-2 mx-auto" />
-          <p className="text-[11px] font-semibold text-white mb-1">Research Engine</p>
-          <p className="text-[10px] text-slate-400 leading-5">Search to see AI verdict, evidence, and confidence score</p>
+          <p className="text-[11px] font-semibold text-text-primary mb-1">Research Engine</p>
+          <p className="text-[10px] text-text-secondary leading-5">Search to see AI verdict, evidence, and confidence score</p>
         </div>
       )}
     </aside>
@@ -2099,7 +2099,7 @@ function AISearchInner() {
         />
         {/* Search bar */}
         <form onSubmit={handleSubmit}>
-          <div className="group flex items-end overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#0d1117] shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition focus-within:border-violet-500/50 focus-within:shadow-[0_0_0_4px_rgba(139,92,246,0.08)]">
+          <div className="group flex items-end overflow-hidden rounded-[18px] border border-surface-border/8 bg-surface-card shadow-[0_0_0_1px_rgb(var(--text-primary) / 0.04)] transition focus-within:border-violet-500/50 focus-within:shadow-[0_0_0_4px_rgba(139,92,246,0.08)]">
             <textarea
               ref={textareaRef}
               value={input}
@@ -2108,17 +2108,17 @@ function AISearchInner() {
               placeholder="Ask any market question — hold, switch, compare, or analyse…"
               disabled={loading}
               rows={2}
-              className="flex-1 resize-none bg-transparent px-4 py-4 text-[14px] text-white outline-none placeholder:text-slate-600 disabled:opacity-50 leading-relaxed"
+              className="flex-1 resize-none bg-transparent px-4 py-4 text-[14px] text-text-primary outline-none placeholder:text-text-muted disabled:opacity-50 leading-relaxed"
             />
             <div className="flex items-center gap-2 p-3">
               {query && (
                 <button type="button" onClick={() => { setQuery(""); setResult(null); setInput(""); }}
-                  className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-slate-200 transition">
+                  className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-surface-border/8 bg-text-primary/[0.03] text-text-secondary hover:text-text-primary transition">
                   <RotateCcw className="h-3.5 w-3.5"/>
                 </button>
               )}
               <button type="submit" disabled={!input.trim() || loading}
-                className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-violet-600 text-white transition hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg">
+                className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-violet-600 text-text-primary transition hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg">
                 {loading ? (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/>
@@ -2134,10 +2134,10 @@ function AISearchInner() {
           {/* Example chips */}
           {!query && (
             <div className="flex items-center gap-2 mt-3 flex-wrap">
-              <span className="text-[11px] text-slate-600">Try:</span>
+              <span className="text-[11px] text-text-muted">Try:</span>
               {EXAMPLES.slice(0, 4).map(ex => (
                 <button key={ex} type="button" onClick={() => runSearch(ex)}
-                  className="rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1.5 text-[11px] text-slate-500 transition hover:border-violet-500/30 hover:text-violet-300">
+                  className="rounded-full border border-surface-border/7 bg-text-primary/[0.02] px-3 py-1.5 text-[11px] text-text-muted transition hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300">
                   {ex.length > 52 ? ex.slice(0, 49) + "…" : ex}
                 </button>
               ))}
@@ -2152,11 +2152,11 @@ function AISearchInner() {
               className="rounded-[16px] border border-rose-500/20 bg-rose-500/[0.05] p-4 flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0"/>
               <div>
-                <p className="text-[13px] font-medium text-rose-300">Search failed</p>
+                <p className="text-[13px] font-medium text-rose-600 dark:text-rose-300">Search failed</p>
                 <p className="text-[11px] text-rose-400/70">{error}</p>
               </div>
               <button onClick={() => runSearch(query)}
-                className="ml-auto rounded-xl bg-rose-500/20 px-3 py-1.5 text-[11px] text-rose-300 hover:bg-rose-500/30 transition">
+                className="ml-auto rounded-xl bg-rose-500/20 px-3 py-1.5 text-[11px] text-rose-600 dark:text-rose-300 hover:bg-rose-500/30 transition">
                 Retry
               </button>
             </motion.div>
@@ -2217,15 +2217,15 @@ function AISearchInner() {
 
       {/* ── Fixed bottom follow-up bar ───────────────────────────────────────── */}
       {(result || loading) && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-slate-950/97 backdrop-blur-xl px-6 py-3">
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-surface-border/6 bg-bg/97 backdrop-blur-xl px-6 py-3">
           <div className="mx-auto max-w-[1600px]">
             <form onSubmit={handleFollowUpSubmit}
-              className="flex items-center gap-3 rounded-[18px] border border-white/[0.08] bg-[#0d1117] px-4 py-2.5 focus-within:border-violet-500/40 transition">
+              className="flex items-center gap-3 rounded-[18px] border border-surface-border/8 bg-surface-card px-4 py-2.5 focus-within:border-violet-500/40 transition">
               <input type="text" value={followUp} onChange={e => setFollowUp(e.target.value)}
                 placeholder="Ask a follow-up question…"
-                className="flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-slate-600"/>
+                className="flex-1 bg-transparent text-[13px] text-text-primary outline-none placeholder:text-text-muted"/>
               <button type="submit" disabled={!followUp.trim() || loading}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-40 transition">
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] bg-violet-600 text-text-primary hover:bg-violet-500 disabled:opacity-40 transition">
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
               </button>
             </form>
@@ -2240,7 +2240,7 @@ function AISearchInner() {
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {quick.map((q: string) => (
                     <button key={q} onClick={() => { setFollowUp(q); runSearch(q); }}
-                      className="rounded-full border border-white/[0.07] bg-white/[0.02] px-3 py-1 text-[11px] text-slate-500 transition hover:border-violet-500/30 hover:text-violet-300">
+                      className="rounded-full border border-surface-border/7 bg-text-primary/[0.02] px-3 py-1 text-[11px] text-text-muted transition hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300">
                       {q.length > 55 ? q.slice(0, 52) + "…" : q}
                     </button>
                   ))}

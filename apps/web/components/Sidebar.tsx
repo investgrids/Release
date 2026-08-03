@@ -16,11 +16,11 @@ function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; l
       onClick={() => { if (!active) start(); }}
       className={`flex items-center gap-3 rounded-[16px] px-3 py-2.5 text-sm transition ${
         active
-          ? "bg-indigo-600/20 text-white font-medium ring-1 ring-indigo-500/30"
-          : "text-slate-400 hover:bg-white/5 hover:text-white"
+          ? "bg-indigo-600/20 text-text-primary font-medium ring-1 ring-indigo-500/30"
+          : "text-text-secondary hover:bg-text-primary/5 hover:text-text-primary"
       }`}
     >
-      <span className={active ? "text-indigo-400" : "text-slate-500"}>{icon}</span>
+      <span className={active ? "text-indigo-400" : "text-text-muted"}>{icon}</span>
       {label}
     </Link>
   );
@@ -60,7 +60,7 @@ export function Sidebar() {
 
   return (
     <aside className="hidden xl:block sticky top-[92px] self-start">
-      <div className="sidebar-scroll flex flex-col rounded-[28px] border border-white/10 bg-[#06070A] p-4 shadow-[0_45px_120px_rgba(2,7,10,0.45)] overflow-y-auto max-h-[calc(100vh-116px)]">
+      <div className="sidebar-scroll flex flex-col rounded-[28px] border border-surface-border/10 bg-surface-card p-4 shadow-[0_45px_120px_rgba(2,7,10,0.45)] overflow-y-auto max-h-[calc(100vh-116px)]">
         <nav className="space-y-0.5 text-sm flex-1">
           {nav.map((item) => (
             <NavLink key={item.label} href={item.href} icon={item.icon} label={item.label} />
@@ -71,12 +71,12 @@ export function Sidebar() {
         <div className="mt-6 rounded-[20px] border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-sky-500/5 p-4">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 text-violet-400" />
-            <p className="text-sm font-semibold text-white">Upgrade to Pro</p>
+            <p className="text-sm font-semibold text-text-primary">Upgrade to Pro</p>
           </div>
-          <p className="text-xs leading-5 text-slate-400">Unlock deeper AI insights, custom reports, advanced filters, and real-time alerts.</p>
+          <p className="text-xs leading-5 text-text-secondary">Unlock deeper AI insights, custom reports, advanced filters, and real-time alerts.</p>
           <Link
             href="/contact?topic=pro"
-            className="mt-3 block w-full rounded-[14px] bg-gradient-to-r from-violet-600 to-sky-500 px-4 py-2.5 text-center text-xs font-semibold text-white shadow-lg transition hover:opacity-90"
+            className="mt-3 block w-full rounded-[14px] bg-gradient-to-r from-violet-600 to-sky-500 px-4 py-2.5 text-center text-xs font-semibold text-text-primary shadow-lg transition hover:opacity-90"
           >
             Notify Me
           </Link>

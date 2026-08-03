@@ -37,7 +37,7 @@ export default async function Image() {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse's satori renderer requires a plain <img>, not next/image */}
-        <img src={markSrc} width={220} height={145} alt="" />
+        <img src={markSrc} width={170} height={170} alt="" />
         <div
           style={{
             marginTop: 36,

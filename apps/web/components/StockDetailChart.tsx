@@ -13,7 +13,7 @@ export function StockDetailChart({ data }: StockDetailChartProps) {
         <LineChart data={data}>
           <XAxis dataKey={data[0]?.label !== undefined ? "label" : "month"} stroke="#94a3b8" axisLine={false} tickLine={false} />
           <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} width={40} />
-          <Tooltip contentStyle={{ backgroundColor: "#020617", border: "1px solid rgba(255,255,255,0.08)", color: "#fff" }} />
+          <Tooltip contentStyle={{ backgroundColor: "#020617", border: "1px solid rgb(var(--text-primary) / 0.08)", color: "#fff" }} />
           <Line type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={3} dot={false} />
         </LineChart>
       </ResponsiveContainer>

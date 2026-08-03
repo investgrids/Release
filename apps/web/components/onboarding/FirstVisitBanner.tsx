@@ -16,10 +16,10 @@ const FEATURES: { icon: ReactNode; label: string; color: string }[] = [
 ];
 
 const COLOR_MAP: Record<string, string> = {
-  sky:    "border-sky-500/25 bg-sky-500/10 text-sky-300",
-  emerald:"border-emerald-500/25 bg-emerald-500/10 text-emerald-300",
-  violet: "border-violet-500/25 bg-violet-500/10 text-violet-300",
-  amber:  "border-amber-500/25 bg-amber-500/10 text-amber-300",
+  sky:    "border-sky-500/25 bg-sky-500/10 text-sky-600 dark:text-sky-300",
+  emerald:"border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+  violet: "border-violet-500/25 bg-violet-500/10 text-violet-600 dark:text-violet-300",
+  amber:  "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-300",
 };
 
 export function FirstVisitBanner({ onDismiss }: FirstVisitBannerProps) {
@@ -29,7 +29,7 @@ export function FirstVisitBanner({ onDismiss }: FirstVisitBannerProps) {
       animate={{ opacity: 1, x: 0,  y: 0  }}
       exit={{   opacity: 0, x: 32,  transition: { duration: 0.18 } }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="fixed top-20 right-4 z-50 w-[320px] overflow-hidden rounded-2xl border border-sky-500/20 bg-slate-900/95 shadow-2xl shadow-black/50 backdrop-blur-md"
+      className="fixed top-20 right-4 z-50 w-[320px] overflow-hidden rounded-2xl border border-sky-500/20 bg-surface-card shadow-2xl shadow-black/50 backdrop-blur-md"
     >
       {/* Ambient glow */}
       <div className="pointer-events-none absolute -top-6 -right-6 h-24 w-24 rounded-full bg-sky-600/15 blur-2xl" />
@@ -38,7 +38,7 @@ export function FirstVisitBanner({ onDismiss }: FirstVisitBannerProps) {
       <button
         onClick={onDismiss}
         aria-label="Dismiss welcome banner"
-        className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-slate-500 transition hover:bg-white/10 hover:text-white"
+        className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-md border border-surface-border/10 bg-text-primary/[0.04] text-text-muted transition hover:bg-text-primary/10 hover:text-text-primary"
       >
         <svg viewBox="0 0 14 14" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M2 2l10 10M12 2L2 12" />
@@ -55,10 +55,10 @@ export function FirstVisitBanner({ onDismiss }: FirstVisitBannerProps) {
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h2 className="text-[14px] font-bold text-white">Welcome to MarketRipple</h2>
+              <h2 className="text-[14px] font-bold text-text-primary">Welcome to MarketRipple</h2>
               <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-sky-400">New</span>
             </div>
-            <p className="mt-0.5 text-[11px] leading-4 text-slate-400">
+            <p className="mt-0.5 text-[11px] leading-4 text-text-secondary">
               AI-powered market intelligence for India
             </p>
           </div>
@@ -78,13 +78,13 @@ export function FirstVisitBanner({ onDismiss }: FirstVisitBannerProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={onDismiss}
-            className="flex-1 rounded-lg bg-gradient-to-r from-sky-500 to-blue-500 py-2 text-[12px] font-bold text-white shadow-md shadow-sky-500/20 transition hover:opacity-90"
+            className="flex-1 rounded-lg bg-gradient-to-r from-sky-500 to-blue-500 py-2 text-[12px] font-bold text-text-primary shadow-md shadow-sky-500/20 transition hover:opacity-90"
           >
             Explore Dashboard →
           </button>
           <button
             onClick={onDismiss}
-            className="text-[11px] text-slate-500 transition hover:text-slate-300"
+            className="text-[11px] text-text-muted transition hover:text-text-secondary"
           >
             Skip
           </button>

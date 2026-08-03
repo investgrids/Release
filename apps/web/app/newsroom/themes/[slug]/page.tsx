@@ -93,15 +93,15 @@ export default async function ThemeDetailPage({ params }: { params: Promise<{ sl
 
       {/* Header */}
       <div className="mb-6">
-        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           <TrendingUp className="h-3 w-3 text-emerald-400" /> Theme Intelligence
         </p>
-        <h1 className="mt-2 text-[26px] font-black leading-tight text-white md:text-[30px]">{cleanText(detail.title)}</h1>
-        {detail.summary && <p className="mt-2 text-[14px] leading-6 text-slate-400">{cleanText(detail.summary)}</p>}
+        <h1 className="mt-2 text-[26px] font-black leading-tight text-text-primary md:text-[30px]">{cleanText(detail.title)}</h1>
+        {detail.summary && <p className="mt-2 text-[14px] leading-6 text-text-secondary">{cleanText(detail.summary)}</p>}
         {detail.sectors.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {detail.sectors.map((s, i) => (
-              <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-400">{s}</span>
+              <span key={i} className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2.5 py-1 text-[11px] text-text-secondary">{s}</span>
             ))}
           </div>
         )}
@@ -109,45 +109,45 @@ export default async function ThemeDetailPage({ params }: { params: Promise<{ sl
 
       {/* Theme Scores — real, computed, no AI inference */}
       <section className="mb-8 grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 text-center">
+        <div className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 text-center">
           <p className="text-[28px] font-black text-emerald-400">{Math.round(detail.opportunity_score)}</p>
-          <p className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">Opportunity Score</p>
+          <p className="mt-0.5 text-[10px] uppercase tracking-wider text-text-muted">Opportunity Score</p>
         </div>
-        <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 text-center">
+        <div className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 text-center">
           <p className="text-[28px] font-black text-sky-400">{Math.round(detail.confidence * 100)}%</p>
-          <p className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">Confidence</p>
+          <p className="mt-0.5 text-[10px] uppercase tracking-wider text-text-muted">Confidence</p>
         </div>
-        <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 text-center">
+        <div className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 text-center">
           <p className="text-[18px] font-black text-amber-400">{detail.risk_level || "—"}</p>
-          <p className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">Risk · {detail.time_horizon || "n/a"}</p>
+          <p className="mt-0.5 text-[10px] uppercase tracking-wider text-text-muted">Risk · {detail.time_horizon || "n/a"}</p>
         </div>
       </section>
 
       {/* AI Theme Intelligence — prefer the real AIPE article; fall back to
           the radar engine's own real ai_summary if no article matches yet. */}
       <section className="mb-8">
-        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           <Sparkles className="h-3 w-3 text-violet-400" /> AI Theme Intelligence
         </p>
         {themeArticle ? (
           <Link
             href={`/newsroom/article/${themeArticle.slug}`}
-            className="group mt-3 block rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 transition hover:border-white/20 hover:bg-white/[0.05]"
+            className="group mt-3 block rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 transition hover:border-surface-border/20 hover:bg-text-primary/[0.05]"
           >
-            <p className="text-[14.5px] font-semibold text-white group-hover:text-sky-200">{cleanText(themeArticle.headline)}</p>
+            <p className="text-[14.5px] font-semibold text-text-primary group-hover:text-sky-700 dark:text-sky-200">{cleanText(themeArticle.headline)}</p>
             {(themeArticle.key_takeaway || themeArticle.executive_summary) && (
-              <p className="mt-1.5 text-[13px] leading-5 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-5 text-text-secondary">
                 {cleanText(themeArticle.key_takeaway ?? themeArticle.executive_summary)}
               </p>
             )}
           </Link>
         ) : detail.ai_summary?.matters ? (
-          <div className="mt-3 space-y-2 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
-            <p className="text-[13.5px] leading-6 text-slate-300">{cleanText(detail.ai_summary.matters)}</p>
+          <div className="mt-3 space-y-2 rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4">
+            <p className="text-[13.5px] leading-6 text-text-secondary">{cleanText(detail.ai_summary.matters)}</p>
             {detail.ai_summary.why_bullets?.length > 0 && (
               <ul className="mt-2 space-y-1">
                 {detail.ai_summary.why_bullets.map((b, i) => (
-                  <li key={i} className="flex gap-2 text-[12.5px] leading-5 text-slate-400">
+                  <li key={i} className="flex gap-2 text-[12.5px] leading-5 text-text-secondary">
                     <span className="text-violet-500">•</span> {cleanText(b)}
                   </li>
                 ))}
@@ -155,7 +155,7 @@ export default async function ThemeDetailPage({ params }: { params: Promise<{ sl
             )}
           </div>
         ) : (
-          <p className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 text-[12.5px] text-slate-500">
+          <p className="mt-3 rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 text-[12.5px] text-text-muted">
             No AI analysis available for this theme yet.
           </p>
         )}
@@ -164,17 +164,17 @@ export default async function ThemeDetailPage({ params }: { params: Promise<{ sl
       {/* Companies */}
       {detail.companies?.length > 0 && (
         <section className="mb-8">
-          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
             <Building2 className="h-3 w-3 text-sky-400" /> Related Companies
           </p>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {detail.companies.map((c, i) => (
-              <div key={i} className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-3.5">
+              <div key={i} className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-3.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-bold text-white">{isRealSymbol(c.symbol) ? c.symbol : cleanText(c.company_name)}</span>
-                  <span className="text-[11px] text-slate-500">{Math.round(c.impact_score)}</span>
+                  <span className="text-[13px] font-bold text-text-primary">{isRealSymbol(c.symbol) ? c.symbol : cleanText(c.company_name)}</span>
+                  <span className="text-[11px] text-text-muted">{Math.round(c.impact_score)}</span>
                 </div>
-                <p className="mt-0.5 text-[11.5px] text-slate-500">{cleanText(c.company_name)}</p>
+                <p className="mt-0.5 text-[11.5px] text-text-muted">{cleanText(c.company_name)}</p>
               </div>
             ))}
           </div>
@@ -184,14 +184,14 @@ export default async function ThemeDetailPage({ params }: { params: Promise<{ sl
       {/* Recent Events */}
       {detail.events?.length > 0 && (
         <section className="mb-8">
-          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
             <CalendarClock className="h-3 w-3 text-indigo-400" /> Recent Events
           </p>
           <div className="mt-3 space-y-2">
             {detail.events.map((e, i) => (
-              <div key={i} className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-3.5">
-                <p className="text-[13px] font-medium text-slate-200">{cleanText(e.title)}</p>
-                {e.description && <p className="mt-1 line-clamp-1 text-[12px] text-slate-500">{cleanText(e.description)}</p>}
+              <div key={i} className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-3.5">
+                <p className="text-[13px] font-medium text-text-primary">{cleanText(e.title)}</p>
+                {e.description && <p className="mt-1 line-clamp-1 text-[12px] text-text-muted">{cleanText(e.description)}</p>}
               </div>
             ))}
           </div>
@@ -200,14 +200,14 @@ export default async function ThemeDetailPage({ params }: { params: Promise<{ sl
 
       {/* Live Sources */}
       {detail.news?.length > 0 && (
-        <section className="border-t border-white/[0.07] pt-6">
-          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-            <Newspaper className="h-3 w-3 text-slate-400" /> Live Sources
+        <section className="border-t border-surface-border/7 pt-6">
+          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+            <Newspaper className="h-3 w-3 text-text-secondary" /> Live Sources
           </p>
-          <ul className="mt-3 divide-y divide-white/[0.06] rounded-xl border border-white/[0.07] bg-white/[0.02]">
+          <ul className="mt-3 divide-y divide-surface-border/6 rounded-xl border border-surface-border/7 bg-text-primary/[0.02]">
             {detail.news.map((n, i) => (
-              <li key={i} className="px-4 py-2.5 text-[12.5px] text-slate-300">
-                {cleanText(n.headline)} <span className="text-slate-600">· {n.source}</span>
+              <li key={i} className="px-4 py-2.5 text-[12.5px] text-text-secondary">
+                {cleanText(n.headline)} <span className="text-text-muted">· {n.source}</span>
               </li>
             ))}
           </ul>

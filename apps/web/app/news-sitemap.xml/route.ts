@@ -20,7 +20,7 @@ import { API_BASE_URL as API } from "@/lib/api";
  * technical sitemap is ready the moment that approval lands, not before.
  */
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 const NEWS_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 interface InsightItem {

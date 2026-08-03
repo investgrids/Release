@@ -60,7 +60,7 @@ export interface StockDetail  {
 interface PageProps { params: Promise<{ symbol: string }> }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
-const CARD = "rounded-[28px] border border-white/10 bg-white/[0.04] shadow-[0_20px_60px_rgba(0,0,0,.35)] transition-all duration-300 hover:border-sky-400/20";
+const CARD = "rounded-[28px] border border-surface-border/10 bg-text-primary/[0.04] shadow-[0_20px_60px_rgba(0,0,0,.35)] transition-all duration-300 hover:border-sky-400/20";
 const PERIODS = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y", "Max"];
 const DONUT_C = ["#6366f1", "#38bdf8", "#22c55e", "#f59e0b", "#f43f5e"];
 
@@ -84,12 +84,12 @@ const impactColor = impactToStyle;
 
 function metricColor(label: string, value: string) {
   const n = n2(value);
-  if (label === "PE Ratio (TTM)") return n < 15 ? "text-emerald-400" : n < 30 ? "text-white" : n < 50 ? "text-amber-400" : "text-rose-400";
-  if (label === "PB Ratio")       return n < 1   ? "text-emerald-400" : n < 3  ? "text-white" : "text-amber-400";
-  if (label === "ROE" || label === "ROCE") return n > 20 ? "text-emerald-400" : n > 10 ? "text-white" : "text-amber-400";
-  if (label === "Beta")           return n < 0.8 ? "text-emerald-400" : n < 1.3 ? "text-white" : "text-rose-400";
-  if (label === "D/E Ratio")      return n < 0.3 ? "text-emerald-400" : n < 1   ? "text-white" : "text-rose-400";
-  return "text-white";
+  if (label === "PE Ratio (TTM)") return n < 15 ? "text-emerald-400" : n < 30 ? "text-text-primary" : n < 50 ? "text-amber-400" : "text-rose-400";
+  if (label === "PB Ratio")       return n < 1   ? "text-emerald-400" : n < 3  ? "text-text-primary" : "text-amber-400";
+  if (label === "ROE" || label === "ROCE") return n > 20 ? "text-emerald-400" : n > 10 ? "text-text-primary" : "text-amber-400";
+  if (label === "Beta")           return n < 0.8 ? "text-emerald-400" : n < 1.3 ? "text-text-primary" : "text-rose-400";
+  if (label === "D/E Ratio")      return n < 0.3 ? "text-emerald-400" : n < 1   ? "text-text-primary" : "text-rose-400";
+  return "text-text-primary";
 }
 
 function deriveSegments(sector: string, symbol: string) {
@@ -167,7 +167,7 @@ function SectionCard({ title, action, children, className = "", noPad = false }:
       className={`${CARD} ${noPad ? "" : "p-6"} ${className}`}>
       {(title || action) && (
         <div className={`flex items-center justify-between ${noPad ? "px-6 pt-6 pb-0" : "mb-5"}`}>
-          {title && <h2 className="text-[15px] font-bold text-white">{title}</h2>}
+          {title && <h2 className="text-[15px] font-bold text-text-primary">{title}</h2>}
           {action}
         </div>
       )}
@@ -178,12 +178,12 @@ function SectionCard({ title, action, children, className = "", noPad = false }:
 
 function Pill({ children, color = "slate" }: { children: React.ReactNode; color?: string }) {
   const cls: Record<string, string> = {
-    slate: "border-white/10 bg-white/[0.05] text-slate-300",
-    green: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-    sky:   "border-sky-500/30 bg-sky-500/10 text-sky-300",
-    amber: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-    violet:"border-violet-500/30 bg-violet-500/10 text-violet-300",
-    rose:  "border-rose-500/30 bg-rose-500/10 text-rose-300",
+    slate: "border-surface-border/10 bg-text-primary/[0.05] text-text-secondary",
+    green: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+    sky:   "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300",
+    amber: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300",
+    violet:"border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300",
+    rose:  "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300",
   };
   return <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${cls[color] ?? cls.slate}`}>{children}</span>;
 }
@@ -194,7 +194,7 @@ function ScoreCircle({ score, size = 52 }: { score: number; size?: number }) {
   return (
     <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size/2} cy={size/2} r={r} stroke="rgba(255,255,255,0.06)" strokeWidth={4} fill="none"/>
+        <circle cx={size/2} cy={size/2} r={r} stroke="rgb(var(--text-primary) / 0.08)" strokeWidth={4} fill="none"/>
         <circle cx={size/2} cy={size/2} r={r} stroke={col} strokeWidth={4} fill="none"
           strokeLinecap="round" strokeDasharray={`${dash} ${circ}`}
           style={{ filter: `drop-shadow(0 0 4px ${col}80)` }}/>
@@ -206,9 +206,9 @@ function ScoreCircle({ score, size = 52 }: { score: number; size?: number }) {
 
 function KvRow({ label, value, colored = false }: { label: string; value: string; colored?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-2 py-2 border-b border-white/[0.04] last:border-0">
-      <span className="text-[12px] text-slate-500 shrink-0">{label}</span>
-      <span className={`text-[13px] font-semibold text-right ${colored ? metricColor(label, value) : "text-white"}`}>{value || "—"}</span>
+    <div className="flex items-center justify-between gap-2 py-2 border-b border-surface-border/4 last:border-0">
+      <span className="text-[12px] text-text-muted shrink-0">{label}</span>
+      <span className={`text-[13px] font-semibold text-right ${colored ? metricColor(label, value) : "text-text-primary"}`}>{value || "—"}</span>
     </div>
   );
 }
@@ -218,10 +218,10 @@ function MiniBar({ label, value, max = 100, color }: { label: string; value: num
   return (
     <div>
       <div className="mb-1 flex justify-between text-[11px]">
-        <span className="text-slate-400">{label}</span>
-        <span className="font-bold text-white">{value}%</span>
+        <span className="text-text-secondary">{label}</span>
+        <span className="font-bold text-text-primary">{value}%</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
         <div className={`h-full rounded-full ${color} transition-all duration-700`} style={{ width: `${pct}%` }}/>
       </div>
     </div>
@@ -242,10 +242,10 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
     <motion.div variants={fadeUp} initial="hidden" animate="show"
       className={`${CARD} p-6`}>
       {/* Breadcrumb */}
-      <div className="mb-4 flex items-center gap-2 text-[11px] text-slate-600">
-        <Link href="/companies" className="hover:text-slate-400 transition">Companies</Link>
+      <div className="mb-4 flex items-center gap-2 text-[11px] text-text-muted">
+        <Link href="/companies" className="hover:text-text-secondary transition">Companies</Link>
         <span>›</span>
-        <span className="text-slate-400">{stock.name}</span>
+        <span className="text-text-secondary">{stock.name}</span>
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-6">
@@ -253,7 +253,7 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
         <div>
           {/* Company avatar + name */}
           <div className="flex items-center gap-4 mb-3">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/30 to-violet-500/20 border border-white/10 text-[18px] font-black text-white">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/30 to-violet-500/20 border border-surface-border/10 text-[18px] font-black text-text-primary">
               {symbol.slice(0, 2)}
             </div>
             <div>
@@ -264,17 +264,17 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
                     came back empty, so the page is never left with zero
                     <h1>s. */}
                 {serverRenderedH1 ? (
-                  <p className="text-[26px] font-black tracking-tight text-white leading-none">{stock.name}</p>
+                  <p className="text-[26px] font-black tracking-tight text-text-primary leading-none">{stock.name}</p>
                 ) : (
-                  <h1 className="text-[26px] font-black tracking-tight text-white leading-none">{stock.name}</h1>
+                  <h1 className="text-[26px] font-black tracking-tight text-text-primary leading-none">{stock.name}</h1>
                 )}
                 <button onClick={() => setWatchlisted(!watchlisted)}
                   className="transition">
-                  {watchlisted ? <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> : <Star className="h-3.5 w-3.5 text-slate-400" />}
+                  {watchlisted ? <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> : <Star className="h-3.5 w-3.5 text-text-secondary" />}
                 </button>
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <Pill><span className="font-bold text-sky-300">{symbol.toUpperCase()}</span></Pill>
+                <Pill><span className="font-bold text-sky-600 dark:text-sky-300">{symbol.toUpperCase()}</span></Pill>
                 <Pill color="green"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/>NSE</Pill>
                 {stock.sector && stock.sector !== "N/A" && <Pill>{stock.sector}</Pill>}
                 {stock.industry && stock.industry !== "N/A" && stock.industry !== stock.sector && <Pill>{stock.industry}</Pill>}
@@ -284,14 +284,14 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
 
           {/* Price */}
           <div className="flex flex-wrap items-baseline gap-3">
-            <span className="text-[40px] font-black text-white leading-none">₹{stock.price}</span>
+            <span className="text-[40px] font-black text-text-primary leading-none">₹{stock.price}</span>
             <span className={`text-[18px] font-bold ${isPos ? "text-emerald-400" : "text-rose-400"}`}>
               {sign}{stock.change_abs} ({sign}{stock.pct_change.toFixed(2)}%) {isPos ? "▲" : "▼"}
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-slate-500">
+          <p className="mt-1 text-[11px] text-text-muted">
             {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })} ·
-            <span className="ml-1 text-slate-400">NSE</span>
+            <span className="ml-1 text-text-secondary">NSE</span>
           </p>
         </div>
 
@@ -304,25 +304,25 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
               { label: "Dividend",     value: stock.dividend_yield },
               { label: "AI Score",     value: `${ai_score}/100` },
             ].map(k => (
-              <div key={k.label} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center min-w-[90px]">
-                <p className="text-[9px] uppercase tracking-widest text-slate-500">{k.label}</p>
-                <p className="mt-1 text-[14px] font-black text-white">{k.value || "—"}</p>
+              <div key={k.label} className="rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-3 text-center min-w-[90px]">
+                <p className="text-[9px] uppercase tracking-widest text-text-muted">{k.label}</p>
+                <p className="mt-1 text-[14px] font-black text-text-primary">{k.value || "—"}</p>
               </div>
             ))}
           </div>
           <div className="flex gap-2">
             <button onClick={() => setWatchlisted(!watchlisted)}
               className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-[12px] font-medium transition ${
-                watchlisted ? "border-sky-500/40 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20"
+                watchlisted ? "border-sky-500/40 bg-sky-500/15 text-sky-600 dark:text-sky-300" : "border-surface-border/10 bg-text-primary/[0.03] text-text-secondary hover:border-surface-border/20"
               }`}>
               {watchlisted ? <><Check className="h-3.5 w-3.5" />Watchlisted</> : "+ Add to Watchlist"}
             </button>
             <Link href={`/compare?a=${symbol}`}
-              className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-[12px] font-medium text-slate-300 hover:border-sky-500/30 hover:text-sky-300 transition">
+              className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-[12px] font-medium text-text-secondary hover:border-sky-500/30 hover:text-sky-600 dark:text-sky-300 transition">
               ↔ Compare
             </Link>
             <Link href={`/ai-search?q=${encodeURIComponent(`Should I buy ${stock.name} (${symbol}) right now? Analyse its current valuation, recent events, and outlook vs sector peers.`)}`}
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-[12px] font-medium text-violet-300 hover:border-violet-500/30 hover:bg-violet-500/[0.06] transition">
+              className="flex items-center gap-1.5 rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-[12px] font-medium text-violet-600 dark:text-violet-300 hover:border-violet-500/30 hover:bg-violet-500/[0.06] transition">
               <Sparkles className="h-3.5 w-3.5 text-violet-400" /> Ask AI
             </Link>
           </div>
@@ -341,11 +341,11 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
   const chartColor = isPos ? "#22c55e" : "#f43f5e";
   return (
     <SectionCard title="Price Chart" action={
-      <div className="flex gap-0.5 bg-white/[0.03] rounded-xl p-0.5">
+      <div className="flex gap-0.5 bg-text-primary/[0.03] rounded-xl p-0.5">
         {PERIODS.map(p => (
           <button key={p} onClick={() => setPeriod(p)}
             className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${
-              period === p ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"}`}>
+              period === p ? "bg-text-primary/10 text-text-primary" : "text-text-muted hover:text-text-secondary"}`}>
             {p}
           </button>
         ))}
@@ -354,7 +354,7 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
       <div className="h-[260px] mt-4">
         {loadingChart ? (
           <div className="flex h-full items-center justify-center">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-sky-400"/>
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-surface-border/20 border-t-sky-400"/>
           </div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
@@ -365,22 +365,22 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
                   <stop offset="100%" stopColor={chartColor} stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false}/>
-              <YAxis domain={["auto","auto"]} tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => `₹${v}`} width={60}/>
-              <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }}
+              <XAxis dataKey="label" tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false}/>
+              <YAxis domain={["auto","auto"]} tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => `₹${v}`} width={60}/>
+              <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 10, fontSize: 11 }}
                 formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Price"]}/>
               <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2} fill="url(#cg)" dot={false}/>
             </AreaChart>
           </ResponsiveContainer>
         ) : (
           <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-slate-600">No chart data for this period</p>
+            <p className="text-sm text-text-muted">No chart data for this period</p>
           </div>
         )}
       </div>
 
       {/* OHLC strip */}
-      <div className="mt-4 grid grid-cols-6 gap-3 border-t border-white/[0.05] pt-4">
+      <div className="mt-4 grid grid-cols-6 gap-3 border-t border-surface-border/5 pt-4">
         {[
           ["Open",     `₹${stock.open}`],
           ["High",     `₹${stock.day_high}`],
@@ -390,8 +390,8 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
           ["52W Low",  `₹${stock.week52_low}`],
         ].map(([l, v]) => (
           <div key={l} className="text-center">
-            <p className="text-[9px] text-slate-500 uppercase tracking-wide">{l}</p>
-            <p className="mt-0.5 text-[12px] font-bold text-white">{v}</p>
+            <p className="text-[9px] text-text-muted uppercase tracking-wide">{l}</p>
+            <p className="mt-0.5 text-[12px] font-bold text-text-primary">{v}</p>
           </div>
         ))}
       </div>
@@ -430,10 +430,10 @@ function AISummary({ stock }: { stock: StockDetail }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-[15px] font-bold text-white">AI Company Summary</h2>
-            <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-violet-300">AI Generated</span>
+            <h2 className="text-[15px] font-bold text-text-primary">AI Company Summary</h2>
+            <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-300">AI Generated</span>
           </div>
-          <p className="text-[13px] leading-6 text-slate-300 line-clamp-3">
+          <p className="text-[13px] leading-6 text-text-secondary line-clamp-3">
             {stock.description || `${stock.name} is a leading ${stock.sector} company listed on NSE. The company operates across multiple business verticals with a strong focus on operational excellence and shareholder value creation.`}
           </p>
           <AnimatePresence>
@@ -445,7 +445,7 @@ function AISummary({ stock }: { stock: StockDetail }) {
                     <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Bullish Factors</p>
                     <ul className="space-y-1.5">
                       {bullish.map((b, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-300">
+                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary">
                           <span className="mt-0.5 text-emerald-400 shrink-0">•</span>{b}
                         </li>
                       ))}
@@ -455,7 +455,7 @@ function AISummary({ stock }: { stock: StockDetail }) {
                     <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-rose-400">Key Risks</p>
                     <ul className="space-y-1.5">
                       {risks.map((r, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-300">
+                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary">
                           <span className="mt-0.5 text-rose-400 shrink-0">•</span>{r}
                         </li>
                       ))}
@@ -466,7 +466,7 @@ function AISummary({ stock }: { stock: StockDetail }) {
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-sky-400">Growth Drivers</p>
                   <ul className="grid grid-cols-2 gap-1.5">
                     {drivers.map((d, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-400">
+                      <li key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary">
                         <span className="mt-0.5 text-sky-400 shrink-0">→</span>{d}
                       </li>
                     ))}
@@ -477,10 +477,10 @@ function AISummary({ stock }: { stock: StockDetail }) {
           </AnimatePresence>
           <div className="mt-3 flex gap-2">
             <button onClick={() => setExpanded(!expanded)}
-              className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-[12px] font-medium text-sky-400 hover:bg-white/[0.06] transition">
+              className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-[12px] font-medium text-sky-400 hover:bg-text-primary/[0.06] transition">
               {expanded ? "Collapse ↑" : "Read Full Analysis →"}
             </button>
-            <button className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-2 text-[12px] font-medium text-violet-300 hover:bg-violet-500/15 transition">
+            <button className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-2 text-[12px] font-medium text-violet-600 dark:text-violet-300 hover:bg-violet-500/15 transition">
               Ask AI about {stock.name.split(" ")[0]} →
             </button>
           </div>
@@ -497,21 +497,21 @@ function StockDNA({ stock }: { stock: StockDetail }) {
   if (!entries.length) return null;
   return (
     <SectionCard title="Stock DNA" action={
-      <span className="text-[11px] text-slate-500">What makes this company move?</span>
+      <span className="text-[11px] text-text-muted">What makes this company move?</span>
     }>
       <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-5">
         {entries.map(([k, v], i) => (
           <motion.div key={k} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="group flex flex-col items-center gap-2 rounded-3xl border border-white/[0.06] bg-slate-900/60 p-4 text-center hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
+            className="group flex flex-col items-center gap-2 rounded-3xl border border-surface-border/6 bg-surface-card p-4 text-center hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
             <div className="relative h-12 w-12">
               <svg className="h-12 w-12" style={{ transform: "rotate(-90deg)" }}>
-                <circle cx="24" cy="24" r="19" stroke="rgba(255,255,255,0.06)" strokeWidth={4} fill="none"/>
+                <circle cx="24" cy="24" r="19" stroke="rgb(var(--text-primary) / 0.08)" strokeWidth={4} fill="none"/>
                 <circle cx="24" cy="24" r="19" stroke={scoreColor(v)} strokeWidth={4} fill="none"
                   strokeLinecap="round" strokeDasharray={`${(v / 100) * 2 * Math.PI * 19} ${2 * Math.PI * 19}`}/>
               </svg>
               <span className="absolute inset-0 flex items-center justify-center text-[11px] font-black" style={{ color: scoreColor(v) }}>{v}</span>
             </div>
-            <p className="text-[10px] text-slate-400 leading-tight">{k}</p>
+            <p className="text-[10px] text-text-secondary leading-tight">{k}</p>
           </motion.div>
         ))}
       </div>
@@ -520,8 +520,8 @@ function StockDNA({ stock }: { stock: StockDetail }) {
         <div className="w-48 shrink-0">
           <ResponsiveContainer width="100%" height={180}>
             <RadarChart data={entries.map(([k, v]) => ({ subject: k.split(" ")[0], value: v }))}>
-              <PolarGrid stroke="rgba(255,255,255,0.06)"/>
-              <PolarAngleAxis dataKey="subject" tick={{ fill: "#64748b", fontSize: 9 }}/>
+              <PolarGrid stroke="rgb(var(--text-primary) / 0.08)"/>
+              <PolarAngleAxis dataKey="subject" tick={{ fill: "rgb(var(--text-muted))", fontSize: 9 }}/>
               <Radar dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2}/>
             </RadarChart>
           </ResponsiveContainer>
@@ -530,10 +530,10 @@ function StockDNA({ stock }: { stock: StockDetail }) {
           {entries.map(([k, v]) => (
             <div key={k}>
               <div className="mb-0.5 flex justify-between text-[11px]">
-                <span className="text-slate-400">{k}</span>
+                <span className="text-text-secondary">{k}</span>
                 <span className="font-bold" style={{ color: scoreColor(v) }}>{v}/100</span>
               </div>
-              <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${v}%`, background: scoreColor(v) }}/>
               </div>
             </div>
@@ -555,17 +555,17 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
   ];
   return (
     <SectionCard title="Financial Highlights" action={
-      <button className="text-[11px] text-sky-400 hover:text-sky-300 transition">View Financials →</button>
+      <button className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View Financials →</button>
     }>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
         {kpis.map((k, i) => (
           <motion.div key={k.label} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="rounded-2xl border border-white/[0.06] bg-slate-900/50 p-4 hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
+            className="rounded-2xl border border-surface-border/6 bg-surface-card p-4 hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
             <div className="mb-2 flex items-center">{k.icon}</div>
             <p className={`text-[22px] font-black leading-none ${k.color}`}>
               {k.value.toLocaleString("en-IN")}{k.suffix}
             </p>
-            <p className="mt-1 text-[10px] text-slate-500">{k.label}</p>
+            <p className="mt-1 text-[10px] text-text-muted">{k.label}</p>
             {/* Sparkline */}
             <div className="mt-2 h-8">
               <ResponsiveContainer width="100%" height="100%">
@@ -583,37 +583,37 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
         <div className="mt-5 overflow-x-auto">
           <table className="w-full text-[12px]">
             <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="pb-2 text-left text-[10px] text-slate-500 font-medium">₹ in Crore</th>
-                {stock.annual_financials.map(f => <th key={f.year} className="pb-2 text-right text-[10px] text-slate-500 font-medium">{f.year}</th>)}
+              <tr className="border-b border-surface-border/6">
+                <th className="pb-2 text-left text-[10px] text-text-muted font-medium">₹ in Crore</th>
+                {stock.annual_financials.map(f => <th key={f.year} className="pb-2 text-right text-[10px] text-text-muted font-medium">{f.year}</th>)}
                 <th className="pb-2 text-right text-[10px] text-violet-400 font-medium">TTM</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.03]">
+            <tbody className="divide-y divide-surface-border/3">
               <tr>
-                <td className="py-2 text-slate-400">Revenue</td>
-                {stock.annual_financials.map(f => <td key={f.year} className="py-2 text-right font-semibold text-white">{f.revenue.toLocaleString()}</td>)}
-                <td className="py-2 text-right font-bold text-violet-300">{stock.quarterly_revenue.reduce((a, b) => a + b.value, 0).toLocaleString()}</td>
+                <td className="py-2 text-text-secondary">Revenue</td>
+                {stock.annual_financials.map(f => <td key={f.year} className="py-2 text-right font-semibold text-text-primary">{f.revenue.toLocaleString()}</td>)}
+                <td className="py-2 text-right font-bold text-violet-600 dark:text-violet-300">{stock.quarterly_revenue.reduce((a, b) => a + b.value, 0).toLocaleString()}</td>
               </tr>
               <tr>
-                <td className="py-2 text-slate-400">Net Profit</td>
-                {stock.annual_financials.map(f => <td key={f.year} className={`py-2 text-right font-semibold ${f.net_income >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{f.net_income.toLocaleString()}</td>)}
-                <td className="py-2 text-right font-bold text-emerald-300">{stock.quarterly_net_income.reduce((a, b) => a + b.value, 0).toLocaleString()}</td>
+                <td className="py-2 text-text-secondary">Net Profit</td>
+                {stock.annual_financials.map(f => <td key={f.year} className={`py-2 text-right font-semibold ${f.net_income >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>{f.net_income.toLocaleString()}</td>)}
+                <td className="py-2 text-right font-bold text-emerald-600 dark:text-emerald-300">{stock.quarterly_net_income.reduce((a, b) => a + b.value, 0).toLocaleString()}</td>
               </tr>
               <tr>
-                <td className="py-2 text-slate-400">ROE (%)</td>
-                {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-white">{i === stock.annual_financials.length - 1 ? stock.roe : "—"}</td>)}
-                <td className="py-2 text-right text-violet-300">{stock.roe}</td>
+                <td className="py-2 text-text-secondary">ROE (%)</td>
+                {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-text-primary">{i === stock.annual_financials.length - 1 ? stock.roe : "—"}</td>)}
+                <td className="py-2 text-right text-violet-600 dark:text-violet-300">{stock.roe}</td>
               </tr>
               <tr>
-                <td className="py-2 text-slate-400">EPS (₹)</td>
-                {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-white">{i === stock.annual_financials.length - 1 ? stock.eps : "—"}</td>)}
-                <td className="py-2 text-right text-violet-300">{stock.eps}</td>
+                <td className="py-2 text-text-secondary">EPS (₹)</td>
+                {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-text-primary">{i === stock.annual_financials.length - 1 ? stock.eps : "—"}</td>)}
+                <td className="py-2 text-right text-violet-600 dark:text-violet-300">{stock.eps}</td>
               </tr>
               <tr>
-                <td className="py-2 text-slate-400">Debt/Equity</td>
-                {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-white">{i === stock.annual_financials.length - 1 ? stock.debt_to_equity : "—"}</td>)}
-                <td className="py-2 text-right text-violet-300">{stock.debt_to_equity}</td>
+                <td className="py-2 text-text-secondary">Debt/Equity</td>
+                {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-text-primary">{i === stock.annual_financials.length - 1 ? stock.debt_to_equity : "—"}</td>)}
+                <td className="py-2 text-right text-violet-600 dark:text-violet-300">{stock.debt_to_equity}</td>
               </tr>
             </tbody>
           </table>
@@ -638,8 +638,8 @@ function KeyRatios({ stock }: { stock: StockDetail }) {
     ["Current Ratio",   stock.current_ratio, "—"],
   ];
   return (
-    <SectionCard title="Key Ratios" action={<span className="text-[10px] text-slate-600">vs Industry Avg</span>}>
-      <div className="mt-3 grid grid-cols-2 gap-x-8 divide-x divide-white/[0.04]">
+    <SectionCard title="Key Ratios" action={<span className="text-[10px] text-text-muted">vs Industry Avg</span>}>
+      <div className="mt-3 grid grid-cols-2 gap-x-8 divide-x divide-surface-border/4">
         <div>{rows.slice(0, 5).map(([l, v]) => <KvRow key={l} label={l} value={v} colored/>)}</div>
         <div className="pl-8">{rows.slice(5).map(([l, v]) => <KvRow key={l} label={l} value={v} colored/>)}</div>
       </div>
@@ -657,18 +657,18 @@ function EventTimeline({ stock, symbol }: { stock: StockDetail; symbol: string }
   if (!events.length) return null;
   return (
     <SectionCard title={`Recent Events Impacting ${symbol.toUpperCase()}`} action={
-      <Link href="/events" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All Events →</Link>
+      <Link href="/events" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All Events →</Link>
     }>
       <div className="mt-4 space-y-3">
         {events.map((e, i) => (
           <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="flex items-start gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 hover:border-sky-400/20 hover:bg-sky-400/[0.02] transition">
+            className="flex items-start gap-4 rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-4 hover:border-sky-400/20 hover:bg-sky-400/[0.02] transition">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15">
               <Clock className="h-5 w-5 text-sky-400"/>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-slate-600 mb-1">{e.date}</p>
-              <p className="text-[13px] font-semibold text-white line-clamp-1">{e.title}</p>
+              <p className="text-[10px] text-text-muted mb-1">{e.date}</p>
+              <p className="text-[13px] font-semibold text-text-primary line-clamp-1">{e.title}</p>
             </div>
           </motion.div>
         ))}
@@ -679,7 +679,7 @@ function EventTimeline({ stock, symbol }: { stock: StockDetail; symbol: string }
 
 // ── Section 8: Government Exposure ───────────────────────────────────────────
 function GovernmentExposureSection({ stock }: { stock: StockDetail }) {
-  const govLevelColor = stock.gov_level === "High" ? "text-emerald-300" : stock.gov_level === "Medium" ? "text-amber-300" : "text-slate-300";
+  const govLevelColor = stock.gov_level === "High" ? "text-emerald-600 dark:text-emerald-300" : stock.gov_level === "Medium" ? "text-amber-600 dark:text-amber-300" : "text-text-secondary";
   if (!stock.gov_score) return null;
   return (
     <SectionCard title="Government Exposure" action={
@@ -689,9 +689,9 @@ function GovernmentExposureSection({ stock }: { stock: StockDetail }) {
         {/* Left: donut + score */}
         <div>
           <div className="mb-3 flex items-center gap-3">
-            <span className="text-[40px] font-black text-white leading-none">{stock.gov_score}</span>
+            <span className="text-[40px] font-black text-text-primary leading-none">{stock.gov_score}</span>
             <div>
-              <p className="text-[10px] text-slate-500">out of 100</p>
+              <p className="text-[10px] text-text-muted">out of 100</p>
               <span className={`text-[13px] font-bold ${govLevelColor}`}>{stock.gov_level}</span>
             </div>
           </div>
@@ -704,7 +704,7 @@ function GovernmentExposureSection({ stock }: { stock: StockDetail }) {
                     <Cell key={i} fill={b.color || DONUT_C[i % DONUT_C.length]}/>
                   ))}
                 </Pie>
-                <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 10 }} formatter={(v: number, n: any, p: any) => [p.payload.label, `${v}%`]}/>
+                <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 8, fontSize: 10 }} formatter={(v: number, n: any, p: any) => [p.payload.label, `${v}%`]}/>
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -713,32 +713,32 @@ function GovernmentExposureSection({ stock }: { stock: StockDetail }) {
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full shrink-0" style={{ background: b.color || DONUT_C[i % DONUT_C.length] }}/>
-                  <span className="text-[11px] text-slate-400">{b.label}</span>
+                  <span className="text-[11px] text-text-secondary">{b.label}</span>
                 </div>
-                <span className="text-[11px] font-bold text-white">{b.pct}%</span>
+                <span className="text-[11px] font-bold text-text-primary">{b.pct}%</span>
               </div>
             ))}
           </div>
         </div>
         {/* Right: key areas + schemes */}
         <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Key Support Areas</p>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted">Key Support Areas</p>
           <div className="flex flex-wrap gap-1.5 mb-4">
             {stock.gov_support_areas.map(a => (
-              <span key={a} className="rounded-full border border-sky-500/20 bg-sky-500/8 px-2 py-0.5 text-[10px] text-sky-300">{a}</span>
+              <span key={a} className="rounded-full border border-sky-500/20 bg-sky-500/8 px-2 py-0.5 text-[10px] text-sky-600 dark:text-sky-300">{a}</span>
             ))}
           </div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Policy Impact Cards</p>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted">Policy Impact Cards</p>
           <div className="space-y-2">
             {[
               { policy: `${stock.sector} Scheme`,         impact: `+₹${Math.round(n2(stock.market_cap) * 0.05)}Cr opportunity`, score: 78 },
               { policy: "PLI Scheme",                      impact: "Revenue uplift in FY26",                                      score: 65 },
               { policy: "Budget Allocation",               impact: `${stock.sector} capex boost`,                                  score: 72 },
             ].map((p, i) => (
-              <div key={i} className="flex items-center justify-between rounded-xl border border-white/[0.05] bg-white/[0.02] px-3 py-2">
+              <div key={i} className="flex items-center justify-between rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2">
                 <div>
-                  <p className="text-[12px] font-medium text-white">{p.policy}</p>
-                  <p className="text-[10px] text-slate-500">{p.impact}</p>
+                  <p className="text-[12px] font-medium text-text-primary">{p.policy}</p>
+                  <p className="text-[10px] text-text-muted">{p.impact}</p>
                 </div>
                 <span className="text-[12px] font-black text-emerald-400">{p.score}</span>
               </div>
@@ -785,39 +785,39 @@ function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
   if (!data || data.signal_count === 0) return null;
 
   return (
-    <SectionCard title="AI Company Intelligence Score" action={<span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300">AI Powered</span>}>
-      <div className="mt-2 flex items-center gap-6 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-4">
+    <SectionCard title="AI Company Intelligence Score" action={<span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-300">AI Powered</span>}>
+      <div className="mt-2 flex items-center gap-6 rounded-2xl border border-surface-border/6 bg-gradient-to-b from-text-primary/[0.03] to-transparent p-4">
         <div className="text-center">
-          <p className="text-[36px] font-black leading-none text-white">{data.score}</p>
-          <p className="mt-1 text-[9px] uppercase tracking-wider text-slate-500">AI Score</p>
+          <p className="text-[36px] font-black leading-none text-text-primary">{data.score}</p>
+          <p className="mt-1 text-[9px] uppercase tracking-wider text-text-muted">AI Score</p>
         </div>
         <div className="flex-1 space-y-1.5">
           <div className="flex justify-between text-[10px]">
-            <span className="text-slate-500">Confidence</span>
+            <span className="text-text-muted">Confidence</span>
             <span className="font-semibold text-emerald-400">{data.confidence != null ? `${Math.round(data.confidence * 100)}%` : "—"}</span>
           </div>
-          <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
             <div className="h-full rounded-full bg-emerald-500" style={{ width: `${data.confidence != null ? Math.round(data.confidence * 100) : 0}%` }} />
           </div>
-          <p className="text-[10px] text-slate-500">Based on {data.signal_count} real signal{data.signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking</p>
+          <p className="text-[10px] text-text-muted">Based on {data.signal_count} real signal{data.signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking</p>
         </div>
       </div>
       {data.top_contributors.length > 0 && (
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {data.top_contributors.map((c, i) => (
             <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-              className="flex flex-col gap-2 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-4">
+              className="flex flex-col gap-2 rounded-2xl border border-surface-border/6 bg-gradient-to-b from-text-primary/[0.03] to-transparent p-4">
               <div className="flex items-center justify-between">
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-slate-500">
+                <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-text-muted">
                   {c.source_type === "opportunity" ? "Opportunity Radar" : "Published Analysis"}
                 </span>
                 <span className={`text-[11px] font-bold ${c.signed_magnitude >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                   {c.signed_magnitude >= 0 ? "+" : ""}{Math.round(c.signed_magnitude)}
                 </span>
               </div>
-              <p className="text-[12px] leading-5 text-slate-300">{c.reason || "—"}</p>
+              <p className="text-[12px] leading-5 text-text-secondary">{c.reason || "—"}</p>
               {c.signal_at && (
-                <p className="mt-auto text-[10px] text-slate-600">{new Date(c.signal_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                <p className="mt-auto text-[10px] text-text-muted">{new Date(c.signal_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
               )}
             </motion.div>
           ))}
@@ -838,7 +838,7 @@ function NewsImpact({ stock, relatedNews }: { stock: StockDetail; relatedNews: a
   if (!articles.length) return null;
   return (
     <SectionCard title="News Impact Analysis" action={
-      <Link href="/news" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All News →</Link>
+      <Link href="/news" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All News →</Link>
     }>
       <div className="mt-4 space-y-3">
         {articles.slice(0, 5).map((a: any, i: number) => {
@@ -846,19 +846,19 @@ function NewsImpact({ stock, relatedNews }: { stock: StockDetail; relatedNews: a
           const score = hasScore ? Math.round(a.impact_score * 10) : 0;
           const ic = impactColor(score);
           return (
-            <div key={i} className="flex items-start gap-3 rounded-2xl border border-white/[0.05] bg-white/[0.02] p-4 hover:border-sky-400/10 transition">
+            <div key={i} className="flex items-start gap-3 rounded-2xl border border-surface-border/5 bg-text-primary/[0.02] p-4 hover:border-sky-400/10 transition">
               {/* Thumbnail placeholder */}
-              <div className={`h-14 w-14 shrink-0 rounded-xl ${["bg-gradient-to-br from-sky-500/20 to-violet-500/10","bg-gradient-to-br from-emerald-500/20 to-teal-500/10","bg-gradient-to-br from-rose-500/20 to-amber-500/10","bg-gradient-to-br from-amber-500/20 to-orange-500/10","bg-gradient-to-br from-violet-500/20 to-indigo-500/10"][i % 5]} flex items-center justify-center text-slate-400`}>
+              <div className={`h-14 w-14 shrink-0 rounded-xl ${["bg-gradient-to-br from-sky-500/20 to-violet-500/10","bg-gradient-to-br from-emerald-500/20 to-teal-500/10","bg-gradient-to-br from-rose-500/20 to-amber-500/10","bg-gradient-to-br from-amber-500/20 to-orange-500/10","bg-gradient-to-br from-violet-500/20 to-indigo-500/10"][i % 5]} flex items-center justify-center text-text-secondary`}>
                 {([<BarChart2 className="h-6 w-6" />, <TrendingUp className="h-6 w-6" />, <TrendingDown className="h-6 w-6" />, <Landmark className="h-6 w-6" />, <Briefcase className="h-6 w-6" />])[i % 5]}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
                   {hasScore && <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${ic.text} border-current/20`}>{ic.label}</span>}
-                  <span className="text-[10px] text-slate-600">{a.source || "Source"}</span>
-                  <span className="text-[10px] text-slate-600">{a.published_at?.slice(0, 10) || ""}</span>
+                  <span className="text-[10px] text-text-muted">{a.source || "Source"}</span>
+                  <span className="text-[10px] text-text-muted">{a.published_at?.slice(0, 10) || ""}</span>
                 </div>
-                <p className="text-[13px] font-semibold text-white line-clamp-2">{a.headline}</p>
-                {a.summary && <p className="mt-0.5 text-[11px] text-slate-500 line-clamp-1">{a.summary}</p>}
+                <p className="text-[13px] font-semibold text-text-primary line-clamp-2">{a.headline}</p>
+                {a.summary && <p className="mt-0.5 text-[11px] text-text-muted line-clamp-1">{a.summary}</p>}
               </div>
               {hasScore && <ScoreCircle score={score} size={44}/>}
             </div>
@@ -887,27 +887,27 @@ function AISentiment({ stock }: { stock: StockDetail }) {
           <div className="flex items-center gap-3 mb-4">
             <div className="relative h-24 w-24">
               <svg className="h-24 w-24" style={{ transform: "rotate(-90deg)" }} viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="32" stroke="rgba(255,255,255,0.06)" strokeWidth={8} fill="none"/>
+                <circle cx="40" cy="40" r="32" stroke="rgb(var(--text-primary) / 0.08)" strokeWidth={8} fill="none"/>
                 <circle cx="40" cy="40" r="32" stroke="#22c55e" strokeWidth={8} fill="none"
                   strokeLinecap="round" strokeDasharray={`${(bullPct / 100) * 2 * Math.PI * 32} ${2 * Math.PI * 32}`}/>
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-[18px] font-black text-emerald-400">{bullPct}%</span>
-                <span className="text-[8px] text-slate-500">Bullish</span>
+                <span className="text-[8px] text-text-muted">Bullish</span>
               </div>
             </div>
             <div className="space-y-2">
-              <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-emerald-400">Bullish</span><span className="text-white font-bold">{bullPct}%</span></div><div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${bullPct}%` }}/></div></div>
-              <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-amber-400">Neutral</span><span className="text-white font-bold">{neutPct}%</span></div><div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full bg-amber-500" style={{ width: `${neutPct}%` }}/></div></div>
-              <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-rose-400">Bearish</span><span className="text-white font-bold">{bearPct}%</span></div><div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full bg-rose-500" style={{ width: `${bearPct}%` }}/></div></div>
+              <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-emerald-400">Bullish</span><span className="text-text-primary font-bold">{bullPct}%</span></div><div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${bullPct}%` }}/></div></div>
+              <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-amber-400">Neutral</span><span className="text-text-primary font-bold">{neutPct}%</span></div><div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden"><div className="h-full rounded-full bg-amber-500" style={{ width: `${neutPct}%` }}/></div></div>
+              <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-rose-400">Bearish</span><span className="text-text-primary font-bold">{bearPct}%</span></div><div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden"><div className="h-full rounded-full bg-rose-500" style={{ width: `${bearPct}%` }}/></div></div>
             </div>
           </div>
           {stock.analyst_count > 0 && (
-            <p className="text-[11px] text-slate-500">Based on {stock.analyst_count} analyst ratings</p>
+            <p className="text-[11px] text-text-muted">Based on {stock.analyst_count} analyst ratings</p>
           )}
         </div>
         <div>
-          <p className="mb-2 text-[11px] text-slate-500">Bullish % Weekly Trend</p>
+          <p className="mb-2 text-[11px] text-text-muted">Bullish % Weekly Trend</p>
           <div className="h-28">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trend}>
@@ -917,9 +917,9 @@ function AISentiment({ stock }: { stock: StockDetail }) {
                     <stop offset="100%" stopColor="#22c55e" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="w" tick={{ fill: "#64748b", fontSize: 9 }} tickLine={false} axisLine={false}/>
+                <XAxis dataKey="w" tick={{ fill: "rgb(var(--text-muted))", fontSize: 9 }} tickLine={false} axisLine={false}/>
                 <YAxis domain={[0, 100]} hide/>
-                <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 10 }} formatter={(v: number) => [`${v}%`, "Bullish"]}/>
+                <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 8, fontSize: 10 }} formatter={(v: number) => [`${v}%`, "Bullish"]}/>
                 <Area type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={1.5} fill="url(#sg)"/>
               </AreaChart>
             </ResponsiveContainer>
@@ -934,11 +934,11 @@ function AISentiment({ stock }: { stock: StockDetail }) {
 function NetworkGraph({ stock }: { stock: StockDetail }) {
   const { nodes, edges } = useMemo(() => deriveNetworkNodes(stock), [stock.symbol]);
   return (
-    <SectionCard title="Business Network Graph" action={<span className="text-[10px] text-slate-600">Zoom / Pan / Click</span>}>
-      <div className="mt-4 h-[380px] w-full overflow-hidden rounded-2xl border border-white/[0.06]">
+    <SectionCard title="Business Network Graph" action={<span className="text-[10px] text-text-muted">Zoom / Pan / Click</span>}>
+      <div className="mt-4 h-[380px] w-full overflow-hidden rounded-2xl border border-surface-border/6">
         <RFlow nodes={nodes} edges={edges} fitView>
-          <RFBg color="#1e293b" gap={20}/>
-          <RFCtrl style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8 }}/>
+          <RFBg color="rgb(var(--surface-border))" gap={20}/>
+          <RFCtrl style={{ background: "rgb(var(--text-primary) / 0.05)", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 8 }}/>
         </RFlow>
       </div>
     </SectionCard>
@@ -954,22 +954,22 @@ function BusinessSegments({ stock }: { stock: StockDetail }) {
         <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
           Indicative · Sector Averages
         </span>
-        <span className="text-[10px] text-slate-600">Based on sector benchmarks, not company-reported data</span>
+        <span className="text-[10px] text-text-muted">Based on sector benchmarks, not company-reported data</span>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {segments.map((s, i) => (
           <motion.div key={s.name} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="rounded-2xl border border-white/[0.06] bg-slate-900/50 p-4 hover:-translate-y-0.5 transition-all">
+            className="rounded-2xl border border-surface-border/6 bg-surface-card p-4 hover:-translate-y-0.5 transition-all">
             <div className="mb-2 flex items-center justify-between">
               <div className="h-2 w-2 rounded-full" style={{ background: DONUT_C[i % DONUT_C.length] }}/>
-              <span className="text-[22px] font-black text-white">{s.pct}%</span>
+              <span className="text-[22px] font-black text-text-primary">{s.pct}%</span>
             </div>
-            <p className="text-[12px] font-semibold text-white line-clamp-2">{s.name}</p>
+            <p className="text-[12px] font-semibold text-text-primary line-clamp-2">{s.name}</p>
             <div className="mt-2 space-y-0.5">
               <p className="text-[10px] text-emerald-400">Growth: {s.growth}</p>
               <p className="text-[10px] text-sky-400">Margin: {s.margin}</p>
             </div>
-            <div className="mt-2 h-1 rounded-full bg-white/[0.06]">
+            <div className="mt-2 h-1 rounded-full bg-text-primary/[0.06]">
               <div className="h-full rounded-full transition-all" style={{ width: `${s.pct}%`, background: DONUT_C[i % DONUT_C.length] }}/>
             </div>
           </motion.div>
@@ -988,16 +988,16 @@ function RevenueGeography({ stock }: { stock: StockDetail }) {
         <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
           Indicative · Sector Averages
         </span>
-        <span className="text-[10px] text-slate-600">Based on sector benchmarks, not company-reported data</span>
+        <span className="text-[10px] text-text-muted">Based on sector benchmarks, not company-reported data</span>
       </div>
       <div className="mt-4 space-y-3">
         {geo.map((g, i) => (
           <div key={g.r}>
             <div className="mb-1 flex justify-between text-[12px]">
-              <span className="text-slate-300">{g.r}</span>
-              <span className="font-bold text-white">{g.v}%</span>
+              <span className="text-text-secondary">{g.r}</span>
+              <span className="font-bold text-text-primary">{g.v}%</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-2 overflow-hidden rounded-full bg-text-primary/[0.06]">
               <motion.div className="h-full rounded-full" style={{ background: DONUT_C[i % DONUT_C.length] }}
                 initial={{ width: 0 }} whileInView={{ width: `${g.v}%` }} transition={{ duration: 0.7, delay: i * 0.1 }} viewport={{ once: true }}/>
             </div>
@@ -1021,10 +1021,10 @@ function OrderBook({ stock }: { stock: StockDetail }) {
     <SectionCard title="Order Book">
       <div className="mt-4 grid grid-cols-2 gap-3">
         {orders.map((o, i) => (
-          <div key={o.label} className="rounded-2xl border border-white/[0.06] bg-slate-900/50 p-4">
-            <div className="mb-2 text-slate-400">{o.icon}</div>
+          <div key={o.label} className="rounded-2xl border border-surface-border/6 bg-surface-card p-4">
+            <div className="mb-2 text-text-secondary">{o.icon}</div>
             <p className={`text-[18px] font-black leading-none ${o.color}`}>{o.value}</p>
-            <p className="mt-1 text-[11px] text-slate-500">{o.label}</p>
+            <p className="mt-1 text-[11px] text-text-muted">{o.label}</p>
           </div>
         ))}
       </div>
@@ -1038,7 +1038,7 @@ function Shareholding({ stock }: { stock: StockDetail }) {
   if (!data) {
     return (
       <SectionCard title="Shareholding Pattern">
-        <p className="mt-4 text-[12px] text-slate-500">Shareholding data unavailable for this stock.</p>
+        <p className="mt-4 text-[12px] text-text-muted">Shareholding data unavailable for this stock.</p>
       </SectionCard>
     );
   }
@@ -1051,7 +1051,7 @@ function Shareholding({ stock }: { stock: StockDetail }) {
               <Pie data={data} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={2} dataKey="value" strokeWidth={0}>
                 {data.map((d, i) => <Cell key={i} fill={d.color}/>)}
               </Pie>
-              <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 10 }}/>
+              <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 8, fontSize: 10 }}/>
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -1061,11 +1061,11 @@ function Shareholding({ stock }: { stock: StockDetail }) {
               <div className="flex justify-between text-[12px] mb-1">
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full shrink-0" style={{ background: d.color }}/>
-                  <span className="text-slate-300">{d.name}</span>
+                  <span className="text-text-secondary">{d.name}</span>
                 </div>
-                <span className="font-bold text-white">{d.value}%</span>
+                <span className="font-bold text-text-primary">{d.value}%</span>
               </div>
-              <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
                 <div className="h-full rounded-full" style={{ width: `${d.value}%`, background: d.color }}/>
               </div>
             </div>
@@ -1102,38 +1102,38 @@ function PeerComparison({ stock }: { stock: StockDetail }) {
 
   return (
     <SectionCard title="Peer Comparison" action={
-      <Link href="/compare" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All Peers →</Link>
+      <Link href="/compare" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All Peers →</Link>
     }>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-[12px]">
           <thead>
-            <tr className="border-b border-white/[0.06]">
+            <tr className="border-b border-surface-border/6">
               {["Company", "Price", "PE (TTM)", "ROE (%)", "Revenue Growth", ""].map(h => (
-                <th key={h} className="pb-3 text-left text-[10px] text-slate-500 font-medium first:text-left text-right last:text-right">{h}</th>
+                <th key={h} className="pb-3 text-left text-[10px] text-text-muted font-medium first:text-left text-right last:text-right">{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.03]">
+          <tbody className="divide-y divide-surface-border/3">
             {rows.map(r => (
-              <tr key={r.symbol} className={`hover:bg-white/[0.02] transition ${r.isSelf ? "bg-sky-500/[0.04]" : ""}`}>
+              <tr key={r.symbol} className={`hover:bg-text-primary/[0.02] transition ${r.isSelf ? "bg-sky-500/[0.04]" : ""}`}>
                 <td className="py-3">
                   <div className="flex items-center gap-2">
-                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${r.isSelf ? "bg-sky-500/20 text-sky-300" : "bg-white/[0.06] text-slate-400"}`}>
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${r.isSelf ? "bg-sky-500/20 text-sky-600 dark:text-sky-300" : "bg-text-primary/[0.06] text-text-secondary"}`}>
                       {r.symbol.slice(0, 2)}
                     </div>
                     <div>
-                      <Link href={`/companies/${r.symbol}`} className={`font-semibold hover:text-sky-300 transition ${r.isSelf ? "text-sky-300" : "text-white"}`}>{r.symbol}</Link>
-                      <p className="text-[10px] text-slate-500 truncate max-w-[100px]">{r.name}</p>
+                      <Link href={`/companies/${r.symbol}`} className={`font-semibold hover:text-sky-600 dark:text-sky-300 transition ${r.isSelf ? "text-sky-600 dark:text-sky-300" : "text-text-primary"}`}>{r.symbol}</Link>
+                      <p className="text-[10px] text-text-muted truncate max-w-[100px]">{r.name}</p>
                     </div>
-                    {r.isSelf && <span className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[8px] font-bold text-sky-300">YOU</span>}
+                    {r.isSelf && <span className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[8px] font-bold text-sky-600 dark:text-sky-300">YOU</span>}
                   </div>
                 </td>
-                <td className="py-3 text-right font-semibold text-white">{loading && !r.isSelf ? <div className="ml-auto h-3 w-12 animate-pulse rounded bg-white/[0.06]"/> : r.price}</td>
-                <td className="py-3 text-right font-semibold text-white">{r.pe || "—"}</td>
-                <td className="py-3 text-right font-semibold text-emerald-300">{r.roe || "—"}</td>
+                <td className="py-3 text-right font-semibold text-text-primary">{loading && !r.isSelf ? <div className="ml-auto h-3 w-12 animate-pulse rounded bg-text-primary/[0.06]"/> : r.price}</td>
+                <td className="py-3 text-right font-semibold text-text-primary">{r.pe || "—"}</td>
+                <td className="py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{r.roe || "—"}</td>
                 <td className="py-3 text-right text-emerald-400">{r.growth}</td>
                 <td className="py-3 text-right">
-                  {!r.isSelf && <Link href={`/companies/${r.symbol}`} className="text-[10px] text-sky-400 hover:text-sky-300 transition">View →</Link>}
+                  {!r.isSelf && <Link href={`/companies/${r.symbol}`} className="text-[10px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View →</Link>}
                 </td>
               </tr>
             ))}
@@ -1167,19 +1167,19 @@ function CompareWithSection({ stock }: { stock: StockDetail }) {
 
   return (
     <SectionCard title={`Compare ${stock.symbol} With`} action={
-      <Link href="/research/comparisons" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All Comparisons →</Link>
+      <Link href="/research/comparisons" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All Comparisons →</Link>
     }>
       <div className="mt-3 space-y-2">
         {comparisons.map(c => {
           const other = c.companies_affected?.find(x => x.symbol !== stock.symbol);
           return (
             <Link key={c.slug} href={`/research/${c.slug}`}
-              className="flex items-center justify-between rounded-[12px] border border-white/[0.07] bg-white/[0.02] px-4 py-2.5 transition hover:border-violet-500/25 hover:bg-white/[0.04]">
+              className="flex items-center justify-between rounded-[12px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-2.5 transition hover:border-violet-500/25 hover:bg-text-primary/[0.04]">
               <span className="flex items-center gap-2.5">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-[10px] font-bold text-violet-300">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-[10px] font-bold text-violet-600 dark:text-violet-300">
                   {(other?.symbol ?? "?").slice(0, 2)}
                 </span>
-                <span className="text-[13px] font-semibold text-white">{other?.symbol ?? c.headline}</span>
+                <span className="text-[13px] font-semibold text-text-primary">{other?.symbol ?? c.headline}</span>
               </span>
               <span className="text-[11px] font-medium text-violet-400">Compare →</span>
             </Link>
@@ -1200,7 +1200,7 @@ function HistoricalPerformance({ stock }: { stock: StockDetail }) {
       <div className="mt-4 flex gap-2 mb-4">
         {[["revenue", "Revenue"], ["profit", "Net Profit"]].map(([k, l]) => (
           <button key={k} onClick={() => setActiveMetric(k as any)}
-            className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition ${activeMetric === k ? "bg-sky-500/20 text-sky-300" : "text-slate-500 hover:text-slate-300"}`}>
+            className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition ${activeMetric === k ? "bg-sky-500/20 text-sky-600 dark:text-sky-300" : "text-text-muted hover:text-text-secondary"}`}>
             {l}
           </button>
         ))}
@@ -1208,9 +1208,9 @@ function HistoricalPerformance({ stock }: { stock: StockDetail }) {
       <div className="h-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 4, right: 4, bottom: 4, left: 0 }}>
-            <XAxis dataKey="year" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false}/>
-            <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}K`} width={40}/>
-            <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} formatter={(v: number) => [`₹${v.toLocaleString()} Cr`, activeMetric === "revenue" ? "Revenue" : "Net Profit"]}/>
+            <XAxis dataKey="year" tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false}/>
+            <YAxis tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}K`} width={40}/>
+            <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 10, fontSize: 11 }} formatter={(v: number) => [`₹${v.toLocaleString()} Cr`, activeMetric === "revenue" ? "Revenue" : "Net Profit"]}/>
             <Bar dataKey={activeMetric === "revenue" ? "revenue" : "net_income"} radius={[6, 6, 0, 0]}
               fill={activeMetric === "revenue" ? "#38bdf8" : "#22c55e"} fillOpacity={0.8}/>
           </BarChart>
@@ -1231,9 +1231,9 @@ function AIForecast({ stock }: { stock: StockDetail }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
               <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
             </div>
-            <h2 className="text-[15px] font-bold text-white">AI Forecast</h2>
+            <h2 className="text-[15px] font-bold text-text-primary">AI Forecast</h2>
           </div>
-          <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-violet-300">Premium</span>
+          <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-300">Premium</span>
         </div>
         <div className="grid grid-cols-3 gap-4 mb-5">
           {[
@@ -1243,12 +1243,12 @@ function AIForecast({ stock }: { stock: StockDetail }) {
           ].map(f => (
             <div key={f.label} className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-4 text-center">
               <div className="mb-1 flex justify-center">{f.icon}</div>
-              <p className="text-[13px] font-bold text-emerald-300">{f.outlook}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{f.label}</p>
-              <div className="mt-2 h-1 rounded-full bg-white/[0.06]">
+              <p className="text-[13px] font-bold text-emerald-600 dark:text-emerald-300">{f.outlook}</p>
+              <p className="text-[10px] text-text-muted mt-0.5">{f.label}</p>
+              <div className="mt-2 h-1 rounded-full bg-text-primary/[0.06]">
                 <div className="h-full rounded-full bg-violet-500" style={{ width: `${f.conf}%` }}/>
               </div>
-              <p className="text-[9px] text-slate-600 mt-0.5">{f.conf}% confidence</p>
+              <p className="text-[9px] text-text-muted mt-0.5">{f.conf}% confidence</p>
             </div>
           ))}
         </div>
@@ -1256,20 +1256,20 @@ function AIForecast({ stock }: { stock: StockDetail }) {
           <div>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-sky-400">Catalysts</p>
             {["Order book expansion","Government policy support","Margin improvement","Sector tailwinds"].map((c, i) => (
-              <p key={i} className="flex items-start gap-1.5 text-[12px] text-slate-300 mb-1"><span className="text-emerald-400 mt-0.5">+</span>{c}</p>
+              <p key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary mb-1"><span className="text-emerald-400 mt-0.5">+</span>{c}</p>
             ))}
           </div>
           <div>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-rose-400">Risks</p>
             {["Execution delays","Input cost pressures","Regulatory changes","Global macro headwinds"].map((r, i) => (
-              <p key={i} className="flex items-start gap-1.5 text-[12px] text-slate-300 mb-1"><span className="text-rose-400 mt-0.5">-</span>{r}</p>
+              <p key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary mb-1"><span className="text-rose-400 mt-0.5">-</span>{r}</p>
             ))}
           </div>
         </div>
         <div className="mt-4 flex items-center justify-between rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] px-5 py-4">
           <div>
-            <p className="text-[11px] text-slate-500">AI Investment Rating</p>
-            <p className="text-[22px] font-black text-white mt-0.5">Strong {isPos ? "Buy" : "Hold"}</p>
+            <p className="text-[11px] text-text-muted">AI Investment Rating</p>
+            <p className="text-[22px] font-black text-text-primary mt-0.5">Strong {isPos ? "Buy" : "Hold"}</p>
           </div>
           <div className="text-[52px] font-black text-violet-400">{Math.round((n2(stock.roe) + stock.gov_score) / 2)}</div>
         </div>
@@ -1326,15 +1326,15 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
   if (loaded && articles.length === 0 && historical.length === 0) return null;
 
   return (
-    <SectionCard title="Latest Intelligence" action={<Link href="/newsroom" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>}>
+    <SectionCard title="Latest Intelligence" action={<Link href="/newsroom" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>}>
       {!loaded ? (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/[0.03]" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-24 animate-pulse rounded-2xl bg-text-primary/[0.03]" />)}
         </div>
       ) : (
         <>
           {campaignCount > 0 && (
-            <p className="mt-3 text-[11px] text-slate-500">
+            <p className="mt-3 text-[11px] text-text-muted">
               {stock.symbol} is covered across {campaignCount} publishing {campaignCount === 1 ? "campaign" : "campaigns"}.
             </p>
           )}
@@ -1342,24 +1342,24 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {articles.map(a => (
                 <Link key={a.slug} href={`/newsroom/article/${a.slug}` as any}
-                  className="group flex flex-col justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 hover:-translate-y-0.5 hover:border-sky-400/20 transition-all">
+                  className="group flex flex-col justify-between rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-4 hover:-translate-y-0.5 hover:border-sky-400/20 transition-all">
                   <div>
-                    <span className="text-[9px] uppercase tracking-widest text-slate-500">{ARTICLE_TYPE_TAG[a.article_type] ?? a.article_type}</span>
-                    <p className="mt-1 text-[13px] font-bold leading-snug text-white line-clamp-2 group-hover:text-sky-200 transition">{a.headline}</p>
+                    <span className="text-[9px] uppercase tracking-widest text-text-muted">{ARTICLE_TYPE_TAG[a.article_type] ?? a.article_type}</span>
+                    <p className="mt-1 text-[13px] font-bold leading-snug text-text-primary line-clamp-2 group-hover:text-sky-700 dark:text-sky-200 transition">{a.headline}</p>
                   </div>
-                  {a.key_takeaway && <p className="mt-2 text-[11px] text-slate-500 line-clamp-2">{a.key_takeaway}</p>}
+                  {a.key_takeaway && <p className="mt-2 text-[11px] text-text-muted line-clamp-2">{a.key_takeaway}</p>}
                 </Link>
               ))}
             </div>
           )}
           {historical.length > 0 && (
-            <div className="mt-4 border-t border-white/[0.05] pt-4">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-600">Historical Coverage</p>
+            <div className="mt-4 border-t border-surface-border/5 pt-4">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">Historical Coverage</p>
               <div className="space-y-1.5">
                 {historical.slice(0, 4).map((h, i) => (
                   <div key={i} className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400 line-clamp-1">{h.event}</span>
-                    <span className="shrink-0 text-slate-600 ml-2">{h.date}</span>
+                    <span className="text-text-secondary line-clamp-1">{h.event}</span>
+                    <span className="shrink-0 text-text-muted ml-2">{h.date}</span>
                   </div>
                 ))}
               </div>
@@ -1374,24 +1374,24 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
 // ── Section 21: Economic Calendar ─────────────────────────────────────────────
 function EconomicCalendarSection({ stock }: { stock: StockDetail }) {
   const events = [
-    { date: "15 Jul", title: "Q1 Results",        type: "results",  color: "bg-sky-500/20 text-sky-300" },
-    { date: "05 Aug", title: "RBI Policy",         type: "rbi",      color: "bg-violet-500/20 text-violet-300" },
-    { date: "10 Aug", title: "Dividend Ex-Date",   type: "dividend", color: "bg-emerald-500/20 text-emerald-300" },
-    { date: "30 Sep", title: "Budget Review",      type: "budget",   color: "bg-amber-500/20 text-amber-300" },
-    { date: "15 Oct", title: "Q2 Results",         type: "results",  color: "bg-sky-500/20 text-sky-300" },
+    { date: "15 Jul", title: "Q1 Results",        type: "results",  color: "bg-sky-500/20 text-sky-600 dark:text-sky-300" },
+    { date: "05 Aug", title: "RBI Policy",         type: "rbi",      color: "bg-violet-500/20 text-violet-600 dark:text-violet-300" },
+    { date: "10 Aug", title: "Dividend Ex-Date",   type: "dividend", color: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" },
+    { date: "30 Sep", title: "Budget Review",      type: "budget",   color: "bg-amber-500/20 text-amber-600 dark:text-amber-300" },
+    { date: "15 Oct", title: "Q2 Results",         type: "results",  color: "bg-sky-500/20 text-sky-600 dark:text-sky-300" },
   ];
   return (
     <SectionCard title="Upcoming Catalysts">
       <div className="mt-4 space-y-2">
         {events.map((e, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] px-3 py-2.5">
+          <div key={i} className="flex items-center gap-3 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2.5">
             <div className={`flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl ${e.color}`}>
               <span className="text-[9px] font-bold leading-none">{e.date.split(" ")[1]}</span>
               <span className="text-[10px] font-black leading-none">{e.date.split(" ")[0]}</span>
             </div>
             <div>
-              <p className="text-[12px] font-semibold text-white">{e.title}</p>
-              <p className="text-[10px] capitalize text-slate-500">{e.type}</p>
+              <p className="text-[12px] font-semibold text-text-primary">{e.title}</p>
+              <p className="text-[10px] capitalize text-text-muted">{e.type}</p>
             </div>
           </div>
         ))}
@@ -1416,17 +1416,17 @@ function SimilarCompanies({ stock }: { stock: StockDetail }) {
       <div className="mt-4 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
         {stock.peers.slice(0, 5).map((p, i) => (
           <Link key={p} href={`/companies/${p}`}
-            className="group flex min-w-[160px] flex-col gap-2 rounded-2xl border border-white/[0.06] bg-slate-900/50 p-4 hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
+            className="group flex min-w-[160px] flex-col gap-2 rounded-2xl border border-surface-border/6 bg-surface-card p-4 hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 to-violet-500/10 text-[11px] font-bold text-slate-300">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 to-violet-500/10 text-[11px] font-bold text-text-secondary">
                 {p.slice(0, 2)}
               </div>
               <div className="min-w-0">
-                <p className="text-[12px] font-bold text-white group-hover:text-sky-300 transition truncate">{p}</p>
+                <p className="text-[12px] font-bold text-text-primary group-hover:text-sky-600 dark:text-sky-300 transition truncate">{p}</p>
                 <p className="text-[10px] text-emerald-400">{similarities[i] || 78}% similar</p>
               </div>
             </div>
-            <p className="text-[10px] text-slate-500 leading-snug">{reasons[i] || "Sector peer"}</p>
+            <p className="text-[10px] text-text-muted leading-snug">{reasons[i] || "Sector peer"}</p>
             <p className="mt-auto text-[10px] text-sky-400">Compare →</p>
           </Link>
         ))}
@@ -1438,24 +1438,24 @@ function SimilarCompanies({ stock }: { stock: StockDetail }) {
 // ── Section 23: Documents ──────────────────────────────────────────────────────
 function Documents({ stock }: { stock: StockDetail }) {
   const docs: { title: string; type: string; icon: React.ReactNode; size: string }[] = [
-    { title: "Annual Report FY24",         type: "PDF",  icon: <FileText className="h-5 w-5 text-slate-400" />,  size: "4.2 MB" },
-    { title: "Q4 Investor Presentation",   type: "PDF",  icon: <BarChart2 className="h-5 w-5 text-slate-400" />, size: "2.1 MB" },
-    { title: "Concall Transcript Q4",      type: "PDF",  icon: <Mic className="h-5 w-5 text-slate-400" />,       size: "890 KB" },
-    { title: "Exchange Filing (NSE)",      type: "PDF",  icon: <Landmark className="h-5 w-5 text-slate-400" />,  size: "1.3 MB" },
-    { title: "Sustainability Report 2024", type: "PDF",  icon: <Leaf className="h-5 w-5 text-slate-400" />,      size: "3.8 MB" },
-    { title: "Quarterly Results Q4 FY24",  type: "XLSX", icon: <FileStack className="h-5 w-5 text-slate-400" />, size: "540 KB" },
+    { title: "Annual Report FY24",         type: "PDF",  icon: <FileText className="h-5 w-5 text-text-secondary" />,  size: "4.2 MB" },
+    { title: "Q4 Investor Presentation",   type: "PDF",  icon: <BarChart2 className="h-5 w-5 text-text-secondary" />, size: "2.1 MB" },
+    { title: "Concall Transcript Q4",      type: "PDF",  icon: <Mic className="h-5 w-5 text-text-secondary" />,       size: "890 KB" },
+    { title: "Exchange Filing (NSE)",      type: "PDF",  icon: <Landmark className="h-5 w-5 text-text-secondary" />,  size: "1.3 MB" },
+    { title: "Sustainability Report 2024", type: "PDF",  icon: <Leaf className="h-5 w-5 text-text-secondary" />,      size: "3.8 MB" },
+    { title: "Quarterly Results Q4 FY24",  type: "XLSX", icon: <FileStack className="h-5 w-5 text-text-secondary" />, size: "540 KB" },
   ];
   return (
     <SectionCard title="Documents & Reports">
       <div className="mt-4 grid grid-cols-2 gap-3">
         {docs.map((d, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3 hover:border-sky-400/10 hover:bg-white/[0.03] transition cursor-pointer">
-            <span className="shrink-0 text-slate-400">{d.icon}</span>
+          <div key={i} className="flex items-center gap-3 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-3 hover:border-sky-400/10 hover:bg-text-primary/[0.03] transition cursor-pointer">
+            <span className="shrink-0 text-text-secondary">{d.icon}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium text-white truncate">{d.title}</p>
-              <p className="text-[10px] text-slate-600">{d.type} · {d.size}</p>
+              <p className="text-[11px] font-medium text-text-primary truncate">{d.title}</p>
+              <p className="text-[10px] text-text-muted">{d.type} · {d.size}</p>
             </div>
-            <button className="shrink-0 text-[10px] text-sky-400 hover:text-sky-300 transition">↓</button>
+            <button className="shrink-0 text-[10px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">↓</button>
           </div>
         ))}
       </div>
@@ -1480,19 +1480,19 @@ function AskAI({ stock }: { stock: StockDetail }) {
         <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
           <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
         </div>
-        <h2 className="text-[15px] font-bold text-white">Ask AI About {stock.name.split(" ")[0]}</h2>
+        <h2 className="text-[15px] font-bold text-text-primary">Ask AI About {stock.name.split(" ")[0]}</h2>
       </div>
-      <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 focus-within:border-violet-500/30 transition">
-        <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 text-slate-500"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
+      <div className="flex items-center gap-3 rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-3 focus-within:border-violet-500/30 transition">
+        <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 text-text-muted"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
         <input value={q} onChange={e => setQ(e.target.value)}
           placeholder={`Ask anything about ${stock.symbol}...`}
-          className="flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-slate-600"/>
-        {q && <button className="shrink-0 rounded-xl bg-violet-500/20 px-3 py-1.5 text-[12px] text-violet-300 hover:bg-violet-500/30 transition">Ask →</button>}
+          className="flex-1 bg-transparent text-[13px] text-text-primary outline-none placeholder:text-text-muted"/>
+        {q && <button className="shrink-0 rounded-xl bg-violet-500/20 px-3 py-1.5 text-[12px] text-violet-600 dark:text-violet-300 hover:bg-violet-500/30 transition">Ask →</button>}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {suggestions.map((s, i) => (
           <button key={i} onClick={() => setQ(s)}
-            className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1 text-[11px] text-slate-400 hover:border-violet-500/30 hover:text-violet-300 transition">
+            className="rounded-full border border-surface-border/6 bg-text-primary/[0.02] px-3 py-1 text-[11px] text-text-secondary hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300 transition">
             {s}
           </button>
         ))}
@@ -1520,7 +1520,7 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
 
       {/* Quick Stats */}
       <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-slate-500">Quick Stats</h3>
+        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Quick Stats</h3>
         <div className="space-y-0">
           <KvRow label="Market Cap"        value={stock.market_cap}/>
           <KvRow label="Enterprise Value"  value={stock.enterprise_value}/>
@@ -1533,41 +1533,41 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
           <KvRow label="52W High"          value={`₹${stock.week52_high}`}/>
           <KvRow label="52W Low"           value={`₹${stock.week52_low}`}/>
         </div>
-        <button className="mt-3 w-full text-center text-[11px] text-sky-400 hover:text-sky-300 transition">View More →</button>
+        <button className="mt-3 w-full text-center text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View More →</button>
       </div>
 
       {/* AI Rating */}
       <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-slate-500">AI Rating</h3>
+        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">AI Rating</h3>
         <div className="flex flex-col items-center py-3">
           <div className="relative h-24 w-24">
             <svg className="h-24 w-24" style={{ transform: "rotate(-90deg)" }} viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="30" stroke="rgba(255,255,255,0.06)" strokeWidth={6} fill="none"/>
+              <circle cx="40" cy="40" r="30" stroke="rgb(var(--text-primary) / 0.08)" strokeWidth={6} fill="none"/>
               <circle cx="40" cy="40" r="30" stroke={col} strokeWidth={6} fill="none"
                 strokeLinecap="round" strokeDasharray={`${(ai_score / 100) * 2 * Math.PI * 30} ${2 * Math.PI * 30}`}
                 style={{ filter: `drop-shadow(0 0 6px ${col}80)` }}/>
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-[22px] font-black" style={{ color: col }}>{ai_score}</span>
-              <span className="text-[8px] text-slate-500">/ 100</span>
+              <span className="text-[8px] text-text-muted">/ 100</span>
             </div>
           </div>
-          <p className="mt-2 text-[13px] font-bold text-white">{rec_label}</p>
-          <p className="text-[10px] text-slate-500">AI Investment Rating</p>
+          <p className="mt-2 text-[13px] font-bold text-text-primary">{rec_label}</p>
+          <p className="text-[10px] text-text-muted">AI Investment Rating</p>
         </div>
       </div>
 
       {/* Event Alerts */}
       {stock.events.length > 0 && (
         <div className={`${CARD} p-5`}>
-          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-slate-500">Event Alerts</h3>
+          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Event Alerts</h3>
           <div className="space-y-2">
             {stock.events.slice(0, 3).map((e, i) => (
-              <div key={i} className="flex items-start gap-2 rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
+              <div key={i} className="flex items-start gap-2 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-2.5">
                 <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400"/>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-white line-clamp-2">{e.title}</p>
-                  <p className="text-[9px] text-slate-600 mt-0.5">{e.date}</p>
+                  <p className="text-[11px] font-medium text-text-primary line-clamp-2">{e.title}</p>
+                  <p className="text-[9px] text-text-muted mt-0.5">{e.date}</p>
                 </div>
               </div>
             ))}
@@ -1577,7 +1577,7 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
 
       {/* Top Risks */}
       <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-slate-500">Top Risks</h3>
+        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Top Risks</h3>
         <div className="space-y-2">
           {[
             { text: "Execution & delivery risk", sev: 72 },
@@ -1586,10 +1586,10 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
           ].map((r, i) => (
             <div key={i} className="rounded-xl border border-rose-500/10 bg-rose-500/[0.04] p-2.5">
               <div className="flex justify-between mb-1">
-                <p className="text-[11px] text-slate-300">{r.text}</p>
+                <p className="text-[11px] text-text-secondary">{r.text}</p>
                 <span className="text-[10px] font-bold text-rose-400">{r.sev}</span>
               </div>
-              <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
                 <div className="h-full rounded-full bg-rose-500" style={{ width: `${r.sev}%` }}/>
               </div>
             </div>
@@ -1599,7 +1599,7 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
 
       {/* Top Opportunities */}
       <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-slate-500">Top Opportunities</h3>
+        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Top Opportunities</h3>
         <div className="space-y-2">
           {[
             { text: `${stock.sector} sector expansion`, sc: 88 },
@@ -1608,10 +1608,10 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
           ].map((o, i) => (
             <div key={i} className="rounded-xl border border-emerald-500/10 bg-emerald-500/[0.04] p-2.5">
               <div className="flex justify-between mb-1">
-                <p className="text-[11px] text-slate-300">{o.text}</p>
+                <p className="text-[11px] text-text-secondary">{o.text}</p>
                 <span className="text-[10px] font-bold text-emerald-400">{o.sc}</span>
               </div>
-              <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
                 <div className="h-full rounded-full bg-emerald-500" style={{ width: `${o.sc}%` }}/>
               </div>
             </div>
@@ -1621,15 +1621,15 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
 
       {/* Quick Actions */}
       <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-slate-500">Quick Actions</h3>
+        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Quick Actions</h3>
         <div className="space-y-1.5">
           {recommendations.map(a => (
-            <button key={a.label} className="flex w-full items-center justify-between rounded-xl border border-white/[0.05] bg-white/[0.02] px-3 py-2.5 hover:border-sky-400/20 hover:bg-white/[0.04] transition">
+            <button key={a.label} className="flex w-full items-center justify-between rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2.5 hover:border-sky-400/20 hover:bg-text-primary/[0.04] transition">
               <div className="flex items-center gap-2">
-                <span className="text-slate-400">{a.icon}</span>
-                <span className="text-[12px] text-slate-300">{a.label}</span>
+                <span className="text-text-secondary">{a.icon}</span>
+                <span className="text-[12px] text-text-secondary">{a.label}</span>
               </div>
-              <svg className="h-3.5 w-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-3.5 w-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
               </svg>
             </button>
@@ -1639,12 +1639,12 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
 
       {/* Export */}
       <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-slate-500">Export</h3>
+        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Export</h3>
         <div className="grid grid-cols-3 gap-2">
-          {([{ l: "PDF", i: <FileText className="h-4 w-4 text-slate-400" /> }, { l: "Share", i: <Share2 className="h-4 w-4 text-slate-400" /> }, { l: "Copy", i: <Copy className="h-4 w-4 text-slate-400" /> }] as { l: string; i: React.ReactNode }[]).map(e => (
-            <button key={e.l} className="flex flex-col items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] py-2.5 hover:border-sky-400/20 hover:bg-white/[0.04] transition">
-              <span className="text-slate-400">{e.i}</span>
-              <span className="text-[10px] text-slate-400">{e.l}</span>
+          {([{ l: "PDF", i: <FileText className="h-4 w-4 text-text-secondary" /> }, { l: "Share", i: <Share2 className="h-4 w-4 text-text-secondary" /> }, { l: "Copy", i: <Copy className="h-4 w-4 text-text-secondary" /> }] as { l: string; i: React.ReactNode }[]).map(e => (
+            <button key={e.l} className="flex flex-col items-center gap-1 rounded-xl border border-surface-border/6 bg-text-primary/[0.02] py-2.5 hover:border-sky-400/20 hover:bg-text-primary/[0.04] transition">
+              <span className="text-text-secondary">{e.i}</span>
+              <span className="text-[10px] text-text-secondary">{e.l}</span>
             </button>
           ))}
         </div>
@@ -1674,7 +1674,7 @@ function TopLoader({ active }: { active: boolean }) {
 // ── Section Placeholder (while deferred sections haven't mounted yet) ─────────
 function SectionSkel({ h = 180 }: { h?: number }) {
   return (
-    <div className="animate-pulse rounded-[28px] border border-white/[0.05] bg-white/[0.03]"
+    <div className="animate-pulse rounded-[28px] border border-surface-border/5 bg-text-primary/[0.03]"
       style={{ height: h }}/>
   );
 }
@@ -1685,49 +1685,49 @@ function PageSkeleton() {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
       <div className="space-y-6 animate-pulse">
         {/* Hero */}
-        <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.04] p-6">
+        <div className="rounded-[28px] border border-surface-border/6 bg-text-primary/[0.04] p-6">
           <div className="flex items-start gap-4">
-            <div className="h-14 w-14 shrink-0 rounded-2xl bg-white/[0.06]"/>
+            <div className="h-14 w-14 shrink-0 rounded-2xl bg-text-primary/[0.06]"/>
             <div className="flex-1 space-y-2.5">
-              <div className="h-7 w-56 rounded-xl bg-white/[0.06]"/>
+              <div className="h-7 w-56 rounded-xl bg-text-primary/[0.06]"/>
               <div className="flex gap-2">
-                {[20, 16, 24].map(w => <div key={w} className="h-5 rounded-md bg-white/[0.04]" style={{ width: `${w * 4}px` }}/>)}
+                {[20, 16, 24].map(w => <div key={w} className="h-5 rounded-md bg-text-primary/[0.04]" style={{ width: `${w * 4}px` }}/>)}
               </div>
             </div>
           </div>
           <div className="mt-5 flex items-baseline gap-3">
-            <div className="h-10 w-36 rounded-xl bg-white/[0.06]"/>
-            <div className="h-6 w-28 rounded-lg bg-white/[0.04]"/>
+            <div className="h-10 w-36 rounded-xl bg-text-primary/[0.06]"/>
+            <div className="h-6 w-28 rounded-lg bg-text-primary/[0.04]"/>
           </div>
           <div className="mt-4 grid grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-2xl bg-white/[0.04]"/>)}
+            {[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-2xl bg-text-primary/[0.04]"/>)}
           </div>
         </div>
         {/* Chart */}
-        <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.04] p-6">
+        <div className="rounded-[28px] border border-surface-border/6 bg-text-primary/[0.04] p-6">
           <div className="mb-4 flex items-center justify-between">
-            <div className="h-5 w-24 rounded-lg bg-white/[0.06]"/>
-            <div className="h-8 w-60 rounded-xl bg-white/[0.04]"/>
+            <div className="h-5 w-24 rounded-lg bg-text-primary/[0.06]"/>
+            <div className="h-8 w-60 rounded-xl bg-text-primary/[0.04]"/>
           </div>
-          <div className="flex h-[260px] items-center justify-center rounded-2xl bg-white/[0.03]">
-            <div className="flex items-center gap-2 text-slate-700 text-sm">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-slate-400"/>
+          <div className="flex h-[260px] items-center justify-center rounded-2xl bg-text-primary/[0.03]">
+            <div className="flex items-center gap-2 text-text-muted text-sm">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-surface-border/10 border-t-slate-400"/>
               Loading chart…
             </div>
           </div>
           <div className="mt-4 grid grid-cols-6 gap-3">
-            {[...Array(6)].map((_, i) => <div key={i} className="h-9 rounded-xl bg-white/[0.03]"/>)}
+            {[...Array(6)].map((_, i) => <div key={i} className="h-9 rounded-xl bg-text-primary/[0.03]"/>)}
           </div>
         </div>
         {/* Remaining section skeletons */}
         {[160, 220, 200, 340, 180, 260].map((h, i) => (
-          <div key={i} className="rounded-[28px] border border-white/[0.05] bg-white/[0.03]" style={{ height: h }}/>
+          <div key={i} className="rounded-[28px] border border-surface-border/5 bg-text-primary/[0.03]" style={{ height: h }}/>
         ))}
       </div>
       {/* RIGHT panel */}
       <div className="space-y-5 animate-pulse lg:sticky lg:top-[88px]">
         {[200, 170, 160, 150, 160, 110].map((h, i) => (
-          <div key={i} className="rounded-[28px] border border-white/[0.05] bg-white/[0.03]" style={{ height: h }}/>
+          <div key={i} className="rounded-[28px] border border-surface-border/5 bg-text-primary/[0.03]" style={{ height: h }}/>
         ))}
       </div>
     </div>
@@ -1807,10 +1807,10 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
 
   if (!stock) return (
     <main className="min-w-0 flex flex-col items-center justify-center gap-4 py-24 text-center">
-      <TrendingDown className="h-16 w-16 text-slate-500" />
-      <h1 className="text-2xl font-semibold text-white">{symbol.toUpperCase()} not found</h1>
-      <p className="text-slate-400">Not listed on NSE or backend offline.</p>
-      <Link href="/companies" className="mt-2 rounded-full bg-sky-500/15 px-5 py-2 text-sm text-sky-300 hover:bg-sky-500/25 transition">← Back to Companies</Link>
+      <TrendingDown className="h-16 w-16 text-text-muted" />
+      <h1 className="text-2xl font-semibold text-text-primary">{symbol.toUpperCase()} not found</h1>
+      <p className="text-text-secondary">Not listed on NSE or backend offline.</p>
+      <Link href="/companies" className="mt-2 rounded-full bg-sky-500/15 px-5 py-2 text-sm text-sky-600 dark:text-sky-300 hover:bg-sky-500/25 transition">← Back to Companies</Link>
     </main>
   );
 
@@ -1838,22 +1838,22 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
               <AISummary stock={stock}/>
 
               {/* ── Investment Intelligence — collapsed by default ──────────── */}
-              <div className="overflow-hidden rounded-[20px] border border-white/[0.06] bg-white/[0.01]">
+              <div className="overflow-hidden rounded-[20px] border border-surface-border/6 bg-text-primary/[0.01]">
                 <button
                   onClick={() => setIntelOpen(o => !o)}
-                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03]"
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-text-primary/[0.03]"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-bold text-white">Investment Intelligence</p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">Thesis · Scenarios · Opportunity stage · Monitoring · Patterns</p>
+                    <p className="text-[15px] font-bold text-text-primary">Investment Intelligence</p>
+                    <p className="mt-0.5 text-[11px] text-text-muted">Thesis · Scenarios · Opportunity stage · Monitoring · Patterns</p>
                   </div>
-                  <svg className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${intelOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${intelOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
                   </svg>
                 </button>
 
                 {intelOpen && (
-                  <div className="space-y-4 border-t border-white/[0.06] p-4">
+                  <div className="space-y-4 border-t border-surface-border/6 p-4">
                     {intelligence && (
                       <IntelligenceBlock data={intelligence} label={`${stock.name} Intelligence`} compact={false} />
                     )}

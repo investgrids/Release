@@ -9,7 +9,7 @@ export function HomeIntelligenceBlock() {
   if (loading) {
     return (
       <div className="space-y-2">
-        <div className="h-14 animate-pulse rounded-2xl bg-white/[0.03]" />
+        <div className="h-14 animate-pulse rounded-2xl bg-text-primary/[0.03]" />
       </div>
     );
   }

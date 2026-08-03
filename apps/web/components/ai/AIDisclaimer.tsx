@@ -9,9 +9,9 @@ interface AIDisclaimerProps {
 export function AIDisclaimer({ compact = false, className = "" }: AIDisclaimerProps) {
   if (compact) {
     return (
-      <p className={`text-[10px] text-slate-600 leading-4 ${className}`} role="note">
+      <p className={`text-[10px] text-text-muted leading-4 ${className}`} role="note">
         AI-generated analysis. Not investment advice.{" "}
-        <Link href="/legal#disclaimer" className="underline hover:text-slate-400 transition">
+        <Link href="/legal#disclaimer" className="underline hover:text-text-secondary transition">
           Disclaimer
         </Link>
       </p>
@@ -25,10 +25,10 @@ export function AIDisclaimer({ compact = false, className = "" }: AIDisclaimerPr
       aria-label="AI disclaimer"
     >
       <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500/60" aria-hidden="true" />
-      <p className="text-[11px] text-slate-500 leading-5">
+      <p className="text-[11px] text-text-muted leading-5">
         AI-generated analysis is intended to assist research and should not be considered investment advice.
         Always perform your own due diligence before making investment decisions.{" "}
-        <Link href="/legal#disclaimer" className="text-slate-400 underline hover:text-slate-300 transition">
+        <Link href="/legal#disclaimer" className="text-text-secondary underline hover:text-text-secondary transition">
           Full disclaimer
         </Link>
       </p>

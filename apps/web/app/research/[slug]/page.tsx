@@ -16,7 +16,7 @@ import { safeJsonLd } from "@/lib/text";
  * and insights.py's _detail_row for exactly why).
  */
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://marketripple.in";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 interface EntityAnalysis {
   entity: string; symbol: string; sector: string; thesis: string;
@@ -76,7 +76,7 @@ function outlookColor(o: string) {
 }
 function advantageColor(a: string, side: "holding" | "target") {
   if (a === side) return "text-emerald-400 font-semibold";
-  return "text-slate-400";
+  return "text-text-secondary";
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -129,36 +129,36 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
           (headline, thesis, etc.) could close this tag early. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
-      <nav className="flex items-center gap-2 text-[12px] text-slate-500">
-        <Link href="/research/comparisons" className="hover:text-slate-300 transition">Research</Link>
+      <nav className="flex items-center gap-2 text-[12px] text-text-muted">
+        <Link href="/research/comparisons" className="hover:text-text-secondary transition">Research</Link>
         <span>/</span>
-        <span className="text-slate-400">{a.entity} vs {b.entity}</span>
+        <span className="text-text-secondary">{a.entity} vs {b.entity}</span>
       </nav>
 
       <div>
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400">AI Comparison Research</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-white">{article.headline}</h1>
+        <h1 className="mt-2 text-3xl font-black tracking-tight text-text-primary">{article.headline}</h1>
         {article.executive_summary && (
-          <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-slate-400">{article.executive_summary}</p>
+          <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-text-secondary">{article.executive_summary}</p>
         )}
-        <p className="mt-2 text-[11px] text-slate-600">Not investment advice — research framing only.</p>
+        <p className="mt-2 text-[11px] text-text-muted">Not investment advice — research framing only.</p>
       </div>
 
       {/* Side-by-side entity analysis */}
       <div className="grid gap-4 sm:grid-cols-2">
         {[a, b].map((e, i) => (
-          <div key={i} className="rounded-[20px] border border-white/[0.08] bg-[#0c1422] p-5">
+          <div key={i} className="rounded-[20px] border border-surface-border/8 bg-surface-card p-5">
             <div className="flex items-center justify-between">
-              <Link href={`/companies/${e.symbol}`} className="text-[17px] font-bold text-white hover:text-sky-300 transition">{e.entity}</Link>
+              <Link href={`/companies/${e.symbol}`} className="text-[17px] font-bold text-text-primary hover:text-sky-600 dark:text-sky-300 transition">{e.entity}</Link>
               <span className={`text-[12px] font-semibold uppercase ${outlookColor(e.near_term_outlook)}`}>{e.near_term_outlook}</span>
             </div>
-            {e.sector && <p className="mt-0.5 text-[11px] text-slate-500">{e.sector}</p>}
-            {e.thesis && <p className="mt-3 text-[13px] leading-relaxed text-slate-300">{e.thesis}</p>}
+            {e.sector && <p className="mt-0.5 text-[11px] text-text-muted">{e.sector}</p>}
+            {e.thesis && <p className="mt-3 text-[13px] leading-relaxed text-text-secondary">{e.thesis}</p>}
             {e.strengths?.length > 0 && (
               <div className="mt-3">
                 <p className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold mb-1">Strengths</p>
                 <ul className="space-y-1">
-                  {e.strengths.filter(Boolean).map((s, j) => <li key={j} className="text-[12px] text-slate-400">• {s}</li>)}
+                  {e.strengths.filter(Boolean).map((s, j) => <li key={j} className="text-[12px] text-text-secondary">• {s}</li>)}
                 </ul>
               </div>
             )}
@@ -166,7 +166,7 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
               <div className="mt-3">
                 <p className="text-[10px] uppercase tracking-wider text-rose-400 font-semibold mb-1">Risks</p>
                 <ul className="space-y-1">
-                  {e.risks.filter(Boolean).map((s, j) => <li key={j} className="text-[12px] text-slate-400">• {s}</li>)}
+                  {e.risks.filter(Boolean).map((s, j) => <li key={j} className="text-[12px] text-text-secondary">• {s}</li>)}
                 </ul>
               </div>
             )}
@@ -177,20 +177,20 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
       {/* Dimension-by-dimension comparison table */}
       {di.comparison?.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[15px] font-semibold text-white">Dimension-by-Dimension Comparison</h2>
-          <div className="overflow-x-auto rounded-[16px] border border-white/[0.08]">
+          <h2 className="mb-3 text-[15px] font-semibold text-text-primary">Dimension-by-Dimension Comparison</h2>
+          <div className="overflow-x-auto rounded-[16px] border border-surface-border/8">
             <table className="w-full min-w-[560px] text-[13px]">
               <thead>
-                <tr className="border-b border-white/[0.08] bg-white/[0.02]">
-                  <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-slate-500">Dimension</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-slate-500">{a.entity}</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-slate-500">{b.entity}</th>
+                <tr className="border-b border-surface-border/8 bg-text-primary/[0.02]">
+                  <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-text-muted">Dimension</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-text-muted">{a.entity}</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] uppercase tracking-wider text-text-muted">{b.entity}</th>
                 </tr>
               </thead>
               <tbody>
                 {di.comparison.filter(r => r.dimension).map((r, i) => (
-                  <tr key={i} className="border-b border-white/[0.05] last:border-0">
-                    <td className="px-4 py-2.5 text-slate-300">{r.dimension}</td>
+                  <tr key={i} className="border-b border-surface-border/5 last:border-0">
+                    <td className="px-4 py-2.5 text-text-secondary">{r.dimension}</td>
                     <td className={`px-4 py-2.5 ${advantageColor(r.advantage, "holding")}`}>{r.holding}</td>
                     <td className={`px-4 py-2.5 ${advantageColor(r.advantage, "target")}`}>{r.target}</td>
                   </tr>
@@ -207,13 +207,13 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
           <div className="rounded-[16px] border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
             <p className="mb-2 text-[11px] uppercase tracking-wider text-emerald-400 font-semibold">Case For {b.entity}</p>
             <ul className="space-y-1.5">
-              {(di.tradeoff.reasons_to_switch || []).filter(Boolean).map((s, i) => <li key={i} className="text-[12.5px] text-slate-300">• {s}</li>)}
+              {(di.tradeoff.reasons_to_switch || []).filter(Boolean).map((s, i) => <li key={i} className="text-[12.5px] text-text-secondary">• {s}</li>)}
             </ul>
           </div>
           <div className="rounded-[16px] border border-sky-500/15 bg-sky-500/[0.04] p-4">
             <p className="mb-2 text-[11px] uppercase tracking-wider text-sky-400 font-semibold">Case For {a.entity}</p>
             <ul className="space-y-1.5">
-              {(di.tradeoff.reasons_to_hold || []).filter(Boolean).map((s, i) => <li key={i} className="text-[12.5px] text-slate-300">• {s}</li>)}
+              {(di.tradeoff.reasons_to_hold || []).filter(Boolean).map((s, i) => <li key={i} className="text-[12.5px] text-text-secondary">• {s}</li>)}
             </ul>
           </div>
         </div>
@@ -223,17 +223,17 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
       {di.decision_framework?.ai_stance && (
         <div className="rounded-[16px] border border-violet-500/20 bg-violet-500/[0.04] px-5 py-4">
           <p className="text-[11px] uppercase tracking-wider text-violet-400 font-semibold mb-1.5">Research Framing</p>
-          <p className="text-[13.5px] leading-relaxed text-slate-200">{di.decision_framework.ai_stance}</p>
+          <p className="text-[13.5px] leading-relaxed text-text-primary">{di.decision_framework.ai_stance}</p>
           {di.decision_framework.key_unknowns?.filter(Boolean).length > 0 && (
-            <p className="mt-2 text-[11.5px] text-slate-500">
+            <p className="mt-2 text-[11.5px] text-text-muted">
               Key unknowns: {di.decision_framework.key_unknowns.filter(Boolean).join(" · ")}
             </p>
           )}
         </div>
       )}
 
-      <div className="rounded-[16px] border border-white/[0.07] bg-white/[0.02] px-5 py-4">
-        <p className="text-[13px] text-slate-300">
+      <div className="rounded-[16px] border border-surface-border/7 bg-text-primary/[0.02] px-5 py-4">
+        <p className="text-[13px] text-text-secondary">
           Want a personalized read?{" "}
           <AskAICta query={`${a.entity} vs ${b.entity}, which is better for 12 months?`} source="research_page" />
         </p>

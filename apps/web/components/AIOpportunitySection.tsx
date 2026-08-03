@@ -12,7 +12,7 @@ interface OpportunityRow {
 
 function TrendSparkline({ trend, seed }: { trend: string; seed: number }) {
   const up = trend === "up";
-  const color = up ? "#22c55e" : trend === "down" ? "#f43f5e" : "#64748b";
+  const color = up ? "#22c55e" : trend === "down" ? "#f43f5e" : "rgb(var(--text-muted))";
   const pts: number[] = [];
   let v = 50;
   for (let i = 0; i < 8; i++) {
@@ -30,10 +30,10 @@ function TrendSparkline({ trend, seed }: { trend: string; seed: number }) {
 
 function ScoreCircle({ score }: { score: number | null | undefined }) {
   const unscored = score === null || score === undefined;
-  const color = unscored ? "text-slate-500 ring-slate-700/30 bg-slate-800/20" :
-    score >= 85 ? "text-emerald-300 ring-emerald-500/30 bg-emerald-500/10" :
-    score >= 70 ? "text-sky-300 ring-sky-500/30 bg-sky-500/10" :
-    "text-amber-300 ring-amber-500/30 bg-amber-500/10";
+  const color = unscored ? "text-text-muted ring-surface-border/7 bg-text-primary/[0.05]" :
+    score >= 85 ? "text-emerald-600 dark:text-emerald-300 ring-emerald-500/30 bg-emerald-500/10" :
+    score >= 70 ? "text-sky-600 dark:text-sky-300 ring-sky-500/30 bg-sky-500/10" :
+    "text-amber-600 dark:text-amber-300 ring-amber-500/30 bg-amber-500/10";
   return (
     <div className={`flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-full ring-1 ${color} text-[13px] font-black`}>
       {unscored ? <span className="text-[9px]">N/A</span> : score}
@@ -49,7 +49,7 @@ function trendLabel(score: number | null | undefined) {
 
 export function AIOpportunitySection({ items }: { items: OpportunityRow[] }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-5 h-full">
+    <div className="rounded-xl border border-surface-border/7 bg-surface-card p-5 h-full">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/15">
@@ -59,13 +59,13 @@ export function AIOpportunitySection({ items }: { items: OpportunityRow[] }) {
               <line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/>
             </svg>
           </div>
-          <h2 className="text-[14px] font-bold text-white">AI Opportunity Radar</h2>
+          <h2 className="text-[14px] font-bold text-text-primary">AI Opportunity Radar</h2>
         </div>
-        <Link href="/opportunity-radar" className="text-[11px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <Link href="/opportunity-radar" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
       </div>
 
       {/* Table header */}
-      <div className="mb-2 grid grid-cols-[1fr_48px_52px] gap-3 border-b border-white/[0.06] pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+      <div className="mb-2 grid grid-cols-[1fr_48px_52px] gap-3 border-b border-surface-border/6 pb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
         <span>Opportunity</span>
         <span>Score</span>
         <span>Trend</span>
@@ -74,21 +74,21 @@ export function AIOpportunitySection({ items }: { items: OpportunityRow[] }) {
       <div className="space-y-1.5">
         {items.length === 0 && (
           <div className="flex flex-col items-center justify-center py-8">
-            <Target className="h-8 w-8 text-slate-500 mb-2" />
-            <p className="text-[12px] text-slate-500">No opportunities detected yet.</p>
+            <Target className="h-8 w-8 text-text-muted mb-2" />
+            <p className="text-[12px] text-text-muted">No opportunities detected yet.</p>
           </div>
         )}
         {items.slice(0, 6).map((item, i) => (
           <Link
             key={item.id}
             href={`/opportunity-radar/${item.id}`}
-            className="grid grid-cols-[1fr_48px_52px] items-center gap-3 rounded-2xl border border-white/[0.04] bg-white/[0.02] px-3 py-2.5 hover:border-violet-500/15 hover:bg-white/[0.04] transition"
+            className="grid grid-cols-[1fr_48px_52px] items-center gap-3 rounded-2xl border border-surface-border/4 bg-text-primary/[0.02] px-3 py-2.5 hover:border-violet-500/15 hover:bg-text-primary/[0.04] transition"
           >
             <div className="min-w-0">
-              <p className="text-[12px] font-semibold text-white line-clamp-1">{item.theme}</p>
+              <p className="text-[12px] font-semibold text-text-primary line-clamp-1">{item.theme}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="rounded-full bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-slate-500">{item.category}</span>
-                <span className={`text-[9px] font-medium ${item.score === null || item.score === undefined ? "text-slate-500" : item.score >= 85 ? "text-emerald-400" : item.score >= 70 ? "text-sky-400" : "text-amber-400"}`}>
+                <span className="rounded-full bg-text-primary/[0.04] px-1.5 py-0.5 text-[9px] text-text-muted">{item.category}</span>
+                <span className={`text-[9px] font-medium ${item.score === null || item.score === undefined ? "text-text-muted" : item.score >= 85 ? "text-emerald-400" : item.score >= 70 ? "text-sky-400" : "text-amber-400"}`}>
                   {trendLabel(item.score)}
                 </span>
               </div>

@@ -60,17 +60,17 @@ function trendColor(t: string) {
   return t.toLowerCase().includes("positive") ? "text-emerald-400" : "text-rose-400";
 }
 function impactColor(i: string) {
-  if (i === "Very High") return "text-rose-300";
-  if (i === "High")      return "text-amber-300";
-  return "text-slate-300";
+  if (i === "Very High") return "text-rose-600 dark:text-rose-300";
+  if (i === "High")      return "text-amber-600 dark:text-amber-300";
+  return "text-text-secondary";
 }
 
 const CHIP_COLORS = [
-  "bg-violet-500/20 text-violet-200 border-violet-500/25",
-  "bg-sky-500/20 text-sky-200 border-sky-500/25",
-  "bg-emerald-500/20 text-emerald-200 border-emerald-500/25",
-  "bg-amber-500/20 text-amber-200 border-amber-500/25",
-  "bg-rose-500/20 text-rose-200 border-rose-500/25",
+  "bg-violet-500/20 text-violet-700 dark:text-violet-200 border-violet-500/25",
+  "bg-sky-500/20 text-sky-700 dark:text-sky-200 border-sky-500/25",
+  "bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 border-emerald-500/25",
+  "bg-amber-500/20 text-amber-700 dark:text-amber-200 border-amber-500/25",
+  "bg-rose-500/20 text-rose-700 dark:text-rose-200 border-rose-500/25",
 ];
 
 // Returns [] (not a fabricated flat/synthetic line) when there's no real
@@ -88,27 +88,27 @@ function buildScoreHistory(score: number | null): { month: string; value: number
   }));
 }
 
-function StatCard({ label, value, sub, valueClass = "text-white" }: { label: string; value: string; sub?: string; valueClass?: string }) {
+function StatCard({ label, value, sub, valueClass = "text-text-primary" }: { label: string; value: string; sub?: string; valueClass?: string }) {
   return (
-    <div className="rounded-[16px] border border-white/10 bg-white/[0.03] p-4 text-center">
-      <p className="mb-1 text-[10px] uppercase tracking-widest text-slate-500">{label}</p>
+    <div className="rounded-[16px] border border-surface-border/10 bg-text-primary/[0.03] p-4 text-center">
+      <p className="mb-1 text-[10px] uppercase tracking-widest text-text-muted">{label}</p>
       <p className={`text-xl font-bold ${valueClass}`}>{value}</p>
-      {sub && <span className="mt-1 inline-block rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">{sub}</span>}
+      {sub && <span className="mt-1 inline-block rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] text-text-secondary">{sub}</span>}
     </div>
   );
 }
 
 function SectionCard({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-[20px] border border-white/10 bg-white/[0.03] p-5 ${className}`}>
-      {title && <h3 className="mb-4 text-[13px] font-semibold text-white">{title}</h3>}
+    <div className={`rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-5 ${className}`}>
+      {title && <h3 className="mb-4 text-[13px] font-semibold text-text-primary">{title}</h3>}
       {children}
     </div>
   );
 }
 
 function SkeletonBlock({ h = "h-4", w = "w-full" }: { h?: string; w?: string }) {
-  return <div className={`${h} ${w} animate-pulse rounded bg-white/[0.05]`} />;
+  return <div className={`${h} ${w} animate-pulse rounded bg-text-primary/[0.05]`} />;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -157,14 +157,14 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
 
   if (error || !detail) return (
     <div className="min-w-0 pb-12">
-      <div className="mb-5 flex items-center gap-2 text-[12px] text-slate-500">
-        <Link href="/opportunity-radar" className="hover:text-slate-300 transition">Opportunity Radar</Link>
-        <span>›</span><span className="text-slate-300">Not Found</span>
+      <div className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
+        <Link href="/opportunity-radar" className="hover:text-text-secondary transition">Opportunity Radar</Link>
+        <span>›</span><span className="text-text-secondary">Not Found</span>
       </div>
       <div className="rounded-[20px] border border-rose-500/20 bg-rose-500/5 p-8 text-center">
         <p className="text-rose-400 font-semibold">Opportunity not found</p>
-        <p className="mt-1 text-[12px] text-slate-500">{error ?? "The requested opportunity does not exist."}</p>
-        <Link href="/opportunity-radar" className="mt-4 inline-block rounded-xl bg-white/10 px-4 py-2 text-[13px] text-white hover:bg-white/15 transition">← Back to Radar</Link>
+        <p className="mt-1 text-[12px] text-text-muted">{error ?? "The requested opportunity does not exist."}</p>
+        <Link href="/opportunity-radar" className="mt-4 inline-block rounded-xl bg-text-primary/10 px-4 py-2 text-[13px] text-text-primary hover:bg-text-primary/15 transition">← Back to Radar</Link>
       </div>
     </div>
   );
@@ -186,10 +186,10 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
     <div className="min-w-0 pb-12">
       <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={score !== null ? `Score ${score}` : "Unscored"} href={`/opportunity-radar/${d.slug ?? d.id}`} />
       {/* Breadcrumb */}
-      <div className="mb-5 flex items-center gap-2 text-[12px] text-slate-500">
-        <Link href="/opportunity-radar" className="hover:text-slate-300 transition">Opportunity Radar</Link>
+      <div className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
+        <Link href="/opportunity-radar" className="hover:text-text-secondary transition">Opportunity Radar</Link>
         <span>›</span>
-        <span className="text-slate-300">{d.title}</span>
+        <span className="text-text-secondary">{d.title}</span>
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_280px]">
@@ -206,7 +206,7 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                     <>
                       <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/10 border border-emerald-500/30">
                         <span className="text-3xl font-black text-emerald-400">{score}</span>
-                        <span className="text-[9px] text-slate-500">/100</span>
+                        <span className="text-[9px] text-text-muted">/100</span>
                       </div>
                       <p className="mt-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-400">
                         {score >= 90 ? "Excellent" : score >= 80 ? "Strong" : "Good"} Opportunity
@@ -214,10 +214,10 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                     </>
                   ) : (
                     <>
-                      <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full border border-slate-700 bg-slate-800/30">
-                        <span className="text-[11px] font-medium text-slate-500">N/A</span>
+                      <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full border border-surface-border/10 bg-text-primary/[0.07]">
+                        <span className="text-[11px] font-medium text-text-muted">N/A</span>
                       </div>
-                      <p className="mt-1.5 rounded-full border border-slate-700/50 bg-slate-800/30 px-2 py-0.5 text-[9px] font-semibold text-slate-500">
+                      <p className="mt-1.5 rounded-full border border-surface-border/10 bg-text-primary/[0.07] px-2 py-0.5 text-[9px] font-semibold text-text-muted">
                         Insufficient Data
                       </p>
                     </>
@@ -229,9 +229,9 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                       case) — falls back to rendering it here too if that
                       fetch ever came back empty. */}
                   {initialDetail ? (
-                    <p className="text-2xl font-bold text-white">{d.title}</p>
+                    <p className="text-2xl font-bold text-text-primary">{d.title}</p>
                   ) : (
-                    <h1 className="text-2xl font-bold text-white">{d.title}</h1>
+                    <h1 className="text-2xl font-bold text-text-primary">{d.title}</h1>
                   )}
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {(d.sectors || []).map((s, i) => (
@@ -241,11 +241,11 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
-                <button className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12px] text-slate-300 hover:border-white/20 hover:text-white transition">
+                <button className="flex items-center gap-1.5 rounded-xl border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[12px] text-text-secondary hover:border-surface-border/20 hover:text-text-primary transition">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
                   Follow
                 </button>
-                <button className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12px] text-slate-300 hover:border-white/20 hover:text-white transition">
+                <button className="flex items-center gap-1.5 rounded-xl border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[12px] text-text-secondary hover:border-surface-border/20 hover:text-text-primary transition">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
                   Share
                 </button>
@@ -267,12 +267,12 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
           {d.primary_event && (
             <Link href={`/events/${d.primary_event.event_id}` as any}
               className="block rounded-[20px] border border-violet-500/15 bg-violet-500/[0.04] p-4 transition hover:border-violet-500/30">
-              <p className="mb-1 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-violet-300">
+              <p className="mb-1 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-violet-600 dark:text-violet-300">
                 <Zap className="h-3 w-3" /> Triggering Event
               </p>
-              <p className="text-[13px] font-semibold text-white">{d.primary_event.title}</p>
+              <p className="text-[13px] font-semibold text-text-primary">{d.primary_event.title}</p>
               {d.primary_event.description && (
-                <p className="mt-1 line-clamp-2 text-[11.5px] leading-5 text-slate-400">{d.primary_event.description}</p>
+                <p className="mt-1 line-clamp-2 text-[11.5px] leading-5 text-text-secondary">{d.primary_event.description}</p>
               )}
             </Link>
           )}
@@ -286,11 +286,11 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
           {/* Why + Score chart */}
           <div className="grid grid-cols-[1fr_1.3fr] gap-5">
             <SectionCard title="Why this opportunity exists">
-              <p className="mb-4 text-[13px] leading-6 text-slate-400">{d.summary}</p>
+              <p className="mb-4 text-[13px] leading-6 text-text-secondary">{d.summary}</p>
               {bullets.length > 0 && (
                 <ul className="space-y-2">
                   {bullets.map((b, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[12px] text-slate-300">
+                    <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary">
                       <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400"/>
                       {b}
                     </li>
@@ -303,7 +303,7 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
               <div className="mb-3 flex justify-end gap-1">
                 {(["1M","3M","6M","All"] as const).map(p => (
                   <button key={p} onClick={() => setPeriod(p)}
-                    className={`rounded px-2 py-0.5 text-[10px] font-medium transition ${p === period ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"}`}>
+                    className={`rounded px-2 py-0.5 text-[10px] font-medium transition ${p === period ? "bg-text-primary/10 text-text-primary" : "text-text-muted hover:text-text-secondary"}`}>
                     {p}
                   </button>
                 ))}
@@ -318,14 +318,14 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                           <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02}/>
                         </linearGradient>
                       </defs>
-                      <XAxis dataKey="month" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false}/>
-                      <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false}/>
-                      <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} itemStyle={{ color: "#22c55e" }} labelStyle={{ color: "#94a3b8" }}/>
+                      <XAxis dataKey="month" tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} axisLine={false} tickLine={false}/>
+                      <YAxis domain={[0, 100]} tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} axisLine={false} tickLine={false}/>
+                      <Tooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 10, fontSize: 11 }} itemStyle={{ color: "#22c55e" }} labelStyle={{ color: "#94a3b8" }}/>
                       <Area type="monotone" dataKey="value" stroke="#22c55e" fill="url(#scoreGrad)" strokeWidth={2} dot={{ fill: "#22c55e", r: 3 }}/>
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex h-full items-center justify-center text-[12px] text-slate-500">No score history available yet.</div>
+                  <div className="flex h-full items-center justify-center text-[12px] text-text-muted">No score history available yet.</div>
                 )}
               </div>
             </SectionCard>
@@ -340,28 +340,28 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                 <SectionCard title="Top Beneficiary Companies">
                   <table className="w-full text-[12px]">
                     <thead>
-                      <tr className="border-b border-white/5 text-[10px] uppercase tracking-wider text-slate-500">
+                      <tr className="border-b border-surface-border/5 text-[10px] uppercase tracking-wider text-text-muted">
                         <th className="pb-2 text-left">Company</th>
                         <th className="pb-2 text-center">Impact Score</th>
                         <th className="pb-2 text-center">Impact</th>
                         <th className="pb-2 text-center">Trend</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-surface-border/5">
                       {d.companies.map((c, i) => (
-                        <tr key={i} className="hover:bg-white/[0.02] transition">
+                        <tr key={i} className="hover:bg-text-primary/[0.02] transition">
                           <td className="py-2.5">
                             <Link href={`/companies/${c.symbol}`} className="flex items-center gap-2 hover:text-sky-400 transition">
                               <div className={`flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-bold ${CHIP_COLORS[i % CHIP_COLORS.length]}`}>
                                 {(c.company_name || c.symbol).slice(0, 2).toUpperCase()}
                               </div>
-                              <span className="text-slate-200">{c.company_name || c.symbol}</span>
+                              <span className="text-text-primary">{c.company_name || c.symbol}</span>
                             </Link>
                           </td>
-                          <td className="py-2.5 text-center font-semibold text-white">{c.impact_score !== null && c.impact_score !== undefined ? Math.round(c.impact_score) : "—"}</td>
+                          <td className="py-2.5 text-center font-semibold text-text-primary">{c.impact_score !== null && c.impact_score !== undefined ? Math.round(c.impact_score) : "—"}</td>
                           <td className={`py-2.5 text-center font-medium ${impactColor(c.impact_label)}`}>{c.impact_label}</td>
                           <td className="py-2.5 text-center">
-                            <span className={c.trend === "up" ? "text-emerald-400" : c.trend === "down" ? "text-rose-400" : "text-slate-400"}>
+                            <span className={c.trend === "up" ? "text-emerald-400" : c.trend === "down" ? "text-rose-400" : "text-text-secondary"}>
                               {c.trend === "up" ? "↑" : c.trend === "down" ? "↓" : "–"}
                             </span>
                           </td>
@@ -381,15 +381,15 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                       return (
                         <div key={i} className="flex gap-3">
                           <div className="w-10 shrink-0 text-center">
-                            <p className="text-[13px] font-bold text-white">{e.event_date?.slice(8) || "—"}</p>
-                            <p className="text-[10px] text-slate-500">{e.event_date?.slice(0, 7) || ""}</p>
+                            <p className="text-[13px] font-bold text-text-primary">{e.event_date?.slice(8) || "—"}</p>
+                            <p className="text-[10px] text-text-muted">{e.event_date?.slice(0, 7) || ""}</p>
                           </div>
-                          <div className="flex-1 border-l border-white/5 pl-3">
+                          <div className="flex-1 border-l border-surface-border/5 pl-3">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="text-[12px] font-medium text-white">{e.title}</p>
-                              {e.tag && <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[9px] text-slate-400">{e.tag}</span>}
+                              <p className="text-[12px] font-medium text-text-primary">{e.title}</p>
+                              {e.tag && <span className="shrink-0 rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[9px] text-text-secondary">{e.tag}</span>}
                             </div>
-                            <p className="text-[11px] text-slate-500">{e.description}</p>
+                            <p className="text-[11px] text-text-muted">{e.description}</p>
                           </div>
                         </div>
                       );
@@ -411,7 +411,7 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                           <Cell key={i} fill={s.color}/>
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 11 }} formatter={(v: any) => [`${v}%`]}/>
+                      <Tooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 10, fontSize: 11 }} formatter={(v: any) => [`${v}%`]}/>
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -420,9 +420,9 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                     <div key={s.sector} className="flex items-center justify-between text-[11px]">
                       <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full" style={{ background: s.color }}/>
-                        <span className="text-slate-400">{s.sector}</span>
+                        <span className="text-text-secondary">{s.sector}</span>
                       </div>
-                      <span className="font-medium text-white">{s.percentage}%</span>
+                      <span className="font-medium text-text-primary">{s.percentage}%</span>
                     </div>
                   ))}
                 </div>
@@ -437,18 +437,18 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                 {d.timeline.map((t, i) => (
                   <div key={i} className="relative flex-1">
                     {i < d.timeline.length - 1 && (
-                      <div className="absolute top-3.5 left-1/2 right-0 h-0.5 bg-white/10 z-0"/>
+                      <div className="absolute top-3.5 left-1/2 right-0 h-0.5 bg-text-primary/10 z-0"/>
                     )}
                     <div className="relative z-10 flex flex-col items-center text-center px-2">
                       <div className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-[11px] font-bold
                         ${t.status === "active" ? "border-sky-400 bg-sky-500/20 text-sky-400"
                          : t.status === "done"   ? "border-emerald-500 bg-emerald-500/20 text-emerald-400"
-                                                 : "border-white/15 bg-white/[0.03] text-slate-500"}`}>
+                                                 : "border-surface-border/15 bg-text-primary/[0.03] text-text-muted"}`}>
                         {t.status === "done" ? <Check className="h-3 w-3" /> : i + 1}
                       </div>
-                      <p className="mt-2 text-[11px] font-semibold leading-4 text-white">{t.phase}</p>
-                      {t.date_label && <p className="text-[10px] text-slate-500">{fixMojibake(t.date_label)}</p>}
-                      <p className="mt-1 text-[10px] leading-4 text-slate-500">{t.description}</p>
+                      <p className="mt-2 text-[11px] font-semibold leading-4 text-text-primary">{t.phase}</p>
+                      {t.date_label && <p className="text-[10px] text-text-muted">{fixMojibake(t.date_label)}</p>}
+                      <p className="mt-1 text-[10px] leading-4 text-text-muted">{t.description}</p>
                     </div>
                   </div>
                 ))}
@@ -463,13 +463,13 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
             <SectionCard title="Catalysts">
               <div className="space-y-2.5">
                 {d.catalysts.map((c, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+                  <div key={i} className="flex items-center gap-3 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-3">
                     <CalendarClock className="h-4 w-4 shrink-0 text-amber-400" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[12px] font-medium text-white">{fixMojibake(c.label)}</p>
-                      <p className="text-[10px] text-slate-500">{c.category} · {c.date}</p>
+                      <p className="text-[12px] font-medium text-text-primary">{fixMojibake(c.label)}</p>
+                      <p className="text-[10px] text-text-muted">{c.category} · {c.date}</p>
                     </div>
-                    <span className="shrink-0 text-[10px] font-semibold text-slate-400">in {c.days_until}d</span>
+                    <span className="shrink-0 text-[10px] font-semibold text-text-secondary">in {c.days_until}d</span>
                   </div>
                 ))}
               </div>
@@ -483,15 +483,15 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
           {d.historical_similarity && (
             <SectionCard title="Historical Similarity">
               <div className="flex items-center justify-between">
-                <p className="flex items-center gap-1.5 text-[13px] font-semibold text-white">
-                  <History className="h-3.5 w-3.5 text-slate-500" /> {d.historical_similarity.event_title}
+                <p className="flex items-center gap-1.5 text-[13px] font-semibold text-text-primary">
+                  <History className="h-3.5 w-3.5 text-text-muted" /> {d.historical_similarity.event_title}
                 </p>
-                <span className="shrink-0 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-300">
+                <span className="shrink-0 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-300">
                   {Math.round(d.historical_similarity.similarity)}% similar
                 </span>
               </div>
               {d.historical_similarity.key_lesson && (
-                <p className="mt-2 text-[12px] leading-5 text-slate-400">{d.historical_similarity.key_lesson}</p>
+                <p className="mt-2 text-[12px] leading-5 text-text-secondary">{d.historical_similarity.key_lesson}</p>
               )}
               {(d.historical_similarity.winners.length > 0 || d.historical_similarity.losers.length > 0) && (
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
@@ -512,8 +512,8 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                   { label: "Market Size Growth",   value: metrics.market_size        },
                   { label: "Investment Cycle",     value: metrics.investment_cycle   },
                 ].map(f => (
-                  <div key={f.label} className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-                    <p className="text-[10px] text-slate-500">{f.label}</p>
+                  <div key={f.label} className="rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-3">
+                    <p className="text-[10px] text-text-muted">{f.label}</p>
                     <p className="mt-1 text-[15px] font-bold text-sky-400">{fixMojibake(f.value) || "—"}</p>
                   </div>
                 ))}
@@ -528,16 +528,16 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
             <div className={`rounded-[20px] border p-5 ${
               d.investment_verdict.tone === "positive" ? "border-emerald-500/20 bg-emerald-500/[0.05]"
               : d.investment_verdict.tone === "negative" ? "border-rose-500/20 bg-rose-500/[0.05]"
-              : "border-white/[0.08] bg-white/[0.03]"
+              : "border-surface-border/8 bg-text-primary/[0.03]"
             }`}>
-              <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
+              <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-text-muted">
                 <Gauge className="h-3 w-3" /> Investment Verdict
               </p>
               <p className={`text-[20px] font-black ${
                 d.investment_verdict.tone === "positive" ? "text-emerald-400"
-                : d.investment_verdict.tone === "negative" ? "text-rose-400" : "text-slate-300"
+                : d.investment_verdict.tone === "negative" ? "text-rose-400" : "text-text-secondary"
               }`}>{d.investment_verdict.label}</p>
-              <p className="mt-1.5 text-[12px] text-slate-400">{d.investment_verdict.reasoning}</p>
+              <p className="mt-1.5 text-[12px] text-text-secondary">{d.investment_verdict.reasoning}</p>
             </div>
           )}
 
@@ -591,7 +591,7 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
           {/* AI Analysis */}
           <SectionCard>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[13px] font-semibold text-white">AI Analysis</h3>
+              <h3 className="text-[13px] font-semibold text-text-primary">AI Analysis</h3>
             </div>
             {ai ? (
               <div className="space-y-4">
@@ -599,18 +599,18 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                   { icon: <Lightbulb className="h-3.5 w-3.5 text-amber-400" />,     label: "Why it matters",             text: ai.matters,    risks: null },
                   { icon: <Building2 className="h-3.5 w-3.5 text-sky-400" />,       label: "Who benefits",               text: ai.benefits,   risks: null },
                   { icon: <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />,  label: "Key risks",                  text: null,          risks: ai.risks },
-                  { icon: <Ban className="h-3.5 w-3.5 text-slate-400" />,           label: "What could invalidate this", text: ai.invalidate, risks: null },
+                  { icon: <Ban className="h-3.5 w-3.5 text-text-secondary" />,           label: "What could invalidate this", text: ai.invalidate, risks: null },
                 ] as { icon: ReactNode; label: string; text: string | null; risks: string[] | null }[]).map((item, i) => (
                   <div key={i}>
                     <div className="mb-1 flex items-center gap-1.5">
                       {item.icon}
-                      <p className="text-[11px] font-semibold text-white">{item.label}</p>
+                      <p className="text-[11px] font-semibold text-text-primary">{item.label}</p>
                     </div>
-                    {item.text && <p className="text-[11px] leading-5 text-slate-400">{item.text}</p>}
+                    {item.text && <p className="text-[11px] leading-5 text-text-secondary">{item.text}</p>}
                     {item.risks && item.risks.length > 0 && (
                       <ul className="space-y-0.5">
                         {item.risks.map((r, ri) => (
-                          <li key={ri} className="flex items-start gap-1.5 text-[11px] text-slate-400">
+                          <li key={ri} className="flex items-start gap-1.5 text-[11px] text-text-secondary">
                             <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-rose-400"/>
                             {r}
                           </li>
@@ -621,7 +621,7 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                 ))}
               </div>
             ) : (
-              <p className="text-[12px] text-slate-500">AI analysis will be generated by the pipeline worker. Check back soon.</p>
+              <p className="text-[12px] text-text-muted">AI analysis will be generated by the pipeline worker. Check back soon.</p>
             )}
           </SectionCard>
 
@@ -630,9 +630,9 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
             <SectionCard title="Top News">
               <div className="space-y-3">
                 {d.news.map((n, i) => (
-                  <div key={i} className="border-b border-white/5 pb-3 last:border-0 last:pb-0">
-                    <p className="text-[12px] leading-5 text-slate-200">{n.headline}</p>
-                    <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-500">
+                  <div key={i} className="border-b border-surface-border/5 pb-3 last:border-0 last:pb-0">
+                    <p className="text-[12px] leading-5 text-text-primary">{n.headline}</p>
+                    <div className="mt-1 flex items-center gap-2 text-[10px] text-text-muted">
                       <span>{n.source}</span>
                       {n.published_at && <><span>·</span><span>{n.published_at}</span></>}
                     </div>

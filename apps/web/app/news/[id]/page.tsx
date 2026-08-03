@@ -30,12 +30,12 @@ export default async function NewsPage({ params }: { params: Promise<{ id: strin
   return (
     <>
       {article && (
-        <section className="mb-4 border-b border-white/[0.06] pb-4">
+        <section className="mb-4 border-b border-surface-border/6 pb-4">
           {/* The single real <h1> for this page — the client component's
               own header renders the same headline as a <p>, not a second
               <h1>, when it detects this server data was already used. */}
-          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-slate-500">{article.headline}</h1>
-          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-slate-400">
+          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">{article.headline}</h1>
+          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-text-secondary">
             {withPeriod(article.summary || `${article.headline} — ${article.source}, with MarketRipple's market-impact analysis.`)}
           </p>
         </section>

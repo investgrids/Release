@@ -13,6 +13,7 @@ import { useIntelligence } from "@/hooks/useIntelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
+import { NextSteps } from "@/components/NextSteps";
 import { fixMojibake } from "@/lib/text";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc } from "@/lib/scoring";
@@ -35,11 +36,11 @@ const RippleLegendDynamic = dynamic(
 
 function GraphSkeleton() {
   return (
-    <div className="flex h-full items-center justify-center bg-[#060912]">
+    <div className="flex h-full items-center justify-center bg-surface-card">
       <div className="space-y-3 text-center">
         <div className="mx-auto h-16 w-16 rounded-full border-2 border-indigo-500/30 bg-indigo-500/10 flex items-center justify-center text-indigo-400 animate-pulse"><Zap className="h-7 w-7" /></div>
-        <p className="text-[13px] text-slate-500">Generating Ripple Graph…</p>
-        <p className="text-[11px] text-slate-700">AI is tracing dependency chains</p>
+        <p className="text-[13px] text-text-muted">Generating Ripple Graph…</p>
+        <p className="text-[11px] text-text-muted">AI is tracing dependency chains</p>
       </div>
     </div>
   );
@@ -88,7 +89,7 @@ function strengthColor(s: string) {
   if (s === "Very High") return "text-rose-400";
   if (s === "High")      return "text-amber-400";
   if (s === "Medium")    return "text-sky-400";
-  return "text-slate-400";
+  return "text-text-secondary";
 }
 function strengthWidth(s: string) {
   if (s === "Very High") return "w-full";
@@ -101,7 +102,7 @@ function impactBadge(impact: string) {
   if (impact.toLowerCase().includes("positive"))      return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
   if (impact.toLowerCase().includes("very negative")) return "text-rose-400 bg-rose-500/10 border-rose-500/20";
   if (impact.toLowerCase().includes("negative"))      return "text-rose-400 bg-rose-500/10 border-rose-500/20";
-  return "text-slate-400 bg-white/[0.04] border-white/10";
+  return "text-text-secondary bg-text-primary/[0.04] border-surface-border/10";
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -173,8 +174,8 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
     <div className="flex items-center justify-center h-[60vh]">
       <div className="text-center space-y-3">
         <div className="mx-auto h-20 w-20 rounded-full border-2 border-indigo-500/40 bg-indigo-500/10 flex items-center justify-center text-indigo-400 animate-pulse"><Zap className="h-8 w-8" /></div>
-        <p className="text-[14px] font-semibold text-white">Ripple Engine Starting…</p>
-        <p className="text-[12px] text-slate-500">AI is tracing market dependency chains</p>
+        <p className="text-[14px] font-semibold text-text-primary">Ripple Engine Starting…</p>
+        <p className="text-[12px] text-text-muted">AI is tracing market dependency chains</p>
         <div className="flex gap-1 justify-center mt-2">
           {[0,1,2].map(i => (
             <div key={i} className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
@@ -187,8 +188,8 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
   if (error) return (
     <div className="flex items-center justify-center h-[60vh]">
       <div className="text-center">
-        <p className="text-[14px] text-slate-400">{error}</p>
-        <Link href="/ripple" className="mt-3 inline-block text-[12px] text-sky-400 hover:text-sky-300">← Back to Ripple Engine</Link>
+        <p className="text-[14px] text-text-secondary">{error}</p>
+        <Link href="/ripple" className="mt-3 inline-block text-[12px] text-sky-400 hover:text-sky-600 dark:text-sky-300">← Back to Ripple Engine</Link>
       </div>
     </div>
   );
@@ -203,10 +204,10 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
       {/* ── Breadcrumb + share ──────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-[11px] text-slate-600">
-          <Link href="/ripple" className="hover:text-slate-400 transition">Ripple Engine</Link>
+        <div className="flex items-center gap-2 text-[11px] text-text-muted">
+          <Link href="/ripple" className="hover:text-text-secondary transition">Ripple Engine</Link>
           <span>/</span>
-          <span className="text-slate-400 truncate max-w-xs">{eventTitle}</span>
+          <span className="text-text-secondary truncate max-w-xs">{eventTitle}</span>
         </div>
         <ShareInsightCard
           entityType="ripple"
@@ -229,34 +230,34 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
       )}
 
       {/* ── Event Header ────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-white/[0.07] bg-[#080c14] p-6">
+      <div className="rounded-xl border border-surface-border/7 bg-surface-card p-6">
         <div className="flex flex-col sm:flex-row items-start justify-between gap-4 sm:gap-6">
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-bold text-indigo-400">
                 <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg> RIPPLE ENGINE
               </span>
-              <span className="text-[11px] text-slate-600">Market Dependency Analysis</span>
+              <span className="text-[11px] text-text-muted">Market Dependency Analysis</span>
             </div>
             {/* The server wrapper (page.tsx) renders the real <h1> when it
                 found the ripple data server-side (the common case) —
                 falls back to rendering it here too if that fetch ever
                 came back empty. */}
             {initialData ? (
-              <p className="text-[22px] font-black text-white leading-tight truncate">{eventTitle}</p>
+              <p className="text-[22px] font-black text-text-primary leading-tight truncate">{eventTitle}</p>
             ) : (
-              <h1 className="text-[22px] font-black text-white leading-tight truncate">{eventTitle}</h1>
+              <h1 className="text-[22px] font-black text-text-primary leading-tight truncate">{eventTitle}</h1>
             )}
           </div>
           {/* Scores */}
           <div className="shrink-0 flex items-center gap-3">
             <div className="text-center">
               <p className="text-[28px] font-black text-rose-400 tabular-nums leading-none">{eventImpact === null || eventImpact === undefined ? "—" : eventImpact.toFixed(1)}</p>
-              <p className="text-[9px] text-slate-600 mt-0.5 uppercase tracking-wider">Impact Score</p>
+              <p className="text-[9px] text-text-muted mt-0.5 uppercase tracking-wider">Impact Score</p>
             </div>
             {rs && (
               <>
-                <div className="w-px h-10 bg-white/[0.06]" />
+                <div className="w-px h-10 bg-text-primary/[0.06]" />
                 {[
                   { label: "Direct", val: rs.direct },
                   { label: "Indirect", val: rs.indirect },
@@ -268,7 +269,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                       r.val === "High"      ? "border-amber-500/30 bg-amber-500/10 text-amber-400" :
                                               "border-sky-500/30 bg-sky-500/10 text-sky-400"
                     }`}>{r.val}</div>
-                    <p className="text-[9px] text-slate-600 mt-0.5">{r.label}</p>
+                    <p className="text-[9px] text-text-muted mt-0.5">{r.label}</p>
                   </div>
                 ))}
               </>
@@ -276,7 +277,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
           </div>
         </div>
         {/* Quick stats */}
-        <div className="mt-4 flex flex-wrap gap-4 pt-4 border-t border-white/[0.05]">
+        <div className="mt-4 flex flex-wrap gap-4 pt-4 border-t border-surface-border/5">
           {[
             { label: "Nodes Mapped", value: totalNodes, color: "text-indigo-400" },
             { label: "Dependencies",  value: graphData.edges.length,  color: "text-sky-400" },
@@ -286,22 +287,22 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
           ].map(s => (
             <div key={s.label} className="flex items-center gap-2">
               <span className={`text-[18px] font-black tabular-nums ${s.color}`}>{s.value}</span>
-              <span className="text-[11px] text-slate-600">{s.label}</span>
+              <span className="text-[11px] text-text-muted">{s.label}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* ── Tab Bar ─────────────────────────────────────────────────────── */}
-      <div className="flex gap-0.5 overflow-x-auto rounded-xl border border-white/[0.07] bg-[#080c14] p-1 scrollbar-hide">
+      <div className="flex gap-0.5 overflow-x-auto rounded-xl border border-surface-border/7 bg-surface-card p-1 scrollbar-hide">
         {(["graph", "table", "timeline", "scenario"] as const).map(t => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
             className={`flex-1 min-w-max rounded-xl px-4 py-2.5 text-[12px] font-semibold transition capitalize ${
               activeTab === t
-                ? "bg-gradient-to-r from-indigo-600/25 to-violet-600/15 text-white border border-indigo-500/20"
-                : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]"
+                ? "bg-gradient-to-r from-indigo-600/25 to-violet-600/15 text-text-primary border border-indigo-500/20"
+                : "text-text-muted hover:text-text-secondary hover:bg-text-primary/[0.03]"
             }`}
           >
             {t === "graph" ? <><Network className="inline h-3.5 w-3.5 mr-1" />Ripple Graph</> :
@@ -319,19 +320,19 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
         <div className="flex-1 min-w-0">
 
           {activeTab === "graph" && (
-            <div className="flex flex-col rounded-xl border border-white/[0.07] bg-[#060912] overflow-hidden" style={{ height: "min(640px, 70vw)" }}>
+            <div className="flex flex-col rounded-xl border border-surface-border/7 bg-surface-card overflow-hidden" style={{ height: "min(640px, 70vw)" }}>
               {/* Graph controls */}
-              <div className="flex items-center justify-between gap-4 px-4 py-2.5 border-b border-white/[0.05] bg-[#080c14]">
+              <div className="flex items-center justify-between gap-4 px-4 py-2.5 border-b border-surface-border/5 bg-surface-card">
                 <div className="flex items-center gap-1">
-                  <span className="text-[11px] text-slate-500 mr-2">Depth:</span>
+                  <span className="text-[11px] text-text-muted mr-2">Depth:</span>
                   {[null, 1, 2, 3].map(d => (
                     <button
                       key={String(d)}
                       onClick={() => setDepthFilter(d)}
                       className={`rounded-lg px-2.5 py-1 text-[10px] font-semibold transition ${
                         depthFilter === d
-                          ? "bg-indigo-600/30 text-white border border-indigo-500/30"
-                          : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]"
+                          ? "bg-indigo-600/30 text-text-primary border border-indigo-500/30"
+                          : "text-text-muted hover:text-text-secondary hover:bg-text-primary/[0.04]"
                       }`}
                     >
                       {d === null ? "All" : d === 1 ? "Direct" : d === 2 ? "Secondary" : "Tertiary"}
@@ -339,15 +340,15 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                   ))}
                 </div>
                 {selectedNode && (
-                  <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-[#0a0d16] px-3 py-1.5">
+                  <div className="flex items-center gap-2 rounded-xl border border-surface-border/7 bg-surface-card px-3 py-1.5">
                     <div>
-                      <p className="text-[11px] font-semibold text-white">{selectedNode.label}</p>
-                      <p className="text-[9px] text-slate-500 capitalize">{selectedNode.type} · Depth {selectedNode.depth}</p>
+                      <p className="text-[11px] font-semibold text-text-primary">{selectedNode.label}</p>
+                      <p className="text-[9px] text-text-muted capitalize">{selectedNode.type} · Depth {selectedNode.depth}</p>
                     </div>
-                    <button onClick={() => setSelectedNode(null)} className="text-slate-600 hover:text-slate-400 ml-2"><X className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => setSelectedNode(null)} className="text-text-muted hover:text-text-secondary ml-2"><X className="h-3.5 w-3.5" /></button>
                   </div>
                 )}
-                <span className="text-[10px] text-slate-700">Scroll to zoom · Drag to pan · Click node for details</span>
+                <span className="text-[10px] text-text-muted">Scroll to zoom · Drag to pan · Click node for details</span>
               </div>
               {/* Canvas */}
               <div className="flex-1" style={{ touchAction: "none" }}>
@@ -368,21 +369,21 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
           )}
 
           {activeTab === "table" && (
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/[0.05]">
-                <h3 className="text-[14px] font-bold text-white">Impact Analysis Table</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">All affected entities ranked by impact strength</p>
+            <div className="rounded-xl border border-surface-border/7 bg-surface-card overflow-hidden">
+              <div className="px-5 py-4 border-b border-surface-border/5">
+                <h3 className="text-[14px] font-bold text-text-primary">Impact Analysis Table</h3>
+                <p className="text-[11px] text-text-muted mt-0.5">All affected entities ranked by impact strength</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-[12px]">
                   <thead>
-                    <tr className="border-b border-white/[0.05]">
-                      <th className="text-left px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Entity</th>
-                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Type</th>
-                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Impact</th>
-                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Strength</th>
-                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Depth</th>
-                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Change</th>
+                    <tr className="border-b border-surface-border/5">
+                      <th className="text-left px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Entity</th>
+                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Type</th>
+                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Impact</th>
+                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Strength</th>
+                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Depth</th>
+                      <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Change</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -390,26 +391,26 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                       .filter(n => n.id !== "event_center")
                       .sort((a, b) => compareScoresDesc(a.impact_strength, b.impact_strength))
                       .map(node => (
-                        <tr key={node.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition">
+                        <tr key={node.id} className="border-b border-surface-border/3 hover:bg-text-primary/[0.02] transition">
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold text-white">{node.label}</span>
+                              <span className="font-semibold text-text-primary">{node.label}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="rounded border border-white/[0.06] bg-white/[0.03] px-2 py-0.5 text-[9px] capitalize text-slate-400">
+                            <span className="rounded border border-surface-border/6 bg-text-primary/[0.03] px-2 py-0.5 text-[9px] capitalize text-text-secondary">
                               {node.type}
                             </span>
                           </td>
                           <td className="px-4 py-3">
                             <span className={`font-semibold capitalize ${
                               node.impact === "positive" ? "text-emerald-400" :
-                              node.impact === "negative" ? "text-rose-400" : "text-slate-400"
+                              node.impact === "negative" ? "text-rose-400" : "text-text-secondary"
                             }`}>{node.impact}</span>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <div className="w-20 h-1.5 rounded-full bg-white/[0.05]">
+                              <div className="w-20 h-1.5 rounded-full bg-text-primary/[0.05]">
                                 {node.impact_strength !== null && node.impact_strength !== undefined && (
                                   <div className={`h-full rounded-full ${
                                     node.impact === "positive" ? "bg-emerald-400" :
@@ -417,18 +418,18 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                                   }`} style={{ width: `${node.impact_strength * 100}%` }} />
                                 )}
                               </div>
-                              <span className="text-slate-500 tabular-nums">{node.impact_strength === null || node.impact_strength === undefined ? "Unscored" : `${Math.round(node.impact_strength * 100)}%`}</span>
+                              <span className="text-text-muted tabular-nums">{node.impact_strength === null || node.impact_strength === undefined ? "Unscored" : `${Math.round(node.impact_strength * 100)}%`}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="text-slate-500">
+                            <span className="text-text-muted">
                               {node.depth === 1 ? "Direct" : node.depth === 2 ? "Secondary" : node.depth === 3 ? "Tertiary" : "Long-term"}
                             </span>
                           </td>
                           <td className="px-4 py-3">
                             <span className={`font-bold tabular-nums ${
                               node.change_direction === "up" ? "text-emerald-400" :
-                              node.change_direction === "down" ? "text-rose-400" : "text-slate-400"
+                              node.change_direction === "down" ? "text-rose-400" : "text-text-secondary"
                             }`}>
                               {node.change_direction === "up" ? "↑" : node.change_direction === "down" ? "↓" : "→"}{" "}
                               {node.subtitle || "—"}
@@ -444,8 +445,8 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
           {activeTab === "timeline" && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-5">
-                <h3 className="text-[14px] font-bold text-white mb-5">Ripple Effect Timeline</h3>
+              <div className="rounded-xl border border-surface-border/7 bg-surface-card p-5">
+                <h3 className="text-[14px] font-bold text-text-primary mb-5">Ripple Effect Timeline</h3>
                 {insights?.ripple_timeline?.length ? (
                   <div className="relative pl-6">
                     <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-gradient-to-b from-indigo-500 via-sky-500 to-slate-700/50" />
@@ -454,11 +455,11 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                         <div className={`absolute -left-4 top-1 h-3 w-3 rounded-full border-2 border-[#0a0d16] ${
                           i === 0 ? "bg-rose-400" : i === 1 ? "bg-amber-400" : i === 2 ? "bg-sky-400" : "bg-slate-500"
                         }`} />
-                        <div className="rounded-xl border border-white/[0.06] bg-[#080c14] p-4">
+                        <div className="rounded-xl border border-surface-border/6 bg-surface-card p-4">
                           <div className={`mb-2 text-[10px] font-black uppercase tracking-widest ${
-                            i === 0 ? "text-rose-400" : i === 1 ? "text-amber-400" : i === 2 ? "text-sky-400" : "text-slate-500"
+                            i === 0 ? "text-rose-400" : i === 1 ? "text-amber-400" : i === 2 ? "text-sky-400" : "text-text-muted"
                           }`}>{step.period}</div>
-                          <p className="text-[13px] text-slate-300 leading-6">{step.description}</p>
+                          <p className="text-[13px] text-text-secondary leading-6">{step.description}</p>
                         </div>
                         {(() => {
                           const depth = i + 1;
@@ -470,10 +471,10 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                                 <span key={n.id} className={`rounded-full border px-2 py-0.5 text-[9px] ${
                                   n.impact === "positive" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" :
                                   n.impact === "negative" ? "border-rose-500/20 bg-rose-500/10 text-rose-400" :
-                                  "border-slate-500/20 bg-slate-500/10 text-slate-400"
+                                  "border-surface-border/5 bg-slate-500/10 text-text-secondary"
                                 }`}>{n.label}</span>
                               ))}
-                              {depthNodes.length > 5 && <span className="text-[9px] text-slate-600">+{depthNodes.length - 5} more</span>}
+                              {depthNodes.length > 5 && <span className="text-[9px] text-text-muted">+{depthNodes.length - 5} more</span>}
                             </div>
                           );
                         })()}
@@ -481,35 +482,35 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[12px] text-slate-600">Timeline data not available</p>
+                  <p className="text-[12px] text-text-muted">Timeline data not available</p>
                 )}
               </div>
 
               {/* Edge dependency list */}
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-5">
-                <h3 className="text-[14px] font-bold text-white mb-4">Dependency Chain Details</h3>
+              <div className="rounded-xl border border-surface-border/7 bg-surface-card p-5">
+                <h3 className="text-[14px] font-bold text-text-primary mb-4">Dependency Chain Details</h3>
                 <div className="space-y-2">
                   {graphData.edges.slice(0, 15).map((edge, i) => {
                     const srcNode = graphData.nodes.find(n => n.id === edge.source);
                     const tgtNode = graphData.nodes.find(n => n.id === edge.target);
                     const relColor = edge.relationship === "hurts" ? "text-rose-400" :
                                      edge.relationship === "benefits" ? "text-emerald-400" :
-                                     edge.relationship === "causes" ? "text-sky-400" : "text-slate-400";
+                                     edge.relationship === "causes" ? "text-sky-400" : "text-text-secondary";
                     return (
-                      <div key={i} className="rounded-xl border border-white/[0.04] bg-white/[0.02] px-4 py-3">
+                      <div key={i} className="rounded-xl border border-surface-border/4 bg-text-primary/[0.02] px-4 py-3">
                         <div className="flex items-start gap-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <span className="text-[11px] font-semibold text-white truncate">{srcNode?.label || edge.source}</span>
+                            <span className="text-[11px] font-semibold text-text-primary truncate">{srcNode?.label || edge.source}</span>
                             <span className={`text-[10px] font-bold shrink-0 ${relColor}`}>→ {edge.relationship}</span>
-                            <span className="text-[11px] font-semibold text-white truncate">{tgtNode?.label || edge.target}</span>
+                            <span className="text-[11px] font-semibold text-text-primary truncate">{tgtNode?.label || edge.target}</span>
                           </div>
                           <div className="shrink-0 text-right">
-                            <span className="text-[10px] text-slate-500 tabular-nums">{edge.confidence === null || edge.confidence === undefined ? "Unscored" : `${Math.round(edge.confidence * 100)}% conf.`}</span>
-                            {edge.time_horizon && <span className="text-[9px] text-slate-600 mt-0.5 block">{fixMojibake(edge.time_horizon)}</span>}
+                            <span className="text-[10px] text-text-muted tabular-nums">{edge.confidence === null || edge.confidence === undefined ? "Unscored" : `${Math.round(edge.confidence * 100)}% conf.`}</span>
+                            {edge.time_horizon && <span className="text-[9px] text-text-muted mt-0.5 block">{fixMojibake(edge.time_horizon)}</span>}
                           </div>
                         </div>
                         {edge.explanation && (
-                          <p className="mt-1.5 text-[10px] text-slate-500 leading-4">{edge.explanation}</p>
+                          <p className="mt-1.5 text-[10px] text-text-muted leading-4">{edge.explanation}</p>
                         )}
                       </div>
                     );
@@ -607,12 +608,12 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
           {activeTab === "scenario" && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-indigo-500/15 bg-[#0a0d16] p-6">
+              <div className="rounded-xl border border-indigo-500/15 bg-surface-card p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400"><Telescope className="h-4 w-4" /></span>
                   <div>
-                    <h3 className="text-[15px] font-bold text-white">Scenario Simulator</h3>
-                    <p className="text-[11px] text-slate-500">Ask "What if…" and get an AI-generated ripple graph</p>
+                    <h3 className="text-[15px] font-bold text-text-primary">Scenario Simulator</h3>
+                    <p className="text-[11px] text-text-muted">Ask "What if…" and get an AI-generated ripple graph</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -621,12 +622,12 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                     onChange={e => setScenario(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && runScenario()}
                     placeholder="e.g. What if crude oil reaches $100? What if RBI cuts rates by 75 bps?"
-                    className="flex-1 rounded-xl border border-white/[0.08] bg-[#080c14] px-4 py-3 text-[13px] text-white placeholder-slate-600 outline-none focus:border-indigo-500/40 transition"
+                    className="flex-1 rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3 text-[13px] text-text-primary placeholder-slate-600 outline-none focus:border-indigo-500/40 transition"
                   />
                   <button
                     onClick={runScenario}
                     disabled={!scenario.trim() || scenarioLoading}
-                    className="rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-5 py-3 text-[12px] font-bold text-white transition"
+                    className="rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-5 py-3 text-[12px] font-bold text-text-primary transition"
                   >
                     {scenarioLoading ? "Analysing…" : "Run Scenario"}
                   </button>
@@ -643,7 +644,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                     <button
                       key={s}
                       onClick={() => setScenario(s)}
-                      className="rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1 text-[10px] text-slate-500 hover:text-slate-300 hover:border-white/[0.12] transition"
+                      className="rounded-full border border-surface-border/7 bg-text-primary/[0.03] px-3 py-1 text-[10px] text-text-muted hover:text-text-secondary hover:border-surface-border/[0.12] transition"
                     >
                       {s}
                     </button>
@@ -653,21 +654,21 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
               {scenarioData && (
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-emerald-500/15 bg-[#0a0d16] p-5">
+                  <div className="rounded-xl border border-emerald-500/15 bg-surface-card p-5">
                     <p className="text-[12px] font-bold text-emerald-400 mb-2 flex items-center gap-1.5">
                       <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg> Scenario Analysis Ready
                     </p>
-                    <p className="text-[13px] text-slate-300 leading-6">{scenarioData.insights?.summary || "Scenario analysis complete."}</p>
+                    <p className="text-[13px] text-text-secondary leading-6">{scenarioData.insights?.summary || "Scenario analysis complete."}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     {/* Original analysis column */}
-                    <div className="rounded-xl border border-white/[0.07] bg-[#080c14] p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">Original Analysis</p>
+                    <div className="rounded-xl border border-surface-border/7 bg-surface-card p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-3">Original Analysis</p>
                       <p className="text-[28px] font-black text-rose-400 tabular-nums leading-none">{originalData?.event_impact?.toFixed(1)}</p>
-                      <p className="text-[9px] text-slate-600 mt-0.5 uppercase tracking-wider mb-3">Impact Score</p>
+                      <p className="text-[9px] text-text-muted mt-0.5 uppercase tracking-wider mb-3">Impact Score</p>
                       {(originalData?.insights?.beneficiaries?.length ?? 0) > 0 && (
                         <div className="mb-3">
-                          <p className="text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Top Beneficiaries</p>
+                          <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1.5">Top Beneficiaries</p>
                           <div className="space-y-1">
                             {originalData?.insights.beneficiaries.slice(0, 3).map((b, i) => (
                               <p key={i} className="text-[10px] text-emerald-400 truncate">{b.name}</p>
@@ -677,7 +678,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                       )}
                       {(originalData?.insights?.impacted_sectors?.length ?? 0) > 0 && (
                         <div>
-                          <p className="text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Key Sectors</p>
+                          <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1.5">Key Sectors</p>
                           <div className="space-y-1">
                             {originalData?.insights.impacted_sectors.slice(0, 3).map((s, i) => (
                               <p key={i} className={`text-[10px] truncate ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.name}</p>
@@ -690,10 +691,10 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                     <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/[0.04] p-4">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 mb-3 truncate">Scenario: {scenario}</p>
                       <p className="text-[28px] font-black text-rose-400 tabular-nums leading-none">{scenarioData.event_impact?.toFixed(1)}</p>
-                      <p className="text-[9px] text-slate-600 mt-0.5 uppercase tracking-wider mb-3">Impact Score</p>
+                      <p className="text-[9px] text-text-muted mt-0.5 uppercase tracking-wider mb-3">Impact Score</p>
                       {(scenarioData.insights?.beneficiaries?.length ?? 0) > 0 && (
                         <div className="mb-3">
-                          <p className="text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Top Beneficiaries</p>
+                          <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1.5">Top Beneficiaries</p>
                           <div className="space-y-1">
                             {scenarioData.insights.beneficiaries.slice(0, 3).map((b, i) => (
                               <p key={i} className="text-[10px] text-emerald-400 truncate">{b.name}</p>
@@ -703,7 +704,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                       )}
                       {(scenarioData.insights?.impacted_sectors?.length ?? 0) > 0 && (
                         <div>
-                          <p className="text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Key Sectors</p>
+                          <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1.5">Key Sectors</p>
                           <div className="space-y-1">
                             {scenarioData.insights.impacted_sectors.slice(0, 3).map((s, i) => (
                               <p key={i} className={`text-[10px] truncate ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.name}</p>
@@ -713,7 +714,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                       )}
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-600 text-center">
+                  <p className="text-[10px] text-text-muted text-center">
                     Switch to Graph tab to view the original dependency map
                   </p>
                 </div>
@@ -727,12 +728,12 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
           <div className="w-full lg:w-[300px] shrink-0 space-y-4 overflow-y-auto lg:max-h-[640px] scrollbar-hide">
 
             {/* AI Insight Summary */}
-            <div className="rounded-xl border border-violet-500/15 bg-[#0a0d16] p-4">
+            <div className="rounded-xl border border-violet-500/15 bg-surface-card p-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/20 text-violet-400"><svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg></span>
                 <p className="text-[11px] font-bold text-violet-400 uppercase tracking-wider">AI Insight Summary</p>
               </div>
-              <p className="text-[12px] text-slate-300 leading-5">{insights.summary}</p>
+              <p className="text-[12px] text-text-secondary leading-5">{insights.summary}</p>
               <AITransparencyPanel
                 confidence={data?.event_impact !== null && data?.event_impact !== undefined ? Math.min(100, Math.round(data.event_impact * 10)) : null}
                 reasoning={data?.insights?.summary ?? "AI-generated ripple impact analysis based on event data and market relationships."}
@@ -746,9 +747,9 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                   { label: "Inflation Risk",    val: insights.inflation_risk,    color: "text-amber-400" },
                   { label: "Growth Impact",     val: insights.growth_impact,     color: insights.growth_impact?.toLowerCase() === "positive" ? "text-emerald-400" : "text-rose-400" },
                 ].map(g => (
-                  <div key={g.label} className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-2 text-center">
+                  <div key={g.label} className="rounded-lg border border-surface-border/5 bg-text-primary/[0.02] p-2 text-center">
                     <p className={`text-[11px] font-black ${g.color}`}>{g.val}</p>
-                    <p className="text-[8px] text-slate-600 mt-0.5 leading-tight">{g.label}</p>
+                    <p className="text-[8px] text-text-muted mt-0.5 leading-tight">{g.label}</p>
                   </div>
                 ))}
               </div>
@@ -756,13 +757,13 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
             {/* Key Drivers */}
             {insights.key_drivers?.length > 0 && (
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-4">
-                <p className="text-[11px] font-bold text-white mb-3 uppercase tracking-wider">Key Drivers</p>
+              <div className="rounded-xl border border-surface-border/7 bg-surface-card p-4">
+                <p className="text-[11px] font-bold text-text-primary mb-3 uppercase tracking-wider">Key Drivers</p>
                 <div className="space-y-2">
                   {insights.key_drivers.slice(0, 3).map((d, i) => (
                     <div key={i} className="flex items-start gap-2">
                       <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
-                      <p className="text-[11px] text-slate-400 leading-4">{d}</p>
+                      <p className="text-[11px] text-text-secondary leading-4">{d}</p>
                     </div>
                   ))}
                 </div>
@@ -771,24 +772,24 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
             {/* Top Beneficiaries */}
             {insights.beneficiaries?.length > 0 && (
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-4">
-                <p className="text-[11px] font-bold text-white mb-3 uppercase tracking-wider">Top Beneficiaries</p>
+              <div className="rounded-xl border border-surface-border/7 bg-surface-card p-4">
+                <p className="text-[11px] font-bold text-text-primary mb-3 uppercase tracking-wider">Top Beneficiaries</p>
                 <div className="space-y-2">
                   {insights.beneficiaries.slice(0, 5).map((b, i) => (
                     <div key={i} className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <Link href={`/companies/${b.ticker}`} className="text-[11px] font-bold text-white hover:text-emerald-300 transition truncate">
+                          <Link href={`/companies/${b.ticker}`} className="text-[11px] font-bold text-text-primary hover:text-emerald-600 dark:text-emerald-300 transition truncate">
                             {b.name}
                           </Link>
                         </div>
-                        <p className="text-[9px] text-slate-600 truncate">{b.reason}</p>
+                        <p className="text-[9px] text-text-muted truncate">{b.reason}</p>
                       </div>
                       <div className="shrink-0 text-right">
                         <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold ${impactBadge(b.impact)}`}>
                           {b.impact}
                         </span>
-                        <p className="text-[8px] text-slate-700 mt-0.5 tabular-nums">{b.confidence === null || b.confidence === undefined ? "Unscored" : `${Math.round(b.confidence * 100)}%`}</p>
+                        <p className="text-[8px] text-text-muted mt-0.5 tabular-nums">{b.confidence === null || b.confidence === undefined ? "Unscored" : `${Math.round(b.confidence * 100)}%`}</p>
                       </div>
                     </div>
                   ))}
@@ -798,24 +799,24 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
             {/* Most at Risk */}
             {insights.losers?.length > 0 && (
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-4">
-                <p className="text-[11px] font-bold text-white mb-3 uppercase tracking-wider">Most at Risk</p>
+              <div className="rounded-xl border border-surface-border/7 bg-surface-card p-4">
+                <p className="text-[11px] font-bold text-text-primary mb-3 uppercase tracking-wider">Most at Risk</p>
                 <div className="space-y-2">
                   {insights.losers.slice(0, 5).map((b, i) => (
                     <div key={i} className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <Link href={`/companies/${b.ticker}`} className="text-[11px] font-bold text-white hover:text-rose-300 transition truncate">
+                          <Link href={`/companies/${b.ticker}`} className="text-[11px] font-bold text-text-primary hover:text-rose-600 dark:text-rose-300 transition truncate">
                             {b.name}
                           </Link>
                         </div>
-                        <p className="text-[9px] text-slate-600 truncate">{b.reason}</p>
+                        <p className="text-[9px] text-text-muted truncate">{b.reason}</p>
                       </div>
                       <div className="shrink-0 text-right">
                         <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold ${impactBadge(b.impact)}`}>
                           {b.impact}
                         </span>
-                        <p className="text-[8px] text-slate-700 mt-0.5 tabular-nums">{b.confidence === null || b.confidence === undefined ? "Unscored" : `${Math.round(b.confidence * 100)}%`}</p>
+                        <p className="text-[8px] text-text-muted mt-0.5 tabular-nums">{b.confidence === null || b.confidence === undefined ? "Unscored" : `${Math.round(b.confidence * 100)}%`}</p>
                       </div>
                     </div>
                   ))}
@@ -825,14 +826,14 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
             {/* Impacted Commodities */}
             {insights.impacted_commodities?.length > 0 && (
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-4">
-                <p className="text-[11px] font-bold text-white mb-3 uppercase tracking-wider">Impacted Commodities</p>
+              <div className="rounded-xl border border-surface-border/7 bg-surface-card p-4">
+                <p className="text-[11px] font-bold text-text-primary mb-3 uppercase tracking-wider">Impacted Commodities</p>
                 <div className="space-y-2.5">
                   {insights.impacted_commodities.map((c, i) => (
                     <div key={i} className="flex items-center justify-between">
                       <div>
-                        <p className="text-[11px] font-semibold text-white">{c.name}</p>
-                        <p className="text-[10px] text-slate-500 tabular-nums">{c.current_price}</p>
+                        <p className="text-[11px] font-semibold text-text-primary">{c.name}</p>
+                        <p className="text-[10px] text-text-muted tabular-nums">{c.current_price}</p>
                       </div>
                       <span className={`text-[12px] font-black tabular-nums ${c.positive ? "text-emerald-400" : "text-rose-400"}`}>
                         {c.positive ? "+" : ""}{c.change_pct?.toFixed(2)}%
@@ -845,14 +846,14 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
             {/* Impacted Sectors */}
             {insights.impacted_sectors?.length > 0 && (
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-4">
-                <p className="text-[11px] font-bold text-white mb-3 uppercase tracking-wider">Impacted Sectors</p>
+              <div className="rounded-xl border border-surface-border/7 bg-surface-card p-4">
+                <p className="text-[11px] font-bold text-text-primary mb-3 uppercase tracking-wider">Impacted Sectors</p>
                 <div className="space-y-2.5">
                   {insights.impacted_sectors.slice(0, 6).map((s, i) => (
                     <div key={i} className="flex items-center gap-3">
                       <div className={`h-2 w-2 shrink-0 rounded-full ${s.positive ? "bg-emerald-400" : "bg-rose-400"}`} />
-                      <p className="flex-1 text-[11px] text-slate-300 truncate">{s.name}</p>
-                      <div className="w-16 h-1 rounded-full bg-white/[0.05]">
+                      <p className="flex-1 text-[11px] text-text-secondary truncate">{s.name}</p>
+                      <div className="w-16 h-1 rounded-full bg-text-primary/[0.05]">
                         <div className={`h-full rounded-full ${s.positive ? "bg-emerald-400" : "bg-rose-400"} ${strengthWidth(s.strength)}`} />
                       </div>
                       <span className={`text-[9px] font-bold shrink-0 ${strengthColor(s.strength)}`}>{s.strength}</span>
@@ -864,8 +865,8 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
 
             {/* Timeline mini */}
             {insights.ripple_timeline?.length > 0 && (
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-4">
-                <p className="text-[11px] font-bold text-white mb-3 uppercase tracking-wider">Timeline of Effects</p>
+              <div className="rounded-xl border border-surface-border/7 bg-surface-card p-4">
+                <p className="text-[11px] font-bold text-text-primary mb-3 uppercase tracking-wider">Timeline of Effects</p>
                 <div className="space-y-3">
                   {insights.ripple_timeline.map((t, i) => (
                     <div key={i} className="flex gap-3">
@@ -874,9 +875,9 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                       }`} />
                       <div>
                         <p className={`text-[9px] font-black uppercase tracking-wide mb-0.5 ${
-                          i === 0 ? "text-rose-400" : i === 1 ? "text-amber-400" : i === 2 ? "text-sky-400" : "text-slate-600"
+                          i === 0 ? "text-rose-400" : i === 1 ? "text-amber-400" : i === 2 ? "text-sky-400" : "text-text-muted"
                         }`}>{t.period}</p>
-                        <p className="text-[10px] text-slate-400 leading-4">{t.description}</p>
+                        <p className="text-[10px] text-text-secondary leading-4">{t.description}</p>
                       </div>
                     </div>
                   ))}
@@ -885,20 +886,20 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
             )}
 
             {/* Mini scenario box */}
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a0d16] p-4">
-              <p className="text-[11px] font-bold text-white mb-2 uppercase tracking-wider flex items-center gap-1.5"><Telescope className="h-3.5 w-3.5 text-slate-400" /> Scenario Simulator</p>
+            <div className="rounded-xl border border-surface-border/7 bg-surface-card p-4">
+              <p className="text-[11px] font-bold text-text-primary mb-2 uppercase tracking-wider flex items-center gap-1.5"><Telescope className="h-3.5 w-3.5 text-text-secondary" /> Scenario Simulator</p>
               <div className="flex gap-2">
                 <input
                   value={scenario}
                   onChange={e => setScenario(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && runScenario()}
                   placeholder="What if crude hits $100?"
-                  className="flex-1 rounded-xl border border-white/[0.07] bg-[#080c14] px-3 py-2 text-[11px] text-white placeholder-slate-700 outline-none focus:border-indigo-500/30 transition"
+                  className="flex-1 rounded-xl border border-surface-border/7 bg-surface-card px-3 py-2 text-[11px] text-text-primary placeholder-slate-700 outline-none focus:border-indigo-500/30 transition"
                 />
                 <button
                   onClick={runScenario}
                   disabled={!scenario.trim() || scenarioLoading}
-                  className="rounded-xl bg-indigo-600/80 hover:bg-indigo-600 disabled:opacity-40 px-3 py-2 text-[11px] font-bold text-white transition"
+                  className="rounded-xl bg-indigo-600/80 hover:bg-indigo-600 disabled:opacity-40 px-3 py-2 text-[11px] font-bold text-text-primary transition"
                 >
                   {scenarioLoading ? "…" : "→"}
                 </button>
@@ -909,12 +910,40 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
         )}
       </div>
 
+      {/* ── Continue Research ────────────────────────────────────────────── */}
+      <NextSteps config={{
+        takeaway: `${eventTitle} is a traced ripple chain — validate it against real historical precedent before treating it as a thesis.`,
+        primary: {
+          label: "Has this happened before?",
+          why:   "Because a causal chain is only as credible as its precedent — check Historical Winners & Losers for the same setup.",
+          href:  "/ripple?tab=winners",
+        },
+        groups: [
+          {
+            label: "Continue Research",
+            actions: [
+              {
+                label: "Read the full event analysis",
+                why:   "Because the origin event determines how you should read every downstream effect in this chain.",
+                href:  `/events/${id}`,
+              },
+              {
+                label: "See resulting opportunities",
+                why:   "Because a ripple chain's real value is what it points to next — the ranked opportunities it produced.",
+                href:  "/opportunity-radar",
+              },
+            ],
+          },
+        ],
+        path: [insights?.impacted_sectors?.[0]?.name ?? "Sector", "Ripple Chain", "Historical Validation", "Investment Decision"].filter(Boolean),
+      }} />
+
       {/* ── Back link ────────────────────────────────────────────────────── */}
       <div className="pt-4 flex items-center justify-between">
-        <Link href="/ripple" className="text-[12px] text-slate-600 hover:text-slate-400 transition">
+        <Link href="/ripple" className="text-[12px] text-text-muted hover:text-text-secondary transition">
           ← Back to Ripple Engine Hub
         </Link>
-        <Link href={`/events/${id}`} className="text-[12px] text-sky-400 hover:text-sky-300 transition">
+        <Link href={`/events/${id}`} className="text-[12px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
           View Full Event Details →
         </Link>
       </div>

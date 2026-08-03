@@ -36,8 +36,8 @@ function SectionHeading({
   id,
   icon: Icon,
   title,
-  color = "text-slate-300",
-  bg = "bg-white/[0.06]",
+  color = "text-text-secondary",
+  bg = "bg-text-primary/[0.06]",
 }: {
   id: string;
   icon: typeof ShieldCheck;
@@ -46,11 +46,11 @@ function SectionHeading({
   bg?: string;
 }) {
   return (
-    <div id={id} className="flex scroll-mt-20 items-center gap-3 border-b border-white/[0.06] pb-4">
+    <div id={id} className="flex scroll-mt-20 items-center gap-3 border-b border-surface-border/6 pb-4">
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${bg}`}>
         <Icon className={`h-4.5 w-4.5 ${color}`} />
       </div>
-      <h2 className="text-[20px] font-bold text-white">{title}</h2>
+      <h2 className="text-[20px] font-bold text-text-primary">{title}</h2>
     </div>
   );
 }
@@ -62,8 +62,8 @@ function BulletList({ items }: { items: string[] }) {
     <ul className="mt-3 space-y-2">
       {items.map((item, i) => (
         <li key={i} className="flex items-start gap-2.5">
-          <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-600" />
-          <span className="text-[13px] leading-6 text-slate-400">{item}</span>
+          <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted" />
+          <span className="text-[13px] leading-6 text-text-secondary">{item}</span>
         </li>
       ))}
     </ul>
@@ -75,7 +75,7 @@ function BulletList({ items }: { items: string[] }) {
 function Sub({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-6">
-      <h3 className="text-[14px] font-semibold text-slate-200">{title}</h3>
+      <h3 className="text-[14px] font-semibold text-text-primary">{title}</h3>
       {children}
     </div>
   );
@@ -88,7 +88,7 @@ function DisclaimerCallout({ children }: { children: React.ReactNode }) {
     <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-5">
       <div className="flex items-start gap-3">
         <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-        <div className="text-[13px] leading-6 text-amber-200/80">{children}</div>
+        <div className="text-[13px] leading-6 text-amber-700/80 dark:text-amber-200/80">{children}</div>
       </div>
     </div>
   );
@@ -101,16 +101,16 @@ export default function LegalPage() {
     <main className="min-w-0 pb-10">
       {/* Page header */}
       <div className="mb-8">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Legal Information
         </p>
-        <h1 className="mt-3 text-[28px] font-black leading-tight text-white md:text-[36px]">
+        <h1 className="mt-3 text-[28px] font-black leading-tight text-text-primary md:text-[36px]">
           Legal & Compliance
         </h1>
-        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-slate-400">
+        <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-secondary">
           MarketRipple is operated and governed under Indian law. Please read these
           documents carefully before using the platform. Last updated:{" "}
-          <span className="font-medium text-slate-300">July 2025</span>.
+          <span className="font-medium text-text-secondary">July 2025</span>.
         </p>
 
         {/* Section nav */}
@@ -124,7 +124,7 @@ export default function LegalPage() {
               <a
                 key={s.id}
                 href={`#${s.id}`}
-                className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[12px] text-slate-400 transition hover:border-white/[0.14] hover:text-slate-200"
+                className="flex items-center gap-1.5 rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-3 py-1.5 text-[12px] text-text-secondary transition hover:border-surface-border/[0.14] hover:text-text-primary"
               >
                 <Icon className="h-3.5 w-3.5" />
                 {s.label}
@@ -140,7 +140,7 @@ export default function LegalPage() {
         {/* ── Privacy Policy ─────────────────────────────────────────────────── */}
         <section
           aria-labelledby="privacy"
-          className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6"
+          className="rounded-xl border border-surface-border/8 bg-surface-card p-6"
         >
           <SectionHeading
             id="privacy"
@@ -150,7 +150,7 @@ export default function LegalPage() {
             bg="bg-sky-500/15"
           />
 
-          <p className="mt-4 text-[13px] leading-6 text-slate-400">
+          <p className="mt-4 text-[13px] leading-6 text-text-secondary">
             MarketRipple is committed to protecting the privacy of its users. Because
             the platform currently operates without user accounts, the personal
             data we collect is minimal.
@@ -187,7 +187,7 @@ export default function LegalPage() {
           </Sub>
 
           <Sub title="Data Security">
-            <p className="mt-2 text-[13px] leading-6 text-slate-400">
+            <p className="mt-2 text-[13px] leading-6 text-text-secondary">
               Because MarketRipple does not collect personal identifying information,
               there is no personal data at risk in the event of a security
               incident. Anonymous analytics data is held on secured
@@ -197,7 +197,7 @@ export default function LegalPage() {
           </Sub>
 
           <Sub title="Changes to This Policy">
-            <p className="mt-2 text-[13px] leading-6 text-slate-400">
+            <p className="mt-2 text-[13px] leading-6 text-text-secondary">
               Any material changes to this Privacy Policy will be announced via
               the{" "}
               <Link
@@ -216,7 +216,7 @@ export default function LegalPage() {
         {/* ── Terms of Service ───────────────────────────────────────────────── */}
         <section
           aria-labelledby="terms"
-          className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6"
+          className="rounded-xl border border-surface-border/8 bg-surface-card p-6"
         >
           <SectionHeading
             id="terms"
@@ -226,14 +226,14 @@ export default function LegalPage() {
             bg="bg-violet-500/15"
           />
 
-          <p className="mt-4 text-[13px] leading-6 text-slate-400">
+          <p className="mt-4 text-[13px] leading-6 text-text-secondary">
             By accessing and using MarketRipple, you agree to be bound by these Terms
             of Service. If you do not agree, please discontinue use of the
             platform immediately.
           </p>
 
           <Sub title="1. Acceptance of Terms">
-            <p className="mt-2 text-[13px] leading-6 text-slate-400">
+            <p className="mt-2 text-[13px] leading-6 text-text-secondary">
               Use of the MarketRipple platform constitutes acceptance of these terms
               and all policies incorporated by reference, including the Privacy
               Policy and Disclaimer. These terms may be updated periodically.
@@ -274,7 +274,7 @@ export default function LegalPage() {
           </Sub>
 
           <Sub title="5. Limitation of Liability">
-            <p className="mt-2 text-[13px] leading-6 text-slate-400">
+            <p className="mt-2 text-[13px] leading-6 text-text-secondary">
               To the fullest extent permitted by applicable law, MarketRipple and its
               operators shall not be liable for any direct, indirect, incidental,
               consequential, or special damages arising from your use of the
@@ -285,7 +285,7 @@ export default function LegalPage() {
           </Sub>
 
           <Sub title="6. Changes to the Service">
-            <p className="mt-2 text-[13px] leading-6 text-slate-400">
+            <p className="mt-2 text-[13px] leading-6 text-text-secondary">
               MarketRipple reserves the right to modify, suspend, or discontinue any
               part of the platform at any time, with or without notice. We will
               make reasonable efforts to announce significant changes via the
@@ -297,7 +297,7 @@ export default function LegalPage() {
         {/* ── Disclaimer ─────────────────────────────────────────────────────── */}
         <section
           aria-labelledby="disclaimer"
-          className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6"
+          className="rounded-xl border border-surface-border/8 bg-surface-card p-6"
         >
           <SectionHeading
             id="disclaimer"
@@ -308,7 +308,7 @@ export default function LegalPage() {
           />
 
           <DisclaimerCallout>
-            <strong className="block mb-1 text-amber-300">
+            <strong className="block mb-1 text-amber-600 dark:text-amber-300">
               Important: Please read this section carefully before using any
               information from MarketRipple for any investment purpose.
             </strong>
@@ -318,11 +318,11 @@ export default function LegalPage() {
           </DisclaimerCallout>
 
           <div className="mt-5 space-y-4">
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <h3 className="text-[13px] font-semibold text-slate-200">
+            <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <h3 className="text-[13px] font-semibold text-text-primary">
                 Research Tool Only
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 MarketRipple provides market intelligence, event analysis, and
                 AI-generated insights for research and educational purposes
                 only. The platform is designed to help users understand market
@@ -331,11 +331,11 @@ export default function LegalPage() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <h3 className="text-[13px] font-semibold text-slate-200">
+            <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <h3 className="text-[13px] font-semibold text-text-primary">
                 Not a Registered Financial Entity
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 MarketRipple is NOT registered with the Securities and Exchange
                 Board of India (SEBI) as an Investment Adviser, Research
                 Analyst, Stock Broker, Portfolio Manager, or in any other
@@ -345,11 +345,11 @@ export default function LegalPage() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <h3 className="text-[13px] font-semibold text-slate-200">
+            <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <h3 className="text-[13px] font-semibold text-text-primary">
                 AI-Generated Analysis
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 AI analysis, confidence scores, impact ratings, and opportunity
                 scores on MarketRipple are generated by automated models based on
                 publicly available information. These outputs may contain
@@ -359,11 +359,11 @@ export default function LegalPage() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <h3 className="text-[13px] font-semibold text-slate-200">
+            <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <h3 className="text-[13px] font-semibold text-text-primary">
                 Past Performance
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 Any historical market data, past performance information, or
                 backtested analysis shown on MarketRipple does not guarantee or
                 predict future results. Markets can and do behave differently
@@ -372,11 +372,11 @@ export default function LegalPage() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <h3 className="text-[13px] font-semibold text-slate-200">
+            <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <h3 className="text-[13px] font-semibold text-text-primary">
                 Data Delays
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 Market data on MarketRipple is subject to delays (typically 15
                 minutes for equity prices). This data must not be used for
                 real-time trading decisions. Always use a live, regulated
@@ -385,11 +385,11 @@ export default function LegalPage() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <h3 className="text-[13px] font-semibold text-slate-200">
+            <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <h3 className="text-[13px] font-semibold text-text-primary">
                 User Responsibility
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 All investment decisions are solely the responsibility of the
                 user. MarketRipple expressly disclaims any liability for investment
                 losses arising from reliance on content published on the
@@ -404,7 +404,7 @@ export default function LegalPage() {
         {/* ── Risk Disclosure ────────────────────────────────────────────────── */}
         <section
           aria-labelledby="risk"
-          className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6"
+          className="rounded-xl border border-surface-border/8 bg-surface-card p-6"
         >
           <SectionHeading
             id="risk"
@@ -414,7 +414,7 @@ export default function LegalPage() {
             bg="bg-rose-500/15"
           />
 
-          <p className="mt-4 text-[13px] leading-6 text-slate-400">
+          <p className="mt-4 text-[13px] leading-6 text-text-secondary">
             Investment in securities markets involves substantial risk. The
             following disclosures are provided to help users understand the
             risks associated with equity investing in Indian markets.
@@ -460,12 +460,12 @@ export default function LegalPage() {
               ].map((item) => (
                 <div
                   key={item.risk}
-                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4"
+                  className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4"
                 >
-                  <h4 className="text-[13px] font-semibold text-rose-300">
+                  <h4 className="text-[13px] font-semibold text-rose-600 dark:text-rose-300">
                     {item.risk}
                   </h4>
-                  <p className="mt-1.5 text-[12px] leading-5 text-slate-400">
+                  <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">
                     {item.desc}
                   </p>
                 </div>
@@ -474,7 +474,7 @@ export default function LegalPage() {
           </Sub>
 
           <Sub title="Small-Cap and Mid-Cap Risk">
-            <p className="mt-2 text-[13px] leading-6 text-slate-400">
+            <p className="mt-2 text-[13px] leading-6 text-text-secondary">
               Small-cap and mid-cap stocks carry materially higher risk than
               large-cap securities. They are more susceptible to liquidity
               squeezes, have lower analyst coverage, and can experience more
@@ -485,7 +485,7 @@ export default function LegalPage() {
           </Sub>
 
           <Sub title="Derivatives and Options">
-            <p className="mt-2 text-[13px] leading-6 text-slate-400">
+            <p className="mt-2 text-[13px] leading-6 text-text-secondary">
               Options, futures, and other derivative instruments involve risks
               beyond those associated with direct equity investment, including
               leverage risk, time decay, counterparty risk, and the potential
@@ -499,7 +499,7 @@ export default function LegalPage() {
         {/* ── Cookie Information ─────────────────────────────────────────────── */}
         <section
           aria-labelledby="cookies"
-          className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6"
+          className="rounded-xl border border-surface-border/8 bg-surface-card p-6"
         >
           <SectionHeading
             id="cookies"
@@ -509,7 +509,7 @@ export default function LegalPage() {
             bg="bg-emerald-500/15"
           />
 
-          <p className="mt-4 text-[13px] leading-6 text-slate-400">
+          <p className="mt-4 text-[13px] leading-6 text-text-secondary">
             MarketRipple uses cookies sparingly and only where necessary for the
             platform to function correctly. We do not use cookies for
             advertising, tracking, or building personal profiles.
@@ -517,10 +517,10 @@ export default function LegalPage() {
 
           <div className="mt-5 space-y-3">
             <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
-              <h3 className="text-[13px] font-semibold text-emerald-300">
+              <h3 className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-300">
                 Essential Session Cookies Only
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 MarketRipple uses only essential cookies required for basic session
                 management and platform functionality. These cookies are
                 necessary for the platform to operate correctly and cannot be
@@ -528,11 +528,11 @@ export default function LegalPage() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <h3 className="text-[13px] font-semibold text-slate-200">
+            <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <h3 className="text-[13px] font-semibold text-text-primary">
                 No Advertising or Tracking Cookies
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 MarketRipple does not deploy third-party advertising cookies,
                 retargeting pixels, social media tracking cookies, or any other
                 cookies designed to monitor your behaviour across other websites
@@ -540,11 +540,11 @@ export default function LegalPage() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <h3 className="text-[13px] font-semibold text-slate-200">
+            <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <h3 className="text-[13px] font-semibold text-text-primary">
                 Clearing Your Cookies
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 You may clear cookies stored by MarketRipple at any time through
                 your browser&apos;s privacy settings. Because we only use essential
                 session cookies, clearing them will not permanently affect your
@@ -553,11 +553,11 @@ export default function LegalPage() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <h3 className="text-[13px] font-semibold text-slate-200">
+            <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <h3 className="text-[13px] font-semibold text-text-primary">
                 Future Cookie Use
               </h3>
-              <p className="mt-1.5 text-[13px] leading-6 text-slate-400">
+              <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 If user account features are introduced in future, additional
                 cookies may be required to maintain authenticated sessions and
                 save preferences. Any such changes will be communicated clearly
@@ -577,10 +577,10 @@ export default function LegalPage() {
       </div>
 
       {/* Footer note */}
-      <div className="mt-10 rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
-        <p className="text-[12px] leading-6 text-slate-500">
+      <div className="mt-10 rounded-xl border border-surface-border/8 bg-text-primary/[0.02] p-5">
+        <p className="text-[12px] leading-6 text-text-muted">
           These legal documents were last updated in{" "}
-          <span className="text-slate-400">July 2025</span>. For questions
+          <span className="text-text-secondary">July 2025</span>. For questions
           regarding any of the above, write to{" "}
           <a
             href="mailto:support@marketripple.in"

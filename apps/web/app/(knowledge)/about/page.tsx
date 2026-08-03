@@ -179,18 +179,18 @@ export default function AboutPage() {
   return (
     <main className="min-w-0 space-y-16 pb-20">
       {/* ── Hero ── */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#0d1028] to-[#080c14] p-8 md:p-12">
+      <section className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-violet-500/[0.06] to-surface-bg p-8 md:p-12">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-400">
           About MarketRipple
         </p>
-        <h1 className="mt-4 text-[28px] font-black leading-tight text-white md:text-[42px]">
+        <h1 className="mt-4 text-[28px] font-black leading-tight text-text-primary md:text-[42px]">
           Understanding Markets.
           <br />
           <span className="bg-gradient-to-r from-violet-400 to-sky-400 bg-clip-text text-transparent">
             Not Just Watching Them.
           </span>
         </h1>
-        <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 md:text-lg">
+        <p className="mt-5 max-w-2xl text-base leading-7 text-text-secondary md:text-lg">
           MarketRipple is an AI-powered market intelligence platform built specifically for
           Indian investors. We transform breaking news and market events into structured
           intelligence — connecting events to sectors, sectors to companies, and companies
@@ -198,9 +198,9 @@ export default function AboutPage() {
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           {[
-            { label: "12 Intelligence Features", color: "border-violet-500/30 bg-violet-500/10 text-violet-300" },
-            { label: "Real-time AI Analysis", color: "border-sky-500/30 bg-sky-500/10 text-sky-300" },
-            { label: "Built for Indian Markets", color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
+            { label: "12 Intelligence Features", color: "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300" },
+            { label: "Real-time AI Analysis", color: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300" },
+            { label: "Built for Indian Markets", color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
           ].map((pill) => (
             <span
               key={pill.label}
@@ -214,13 +214,13 @@ export default function AboutPage() {
 
       {/* ── The Problem ── */}
       <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           The Problem
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           Why Traditional Platforms Fail Investors
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           The Indian market generates enormous amounts of information daily. Traditional
           platforms aggregate it — but aggregation is not intelligence.
         </p>
@@ -232,28 +232,28 @@ export default function AboutPage() {
               aria-label={p.title}
             >
               <p.icon className={`h-7 w-7 ${p.color}`} aria-hidden="true" />
-              <h3 className="mt-4 text-base font-bold text-white">{p.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{p.description}</p>
+              <h3 className="mt-4 text-base font-bold text-text-primary">{p.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">{p.description}</p>
             </article>
           ))}
         </div>
       </section>
 
       {/* ── Our Mission ── */}
-      <section className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/40 to-[#080c14] p-8 md:p-12">
+      <section className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/40 to-surface-bg p-8 md:p-12">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-400">
           Our Mission
         </p>
         <blockquote className="mt-6 border-l-2 border-violet-500 pl-6">
-          <p className="text-xl font-semibold leading-8 text-white md:text-2xl md:leading-9">
+          <p className="text-xl font-semibold leading-8 text-text-primary md:text-2xl md:leading-9">
             &ldquo;Our mission is to help every investor understand not just{" "}
-            <em className="not-italic text-violet-300">what happened</em>, but{" "}
-            <em className="not-italic text-sky-300">why it happened</em>, which companies
+            <em className="not-italic text-violet-600 dark:text-violet-300">what happened</em>, but{" "}
+            <em className="not-italic text-sky-600 dark:text-sky-300">why it happened</em>, which companies
             are affected, and{" "}
-            <em className="not-italic text-emerald-300">what opportunities exist</em>.&rdquo;
+            <em className="not-italic text-emerald-600 dark:text-emerald-300">what opportunities exist</em>.&rdquo;
           </p>
         </blockquote>
-        <p className="mt-6 max-w-2xl text-sm leading-6 text-slate-400">
+        <p className="mt-6 max-w-2xl text-sm leading-6 text-text-secondary">
           We believe that access to institutional-quality market intelligence should not be
           limited to hedge funds and proprietary trading desks. MarketRipple democratises
           contextual market understanding for every Indian investor — from seasoned
@@ -263,24 +263,24 @@ export default function AboutPage() {
 
       {/* ── Our Solution ── */}
       <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Our Solution
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           Three Things We Do That Others Don&apos;t
         </h2>
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {SOLUTIONS.map((s) => (
             <article
               key={s.title}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6"
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-6"
               aria-label={s.title}
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/[0.04] border border-white/[0.08]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-text-primary/[0.04] border border-surface-border/8">
                 <s.icon className={`h-5 w-5 ${s.color}`} aria-hidden="true" />
               </div>
-              <h3 className="mt-4 text-base font-bold text-white">{s.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{s.description}</p>
+              <h3 className="mt-4 text-base font-bold text-text-primary">{s.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">{s.description}</p>
             </article>
           ))}
         </div>
@@ -288,13 +288,13 @@ export default function AboutPage() {
 
       {/* ── Core Features ── */}
       <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Core Features
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           Everything Inside MarketRipple
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           Twelve interconnected features that work together to give you a complete picture
           of the Indian market — from pre-market signals to long-term structural trends.
         </p>
@@ -302,46 +302,46 @@ export default function AboutPage() {
           {FEATURES.map((f, i) => (
             <article
               key={f.title}
-              className="group rounded-xl border border-white/[0.08] bg-[#080c14] p-5 transition hover:border-white/[0.15] hover:bg-white/[0.02]"
+              className="group rounded-xl border border-surface-border/8 bg-surface-card p-5 transition hover:border-surface-border/15 hover:bg-text-primary/[0.02]"
               aria-label={f.title}
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-text-primary/[0.04] border border-surface-border/6">
                   <f.icon className="h-4 w-4 text-violet-400" aria-hidden="true" />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                   Feature {String(i + 1).padStart(2, "0")}
                 </span>
               </div>
-              <h3 className="mt-3 text-sm font-bold text-white">{f.title}</h3>
-              <p className="mt-1.5 text-sm leading-5 text-slate-500">{f.description}</p>
+              <h3 className="mt-3 text-sm font-bold text-text-primary">{f.title}</h3>
+              <p className="mt-1.5 text-sm leading-5 text-text-muted">{f.description}</p>
             </article>
           ))}
         </div>
       </section>
 
       {/* ── Product Philosophy ── */}
-      <section className="rounded-2xl border border-white/[0.08] bg-[#080c14] p-8 md:p-10">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+      <section className="rounded-2xl border border-surface-border/8 bg-surface-card p-8 md:p-10">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Product Philosophy
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           Principles We Build By
         </h2>
         <div className="mt-8 space-y-6">
           {PHILOSOPHY.map((p, i) => (
             <div key={p.title} className="flex gap-5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.03]">
                 <p.icon className="h-5 w-5 text-sky-400" aria-hidden="true" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                     Principle {i + 1}
                   </span>
                 </div>
-                <h3 className="mt-0.5 text-base font-bold text-white">{p.title}</h3>
-                <p className="mt-1.5 text-sm leading-6 text-slate-400">{p.description}</p>
+                <h3 className="mt-0.5 text-base font-bold text-text-primary">{p.title}</h3>
+                <p className="mt-1.5 text-sm leading-6 text-text-secondary">{p.description}</p>
               </div>
             </div>
           ))}
@@ -349,19 +349,19 @@ export default function AboutPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#0d1028] to-[#080c14] p-8 text-center md:p-12">
+      <section className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-violet-500/[0.06] to-surface-bg p-8 text-center md:p-12">
         <TrendingUp className="mx-auto h-10 w-10 text-violet-400" aria-hidden="true" />
-        <h2 className="mt-4 text-[22px] font-black text-white md:text-[28px]">
+        <h2 className="mt-4 text-[22px] font-black text-text-primary md:text-[28px]">
           Ready to Understand Your Markets?
         </h2>
-        <p className="mt-3 text-sm leading-6 text-slate-400">
+        <p className="mt-3 text-sm leading-6 text-text-secondary">
           Explore MarketRipple&apos;s intelligence modules and see how we make sense of
           the Indian market for you.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-4">
           <Link
             href="/"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-6 py-2.5 text-sm font-semibold text-text-primary transition hover:opacity-90"
             aria-label="Start exploring MarketRipple"
           >
             Start Exploring
@@ -369,7 +369,7 @@ export default function AboutPage() {
           </Link>
           <Link
             href="/how-it-works"
-            className="flex items-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.04] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.07]"
+            className="flex items-center gap-2 rounded-xl border border-surface-border/[0.12] bg-text-primary/[0.04] px-6 py-2.5 text-sm font-semibold text-text-primary transition hover:bg-text-primary/[0.07]"
             aria-label="Learn how MarketRipple works"
           >
             <Lightbulb className="h-4 w-4 text-amber-400" aria-hidden="true" />

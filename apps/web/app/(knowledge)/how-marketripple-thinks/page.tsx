@@ -44,7 +44,7 @@ function ConfidenceBadge({ pct }: { pct: number }) {
       ? "text-sky-400 bg-sky-500/10 border-sky-500/25"
       : pct >= 50
       ? "text-amber-400 bg-amber-500/10 border-amber-500/25"
-      : "text-slate-400 bg-slate-700/30 border-slate-600/30";
+      : "text-text-secondary bg-text-primary/[0.07] border-surface-border/7";
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${color}`}>
       <CircleDot className="h-2.5 w-2.5" />
@@ -79,7 +79,7 @@ function CascadeNode({
       ? "border-rose-500/40 bg-rose-500/[0.06]"
       : node.type === "intermediate"
       ? "border-amber-500/20 bg-amber-500/[0.04]"
-      : "border-slate-600/30 bg-white/[0.02]";
+      : "border-surface-border/7 bg-text-primary/[0.02]";
 
   const dotColor =
     node.type === "trigger"
@@ -92,7 +92,7 @@ function CascadeNode({
     <div style={{ marginLeft: indent }} className="relative">
       {depth > 0 && (
         <div
-          className="absolute left-[-20px] top-4 h-px w-5 border-t border-dashed border-slate-700"
+          className="absolute left-[-20px] top-4 h-px w-5 border-t border-dashed border-surface-border/10"
           aria-hidden="true"
         />
       )}
@@ -103,11 +103,11 @@ function CascadeNode({
           <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${dotColor}`} aria-hidden="true" />
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[13px] font-semibold text-white leading-snug">
+              <span className="text-[13px] font-semibold text-text-primary leading-snug">
                 {node.label}
               </span>
               {node.impactScore !== undefined && (
-                <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-300">
+                <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-300">
                   Impact Score: {node.impactScore}
                 </span>
               )}
@@ -116,10 +116,10 @@ function CascadeNode({
               )}
             </div>
             {node.sublabel && (
-              <p className="mt-0.5 text-[11px] text-slate-400">{node.sublabel}</p>
+              <p className="mt-0.5 text-[11px] text-text-secondary">{node.sublabel}</p>
             )}
             {node.why && (
-              <p className="mt-1 text-[11px] italic text-slate-500">
+              <p className="mt-1 text-[11px] italic text-text-muted">
                 Why: {node.why}
               </p>
             )}
@@ -128,7 +128,7 @@ function CascadeNode({
                 {node.companies.map((c) => (
                   <span
                     key={c}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300"
+                    className="rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] text-text-secondary"
                   >
                     {c}
                   </span>
@@ -140,7 +140,7 @@ function CascadeNode({
       </div>
 
       {node.children && node.children.length > 0 && (
-        <div className="ml-4 border-l border-dashed border-slate-700 pl-0">
+        <div className="ml-4 border-l border-dashed border-surface-border/10 pl-0">
           {node.children.map((child, i) => (
             <CascadeNode key={i} node={child} depth={depth + 1} />
           ))}
@@ -353,7 +353,7 @@ const scenarios = [
     recommendation: "Buy on dip: IndiGo, SpiceJet. Overweight HPCL, BPCL.",
     icon: <TrendingUp className="h-5 w-5" />,
     color: "border-emerald-500/30 bg-emerald-500/[0.05]",
-    badgeColor: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+    badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30",
     recColor: "text-emerald-400",
   },
   {
@@ -366,7 +366,7 @@ const scenarios = [
     recommendation: "Defensive positioning: Overweight IT, Pharma, Gold ETFs. Underweight Airlines, OMCs.",
     icon: <Minus className="h-5 w-5" />,
     color: "border-amber-500/30 bg-amber-500/[0.05]",
-    badgeColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+    badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30",
     recColor: "text-amber-400",
   },
   {
@@ -379,7 +379,7 @@ const scenarios = [
     recommendation: "Risk-off: Raise cash. Buy Sovereign Gold Bonds. Short Nifty via puts.",
     icon: <TrendingDown className="h-5 w-5" />,
     color: "border-rose-500/30 bg-rose-500/[0.05]",
-    badgeColor: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+    badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-300 border-rose-500/30",
     recColor: "text-rose-400",
   },
 ];
@@ -421,7 +421,7 @@ const confidenceLevels = [
     label: "Low",
     bar: 35,
     color: "bg-slate-500",
-    textColor: "text-slate-400",
+    textColor: "text-text-secondary",
     description:
       "Limited evidence. High uncertainty. Early-stage hypothesis based on theoretical reasoning rather than empirical confirmation. Treat as directional signal only, not actionable intelligence.",
     examples: "Second-order geopolitical ripple effects, long-horizon regulatory predictions",
@@ -475,17 +475,17 @@ export default function HowMarketRippleThinksPage() {
 
       {/* ── HERO ──────────────────────────────────────────────────────── */}
       <section aria-labelledby="hero-heading">
-        <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-violet-950/60 via-[#080c14] to-sky-950/40 px-8 py-12 md:px-12 md:py-16">
+        <div className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-violet-950/60 via-[#080c14] to-sky-950/40 px-8 py-12 md:px-12 md:py-16">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-400">
             Transparent AI
           </p>
           <h1
             id="hero-heading"
-            className="mt-3 text-[28px] font-black leading-tight text-white md:text-[40px]"
+            className="mt-3 text-[28px] font-black leading-tight text-text-primary md:text-[40px]"
           >
             AI That Shows Its Work
           </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300 md:text-lg">
+          <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary md:text-lg">
             MarketRipple doesn&apos;t just give you answers — it shows you the reasoning chain,
             the confidence levels, and the alternative scenarios. Every insight is
             traceable back to its source events, historical analogues, and causal logic.
@@ -493,14 +493,14 @@ export default function HowMarketRippleThinksPage() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/ai-methodology"
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-5 py-2.5 text-sm font-semibold text-text-primary transition hover:opacity-90"
             >
               <Brain className="h-4 w-4" />
               AI Methodology
             </Link>
             <Link
               href="/data-sources"
-              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-white/25 hover:text-white"
+              className="flex items-center gap-2 rounded-xl border border-surface-border/15 bg-text-primary/[0.04] px-5 py-2.5 text-sm font-semibold text-text-secondary transition hover:border-surface-border/25 hover:text-text-primary"
             >
               <BookOpen className="h-4 w-4" />
               Data Sources
@@ -512,16 +512,16 @@ export default function HowMarketRippleThinksPage() {
       {/* ── THINKING FRAMEWORK ────────────────────────────────────────── */}
       <section aria-labelledby="framework-heading" className="space-y-6">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
             Methodology
           </p>
           <h2
             id="framework-heading"
-            className="mt-2 text-[22px] font-black text-white md:text-[28px]"
+            className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
           >
             The Thinking Framework
           </h2>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-text-secondary">
             Every MarketRipple insight follows a four-stage reasoning process — from raw
             data ingestion to structured, actionable intelligence.
           </p>
@@ -531,7 +531,7 @@ export default function HowMarketRippleThinksPage() {
           {frameworkSteps.map((step) => (
             <div
               key={step.number}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5"
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
             >
               <div className="mb-4 flex items-center justify-between">
                 <div
@@ -540,15 +540,15 @@ export default function HowMarketRippleThinksPage() {
                 >
                   {step.icon}
                 </div>
-                <span className="text-[32px] font-black text-white/[0.06] leading-none">
+                <span className="text-[32px] font-black text-text-primary/[0.06] leading-none">
                   {step.number}
                 </span>
               </div>
-              <h3 className="text-base font-bold text-white">{step.name}</h3>
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 mt-0.5 mb-2">
+              <h3 className="text-base font-bold text-text-primary">{step.name}</h3>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted mt-0.5 mb-2">
                 {step.tagline}
               </p>
-              <p className="text-[12px] leading-5 text-slate-400">
+              <p className="text-[12px] leading-5 text-text-secondary">
                 {step.description}
               </p>
             </div>
@@ -565,25 +565,25 @@ export default function HowMarketRippleThinksPage() {
             </p>
             <h2
               id="case-study-1-heading"
-              className="mt-2 text-[22px] font-black text-white md:text-[28px]"
+              className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
             >
               Israel–Iran Conflict: Full Ripple Chain
             </h2>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-text-secondary">
               How MarketRipple traces a geopolitical trigger all the way through to specific
               Indian listed companies — with confidence levels at every step.
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/[0.06] px-4 py-2">
             <Globe className="h-4 w-4 text-rose-400" />
-            <span className="text-[12px] font-semibold text-rose-300">
+            <span className="text-[12px] font-semibold text-rose-600 dark:text-rose-300">
               Geopolitical · Impact Score: 9.1
             </span>
           </div>
         </div>
 
-        <div className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5 md:p-7">
-          <div className="mb-4 flex flex-wrap gap-3 text-[11px] text-slate-500">
+        <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5 md:p-7">
+          <div className="mb-4 flex flex-wrap gap-3 text-[11px] text-text-muted">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-rose-500" />
               Trigger Event
@@ -612,16 +612,16 @@ export default function HowMarketRippleThinksPage() {
       {/* ── CONFIDENCE SYSTEM ─────────────────────────────────────────── */}
       <section aria-labelledby="confidence-heading" className="space-y-6">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
             Uncertainty Quantification
           </p>
           <h2
             id="confidence-heading"
-            className="mt-2 text-[22px] font-black text-white md:text-[28px]"
+            className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
           >
             The Confidence System
           </h2>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-text-secondary">
             Every claim MarketRipple makes carries a confidence level — so you always know
             how much weight to place on each insight.
           </p>
@@ -631,14 +631,14 @@ export default function HowMarketRippleThinksPage() {
           {confidenceLevels.map((level) => (
             <div
               key={level.label}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5"
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
             >
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <span className={`text-lg font-black ${level.textColor}`}>
                     {level.label}
                   </span>
-                  <span className="ml-2 text-[12px] text-slate-500">{level.range}</span>
+                  <span className="ml-2 text-[12px] text-text-muted">{level.range}</span>
                 </div>
                 <div className="text-right">
                   <span className={`text-2xl font-black ${level.textColor}`}>
@@ -646,17 +646,17 @@ export default function HowMarketRippleThinksPage() {
                   </span>
                 </div>
               </div>
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.05]">
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-text-primary/[0.05]">
                 <div
                   className={`h-full rounded-full ${level.color}`}
                   style={{ width: `${level.bar}%` }}
                   aria-label={`${level.bar}% confidence level bar`}
                 />
               </div>
-              <p className="mt-3 text-[12px] leading-5 text-slate-300">
+              <p className="mt-3 text-[12px] leading-5 text-text-secondary">
                 {level.description}
               </p>
-              <p className="mt-2 text-[11px] italic text-slate-500">
+              <p className="mt-2 text-[11px] italic text-text-muted">
                 Examples: {level.examples}
               </p>
             </div>
@@ -667,16 +667,16 @@ export default function HowMarketRippleThinksPage() {
       {/* ── RELATIONSHIP TYPES ────────────────────────────────────────── */}
       <section aria-labelledby="relationships-heading" className="space-y-6">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
             Causal Graph
           </p>
           <h2
             id="relationships-heading"
-            className="mt-2 text-[22px] font-black text-white md:text-[28px]"
+            className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
           >
             How Relationships Are Built
           </h2>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-text-secondary">
             MarketRipple&apos;s knowledge graph recognises six fundamental relationship types
             between events and market outcomes. Each type carries its own confidence
             model and propagation rules.
@@ -687,7 +687,7 @@ export default function HowMarketRippleThinksPage() {
           {relationshipTypes.map((rel) => (
             <div
               key={rel.name}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5"
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
             >
               <div
                 className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl border ${rel.color}`}
@@ -695,15 +695,15 @@ export default function HowMarketRippleThinksPage() {
               >
                 {rel.icon}
               </div>
-              <h3 className="text-[14px] font-bold text-white">{rel.name}</h3>
-              <p className="mt-2 text-[12px] leading-5 text-slate-400">
+              <h3 className="text-[14px] font-bold text-text-primary">{rel.name}</h3>
+              <p className="mt-2 text-[12px] leading-5 text-text-secondary">
                 {rel.description}
               </p>
-              <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-600 mb-1">
+              <div className="mt-3 rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted mb-1">
                   Example Chain
                 </p>
-                <p className="text-[11px] leading-5 text-slate-400 italic">
+                <p className="text-[11px] leading-5 text-text-secondary italic">
                   {rel.example}
                 </p>
               </div>
@@ -715,16 +715,16 @@ export default function HowMarketRippleThinksPage() {
       {/* ── ALTERNATIVE OUTCOMES ──────────────────────────────────────── */}
       <section aria-labelledby="scenarios-heading" className="space-y-6">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
             Scenario Analysis
           </p>
           <h2
             id="scenarios-heading"
-            className="mt-2 text-[22px] font-black text-white md:text-[28px]"
+            className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
           >
             Alternative Outcomes: Israel–Iran
           </h2>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-text-secondary">
             MarketRipple never presents a single deterministic forecast. The same trigger
             event generates three probability-weighted scenarios so you can position for
             multiple futures.
@@ -745,34 +745,34 @@ export default function HowMarketRippleThinksPage() {
                   {s.probability} probability
                 </span>
               </div>
-              <h3 className="text-[14px] font-bold text-white">{s.label}</h3>
+              <h3 className="text-[14px] font-bold text-text-primary">{s.label}</h3>
               <div className="mt-3 space-y-3">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                     Trigger Condition
                   </p>
-                  <p className="mt-0.5 text-[12px] leading-5 text-slate-300">
+                  <p className="mt-0.5 text-[12px] leading-5 text-text-secondary">
                     {s.trigger}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                     Oil Outcome
                   </p>
-                  <p className="mt-0.5 text-[12px] leading-5 text-slate-300">
+                  <p className="mt-0.5 text-[12px] leading-5 text-text-secondary">
                     {s.oilOutcome}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
                     Market Impact
                   </p>
-                  <p className="mt-0.5 text-[12px] leading-5 text-slate-300">
+                  <p className="mt-0.5 text-[12px] leading-5 text-text-secondary">
                     {s.marketOutcome}
                   </p>
                 </div>
-                <div className={`rounded-lg border border-white/[0.06] bg-white/[0.02] p-3`}>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 mb-1">
+                <div className={`rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-3`}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted mb-1">
                     AI Recommendation
                   </p>
                   <p className={`text-[12px] font-semibold leading-5 ${s.recColor}`}>
@@ -793,11 +793,11 @@ export default function HowMarketRippleThinksPage() {
           </p>
           <h2
             id="case-study-2-heading"
-            className="mt-2 text-[22px] font-black text-white md:text-[28px]"
+            className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
           >
             RBI Rate Cut: Monetary Policy Ripple Effects
           </h2>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-text-secondary">
             A 50 bps repo rate cut flows through four major sectors in distinct ways —
             some benefit immediately, others face transitional pressure. Here&apos;s how
             MarketRipple maps the full picture.
@@ -810,10 +810,10 @@ export default function HowMarketRippleThinksPage() {
               <Landmark className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">
                 Trigger Event
               </p>
-              <p className="text-[14px] font-bold text-white">
+              <p className="text-[14px] font-bold text-text-primary">
                 RBI MPC: Repo Rate Cut 50 bps (6.5% → 6.0%)
               </p>
             </div>
@@ -838,14 +838,14 @@ export default function HowMarketRippleThinksPage() {
             return (
               <div
                 key={node.sector}
-                className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5"
+                className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-slate-400">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.04] text-text-secondary">
                       {node.icon}
                     </div>
-                    <h3 className="text-[14px] font-bold text-white">{node.sector}</h3>
+                    <h3 className="text-[14px] font-bold text-text-primary">{node.sector}</h3>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${directionStyle}`}>
@@ -854,18 +854,18 @@ export default function HowMarketRippleThinksPage() {
                     <ConfidenceBadge pct={node.confidence} />
                   </div>
                 </div>
-                <p className="text-[12px] leading-5 text-slate-400">
+                <p className="text-[12px] leading-5 text-text-secondary">
                   {node.effect}
                 </p>
                 {node.companies.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    <p className="w-full text-[10px] font-bold uppercase tracking-[0.15em] text-slate-600">
+                    <p className="w-full text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">
                       Key Companies
                     </p>
                     {node.companies.map((c) => (
                       <span
                         key={c}
-                        className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300"
+                        className="rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] text-text-secondary"
                       >
                         {c}
                       </span>
@@ -879,21 +879,21 @@ export default function HowMarketRippleThinksPage() {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────────────────── */}
-      <section aria-label="Further reading" className="rounded-xl border border-white/[0.08] bg-[#080c14] p-6 md:p-8">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+      <section aria-label="Further reading" className="rounded-xl border border-surface-border/8 bg-surface-card p-6 md:p-8">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Go Deeper
         </p>
-        <h2 className="mt-2 text-xl font-black text-white">
+        <h2 className="mt-2 text-xl font-black text-text-primary">
           Understand the full system
         </h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-2 text-sm text-text-secondary">
           Explore how our AI models are built, validated, and kept honest — and where
           all the underlying data comes from.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href="/ai-methodology"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-sky-500 px-5 py-2.5 text-sm font-semibold text-text-primary transition hover:opacity-90"
             aria-label="Read AI Methodology"
           >
             <Brain className="h-4 w-4" />
@@ -902,7 +902,7 @@ export default function HowMarketRippleThinksPage() {
           </Link>
           <Link
             href="/data-sources"
-            className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-white/25 hover:text-white"
+            className="flex items-center gap-2 rounded-xl border border-surface-border/15 bg-text-primary/[0.04] px-5 py-2.5 text-sm font-semibold text-text-secondary transition hover:border-surface-border/25 hover:text-text-primary"
             aria-label="View Data Sources"
           >
             <Link2 className="h-4 w-4" />

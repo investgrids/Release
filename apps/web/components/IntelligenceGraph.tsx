@@ -446,7 +446,7 @@ function NodePanel({node,data,livePrice,onClose,onRipple,onMakeCenter}:{node:Raw
   const m=nt(node.node_type);
   const conns=data.edges.filter(e=>e.source===node.id||e.target===node.id);
   const d=conns.length;
-  const[bc,bl]=d>=6?["#22c55e","High Impact"]:d>=3?["#f59e0b","Moderate Impact"]:["#64748b","Connected"];
+  const[bc,bl]=d>=6?["#22c55e","High Impact"]:d>=3?["#f59e0b","Moderate Impact"]:["rgb(var(--text-muted))","Connected"];
   const imp=impact(node.id,data.nodes,data.edges);
   const cnf=conf(node.id,data.edges);
   const [sparkline,setSparkline]=useState<number[]>([]);
@@ -460,7 +460,7 @@ function NodePanel({node,data,livePrice,onClose,onRipple,onMakeCenter}:{node:Raw
   const riskNodes=conns.filter(e=>e.weight<-0.1).map(e=>{const id=e.source===node.id?e.target:e.source;return data.nodes.find(n=>n.id===id);}).filter(Boolean).slice(0,3) as RawNode[];
   const topConns=[...conns].sort((a,b)=>Math.abs(b.weight)-Math.abs(a.weight)).slice(0,4);
 
-  const sh:React.CSSProperties={fontSize:8,fontWeight:800,color:"#1e293b",textTransform:"uppercase",letterSpacing:".08em",marginBottom:7,display:"block"};
+  const sh:React.CSSProperties={fontSize:8,fontWeight:800,color:"rgb(var(--surface-border))",textTransform:"uppercase",letterSpacing:".08em",marginBottom:7,display:"block"};
   const card:React.CSSProperties={padding:"8px 10px",borderRadius:9,background:"rgba(255,255,255,.025)",border:"1px solid rgba(255,255,255,.04)"};
 
   const [tab,setTab]=useState<"analysis"|"connections">("analysis");
@@ -531,7 +531,7 @@ function NodePanel({node,data,livePrice,onClose,onRipple,onMakeCenter}:{node:Raw
         <div style={{display:"flex",gap:6}}>
           {[["Impact",`${imp}/10`,"#22c55e"],["Confidence",`${cnf}%`,"#818cf8"]].map(([k,v,c])=>(
             <div key={k} style={{flex:1,...card}}>
-              <div style={{fontSize:7,color:"#1e293b",fontWeight:700,marginBottom:3,textTransform:"uppercase",letterSpacing:".07em"}}>{k}</div>
+              <div style={{fontSize:7,color:"rgb(var(--surface-border))",fontWeight:700,marginBottom:3,textTransform:"uppercase",letterSpacing:".07em"}}>{k}</div>
               <div style={{fontSize:17,fontWeight:900,color:c as string,lineHeight:1}}>{v}</div>
               {k==="Confidence"&&<div style={{height:2.5,borderRadius:999,background:"rgba(255,255,255,.06)",marginTop:5,overflow:"hidden"}}><motion.div initial={{width:0}} animate={{width:`${cnf}%`}} transition={{duration:.9,ease:"easeOut"}} style={{height:"100%",borderRadius:999,background:"#818cf8"}}/></div>}
             </div>
@@ -542,7 +542,7 @@ function NodePanel({node,data,livePrice,onClose,onRipple,onMakeCenter}:{node:Raw
           {/* Why This Matters */}
           <div>
             <span style={sh}>Why This Matters</span>
-            <p style={{...card,fontSize:11.5,color:"#64748b",lineHeight:1.7,margin:0}}>{whyItMatters(node,data)}</p>
+            <p style={{...card,fontSize:11.5,color:"rgb(var(--text-muted))",lineHeight:1.7,margin:0}}>{whyItMatters(node,data)}</p>
           </div>
 
           {/* Key Takeaway */}
@@ -582,7 +582,7 @@ function NodePanel({node,data,livePrice,onClose,onRipple,onMakeCenter}:{node:Raw
             <span style={sh}>Historical Reference</span>
             <div style={{...card,display:"flex",gap:8,alignItems:"flex-start"}}>
               <History size={12} color="#60a5fa" strokeWidth={1.8} style={{flexShrink:0,marginTop:1}}/>
-              <p style={{fontSize:11,color:"#64748b",lineHeight:1.65,margin:0}}>{_HIST_REF[node.node_type]??"No historical reference available for this node type."}</p>
+              <p style={{fontSize:11,color:"rgb(var(--text-muted))",lineHeight:1.65,margin:0}}>{_HIST_REF[node.node_type]??"No historical reference available for this node type."}</p>
             </div>
           </div>
 
@@ -663,7 +663,7 @@ function AIExplain({step,onNext,onPrev,onClose}:{step:number;onNext:()=>void;onP
       <h3 style={{fontSize:13.5,fontWeight:800,color:"#f1f5f9",margin:"0 0 5px"}}>{s.title}</h3>
       <p style={{fontSize:11.5,color:"#475569",lineHeight:1.65,margin:"0 0 12px"}}>{s.desc}</p>
       <div style={{display:"flex",gap:7}}>
-        <motion.button whileHover={{scale:1.04}} whileTap={{scale:.96}} onClick={onPrev} disabled={step===0} style={{flex:1,padding:"7px 0",borderRadius:8,fontSize:10.5,fontWeight:700,cursor:step===0?"default":"pointer",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",color:step===0?"#1e293b":"#64748b",opacity:step===0?.35:1,display:"flex",alignItems:"center",justifyContent:"center",gap:4}}><ChevronLeft size={13} strokeWidth={2}/> Back</motion.button>
+        <motion.button whileHover={{scale:1.04}} whileTap={{scale:.96}} onClick={onPrev} disabled={step===0} style={{flex:1,padding:"7px 0",borderRadius:8,fontSize:10.5,fontWeight:700,cursor:step===0?"default":"pointer",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",color:step===0?"rgb(var(--surface-border))":"rgb(var(--text-muted))",opacity:step===0?.35:1,display:"flex",alignItems:"center",justifyContent:"center",gap:4}}><ChevronLeft size={13} strokeWidth={2}/> Back</motion.button>
         <motion.button whileHover={{scale:1.04}} whileTap={{scale:.96}} onClick={onNext} style={{flex:1,padding:"7px 0",borderRadius:8,fontSize:10.5,fontWeight:700,cursor:"pointer",background:"rgba(99,102,241,.2)",border:"1px solid rgba(99,102,241,.38)",color:"#a5b4fc",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>{step===tot-1?<><Check size={13} strokeWidth={2}/> Done</>:<>Next <ChevronRight size={13} strokeWidth={2}/></>}</motion.button>
       </div>
     </motion.div>
@@ -742,9 +742,9 @@ function BottomBar({data,centerId,liveData,lastUpdated}:{data:GData;centerId:str
         <div key={item.lb} style={{display:"flex",alignItems:"center",gap:7,padding:"0 11px",borderRight:i<items.length-1?"1px solid rgba(255,255,255,.04)":"none",flexShrink:0,minWidth:0}}>
           <div style={{width:27,height:27,borderRadius:7,background:`${item.accent}0d`,border:`1px solid ${item.accent}18`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{item.icon}</div>
           <div style={{minWidth:0}}>
-            <div style={{fontSize:7,fontWeight:800,color:"#1e293b",letterSpacing:".08em",textTransform:"uppercase",marginBottom:1.5}}>{item.lb}</div>
+            <div style={{fontSize:7,fontWeight:800,color:"rgb(var(--surface-border))",letterSpacing:".08em",textTransform:"uppercase",marginBottom:1.5}}>{item.lb}</div>
             <div style={{fontSize:11.5,fontWeight:800,color:"#94a3b8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:120}}>{item.v}</div>
-            {item.sub&&<div style={{fontSize:8.5,color:"#1e293b",fontWeight:600,marginTop:1,whiteSpace:"nowrap"}}>{item.sub}</div>}
+            {item.sub&&<div style={{fontSize:8.5,color:"rgb(var(--surface-border))",fontWeight:600,marginTop:1,whiteSpace:"nowrap"}}>{item.sub}</div>}
           </div>
         </div>
       ))}
@@ -782,7 +782,7 @@ function Minimap({nodes,positions,centerId,vp,cW,cH}:{nodes:RawNode[];positions:
 
 // ─── Zoom controls ────────────────────────────────────────────────────────────
 function ZoomCtrls({onZoomIn,onZoomOut,onFit,onReset}:{onZoomIn:()=>void;onZoomOut:()=>void;onFit:()=>void;onReset:()=>void}){
-  const btn:React.CSSProperties={width:32,height:32,borderRadius:9,background:"rgba(2,8,22,.9)",border:"1px solid rgba(255,255,255,.08)",cursor:"pointer",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",padding:0,backdropFilter:"blur(8px)",fontSize:16};
+  const btn:React.CSSProperties={width:32,height:32,borderRadius:9,background:"rgba(2,8,22,.9)",border:"1px solid rgba(255,255,255,.08)",cursor:"pointer",color:"rgb(var(--text-muted))",display:"flex",alignItems:"center",justifyContent:"center",padding:0,backdropFilter:"blur(8px)",fontSize:16};
   return(
     <div style={{position:"absolute",left:14,top:14,display:"flex",flexDirection:"column",gap:4,zIndex:20}}>
       <motion.button whileHover={{scale:1.08}} whileTap={{scale:.92}} style={btn} onClick={onZoomIn}>+</motion.button>
@@ -804,7 +804,7 @@ function TimelineSlider({idx,onChange}:{idx:number;onChange:(i:number)=>void}){
           style={{padding:"3px 9px",borderRadius:999,fontSize:9.5,fontWeight:i===idx?700:500,cursor:"pointer",whiteSpace:"nowrap",
             background:i===idx?"rgba(99,102,241,.25)":"transparent",
             border:i===idx?"1px solid rgba(99,102,241,.45)":"1px solid transparent",
-            color:i===idx?"#a5b4fc":i===1?"#64748b":"#334155",transition:"all .15s"}}>
+            color:i===idx?"#a5b4fc":i===1?"rgb(var(--text-muted))":"#334155",transition:"all .15s"}}>
           {t.label}
         </button>
       ))}
@@ -846,7 +846,7 @@ function AIChatPanel({open,onClose,messages,loading,onSend,gData,centerId,select
               <div style={{display:"flex",flexDirection:"column",gap:5}}>
                 <p style={{fontSize:11,color:"#334155",margin:"0 0 6px",textAlign:"center"}}>Ask anything about this graph</p>
                 {STARTERS.map(s=>(
-                  <button key={s} onClick={()=>onSend(s)} style={{padding:"6px 10px",borderRadius:8,fontSize:10.5,color:"#64748b",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",cursor:"pointer",textAlign:"left"}}>{s}</button>
+                  <button key={s} onClick={()=>onSend(s)} style={{padding:"6px 10px",borderRadius:8,fontSize:10.5,color:"rgb(var(--text-muted))",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",cursor:"pointer",textAlign:"left"}}>{s}</button>
                 ))}
               </div>
             )}
@@ -1163,7 +1163,7 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
       <div style={{flexShrink:0,padding:"10px 20px 0",background:"rgba(3,6,16,.98)"}}>
         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
           <span style={{fontSize:11,color:"#334155",fontWeight:600}}>Intelligence</span>
-          <span style={{fontSize:10,color:"#1e293b"}}>›</span>
+          <span style={{fontSize:10,color:"rgb(var(--surface-border))"}}>›</span>
           <span style={{fontSize:11,color:"#475569",fontWeight:700}}>Market Intelligence Graph</span>
         </div>
         <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
@@ -1193,7 +1193,7 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
               style={{display:"flex",alignItems:"center",gap:4,padding:"7px 11px",borderRadius:9,fontSize:11,fontWeight:b.active?700:600,cursor:"pointer",
                 background:b.active?`${b.color}.22)`:`${b.color}.04)`,
                 border:`1px solid ${b.active?`${b.color}.45)`:`${b.color}.08)`}`,
-                color:b.active?"#c7d2fe":"#64748b"}}>{b.icon}{b.l}</motion.button>)}
+                color:b.active?"#c7d2fe":"rgb(var(--text-muted))"}}>{b.icon}{b.l}</motion.button>)}
             <TimelineSlider idx={timelineIdx} onChange={setTimelineIdx}/>
           </div>
         </div>
@@ -1201,7 +1201,7 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
 
       {/* Historical Replay Bar */}
       <div style={{flexShrink:0,background:"rgba(2,4,14,.98)",padding:"5px 20px",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",alignItems:"center",gap:6,overflowX:"auto"}}>
-        <span style={{fontSize:8.5,fontWeight:700,color:"#1e293b",letterSpacing:".07em",textTransform:"uppercase",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4,flexShrink:0}}><History size={10} color="#334155" strokeWidth={1.8}/> Historical Replay</span>
+        <span style={{fontSize:8.5,fontWeight:700,color:"rgb(var(--surface-border))",letterSpacing:".07em",textTransform:"uppercase",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4,flexShrink:0}}><History size={10} color="#334155" strokeWidth={1.8}/> Historical Replay</span>
         <span style={{width:1,height:14,background:"rgba(255,255,255,.05)",flexShrink:0}}/>
         {HIST_SCENARIOS.map(s=>(
           <button key={s.id} onClick={()=>setHistoricalId(historicalId===s.id?null:s.id)}
@@ -1293,7 +1293,7 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
         <AnimatePresence>
           {subLoading&&<motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={{position:"absolute",inset:0,zIndex:50,background:"rgba(5,10,24,.75)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12}}>
             <div style={{width:36,height:36,border:"2.5px solid rgba(139,92,246,.2)",borderTopColor:"#a78bfa",borderRadius:"50%",animation:"igSpin .8s linear infinite"}}/>
-            <p style={{fontSize:12,color:"#64748b",fontWeight:600,margin:0}}>Loading subgraph…</p>
+            <p style={{fontSize:12,color:"rgb(var(--text-muted))",fontWeight:600,margin:0}}>Loading subgraph…</p>
           </motion.div>}
         </AnimatePresence>
 
@@ -1329,7 +1329,7 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
 
       {/* Footer */}
       <div style={{height:26,flexShrink:0,background:"rgba(1,3,10,.99)",borderTop:"1px solid rgba(255,255,255,.04)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 16px"}}>
-        <span style={{fontSize:9.5,color:"#1e293b",display:"flex",alignItems:"center",gap:5}}>
+        <span style={{fontSize:9.5,color:"rgb(var(--surface-border))",display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:6,height:6,borderRadius:"50%",
             background:liveStatus==="live"?"#22c55e":liveStatus==="offline"?"#ef4444":"#f59e0b",
             display:"inline-block",
@@ -1337,9 +1337,9 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
           {liveStatus==="live"&&lastUpdated
             ?`Live · updated ${new Date(lastUpdated).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`
             :liveStatus==="offline"?"Offline — retrying…":"Connecting…"}
-          {liveData&&<span style={{marginLeft:8,color:"#1e293b"}}>· {Object.keys(liveData.prices).length} prices</span>}
+          {liveData&&<span style={{marginLeft:8,color:"rgb(var(--surface-border))"}}>· {Object.keys(liveData.prices).length} prices</span>}
         </span>
-        <span style={{fontSize:9.5,color:"#1e293b",display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:9.5,color:"rgb(var(--surface-border))",display:"flex",alignItems:"center",gap:10}}>
           {liveData&&<span>{liveData.topology.node_count} nodes · {liveData.topology.edge_count} edges</span>}
           <span>Data: NSE, BSE, RBI, yfinance · Prices cached 2 min</span>
         </span>

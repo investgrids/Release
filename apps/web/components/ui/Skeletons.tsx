@@ -1,12 +1,12 @@
-// Skeleton pulse components — dark glassmorphism, matches real component proportions
+// Skeleton pulse components — theme-aware glassmorphism, matches real component proportions
 import type { ReactNode } from "react";
 
 const P = ({ className = "" }: { className?: string }) => (
-  <div className={`animate-pulse rounded-lg bg-white/[0.07] ${className}`} />
+  <div className={`animate-pulse rounded-lg bg-text-primary/[0.07] ${className}`} />
 );
 
 const Card = ({ className = "", children }: { className?: string; children: ReactNode }) => (
-  <div className={`rounded-[28px] border border-white/[0.06] bg-white/[0.02] ${className}`}>{children}</div>
+  <div className={`rounded-[28px] border border-surface-border/6 bg-text-primary/[0.02] ${className}`}>{children}</div>
 );
 
 // ── PreMarket ─────────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ export function PreMarketSkeleton() {
       <div className="grid grid-cols-[1fr_auto] gap-5">
         <div className="grid grid-cols-3 gap-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-2xl border border-white/[0.05] bg-white/[0.02] p-3">
+            <div key={i} className="rounded-2xl border border-surface-border/5 bg-text-primary/[0.02] p-3">
               <P className="h-3 w-14 mb-2" /><P className="h-5 w-20 mb-1" /><P className="h-3 w-10" />
             </div>
           ))}
@@ -46,7 +46,7 @@ export function MarketSkeleton() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded-2xl border border-white/[0.05] p-4">
+            <div key={i} className="rounded-2xl border border-surface-border/5 p-4">
               <P className="h-3 w-20 mb-3" /><P className="h-7 w-32 mb-2" /><P className="h-3 w-16" />
             </div>
           ))}
@@ -72,7 +72,7 @@ export function MarketSkeleton() {
 // ── AI Wrap ───────────────────────────────────────────────────────────────────
 export function AIWrapSkeleton() {
   return (
-    <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.02] p-5">
+    <div className="rounded-[28px] border border-surface-border/6 bg-text-primary/[0.02] p-5">
       <div className="flex items-start gap-6">
         <div className="flex-1 space-y-3">
           <P className="h-5 w-40 rounded-full" />
@@ -80,7 +80,7 @@ export function AIWrapSkeleton() {
         </div>
         <div className="grid grid-cols-3 gap-3 shrink-0">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="rounded-2xl border border-white/[0.05] p-3 min-w-[140px]">
+            <div key={i} className="rounded-2xl border border-surface-border/5 p-3 min-w-[140px]">
               <P className="h-3 w-24 mb-3" />
               {[...Array(3)].map((__, j) => <P key={j} className="h-3 w-full mt-1.5" />)}
             </div>
@@ -101,7 +101,7 @@ export function EventsOppSkeleton() {
         </div>
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="grid grid-cols-[1fr_60px_140px_90px_60px] items-center gap-3 rounded-2xl border border-white/[0.04] px-3 py-2.5">
+            <div key={i} className="grid grid-cols-[1fr_60px_140px_90px_60px] items-center gap-3 rounded-2xl border border-surface-border/4 px-3 py-2.5">
               <div className="space-y-1.5"><P className="h-3 w-full" /><P className="h-3 w-20" /></div>
               <P className="h-6 w-10 rounded-full mx-auto" />
               <div className="flex gap-1">{[...Array(3)].map((__, j) => <P key={j} className="h-7 w-7 rounded-full" />)}</div>
@@ -115,7 +115,7 @@ export function EventsOppSkeleton() {
         <P className="h-4 w-40 mb-4" />
         <div className="space-y-2.5">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="rounded-2xl border border-white/[0.04] p-3">
+            <div key={i} className="rounded-2xl border border-surface-border/4 p-3">
               <div className="flex items-center gap-2 mb-2">
                 <P className="h-6 w-6 rounded-lg shrink-0" /><P className="h-3 w-32" />
               </div>
@@ -139,7 +139,7 @@ export function MoversSkeleton() {
         {[...Array(3)].map((_, col) => (
           <div key={col} className="space-y-2">
             {[...Array(4)].map((__, i) => (
-              <div key={i} className="flex items-center justify-between rounded-2xl border border-white/[0.04] px-3 py-2.5">
+              <div key={i} className="flex items-center justify-between rounded-2xl border border-surface-border/4 px-3 py-2.5">
                 <div className="flex items-center gap-2">
                   <P className="h-7 w-7 rounded-lg shrink-0" />
                   <div className="space-y-1"><P className="h-3 w-12" /><P className="h-2.5 w-16" /></div>
@@ -159,7 +159,7 @@ export function RightSidebarSkeleton() {
   return (
     <aside className="hidden xl:flex xl:flex-col gap-4 min-w-0 sticky top-[88px] self-start max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-hide pb-16">
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="rounded-[24px] border border-white/[0.06] bg-white/[0.02] p-4">
+        <div key={i} className="rounded-[24px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
           <P className="h-4 w-32 mb-4" />
           <div className="space-y-2.5">
             {[...Array(4)].map((__, j) => (
@@ -199,7 +199,7 @@ export function DashboardSkeleton() {
     <>
       <div className="min-w-0 space-y-5 pb-36">
         {/* Hero */}
-        <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.02] p-6">
+        <div className="rounded-[28px] border border-surface-border/6 bg-text-primary/[0.02] p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="space-y-2"><P className="h-5 w-48" /><P className="h-8 w-72" /></div>
             <div className="flex gap-3">{[...Array(4)].map((_, i) => <P key={i} className="h-16 w-32 rounded-2xl" />)}</div>
@@ -222,7 +222,7 @@ export function MarketIntelligenceSkeleton() {
   return (
     <>
       <div className="min-w-0 space-y-5 pb-36">
-        <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.02] p-5">
+        <div className="rounded-[28px] border border-surface-border/6 bg-text-primary/[0.02] p-5">
           <div className="mb-5 flex items-center gap-2">
             {[...Array(6)].map((_, i) => <P key={i} className="h-9 w-32 rounded-full" />)}
           </div>
@@ -247,7 +247,7 @@ export function ListPageSkeleton() {
   return (
     <div className="min-w-0 space-y-4 pb-20">
       {/* Header + filters */}
-      <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.02] p-5">
+      <div className="rounded-[28px] border border-surface-border/6 bg-text-primary/[0.02] p-5">
         <div className="mb-4 flex items-center justify-between">
           <div className="space-y-2"><P className="h-5 w-48" /><P className="h-3 w-32" /></div>
           <div className="flex gap-2">{[...Array(4)].map((_, i) => <P key={i} className="h-8 w-24 rounded-full" />)}</div>
@@ -258,7 +258,7 @@ export function ListPageSkeleton() {
       </div>
       {/* List items */}
       {[...Array(8)].map((_, i) => (
-        <div key={i} className="rounded-[24px] border border-white/[0.06] bg-white/[0.02] p-4">
+        <div key={i} className="rounded-[24px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
           <div className="flex items-start gap-4">
             <P className="h-10 w-10 rounded-xl shrink-0" />
             <div className="flex-1 space-y-2">
@@ -291,7 +291,7 @@ export function RadarPageSkeleton() {
         {/* Cards grid */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-[20px] border border-white/[0.07] bg-white/[0.02] p-4 space-y-3">
+            <div key={i} className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.02] p-4 space-y-3">
               <div className="flex items-start gap-3">
                 <P className="h-14 w-14 rounded-full shrink-0" />
                 <div className="flex-1 space-y-2 pt-1">
@@ -315,7 +315,7 @@ export function RadarPageSkeleton() {
           ))}
         </div>
         {/* Sidebar */}
-        <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.02] p-4 space-y-4">
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.02] p-4 space-y-4">
           <P className="h-4 w-28" />
           {[...Array(5)].map((_, i) => (
             <div key={i} className="space-y-1.5">
@@ -339,7 +339,7 @@ export function DetailPageSkeleton() {
       {/* Breadcrumb */}
       <P className="h-4 w-48" />
       {/* Hero card */}
-      <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.02] p-6">
+      <div className="rounded-[28px] border border-surface-border/6 bg-text-primary/[0.02] p-6">
         <div className="flex items-start gap-6">
           <div className="flex-1 space-y-3">
             <div className="flex gap-2">{[...Array(3)].map((_, i) => <P key={i} className="h-6 w-20 rounded-full" />)}</div>

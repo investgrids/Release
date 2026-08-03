@@ -14,7 +14,7 @@ export function AIMarketWrapCard({ title, description }: AIMarketWrapCardProps) 
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.05 }}
-      className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#070d1a] p-5 shadow-glow min-h-[220px] h-full"
+      className="relative overflow-hidden rounded-[28px] border border-surface-border/10 bg-surface-card p-5 shadow-glow min-h-[220px] h-full"
     >
       {/* Background radial glow */}
       <div className="pointer-events-none absolute inset-0">
@@ -25,14 +25,14 @@ export function AIMarketWrapCard({ title, description }: AIMarketWrapCardProps) 
       <div className="relative flex h-full gap-4">
         {/* Left content */}
         <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-300">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-600 dark:text-sky-300">
             <Sparkles className="h-3.5 w-3.5" /> AI Market Wrap
           </div>
           <div className="space-y-3 flex-1">
-            <h2 className="text-xl font-semibold leading-snug text-white line-clamp-3">{title}</h2>
-            <p className="text-sm leading-6 text-slate-400 line-clamp-3">{description}</p>
+            <h2 className="text-xl font-semibold leading-snug text-text-primary line-clamp-3">{title}</h2>
+            <p className="text-sm leading-6 text-text-secondary line-clamp-3">{description}</p>
           </div>
-          <button className="inline-flex w-fit items-center gap-2 rounded-[16px] border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/10">
+          <button className="inline-flex w-fit items-center gap-2 rounded-[16px] border border-surface-border/10 bg-text-primary/5 px-5 py-2.5 text-sm font-medium text-text-primary transition hover:bg-text-primary/10">
             Read Full Wrap <span>→</span>
           </button>
         </div>

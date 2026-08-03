@@ -146,9 +146,9 @@ const RIPPLE_CHAIN = [
 ];
 
 const IMPACT_STYLE: Record<string, { pill: string; dot: string }> = {
-  Negative: { pill: "bg-rose-500/10 text-rose-300 border-rose-500/20", dot: "bg-rose-400" },
-  Positive: { pill: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20", dot: "bg-emerald-400" },
-  Mixed: { pill: "bg-amber-500/10 text-amber-300 border-amber-500/20", dot: "bg-amber-400" },
+  Negative: { pill: "bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-500/20", dot: "bg-rose-400" },
+  Positive: { pill: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-500/20", dot: "bg-emerald-400" },
+  Mixed: { pill: "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/20", dot: "bg-amber-400" },
 };
 
 const PHILOSOPHY_ACCENT: Record<string, { bg: string; border: string; icon: string }> = {
@@ -163,18 +163,18 @@ export default function WhyMarketRipplePage() {
   return (
     <main className="min-w-0 space-y-16 pb-20">
       {/* ── Hero ── */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#0d1028] to-[#080c14] p-8 md:p-12">
+      <section className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-violet-500/[0.06] to-surface-bg p-8 md:p-12">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-400">
           Why MarketRipple
         </p>
-        <h1 className="mt-4 text-[28px] font-black leading-tight text-white md:text-[42px]">
+        <h1 className="mt-4 text-[28px] font-black leading-tight text-text-primary md:text-[42px]">
           The Market Intelligence Platform
           <br />
           <span className="bg-gradient-to-r from-sky-400 to-violet-400 bg-clip-text text-transparent">
             Built Different
           </span>
         </h1>
-        <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 md:text-lg">
+        <p className="mt-5 max-w-2xl text-base leading-7 text-text-secondary md:text-lg">
           Traditional platforms give you data. MarketRipple gives you intelligence. There&apos;s a
           fundamental difference between seeing that markets fell 2% and understanding
           that RBI&apos;s surprise rate action compressed NBFC spreads, triggered FII outflows
@@ -185,50 +185,50 @@ export default function WhyMarketRipplePage() {
 
       {/* ── Comparison Table ── */}
       <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           The Difference
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           Traditional Platforms vs MarketRipple
         </h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {/* Traditional */}
-          <div className="rounded-xl border border-white/[0.06] bg-[#080c14] overflow-hidden">
-            <div className="border-b border-white/[0.06] bg-white/[0.02] px-6 py-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <div className="rounded-xl border border-surface-border/6 bg-surface-card overflow-hidden">
+            <div className="border-b border-surface-border/6 bg-text-primary/[0.02] px-6 py-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
                 Traditional Platforms
               </p>
-              <p className="mt-1 text-lg font-bold text-slate-400">Data Aggregators</p>
+              <p className="mt-1 text-lg font-bold text-text-secondary">Data Aggregators</p>
             </div>
-            <ul className="divide-y divide-white/[0.04] px-6" aria-label="Traditional platform features">
+            <ul className="divide-y divide-surface-border/4 px-6" aria-label="Traditional platform features">
               {TRADITIONAL.map((item) => (
                 <li key={item} className="flex items-start gap-3 py-4">
                   <X
-                    className="mt-0.5 h-4 w-4 shrink-0 text-slate-600"
+                    className="mt-0.5 h-4 w-4 shrink-0 text-text-muted"
                     aria-hidden="true"
                   />
-                  <span className="text-sm leading-5 text-slate-500">{item}</span>
+                  <span className="text-sm leading-5 text-text-muted">{item}</span>
                 </li>
               ))}
             </ul>
           </div>
 
           {/* MarketRipple */}
-          <div className="rounded-xl border border-violet-500/30 bg-[#080c14] overflow-hidden">
+          <div className="rounded-xl border border-violet-500/30 bg-surface-card overflow-hidden">
             <div className="border-b border-violet-500/20 bg-gradient-to-r from-violet-600/20 to-sky-600/20 px-6 py-4">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-400">
                 MarketRipple
               </p>
-              <p className="mt-1 text-lg font-bold text-white">Market Intelligence</p>
+              <p className="mt-1 text-lg font-bold text-text-primary">Market Intelligence</p>
             </div>
-            <ul className="divide-y divide-white/[0.04] px-6" aria-label="MarketRipple features">
+            <ul className="divide-y divide-surface-border/4 px-6" aria-label="MarketRipple features">
               {MARKETRIPPLE_FEATURES.map((item) => (
                 <li key={item} className="flex items-start gap-3 py-4">
                   <Check
                     className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"
                     aria-hidden="true"
                   />
-                  <span className="text-sm leading-5 text-slate-300">{item}</span>
+                  <span className="text-sm leading-5 text-text-secondary">{item}</span>
                 </li>
               ))}
             </ul>
@@ -238,10 +238,10 @@ export default function WhyMarketRipplePage() {
 
       {/* ── Philosophy Gap ── */}
       <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           The Philosophy Gap
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           Three Shifts That Change Everything
         </h2>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -254,8 +254,8 @@ export default function WhyMarketRipplePage() {
                 aria-label={p.title}
               >
                 <p.icon className={`h-6 w-6 ${a.icon}`} aria-hidden="true" />
-                <h3 className="mt-4 text-base font-bold text-white">{p.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-400">{p.description}</p>
+                <h3 className="mt-4 text-base font-bold text-text-primary">{p.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-text-secondary">{p.description}</p>
               </article>
             );
           })}
@@ -264,13 +264,13 @@ export default function WhyMarketRipplePage() {
 
       {/* ── Real Example ── */}
       <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Real Example
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           See the Difference in Action
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           The same event. Two completely different levels of understanding.
         </p>
 
@@ -278,23 +278,23 @@ export default function WhyMarketRipplePage() {
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-400">
             The Event
           </p>
-          <p className="mt-2 text-xl font-black text-white">
+          <p className="mt-2 text-xl font-black text-text-primary">
             RBI raises interest rates by 50 bps — Emergency MPC Meeting
           </p>
-          <p className="mt-1 text-sm text-slate-400">Surprise off-cycle monetary policy action</p>
+          <p className="mt-1 text-sm text-text-secondary">Surprise off-cycle monetary policy action</p>
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {/* Traditional */}
-          <div className="rounded-xl border border-white/[0.06] bg-[#080c14] p-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <div className="rounded-xl border border-surface-border/6 bg-surface-card p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
               Traditional Platform
             </p>
-            <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-              <p className="text-sm font-semibold text-slate-300">
+            <div className="mt-4 rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <p className="text-sm font-semibold text-text-secondary">
                 &ldquo;RBI Hikes Rates 50 bps — Markets React&rdquo;
               </p>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
+              <p className="mt-2 text-xs leading-5 text-text-muted">
                 The Reserve Bank of India raised the repo rate by 50 basis points in an
                 emergency meeting. Nifty fell 1.2%. Bank Nifty declined 2.1%.
               </p>
@@ -307,20 +307,20 @@ export default function WhyMarketRipplePage() {
                 "No opportunity identification",
               ].map((item) => (
                 <div key={item} className="flex items-center gap-2">
-                  <X className="h-3.5 w-3.5 shrink-0 text-slate-600" aria-hidden="true" />
-                  <span className="text-xs text-slate-500">{item}</span>
+                  <X className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+                  <span className="text-xs text-text-muted">{item}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* MarketRipple */}
-          <div className="rounded-xl border border-violet-500/20 bg-[#080c14] p-5">
+          <div className="rounded-xl border border-violet-500/20 bg-surface-card p-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-400">
               MarketRipple Intelligence
             </p>
             <div className="mt-4 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                 Ripple Engine — Impact Chain
               </p>
               {RIPPLE_CHAIN.map((item, i) => {
@@ -330,17 +330,17 @@ export default function WhyMarketRipplePage() {
                     {i > 0 && (
                       <div className="flex justify-center py-0.5">
                         <ArrowDown
-                          className="h-3.5 w-3.5 text-slate-700"
+                          className="h-3.5 w-3.5 text-text-muted"
                           aria-hidden="true"
                         />
                       </div>
                     )}
                     <article
-                      className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3"
+                      className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-3"
                       aria-label={`${item.sector} impact`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-white">
+                        <span className="text-xs font-semibold text-text-primary">
                           {item.sector}
                         </span>
                         <div className="flex items-center gap-2">
@@ -349,19 +349,19 @@ export default function WhyMarketRipplePage() {
                           >
                             {item.impact}
                           </span>
-                          <span className="text-[10px] font-bold text-slate-500">
+                          <span className="text-[10px] font-bold text-text-muted">
                             {item.score}
                           </span>
                         </div>
                       </div>
-                      <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                      <p className="mt-1 text-[11px] leading-4 text-text-muted">
                         {item.detail}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {item.companies.map((c) => (
                           <span
                             key={c}
-                            className="rounded border border-white/[0.06] bg-white/[0.03] px-2 py-0.5 text-[10px] text-slate-400"
+                            className="rounded border border-surface-border/6 bg-text-primary/[0.03] px-2 py-0.5 text-[10px] text-text-secondary"
                           >
                             {c}
                           </span>
@@ -377,11 +377,11 @@ export default function WhyMarketRipplePage() {
                     className="h-1.5 w-1.5 rounded-full bg-emerald-400"
                     aria-hidden="true"
                   />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
                     Opportunity Identified
                   </span>
                 </div>
-                <p className="mt-1.5 text-[11px] leading-4 text-slate-300">
+                <p className="mt-1.5 text-[11px] leading-4 text-text-secondary">
                   Quality NBFCs with diversified funding (SBI Cards, Muthoot Finance) — limited
                   CP exposure, premium valuation compression creates entry opportunity.
                   Opportunity Score: 74/100
@@ -394,13 +394,13 @@ export default function WhyMarketRipplePage() {
 
       {/* ── Why India ── */}
       <section>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Built for India
         </p>
-        <h2 className="mt-3 text-[24px] font-black text-white md:text-[30px]">
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
           Why MarketRipple Is Designed for Indian Markets
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           Indian equity markets have unique dynamics that generic global platforms
           fundamentally misunderstand. MarketRipple is built from the ground up for India&apos;s
           market structure, regulatory environment, and capital flow patterns.
@@ -409,35 +409,35 @@ export default function WhyMarketRipplePage() {
           {INDIA_REASONS.map((r) => (
             <article
               key={r.label}
-              className="rounded-xl border border-white/[0.08] bg-[#080c14] p-5 transition hover:border-white/[0.14]"
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5 transition hover:border-surface-border/[0.14]"
               aria-label={r.label}
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.03]">
                 <r.icon className="h-4 w-4 text-sky-400" aria-hidden="true" />
               </div>
-              <h3 className="mt-3 text-sm font-bold text-white">{r.label}</h3>
-              <p className="mt-1.5 text-sm leading-5 text-slate-500">{r.description}</p>
+              <h3 className="mt-3 text-sm font-bold text-text-primary">{r.label}</h3>
+              <p className="mt-1.5 text-sm leading-5 text-text-muted">{r.description}</p>
             </article>
           ))}
         </div>
       </section>
 
       {/* ── CTA ── */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#0a0d1a] to-[#080c14] p-8 text-center md:p-12">
+      <section className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-surface-card to-surface-bg p-8 text-center md:p-12">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-400">
           Next Step
         </p>
-        <h2 className="mt-3 text-[22px] font-black text-white md:text-[28px]">
+        <h2 className="mt-3 text-[22px] font-black text-text-primary md:text-[28px]">
           See How the Intelligence Is Built
         </h2>
-        <p className="mt-3 text-sm leading-6 text-slate-400">
+        <p className="mt-3 text-sm leading-6 text-text-secondary">
           Understand the technology pipeline behind MarketRipple — from breaking news to
           investment opportunity in seconds.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-4">
           <Link
             href="/how-it-works"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-violet-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-violet-600 px-6 py-2.5 text-sm font-semibold text-text-primary transition hover:opacity-90"
             aria-label="See how MarketRipple works"
           >
             How It Works
@@ -445,11 +445,11 @@ export default function WhyMarketRipplePage() {
           </Link>
           <Link
             href="/how-marketripple-thinks"
-            className="flex items-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.04] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.07]"
+            className="flex items-center gap-2 rounded-xl border border-surface-border/[0.12] bg-text-primary/[0.04] px-6 py-2.5 text-sm font-semibold text-text-primary transition hover:bg-text-primary/[0.07]"
             aria-label="Learn how MarketRipple thinks"
           >
             How MarketRipple Thinks
-            <ChevronRight className="h-4 w-4 text-slate-400" aria-hidden="true" />
+            <ChevronRight className="h-4 w-4 text-text-secondary" aria-hidden="true" />
           </Link>
         </div>
       </section>

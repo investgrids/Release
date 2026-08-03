@@ -24,7 +24,7 @@ export function BookmarkButton({
         e.stopPropagation();
         toggle({ slug, headline, articleType });
       }}
-      className={`rounded-lg p-1.5 transition ${active ? "text-violet-400" : "text-slate-500 hover:text-slate-300"} ${className}`}
+      className={`rounded-lg p-1.5 transition ${active ? "text-violet-400" : "text-text-muted hover:text-text-secondary"} ${className}`}
     >
       <Bookmark className="h-4 w-4" fill={active ? "currentColor" : "none"} />
     </button>

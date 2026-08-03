@@ -137,7 +137,7 @@ function SectorBar({ impact }: { impact: string }) {
     : /negative/.test(i) ? "text-rose-400" : "text-amber-400";
   return (
     <div className="flex items-center gap-2 min-w-0">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
         <div className={`h-full rounded-full ${bg}`} style={{ width: `${pct}%` }} />
       </div>
       <span className={`shrink-0 text-[10px] font-semibold capitalize ${labelCls}`}>{label}</span>
@@ -198,12 +198,12 @@ export default async function IntelligenceArticlePage({
   ].filter(Boolean).slice(0, 3) as string[];
 
   return (
-    <div className="min-h-screen bg-[#020617]">
+    <div className="min-h-screen bg-surface-card">
       <div className="mx-auto max-w-[1280px] px-5 py-8 md:px-8">
 
         {/* Back nav */}
         <Link href="/market-intelligence"
-          className="mb-6 inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-500 hover:text-slate-300 transition">
+          className="mb-6 inline-flex items-center gap-1.5 text-[12px] font-medium text-text-muted hover:text-text-secondary transition">
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to Intelligence
         </Link>
@@ -220,7 +220,7 @@ export default async function IntelligenceArticlePage({
                 <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-violet-400">
                   AI Intelligence
                 </span>
-                <span className="rounded-full border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <span className="rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
                   {articleTypeLabel(art.article_type)}
                 </span>
                 {art.lifecycle_status === "updated" && (
@@ -232,44 +232,44 @@ export default async function IntelligenceArticlePage({
 
               {/* Headline + confidence */}
               <div className="flex items-start justify-between gap-6">
-                <h1 className="text-[28px] font-black leading-[1.2] tracking-tight text-white md:text-[34px]">
+                <h1 className="text-[28px] font-black leading-[1.2] tracking-tight text-text-primary md:text-[34px]">
                   {art.headline}
                 </h1>
                 {/* Confidence card */}
                 {confPct > 0 && (
-                  <div className="hidden shrink-0 flex-col items-center rounded-2xl border border-white/[0.1] bg-[#060e1e] p-4 text-center sm:flex" style={{ minWidth: 100 }}>
-                    <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">Confidence</p>
+                  <div className="hidden shrink-0 flex-col items-center rounded-2xl border border-surface-border/10 bg-surface-card p-4 text-center sm:flex" style={{ minWidth: 100 }}>
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-text-muted">Confidence</p>
                     <p className={`text-[26px] font-black tabular-nums ${confColor(art.confidence_score)}`}>{confPct}%</p>
                     <p className={`text-[10px] font-semibold ${confColor(art.confidence_score)}`}>{confLabel(art.confidence_score)}</p>
-                    <button className="mt-1.5 text-slate-600 hover:text-slate-400 transition"><Info className="h-3 w-3" /></button>
+                    <button className="mt-1.5 text-text-muted hover:text-text-secondary transition"><Info className="h-3 w-3" /></button>
                   </div>
                 )}
               </div>
 
               {/* Executive summary */}
               {art.executive_summary && (
-                <p className="mt-4 max-w-[620px] text-[15px] leading-[1.75] text-slate-300">
+                <p className="mt-4 max-w-[620px] text-[15px] leading-[1.75] text-text-secondary">
                   {art.executive_summary}
                 </p>
               )}
 
               {/* Author row */}
-              <div className="mt-5 flex flex-wrap items-center gap-3 text-[12px] text-slate-500">
+              <div className="mt-5 flex flex-wrap items-center gap-3 text-[12px] text-text-muted">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-sky-500 text-[9px] font-black text-white">AI</div>
-                  <span className="font-semibold text-slate-300">AI Intelligence Engine</span>
-                  <span className="h-3.5 w-3.5 rounded-full bg-violet-500/80 flex items-center justify-center text-[8px] text-white">✓</span>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-sky-500 text-[9px] font-black text-text-primary">AI</div>
+                  <span className="font-semibold text-text-secondary">AI Intelligence Engine</span>
+                  <span className="h-3.5 w-3.5 rounded-full bg-violet-500/80 flex items-center justify-center text-[8px] text-text-primary">✓</span>
                 </div>
-                <span className="text-slate-700">·</span>
+                <span className="text-text-muted">·</span>
                 {art.last_updated
                   ? <span>Updated {fmtDateTime(art.last_updated)}</span>
                   : <span>Published {fmtDateTime(art.published_at)}</span>
                 }
-                <span className="text-slate-700">·</span>
+                <span className="text-text-muted">·</span>
                 <span>{readMinutes} min read</span>
                 {sources.length > 0 && (
                   <>
-                    <span className="text-slate-700">·</span>
+                    <span className="text-text-muted">·</span>
                     <span>{sources.length} sources</span>
                   </>
                 )}
@@ -284,7 +284,7 @@ export default async function IntelligenceArticlePage({
                 </div>
                 <div>
                   <p className="mb-1.5 text-[11px] font-black uppercase tracking-wider text-emerald-400">Key Takeaway</p>
-                  <p className="text-[14px] leading-[1.7] text-slate-200">{art.key_takeaway}</p>
+                  <p className="text-[14px] leading-[1.7] text-text-primary">{art.key_takeaway}</p>
                 </div>
               </div>
             )}
@@ -292,47 +292,47 @@ export default async function IntelligenceArticlePage({
             {/* ── 3. What Happened ──────────────────────────────────────────── */}
             {art.what_happened && (
               <section>
-                <h2 className="mb-4 text-[20px] font-black text-white">What Happened?</h2>
+                <h2 className="mb-4 text-[20px] font-black text-text-primary">What Happened?</h2>
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_180px]">
                   <div>
-                    <p className="mb-4 text-[14px] leading-[1.8] text-slate-300">{whatHappenedProse}</p>
+                    <p className="mb-4 text-[14px] leading-[1.8] text-text-secondary">{whatHappenedProse}</p>
                     {whatHappenedBullets.length > 0 && (
                       <ul className="space-y-2">
                         {whatHappenedBullets.map((b, i) => (
                           <li key={i} className="flex items-start gap-2.5">
                             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                            <span className="text-[13px] leading-[1.6] text-slate-300">{b}</span>
+                            <span className="text-[13px] leading-[1.6] text-text-secondary">{b}</span>
                           </li>
                         ))}
                       </ul>
                     )}
                     {whatHappenedBullets.length === 0 && art.why_it_matters && (
-                      <p className="mt-3 text-[13px] leading-[1.8] text-slate-400">{art.why_it_matters}</p>
+                      <p className="mt-3 text-[13px] leading-[1.8] text-text-secondary">{art.why_it_matters}</p>
                     )}
                   </div>
                   {/* Image placeholder / market context card */}
-                  <div className="hidden md:flex items-center justify-center rounded-2xl border border-white/[0.07] bg-[#060e1e] p-4">
+                  <div className="hidden md:flex items-center justify-center rounded-2xl border border-surface-border/7 bg-surface-card p-4">
                     <div className="text-center">
                       {art.article_type === "policy_intelligence" || art.article_type === "event_analysis" ? (
                         <>
-                          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.05]">
+                          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full border border-surface-border/10 bg-text-primary/[0.05]">
                             <Layers className="h-6 w-6 text-violet-400" />
                           </div>
-                          <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide">{market.session ?? "Market Analysis"}</p>
+                          <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">{market.session ?? "Market Analysis"}</p>
                         </>
                       ) : (
                         <>
-                          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.05]">
+                          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full border border-surface-border/10 bg-text-primary/[0.05]">
                             <TrendingUp className="h-6 w-6 text-emerald-400" />
                           </div>
-                          <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide">AI Analysis</p>
+                          <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">AI Analysis</p>
                         </>
                       )}
                       {market.nifty && (
-                        <p className="mt-2 text-[13px] font-bold text-white">Nifty {market.nifty}</p>
+                        <p className="mt-2 text-[13px] font-bold text-text-primary">Nifty {market.nifty}</p>
                       )}
                       {market.mood && (
-                        <p className="mt-0.5 text-[10px] text-slate-500">{market.mood}</p>
+                        <p className="mt-0.5 text-[10px] text-text-muted">{market.mood}</p>
                       )}
                     </div>
                   </div>
@@ -343,7 +343,7 @@ export default async function IntelligenceArticlePage({
             {/* ── 4. Why It Matters / Ripple Effect cards ───────────────────── */}
             {(rippleEffect.length > 0 || (sectors.length > 0 && art.why_it_matters)) && (
               <section>
-                <h2 className="mb-4 text-[20px] font-black text-white">Why It Matters</h2>
+                <h2 className="mb-4 text-[20px] font-black text-text-primary">Why It Matters</h2>
                 {rippleEffect.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {rippleEffect.slice(0, 4).map((r: any, i: number) => {
@@ -353,15 +353,15 @@ export default async function IntelligenceArticlePage({
                       const desc  = r.effect ?? r.description ?? r.impact ?? "";
                       const sent  = r.sentiment ?? "neutral";
                       return (
-                        <div key={i} className="flex flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-4 transition hover:border-white/[0.12]">
-                          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-[20px]">
+                        <div key={i} className="flex flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-4 transition hover:border-surface-border/[0.12]">
+                          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-surface-border/8 bg-text-primary/[0.04] text-[20px]">
                             {icons[i] ?? "📊"}
                           </div>
-                          <p className="mb-2 text-[13px] font-bold text-white">For {title.replace(/^for\s+/i, "")}</p>
-                          <p className="flex-1 text-[11px] leading-[1.6] text-slate-500">{desc}</p>
+                          <p className="mb-2 text-[13px] font-bold text-text-primary">For {title.replace(/^for\s+/i, "")}</p>
+                          <p className="flex-1 text-[11px] leading-[1.6] text-text-muted">{desc}</p>
                           {sent && (
                             <div className="mt-3 flex items-center gap-1">
-                              {/positive|bullish/i.test(sent) ? <TrendingUp className="h-3 w-3 text-emerald-400" /> : /negative|bearish/i.test(sent) ? <TrendingDown className="h-3 w-3 text-rose-400" /> : <span className="text-slate-500 text-[10px]">—</span>}
+                              {/positive|bullish/i.test(sent) ? <TrendingUp className="h-3 w-3 text-emerald-400" /> : /negative|bearish/i.test(sent) ? <TrendingDown className="h-3 w-3 text-rose-400" /> : <span className="text-text-muted text-[10px]">—</span>}
                               <span className={`text-[10px] font-semibold capitalize ${/positive|bullish/i.test(sent) ? "text-emerald-400" : /negative|bearish/i.test(sent) ? "text-rose-400" : "text-amber-400"}`}>
                                 {sent}
                               </span>
@@ -372,7 +372,7 @@ export default async function IntelligenceArticlePage({
                     })}
                   </div>
                 ) : (
-                  <p className="text-[14px] leading-[1.8] text-slate-300">{art.why_it_matters}</p>
+                  <p className="text-[14px] leading-[1.8] text-text-secondary">{art.why_it_matters}</p>
                 )}
               </section>
             )}
@@ -380,32 +380,32 @@ export default async function IntelligenceArticlePage({
             {/* ── 5. Historical Context ─────────────────────────────────────── */}
             {historical.length > 0 && (
               <section>
-                <h2 className="mb-1.5 text-[20px] font-black text-white">Historical Context</h2>
+                <h2 className="mb-1.5 text-[20px] font-black text-text-primary">Historical Context</h2>
                 {art.executive_summary && (
-                  <p className="mb-4 text-[12px] text-slate-500">
+                  <p className="mb-4 text-[12px] text-text-muted">
                     {historical.length} similar historical events found in our database
                   </p>
                 )}
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {/* Table */}
-                  <div className="overflow-x-auto rounded-2xl border border-white/[0.07] bg-[#060e1e]">
+                  <div className="overflow-x-auto rounded-2xl border border-surface-border/7 bg-surface-card">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="border-b border-white/[0.06]">
-                          <th className="px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-slate-600">Date</th>
-                          <th className="px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-slate-600">Event</th>
-                          <th className="px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-slate-600">Nifty</th>
-                          <th className="px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-slate-600">Outcome</th>
+                        <tr className="border-b border-surface-border/6">
+                          <th className="px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-text-muted">Date</th>
+                          <th className="px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-text-muted">Event</th>
+                          <th className="px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-text-muted">Nifty</th>
+                          <th className="px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-text-muted">Outcome</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/[0.04]">
+                      <tbody className="divide-y divide-surface-border/4">
                         {historical.slice(0, 5).map((h: any, i: number) => {
                           const outcome = h.outcome ?? h.nifty_change ?? h.change ?? 0;
                           const pos = parseFloat(String(outcome)) >= 0;
                           return (
-                            <tr key={i} className="hover:bg-white/[0.02]">
-                              <td className="px-4 py-2.5 text-[11px] text-slate-500">{h.date ? fmtDate(h.date) : "—"}</td>
-                              <td className="px-4 py-2.5 text-[11px] font-medium text-slate-300 max-w-[120px] truncate">{h.event ?? h.title ?? "Market Event"}</td>
+                            <tr key={i} className="hover:bg-text-primary/[0.02]">
+                              <td className="px-4 py-2.5 text-[11px] text-text-muted">{h.date ? fmtDate(h.date) : "—"}</td>
+                              <td className="px-4 py-2.5 text-[11px] font-medium text-text-secondary max-w-[120px] truncate">{h.event ?? h.title ?? "Market Event"}</td>
                               <td className="px-4 py-2.5 text-[11px] font-semibold tabular-nums">
                                 {h.nifty_level ?? "—"}
                               </td>
@@ -417,14 +417,14 @@ export default async function IntelligenceArticlePage({
                         })}
                       </tbody>
                     </table>
-                    <p className="border-t border-white/[0.04] px-4 py-2.5 text-[10px] text-slate-700">
+                    <p className="border-t border-surface-border/4 px-4 py-2.5 text-[10px] text-text-muted">
                       Source: NSE India, Artha Intelligence Engine
                     </p>
                   </div>
 
                   {/* Bar chart */}
-                  <div className="rounded-2xl border border-white/[0.07] bg-[#060e1e] p-5">
-                    <p className="mb-4 text-[12px] font-bold text-white">
+                  <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+                    <p className="mb-4 text-[12px] font-bold text-text-primary">
                       Performance After Similar Events
                     </p>
                     <div className="flex h-[140px] items-end gap-3">
@@ -445,7 +445,7 @@ export default async function IntelligenceArticlePage({
                                 style={{ height: `${Math.max(4, pct)}%` }}
                               />
                             </div>
-                            <span className="text-[8px] text-slate-600 text-center">{label}</span>
+                            <span className="text-[8px] text-text-muted text-center">{label}</span>
                           </div>
                         );
                       })}
@@ -460,7 +460,7 @@ export default async function IntelligenceArticlePage({
               <section>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {art.opportunities?.length > 0 && (
-                    <div className="rounded-2xl border border-emerald-500/[0.12] bg-[#060e1e] p-5">
+                    <div className="rounded-2xl border border-emerald-500/[0.12] bg-surface-card p-5">
                       <p className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-emerald-400">
                         <TrendingUp className="h-3.5 w-3.5" /> Opportunities
                       </p>
@@ -468,14 +468,14 @@ export default async function IntelligenceArticlePage({
                         {art.opportunities.slice(0, 3).map((o: any, i: number) => (
                           <li key={i} className="flex items-start gap-2">
                             <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                            <span className="text-[12px] leading-[1.6] text-slate-300">{typeof o === "string" ? o : o.description ?? o.opportunity ?? o.text ?? JSON.stringify(o)}</span>
+                            <span className="text-[12px] leading-[1.6] text-text-secondary">{typeof o === "string" ? o : o.description ?? o.opportunity ?? o.text ?? JSON.stringify(o)}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
                   {art.risks?.length > 0 && (
-                    <div className="rounded-2xl border border-rose-500/[0.12] bg-[#060e1e] p-5">
+                    <div className="rounded-2xl border border-rose-500/[0.12] bg-surface-card p-5">
                       <p className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-rose-400">
                         <AlertCircle className="h-3.5 w-3.5" /> Risks to Watch
                       </p>
@@ -483,7 +483,7 @@ export default async function IntelligenceArticlePage({
                         {art.risks.slice(0, 3).map((r: any, i: number) => (
                           <li key={i} className="flex items-start gap-2">
                             <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400" />
-                            <span className="text-[12px] leading-[1.6] text-slate-300">{typeof r === "string" ? r : r.description ?? r.risk ?? r.text ?? JSON.stringify(r)}</span>
+                            <span className="text-[12px] leading-[1.6] text-text-secondary">{typeof r === "string" ? r : r.description ?? r.risk ?? r.text ?? JSON.stringify(r)}</span>
                           </li>
                         ))}
                       </ul>
@@ -496,7 +496,7 @@ export default async function IntelligenceArticlePage({
             {/* ── 7. What to Watch Next ─────────────────────────────────────── */}
             {watchNext.length > 0 && (
               <section>
-                <h2 className="mb-4 text-[20px] font-black text-white">What to Watch Next</h2>
+                <h2 className="mb-4 text-[20px] font-black text-text-primary">What to Watch Next</h2>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {watchNext.slice(0, 4).map((w: any, i: number) => {
                     const title = typeof w === "string" ? w : (w.title ?? w.event ?? `Watch Item ${i + 1}`);
@@ -505,14 +505,14 @@ export default async function IntelligenceArticlePage({
                     const icons = [Calendar, TrendingUp, BookOpen, Layers];
                     const Ic = icons[i % 4];
                     return (
-                      <div key={i} className="flex flex-col rounded-2xl border border-white/[0.07] bg-[#060e1e] p-4 transition hover:border-violet-500/20">
-                        <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04]">
+                      <div key={i} className="flex flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-4 transition hover:border-violet-500/20">
+                        <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl border border-surface-border/8 bg-text-primary/[0.04]">
                           <Ic className="h-4 w-4 text-violet-400" />
                         </div>
-                        <p className="mb-1.5 text-[12px] font-bold text-white">{title}</p>
-                        {desc && <p className="flex-1 text-[11px] leading-[1.5] text-slate-500">{desc}</p>}
+                        <p className="mb-1.5 text-[12px] font-bold text-text-primary">{title}</p>
+                        {desc && <p className="flex-1 text-[11px] leading-[1.5] text-text-muted">{desc}</p>}
                         {date && (
-                          <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-600">
+                          <p className="mt-2 flex items-center gap-1 text-[10px] text-text-muted">
                             <Clock className="h-3 w-3" /> {date}
                           </p>
                         )}
@@ -526,18 +526,18 @@ export default async function IntelligenceArticlePage({
             {/* ── 8. FAQs ───────────────────────────────────────────────────── */}
             {faqs.length > 0 && (
               <section>
-                <h2 className="mb-4 text-[20px] font-black text-white">Frequently Asked Questions</h2>
+                <h2 className="mb-4 text-[20px] font-black text-text-primary">Frequently Asked Questions</h2>
                 <div className="space-y-3">
                   {faqs.map((f: any, i: number) => {
                     const q = typeof f === "string" ? f : (f.question ?? f.q ?? `Question ${i + 1}`);
                     const a = typeof f === "string" ? "" : (f.answer ?? f.a ?? "");
                     return (
-                      <details key={i} className="group rounded-2xl border border-white/[0.07] bg-[#060e1e] open:border-violet-500/20">
-                        <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-[13px] font-semibold text-white list-none">
+                      <details key={i} className="group rounded-2xl border border-surface-border/7 bg-surface-card open:border-violet-500/20">
+                        <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-[13px] font-semibold text-text-primary list-none">
                           {q}
-                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-600 transition group-open:rotate-90" />
+                          <ChevronRight className="h-4 w-4 shrink-0 text-text-muted transition group-open:rotate-90" />
                         </summary>
-                        {a && <p className="px-5 pb-4 text-[13px] leading-[1.7] text-slate-400">{a}</p>}
+                        {a && <p className="px-5 pb-4 text-[13px] leading-[1.7] text-text-secondary">{a}</p>}
                       </details>
                     );
                   })}
@@ -546,27 +546,27 @@ export default async function IntelligenceArticlePage({
             )}
 
             {/* ── 9. Ask AI Follow-up ───────────────────────────────────────── */}
-            <section className="rounded-2xl border border-white/[0.07] bg-[#060e1e] p-6">
+            <section className="rounded-2xl border border-surface-border/7 bg-surface-card p-6">
               <div className="mb-3 flex items-center gap-2">
                 <Zap className="h-4 w-4 text-violet-400" />
-                <p className="text-[13px] font-bold text-white">Ask AI follow-up</p>
+                <p className="text-[13px] font-bold text-text-primary">Ask AI follow-up</p>
               </div>
               <Link
                 href={`/ai-search?q=${encodeURIComponent(`Tell me more about: ${art.headline}`)}`}
-                className="flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[13px] text-slate-500 hover:border-violet-500/30 hover:bg-white/[0.05] transition"
+                className="flex w-full items-center justify-between rounded-xl border border-surface-border/8 bg-text-primary/[0.03] px-4 py-3 text-[13px] text-text-muted hover:border-violet-500/30 hover:bg-text-primary/[0.05] transition"
               >
                 <span>e.g., How will this impact {sectors[0] ? (typeof sectors[0] === "string" ? sectors[0] : sectors[0].name) : "the market"}?</span>
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-600">
-                  <Zap className="h-3.5 w-3.5 text-white" />
+                  <Zap className="h-3.5 w-3.5 text-text-primary" />
                 </div>
               </Link>
               {suggestedQuestions.length > 0 && (
                 <>
-                  <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-600">Suggested questions</p>
+                  <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Suggested questions</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {suggestedQuestions.map((q, i) => (
                       <Link key={i} href={`/ai-search?q=${encodeURIComponent(q)}`}
-                        className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] text-slate-400 hover:border-violet-500/30 hover:text-violet-300 transition">
+                        className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-3 py-1.5 text-[11px] text-text-secondary hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300 transition">
                         {q}
                       </Link>
                     ))}
@@ -582,56 +582,56 @@ export default async function IntelligenceArticlePage({
 
             {/* Share + Bookmark */}
             <div className="flex items-center gap-2">
-              <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] py-2.5 text-[12px] font-semibold text-slate-300 hover:bg-white/[0.07] transition">
+              <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-surface-border/10 bg-text-primary/[0.04] py-2.5 text-[12px] font-semibold text-text-secondary hover:bg-text-primary/[0.07] transition">
                 <Share2 className="h-3.5 w-3.5" /> Share
               </button>
-              <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] py-2.5 text-[12px] font-semibold text-slate-300 hover:bg-white/[0.07] transition">
+              <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-surface-border/10 bg-text-primary/[0.04] py-2.5 text-[12px] font-semibold text-text-secondary hover:bg-text-primary/[0.07] transition">
                 <Bookmark className="h-3.5 w-3.5" /> Bookmark
               </button>
             </div>
 
             {/* ── Intelligence Summary ──────────────────────────────────────── */}
-            <div className="rounded-2xl border border-white/[0.08] bg-[#060e1e] p-5">
-              <p className="mb-4 text-[11px] font-black uppercase tracking-wider text-white">Intelligence Summary</p>
+            <div className="rounded-2xl border border-surface-border/8 bg-surface-card p-5">
+              <p className="mb-4 text-[11px] font-black uppercase tracking-wider text-text-primary">Intelligence Summary</p>
               <div className="space-y-3">
                 {[
                   {
-                    icon: <BookOpen className="h-3.5 w-3.5 text-slate-500" />,
+                    icon: <BookOpen className="h-3.5 w-3.5 text-text-muted" />,
                     label: "Event Type",
                     value: articleTypeLabel(art.article_type),
-                    cls: "text-white font-semibold",
+                    cls: "text-text-primary font-semibold",
                   },
                   {
-                    icon: <TrendingUp className="h-3.5 w-3.5 text-slate-500" />,
+                    icon: <TrendingUp className="h-3.5 w-3.5 text-text-muted" />,
                     label: "Impact",
                     value: impactStr,
                     cls: `font-semibold ${impactColor(impactStr)}`,
                   },
                   {
-                    icon: <Clock className="h-3.5 w-3.5 text-slate-500" />,
+                    icon: <Clock className="h-3.5 w-3.5 text-text-muted" />,
                     label: "Time Horizon",
                     value: horizon,
-                    cls: "text-white font-semibold",
+                    cls: "text-text-primary font-semibold",
                   },
                   {
-                    icon: <Zap className="h-3.5 w-3.5 text-slate-500" />,
+                    icon: <Zap className="h-3.5 w-3.5 text-text-muted" />,
                     label: "Confidence",
                     value: confPct > 0 ? `${confLabel(art.confidence_score)} (${confPct}%)` : "—",
                     cls: `font-semibold ${confColor(art.confidence_score)}`,
                   },
                   {
-                    icon: <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />,
+                    icon: <CheckCircle2 className="h-3.5 w-3.5 text-text-muted" />,
                     label: "Sources",
                     value: sources.length ? `${sources.length} Verified` : "AI Generated",
-                    cls: "text-white font-semibold",
+                    cls: "text-text-primary font-semibold",
                   },
                 ].map((row, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03]">
+                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-surface-border/6 bg-text-primary/[0.03]">
                       {row.icon}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] text-slate-600">{row.label}</p>
+                      <p className="text-[10px] text-text-muted">{row.label}</p>
                       <p className={`text-[12px] ${row.cls}`}>{row.value}</p>
                     </div>
                   </div>
@@ -641,10 +641,10 @@ export default async function IntelligenceArticlePage({
 
             {/* ── Similar Historical Events ─────────────────────────────────── */}
             {historical.length > 0 && (
-              <div className="rounded-2xl border border-white/[0.08] bg-[#060e1e] p-5">
+              <div className="rounded-2xl border border-surface-border/8 bg-surface-card p-5">
                 <div className="mb-4 flex items-center justify-between">
-                  <p className="text-[11px] font-black uppercase tracking-wider text-white">Similar Historical Events</p>
-                  <button className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition flex items-center gap-0.5">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-text-primary">Similar Historical Events</p>
+                  <button className="text-[10px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition flex items-center gap-0.5">
                     See all <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
@@ -655,12 +655,12 @@ export default async function IntelligenceArticlePage({
                     const similarity = h.similarity ?? (90 - i * 12);
                     const sparkVals = h.sparkline ?? [outcome * 0.3, outcome * 0.6, outcome * 0.8, outcome * 0.5, outcome];
                     return (
-                      <div key={i} className="border-b border-white/[0.05] pb-4 last:border-0 last:pb-0">
-                        <p className="mb-0.5 text-[12px] font-bold text-white leading-snug">{h.event ?? h.title ?? "Market Event"}</p>
-                        <p className="mb-2 text-[10px] text-slate-600">{h.date ? fmtDate(h.date) : "—"}</p>
+                      <div key={i} className="border-b border-surface-border/5 pb-4 last:border-0 last:pb-0">
+                        <p className="mb-0.5 text-[12px] font-bold text-text-primary leading-snug">{h.event ?? h.title ?? "Market Event"}</p>
+                        <p className="mb-2 text-[10px] text-text-muted">{h.date ? fmtDate(h.date) : "—"}</p>
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-[10px] text-slate-600">Similarity</p>
+                            <p className="text-[10px] text-text-muted">Similarity</p>
                             <p className="text-[12px] font-bold text-violet-400">{similarity}%</p>
                             {h.banknifty_change != null && (
                               <p className={`text-[10px] font-semibold ${pos ? "text-emerald-400" : "text-rose-400"}`}>
@@ -679,10 +679,10 @@ export default async function IntelligenceArticlePage({
 
             {/* ── Top Impacted Sectors ──────────────────────────────────────── */}
             {sectors.length > 0 && (
-              <div className="rounded-2xl border border-white/[0.08] bg-[#060e1e] p-5">
+              <div className="rounded-2xl border border-surface-border/8 bg-surface-card p-5">
                 <div className="mb-4 flex items-center justify-between">
-                  <p className="text-[11px] font-black uppercase tracking-wider text-white">Top Impacted Sectors</p>
-                  <Link href="/market-intelligence" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition flex items-center gap-0.5">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-text-primary">Top Impacted Sectors</p>
+                  <Link href="/market-intelligence" className="text-[10px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition flex items-center gap-0.5">
                     View all <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>
@@ -693,7 +693,7 @@ export default async function IntelligenceArticlePage({
                     return (
                       <div key={i}>
                         <div className="mb-1 flex items-center justify-between">
-                          <span className="text-[12px] font-medium text-white">{name}</span>
+                          <span className="text-[12px] font-medium text-text-primary">{name}</span>
                         </div>
                         <SectorBar impact={impact} />
                       </div>
@@ -705,10 +705,10 @@ export default async function IntelligenceArticlePage({
 
             {/* ── Top Impacted Companies ────────────────────────────────────── */}
             {(relCompanies.length > 0 || companies.length > 0) && (
-              <div className="rounded-2xl border border-white/[0.08] bg-[#060e1e] p-5">
+              <div className="rounded-2xl border border-surface-border/8 bg-surface-card p-5">
                 <div className="mb-4 flex items-center justify-between">
-                  <p className="text-[11px] font-black uppercase tracking-wider text-white">Top Impacted Companies</p>
-                  <Link href="/companies" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition flex items-center gap-0.5">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-text-primary">Top Impacted Companies</p>
+                  <Link href="/companies" className="text-[10px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition flex items-center gap-0.5">
                     View all <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>
@@ -720,14 +720,14 @@ export default async function IntelligenceArticlePage({
                     const change = typeof c === "object" ? (c.change_pct ?? c.change ?? c.nifty_change ?? null) : null;
                     const pos    = change == null ? true : parseFloat(String(change)) >= 0;
                     return (
-                      <div key={i} className="group flex items-center justify-between rounded-xl px-3 py-2.5 transition hover:bg-white/[0.03]">
+                      <div key={i} className="group flex items-center justify-between rounded-xl px-3 py-2.5 transition hover:bg-text-primary/[0.03]">
                         <Link href={symbol ? `/companies/${symbol}` as any : "/companies"}
                           className="flex flex-1 items-center gap-2.5 min-w-0">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-[9px] font-black text-slate-400">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.04] text-[9px] font-black text-text-secondary">
                             {(symbol || name || "?").slice(0, 2).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <span className="block text-[12px] font-medium text-white truncate">{name}</span>
+                            <span className="block text-[12px] font-medium text-text-primary truncate">{name}</span>
                             {change != null && (
                               <span className={`text-[11px] font-bold tabular-nums ${pos ? "text-emerald-400" : "text-rose-400"}`}>
                                 {pos ? "+" : ""}{parseFloat(String(change)).toFixed(2)}%
@@ -738,7 +738,7 @@ export default async function IntelligenceArticlePage({
                         <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
                           {symbol && (
                             <Link href={`/companies/${symbol}`}
-                              className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-1 text-[9px] font-semibold text-slate-400 hover:text-white transition">
+                              className="rounded-lg border border-surface-border/8 bg-text-primary/[0.04] px-2 py-1 text-[9px] font-semibold text-text-secondary hover:text-text-primary transition">
                               Research →
                             </Link>
                           )}
@@ -771,8 +771,8 @@ export default async function IntelligenceArticlePage({
 
             {/* ── AI Intelligence Path ──────────────────────────────────────── */}
             {relThemes.length > 0 && (
-              <div className="rounded-2xl border border-white/[0.08] bg-[#060e1e] p-5">
-                <p className="mb-4 text-[11px] font-black uppercase tracking-wider text-white">AI Intelligence Path</p>
+              <div className="rounded-2xl border border-surface-border/8 bg-surface-card p-5">
+                <p className="mb-4 text-[11px] font-black uppercase tracking-wider text-text-primary">AI Intelligence Path</p>
                 <div className="relative space-y-0">
                   {relThemes.slice(0, 5).map((t: any, i: number) => {
                     const name = typeof t === "string" ? t : (t.theme ?? t.name ?? t);
@@ -781,14 +781,14 @@ export default async function IntelligenceArticlePage({
                     return (
                       <div key={i} className="relative flex items-start gap-3 pb-3">
                         {!isLast && (
-                          <div className="absolute left-[11px] top-5 h-full w-px bg-white/[0.05]" />
+                          <div className="absolute left-[11px] top-5 h-full w-px bg-text-primary/[0.05]" />
                         )}
-                        <div className={`relative z-10 flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full border ${i === 0 ? "border-violet-500/60 bg-violet-500/20" : "border-white/[0.1] bg-white/[0.04]"}`}
+                        <div className={`relative z-10 flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full border ${i === 0 ? "border-violet-500/60 bg-violet-500/20" : "border-surface-border/10 bg-text-primary/[0.04]"}`}
                           style={{ width: 22, height: 22 }}>
                           <span className="h-1.5 w-1.5 rounded-full bg-current"
                             style={{ color: i === 0 ? "#a78bfa" : "#475569" }} />
                         </div>
-                        <Link href={href as any} className="pt-0.5 text-[12px] font-medium text-slate-400 hover:text-white transition">
+                        <Link href={href as any} className="pt-0.5 text-[12px] font-medium text-text-secondary hover:text-text-primary transition">
                           {name}
                         </Link>
                       </div>
@@ -815,21 +815,21 @@ export default async function IntelligenceArticlePage({
                 <MiniIntelligenceGraph
                   nodeId={graphNodeId}
                   title="Intelligence Graph"
-                  className="border-white/[0.08] bg-[#060e1e]"
+                  className="border-surface-border/8 bg-surface-card"
                 />
               );
             })()}
 
             {/* ── Sources (if available) ────────────────────────────────────── */}
             {sources.length > 0 && (
-              <div className="rounded-2xl border border-white/[0.08] bg-[#060e1e] p-5">
-                <p className="mb-3 text-[11px] font-black uppercase tracking-wider text-white">Sources</p>
+              <div className="rounded-2xl border border-surface-border/8 bg-surface-card p-5">
+                <p className="mb-3 text-[11px] font-black uppercase tracking-wider text-text-primary">Sources</p>
                 <div className="space-y-2">
                   {sources.slice(0, 4).map((s: any, i: number) => {
                     const name = typeof s === "string" ? s : (s.name ?? s.title ?? s.source ?? s.url ?? "Source");
                     return (
-                      <p key={i} className="flex items-center gap-2 text-[11px] text-slate-600">
-                        <span className="h-1 w-1 rounded-full bg-slate-700" /> {name}
+                      <p key={i} className="flex items-center gap-2 text-[11px] text-text-muted">
+                        <span className="h-1 w-1 rounded-full bg-text-primary/[0.07]" /> {name}
                       </p>
                     );
                   })}

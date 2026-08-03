@@ -52,7 +52,7 @@ function moodMeta(mood: string): { cls: string; bg: string; border: string } {
     return { cls: "text-rose-400",    bg: "bg-rose-500/10",    border: "border-rose-500/25" };
   if (m.includes("cautious") || m.includes("mixed") || m.includes("uncertain"))
     return { cls: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/25" };
-  return   { cls: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/20" };
+  return   { cls: "text-text-secondary",   bg: "bg-slate-500/10",   border: "border-surface-border/5" };
 }
 
 function signalColor(text: string) {
@@ -104,11 +104,11 @@ function CardHeader({ title, sub, href, linkLabel = "View All" }: { title: strin
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
       <div>
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">{title}</h3>
-        {sub && <p className="mt-0.5 text-[9px] text-slate-600">{sub}</p>}
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-secondary">{title}</h3>
+        {sub && <p className="mt-0.5 text-[9px] text-text-muted">{sub}</p>}
       </div>
       {href && (
-        <Link href={href as any} className="shrink-0 flex items-center gap-0.5 text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition">
+        <Link href={href as any} className="shrink-0 flex items-center gap-0.5 text-[10px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
           {linkLabel} <ChevronRight className="h-3 w-3" />
         </Link>
       )}
@@ -125,14 +125,14 @@ function TopTickerRow({ indices, onReplayClick, replayOpen }: { indices: IndexIt
 
   return (
     <div className="flex items-stretch gap-3 overflow-x-auto scrollbar-hide">
-      <div className="flex flex-1 items-stretch divide-x divide-white/[0.06] rounded-2xl border border-white/[0.07] bg-[#080c14]">
+      <div className="flex flex-1 items-stretch divide-x divide-surface-border/6 rounded-2xl border border-surface-border/7 bg-surface-card">
         {cells.map(c => {
           const chart = (c.chart ?? []).map(p => p.value).filter(v => typeof v === "number");
           return (
             <div key={c.name} className="flex min-w-[150px] flex-1 items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">{c.name}</p>
-                <p className="text-[14px] font-black tabular-nums text-white leading-tight">{c.value}</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">{c.name}</p>
+                <p className="text-[14px] font-black tabular-nums text-text-primary leading-tight">{c.value}</p>
                 <p className={`text-[10px] font-bold tabular-nums ${c.positive ? "text-emerald-400" : "text-rose-400"}`}>{c.change}</p>
               </div>
               {chart.length >= 2 && <MiniSparkline data={chart} positive={c.positive !== false} />}
@@ -142,7 +142,7 @@ function TopTickerRow({ indices, onReplayClick, replayOpen }: { indices: IndexIt
       </div>
       <button onClick={onReplayClick}
         className={`shrink-0 flex items-center gap-2 rounded-2xl border px-4 text-[12px] font-bold transition ${
-          replayOpen ? "border-violet-500/30 bg-violet-500/10 text-violet-300" : "border-white/[0.08] bg-[#080c14] text-slate-300 hover:border-violet-500/25 hover:text-violet-300"
+          replayOpen ? "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300" : "border-surface-border/8 bg-surface-card text-text-secondary hover:border-violet-500/25 hover:text-violet-600 dark:text-violet-300"
         }`}>
         <ChevronRight className={`h-3.5 w-3.5 transition-transform ${replayOpen ? "rotate-90" : ""}`} />
         Market Replay
@@ -171,35 +171,35 @@ function AIMarketIntelligenceHero({ story, storyLoading, drivers, opportunity, r
   const topDrivers = drivers.slice(0, 3);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <div className="mb-2 flex items-center gap-2">
         <span className="flex h-1.5 w-1.5 rounded-full bg-violet-400 animate-pulse" />
         <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-violet-400">AI Market Intelligence</span>
       </div>
       {storyLoading ? (
-        <div className="space-y-2">{[1, 0.8].map((w, i) => <div key={i} className="h-4 animate-pulse rounded bg-white/[0.04]" style={{ width: `${w * 100}%` }} />)}</div>
+        <div className="space-y-2">{[1, 0.8].map((w, i) => <div key={i} className="h-4 animate-pulse rounded bg-text-primary/[0.04]" style={{ width: `${w * 100}%` }} />)}</div>
       ) : story ? (
         <>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className={`text-[22px] font-black ${meta.cls}`}>{pulse?.label ?? story.mood}</span>
-            <span className="rounded-full border border-white/[0.1] bg-white/[0.04] px-2 py-0.5 text-[10px] font-bold text-slate-300">
+            <span className="rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] font-bold text-text-secondary">
               {story.confidence !== null && story.confidence !== undefined ? `${story.confidence}% Confidence` : "Confidence unscored"}
             </span>
           </div>
-          <p className="mb-4 text-[12px] leading-[1.7] text-slate-300 line-clamp-3">{story.text}</p>
+          <p className="mb-4 text-[12px] leading-[1.7] text-text-secondary line-clamp-3">{story.text}</p>
         </>
       ) : (
-        <p className="mb-4 text-[12px] italic text-slate-500">Market narrative will appear here during trading hours.</p>
+        <p className="mb-4 text-[12px] italic text-text-muted">Market narrative will appear here during trading hours.</p>
       )}
 
       {topDrivers.length > 0 && (
         <div className="mb-4">
-          <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-slate-600">Top Drivers</p>
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-text-muted">Top Drivers</p>
           <div className="space-y-1.5">
             {topDrivers.map((d, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2">
-                <span className="w-4 shrink-0 text-[10px] font-black tabular-nums text-slate-600">#{i + 1}</span>
-                <p className="line-clamp-1 text-[11px] font-semibold text-slate-200">{d.headline}</p>
+              <div key={i} className="flex items-center gap-2 rounded-xl border border-surface-border/6 bg-text-primary/[0.03] px-2.5 py-2">
+                <span className="w-4 shrink-0 text-[10px] font-black tabular-nums text-text-muted">#{i + 1}</span>
+                <p className="line-clamp-1 text-[11px] font-semibold text-text-primary">{d.headline}</p>
               </div>
             ))}
           </div>
@@ -207,18 +207,18 @@ function AIMarketIntelligenceHero({ story, storyLoading, drivers, opportunity, r
       )}
 
       {(opportunity || risk) && (
-        <div className="mt-auto grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-3">
+        <div className="mt-auto grid grid-cols-2 gap-3 border-t border-surface-border/6 pt-3">
           {opportunity && (
             <div>
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">Biggest Opportunity</p>
-              <Link href={`/opportunity-radar/${opportunity.id}` as any} className="line-clamp-2 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition">
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-text-muted">Biggest Opportunity</p>
+              <Link href={`/opportunity-radar/${opportunity.id}` as any} className="line-clamp-2 text-[11px] font-bold text-emerald-400 hover:text-emerald-600 dark:text-emerald-300 transition">
                 {opportunity.title}
               </Link>
             </div>
           )}
           {risk && (
             <div>
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">Biggest Risk</p>
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-text-muted">Biggest Risk</p>
               <p className="line-clamp-2 text-[11px] font-bold text-rose-400">{risk.headline || risk.reason}</p>
             </div>
           )}
@@ -243,27 +243,27 @@ function MarketHealthCard({ story, health, data }: { story: MarketStory | null; 
   const b = data?.breadth;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500">Market Health</p>
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+      <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.15em] text-text-muted">Market Health</p>
       <div className="flex justify-center">
         <svg width="148" height="80" viewBox="0 0 148 80">
-          <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="9" strokeLinecap="round" />
+          <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="rgb(var(--text-primary) / 0.05)" strokeWidth="9" strokeLinecap="round" />
           {health > 0 && <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`} fill="none" stroke={scoreColor} strokeWidth="9" strokeLinecap="round" />}
           <text x={cx} y={cy + 2} textAnchor="middle" fill="white" fontSize="22" fontWeight="900">{health}</text>
           <text x={cx} y={cy + 17} textAnchor="middle" fill="#475569" fontSize="9">{label}</text>
         </svg>
       </div>
       <div className="mt-1 space-y-1.5">
-        <div className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-          <span className="text-[10px] text-slate-500">Trend (Today)</span>
+        <div className="flex items-center justify-between rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5">
+          <span className="text-[10px] text-text-muted">Trend (Today)</span>
           <span className={`text-[11px] font-bold ${niftyPos ? "text-emerald-400" : "text-rose-400"}`}>{niftyPos ? "+" : ""}{niftyChg.toFixed(2)}%</span>
         </div>
-        <div className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-          <span className="text-[10px] text-slate-500">Market Breadth</span>
-          <span className="text-[11px] font-bold text-slate-300">{b ? `${b.advances}↑ ${b.unchanged ?? 0}→ ${b.declines}↓` : "—"}</span>
+        <div className="flex items-center justify-between rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5">
+          <span className="text-[10px] text-text-muted">Market Breadth</span>
+          <span className="text-[11px] font-bold text-text-secondary">{b ? `${b.advances}↑ ${b.unchanged ?? 0}→ ${b.declines}↓` : "—"}</span>
         </div>
-        <div className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-          <span className="text-[10px] text-slate-500">Market Mood</span>
+        <div className="flex items-center justify-between rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5">
+          <span className="text-[10px] text-text-muted">Market Mood</span>
           <span className={`text-[11px] font-bold ${meta.cls}`}>{story?.mood ?? "—"}</span>
         </div>
       </div>
@@ -281,30 +281,30 @@ function effectFromSentiment(sentiment: string): { label: string; cls: string } 
   const s = (sentiment ?? "").toLowerCase();
   if (s === "bullish") return { label: "Positive", cls: "text-emerald-400" };
   if (s === "bearish") return { label: "Negative", cls: "text-rose-400" };
-  return { label: "Neutral", cls: "text-slate-400" };
+  return { label: "Neutral", cls: "text-text-secondary" };
 }
 
 function LiveMarketDriversCard({ feed, loading }: { feed: FeedItem[]; loading: boolean }) {
   const sorted = [...feed].sort((a, b) => b.urgency - a.urgency).slice(0, 6);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Live Market Drivers" sub="Why the market is moving" href="/events" />
       {loading ? (
-        <div className="flex-1 space-y-2.5">{[1, 2, 3].map(i => <div key={i} className="h-9 animate-pulse rounded-xl bg-white/[0.03]" />)}</div>
+        <div className="flex-1 space-y-2.5">{[1, 2, 3].map(i => <div key={i} className="h-9 animate-pulse rounded-xl bg-text-primary/[0.03]" />)}</div>
       ) : sorted.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No live drivers yet today.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">No live drivers yet today.</p>
       ) : (
         <div className="flex-1 space-y-1">
-          <div className="grid grid-cols-[1fr_60px_60px] gap-2 px-1 pb-1 text-[8px] font-bold uppercase tracking-wider text-slate-600">
+          <div className="grid grid-cols-[1fr_60px_60px] gap-2 px-1 pb-1 text-[8px] font-bold uppercase tracking-wider text-text-muted">
             <span>Driver</span><span className="text-right">Impact</span><span className="text-right">Effect</span>
           </div>
           {sorted.map(f => {
             const effect = effectFromSentiment(f.sentiment);
             const impactLabel = f.market_impact ? f.market_impact.charAt(0).toUpperCase() + f.market_impact.slice(1) : "—";
             return (
-              <div key={f.id} className="grid grid-cols-[1fr_60px_60px] items-center gap-2 rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
-                <p className="line-clamp-1 text-[11px] font-semibold text-slate-200">{f.one_liner || f.headline}</p>
+              <div key={f.id} className="grid grid-cols-[1fr_60px_60px] items-center gap-2 rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5">
+                <p className="line-clamp-1 text-[11px] font-semibold text-text-primary">{f.one_liner || f.headline}</p>
                 <span className={`flex items-center justify-end gap-1 text-[10px] font-bold ${effect.cls}`}>
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
                   {impactLabel}
@@ -328,7 +328,7 @@ function OpportunitiesRisksCard({ story, opps, feed }: { story: MarketStory | nu
   const hasRisks = !!story?.risk || risks.length > 0;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <div className="flex-1 space-y-4">
         <div>
           <div className="mb-2 flex items-center gap-1.5">
@@ -336,37 +336,37 @@ function OpportunitiesRisksCard({ story, opps, feed }: { story: MarketStory | nu
             <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Today's AI Opportunities</h3>
           </div>
           {!hasOpps ? (
-            <p className="text-[10px] text-slate-600">Scanning for opportunities…</p>
+            <p className="text-[10px] text-text-muted">Scanning for opportunities…</p>
           ) : (
             <div className="space-y-1.5">
               {story?.opportunity && (
-                <p className="line-clamp-2 text-[10px] leading-4 text-slate-400">{story.opportunity}</p>
+                <p className="line-clamp-2 text-[10px] leading-4 text-text-secondary">{story.opportunity}</p>
               )}
               {opps.slice(0, 2).map((o) => (
                 <div key={o.id} className="rounded-lg border border-emerald-500/10 bg-emerald-500/[0.03] p-2">
-                  <p className="line-clamp-1 text-[10px] font-bold text-white">{o.theme || o.title || "Opportunity"}</p>
-                  <p className="line-clamp-1 text-[9px] text-slate-500">{o.reason || o.summary || ""}</p>
+                  <p className="line-clamp-1 text-[10px] font-bold text-text-primary">{o.theme || o.title || "Opportunity"}</p>
+                  <p className="line-clamp-1 text-[9px] text-text-muted">{o.reason || o.summary || ""}</p>
                 </div>
               ))}
             </div>
           )}
         </div>
-        <div className="border-t border-white/[0.06] pt-3">
+        <div className="border-t border-surface-border/6 pt-3">
           <div className="mb-2 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
             <h3 className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Today's AI Risks</h3>
           </div>
           {!hasRisks ? (
-            <p className="text-[10px] text-slate-600">No elevated risk signals.</p>
+            <p className="text-[10px] text-text-muted">No elevated risk signals.</p>
           ) : (
             <div className="space-y-1.5">
               {story?.risk && (
-                <p className="line-clamp-2 text-[10px] leading-4 text-slate-400">{story.risk}</p>
+                <p className="line-clamp-2 text-[10px] leading-4 text-text-secondary">{story.risk}</p>
               )}
               {risks.map((r) => (
                 <div key={r.id} className="rounded-lg border border-rose-500/10 bg-rose-500/[0.03] p-2">
-                  <p className="line-clamp-1 text-[10px] font-bold text-white">{r.headline}</p>
-                  <p className="line-clamp-1 text-[9px] text-slate-500">{r.one_liner}</p>
+                  <p className="line-clamp-1 text-[10px] font-bold text-text-primary">{r.headline}</p>
+                  <p className="line-clamp-1 text-[9px] text-text-muted">{r.one_liner}</p>
                 </div>
               ))}
             </div>
@@ -374,7 +374,7 @@ function OpportunitiesRisksCard({ story, opps, feed }: { story: MarketStory | nu
         </div>
       </div>
       <Link href="/opportunity-radar"
-        className="mt-4 flex items-center justify-center gap-1 rounded-xl border border-white/[0.07] bg-white/[0.02] py-2 text-[10px] font-semibold text-slate-400 hover:text-white transition">
+        className="mt-4 flex items-center justify-center gap-1 rounded-xl border border-surface-border/7 bg-text-primary/[0.02] py-2 text-[10px] font-semibold text-text-secondary hover:text-text-primary transition">
         View Detailed Opportunity Radar <ChevronRight className="h-3 w-3" />
       </Link>
     </div>
@@ -386,13 +386,13 @@ function OpportunitiesRisksCard({ story, opps, feed }: { story: MarketStory | nu
 // ─────────────────────────────────────────────────────────────────────────────
 type SectorStatus = { label: string; cls: string; bg: string; border: string };
 function getSectorStatus(val: number): SectorStatus {
-  if (val >= 2.0)  return { label: "Leading",    cls: "text-emerald-300", bg: "bg-emerald-500/12", border: "border-emerald-500/25" };
+  if (val >= 2.0)  return { label: "Leading",    cls: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/12", border: "border-emerald-500/25" };
   if (val >= 0.8)  return { label: "Strong",     cls: "text-emerald-400", bg: "bg-emerald-500/8",  border: "border-emerald-500/18" };
   if (val >= 0.1)  return { label: "Gaining",    cls: "text-sky-400",     bg: "bg-sky-500/8",      border: "border-sky-500/18" };
-  if (val >= -0.1) return { label: "Neutral",    cls: "text-slate-400",   bg: "bg-white/[0.03]",   border: "border-white/[0.06]" };
+  if (val >= -0.1) return { label: "Neutral",    cls: "text-text-secondary",   bg: "bg-text-primary/[0.03]",   border: "border-surface-border/6" };
   if (val >= -0.8) return { label: "Weakening",  cls: "text-amber-400",   bg: "bg-amber-500/8",    border: "border-amber-500/18" };
   if (val >= -2.0) return { label: "Losing",     cls: "text-rose-400",    bg: "bg-rose-500/8",     border: "border-rose-500/18" };
-  return              { label: "Declining",  cls: "text-rose-300",    bg: "bg-rose-500/12",    border: "border-rose-500/25" };
+  return              { label: "Declining",  cls: "text-rose-600 dark:text-rose-300",    bg: "bg-rose-500/12",    border: "border-rose-500/25" };
 }
 
 // Money-flow bar width is a direct, capped mapping of the real % move — not
@@ -403,10 +403,10 @@ const SECTOR_BAR_CAP = 3.0;
 
 function SectorRotationCard({ sectors }: { sectors: any[] }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Sector Rotation" sub="Live money flow by sector" />
       {sectors.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">Sector data unavailable.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">Sector data unavailable.</p>
       ) : (
         <div className="flex-1 space-y-2">
           {sectors.slice(0, 8).map((s) => {
@@ -415,9 +415,9 @@ function SectorRotationCard({ sectors }: { sectors: any[] }) {
             const st  = getSectorStatus(val);
             const barPct = Math.min(Math.abs(val) / SECTOR_BAR_CAP, 1) * 100;
             return (
-              <div key={s.name} className="rounded-lg border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5">
+              <div key={s.name} className="rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5">
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-[11px] font-semibold text-white">
+                  <span className="flex items-center gap-1 text-[11px] font-semibold text-text-primary">
                     {val >= 0 ? <TrendingUp className="h-3 w-3 text-emerald-400" /> : <TrendingDown className="h-3 w-3 text-rose-400" />}
                     {s.name}
                   </span>
@@ -426,7 +426,7 @@ function SectorRotationCard({ sectors }: { sectors: any[] }) {
                     <span className={`w-12 text-right text-[11px] font-black tabular-nums ${st.cls}`}>{val >= 0 ? "+" : ""}{val.toFixed(2)}%</span>
                   </div>
                 </div>
-                <div className="h-1 overflow-hidden rounded-full bg-white/[0.04]">
+                <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.04]">
                   <div className={`h-full rounded-full ${val >= 0 ? "bg-emerald-400" : "bg-rose-400"}`} style={{ width: `${barPct}%` }} />
                 </div>
               </div>
@@ -434,7 +434,7 @@ function SectorRotationCard({ sectors }: { sectors: any[] }) {
           })}
         </div>
       )}
-      <Link href="/newsroom/themes" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-white/[0.07] bg-white/[0.02] py-1.5 text-[10px] font-semibold text-slate-400 hover:text-white transition">
+      <Link href="/newsroom/themes" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-surface-border/7 bg-text-primary/[0.02] py-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary transition">
         Sector Heatmap
       </Link>
     </div>
@@ -459,24 +459,24 @@ function CompaniesThatMatterCard({ events, loading }: { events: any[]; loading: 
   }
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Companies That Matter Today" sub="Most relevant companies" href="/companies" />
       {loading ? (
-        <div className="flex-1 space-y-2.5">{[1, 2, 3].map(i => <div key={i} className="h-11 animate-pulse rounded-xl bg-white/[0.03]" />)}</div>
+        <div className="flex-1 space-y-2.5">{[1, 2, 3].map(i => <div key={i} className="h-11 animate-pulse rounded-xl bg-text-primary/[0.03]" />)}</div>
       ) : rows.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">Company data is loading.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">Company data is loading.</p>
       ) : (
         <div className="flex-1 space-y-2">
           {rows.map((r, i) => {
             const style = impactToStyle(r.score);
             return (
-              <Link key={r.ticker} href={`/companies/${r.ticker}` as any} className="group flex items-center gap-2.5 rounded-xl border border-white/[0.04] bg-white/[0.02] px-3 py-2 hover:border-violet-500/15 transition">
+              <Link key={r.ticker} href={`/companies/${r.ticker}` as any} className="group flex items-center gap-2.5 rounded-xl border border-surface-border/4 bg-text-primary/[0.02] px-3 py-2 hover:border-violet-500/15 transition">
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[9px] font-black ${style.circle}`}>
                   {r.ticker.slice(0, 3)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11px] font-bold text-white group-hover:text-violet-200 transition">{r.name} <span className="text-slate-600">({r.ticker})</span></p>
-                  <p className="line-clamp-2 text-[9px] leading-snug text-slate-500">{r.reason}</p>
+                  <p className="truncate text-[11px] font-bold text-text-primary group-hover:text-violet-700 dark:text-violet-200 transition">{r.name} <span className="text-text-muted">({r.ticker})</span></p>
+                  <p className="line-clamp-2 text-[9px] leading-snug text-text-muted">{r.reason}</p>
                 </div>
                 <span className={`shrink-0 self-start text-[13px] font-black tabular-nums ${style.text}`}>{r.score != null ? (r.score / 10).toFixed(1) : "—"}</span>
               </Link>
@@ -500,15 +500,15 @@ function MarketTimelineCard({ feed, loading }: { feed: FeedItem[]; loading: bool
     .slice(0, 6);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Market Timeline" sub="How today unfolded" href="/events" linkLabel="Full Timeline" />
       {loading ? (
-        <div className="flex-1 space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-8 animate-pulse rounded-lg bg-white/[0.03]" />)}</div>
+        <div className="flex-1 space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-8 animate-pulse rounded-lg bg-text-primary/[0.03]" />)}</div>
       ) : today.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No timestamped events yet today.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">No timestamped events yet today.</p>
       ) : (
         <div className="relative flex-1">
-          <div className="absolute left-[13px] top-1 bottom-1 w-px bg-white/[0.06]" />
+          <div className="absolute left-[13px] top-1 bottom-1 w-px bg-text-primary/[0.06]" />
           <div className="space-y-3.5">
             {today.map(f => {
               const t = new Date(f.triaged_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -516,14 +516,14 @@ function MarketTimelineCard({ feed, loading }: { feed: FeedItem[]; loading: bool
               const down = f.direction === "down";
               return (
                 <div key={f.id} className="flex items-start gap-3">
-                  <span className={`z-10 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border ${up ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-400" : down ? "border-rose-500/30 bg-rose-500/15 text-rose-400" : "border-slate-600/30 bg-slate-700/20 text-slate-400"}`}>
+                  <span className={`z-10 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border ${up ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-400" : down ? "border-rose-500/30 bg-rose-500/15 text-rose-400" : "border-surface-border/7 bg-text-primary/[0.05] text-text-secondary"}`}>
                     {up ? <TrendingUp className="h-3 w-3" /> : down ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
                   </span>
                   <div className="min-w-0 flex-1 pt-0.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black tabular-nums text-white">{t}</span>
+                      <span className="text-[10px] font-black tabular-nums text-text-primary">{t}</span>
                     </div>
-                    <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-slate-300">{f.one_liner || f.headline}</p>
+                    <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-text-secondary">{f.one_liner || f.headline}</p>
                   </div>
                 </div>
               );
@@ -545,12 +545,12 @@ function RippleEffectsCard({ ripple, loading, eventId }: { ripple: any; loading:
   const isTemplate = ripple?.source === "fallback_template";
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Ripple Effects" sub="AI Ripple Map" href={eventId ? `/ripple/${eventId}` as any : undefined} linkLabel="Full Map" />
       {loading ? (
-        <div className="flex-1 space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-9 animate-pulse rounded-lg bg-white/[0.03]" />)}</div>
+        <div className="flex-1 space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-9 animate-pulse rounded-lg bg-text-primary/[0.03]" />)}</div>
       ) : !source ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No ripple analysis available today.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">No ripple analysis available today.</p>
       ) : (
         <div className="flex-1 space-y-2">
           {isTemplate && (
@@ -559,28 +559,28 @@ function RippleEffectsCard({ ripple, loading, eventId }: { ripple: any; loading:
             </span>
           )}
           <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2 text-center">
-            <p className="line-clamp-2 text-[11px] font-bold leading-snug text-white">{source.label}</p>
-            {source.subtitle && <p className="text-[9px] text-violet-300">{source.subtitle}</p>}
+            <p className="line-clamp-2 text-[11px] font-bold leading-snug text-text-primary">{source.label}</p>
+            {source.subtitle && <p className="text-[9px] text-violet-600 dark:text-violet-300">{source.subtitle}</p>}
           </div>
           {sectorNodes.length > 0 && (
             <div className="grid grid-cols-3 gap-1.5">
               {sectorNodes.map(n => (
-                <div key={n.id} className={`rounded-lg border px-1.5 py-2 text-center ${n.impact === "positive" ? "border-emerald-500/20 bg-emerald-500/[0.06]" : n.impact === "negative" ? "border-rose-500/20 bg-rose-500/[0.06]" : "border-white/[0.06] bg-white/[0.02]"}`}>
-                  <p className="truncate text-[9px] font-bold text-white">{n.label}</p>
-                  <p className={`text-[9px] ${n.impact === "positive" ? "text-emerald-400" : n.impact === "negative" ? "text-rose-400" : "text-slate-500"}`}>{n.subtitle ?? n.impact}</p>
+                <div key={n.id} className={`rounded-lg border px-1.5 py-2 text-center ${n.impact === "positive" ? "border-emerald-500/20 bg-emerald-500/[0.06]" : n.impact === "negative" ? "border-rose-500/20 bg-rose-500/[0.06]" : "border-surface-border/6 bg-text-primary/[0.02]"}`}>
+                  <p className="truncate text-[9px] font-bold text-text-primary">{n.label}</p>
+                  <p className={`text-[9px] ${n.impact === "positive" ? "text-emerald-400" : n.impact === "negative" ? "text-rose-400" : "text-text-muted"}`}>{n.subtitle ?? n.impact}</p>
                 </div>
               ))}
             </div>
           )}
           {ripple?.insights && (
             <div className="grid grid-cols-2 gap-1.5">
-              <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5 text-center">
-                <p className="text-[8px] uppercase tracking-wider text-slate-600">Inflation Risk</p>
-                <p className="text-[10px] font-bold text-slate-300">{ripple.insights.inflation_risk ?? "—"}</p>
+              <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] px-2 py-1.5 text-center">
+                <p className="text-[8px] uppercase tracking-wider text-text-muted">Inflation Risk</p>
+                <p className="text-[10px] font-bold text-text-secondary">{ripple.insights.inflation_risk ?? "—"}</p>
               </div>
-              <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5 text-center">
-                <p className="text-[8px] uppercase tracking-wider text-slate-600">Volatility</p>
-                <p className="text-[10px] font-bold text-slate-300">{ripple.insights.market_volatility ?? "—"}</p>
+              <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] px-2 py-1.5 text-center">
+                <p className="text-[8px] uppercase tracking-wider text-text-muted">Volatility</p>
+                <p className="text-[10px] font-bold text-text-secondary">{ripple.insights.market_volatility ?? "—"}</p>
               </div>
             </div>
           )}
@@ -595,9 +595,9 @@ function RippleEffectsCard({ ripple, loading, eventId }: { ripple: any; loading:
 // ─────────────────────────────────────────────────────────────────────────────
 function MarketBreadthCard({ breadth }: { breadth: any }) {
   if (!breadth) return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Market Breadth" />
-      <p className="flex-1 py-6 text-center text-[12px] text-slate-600">Breadth data unavailable.</p>
+      <p className="flex-1 py-6 text-center text-[12px] text-text-muted">Breadth data unavailable.</p>
     </div>
   );
 
@@ -608,34 +608,34 @@ function MarketBreadthCard({ breadth }: { breadth: any }) {
   const healthColor = advPct > 0.6 ? "#34d399" : advPct > 0.45 ? "#fbbf24" : "#f43f5e";
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Market Breadth" sub={narrative} />
-      <div className="flex h-2 w-full overflow-hidden rounded-full bg-white/[0.05]">
+      <div className="flex h-2 w-full overflow-hidden rounded-full bg-text-primary/[0.05]">
         <div className="h-full bg-emerald-500" style={{ width: `${(advPct * 100).toFixed(1)}%` }} />
         <div className="h-full bg-amber-500" style={{ width: `${((breadth.unchanged / total) * 100).toFixed(1)}%` }} />
         <div className="h-full bg-rose-500" style={{ width: `${((breadth.declines / total) * 100).toFixed(1)}%` }} />
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-        <div><p className="text-[18px] font-black tabular-nums text-emerald-400">{breadth.advances}</p><p className="text-[8px] uppercase tracking-wider text-slate-600">Advancing</p></div>
-        <div><p className="text-[18px] font-black tabular-nums text-amber-400">{breadth.unchanged ?? 0}</p><p className="text-[8px] uppercase tracking-wider text-slate-600">Unchanged</p></div>
-        <div><p className="text-[18px] font-black tabular-nums text-rose-400">{breadth.declines}</p><p className="text-[8px] uppercase tracking-wider text-slate-600">Declining</p></div>
+        <div><p className="text-[18px] font-black tabular-nums text-emerald-400">{breadth.advances}</p><p className="text-[8px] uppercase tracking-wider text-text-muted">Advancing</p></div>
+        <div><p className="text-[18px] font-black tabular-nums text-amber-400">{breadth.unchanged ?? 0}</p><p className="text-[8px] uppercase tracking-wider text-text-muted">Unchanged</p></div>
+        <div><p className="text-[18px] font-black tabular-nums text-rose-400">{breadth.declines}</p><p className="text-[8px] uppercase tracking-wider text-text-muted">Declining</p></div>
       </div>
       <div className="mt-3 flex flex-1 items-end justify-between gap-3">
         <div className="space-y-1.5">
           {breadth.high52w != null && (
-            <div><p className="text-[8px] uppercase tracking-wider text-slate-600">52W High</p><p className="text-[13px] font-black text-emerald-400">{breadth.high52w}</p></div>
+            <div><p className="text-[8px] uppercase tracking-wider text-text-muted">52W High</p><p className="text-[13px] font-black text-emerald-400">{breadth.high52w}</p></div>
           )}
           {breadth.low52w != null && (
-            <div><p className="text-[8px] uppercase tracking-wider text-slate-600">52W Low</p><p className="text-[13px] font-black text-rose-400">{breadth.low52w}</p></div>
+            <div><p className="text-[8px] uppercase tracking-wider text-text-muted">52W Low</p><p className="text-[13px] font-black text-rose-400">{breadth.low52w}</p></div>
           )}
         </div>
         <div className="text-center">
           <svg width="72" height="40" viewBox="0 0 72 40">
-            <path d="M 4 36 A 32 32 0 0 1 68 36" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" strokeLinecap="round" />
+            <path d="M 4 36 A 32 32 0 0 1 68 36" fill="none" stroke="rgb(var(--text-primary) / 0.06)" strokeWidth="6" strokeLinecap="round" />
             <path d="M 4 36 A 32 32 0 0 1 68 36" fill="none" stroke={healthColor} strokeWidth="6" strokeLinecap="round"
               strokeDasharray={`${advPct * 100.5} 200`} />
           </svg>
-          <p className="text-[9px] text-slate-600">Breadth Health</p>
+          <p className="text-[9px] text-text-muted">Breadth Health</p>
           <p className="text-[11px] font-bold" style={{ color: healthColor }}>{healthLabel}</p>
         </div>
       </div>
@@ -657,16 +657,16 @@ function MarketSentimentCard({ value }: { value: number | null }) {
   const ny = CY - R * Math.sin(toRad(valueDeg));
 
   return (
-    <div className="flex h-full flex-col items-center rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <p className="mb-1 self-start text-[11px] font-bold uppercase tracking-wider text-slate-400">Market Sentiment</p>
-      <p className="mb-2 self-start text-[9px] text-slate-600">Breadth-derived index</p>
+    <div className="flex h-full flex-col items-center rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+      <p className="mb-1 self-start text-[11px] font-bold uppercase tracking-wider text-text-secondary">Market Sentiment</p>
+      <p className="mb-2 self-start text-[9px] text-text-muted">Breadth-derived index</p>
       <svg width="104" height="58" viewBox="0 0 104 58">
-        <path d="M 8 52 A 44 44 0 0 1 96 52" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="7" strokeLinecap="round" />
+        <path d="M 8 52 A 44 44 0 0 1 96 52" fill="none" stroke="rgb(var(--text-primary) / 0.06)" strokeWidth="7" strokeLinecap="round" />
         <path d="M 8 52 A 44 44 0 0 1 96 52" fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" strokeDasharray={`${(v / 100) * 138} 200`} />
         <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="white" strokeWidth="2" strokeLinecap="round" />
         <circle cx={CX} cy={CY} r="3" fill="white" />
       </svg>
-      <p className="text-[22px] font-black leading-none text-white">{v}</p>
+      <p className="text-[22px] font-black leading-none text-text-primary">{v}</p>
       <p className="mt-0.5 text-[11px] font-semibold" style={{ color }}>{label}</p>
     </div>
   );
@@ -685,32 +685,32 @@ function AIConfidenceMeterCard({ confidence, accuracy, tracked, updatedAt }: {
   const offset = unscored ? circ : circ - (confidence / 100) * circ;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">AI Confidence Meter</p>
-      <p className="mb-3 text-[9px] text-slate-600">Overall market confidence</p>
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">AI Confidence Meter</p>
+      <p className="mb-3 text-[9px] text-text-muted">Overall market confidence</p>
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           <svg width="76" height="76" viewBox="0 0 76 76">
-            <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7"/>
+            <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgb(var(--text-primary) / 0.05)" strokeWidth="7"/>
             {!unscored && <circle cx={CX} cy={CY} r={R} fill="none" stroke="#a855f7" strokeWidth="7" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" transform="rotate(-90,38,38)"/>}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-[14px] font-black text-white leading-none">{unscored ? "—" : `${confidence}%`}</p>
+            <p className="text-[14px] font-black text-text-primary leading-none">{unscored ? "—" : `${confidence}%`}</p>
             <p className="text-[7px] text-violet-400 font-semibold">{label}</p>
           </div>
         </div>
         <div className="space-y-1">
           <div className="flex justify-between gap-3 text-[10px]">
-            <span className="text-slate-500">Accuracy</span>
-            <span className="font-semibold text-slate-300">{accuracy != null ? `${accuracy.toFixed(0)}%` : "—"}</span>
+            <span className="text-text-muted">Accuracy</span>
+            <span className="font-semibold text-text-secondary">{accuracy != null ? `${accuracy.toFixed(0)}%` : "—"}</span>
           </div>
           <div className="flex justify-between gap-3 text-[10px]">
-            <span className="text-slate-500">Predictions Tracked</span>
-            <span className="font-semibold text-slate-300">{tracked != null ? tracked.toLocaleString() : "—"}</span>
+            <span className="text-text-muted">Predictions Tracked</span>
+            <span className="font-semibold text-text-secondary">{tracked != null ? tracked.toLocaleString() : "—"}</span>
           </div>
           <div className="flex justify-between gap-3 text-[10px]">
-            <span className="text-slate-500">Updated</span>
-            <span className="font-semibold text-slate-300">{updatedAt ? timeAgo(updatedAt) : "—"}</span>
+            <span className="text-text-muted">Updated</span>
+            <span className="font-semibold text-text-secondary">{updatedAt ? timeAgo(updatedAt) : "—"}</span>
           </div>
         </div>
       </div>
@@ -723,12 +723,12 @@ function AIConfidenceMeterCard({ confidence, accuracy, tracked, updatedAt }: {
 // ─────────────────────────────────────────────────────────────────────────────
 function UpcomingTodayCard({ events, loading }: { events: any[]; loading: boolean }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <CardHeader title="Upcoming Today" sub="Key events & earnings" href="/calendar" linkLabel="View Calendar" />
       {loading ? (
-        <div className="flex-1 space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-8 animate-pulse rounded-lg bg-white/[0.03]" />)}</div>
+        <div className="flex-1 space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-8 animate-pulse rounded-lg bg-text-primary/[0.03]" />)}</div>
       ) : events.length === 0 ? (
-        <p className="flex-1 py-6 text-center text-[12px] text-slate-600">No upcoming events.</p>
+        <p className="flex-1 py-6 text-center text-[12px] text-text-muted">No upcoming events.</p>
       ) : (
         <div className="flex-1 space-y-2.5">
           {events.slice(0, 5).map((e, i) => {
@@ -739,10 +739,10 @@ function UpcomingTodayCard({ events, loading }: { events: any[]; loading: boolea
                   <CalendarClock className="h-3.5 w-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-[10px] font-semibold leading-snug text-white">{e.title}</p>
-                  <p className="text-[9px] text-slate-600">{e.category ?? "Event"}</p>
+                  <p className="line-clamp-2 text-[10px] font-semibold leading-snug text-text-primary">{e.title}</p>
+                  <p className="text-[9px] text-text-muted">{e.category ?? "Event"}</p>
                 </div>
-                <span className="shrink-0 self-start text-[9px] font-semibold text-slate-500">{e.date}</span>
+                <span className="shrink-0 self-start text-[9px] font-semibold text-text-muted">{e.date}</span>
               </div>
             );
           })}
@@ -774,12 +774,12 @@ function MarketReplayPanel({ open }: { open: boolean }) {
   if (!open) return null;
 
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-[#080c14] p-5">
-      <h3 className="mb-4 text-[12px] font-bold text-white">Market Replay — how today evolved from open to now</h3>
+    <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+      <h3 className="mb-4 text-[12px] font-bold text-text-primary">Market Replay — how today evolved from open to now</h3>
       <div className="relative">
-        <div className="absolute left-[18px] top-0 bottom-0 w-px bg-white/[0.06]" />
+        <div className="absolute left-[18px] top-0 bottom-0 w-px bg-text-primary/[0.06]" />
         {loading ? (
-          <div className="space-y-4 pl-12">{[1, 2, 3].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-white/[0.02]" />)}</div>
+          <div className="space-y-4 pl-12">{[1, 2, 3].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-text-primary/[0.02]" />)}</div>
         ) : entries.length ? (
           <div className="space-y-4">
             {entries.map((e, i) => {
@@ -790,14 +790,14 @@ function MarketReplayPanel({ open }: { open: boolean }) {
               return (
                 <div key={i} className="flex items-start gap-4">
                   <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${mBdr} ${mBg} z-10 ${mCls}`}>{arrow}</div>
-                  <div className="flex-1 min-w-0 rounded-xl border border-white/[0.04] bg-white/[0.02] p-3">
+                  <div className="flex-1 min-w-0 rounded-xl border border-surface-border/4 bg-text-primary/[0.02] p-3">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <span className="text-[12px] font-black tabular-nums text-white">{t}</span>
+                      <span className="text-[12px] font-black tabular-nums text-text-primary">{t}</span>
                       <span className={`rounded-full border ${mBdr} ${mBg} px-1.5 py-0.5 text-[8px] font-bold ${mCls}`}>{e.mood}</span>
-                      {e.nifty_at ? <span className="ml-auto text-[10px] tabular-nums text-slate-600">Nifty {e.nifty_at.toFixed(0)}</span> : null}
-                      {e.vix_at ? <span className="text-[10px] tabular-nums text-slate-600">VIX {e.vix_at.toFixed(1)}</span> : null}
+                      {e.nifty_at ? <span className="ml-auto text-[10px] tabular-nums text-text-muted">Nifty {e.nifty_at.toFixed(0)}</span> : null}
+                      {e.vix_at ? <span className="text-[10px] tabular-nums text-text-muted">VIX {e.vix_at.toFixed(1)}</span> : null}
                     </div>
-                    <p className="line-clamp-3 text-[11px] leading-5 text-slate-400">{e.story}</p>
+                    <p className="line-clamp-3 text-[11px] leading-5 text-text-secondary">{e.story}</p>
                   </div>
                 </div>
               );
@@ -805,8 +805,8 @@ function MarketReplayPanel({ open }: { open: boolean }) {
           </div>
         ) : (
           <div className="py-8 pl-12 text-center">
-            <p className="text-[13px] text-slate-500">No replay data yet.</p>
-            <p className="mt-1 text-[11px] text-slate-700">The AI snapshots the market every 5 minutes during trading hours.</p>
+            <p className="text-[13px] text-text-muted">No replay data yet.</p>
+            <p className="mt-1 text-[11px] text-text-muted">The AI snapshots the market every 5 minutes during trading hours.</p>
           </div>
         )}
       </div>
@@ -913,7 +913,7 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
     return (
       <div className="space-y-5">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="h-36 animate-pulse rounded-2xl border border-white/[0.05] bg-white/[0.02]" />
+          <div key={i} className="h-36 animate-pulse rounded-2xl border border-surface-border/5 bg-text-primary/[0.02]" />
         ))}
       </div>
     );

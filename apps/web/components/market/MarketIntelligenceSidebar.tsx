@@ -34,9 +34,9 @@ function FearGreedGauge({ value }: { value: number }) {
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-4">
-      <p className="mb-2 text-[11px] font-bold text-white">Market Sentiment</p>
-      <p className="mb-3 text-[9px] text-slate-500 uppercase tracking-wider">Fear &amp; Greed Index</p>
+    <div className="rounded-xl border border-surface-border/10 bg-surface-card p-4">
+      <p className="mb-2 text-[11px] font-bold text-text-primary">Market Sentiment</p>
+      <p className="mb-3 text-[9px] text-text-muted uppercase tracking-wider">Fear &amp; Greed Index</p>
       <div className="flex flex-col items-center">
         <svg width="128" height="72" viewBox="0 0 128 72">
           {/* Gradient arcs */}
@@ -49,9 +49,9 @@ function FearGreedGauge({ value }: { value: number }) {
           <line x1={CX} y1={CY} x2={needleX} y2={needleY} stroke="white" strokeWidth="2" strokeLinecap="round"/>
           <circle cx={CX} cy={CY} r="4" fill="white"/>
         </svg>
-        <p className="text-[22px] font-black text-white leading-none">{value}</p>
+        <p className="text-[22px] font-black text-text-primary leading-none">{value}</p>
         <p className="text-[12px] font-semibold mt-0.5" style={{ color }}>{label}</p>
-        <p className="text-[9px] text-slate-600 mt-1">Yesterday: {Math.max(10, value - 4)}</p>
+        <p className="text-[9px] text-text-muted mt-1">Yesterday: {Math.max(10, value - 4)}</p>
       </div>
     </div>
   );
@@ -65,13 +65,13 @@ function AIConfidenceMeter({ value }: { value: number | null | undefined }) {
   const circ = 2 * Math.PI * R;
   const offset = unscored ? circ : circ - (value / 100) * circ;
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-4">
-      <p className="mb-1 text-[11px] font-bold text-white">AI Confidence Meter</p>
-      <p className="mb-3 text-[9px] text-slate-500 uppercase tracking-wider">Overall Market Confidence</p>
+    <div className="rounded-xl border border-surface-border/10 bg-surface-card p-4">
+      <p className="mb-1 text-[11px] font-bold text-text-primary">AI Confidence Meter</p>
+      <p className="mb-3 text-[9px] text-text-muted uppercase tracking-wider">Overall Market Confidence</p>
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           <svg width="76" height="76" viewBox="0 0 76 76">
-            <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7"/>
+            <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgb(var(--text-primary) / 0.05)" strokeWidth="7"/>
             {!unscored && (
               <circle cx={CX} cy={CY} r={R} fill="none" stroke="#a855f7" strokeWidth="7"
                 strokeDasharray={circ} strokeDashoffset={offset}
@@ -79,7 +79,7 @@ function AIConfidenceMeter({ value }: { value: number | null | undefined }) {
             )}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-[14px] font-black text-white leading-none">{unscored ? "—" : `${value}%`}</p>
+            <p className="text-[14px] font-black text-text-primary leading-none">{unscored ? "—" : `${value}%`}</p>
             <p className="text-[7px] text-violet-400 font-semibold">{label}</p>
           </div>
         </div>
@@ -89,8 +89,8 @@ function AIConfidenceMeter({ value }: { value: number | null | undefined }) {
             { l: "Updated", v: "Live" },
           ].map(r => (
             <div key={r.l} className="flex justify-between gap-3 text-[10px]">
-              <span className="text-slate-500">{r.l}</span>
-              <span className="font-semibold text-slate-300">{r.v}</span>
+              <span className="text-text-muted">{r.l}</span>
+              <span className="font-semibold text-text-secondary">{r.v}</span>
             </div>
           ))}
         </div>
@@ -111,12 +111,12 @@ function MoverColumn({ label, rows, positive }: { label: string; rows: any[]; po
       <div className="space-y-1.5">
         {rows.slice(0, 5).map((r) => (
           <Link key={r.ticker} href={`/companies/${r.ticker}`}
-            className="flex items-center justify-between hover:bg-white/[0.02] rounded-lg px-1 py-0.5 transition">
-            <p className="truncate text-[11px] font-semibold text-white">{r.ticker}</p>
+            className="flex items-center justify-between hover:bg-text-primary/[0.02] rounded-lg px-1 py-0.5 transition">
+            <p className="truncate text-[11px] font-semibold text-text-primary">{r.ticker}</p>
             <p className={`shrink-0 text-[10px] font-bold ${positive ? "text-emerald-400" : "text-rose-400"}`}>{r.value}</p>
           </Link>
         ))}
-        {rows.length === 0 && <p className="py-3 text-center text-[10px] text-slate-600">Loading…</p>}
+        {rows.length === 0 && <p className="py-3 text-center text-[10px] text-text-muted">Loading…</p>}
       </div>
     </div>
   );
@@ -124,10 +124,10 @@ function MoverColumn({ label, rows, positive }: { label: string; rows: any[]; po
 
 function TopMoversPanel({ gainers, losers }: { gainers: any[]; losers: any[] }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-4">
+    <div className="rounded-xl border border-surface-border/10 bg-surface-card p-4">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[11px] font-bold text-white">Pre-Market Top Movers</p>
-        <Link href="/stocks" className="text-[9px] text-sky-400 hover:text-sky-300 transition">View All →</Link>
+        <p className="text-[11px] font-bold text-text-primary">Pre-Market Top Movers</p>
+        <Link href="/stocks" className="text-[9px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <MoverColumn label="Gainers" rows={gainers} positive/>
@@ -140,10 +140,10 @@ function TopMoversPanel({ gainers, losers }: { gainers: any[]; losers: any[] }) 
 // ── Upcoming Events ───────────────────────────────────────────────────────────
 function UpcomingEventsPanel({ events }: { events: any[] }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0a0d16] p-4">
+    <div className="rounded-xl border border-surface-border/10 bg-surface-card p-4">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[11px] font-bold text-white">Upcoming Today</p>
-        <Link href="/calendar" className="text-[9px] text-sky-400 hover:text-sky-300 transition">Full Calendar →</Link>
+        <p className="text-[11px] font-bold text-text-primary">Upcoming Today</p>
+        <Link href="/calendar" className="text-[9px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">Full Calendar →</Link>
       </div>
       <div className="space-y-2">
         {events.slice(0, 5).map((e, i) => {
@@ -154,13 +154,13 @@ function UpcomingEventsPanel({ events }: { events: any[] }) {
                 {[<Landmark className="h-3.5 w-3.5" />, <BarChart2 className="h-3.5 w-3.5" />, <Factory className="h-3.5 w-3.5" />, <TrendingUp className="h-3.5 w-3.5" />, <ClipboardList className="h-3.5 w-3.5" />][i % 5]}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-semibold text-white line-clamp-1">{e.title}</p>
-                <p className="text-[9px] text-slate-600">{e.date}</p>
+                <p className="text-[10px] font-semibold text-text-primary line-clamp-1">{e.title}</p>
+                <p className="text-[9px] text-text-muted">{e.date}</p>
               </div>
             </div>
           );
         })}
-        {events.length === 0 && <p className="py-2 text-center text-[10px] text-slate-600">No events today</p>}
+        {events.length === 0 && <p className="py-2 text-center text-[10px] text-text-muted">No events today</p>}
       </div>
     </div>
   );
@@ -169,20 +169,20 @@ function UpcomingEventsPanel({ events }: { events: any[] }) {
 // ── Breaking News ─────────────────────────────────────────────────────────────
 function BreakingNewsPanel({ news }: { news: any[] }) {
   return (
-    <div className="rounded-xl border border-rose-500/15 bg-[#0e060a] p-4">
+    <div className="rounded-xl border border-rose-500/15 bg-rose-500/[0.04] p-4">
       <div className="mb-3 flex items-center gap-1.5">
         <div className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse"/>
-        <p className="text-[11px] font-bold text-white">Breaking News</p>
+        <p className="text-[11px] font-bold text-text-primary">Breaking News</p>
       </div>
       <div className="space-y-2">
         {news.slice(0, 3).map((n) => (
           <Link key={n.id} href={`/news/${n.id}`}
-            className="block rounded-xl border border-white/[0.04] bg-white/[0.02] p-2.5 hover:border-rose-500/15 transition">
-            <p className="text-[10px] font-semibold text-white line-clamp-2 leading-snug">{n.headline}</p>
-            <p className="mt-1 text-[9px] text-slate-600">{n.source}</p>
+            className="block rounded-xl border border-surface-border/4 bg-text-primary/[0.02] p-2.5 hover:border-rose-500/15 transition">
+            <p className="text-[10px] font-semibold text-text-primary line-clamp-2 leading-snug">{n.headline}</p>
+            <p className="mt-1 text-[9px] text-text-muted">{n.source}</p>
           </Link>
         ))}
-        {news.length === 0 && <p className="text-center text-[10px] text-slate-600 py-2">No breaking news</p>}
+        {news.length === 0 && <p className="text-center text-[10px] text-text-muted py-2">No breaking news</p>}
       </div>
     </div>
   );

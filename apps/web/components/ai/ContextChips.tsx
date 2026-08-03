@@ -27,33 +27,33 @@ export function ContextChips({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-[10px] uppercase tracking-wide text-slate-600 mr-0.5">Current Context</span>
+      <span className="text-[10px] uppercase tracking-wide text-text-muted mr-0.5">Current Context</span>
       {companies.map(c => (
-        <span key={c.symbol} className="flex items-center gap-1 rounded-full border border-violet-500/25 bg-violet-500/10 px-2 py-1 text-[11px] font-medium text-violet-300">
+        <span key={c.symbol} className="flex items-center gap-1 rounded-full border border-violet-500/25 bg-violet-500/10 px-2 py-1 text-[11px] font-medium text-violet-600 dark:text-violet-300">
           {c.symbol}
-          <button onClick={() => onRemoveCompany(c.symbol)} className="text-violet-400/60 hover:text-violet-200 transition" aria-label={`Remove ${c.symbol} from context`}>
+          <button onClick={() => onRemoveCompany(c.symbol)} className="text-violet-400/60 hover:text-violet-700 dark:text-violet-200 transition" aria-label={`Remove ${c.symbol} from context`}>
             <X className="h-2.5 w-2.5" />
           </button>
         </span>
       ))}
       {sectors.map(s => (
-        <span key={s} className="flex items-center gap-1 rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-1 text-[11px] font-medium text-sky-300">
+        <span key={s} className="flex items-center gap-1 rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-1 text-[11px] font-medium text-sky-600 dark:text-sky-300">
           {s}
-          <button onClick={() => onRemoveSector(s)} className="text-sky-400/60 hover:text-sky-200 transition" aria-label={`Remove ${s} from context`}>
+          <button onClick={() => onRemoveSector(s)} className="text-sky-400/60 hover:text-sky-700 dark:text-sky-200 transition" aria-label={`Remove ${s} from context`}>
             <X className="h-2.5 w-2.5" />
           </button>
         </span>
       ))}
       {timeHorizon && (
-        <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] font-medium text-slate-300">
+        <span className="flex items-center gap-1 rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-2 py-1 text-[11px] font-medium text-text-secondary">
           {timeHorizon}
-          <button onClick={onClearHorizon} className="text-slate-500 hover:text-slate-200 transition" aria-label="Clear time horizon"><X className="h-2.5 w-2.5" /></button>
+          <button onClick={onClearHorizon} className="text-text-muted hover:text-text-primary transition" aria-label="Clear time horizon"><X className="h-2.5 w-2.5" /></button>
         </span>
       )}
       {riskTolerance && (
-        <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] font-medium text-slate-300">
+        <span className="flex items-center gap-1 rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-2 py-1 text-[11px] font-medium text-text-secondary">
           {riskTolerance} Risk
-          <button onClick={onClearRisk} className="text-slate-500 hover:text-slate-200 transition" aria-label="Clear risk tolerance"><X className="h-2.5 w-2.5" /></button>
+          <button onClick={onClearRisk} className="text-text-muted hover:text-text-primary transition" aria-label="Clear risk tolerance"><X className="h-2.5 w-2.5" /></button>
         </span>
       )}
     </div>

@@ -103,7 +103,7 @@ export default async function IntelPage(
   const related: any[] = intel.related_intelligence ?? [];
 
   return (
-    <main className="min-h-screen bg-[#040810] text-white">
+    <main className="min-h-screen bg-surface-card text-text-primary">
       {/* Structured data for SEO */}
       <script
         type="application/ld+json"
@@ -126,12 +126,12 @@ export default async function IntelPage(
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
 
         {/* Breadcrumb */}
-        <nav className="mb-6 flex items-center gap-2 text-[11px] text-slate-600">
-          <Link href="/" className="hover:text-slate-400 transition">InvestGrids</Link>
+        <nav className="mb-6 flex items-center gap-2 text-[11px] text-text-muted">
+          <Link href="/" className="hover:text-text-secondary transition">InvestGrids</Link>
           <span>/</span>
-          <Link href={`/${type === "news" ? "news" : type + "s"}`} className="hover:text-slate-400 transition capitalize">{type}s</Link>
+          <Link href={`/${type === "news" ? "news" : type + "s"}`} className="hover:text-text-secondary transition capitalize">{type}s</Link>
           <span>/</span>
-          <span className="text-slate-400">{humanSlug}</span>
+          <span className="text-text-secondary">{humanSlug}</span>
         </nav>
 
         {/* Header */}
@@ -139,7 +139,7 @@ export default async function IntelPage(
           <span className={`mb-3 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${meta.color}`}>
             <BookOpen className="h-2.5 w-2.5" /> {meta.label}
           </span>
-          <h1 className="mt-2 text-[28px] font-black leading-tight text-white">
+          <h1 className="mt-2 text-[28px] font-black leading-tight text-text-primary">
             {humanSlug}
           </h1>
           <div className="mt-3 flex items-center gap-3">
@@ -147,7 +147,7 @@ export default async function IntelPage(
               Confidence: {confLevel} ({confScore}%)
             </span>
             {intel.generated_at && (
-              <span className="flex items-center gap-1 text-[11px] text-slate-600">
+              <span className="flex items-center gap-1 text-[11px] text-text-muted">
                 <Clock className="h-3 w-3" />
                 {new Date(intel.generated_at).toLocaleString("en-IN", {
                   day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
@@ -161,41 +161,41 @@ export default async function IntelPage(
         {intel.key_takeaway && (
           <div className="mb-6 rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">Key Takeaway</p>
-            <p className="text-[15px] font-semibold leading-snug text-white">{intel.key_takeaway}</p>
+            <p className="text-[15px] font-semibold leading-snug text-text-primary">{intel.key_takeaway}</p>
           </div>
         )}
 
         {/* Market Story */}
         {intel.market_story && (
           <section className="mb-7">
-            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-slate-500">Market Story</h2>
-            <p className="text-[14px] leading-7 text-slate-300">{intel.market_story}</p>
+            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-text-muted">Market Story</h2>
+            <p className="text-[14px] leading-7 text-text-secondary">{intel.market_story}</p>
           </section>
         )}
 
         {/* Opportunities */}
         {opps.length > 0 && (
           <section className="mb-7">
-            <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-slate-500">
+            <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-text-muted">
               <TrendingUp className="h-3.5 w-3.5 text-emerald-400" /> Opportunities
             </h2>
             <div className="space-y-3">
               {opps.map((o: any, i: number) => (
                 <div key={i} className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-[13px] font-semibold text-emerald-300">{o.title}</h3>
+                    <h3 className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-300">{o.title}</h3>
                     {o.horizon && (
                       <span className="shrink-0 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">
                         {o.horizon}
                       </span>
                     )}
                   </div>
-                  <p className="mt-1.5 text-[12px] leading-5 text-slate-400">{o.description}</p>
+                  <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{o.description}</p>
                   {o.companies?.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {o.companies.map((c: string) => (
                         <Link key={c} href={`/companies/${c}`}
-                          className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-300 hover:text-sky-300 transition">
+                          className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[10px] text-text-secondary hover:text-sky-600 dark:text-sky-300 transition">
                           {c}
                         </Link>
                       ))}
@@ -210,7 +210,7 @@ export default async function IntelPage(
         {/* Risks */}
         {risks.length > 0 && (
           <section className="mb-7">
-            <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-slate-500">
+            <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-text-muted">
               <AlertTriangle className="h-3.5 w-3.5 text-amber-400" /> Risks
             </h2>
             <div className="space-y-3">
@@ -220,7 +220,7 @@ export default async function IntelPage(
                   : "border-amber-500/15 bg-amber-500/[0.04]"
                 }`}>
                   <div className="flex items-start justify-between gap-3">
-                    <h3 className={`text-[13px] font-semibold ${r.severity === "High" ? "text-rose-300" : "text-amber-300"}`}>
+                    <h3 className={`text-[13px] font-semibold ${r.severity === "High" ? "text-rose-600 dark:text-rose-300" : "text-amber-600 dark:text-amber-300"}`}>
                       {r.title}
                     </h3>
                     {r.severity && (
@@ -231,7 +231,7 @@ export default async function IntelPage(
                       }`}>{r.severity}</span>
                     )}
                   </div>
-                  <p className="mt-1.5 text-[12px] leading-5 text-slate-400">{r.description}</p>
+                  <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{r.description}</p>
                 </div>
               ))}
             </div>
@@ -241,26 +241,26 @@ export default async function IntelPage(
         {/* Companies */}
         {companies.length > 0 && (
           <section className="mb-7">
-            <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-slate-500">
+            <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-text-muted">
               <Building2 className="h-3.5 w-3.5 text-sky-400" /> Companies
             </h2>
             <div className="space-y-2">
               {companies.map((c: any, i: number) => (
-                <div key={i} className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3">
+                <div key={i} className="flex items-center justify-between rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-3">
                   <div className="flex items-center gap-3">
                     {isRealSymbol(c.symbol) ? (
                       <Link href={`/companies/${c.symbol}`}
-                        className="text-[13px] font-semibold text-sky-300 hover:text-sky-200 transition">
+                        className="text-[13px] font-semibold text-sky-600 dark:text-sky-300 hover:text-sky-700 dark:text-sky-200 transition">
                         {c.symbol}
                       </Link>
                     ) : null}
-                    <span className="text-[12px] text-slate-500">{c.name}</span>
+                    <span className="text-[12px] text-text-muted">{c.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
                       c.stance === "Bullish"  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-400" :
                       c.stance === "Bearish"  ? "border-rose-500/25 bg-rose-500/10 text-rose-400" :
-                                                "border-white/10 bg-white/5 text-slate-400"
+                                                "border-surface-border/10 bg-text-primary/5 text-text-secondary"
                     }`}>{c.stance ?? "Neutral"}</span>
                   </div>
                 </div>
@@ -274,20 +274,20 @@ export default async function IntelPage(
           <div className="mb-7 grid grid-cols-1 gap-5 sm:grid-cols-2">
             {sectors.length > 0 && (
               <section>
-                <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-slate-500">
+                <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-widest text-text-muted">
                   <Globe className="h-3.5 w-3.5 text-violet-400" /> Sectors
                 </h2>
                 <div className="space-y-2">
                   {sectors.map((s: any, i: number) => (
-                    <div key={i} className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-2.5">
+                    <div key={i} className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-white">{s.name}</span>
+                        <span className="text-[12px] font-semibold text-text-primary">{s.name}</span>
                         <span className={`text-[11px] font-medium ${
                           s.outlook === "Positive" ? "text-emerald-400" :
-                          s.outlook === "Negative" ? "text-rose-400" : "text-slate-400"
+                          s.outlook === "Negative" ? "text-rose-400" : "text-text-secondary"
                         }`}>{s.outlook ?? "Neutral"}</span>
                       </div>
-                      {s.reason && <p className="mt-0.5 text-[10px] text-slate-600">{s.reason}</p>}
+                      {s.reason && <p className="mt-0.5 text-[10px] text-text-muted">{s.reason}</p>}
                     </div>
                   ))}
                 </div>
@@ -295,11 +295,11 @@ export default async function IntelPage(
             )}
             {themes.length > 0 && (
               <section>
-                <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-slate-500">Themes</h2>
+                <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-text-muted">Themes</h2>
                 <div className="flex flex-wrap gap-2">
                   {themes.map((t: any, i: number) => (
                     <Link key={i} href={`/themes`}
-                      className="rounded-full border border-violet-500/20 bg-violet-500/[0.06] px-3 py-1.5 text-[11px] font-medium text-violet-300 hover:text-violet-200 transition">
+                      className="rounded-full border border-violet-500/20 bg-violet-500/[0.06] px-3 py-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-300 hover:text-violet-700 dark:text-violet-200 transition">
                       {t.name}
                       {t.strength && <span className="ml-1 text-[9px] opacity-60">{t.strength}</span>}
                     </Link>
@@ -312,19 +312,19 @@ export default async function IntelPage(
 
         {/* Historical context */}
         {intel.historical_context && (
-          <section className="mb-7 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
-            <h2 className="mb-2 text-[12px] font-bold uppercase tracking-widest text-slate-600">Historical Context</h2>
-            <p className="text-[13px] italic leading-6 text-slate-400">{intel.historical_context}</p>
+          <section className="mb-7 rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-5">
+            <h2 className="mb-2 text-[12px] font-bold uppercase tracking-widest text-text-muted">Historical Context</h2>
+            <p className="text-[13px] italic leading-6 text-text-secondary">{intel.historical_context}</p>
           </section>
         )}
 
         {/* Monitoring points */}
         {monitoring.length > 0 && (
           <section className="mb-7">
-            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-slate-500">What to Watch</h2>
+            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-text-muted">What to Watch</h2>
             <ul className="space-y-2">
               {monitoring.map((pt, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-[13px] text-slate-400">
+                <li key={i} className="flex items-start gap-2.5 text-[13px] text-text-secondary">
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />
                   {pt}
                 </li>
@@ -336,17 +336,17 @@ export default async function IntelPage(
         {/* Related Intelligence */}
         {related.length > 0 && (
           <section className="mb-7">
-            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-slate-500">Related Intelligence</h2>
+            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-widest text-text-muted">Related Intelligence</h2>
             <div className="space-y-2">
               {related.filter((r: any) => VALID_TYPES.includes(r.type as IntelType)).slice(0, 5).map((r: any, i: number) => {
                 const relType = r.type as IntelType;
                 const href = `/intel/${relType}/${r.id}`;
                 return (
                   <Link key={i} href={href}
-                    className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 hover:border-white/20 transition">
+                    className="flex items-center justify-between rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-3 hover:border-surface-border/20 transition">
                     <div>
-                      <span className="text-[10px] uppercase tracking-wider text-slate-600 capitalize">{r.type}</span>
-                      <p className="text-[12px] font-medium text-slate-300">{r.title}</p>
+                      <span className="text-[10px] uppercase tracking-wider text-text-muted capitalize">{r.type}</span>
+                      <p className="text-[12px] font-medium text-text-secondary">{r.title}</p>
                     </div>
                     {r.relevance_score != null && (
                       <span className="text-[11px] font-bold text-violet-400">{Math.round(r.relevance_score * 100)}%</span>
@@ -359,18 +359,18 @@ export default async function IntelPage(
         )}
 
         {/* CTA */}
-        <div className="mt-10 flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-10 flex flex-col gap-3 rounded-2xl border border-surface-border/7 bg-text-primary/[0.03] p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[13px] font-semibold text-white">Want deeper analysis?</p>
-            <p className="text-[12px] text-slate-500">Ask our AI any question about this {type}.</p>
+            <p className="text-[13px] font-semibold text-text-primary">Want deeper analysis?</p>
+            <p className="text-[12px] text-text-muted">Ask our AI any question about this {type}.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href={`/ai-search?q=${encodeURIComponent(`Tell me more about ${humanSlug}`)}`}
-              className="rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-[12px] font-semibold text-violet-300 hover:bg-violet-500/15 transition">
+              className="rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-[12px] font-semibold text-violet-600 dark:text-violet-300 hover:bg-violet-500/15 transition">
               Ask AI →
             </Link>
             <Link href={meta.href(rawSlug)}
-              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-medium text-slate-300 hover:text-white transition">
+              className="rounded-full border border-surface-border/10 bg-text-primary/5 px-4 py-2 text-[12px] font-medium text-text-secondary hover:text-text-primary transition">
               <ArrowLeft className="inline h-3 w-3 mr-1" /> Back to {type}
             </Link>
           </div>

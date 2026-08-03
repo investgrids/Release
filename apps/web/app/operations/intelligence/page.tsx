@@ -116,7 +116,7 @@ function deriveThemes(themes: ThemeScore[], items: FeedArticle[]): ThemeStat[] {
 }
 
 const IMPACT_COLOR: Record<string, string> = {
-  positive: "text-emerald-400", negative: "text-rose-400", neutral: "text-slate-400",
+  positive: "text-emerald-400", negative: "text-rose-400", neutral: "text-text-secondary",
 };
 const MOMENTUM_ICON: Record<string, typeof TrendingUp> = { rising: TrendingUp, falling: TrendingDown, stable: Minus };
 
@@ -132,11 +132,11 @@ function SectionHeader({ eyebrow, title, sub, href, cta }: { eyebrow: string; ti
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-400">{eyebrow}</p>
-        <h2 className="mt-2 text-[26px] font-black text-white sm:text-[32px] tracking-tight">{title}</h2>
-        {sub && <p className="mt-2 max-w-2xl text-[14px] leading-6 text-slate-400">{sub}</p>}
+        <h2 className="mt-2 text-[26px] font-black text-text-primary sm:text-[32px] tracking-tight">{title}</h2>
+        {sub && <p className="mt-2 max-w-2xl text-[14px] leading-6 text-text-secondary">{sub}</p>}
       </div>
       {href && cta && (
-        <Link href={href as any} className="group flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[12px] font-semibold text-slate-300 transition hover:border-violet-500/40 hover:text-white">
+        <Link href={href as any} className="group flex shrink-0 items-center gap-1.5 rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-4 py-2 text-[12px] font-semibold text-text-secondary transition hover:border-violet-500/40 hover:text-text-primary">
           {cta} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
         </Link>
       )}
@@ -146,7 +146,7 @@ function SectionHeader({ eyebrow, title, sub, href, cta }: { eyebrow: string; ti
 
 function GlassCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-3xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl ${className}`}>
+    <div className={`rounded-3xl border border-surface-border/8 bg-text-primary/[0.03] backdrop-blur-xl ${className}`}>
       {children}
     </div>
   );
@@ -171,7 +171,7 @@ export default async function MarketIntelligenceShowcase() {
   const nextOffset = insights.items.length;
 
   return (
-    <main className="min-h-screen bg-[#040711] text-white overflow-x-hidden">
+    <main className="min-h-screen bg-surface-card text-text-primary overflow-x-hidden">
 
       {/* ══════════════════════ HERO ══════════════════════ */}
       <section className="relative isolate overflow-hidden">
@@ -184,7 +184,7 @@ export default async function MarketIntelligenceShowcase() {
             className="absolute inset-0 opacity-[0.07]"
             style={{
               backgroundImage:
-                "linear-gradient(to right, rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.6) 1px, transparent 1px)",
+                "linear-gradient(to right, rgb(var(--text-primary) / 0.6) 1px, transparent 1px), linear-gradient(to bottom, rgb(var(--text-primary) / 0.6) 1px, transparent 1px)",
               backgroundSize: "56px 56px",
               maskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 40%, transparent 90%)",
             }}
@@ -208,34 +208,34 @@ export default async function MarketIntelligenceShowcase() {
             <span className="flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-rose-400">
               <Radio className="h-3 w-3 animate-pulse" /> Live
             </span>
-            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-slate-300">
+            <span className="flex items-center gap-1.5 rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[11px] font-semibold text-text-secondary">
               <Clock className="h-3 w-3" /> Updated just now
             </span>
-            <span className="flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold text-violet-300">
+            <span className="flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold text-violet-600 dark:text-violet-300">
               <Sparkles className="h-3 w-3" /> AI Powered
             </span>
-            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-slate-300">
+            <span className="flex items-center gap-1.5 rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[11px] font-semibold text-text-secondary">
               <Zap className="h-3 w-3" /> 24×7 Monitoring
             </span>
           </div>
 
-          <h1 className="text-balance text-[42px] font-black leading-[1.05] tracking-tight text-white sm:text-[64px] lg:text-[76px]">
+          <h1 className="text-balance text-[42px] font-black leading-[1.05] tracking-tight text-text-primary sm:text-[64px] lg:text-[76px]">
             Market Intelligence
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-balance text-[16px] leading-8 text-slate-400 sm:text-[19px]">
+          <p className="mx-auto mt-6 max-w-2xl text-balance text-[16px] leading-8 text-text-secondary sm:text-[19px]">
             Every market-moving event is transformed into investor-ready intelligence within minutes.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="#featured"
-              className="rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-7 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_30px_rgba(124,58,237,0.35)] transition hover:shadow-[0_8px_40px_rgba(124,58,237,0.5)] hover:-translate-y-0.5"
+              className="rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-7 py-3.5 text-[14px] font-bold text-text-primary shadow-[0_8px_30px_rgba(124,58,237,0.35)] transition hover:shadow-[0_8px_40px_rgba(124,58,237,0.5)] hover:-translate-y-0.5"
             >
               Explore Intelligence
             </Link>
             <Link
               href="#campaigns"
-              className="rounded-full border border-white/15 bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-slate-200 backdrop-blur transition hover:border-white/30 hover:bg-white/[0.08]"
+              className="rounded-full border border-surface-border/15 bg-text-primary/[0.04] px-7 py-3.5 text-[14px] font-semibold text-text-primary backdrop-blur transition hover:border-surface-border/30 hover:bg-text-primary/[0.08]"
             >
               View Latest Campaign
             </Link>
@@ -258,43 +258,43 @@ export default async function MarketIntelligenceShowcase() {
                 <div className="relative grid grid-cols-1 gap-8 lg:grid-cols-[1fr_280px]">
                   <div>
                     <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300">
+                      <span className="rounded-full border border-surface-border/15 bg-text-primary/5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-text-secondary">
                         {TYPE_LABEL[featured.article_type] ?? "Intelligence"}
                       </span>
-                      <span className="text-[11px] text-slate-500">{fmtRelative(featured.published_at)}</span>
+                      <span className="text-[11px] text-text-muted">{fmtRelative(featured.published_at)}</span>
                       {featured.update_count > 0 && (
                         <span className="flex items-center gap-1 rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold text-sky-400">
                           Updated {featured.update_count}×
                         </span>
                       )}
                     </div>
-                    <h3 className="mt-5 text-[26px] font-black leading-tight text-white sm:text-[36px] group-hover:text-violet-100 transition">
+                    <h3 className="mt-5 text-[26px] font-black leading-tight text-text-primary sm:text-[36px] group-hover:text-violet-800 dark:text-violet-100 transition">
                       {featured.headline}
                     </h3>
                     {(featured.key_takeaway || featured.executive_summary) && (
-                      <p className="mt-4 text-[15px] leading-7 text-slate-400 line-clamp-3">
+                      <p className="mt-4 text-[15px] leading-7 text-text-secondary line-clamp-3">
                         {featured.key_takeaway ?? featured.executive_summary}
                       </p>
                     )}
                     {featured.companies_affected?.length > 0 && (
                       <div className="mt-6 flex flex-wrap gap-2">
                         {featured.companies_affected.filter(c => isRealSymbol(c.symbol)).slice(0, 6).map((c, i) => (
-                          <span key={i} className={`rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold ${IMPACT_COLOR[c.impact] ?? "text-slate-300"}`}>
+                          <span key={i} className={`rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[11px] font-semibold ${IMPACT_COLOR[c.impact] ?? "text-text-secondary"}`}>
                             {c.symbol}
                           </span>
                         ))}
                       </div>
                     )}
-                    <div className="mt-7 flex items-center gap-1.5 text-[14px] font-bold text-violet-300 group-hover:text-violet-200">
+                    <div className="mt-7 flex items-center gap-1.5 text-[14px] font-bold text-violet-600 dark:text-violet-300 group-hover:text-violet-700 dark:text-violet-200">
                       Read Full Article <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
                     </div>
                   </div>
 
                   {featured.confidence_score != null && (
-                    <div className="flex flex-col items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-surface-border/8 bg-text-primary/[0.02] p-6">
                       <div className="relative flex h-28 w-28 items-center justify-center">
                         <svg width={112} height={112} viewBox="0 0 112 112" className="-rotate-90">
-                          <circle cx={56} cy={56} r={48} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
+                          <circle cx={56} cy={56} r={48} fill="none" stroke="rgb(var(--text-primary) / 0.06)" strokeWidth={8} />
                           <circle
                             cx={56} cy={56} r={48} fill="none" stroke="url(#g)" strokeWidth={8} strokeLinecap="round"
                             strokeDasharray={`${2 * Math.PI * 48}`}
@@ -307,13 +307,13 @@ export default async function MarketIntelligenceShowcase() {
                             </linearGradient>
                           </defs>
                         </svg>
-                        <span className="absolute text-[22px] font-black text-white">{Math.round(featured.confidence_score * 100)}%</span>
+                        <span className="absolute text-[22px] font-black text-text-primary">{Math.round(featured.confidence_score * 100)}%</span>
                       </div>
-                      <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">AI Confidence</p>
+                      <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">AI Confidence</p>
                       {featured.sectors_affected?.length > 0 && (
                         <div className="mt-4 flex flex-wrap justify-center gap-1.5">
                           {featured.sectors_affected.slice(0, 3).map((s, i) => (
-                            <span key={i} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">{sectorName(s)}</span>
+                            <span key={i} className="rounded-full bg-text-primary/5 px-2 py-0.5 text-[10px] text-text-secondary">{sectorName(s)}</span>
                           ))}
                         </div>
                       )}
@@ -345,32 +345,32 @@ export default async function MarketIntelligenceShowcase() {
                       <Layers className="h-5 w-5 shrink-0 text-violet-400" />
                       <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
                     </div>
-                    <h3 className="mt-3 text-[16px] font-bold leading-snug text-white line-clamp-2">{c.headline}</h3>
-                    <p className="mt-1.5 text-[11px] text-slate-500">{c.article_count} article{c.article_count !== 1 ? "s" : ""} generated</p>
+                    <h3 className="mt-3 text-[16px] font-bold leading-snug text-text-primary line-clamp-2">{c.headline}</h3>
+                    <p className="mt-1.5 text-[11px] text-text-muted">{c.article_count} article{c.article_count !== 1 ? "s" : ""} generated</p>
 
                     {companySet.size > 0 && (
                       <div className="mt-4">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-1.5">Companies</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-1.5">Companies</p>
                         <div className="flex flex-wrap gap-1.5">
                           {[...companySet].slice(0, 5).map(sym => (
-                            <span key={sym} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-300">{sym}</span>
+                            <span key={sym} className="rounded-full bg-text-primary/5 px-2 py-0.5 text-[10px] text-text-secondary">{sym}</span>
                           ))}
                         </div>
                       </div>
                     )}
                     {themeSet.size > 0 && (
                       <div className="mt-3">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-1.5">Themes</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted mb-1.5">Themes</p>
                         <div className="flex flex-wrap gap-1.5">
                           {[...themeSet].slice(0, 4).map(t => (
-                            <span key={t} className="rounded-full border border-violet-500/20 bg-violet-500/[0.06] px-2 py-0.5 text-[10px] text-violet-300">{t}</span>
+                            <span key={t} className="rounded-full border border-violet-500/20 bg-violet-500/[0.06] px-2 py-0.5 text-[10px] text-violet-600 dark:text-violet-300">{t}</span>
                           ))}
                         </div>
                       </div>
                     )}
 
                     {primary && (
-                      <Link href={`/newsroom/article/${primary.slug}` as any} className="mt-5 flex items-center gap-1.5 text-[12px] font-bold text-violet-300 hover:text-violet-200 transition">
+                      <Link href={`/newsroom/article/${primary.slug}` as any} className="mt-5 flex items-center gap-1.5 text-[12px] font-bold text-violet-600 dark:text-violet-300 hover:text-violet-700 dark:text-violet-200 transition">
                         Explore Campaign <ArrowRight className="h-3.5 w-3.5" />
                       </Link>
                     )}
@@ -392,25 +392,25 @@ export default async function MarketIntelligenceShowcase() {
                   <div className="relative z-10 mt-1.5 flex h-[30px] w-[30px] shrink-0 items-center justify-center sm:h-[38px] sm:w-[38px]">
                     <span className={`h-3 w-3 rounded-full ${a.update_count > 0 ? "bg-sky-400" : "bg-violet-400"} ring-4 ring-[#040711]`} />
                   </div>
-                  <GlassCard className="flex-1 p-5 transition group-hover:border-white/20 group-hover:bg-white/[0.05]">
+                  <GlassCard className="flex-1 p-5 transition group-hover:border-surface-border/20 group-hover:bg-text-primary/[0.05]">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                      <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-text-secondary">
                         {TYPE_LABEL[a.article_type] ?? "Intelligence"}
                       </span>
-                      <span className="text-[10px] text-slate-600">{fmtRelative(a.published_at)}</span>
+                      <span className="text-[10px] text-text-muted">{fmtRelative(a.published_at)}</span>
                       {a.confidence_score != null && (
                         <span className="text-[10px] font-bold text-emerald-400">{Math.round(a.confidence_score * 100)}% confidence</span>
                       )}
                       {a.update_count > 0 && <span className="text-[10px] font-bold text-sky-400">Live · {a.update_count} updates</span>}
                     </div>
-                    <h3 className="mt-2 text-[15px] font-bold leading-snug text-white group-hover:text-violet-100 transition">{a.headline}</h3>
+                    <h3 className="mt-2 text-[15px] font-bold leading-snug text-text-primary group-hover:text-violet-800 dark:text-violet-100 transition">{a.headline}</h3>
                     {(a.key_takeaway || a.executive_summary) && (
-                      <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-6 text-slate-500">{a.key_takeaway ?? a.executive_summary}</p>
+                      <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-6 text-text-muted">{a.key_takeaway ?? a.executive_summary}</p>
                     )}
                     {a.companies_affected?.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {a.companies_affected.filter(c => isRealSymbol(c.symbol)).slice(0, 4).map((c, ci) => (
-                          <span key={ci} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">{c.symbol}</span>
+                          <span key={ci} className="rounded-full bg-text-primary/5 px-2 py-0.5 text-[10px] text-text-secondary">{c.symbol}</span>
                         ))}
                       </div>
                     )}
@@ -428,31 +428,31 @@ export default async function MarketIntelligenceShowcase() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {themeStats.map(t => {
                 const Icon = MOMENTUM_ICON[t.momentum] ?? Minus;
-                const momentumColor = t.momentum === "rising" ? "text-emerald-400" : t.momentum === "falling" ? "text-rose-400" : "text-slate-400";
+                const momentumColor = t.momentum === "rising" ? "text-emerald-400" : t.momentum === "falling" ? "text-rose-400" : "text-text-secondary";
                 return (
                   <GlassCard key={t.theme} className="p-5 transition hover:border-violet-500/25">
                     <div className="flex items-center justify-between">
-                      <span className="text-[14px] font-bold text-white">{t.theme}</span>
+                      <span className="text-[14px] font-bold text-text-primary">{t.theme}</span>
                       <Icon className={`h-4 w-4 ${momentumColor}`} />
                     </div>
                     <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[24px] font-black text-white">{t.score.toFixed(0)}</span>
-                      <span className="text-[11px] text-slate-500">momentum score</span>
+                      <span className="text-[24px] font-black text-text-primary">{t.score.toFixed(0)}</span>
+                      <span className="text-[11px] text-text-muted">momentum score</span>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-500">
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-text-muted">
                       <span>{t.articleCount} article{t.articleCount !== 1 ? "s" : ""}</span>
                       <span>{t.companyCount} companies</span>
                     </div>
                     {t.top_stocks?.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {t.top_stocks.slice(0, 3).map(s => (
-                          <span key={s.sym} className={`rounded-full bg-white/5 px-2 py-0.5 text-[10px] ${s.change_pct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          <span key={s.sym} className={`rounded-full bg-text-primary/5 px-2 py-0.5 text-[10px] ${s.change_pct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                             {s.sym} {s.change_pct >= 0 ? "+" : ""}{s.change_pct.toFixed(1)}%
                           </span>
                         ))}
                       </div>
                     )}
-                    {t.latestAt && <p className="mt-3 text-[10px] text-slate-600">Updated {fmtRelative(t.latestAt)}</p>}
+                    {t.latestAt && <p className="mt-3 text-[10px] text-text-muted">Updated {fmtRelative(t.latestAt)}</p>}
                   </GlassCard>
                 );
               })}
@@ -467,22 +467,22 @@ export default async function MarketIntelligenceShowcase() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {companies.map(c => (
                 <Link key={c.symbol} href={`/companies/${c.symbol}` as any} className="group">
-                  <GlassCard className="h-full p-5 transition group-hover:border-violet-500/25 group-hover:bg-white/[0.05]">
+                  <GlassCard className="h-full p-5 transition group-hover:border-violet-500/25 group-hover:bg-text-primary/[0.05]">
                     <div className="flex items-center justify-between">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 text-[11px] font-black text-violet-300">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 text-[11px] font-black text-violet-600 dark:text-violet-300">
                         {c.symbol.slice(0, 2)}
                       </div>
-                      <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                      <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[10px] font-bold text-text-secondary">
                         {c.count} article{c.count !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    <h3 className="mt-3 text-[14px] font-bold text-white group-hover:text-violet-100 transition">{c.name || c.symbol}</h3>
-                    {c.latestReason && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-5 text-slate-500">{c.latestReason}</p>}
+                    <h3 className="mt-3 text-[14px] font-bold text-text-primary group-hover:text-violet-800 dark:text-violet-100 transition">{c.name || c.symbol}</h3>
+                    {c.latestReason && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-5 text-text-muted">{c.latestReason}</p>}
                     <div className="mt-3 flex items-center justify-between">
-                      <span className={`text-[10px] font-bold ${IMPACT_COLOR[c.impact] ?? "text-slate-400"}`}>
+                      <span className={`text-[10px] font-bold ${IMPACT_COLOR[c.impact] ?? "text-text-secondary"}`}>
                         {c.impact === "positive" ? "Bullish signal" : c.impact === "negative" ? "Bearish signal" : "Neutral"}
                       </span>
-                      {c.latestAt && <span className="text-[10px] text-slate-600">{fmtRelative(c.latestAt)}</span>}
+                      {c.latestAt && <span className="text-[10px] text-text-muted">{fmtRelative(c.latestAt)}</span>}
                     </div>
                   </GlassCard>
                 </Link>
@@ -502,19 +502,19 @@ export default async function MarketIntelligenceShowcase() {
                   <GlassCard key={e.id} className="p-6 transition hover:border-emerald-500/20">
                     <div className="flex items-center gap-2">
                       <History className="h-4 w-4 text-amber-400" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{e.event_date ?? e.category}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">{e.event_date ?? e.category}</span>
                     </div>
-                    <h3 className="mt-3 text-[14px] font-bold leading-snug text-white line-clamp-2">{e.event_title}</h3>
+                    <h3 className="mt-3 text-[14px] font-bold leading-snug text-text-primary line-clamp-2">{e.event_title}</h3>
                     <div className="mt-4 flex items-center gap-2">
                       <span className={`text-[22px] font-black ${move >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                         {move >= 0 ? "+" : ""}{move.toFixed(1)}%
                       </span>
-                      <span className="text-[11px] text-slate-500">Nifty, {e.nifty_1m != null ? "1 month" : "1 week"} after</span>
+                      <span className="text-[11px] text-text-muted">Nifty, {e.nifty_1m != null ? "1 month" : "1 week"} after</span>
                     </div>
                     {e.sectors?.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {e.sectors.slice(0, 3).map(s => (
-                          <span key={s} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">{s}</span>
+                          <span key={s} className="rounded-full bg-text-primary/5 px-2 py-0.5 text-[10px] text-text-secondary">{s}</span>
                         ))}
                       </div>
                     )}
@@ -532,10 +532,10 @@ export default async function MarketIntelligenceShowcase() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
               {guides.map(g => (
                 <Link key={g.slug} href={`/learn/glossary/${g.slug}` as any} className="group">
-                  <GlassCard className="h-full p-5 transition group-hover:border-white/20">
+                  <GlassCard className="h-full p-5 transition group-hover:border-surface-border/20">
                     <GraduationCap className="h-5 w-5 text-sky-400" />
-                    <h3 className="mt-3 text-[14px] font-bold text-white group-hover:text-sky-200 transition">{g.term}</h3>
-                    <p className="mt-1.5 line-clamp-3 text-[11.5px] leading-5 text-slate-500">{g.shortDef}</p>
+                    <h3 className="mt-3 text-[14px] font-bold text-text-primary group-hover:text-sky-700 dark:text-sky-200 transition">{g.term}</h3>
+                    <p className="mt-1.5 line-clamp-3 text-[11.5px] leading-5 text-text-muted">{g.shortDef}</p>
                   </GlassCard>
                 </Link>
               ))}
@@ -552,8 +552,8 @@ export default async function MarketIntelligenceShowcase() {
                 <Link key={q.slug} href={`/newsroom/article/${q.slug}` as any} className="group">
                   <GlassCard className="h-full p-5 transition group-hover:border-violet-500/25">
                     <HelpCircle className="h-4 w-4 text-violet-400" />
-                    <h3 className="mt-3 text-[14px] font-bold leading-snug text-white group-hover:text-violet-100 transition">{q.headline}</h3>
-                    {q.key_takeaway && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-5 text-slate-500">{q.key_takeaway}</p>}
+                    <h3 className="mt-3 text-[14px] font-bold leading-snug text-text-primary group-hover:text-violet-800 dark:text-violet-100 transition">{q.headline}</h3>
+                    {q.key_takeaway && <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-5 text-text-muted">{q.key_takeaway}</p>}
                   </GlassCard>
                 </Link>
               ))}
@@ -570,7 +570,7 @@ export default async function MarketIntelligenceShowcase() {
                 <Link
                   key={cat}
                   href={`/ai-search?q=${encodeURIComponent(cat)}` as any}
-                  className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[13px] font-semibold text-slate-300 transition hover:border-violet-500/40 hover:bg-violet-500/[0.08] hover:text-violet-200"
+                  className="rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-[13px] font-semibold text-text-secondary transition hover:border-violet-500/40 hover:bg-violet-500/[0.08] hover:text-violet-700 dark:text-violet-200"
                 >
                   {cat}
                 </Link>
@@ -578,8 +578,8 @@ export default async function MarketIntelligenceShowcase() {
             </div>
             <div className="mt-5 space-y-2.5">
               {suggestions.trending.slice(0, 4).map(q => (
-                <Link key={q} href={`/ai-search?q=${encodeURIComponent(q)}` as any} className="group flex items-center gap-2.5 text-[13px] text-slate-500 transition hover:text-white">
-                  <SearchIcon className="h-3.5 w-3.5 shrink-0 text-slate-600 group-hover:text-violet-400" />
+                <Link key={q} href={`/ai-search?q=${encodeURIComponent(q)}` as any} className="group flex items-center gap-2.5 text-[13px] text-text-muted transition hover:text-text-primary">
+                  <SearchIcon className="h-3.5 w-3.5 shrink-0 text-text-muted group-hover:text-violet-400" />
                   {q}
                 </Link>
               ))}
@@ -598,15 +598,15 @@ export default async function MarketIntelligenceShowcase() {
           <GlassCard className="relative overflow-hidden p-10 text-center sm:p-16">
             <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-violet-600/15 via-transparent to-indigo-600/15" />
             <BarChart3 className="mx-auto h-8 w-8 text-violet-400" />
-            <h2 className="mt-5 text-[28px] font-black text-white sm:text-[36px]">Never miss market-moving intelligence.</h2>
-            <p className="mx-auto mt-3 max-w-xl text-[14px] leading-6 text-slate-400">
+            <h2 className="mt-5 text-[28px] font-black text-text-primary sm:text-[36px]">Never miss market-moving intelligence.</h2>
+            <p className="mx-auto mt-3 max-w-xl text-[14px] leading-6 text-text-secondary">
               MarketRipple's AI is monitoring markets right now — every event, every ripple, analyzed the moment it happens.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/newsroom" className="rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-7 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_30px_rgba(124,58,237,0.35)] transition hover:-translate-y-0.5">
+              <Link href="/newsroom" className="rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-7 py-3.5 text-[14px] font-bold text-text-primary shadow-[0_8px_30px_rgba(124,58,237,0.35)] transition hover:-translate-y-0.5">
                 Explore Today's Market Intelligence
               </Link>
-              <Link href="/ai-search" className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-7 py-3.5 text-[14px] font-semibold text-slate-200 transition hover:border-white/30">
+              <Link href="/ai-search" className="flex items-center gap-1.5 rounded-full border border-surface-border/15 bg-text-primary/[0.04] px-7 py-3.5 text-[14px] font-semibold text-text-primary transition hover:border-surface-border/30">
                 Search Any Company <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

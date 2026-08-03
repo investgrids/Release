@@ -15,14 +15,14 @@ export default function Error({
         </svg>
       </div>
       <div>
-        <h2 className="text-lg font-semibold text-white">Something went wrong</h2>
-        <p className="mt-1 text-sm text-slate-400 max-w-xs">
+        <h2 className="text-lg font-semibold text-text-primary">Something went wrong</h2>
+        <p className="mt-1 text-sm text-text-secondary max-w-xs">
           {error.message || "An unexpected error occurred. Please try again."}
         </p>
       </div>
       <button
         onClick={reset}
-        className="rounded-xl border border-sky-500/20 bg-sky-500/10 px-5 py-2 text-sm font-medium text-sky-300 transition hover:bg-sky-500/20"
+        className="rounded-xl border border-sky-500/20 bg-sky-500/10 px-5 py-2 text-sm font-medium text-sky-600 dark:text-sky-300 transition hover:bg-sky-500/20"
       >
         Try again
       </button>
