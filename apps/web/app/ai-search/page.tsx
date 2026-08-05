@@ -1981,10 +1981,14 @@ function AISearchInner() {
       return;
     }
     try {
+      // P2: was only sending {query, history} — session_context (companies/
+      // sectors already discussed this session) was never sent on the V2
+      // path at all, unlike V3 above. Same session.toApiContext() call V3
+      // already uses.
       const res = await fetch(`${API}/api/ai/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: trimmed, history }),
+        body: JSON.stringify({ query: trimmed, history, session_context: session.toApiContext() ?? null }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: "Search failed" }));
