@@ -247,7 +247,7 @@ async def generate_multi_horizon(
     # 3. Generate via AI
     prompt = _build_prompt(context_type, title, symbol, context, sectors)
     try:
-        raw = await _call_with_fallback(prompt=prompt, system=_SYSTEM, max_tokens=900)
+        raw = await _call_with_fallback(prompt=prompt, system=_SYSTEM, max_tokens=900, priority="interactive")
         horizons = _parse_horizons(raw) if raw else None
     except Exception as exc:
         log.warning("multi_horizon.ai_error", exc=str(exc))

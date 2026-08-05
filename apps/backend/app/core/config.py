@@ -96,6 +96,17 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
 
+    # Cloudflare Workers AI — free tier: 10,000 neurons/day shared pool across
+    # all models on the account (dash.cloudflare.com -> Workers AI). Used for
+    # the glm-4.7-flash tier in ai_service.py's fallback chain.
+    cloudflare_account_id: str = ""
+    cloudflare_api_token: str = ""
+
+    # Z.ai direct (open.bigmodel.cn) — glm-4.7-flash free tier. Endpoint/auth
+    # confirmed correct but the account is currently 429'ing on every request;
+    # not wired into ai_service.py's fallback chain until that's resolved.
+    zai_api_key: str = ""
+
     # NVIDIA NIM — "best reasoning" model tier for the AI pipeline's Decision
     # Intelligence explanation stage (integrate.api.nvidia.com, OpenAI-compatible).
     nvidia_api_key: str = ""

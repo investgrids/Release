@@ -94,6 +94,7 @@ async def explain_change(symbol: str = Query(default="")):
             f"Explain what caused {symbol or 'the market'} to move today:\n\n{context}\n\nGive a 2-3 sentence explanation for retail investors.",
             "You explain Indian stock market moves simply and clearly.",
             max_tokens=200,
+            priority="interactive",
         )
 
         return {

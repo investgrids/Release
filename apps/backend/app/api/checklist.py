@@ -33,4 +33,5 @@ async def get_checklist(
         title=title,
         description=description,
         sector=sector,
+        priority="interactive",
     )

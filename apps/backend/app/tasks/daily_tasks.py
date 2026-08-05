@@ -73,7 +73,7 @@ async def _refresh_ai_summary() -> None:
             {"title": e.title, "impact_score": e.impact_score}
             for e in events
         ]
-        summary = await get_market_summary(index_quotes, event_dicts)
+        summary = await get_market_summary(index_quotes, event_dicts, priority="background")
         if summary:
             await cache_set(DASHBOARD_AI_KEY, {"text": summary}, TTL_AI)
             log.info("daily.ai_summary.refreshed")
@@ -141,7 +141,7 @@ async def _build_dashboard_payload() -> dict | None:
         ai_text   = (cached_ai or {}).get("text", "")
         if not ai_text:
             event_dicts = [{"title": e.title, "impact_score": e.impact_score} for e in events]
-            ai_text = await get_market_summary(index_quotes, event_dicts)
+            ai_text = await get_market_summary(index_quotes, event_dicts, priority="background")
 
         trending = [
             {

@@ -92,5 +92,5 @@ async def run(
     from app.services.ai_service import _call_with_fallback
 
     prompt = build_prompt(original_query, evidence_context, companies, is_comparison, params)
-    raw = await _call_with_fallback(prompt, REFINE_SYSTEM, max_tokens=MAX_TOKENS)
+    raw = await _call_with_fallback(prompt, REFINE_SYSTEM, max_tokens=MAX_TOKENS, priority="interactive")
     return parse_specialist_json(raw, original_query)

@@ -140,7 +140,7 @@ async def _generate(ctx: dict) -> dict | None:
         "\n\nGenerate the market narrative JSON."
     )
 
-    raw = await _call_with_fallback(prompt, _STORY_SYSTEM, max_tokens=600)
+    raw = await _call_with_fallback(prompt, _STORY_SYSTEM, max_tokens=600, priority="background")
     if not raw:
         return None
     try:

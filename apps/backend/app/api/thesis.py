@@ -41,4 +41,5 @@ async def get_thesis(
         title=title,
         description=description,
         sector=sector,
+        priority="interactive",
     )

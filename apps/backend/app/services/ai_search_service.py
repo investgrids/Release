@@ -27,6 +27,7 @@ from app.core.config import settings
 from app.db.models.event import Event, GovernmentPolicy
 from app.db.models_legacy import NewsArticle as NewsModel
 from app.services.ai_service import _call_with_fallback
+from app.services.ai_search.session_context import resolve_context, check_ambiguous_group, _REFERENTIAL_RE
 from app.services.news_fetcher import get_live_news
 
 log = structlog.get_logger(__name__)
@@ -36,8 +37,24 @@ _CACHE: dict[str, tuple[float, Any]] = {}
 _TTL = 1800  # 30 min
 
 
-def _ck(query: str) -> str:
-    return hashlib.md5(query.lower().strip().encode()).hexdigest()
+def _ck(query: str, entities: dict | None = None) -> str:
+    """Cache key. P2 fix: when entities is provided, the key incorporates
+    the RESOLVED companies/sectors (post session-context merge), not just
+    query text — otherwise two sessions asking the identical literal text
+    ("What about its main competitor?") but resolving to different prior
+    companies would collide on one cache entry and the second session would
+    silently get the first session's answer. Keyed on resolved output, not
+    raw session_context: two sessions that happen to resolve to the SAME
+    entities correctly still share a cache hit (that's the point of
+    caching); only genuinely different resolved entities fragment it.
+    entities=None (market pulse, and anything not yet entity-aware) keeps
+    the original query-only behavior unchanged."""
+    base = query.lower().strip()
+    if entities:
+        sig = "companies=" + ",".join(sorted(entities.get("companies") or []))
+        sig += "|sectors=" + ",".join(sorted(entities.get("sectors") or []))
+        base = f"{base}::{sig}"
+    return hashlib.md5(base.encode()).hexdigest()
 
 
 def _cget(key: str, ttl: int = _TTL) -> Any | None:
@@ -47,6 +64,22 @@ def _cget(key: str, ttl: int = _TTL) -> Any | None:
 
 def _cset(key: str, val: Any) -> None:
     _CACHE[key] = (time.time(), val)
+
+
+def resolve_cache_key(query: str, session_context: dict | None = None) -> str:
+    """Computes the same entity-aware cache key run_ai_search resolves
+    internally — exposed so the route handler's pre-pipeline cache
+    pre-checks (in-process AND Redis, in api/ai_search.py) can check/write
+    the same cache namespace without duplicating the
+    _extract_entities/resolve_context wiring, and without silently reading/
+    writing a stale query-text-only key that bypasses the P2 cache-key fix
+    entirely (found live: the Redis pre-check had its own independent
+    query-only key, computed before run_ai_search ever resolves entities —
+    a hit there would return a cached answer without ever re-checking
+    session context, the exact collision run_ai_search's own fix closes)."""
+    entities = _extract_entities(query)
+    entities, _ = resolve_context(query, entities, session_context)
+    return _ck(query, entities)
 
 
 # ── Entity extraction ─────────────────────────────────────────────────────────
@@ -113,6 +146,23 @@ _COMPANY_SUFFIX_RE = re.compile(
 # gated on zero sector/policy signal too (see caller), unlike the strong tier.
 _COMPANY_BARE_RE = re.compile(r"\b(?:[A-Z][a-zA-Z]{2,}\s+){1,4}[A-Z][a-zA-Z]{2,}\b")
 
+# P3: narrow signal for a SINGLE capitalized word immediately followed by a
+# stock-specific noun — "What's the outlook for Apple stock?" ("Apple"
+# alone doesn't satisfy _COMPANY_BARE_RE's 2-word minimum, and has no
+# corporate suffix, so it fell through both existing detectors undetected
+# — verified live). Deliberately narrow: catching every single capitalized
+# word here would false-positive on legitimate phrasing like "Indian stock
+# market" or "Global shares outlook" — _GENERIC_STOCK_PREFIX excludes the
+# common non-company descriptors this pattern would otherwise misfire on.
+_GENERIC_STOCK_PREFIX = {
+    "indian", "india", "us", "global", "foreign", "international", "domestic",
+    "local", "asian", "american", "chinese", "european", "any", "some",
+    "penny", "blue", "small", "large", "mid", "growth", "value", "dividend",
+}
+_SINGLE_WORD_STOCK_RE = re.compile(
+    r"\b([A-Z][a-zA-Z]{2,})\s+(?:stock|shares|share\s+price|stock\s+price)\b"
+)
+
 
 def _looks_like_unrecognized_company(query: str, entities: dict) -> bool:
     """High-confidence-only signal that the query names a specific company
@@ -149,14 +199,25 @@ def _looks_like_unrecognized_company(query: str, entities: dict) -> bool:
         return True
     if entities["sectors"] or entities["policies"]:
         return False
-    return bool(_COMPANY_BARE_RE.search(residual))
+    if _COMPANY_BARE_RE.search(residual):
+        return True
+    # P3: single-word unsupported-entity case ("Apple stock") — see
+    # _SINGLE_WORD_STOCK_RE's comment for why this is deliberately narrow.
+    m = _SINGLE_WORD_STOCK_RE.search(residual)
+    return bool(m and m.group(1).lower() not in _GENERIC_STOCK_PREFIX)
 
 
 def _unrecognized_company_response(query: str) -> dict:
     """Minimal but schema-complete SearchResult — deliberately not routed
     through _synthesis_incomplete's "degraded" framing, since this isn't a
     failure to synthesize; it's a correct, confident classification that
-    the named entity isn't a real, tracked company."""
+    the named entity isn't a real, tracked company.
+
+    P3: this is the "unsupported entity" response the task named (Apple-
+    stock case) — degraded_reason is set even though synthesis_incomplete
+    stays False, since the two fields answer different questions: "did
+    synthesis fail" (no) vs. "is this a plain successful analysis"
+    (also no, machine-distinguishably so)."""
     summary = (
         f"No verified company found matching this query. MarketRipple only analyzes "
         f"companies in its tracked NSE universe, and nothing in “{query}” matched a "
@@ -164,7 +225,7 @@ def _unrecognized_company_response(query: str) -> dict:
         f"publicly listed on the NSE."
     )
     return {
-        "query": query, "synthesis_incomplete": False,
+        "query": query, "synthesis_incomplete": False, "degraded_reason": "unsupported_entity",
         "answer": {
             "summary": summary, "bottom_line": summary,
             "what_happened": "", "why_it_happened": "", "immediate_impact": "",
@@ -193,12 +254,130 @@ def _unrecognized_company_response(query: str) -> dict:
     }
 
 
+def _referential_no_context_response(query: str) -> dict:
+    """Schema-complete SearchResult for a referential query ("What about
+    its main competitor?") that resolved to nothing — no companies/sectors
+    of its own, and no prior session context to merge in either. P2: this
+    is what used to silently reach the LLM with empty entities (or, before
+    the "it"/IT-sector fix, a confidently wrong sector match) — now an
+    honest admission instead. synthesis_incomplete=True (unlike
+    _unrecognized_company_response's False) because this genuinely isn't a
+    complete analysis, it's missing information, not a confident
+    classification."""
+    summary = (
+        "This looks like a follow-up question, but there's no prior company or sector "
+        "in this session to resolve it against. Try naming the company or sector directly, "
+        "or ask this right after discussing one."
+    )
+    return {
+        "query": query, "synthesis_incomplete": True,
+        "answer": {
+            "summary": summary, "bottom_line": summary,
+            "what_happened": "", "why_it_happened": "", "immediate_impact": "",
+            "medium_term": "", "long_term": "", "what_priced_in": "",
+            "risks": [], "opportunities": [],
+            "confidence": None, "confidence_level": "unscored",
+            "sentiment": "neutral", "sources_count": 0,
+        },
+        "key_drivers": [], "insights": [], "companies": [], "sectors": [],
+        "related_events": [], "news": [], "policies": [], "timeline": [],
+        "historical_comparison": [], "ripple_chain": [], "scenarios": {},
+        "market_impact_horizons": [], "what_to_monitor": [],
+        "ai_reasoning_methods": [], "follow_up_questions": [
+            "Name the company or sector you're asking about",
+        ],
+        "investment_verdict": {
+            "rating": "Not Applicable", "direction": "neutral", "confidence": None,
+            "horizon": "", "top_picks": [], "risks": [], "catalysts": [],
+            "opportunity_score": None, "risk_level": "", "suitable_for": "",
+        },
+        "market_chart": {"labels": [], "series": []},
+        "graph": {"nodes": [], "edges": []},
+        "citations": [], "decision_intelligence": None,
+        "confidence_data": {"level": "unscored", "score": None, "reasons": [], "breakdown": {}, "caveats": []},
+    }
+
+
+def _ambiguous_entity_response(query: str, ambiguous: dict) -> dict:
+    """Schema-complete SearchResult for a bare conglomerate name ("What is
+    the investment case for Tata?") that names a real family but not a
+    specific member — P3. `ambiguous` is check_ambiguous_group()'s return
+    shape: {"term": str, "candidates": [{"symbol","name"}]}. Confident
+    classification (this term genuinely is ambiguous), not a failure —
+    synthesis_incomplete=False, matching _unrecognized_company_response's
+    framing — but still carries degraded_reason so it's machine-
+    distinguishable from a real successful analysis (P3 decision: label
+    now, unify into the full taxonomy in P4)."""
+    names = ", ".join(f'{c["name"]} ({c["symbol"]})' for c in ambiguous["candidates"])
+    summary = (
+        f'"{ambiguous["term"]}" names a group with multiple listed companies, not one '
+        f"specific stock — MarketRipple can't tell which you mean. Did you mean one of: "
+        f"{names}?"
+    )
+    return {
+        "query": query, "synthesis_incomplete": False, "degraded_reason": "ambiguous_entity",
+        "answer": {
+            "summary": summary, "bottom_line": summary,
+            "what_happened": "", "why_it_happened": "", "immediate_impact": "",
+            "medium_term": "", "long_term": "", "what_priced_in": "",
+            "risks": [], "opportunities": [],
+            "confidence": None, "confidence_level": "unscored",
+            "sentiment": "neutral", "sources_count": 0,
+        },
+        "key_drivers": [], "insights": [], "companies": [], "sectors": [],
+        "related_events": [], "news": [], "policies": [], "timeline": [],
+        "historical_comparison": [], "ripple_chain": [], "scenarios": {},
+        "market_impact_horizons": [], "what_to_monitor": [],
+        "ai_reasoning_methods": [], "follow_up_questions": [
+            f"Tell me about {c['name']} ({c['symbol']})" for c in ambiguous["candidates"][:4]
+        ],
+        "investment_verdict": {
+            "rating": "Not Applicable", "direction": "neutral", "confidence": None,
+            "horizon": "", "top_picks": [], "risks": [], "catalysts": [],
+            "opportunity_score": None, "risk_level": "", "suitable_for": "",
+        },
+        "market_chart": {"labels": [], "series": []},
+        "graph": {"nodes": [], "edges": []},
+        "citations": [], "decision_intelligence": None,
+        "confidence_data": {"level": "unscored", "score": None, "reasons": [], "breakdown": {}, "caveats": []},
+        # P3: not part of the schema every other response type uses —
+        # frontend-specific addition so the clarification UI can render
+        # real pickable candidates without re-deriving them from
+        # follow_up_questions text.
+        "ambiguous_candidates": ambiguous["candidates"],
+    }
+
+
+# P2 fix: bare substring `in` checks let a short sector/policy token match
+# inside an unrelated longer word — the exact bug that made "it" (from
+# "IT sector") match inside "its" ("What about its main competitor?"),
+# producing a confidently wrong sector match with no degradation signal.
+# "pli" (Production Linked Incentive) has the identical profile — it's a
+# substring of "compliance" ("SEBI compliance requirements" would
+# spuriously register a PLI policy match). Only these two get word-boundary
+# anchoring: everything else in _SECTORS/_POLICIES is either a multi-word
+# phrase or long/distinctive enough that a real collision hasn't been found
+# (and \b-anchoring every entry risks breaking legitimate substring
+# matches this codebase has no evidence about either way — e.g. "auto"
+# inside "automobile", "telecom" inside "telecommunications" — left alone,
+# out of scope for this fix).
+_SHORT_TOKEN_RE = {
+    "it": re.compile(r"\bit\b"),
+    "pli": re.compile(r"\bpli\b"),
+}
+
+
+def _term_in_query(term: str, q: str) -> bool:
+    pat = _SHORT_TOKEN_RE.get(term)
+    return bool(pat.search(q)) if pat else term in q
+
+
 def _extract_entities(query: str) -> dict:
     q = query.lower()
     return {
         "companies": _match_companies(q),
-        "sectors":   [s for s in _SECTORS   if s in q],
-        "policies":  [p for p in _POLICIES   if p in q],
+        "sectors":   [s for s in _SECTORS  if _term_in_query(s, q)],
+        "policies":  [p for p in _POLICIES if _term_in_query(p, q)],
     }
 
 
@@ -278,7 +457,7 @@ _MARKET_PULSE_CLASSIFY_SYSTEM = (
 async def _classify_market_pulse_llm(query: str) -> bool:
     try:
         from app.services.ai_service import _call_with_fallback
-        raw = await _call_with_fallback(f'Query: "{query}"', _MARKET_PULSE_CLASSIFY_SYSTEM, max_tokens=5)
+        raw = await _call_with_fallback(f'Query: "{query}"', _MARKET_PULSE_CLASSIFY_SYSTEM, max_tokens=5, priority="interactive")
         return bool(raw) and raw.strip().lower().lstrip('"\'').startswith("y")
     except Exception as exc:
         log.warning("ai_search.market_pulse_classify_failed", error=str(exc)[:120])
@@ -295,12 +474,67 @@ async def _detect_market_pulse_async(query: str) -> bool:
 
 
 # ── DB search helpers ─────────────────────────────────────────────────────────
+# Merged from two ad-hoc sets that already existed for the same reason —
+# _pick_stopwords (below, in the list_picks intent handler — added after a
+# live bug where "me" from "give ME top 5..." matched inside every
+# "X Invest-ME-nt Opportunity" title) and benchmarks/ai_search/runner.py's
+# _STOPWORDS — plus common question words, so _words() itself never treats
+# "what/is/the/for" as a meaningful search term. P1 fix: previously _words()
+# had zero stopword filtering, which is why every query's DB search was
+# dominated by these words regardless of actual topic.
+_STOPWORDS = {
+    "what", "whats", "how", "hows", "why", "when", "where", "who", "which",
+    "is", "are", "was", "were", "do", "does", "did",
+    "the", "a", "an", "and", "or", "for", "with", "from", "into", "this", "that",
+    "give", "me", "top", "best", "should", "recommend", "picks", "pick",
+    "stock", "stocks", "companies", "shares", "invest", "buy", "list", "some",
+}
+
+
 def _words(query: str) -> list[str]:
-    return [w for w in re.findall(r"\w+", query.lower()) if len(w) >= 2][:8]
+    return [w for w in re.findall(r"\w+", query.lower()) if len(w) >= 2 and w not in _STOPWORDS][:8]
 
 
-async def _search_events(db: AsyncSession, query: str, limit: int = 10) -> list[dict]:
+def _event_row_to_dict(e: Event) -> dict:
+    return {
+        "id": e.id,
+        "title": e.title,
+        "summary": (e.summary or "")[:300],
+        "category": e.category or "Market",
+        "impact_score": round(float(e.impact_score or 0), 1),
+        "confidence": round(float(e.confidence or 0), 1),
+        "sectors": e.sectors or [],
+        "companies": e.companies or [],
+        "date": (
+            e.event_date.strftime("%b %d, %Y") if e.event_date else
+            e.published_at.strftime("%b %d, %Y") if e.published_at else ""
+        ),
+    }
+
+
+async def _search_events(
+    db: AsyncSession, query: str, limit: int = 10, entities: dict | None = None,
+) -> list[dict]:
     ws = _words(query)
+    symbols = [s for s in (entities or {}).get("companies", []) if s]
+
+    # Entity-scoped filter first (P1 fix). Event.companies is a JSON list of
+    # {"symbol": ..., "name": ..., "impact": ...} dicts — 93% coverage
+    # (107/115 events) — NOT the relational EventCompany junction table,
+    # which exists but is effectively unpopulated (1 row against 115 events)
+    # and isn't what enrichment actually writes to today. ILIKE is anchored
+    # on the `"symbol": "X"` key specifically, not a bare substring of the
+    # whole JSON blob, so a different company's `name` field can't
+    # accidentally satisfy this company's symbol match.
+    if symbols:
+        company_conds = [Event.companies.ilike(f'%"symbol": "{s}"%') for s in symbols]
+        stmt = select(Event).where(or_(*company_conds)).order_by(Event.impact_score.desc()).limit(limit)
+        rows = (await db.execute(stmt)).scalars().all()
+        if rows:
+            return [_event_row_to_dict(e) for e in rows]
+        # Resolved a company but nothing is tagged to it — fall through to
+        # the word-match path below instead of returning nothing.
+
     conds = [Event.title.ilike(f"%{w}%") for w in ws] + [Event.summary.ilike(f"%{w}%") for w in ws]
     stmt = (
         select(Event).where(or_(*conds)).order_by(Event.impact_score.desc()).limit(limit)
@@ -308,26 +542,18 @@ async def _search_events(db: AsyncSession, query: str, limit: int = 10) -> list[
         select(Event).order_by(Event.impact_score.desc()).limit(limit)
     )
     rows = (await db.execute(stmt)).scalars().all()
-    return [
-        {
-            "id": e.id,
-            "title": e.title,
-            "summary": (e.summary or "")[:300],
-            "category": e.category or "Market",
-            "impact_score": round(float(e.impact_score or 0), 1),
-            "confidence": round(float(e.confidence or 0), 1),
-            "sectors": e.sectors or [],
-            "companies": e.companies or [],
-            "date": (
-                e.event_date.strftime("%b %d, %Y") if e.event_date else
-                e.published_at.strftime("%b %d, %Y") if e.published_at else ""
-            ),
-        }
-        for e in rows
-    ]
+    return [_event_row_to_dict(e) for e in rows]
 
 
-async def _search_news(db: AsyncSession, query: str, limit: int = 8) -> list[dict]:
+def _symbols_to_names(symbols: list[str]) -> list[str]:
+    from app.api.companies import _NSE_UNIVERSE
+    by_symbol = {co["symbol"]: co["name"] for co in _NSE_UNIVERSE}
+    return [by_symbol[s] for s in symbols if s in by_symbol]
+
+
+async def _search_news(
+    db: AsyncSession, query: str, limit: int = 8, entities: dict | None = None,
+) -> list[dict]:
     ws = _words(query)
 
     def _matches(text: str) -> bool:
@@ -336,6 +562,12 @@ async def _search_news(db: AsyncSession, query: str, limit: int = 8) -> list[dic
 
     results: list[dict] = []
     try:
+        # get_live_news() carries no entity/company field at all — only
+        # headline/summary text — so this primary path can only benefit
+        # from P1's stopword filtering (via _words()/_matches() above), not
+        # entity-scoped filtering. Tagging the live RSS/yfinance cache with
+        # resolved entities is a real data-pipeline project, not a
+        # retrieval-layer fix — flagged as backlog, not attempted here.
         live = await get_live_news(limit=20) or []
         for a in live:
             if _matches(a.get("headline", "") + " " + a.get("summary", "")):
@@ -349,10 +581,35 @@ async def _search_news(db: AsyncSession, query: str, limit: int = 8) -> list[dic
     except Exception:
         pass
 
-    if len(results) < limit and ws:
-        conds = [NewsModel.headline.ilike(f"%{w}%") for w in ws]
-        rows = (await db.execute(select(NewsModel).where(or_(*conds)).limit(limit))).scalars().all()
-        for r in rows:
+    if len(results) < limit:
+        # DB fallback: NewsArticle.companies is a JSON list of plain NAME
+        # strings (not {symbol,name} dicts like Event.companies), 7%
+        # coverage (161/2,248 rows) — so entity-scoped filtering here
+        # matches by company name, resolved from the entity symbol via the
+        # same NSE universe lookup _match_companies uses.
+        symbols = [s for s in (entities or {}).get("companies", []) if s]
+        names = _symbols_to_names(symbols)
+        db_rows = []
+        if names:
+            name_conds = [NewsModel.companies.ilike(f'%"{n}"%') for n in names]
+            stmt = (
+                select(NewsModel).where(or_(*name_conds))
+                .order_by(NewsModel.impact_score.desc()).limit(limit)
+            )
+            db_rows = (await db.execute(stmt)).scalars().all()
+
+        if not db_rows and ws:
+            conds = [NewsModel.headline.ilike(f"%{w}%") for w in ws]
+            # P1 fix: this query had no .order_by() at all before — rows
+            # came back in whatever order SQLite happened to return them,
+            # not by relevance or any other defined criterion.
+            stmt = (
+                select(NewsModel).where(or_(*conds))
+                .order_by(NewsModel.impact_score.desc()).limit(limit)
+            )
+            db_rows = (await db.execute(stmt)).scalars().all()
+
+        for r in db_rows:
             if not any(x["id"] == r.id for x in results):
                 results.append({
                     "id": r.id, "headline": r.headline,
@@ -365,7 +622,12 @@ async def _search_news(db: AsyncSession, query: str, limit: int = 8) -> list[dic
     return results[:limit]
 
 
-async def _search_policies(db: AsyncSession, query: str, limit: int = 5) -> list[dict]:
+async def _search_policies(
+    db: AsyncSession, query: str, limit: int = 5, entities: dict | None = None,
+) -> list[dict]:
+    # entities accepted for call-site consistency with _search_events/
+    # _search_news (P1) but not used to filter — GovernmentPolicy has no
+    # company/sector column, only ministry/title text.
     ws = _words(query)
     conds = [GovernmentPolicy.title.ilike(f"%{w}%") for w in ws]
     stmt = (
@@ -1204,6 +1466,95 @@ JSON to fill and return:
 }}"""
 
 
+def _build_multi_compare_prompt(
+    query: str,
+    intent_data: dict,
+    entities: dict,
+    events: list,
+    news: list,
+    policies: list,
+    extra_context: str = "",
+) -> str:
+    """P3: 3+ named companies ("Compare TCS, Infosys, and Wipro") — minimum
+    bar per spec, not full N-way parity with _build_decision_prompt.
+    Parallel per-entity analyses (same shape as holding_analysis/
+    target_analysis: entity/symbol/sector/thesis/strengths/risks/
+    catalysts/near_term_outlook/confidence, looped over N), explicitly
+    NOT the pairwise comparison[]/tradeoff{}/decision_framework{} blocks —
+    those require a genuine two-way dimension analysis this doesn't
+    attempt for 3+. Honestly labeled in the prompt itself so the model
+    doesn't invent pairwise framing on its own."""
+    symbols = entities.get("companies") or []
+    names = _symbols_to_names(symbols)
+    display_names = names if names else symbols
+    entity_list = ", ".join(display_names)
+
+    evs = "\n".join(f"- {e['title']}" for e in events[:4]) or "None"
+    nws = "\n".join(f"- {a['headline']}" for a in news[:4]) or "None"
+    ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
+
+    analysis_template = ",\n".join(
+        f'''    {{"entity": "{name}", "symbol": "", "sector": "", "thesis": "",
+      "strengths": ["", ""], "risks": ["", ""], "catalysts": [""],
+      "near_term_outlook": "neutral", "confidence": 65}}'''
+        for name in display_names
+    )
+
+    return f"""You are a senior Indian market analyst. The user asked to compare {len(display_names)} companies: {entity_list}.
+{ctx_block}
+QUERY: "{query}"
+COMPANIES TO ANALYZE (all {len(display_names)}, not just one or two): {entity_list}
+MARKET NEWS: {nws}
+RELATED EVENTS: {evs}
+
+INSTRUCTIONS:
+- This is a MULTI-ENTITY comparison ({len(display_names)} companies), not a two-way one. Provide a parallel
+  analysis of EACH company — do not silently drop any of them or only discuss two.
+- Do NOT invent pairwise head-to-head framing (no "X beats Y") — a genuine dimension-by-dimension
+  comparison across {len(display_names)} entities isn't what this response computes; parallel individual
+  analyses are.
+- This is a RESEARCH platform, not an advisory one. Never say Buy/Sell/Hold/Strong Buy/Strong
+  Sell/Accumulate/Reduce anywhere. Explain trade-offs only. No direct financial advice.
+- "investment_verdict.rating" MUST be exactly one of these 8 values, nothing else: {", ".join(f'"{l}"' for l in _OUTLOOK_LABELS)}.
+- Use the real NSE ticker for each company's "symbol" field.
+- Return valid JSON only. No markdown. No commentary outside the JSON.
+
+JSON to fill and return:
+{{
+  "summary": "2-3 sentences covering all {len(display_names)} companies named",
+  "bottom_line": "MAX 120 WORDS. Honestly frame this as a {len(display_names)}-way comparison — what
+    distinguishes each company from the others on the metric that matters most for this query.",
+  "what_priced_in": "",
+  "risks": ["", "", ""],
+  "opportunities": ["", "", ""],
+  "confidence": 60,
+  "confidence_self_rating": 6,
+  "sentiment": "neutral",
+  "companies": [
+{",\n".join(f'    {{"symbol": "", "name": "{name}", "impact_type": "neutral", "impact_score": 65, "confidence": 60, "reason": ""}}' for name in display_names)}
+  ],
+  "investment_verdict": {{
+    "rating": "Selectively Constructive",
+    "direction": "neutral",
+    "confidence": 60,
+    "horizon": "medium-term",
+    "top_picks": [],
+    "risks": ["", ""],
+    "catalysts": ["", ""],
+    "opportunity_score": 60
+  }},
+  "decision_intelligence": {{
+    "intent": "compare_multi",
+    "context_complete": true,
+    "missing_context": [],
+    "decision_summary": "",
+    "entity_analyses": [
+{analysis_template}
+    ]
+  }}
+}}"""
+
+
 def _build_prompt(
     query: str,
     events: list,
@@ -1380,7 +1731,7 @@ async def _generate_insights(query: str, summary: str) -> list[dict]:
         "Example — for 'Defence CAPEX hike': [\"Order Book Surge\", \"Make-in-India Push\", \"Export Market Entry\", \"R&D Investment Cycle\"]\n\n"
         "Return ONLY the JSON array, no other text."
     )
-    raw = await _call_with_fallback(prompt, max_tokens=1000)
+    raw = await _call_with_fallback(prompt, max_tokens=1000, priority="interactive")
     if not raw:
         return []
     try:
@@ -1686,7 +2037,7 @@ async def _run_market_pulse_search(query: str) -> dict:
         pulse = {}
 
     prompt = _build_market_pulse_prompt(query, pulse)
-    raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=2500)
+    raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=2500, priority="interactive")
     ai = _parse_json_response(raw)
     synthesis_incomplete = not bool(ai)
 
@@ -1733,9 +2084,8 @@ async def _run_market_pulse_search(query: str) -> dict:
 
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
-async def run_ai_search(query: str, db: AsyncSession) -> dict:
+async def run_ai_search(query: str, db: AsyncSession, session_context: dict | None = None) -> dict:
     """Full AI search pipeline. Returns complete research report dict."""
-    ck = _ck(query)
     # True end-to-end clock from function entry — used for `timing.total_ms`
     # even though the named stage buckets below only start once we're past
     # the market-pulse pre-check (a separate query family, not part of this
@@ -1746,11 +2096,14 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     # detection since it's a distinct query family (top movers / sector
     # performance / market summary), never the "LLM picks, price fetched
     # after" flow the rest of this pipeline still uses for other intents.
+    # Not entity/session-context-aware — its own query-text-only cache key
+    # is correct and unaffected by P2 (see _ck's docstring: entities=None
+    # keeps the original behavior).
     # Short, separate TTL: this is live price data, not evergreen analysis.
     # Async: regex first (free), semantic classifier only when regex misses —
     # see _detect_market_pulse_async docstring for why both tiers exist.
     if await _detect_market_pulse_async(query):
-        mp_key = f"mp:{ck}"
+        mp_key = f"mp:{_ck(query)}"
         cached_pulse = _cget(mp_key, ttl=300)
         if cached_pulse:
             log.info("ai_search.market_pulse_cache_hit", query=query[:50])
@@ -1772,14 +2125,57 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     ttl         = 300 if intent == "news_reaction" else _TTL
     _intent_detection_ms = round((time.monotonic() - _t_intent0) * 1000, 1)
 
+    # P2: entities (and any session-context merge) must be resolved BEFORE
+    # the cache key/lookup — the cache key needs to reflect what this query
+    # actually resolved to, not just its literal text. Previously the cache
+    # key was query-text-only, computed before entities existed at all: two
+    # sessions asking the identical literal text ("What about its main
+    # competitor?") but resolving to different prior companies would have
+    # collided on one cache entry, silently serving one session's answer to
+    # the other. Keying on resolved entities (not raw session_context)
+    # means two sessions that happen to resolve to the SAME entities still
+    # correctly share a cache hit — only genuinely different resolved
+    # entities fragment it.
+    entities = _extract_entities(query)
+
+    # P3: bare conglomerate name ("What is the investment case for Tata?")
+    # checked BEFORE the session-context merge — matching V3's own
+    # ordering (see session_context.py's docstring: if the query's own
+    # text is ambiguous, session context doesn't get a chance to silently
+    # pick one member for the user either). check_ambiguous_group is a
+    # pure function of the raw query text; reused as-is from V3, no
+    # adaptation needed (verified in Step 1).
+    ambiguous = check_ambiguous_group(query, entities)
+    if ambiguous:
+        log.info("ai_search.ambiguous_entity", term=ambiguous["term"])
+        result = _ambiguous_entity_response(query, ambiguous)
+        _cset(_ck(query, entities), result)
+        return result
+
+    entities, context_used = resolve_context(query, entities, session_context)
+
+    ck = _ck(query, entities)
     cached = _cget(ck, ttl=ttl)
     if cached:
         log.info("ai_search.cache_hit", query=query[:50])
         return cached
 
     log.info("ai_search.start", query=query[:50])
-    entities = _extract_entities(query)
-    loop     = asyncio.get_running_loop()
+    loop = asyncio.get_running_loop()
+
+    # P2: a referential query ("What about its main competitor?") that
+    # still has nothing to anchor on even after attempting the
+    # session-context merge above — no companies/sectors of its own, and no
+    # prior context to borrow. Previously this either silently reached the
+    # LLM with empty entities, or (before the "it"/IT-sector word-boundary
+    # fix above) matched the wrong sector entirely and produced a
+    # confidently wrong answer with no degradation signal. Honest
+    # "I don't have enough context" beats either.
+    if _REFERENTIAL_RE.search(query) and not entities.get("companies") and not entities.get("sectors"):
+        log.info("ai_search.referential_no_context", query=query[:80])
+        result = _referential_no_context_response(query)
+        _cset(ck, result)
+        return result
 
     if _looks_like_unrecognized_company(query, entities):
         log.info("ai_search.unrecognized_company", query=query[:80])
@@ -1805,10 +2201,12 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         _t_prev = now
 
     # Parallel: DB search (chart is built after enrichment so it uses the right companies)
+    # entities was already computed above (line ~1781) via _extract_entities —
+    # P1 fix: threading it through instead of leaving these three query-independent.
     events, news, policies = await asyncio.gather(
-        _search_events(db, query),
-        _search_news(db, query),
-        _search_policies(db, query),
+        _search_events(db, query, entities=entities),
+        _search_news(db, query, entities=entities),
+        _search_policies(db, query, entities=entities),
         return_exceptions=True,
     )
     if isinstance(events,   Exception): events   = []
@@ -2158,13 +2556,25 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     except Exception:
         pass
 
+    # P3: 3+ resolved companies get the honest multi-entity path, checked
+    # BEFORE is_comparison — "TCS vs Infosys vs Wipro" matches BOTH
+    # _COMPARE_RE_3 (is_comparison=True, holding=TCS/target=Infosys) AND
+    # this check (3 resolved companies); without this ordering, that
+    # phrasing would still silently drop Wipro into _build_decision_prompt's
+    # two-entity-only prompt, the same bug this task exists to fix — just
+    # via a slightly different route than the comma+"and" phrasing.
+    is_multi_compare = len(entities.get("companies") or []) >= 3
+
     # AI generation — only genuine two-asset comparisons (both a holding AND
     # a target actually named by the user) get the switch/hold comparison
     # prompt. Everything else — including single-entity "should I invest in
     # X" questions — is an investment_opportunity query and goes through the
     # general prompt so it never fabricates a placeholder "Asset A".
     _checkpoint("db_search_ms")
-    if intent_data["is_comparison"] and intent not in ("list_picks", "portfolio_review", "news_reaction", "earnings_preview", "entry_timing"):
+    if is_multi_compare:
+        prompt  = _build_multi_compare_prompt(query, intent_data, entities, events, news, policies, extra_context=extra_context)
+        max_tok = 4500
+    elif intent_data["is_comparison"] and intent not in ("list_picks", "portfolio_review", "news_reaction", "earnings_preview", "entry_timing"):
         prompt  = _build_decision_prompt(query, intent_data, events, news, policies, extra_context=extra_context)
         max_tok = 4500
     else:
@@ -2174,7 +2584,25 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         # was tight enough to truncate mid-JSON on some fallback models,
         # which fails to parse and silently drops to the graceful default.
         max_tok = 4500
-    raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=max_tok)
+    # Bounded total time for the LLM step — a genuine safety net, not a
+    # tight SLA. _call_provider's own httpx timeout is 30s *per model*, and
+    # a tier can hold multiple models (_GROQ_HIGH has 3), so legitimate
+    # (non-hung) completions were already measured up to 65s pre-P0 with no
+    # per-tier concurrency gate at all. An initial 18s budget here was set
+    # from the task spec's pre-measurement estimate and, once measured live
+    # under 4-way concurrent load, cut off far more legitimate completions
+    # than it caught real hangs (7-of-8 degraded vs the 21% baseline it was
+    # supposed to improve on) — raised to 60s so it only fires on an actual
+    # stuck call, not normal contended-tier latency.
+    _budget_timed_out = False
+    try:
+        raw = await asyncio.wait_for(
+            _call_with_fallback(prompt, _SYSTEM, max_tokens=max_tok, priority="interactive"),
+            timeout=60.0,
+        )
+    except asyncio.TimeoutError:
+        _budget_timed_out = True
+        raw = ""
     log.info("ai_search.raw_len", chars=len(raw) if raw else 0, starts=raw[:60] if raw else "")
 
     ai: dict = {}
@@ -2196,6 +2624,14 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
                     pass
             if not ai:
                 log.warning("ai_search.json_parse_fail", raw=raw[:300])
+    else:
+        # Distinguishes "the LLM never returned usable text" (every tier
+        # exhausted its cooldown/slot budget, or the 18s total budget above
+        # fired) from ai_search.json_parse_fail above ("got text back,
+        # couldn't parse it as JSON") — previously both silently fell
+        # through to the same degraded template with no way to tell them
+        # apart in logs.
+        log.warning("ai_search.degraded_capacity", query=query[:120], budget_timeout=_budget_timed_out)
 
     # Graceful defaults when AI fails
     if not ai:
@@ -2343,11 +2779,11 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         _safe(_generate_insights(query, ai_summary), [], "insights"),
         _safe(_build_ripple_chain(query), [], "ripple_chain"),
         _safe(
-            generate_scenario_analysis(_entity_type, ck, title=query, description=ai_summary, sector=top_sector or ""),
+            generate_scenario_analysis(_entity_type, ck, title=query, description=ai_summary, sector=top_sector or "", priority="interactive"),
             {}, "scenarios",
         ),
         _safe(
-            generate_monitoring_checklist(_entity_type, ck, title=query, description=ai_summary, sector=top_sector or ""),
+            generate_monitoring_checklist(_entity_type, ck, title=query, description=ai_summary, sector=top_sector or "", priority="interactive"),
             {}, "monitoring",
         ),
     )
@@ -2375,7 +2811,15 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     # switch/hold comparison panel at all.
     raw_di = ai.get("decision_intelligence")
     decision_intelligence: dict | None = None
-    if intent_data["is_comparison"] and isinstance(raw_di, dict):
+    if is_multi_compare and isinstance(raw_di, dict):
+        # P3: entity_analyses (not holding_analysis/target_analysis) — see
+        # _build_multi_compare_prompt. No detected_holding/target/third or
+        # entity_type tagging here; those are 2-entity-specific fields that
+        # don't apply to an N-way list.
+        decision_intelligence = raw_di
+        decision_intelligence.setdefault("intent", "compare_multi")
+        decision_intelligence.setdefault("detected_entities", entities.get("companies") or [])
+    elif intent_data["is_comparison"] and isinstance(raw_di, dict):
         decision_intelligence = raw_di
         decision_intelligence.setdefault("intent",            intent_data["intent"])
         decision_intelligence.setdefault("detected_holding",  intent_data.get("holding"))
@@ -2528,7 +2972,15 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
     # market-wide direction/confidence/VIX, each entity's own real
     # Opportunity Engine score when one matches) plus a real P/E comparison
     # when the valuation trigger already fetched both sides. No LLM call.
-    if intent_data["is_comparison"] and decision_intelligence is not None:
+    # P3: excluded for is_multi_compare — this is a genuine two-entity
+    # pairwise computation (engine_recommendation between exactly
+    # holding/target), the same "pairwise dimension content isn't computed
+    # for 3+" boundary _build_multi_compare_prompt draws. Without this
+    # exclusion, "TCS vs Infosys vs Wipro" (which sets is_comparison=True
+    # via _COMPARE_RE_3 AND is_multi_compare=True via 3 resolved
+    # companies) would silently compute a TCS-vs-Infosys verdict and drop
+    # Wipro here even though the prompt above correctly analyzed all 3.
+    if intent_data["is_comparison"] and not is_multi_compare and decision_intelligence is not None:
         try:
             from app.services.decision_engine import compute_decision
             from app.services.opportunity_service import OpportunityService
@@ -2591,6 +3043,15 @@ async def run_ai_search(query: str, db: AsyncSession) -> dict:
         "query": query,
         "synthesis_incomplete": _synthesis_incomplete,
         "entities": entities,
+        # P2: honestly reports what (if anything) session context
+        # contributed to this answer — same field V3 already exposes via
+        # session_context.resolve_context, now shared by V2 too.
+        "context_used": context_used,
+        # P3: labels a real, non-canned response that's still honestly not
+        # a full analysis — a 3+-entity compare got parallel per-entity
+        # summaries, not the pairwise dimension analysis a 2-entity compare
+        # gets. None for a normal single/two-entity response.
+        "degraded_reason": "multi_entity_partial" if is_multi_compare else None,
         "answer": {
             "summary":          ai.get("summary", ""),
             "bottom_line":      _cap_words(ai.get("bottom_line", ai.get("summary", "")), 120),

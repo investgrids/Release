@@ -1,7 +1,6 @@
 """AI Search API — POST /api/ai/search"""
 from __future__ import annotations
 
-import hashlib
 import json
 import time
 
@@ -98,11 +97,18 @@ async def ai_search(
     _SEARCH_STATS["total"] += 1
     _SEARCH_STATS["last_query_at"] = datetime.now(timezone.utc).isoformat()
 
-    cache_key = f"ai_search:{hashlib.md5(query.lower().encode()).hexdigest()}"
+    # P2: entity/session-context-aware key (same resolution run_ai_search
+    # does internally) — a query-text-only key here would let two sessions
+    # asking identical literal text but resolving to different prior
+    # companies collide on the same cached answer, bypassing run_ai_search's
+    # own cache-key fix entirely since a hit here returns before
+    # run_ai_search (and its entity resolution) ever runs.
+    from app.services.ai_search_service import _cget, resolve_cache_key
+    resolved_key = resolve_cache_key(query, body.session_context)
+    cache_key = f"ai_search:{resolved_key}"
 
     # In-process cache (fast path — no Redis round-trip)
-    from app.services.ai_search_service import _cget, _ck as _ip_ck
-    ip_hit = _cget(_ip_ck(query))
+    ip_hit = _cget(resolved_key)
     if ip_hit:
         log.info("ai_search.inprocess_hit", query=query[:50])
         _SEARCH_STATS["cache_hits"] += 1
@@ -121,7 +127,7 @@ async def ai_search(
     log.info("ai_search.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
     try:
-        result = await run_ai_search(query, db)
+        result = await run_ai_search(query, db, session_context=body.session_context)
     except Exception as exc:
         _SEARCH_STATS["errors"] += 1
         _SEARCH_STATS["last_error_at"] = datetime.now(timezone.utc).isoformat()

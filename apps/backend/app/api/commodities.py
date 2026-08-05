@@ -179,7 +179,7 @@ async def _get_insights(metals: list[dict], energy: list[dict]) -> dict:
         '"daily_summary":"2-sentence summary for Indian investors."}'
     )
 
-    raw = await _call_with_fallback(prompt, max_tokens=700)
+    raw = await _call_with_fallback(prompt, max_tokens=700, priority="interactive")
     if raw:
         try:
             clean = raw.strip()

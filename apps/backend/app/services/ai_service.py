@@ -4,12 +4,21 @@ AI service — multi-provider free-tier AI with automatic fallback.
 Provider chain (empirically-reliable-first, auto-skips exhausted providers —
 see _call_with_fallback for the 2026-07-26 reordering rationale):
   1. Groq high-quality — gpt-oss-120b, llama-3.3-70b, 1,000 req/day each
-  2. Cerebras          — llama3.1-70b/8b, 10,000 req/day, ultra-fast
+  2. Cerebras          — llama3.1-70b/8b, 30 RPM / 1M tokens/day (shared pool)
   3. Groq fast         — llama-3.1-8b-instant, 14,400 req/day (high-volume workhorse)
-  4. OpenRouter large  — 550B, 405B, 120B, 70B free models (~50 req/day each)
-  5. Mistral           — mistral-small/open-mistral-nemo, La Plateforme
-  6. Gemini            — gemini-2.0-flash, 1,500 req/day / 4M tokens free
-  7. OpenRouter small  — remaining free models as final fallback
+  4. OpenRouter large  — 550B, 405B, 120B, 70B free models (account-wide cap:
+                         50 req/day, 20 RPM without $10+ in credits on file —
+                         NOT per-model, see the P0.5 capacity writeup)
+  5. Mistral           — mistral-small/open-mistral-nemo, La Plateforme free
+                         "Experiment" tier: 2 RPM account-wide (verified —
+                         this is the tightest real ceiling in the whole chain)
+  6. Gemini            — GEMINI_API_KEY is currently unset in .env, so this
+                         tier is a no-op until a key is added; gemini-2.0-flash
+                         itself was also retired by Google in March 2026 —
+                         model names below updated to current free models
+  7. OpenRouter small  — remaining free models (same account-wide cap as #4)
+  8. Cloudflare Workers AI — glm-4.7-flash, separate free account (10,000
+                         neurons/day pool), added 2026-08-05
 
 Each model that returns HTTP 429 (rate-limited) is remembered in _EXHAUSTED
 and skipped on future calls for a cooldown window (_EXHAUSTED_COOLDOWN_S) —
@@ -17,13 +26,19 @@ long enough to ride out a per-minute throttle without hammering it, short
 enough that a model isn't permanently dead for the rest of the process from
 one transient 429.
 """
+import asyncio
 import time
 import httpx
 import structlog
+from collections import deque
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Literal
 from app.core.config import settings
 from app.core.redis import cache_get, cache_set
+
+Priority = Literal["interactive", "background"]
 
 log = structlog.get_logger(__name__)
 
@@ -34,6 +49,9 @@ _CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions"
 _GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 _MISTRAL_URL  = "https://api.mistral.ai/v1/chat/completions"
 _NVIDIA_PATH  = "/chat/completions"   # appended to settings.nvidia_base_url
+# Cloudflare Workers AI — free tier, 10,000 neurons/day shared pool, account
+# ID baked into the URL path (fixed per deployment, not per-call).
+_CLOUDFLARE_URL = f"https://api.cloudflare.com/client/v4/accounts/{settings.cloudflare_account_id}/ai/v1/chat/completions"
 
 # Models that have returned 429 — skipped for a cooldown window, not forever.
 # A generic 429 doesn't distinguish "hit today's real daily quota" from "briefly
@@ -61,6 +79,173 @@ def _is_exhausted(model: str) -> bool:
         _EXHAUSTED.pop(model, None)
         return False
     return True
+
+
+# ── Per-tier priority-aware concurrency control ─────────────────────────────
+#
+# _EXHAUSTED (above) tracks WHICH models are rate-limited; this tracks HOW
+# MANY concurrent attempts each tier allows, and who gets the next free slot
+# when both an interactive (a human is waiting) and a background (nothing
+# user-facing is blocked) caller want the same tier at once. Sits in front
+# of _is_exhausted, doesn't replace it — a genuinely rate-limited model is
+# still skipped for everyone regardless of who's asking.
+#
+# P0 fix (2026-08): before this, 25 call sites across the backend — AI
+# Search plus 4 other live API routes plus TriageWorker/StoryEngine/AIPE's
+# scheduled cycles — all shared the same 7 provider tiers with zero
+# concurrency control. Verified live: 4 concurrent AI Search requests alone
+# pushed 11/14 into the hardcoded degraded-boilerplate fallback, with
+# TriageWorker's own calls interleaved in the same rate-limit/cooldown
+# window. This limiter bounds concurrent attempts per tier (so no burst,
+# from any source, can single-handedly exhaust it) and lets a live request
+# jump ahead of a queued background one for whichever slot frees up next.
+class PriorityTierLimiter:
+    """Bounded per-tier concurrency gate with two-level priority.
+
+    Interactive waiters are always granted a freed slot before background
+    waiters, regardless of arrival order — a background call that's been
+    queued longer never blocks a human who's actively waiting.
+    """
+
+    def __init__(self, name: str, capacity: int):
+        self.name = name
+        self.capacity = capacity
+        self._in_flight = 0
+        self._interactive_waiters: deque[asyncio.Future] = deque()
+        self._background_waiters: deque[asyncio.Future] = deque()
+        # Wall-clock entry time for every currently-queued background
+        # waiter, oldest first — lets us log how long the longest-waiting
+        # background call has been stuck, without adding a periodic
+        # sampler. See oldest_background_wait_s().
+        self._background_enqueued_at: deque[float] = deque()
+
+    def oldest_background_wait_s(self) -> float:
+        """Age in seconds of the longest-waiting queued background call for
+        this tier, or 0.0 if none are waiting. Cheap — just reads the front
+        of a deque. Logged on every acquire so a sustained starvation
+        pattern (e.g. TriageWorker going quiet on a busy trading day because
+        interactive traffic keeps winning every slot) shows up in logs
+        before it shows up as "why hasn't triage processed anything in 20
+        minutes" — see the P0 task file's Step 2 condition on not adding a
+        reserved-floor guarantee until this metric actually shows the
+        problem happening."""
+        if not self._background_enqueued_at:
+            return 0.0
+        return time.monotonic() - self._background_enqueued_at[0]
+
+    async def acquire(self, priority: Priority) -> None:
+        # Fast path: this check-then-increment is only safe because nothing
+        # `await`s between them — Python/asyncio only switches tasks at an
+        # `await` point (or a handful of other explicit yield points), so
+        # this whole branch runs as one atomic step from every other task's
+        # perspective, even though PriorityTierLimiter itself is never
+        # touched from more than one OS thread. If this ever gets "cleaned
+        # up" to call something async (a cache lookup, a log call that
+        # awaits, etc.) before `self._in_flight += 1`, that guarantee breaks
+        # silently — two tasks could both read `_in_flight < capacity` as
+        # true and both proceed, over-subscribing the tier. Keep this
+        # branch synchronous.
+        if self._in_flight < self.capacity:
+            self._in_flight += 1
+            return
+
+        loop = asyncio.get_event_loop()
+        fut: asyncio.Future = loop.create_future()
+        if priority == "interactive":
+            self._interactive_waiters.append(fut)
+        else:
+            self._background_waiters.append(fut)
+            self._background_enqueued_at.append(time.monotonic())
+        await fut
+
+    def release(self) -> None:
+        # Hand the freed slot straight to the oldest interactive waiter if
+        # one exists; only fall through to background waiters when none do.
+        # _in_flight is intentionally left unchanged on a handoff — one
+        # release + one grant cancel out, so the occupancy count stays
+        # correct without a separate decrement/increment pair.
+        if self._interactive_waiters:
+            fut = self._interactive_waiters.popleft()
+            if not fut.done():
+                fut.set_result(None)
+                return
+        while self._background_waiters:
+            fut = self._background_waiters.popleft()
+            self._background_enqueued_at.popleft()
+            if not fut.done():
+                fut.set_result(None)
+                return
+        self._in_flight -= 1
+
+
+# Starting caps: 4 for the two highest-real-quota Groq tiers, 3 for the
+# rest — reasoned proposals from the P0 task file, not measured values.
+# Tune after real traffic data; don't treat these as final.
+_TIER_LIMITERS: dict[str, PriorityTierLimiter] = {
+    "groq-hq":          PriorityTierLimiter("groq-hq", capacity=4),
+    "cerebras":         PriorityTierLimiter("cerebras", capacity=4),
+    "groq-fast":        PriorityTierLimiter("groq-fast", capacity=4),
+    "openrouter-hq":    PriorityTierLimiter("openrouter-hq", capacity=3),
+    # Corrected from capacity=3 (a reasoned guess) to 2 after real quota
+    # research: Mistral's free "Experiment" tier is rate-limited to 2 RPM
+    # account-wide, not per-model — a cap of 3 guaranteed self-inflicted 429s
+    # any time 3 interactive calls landed on this tier together, which is
+    # exactly the contention hotspot the P0.5 load test surfaced.
+    "mistral":          PriorityTierLimiter("mistral", capacity=2),
+    "gemini":           PriorityTierLimiter("gemini", capacity=3),
+    "openrouter-small": PriorityTierLimiter("openrouter-small", capacity=3),
+    # Cloudflare Workers AI — separate free account/quota (10,000 neurons/day
+    # pool), no official concurrency limit published; capacity=2 is a
+    # conservative starting guess like the original 7, not a measured value.
+    "cloudflare-workers-ai": PriorityTierLimiter("cloudflare-workers-ai", capacity=2),
+}
+
+# How long a caller will wait for a tier's semaphore before moving on to the
+# next tier in the chain — short for interactive (a human is waiting, try
+# the next tier fast), long for background (nothing user-facing depends on
+# it, and waiting longer here means less pressure on the lower tiers an
+# interactive fallback would otherwise land on).
+_INTERACTIVE_TIER_WAIT_S = 1.5
+_BACKGROUND_TIER_WAIT_S = 25.0
+
+
+@asynccontextmanager
+async def _tier_slot(tier: str, priority: Priority):
+    """`async with _tier_slot(tier, priority) as acquired:` — `acquired` is
+    False if the wait budget (short for interactive, long for background)
+    elapsed before a slot freed up, in which case the caller should move on
+    to the next tier without ever having held one. When True, the slot is
+    guaranteed released on exit — including on exception — so a failed or
+    cancelled provider call can never leak a permanently-held slot.
+
+    A plain bool return from a non-context-managed helper would put the
+    burden of "always release, even on exception" on every one of the 7
+    tier loops in _call_with_fallback; doing it here means that's only
+    ever written once.
+
+    Always logs the wait so Step 4 verification (interactive-blocked-
+    behind-background, per-tier wait times) has real data instead of an
+    assumption that the design works."""
+    limiter = _TIER_LIMITERS[tier]
+    timeout = _INTERACTIVE_TIER_WAIT_S if priority == "interactive" else _BACKGROUND_TIER_WAIT_S
+    t0 = time.monotonic()
+    try:
+        await asyncio.wait_for(limiter.acquire(priority), timeout=timeout)
+    except asyncio.TimeoutError:
+        log.info("ai.tier_slot_timeout", tier=tier, priority=priority, waited_s=round(time.monotonic() - t0, 2))
+        yield False
+        return
+
+    waited = time.monotonic() - t0
+    if waited > 0.05:  # only log when there was real contention, not the near-zero fast path
+        log.info(
+            "ai.tier_slot_wait", tier=tier, priority=priority, waited_s=round(waited, 2),
+            oldest_background_wait_s=round(limiter.oldest_background_wait_s(), 2),
+        )
+    try:
+        yield True
+    finally:
+        limiter.release()
 
 # Lightweight in-process AI usage counters for the Ops Dashboard — same
 # "resets on deploy, not a DB table" pattern as publisher.py's _STATS.
@@ -227,16 +412,22 @@ _MISTRAL_MODELS = [
     "open-mistral-nemo",
 ]
 
-# ── Tier 2: Gemini (1,500 req/day — high quality, very reliable)
+# ── Tier 2: Gemini (free tier: gemini-2.5-flash 10 RPM/250 RPD,
+# gemini-2.5-flash-lite 15 RPM/1,000 RPD)
 #
 # 2026-07-22: gemini-1.5-flash confirmed 404 (deprecated on Google's side).
-# Replaced with gemini-2.0-flash-001 (verified live via ListModels).
-# Separately, the configured GEMINI_API_KEY currently reports free-tier
-# quota limit=0 from Google — a project/key eligibility issue, not
-# something this list can fix. This tier is a no-op until that's resolved.
+# 2026-08-05: gemini-2.0-flash was ALSO retired by Google (March 2026) —
+# every call through this tier has been silently failing on a dead model
+# name on top of the missing key below. Replaced with the current free
+# 2.5 models. Separately, GEMINI_API_KEY is empty in .env right now (this
+# tier is a hard no-op, not just degraded) — and even the last time a key
+# was configured here, it reported free-tier quota limit=0 from Google, a
+# project/key eligibility issue this model list can't fix on its own.
+# Verify a fresh key actually gets nonzero quota before counting on this
+# tier for capacity.
 _GEMINI_MODELS = [
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-001",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
 ]
 
 # ── Tier 3: Groq HIGH-QUALITY (best Groq models, 1,000 req/day each)
@@ -286,6 +477,18 @@ _OR_SMALL = [
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ]
 
+# ── Tier 8: Cloudflare Workers AI (free tier, 10,000 neurons/day shared pool
+# across every model on the account — a completely separate quota from all
+# 7 tiers above, not additional load on any of them). glm-4.7-flash is a
+# reasoning model — it emits thinking tokens via `reasoning_content` before
+# the final answer, so max_tokens needs enough headroom to clear the
+# reasoning phase or `content` comes back null (see _call_provider, which
+# already treats null content as "" — same as any other empty response,
+# just falls through to the next tier).
+_CLOUDFLARE_MODELS = [
+    "@cf/zai-org/glm-4.7-flash",
+]
+
 async def _cached_async(key: str, ttl: int = 900) -> str | None:
     return await cache_get(key)
 
@@ -317,7 +520,7 @@ async def _call_provider(
     _PROVIDER_BY_URL_EARLY = {
         _OR_URL: "openrouter", _GROQ_URL: "groq",
         _CEREBRAS_URL: "cerebras", _GEMINI_URL: "gemini",
-        _MISTRAL_URL: "mistral",
+        _MISTRAL_URL: "mistral", _CLOUDFLARE_URL: "cloudflare-workers-ai",
     }
     if _is_exhausted(model):
         if failure_log is not None:
@@ -342,7 +545,7 @@ async def _call_provider(
     _PROVIDER_BY_URL = {
         _OR_URL: "openrouter", _GROQ_URL: "groq",
         _CEREBRAS_URL: "cerebras", _GEMINI_URL: "gemini",
-        _MISTRAL_URL: "mistral",
+        _MISTRAL_URL: "mistral", _CLOUDFLARE_URL: "cloudflare-workers-ai",
     }
     provider_name = _PROVIDER_BY_URL.get(base_url, "unknown")
 
@@ -495,6 +698,8 @@ async def _call_with_fallback(
     system: str = "",
     max_tokens: int = 200,
     failure_log: list[dict] | None = None,
+    *,
+    priority: Priority,
 ) -> str:
     """
     Try providers in *empirical reliability* order until one returns a
@@ -527,93 +732,125 @@ async def _call_with_fallback(
 
     # ── Tier 1: Groq high-quality (70B+, 1,000 req/day each) ─────────────────
     if settings.groq_api_key:
-        for model in _GROQ_HIGH:
-            if _is_exhausted(model):
-                if failure_log is not None:
-                    failure_log.append({"model": model, "provider": "groq-hq", "reason": "already_exhausted"})
-                continue
-            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-            if result:
-                log.info("ai.success", provider="groq-hq", model=model)
-                return result
+        async with _tier_slot("groq-hq", priority) as acquired:
+            if acquired:
+                for model in _GROQ_HIGH:
+                    if _is_exhausted(model):
+                        if failure_log is not None:
+                            failure_log.append({"model": model, "provider": "groq-hq", "reason": "already_exhausted"})
+                        continue
+                    result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
+                    if result:
+                        log.info("ai.success", provider="groq-hq", model=model)
+                        return result
 
     # ── Tier 2: Cerebras — ultra-fast, 10,000 req/day ────────────────────────
     if settings.cerebras_api_key:
-        for model in _CEREBRAS_MODELS:
-            if _is_exhausted(model):
-                if failure_log is not None:
-                    failure_log.append({"model": model, "provider": "cerebras", "reason": "already_exhausted"})
-                continue
-            result = await _call_provider(_CEREBRAS_URL, settings.cerebras_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-            if result:
-                log.info("ai.success", provider="cerebras", model=model)
-                return result
+        async with _tier_slot("cerebras", priority) as acquired:
+            if acquired:
+                for model in _CEREBRAS_MODELS:
+                    if _is_exhausted(model):
+                        if failure_log is not None:
+                            failure_log.append({"model": model, "provider": "cerebras", "reason": "already_exhausted"})
+                        continue
+                    result = await _call_provider(_CEREBRAS_URL, settings.cerebras_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
+                    if result:
+                        log.info("ai.success", provider="cerebras", model=model)
+                        return result
 
     # ── Tier 3: Groq fast (8B, 14,400 req/day — high-volume backstop) ────────
     if settings.groq_api_key:
-        for model in _GROQ_FAST:
-            if _is_exhausted(model):
-                if failure_log is not None:
-                    failure_log.append({"model": model, "provider": "groq-fast", "reason": "already_exhausted"})
-                continue
-            result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-            if result:
-                log.info("ai.success", provider="groq-fast", model=model)
-                return result
+        async with _tier_slot("groq-fast", priority) as acquired:
+            if acquired:
+                for model in _GROQ_FAST:
+                    if _is_exhausted(model):
+                        if failure_log is not None:
+                            failure_log.append({"model": model, "provider": "groq-fast", "reason": "already_exhausted"})
+                        continue
+                    result = await _call_provider(_GROQ_URL, settings.groq_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
+                    if result:
+                        log.info("ai.success", provider="groq-fast", model=model)
+                        return result
 
     # ── Tier 4: OpenRouter large high-quality models ──────────────────────────
     if settings.openrouter_api_key:
-        for model in _OR_HIGH_QUALITY:
-            if _is_exhausted(model):
-                if failure_log is not None:
-                    failure_log.append({"model": model, "provider": "openrouter-hq", "reason": "already_exhausted"})
-                continue
-            result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
-            if result:
-                log.info("ai.success", provider="openrouter-hq", model=model)
-                return result
+        async with _tier_slot("openrouter-hq", priority) as acquired:
+            if acquired:
+                for model in _OR_HIGH_QUALITY:
+                    if _is_exhausted(model):
+                        if failure_log is not None:
+                            failure_log.append({"model": model, "provider": "openrouter-hq", "reason": "already_exhausted"})
+                        continue
+                    result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
+                    if result:
+                        log.info("ai.success", provider="openrouter-hq", model=model)
+                        return result
 
     # ── Tier 5: Mistral La Plateforme ──────────────────────────────────────
     if settings.mistral_api_key:
-        for model in _MISTRAL_MODELS:
-            if _is_exhausted(model):
-                if failure_log is not None:
-                    failure_log.append({"model": model, "provider": "mistral", "reason": "already_exhausted"})
-                continue
-            result = await _call_provider(_MISTRAL_URL, settings.mistral_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-            if result:
-                log.info("ai.success", provider="mistral", model=model)
-                return result
+        async with _tier_slot("mistral", priority) as acquired:
+            if acquired:
+                for model in _MISTRAL_MODELS:
+                    if _is_exhausted(model):
+                        if failure_log is not None:
+                            failure_log.append({"model": model, "provider": "mistral", "reason": "already_exhausted"})
+                        continue
+                    result = await _call_provider(_MISTRAL_URL, settings.mistral_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
+                    if result:
+                        log.info("ai.success", provider="mistral", model=model)
+                        return result
 
     # ── Tier 6: Gemini — reliable, 1,500 req/day ─────────────────────────────
     if settings.gemini_api_key:
-        for model in _GEMINI_MODELS:
-            if _is_exhausted(model):
-                if failure_log is not None:
-                    failure_log.append({"model": model, "provider": "gemini", "reason": "already_exhausted"})
-                continue
-            result = await _call_provider(_GEMINI_URL, settings.gemini_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-            if result:
-                log.info("ai.success", provider="gemini", model=model)
-                return result
+        async with _tier_slot("gemini", priority) as acquired:
+            if acquired:
+                for model in _GEMINI_MODELS:
+                    if _is_exhausted(model):
+                        if failure_log is not None:
+                            failure_log.append({"model": model, "provider": "gemini", "reason": "already_exhausted"})
+                        continue
+                    result = await _call_provider(_GEMINI_URL, settings.gemini_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
+                    if result:
+                        log.info("ai.success", provider="gemini", model=model)
+                        return result
 
     # ── Tier 7: OpenRouter smaller free models — final fallback ──────────────
     if settings.openrouter_api_key:
-        for model in _OR_SMALL:
-            if _is_exhausted(model):
-                if failure_log is not None:
-                    failure_log.append({"model": model, "provider": "openrouter-small", "reason": "already_exhausted"})
-                continue
-            result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
-            if result:
-                log.info("ai.success", provider="openrouter-small", model=model)
-                return result
+        async with _tier_slot("openrouter-small", priority) as acquired:
+            if acquired:
+                for model in _OR_SMALL:
+                    if _is_exhausted(model):
+                        if failure_log is not None:
+                            failure_log.append({"model": model, "provider": "openrouter-small", "reason": "already_exhausted"})
+                        continue
+                    result = await _call_provider(_OR_URL, settings.openrouter_api_key, model, prompt, system, max_tokens, or_headers, failure_log=failure_log)
+                    if result:
+                        log.info("ai.success", provider="openrouter-small", model=model)
+                        return result
+
+    # ── Tier 8: Cloudflare Workers AI (glm-4.7-flash) — separate free
+    # account/quota from every tier above, added 2026-08-05 during the P0.5
+    # capacity investigation. Placed last (unverified under real load) rather
+    # than reordered ahead of the known-weak Mistral tier — revisit once this
+    # tier has real traffic data behind it, same as the original 7.
+    if settings.cloudflare_account_id and settings.cloudflare_api_token:
+        async with _tier_slot("cloudflare-workers-ai", priority) as acquired:
+            if acquired:
+                for model in _CLOUDFLARE_MODELS:
+                    if _is_exhausted(model):
+                        if failure_log is not None:
+                            failure_log.append({"model": model, "provider": "cloudflare-workers-ai", "reason": "already_exhausted"})
+                        continue
+                    result = await _call_provider(_CLOUDFLARE_URL, settings.cloudflare_api_token, model, prompt, system, max_tokens, failure_log=failure_log)
+                    if result:
+                        log.info("ai.success", provider="cloudflare-workers-ai", model=model)
+                        return result
 
     log.error("ai.all_providers_failed", exhausted_count=len(_EXHAUSTED))
     return ""
 
 
-async def get_market_summary(indices: list[dict], events: list[dict]) -> str:
+async def get_market_summary(indices: list[dict], events: list[dict], *, priority: Priority) -> str:
     """
     Generate a 2-sentence live market summary for the dashboard.
     Cached for 15 minutes.
@@ -641,7 +878,7 @@ async def get_market_summary(indices: list[dict], events: list[dict]) -> str:
     )
     system = "You are a professional Indian equity market analyst. Respond only with the 2-sentence summary."
 
-    result = await _call_with_fallback(prompt, system, max_tokens=120)
+    result = await _call_with_fallback(prompt, system, max_tokens=120, priority=priority)
 
     if not result:
         result = (
@@ -660,6 +897,8 @@ async def generate_ripple_graph(
     impact_score: float = 7.0,
     companies: list | None = None,
     sectors: list | None = None,
+    *,
+    priority: Priority,
 ) -> dict:
     """
     Generate a comprehensive ripple effect dependency graph for a market event.
@@ -731,7 +970,7 @@ async def generate_ripple_graph(
         "Generate 20-25 nodes and 25-35 edges. Focus on Indian market context and NSE-listed companies."
     )
 
-    raw = await _call_with_fallback(prompt, system, max_tokens=4000)
+    raw = await _call_with_fallback(prompt, system, max_tokens=4000, priority=priority)
     if not raw:
         return {}
 
@@ -761,7 +1000,7 @@ async def generate_ripple_graph(
         return {}
 
 
-async def get_event_ai_summary(title: str, description: str) -> dict:
+async def get_event_ai_summary(title: str, description: str, *, priority: Priority) -> dict:
     """
     Generate AI bullets for a market event.
     Returns {summary, why_it_matters, key_bullets, risk_factors, opportunities}
@@ -782,7 +1021,7 @@ async def get_event_ai_summary(title: str, description: str) -> dict:
         "Respond with valid JSON only, no markdown fences."
     )
 
-    raw = await _call_with_fallback(prompt, max_tokens=600)
+    raw = await _call_with_fallback(prompt, max_tokens=600, priority=priority)
     if not raw:
         return {}
 
@@ -812,6 +1051,8 @@ async def generate_investment_thesis(
     title: str = "",
     description: str = "",
     sector: str = "",
+    *,
+    priority: Priority,
 ) -> dict:
     """
     Generate a structured investment thesis for any entity type.
@@ -878,7 +1119,7 @@ async def generate_investment_thesis(
         "}"
     )
 
-    raw = await _call_with_fallback(prompt, system, max_tokens=700)
+    raw = await _call_with_fallback(prompt, system, max_tokens=700, priority=priority)
 
     result: dict = {}
     if raw:
@@ -956,6 +1197,8 @@ async def generate_monitoring_checklist(
     title: str = "",
     description: str = "",
     sector: str = "",
+    *,
+    priority: Priority,
 ) -> dict:
     """
     Generate a structured monitoring checklist for any entity.
@@ -1007,7 +1250,7 @@ async def generate_monitoring_checklist(
         "debt levels, order book, capacity expansion, regulatory changes."
     )
 
-    raw = await _call_with_fallback(prompt, system, max_tokens=600)
+    raw = await _call_with_fallback(prompt, system, max_tokens=600, priority=priority)
 
     result: dict = {}
     if raw:
@@ -1059,6 +1302,8 @@ async def generate_scenario_analysis(
     title: str = "",
     description: str = "",
     sector: str = "",
+    *,
+    priority: Priority,
 ) -> dict:
     """
     Generate Bull / Base / Bear scenario analysis for any entity.
@@ -1123,7 +1368,7 @@ async def generate_scenario_analysis(
         "}"
     )
 
-    raw = await _call_with_fallback(prompt, system, max_tokens=700)
+    raw = await _call_with_fallback(prompt, system, max_tokens=700, priority=priority)
 
     result: dict = {}
     if raw:
@@ -1193,6 +1438,8 @@ async def generate_pattern_intelligence(
     title: str = "",
     description: str = "",
     sector: str = "",
+    *,
+    priority: Priority,
 ) -> dict:
     """
     AI-driven historical pattern matching for any entity.
@@ -1248,7 +1495,7 @@ async def generate_pattern_intelligence(
         "Include global analogues only when highly relevant."
     )
 
-    raw = await _call_with_fallback(prompt, system, max_tokens=800)
+    raw = await _call_with_fallback(prompt, system, max_tokens=800, priority=priority)
 
     result: dict = {}
     if raw:

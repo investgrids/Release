@@ -120,6 +120,7 @@ async def get_or_generate_ripple(
             impact_score=_generation_hint,
             companies=companies,
             sectors=sectors,
+            priority="interactive",
         )
     except Exception as exc:
         log.warning("ripple.ai_error", error=str(exc))
@@ -178,6 +179,7 @@ async def generate_scenario_ripple(scenario_text: str, db: AsyncSession) -> dict
             impact_score=7.5,
             companies=[],
             sectors=[],
+            priority="interactive",
         )
     except Exception:
         ai_result = {}

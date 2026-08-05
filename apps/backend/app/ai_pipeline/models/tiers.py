@@ -34,7 +34,10 @@ class ModelTier:
 
 async def _medium_call(prompt: str, system: str = "", max_tokens: int = 900) -> str:
     from app.services.ai_service import _call_with_fallback
-    return await _call_with_fallback(prompt, system, max_tokens)
+    # MODEL_TIER_REGISTRY has no confirmed live caller (traced during the P0
+    # quota-isolation work) — priority="background" is a placeholder so this
+    # doesn't TypeError if something starts calling it later.
+    return await _call_with_fallback(prompt, system, max_tokens, priority="background")
 
 
 async def _best_reasoning_call(prompt: str, system: str = "", max_tokens: int = 900) -> str:
@@ -43,7 +46,7 @@ async def _best_reasoning_call(prompt: str, system: str = "", max_tokens: int = 
     if result:
         return result
     log.info("ai_pipeline.best_reasoning.fallback_to_medium")
-    return await _call_with_fallback(prompt, system, max_tokens)
+    return await _call_with_fallback(prompt, system, max_tokens, priority="background")
 
 
 MODEL_TIER_REGISTRY.register("medium")(ModelTier(

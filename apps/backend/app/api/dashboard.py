@@ -93,7 +93,7 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
 
     async def _safe_summary():
         try:
-            return await asyncio.wait_for(get_market_summary(index_quotes or [], event_dicts), timeout=15.0)
+            return await asyncio.wait_for(get_market_summary(index_quotes or [], event_dicts, priority="interactive"), timeout=15.0)
         except Exception:
             return "Markets tracking mixed global cues. Domestic macro data stable."
 

@@ -33,4 +33,5 @@ async def get_pattern(
         title=title,
         description=description,
         sector=sector,
+        priority="interactive",
     )

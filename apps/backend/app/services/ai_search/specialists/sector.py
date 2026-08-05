@@ -135,7 +135,7 @@ async def run(query: str, evidence, intent_data: dict, entities: dict) -> tuple[
     from app.services.ai_service import _call_with_fallback
 
     prompt = build_prompt(query, evidence, intent_data, entities)
-    raw = await _call_with_fallback(prompt, SPECIALIST_SYSTEM, max_tokens=MAX_TOKENS)
+    raw = await _call_with_fallback(prompt, SPECIALIST_SYSTEM, max_tokens=MAX_TOKENS, priority="interactive")
     parsed, degraded = parse_specialist_json(raw, query)
     if not degraded:
         # sector_analysis is sector.py-specific (not part of the shared

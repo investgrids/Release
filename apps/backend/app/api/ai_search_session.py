@@ -101,6 +101,7 @@ never say Buy/Sell/Hold/Accumulate/Reduce anywhere."""
         prompt,
         "You are MarketRipple's research session summarizer. Respond with valid JSON only.",
         max_tokens=1200,
+        priority="interactive",
     )
     parsed = _parse_json_response(raw)
     if not parsed:

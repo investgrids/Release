@@ -104,10 +104,13 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
     policy_sig = "+".join(sorted(set(_words(query))))
 
     async def _policies_factory():
-        return await _search_policies(db, query)
+        return await _search_policies(db, query, entities=entities)
 
+    # P1 fix: `entities` was already a parameter of this function (used below
+    # for valuation lookups) but wasn't reaching these two calls — they ran
+    # query-independent, identical to V2's pre-fix behavior.
     events, news, policies = await asyncio.gather(
-        _search_events(db, query), _search_news(db, query),
+        _search_events(db, query, entities=entities), _search_news(db, query, entities=entities),
         cache_mod.component("policy", policy_sig, _policies_factory),
         return_exceptions=True,
     )

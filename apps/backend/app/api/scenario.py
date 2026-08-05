@@ -33,4 +33,5 @@ async def get_scenario(
         title=title,
         description=description,
         sector=sector,
+        priority="interactive",
     )

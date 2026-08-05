@@ -253,7 +253,7 @@ async def graph_chat(request: Request, body: ChatIn):
         f"User question: {body.question.strip()[:400]}"
     )
 
-    raw = await _call_with_fallback(prompt, system, max_tokens=350)
+    raw = await _call_with_fallback(prompt, system, max_tokens=350, priority="interactive")
     if not raw:
         return {"answer": "I couldn't generate a response right now. Please try again.", "highlight_nodes": [], "confidence": 0}
 

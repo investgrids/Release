@@ -81,7 +81,7 @@ async def generate_intelligence_article(
     )
 
     try:
-        raw = await _call_with_fallback(user_prompt, system=SYSTEM_PROMPT, max_tokens=3000)
+        raw = await _call_with_fallback(user_prompt, system=SYSTEM_PROMPT, max_tokens=3000, priority="background")
     except Exception as exc:
         log.error("article_generator.ai_error", type=article_type, error=str(exc))
         return None

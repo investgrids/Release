@@ -185,7 +185,10 @@ async def _ai_call(ctype: str, cid: str, context_data: str, source_count: int = 
         f"{context_data}\n\n"
         f"Return ONLY this JSON structure:\n{_SCHEMA}"
     )
-    raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=1800)
+    # Hardcoded, not threaded: every caller of _ai_call resolves to a
+    # @router.get in api/intelligence_pages.py — no background/scheduled path
+    # reaches this function (confirmed via real caller tracing, not assumed).
+    raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=1800, priority="interactive")
     ai  = _parse_ai(raw)
     conf = _build_confidence(ai, source_count, similar or [])
     return _wrap(ai, conf, ctype, cid)

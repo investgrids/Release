@@ -489,7 +489,7 @@ async def _run_ai(signals: dict, events: dict, historical: dict) -> dict:
         "Respond ONLY with valid JSON — no markdown fences, no extra text."
     )
 
-    raw = await _call_with_fallback(prompt, system, max_tokens=700)
+    raw = await _call_with_fallback(prompt, system, max_tokens=700, priority="interactive")
 
     if not raw:
         return _fallback_prediction(signals)

@@ -62,7 +62,7 @@ Rules:
 
 async def generate_alert(headline: str) -> dict[str, Any]:
     """Call AI and return a structured alert dict."""
-    raw = await _call_with_fallback(_build_prompt(headline), _SYSTEM, max_tokens=400)
+    raw = await _call_with_fallback(_build_prompt(headline), _SYSTEM, max_tokens=400, priority="interactive")
 
     # Parse AI JSON
     impact: dict = {}
