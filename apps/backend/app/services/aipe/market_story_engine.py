@@ -172,7 +172,8 @@ async def fetch_historical_context(
     Uses stored evidence only — never hallucinate history.
     """
     from app.db.models.historical_memory import HistoricalMarketEvent
-    from sqlalchemy import or_, func
+    from app.services.historical_memory_service import get_verified_historical_events
+    from sqlalchemy import or_
 
     if not sectors and not keywords:
         return []
@@ -188,13 +189,13 @@ async def fetch_historical_context(
         if not filters:
             return []
 
-        result = await db.execute(
-            select(HistoricalMarketEvent)
-            .where(or_(*filters))
-            .order_by(HistoricalMarketEvent.event_date.desc())
-            .limit(limit)
-        )
-        rows = result.scalars().all()
+        # P3.5: routed through the shared verified-outcome filter — this
+        # used to query HistoricalMarketEvent directly with no outcome-data
+        # check, directly contradicting this function's own docstring
+        # ("Uses stored evidence only — never hallucinate history": a
+        # same-day auto-harvested preview of the current story IS a form
+        # of that, just via contaminated data rather than an LLM guess).
+        rows = await get_verified_historical_events(db, extra_filters=[or_(*filters)], limit=limit)
         return [
             {
                 "event":    r.event_title,

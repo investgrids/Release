@@ -867,8 +867,9 @@ _MAX_HISTORICAL_PER_DAY = 1
 async def _fetch_rich_historical(
     db, category: str | None = None, sectors: list[str] | None = None, limit: int = 10,
 ) -> list[dict[str, Any]]:
-    from sqlalchemy import select as sa_select, or_
+    from sqlalchemy import or_
     from app.db.models.historical_memory import HistoricalMarketEvent
+    from app.services.historical_memory_service import get_verified_historical_events
 
     filters = []
     if category:
@@ -878,13 +879,13 @@ async def _fetch_rich_historical(
     if not filters:
         return []
 
-    result = await db.execute(
-        sa_select(HistoricalMarketEvent)
-        .where(or_(*filters))
-        .order_by(HistoricalMarketEvent.event_date.desc())
-        .limit(limit)
-    )
-    rows = result.scalars().all()
+    # P3.5: routed through the shared verified-outcome filter — this is
+    # the highest-severity of the 4 consumers found reading this table
+    # directly, since it feeds PUBLISHED articles (_MAX_HISTORICAL_PER_DAY
+    # above). Previously had no outcome-data check at all, so a same-day
+    # auto-harvested preview of the current story could be published as a
+    # "historical precedent" with a real-looking but empty outcome.
+    rows = await get_verified_historical_events(db, extra_filters=[or_(*filters)], limit=limit)
     return [
         {
             "event": r.event_title, "date": r.event_date.strftime("%b %Y") if r.event_date else "—",

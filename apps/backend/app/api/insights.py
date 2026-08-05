@@ -277,14 +277,15 @@ async def get_company_insights(
     matched = [a for a in all_articles if _mentions(a)][:limit]
     group_ids = {a.parent_event_group_id for a in matched if a.parent_event_group_id}
 
+    # P3.5: routed through the shared verified-outcome filter — this used
+    # to query HistoricalMarketEvent directly with no outcome-data check,
+    # so an auto-harvested same-day row tagged with this company would
+    # show up as a "historical event" for it before any real outcome existed.
     from app.db.models.historical_memory import HistoricalMarketEvent
-    hist_result = await db.execute(
-        select(HistoricalMarketEvent)
-        .where(HistoricalMarketEvent.companies.contains([symbol]))
-        .order_by(HistoricalMarketEvent.event_date.desc())
-        .limit(8)
+    from app.services.historical_memory_service import get_verified_historical_events
+    historical = await get_verified_historical_events(
+        db, extra_filters=[HistoricalMarketEvent.companies.contains([symbol])], limit=8,
     )
-    historical = hist_result.scalars().all()
     hero_images = await _fetch_hero_images(db, [a.id for a in matched])
 
     return {

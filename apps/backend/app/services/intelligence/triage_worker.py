@@ -265,24 +265,38 @@ class TriageWorker:
                     except Exception:
                         pass
 
-                # Auto-harvest high-urgency events into Historical Market Memory
+                # P3.5: auto-harvest into Historical Market Memory PAUSED.
+                # This used to write straight into HistoricalMarketEvent —
+                # a table every consumer (AI Search, company insights,
+                # AIPE article generation/publishing) treats as verified
+                # ground truth — with event_date=now() and no
+                # nifty_1d/1w/3d/1m or historical_winners/losers, because
+                # the real outcome genuinely isn't known yet at ingestion
+                # time. Confirmed live: nothing anywhere in this codebase
+                # ever backfills those fields (0 of 57 auto-harvested rows
+                # had outcome data after up to 19 days), and no utility
+                # exists to even COMPUTE a real N-day return — so every
+                # auto-harvested row was permanently stuck as an
+                # outcome-less same-day entry, sometimes surfacing as a
+                # "historical precedent" for the exact story it was
+                # harvested from. Paused until real outcome-computation
+                # exists as its own feature — logged instead, so that
+                # future backfill work has the candidate list rather than
+                # starting from zero.
                 if urgency >= 8:
-                    try:
-                        from app.services.historical_memory_service import store_event as _store_hist
-                        asyncio.create_task(_store_hist({
-                            "event_title":   raw.headline[:200],
-                            "event_date":    datetime.now(timezone.utc),
-                            "category":      (triage.themes[0] if triage.themes else "General"),
-                            "sentiment":     triage.sentiment,
-                            "sectors":       triage.sectors,
-                            "companies":     triage.tickers,
-                            "tags":          triage.themes,
-                            "source":        "auto_triage",
-                            "what_happened": triage.one_liner,
-                            "confidence":    float(triage.confidence) * 10,
-                        }), name="historical-harvest")
-                    except Exception:
-                        pass
+                    log.info(
+                        "historical.harvest_deferred",
+                        event_title=raw.headline[:200],
+                        event_date=datetime.now(timezone.utc).isoformat(),
+                        category=(triage.themes[0] if triage.themes else "General"),
+                        sentiment=triage.sentiment,
+                        sectors=triage.sectors,
+                        companies=triage.tickers,
+                        tags=triage.themes,
+                        what_happened=triage.one_liner,
+                        confidence=float(triage.confidence) * 10,
+                        urgency=urgency,
+                    )
 
                 # Auto-update the Market Intelligence Graph with new entities
                 if urgency >= 6:

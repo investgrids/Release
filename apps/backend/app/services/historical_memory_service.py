@@ -88,6 +88,53 @@ def compute_similarity(query: dict, hist: Any) -> float:
     return round(min(score, 100.0), 1)
 
 
+async def get_verified_historical_events(
+    db=None,
+    *,
+    extra_filters: list | None = None,
+    order_by_date_desc: bool = True,
+    limit: int | None = 10,
+):
+    """P3.5: the one read path into HistoricalMarketEvent every consumer
+    must go through — applies the verified-outcome filter
+    (nifty_1m IS NOT NULL) exactly once, so a fifth consumer written next
+    month can't silently reintroduce the auto-harvest contamination bug by
+    querying the table directly again (four already did, independently:
+    find_similar_events below, api/insights.py, aipe/market_story_engine.py,
+    aipe/publisher.py._fetch_rich_historical).
+
+    nifty_1m specifically, not a date cutoff: self-documenting and
+    automatically correct the moment real outcome data lands on a row —
+    no day-count threshold to keep re-tuning. A row with a populated
+    1-month return has a genuinely known outcome; one without doesn't,
+    regardless of how old it is.
+
+    Accepts an existing session (the 3 non-AI-Search consumers already
+    have one from their request-scoped db dependency) or opens its own
+    (find_similar_events doesn't receive one from its callers).
+    """
+    from sqlalchemy import select
+    from app.db.models.historical_memory import HistoricalMarketEvent
+
+    conds = [HistoricalMarketEvent.nifty_1m.isnot(None)]
+    if extra_filters:
+        conds.extend(extra_filters)
+    stmt = select(HistoricalMarketEvent).where(*conds)
+    if order_by_date_desc:
+        stmt = stmt.order_by(HistoricalMarketEvent.event_date.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit)
+
+    if db is not None:
+        rows = (await db.execute(stmt)).scalars().all()
+        return list(rows)
+
+    from app.db.session import AsyncSessionLocal
+    async with AsyncSessionLocal() as _db:
+        rows = (await _db.execute(stmt)).scalars().all()
+        return list(rows)
+
+
 async def find_similar_events(
     query: dict,
     limit: int = 10,
@@ -101,12 +148,10 @@ async def find_similar_events(
       interest_rate_trend, crude_trend
     """
     try:
-        from app.db.session import AsyncSessionLocal
-        from app.db.models.historical_memory import HistoricalMarketEvent
-        from sqlalchemy import select
-
-        async with AsyncSessionLocal() as db:
-            rows = (await db.execute(select(HistoricalMarketEvent))).scalars().all()
+        # P3.5: scores every verified-outcome row against the query, so no
+        # SQL-level filter/order/limit here — get every candidate, then
+        # rank by similarity in Python (unrelated to event_date).
+        rows = await get_verified_historical_events(order_by_date_desc=False, limit=None)
 
         scored = []
         for row in rows:
