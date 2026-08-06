@@ -1212,6 +1212,19 @@ _SYSTEM = (
 )
 
 
+def _system_with_date() -> str:
+    """P4 temporal-context fix: _SYSTEM is a module-level constant, computed
+    once at import time — the server process can run for days between
+    deploys, so a date baked directly into it would go stale for the whole
+    process lifetime. Computed fresh on every call instead; see
+    date_context.py's docstring for the confirmed real hallucination this
+    traces back to (a report referencing "FY25E" as current ~17 months
+    after it had already ended, because no prompt anywhere stated today's
+    real date)."""
+    from app.services.ai_search.date_context import current_date_context
+    return f"{_SYSTEM}\n\n{current_date_context()}"
+
+
 def _fmt_drivers(drivers: list[dict]) -> str:
     if not drivers:
         return "no verified driver found"
@@ -2054,7 +2067,7 @@ async def _run_market_pulse_search(query: str) -> dict:
         pulse = {}
 
     prompt = _build_market_pulse_prompt(query, pulse)
-    raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=2500, priority="interactive")
+    raw = await _call_with_fallback(prompt, _system_with_date(), max_tokens=2500, priority="interactive")
     ai = _parse_json_response(raw)
     synthesis_incomplete = not bool(ai)
 
@@ -2614,7 +2627,7 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     _budget_timed_out = False
     try:
         raw = await asyncio.wait_for(
-            _call_with_fallback(prompt, _SYSTEM, max_tokens=max_tok, priority="interactive"),
+            _call_with_fallback(prompt, _system_with_date(), max_tokens=max_tok, priority="interactive"),
             timeout=60.0,
         )
     except asyncio.TimeoutError:

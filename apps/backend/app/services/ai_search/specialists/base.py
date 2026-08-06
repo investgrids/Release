@@ -17,6 +17,7 @@ import re
 
 import structlog
 
+from app.services.ai_search.date_context import current_date_context
 from app.services.ai_search.schema import flatten_nested
 
 log = structlog.get_logger(__name__)
@@ -124,6 +125,12 @@ PRIORITY_INSTRUCTIONS = (
 def research_framing_rules(outlook_labels: list[str]) -> str:
     quoted_labels = ", ".join(f'"{l}"' for l in outlook_labels)
     return (
+        # P4 temporal-context fix — called fresh every prompt build (never
+        # cached/module-level), the confirmed root cause of a real
+        # hallucination: nothing anywhere told the model today's actual
+        # date, producing an "FY25E" reference ~17 months after FY25 had
+        # already ended. See date_context.py's docstring.
+        f'- {current_date_context()}\n'
         f'- "investment.rating" MUST be exactly one of these values, nothing else: '
         f'{quoted_labels}. '
         "This is a RESEARCH platform, not an advisory one — never say Buy, Sell, Hold, "
