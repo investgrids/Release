@@ -1500,6 +1500,11 @@ def _build_multi_compare_prompt(
         for name in display_names
     )
 
+    companies_template = ",\n".join(
+        f'    {{"symbol": "", "name": "{name}", "impact_type": "neutral", "impact_score": 65, "confidence": 60, "reason": ""}}'
+        for name in display_names
+    )
+
     return f"""You are a senior Indian market analyst. The user asked to compare {len(display_names)} companies: {entity_list}.
 {ctx_block}
 QUERY: "{query}"
@@ -1531,7 +1536,7 @@ JSON to fill and return:
   "confidence_self_rating": 6,
   "sentiment": "neutral",
   "companies": [
-{",\n".join(f'    {{"symbol": "", "name": "{name}", "impact_type": "neutral", "impact_score": 65, "confidence": 60, "reason": ""}}' for name in display_names)}
+{companies_template}
   ],
   "investment_verdict": {{
     "rating": "Selectively Constructive",
