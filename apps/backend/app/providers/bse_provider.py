@@ -1,4 +1,24 @@
-"""BSE corporate announcement provider."""
+"""BSE corporate announcement provider.
+
+Reliability investigation (2026-08-06): this endpoint is currently failing
+in production with a JSON parse error (`Expecting value: line 3 column 1
+(char 4)`). Root cause confirmed directly, not guessed: BSE's Akamai-fronted
+API returns HTTP 302 -> https://api.bseindia.com/error_Bse.html (a small
+HTML redirect page, not JSON) — `raise_for_status()` doesn't catch this
+since the redirect target itself returns 200, so `r.json()` fails on HTML
+content instead. Confirmed via a direct live test from both the actual
+production (Railway/GCP) egress IP and a separate residential IP: the
+failure is IDENTICAL from both — this is NOT cloud-IP-specific blocking.
+Also confirmed a browser-session warm-up (visiting the BSE announcements
+page first, matching the fix that resolved NSE's equivalent reliability
+gap in nse_provider.py) does NOT fix it — the API call still returns an
+HTML page even with real cookies from a real prior page visit. This looks
+like Akamai bot-detection on the request signature itself (TLS/client
+fingerprint), which a plain httpx client can't cheaply resolve — flagged
+as needing a bigger decision (different HTTP client/fingerprint-matching
+approach, or accepting BSE as currently non-functional) rather than fixed
+here.
+"""
 from __future__ import annotations
 
 import hashlib
