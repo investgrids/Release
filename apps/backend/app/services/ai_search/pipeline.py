@@ -182,7 +182,16 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     _t_stage = _checkpoint("evidence_collection_ms", _t_stage)
 
     specialist, specialist_kind = _route_specialist(query, intent_data, entities)
-    log.info("ai_search_v3.routed", specialist=specialist_kind, query=query[:50])
+    # Free-tier data track, Stage 1 (2026-08-06): same instrumentation as V2's
+    # ai_search.done — entities + a thin_evidence flag. Uses evidence.source_count
+    # (events+news+policies, this pipeline's own already-computed total) rather
+    # than reimplementing V2's events+news-only formula — same "source_count < 3"
+    # threshold _confidence caveats/validation already treat as thin elsewhere,
+    # adapted to this pipeline's evidence bundle shape rather than copied verbatim.
+    log.info(
+        "ai_search_v3.routed", specialist=specialist_kind, query=query[:50],
+        entities=entities, thin_evidence=(evidence.source_count < 3),
+    )
 
     yield "reasoning", STAGE_LABELS["reasoning"], None
     parsed, was_degraded = await specialist.run(query, evidence, intent_data, entities)

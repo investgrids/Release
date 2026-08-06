@@ -96,6 +96,88 @@ def _fetch_prices_sync(ticker: str, created_at_iso: str, horizon_days: int) -> d
         return {}
 
 
+def fetch_multi_horizon_prices_sync(ticker: str, event_date_iso: str, horizons_days: dict[str, int]) -> dict[str, dict]:
+    """Free-tier data track, Stage 3 (2026-08-06): generalizes
+    _fetch_prices_sync above for the single-ticker/multiple-horizon case —
+    one yfinance fetch wide enough to cover every requested horizon, rather
+    than one fetch per horizon. Scoped deliberately narrow per this task's
+    approval: single ticker only (built for HistoricalMarketEvent's 4
+    NIFTY-level fields — nifty_1d/nifty_3d/nifty_1w/nifty_1m — not a
+    multi-ticker fan-out; sector_reactions/historical_winners/losers need a
+    separate design decision on sector-basket computation, out of scope
+    here). Returns {label: {"price_before","price_after","move_pct","ticker"}}
+    per horizon that resolved; a horizon missing from the result means that
+    specific lookup failed (same graceful-per-item degradation as the
+    caller in prediction_evaluator's own evaluate_prediction), not that the
+    whole call failed.
+    """
+    try:
+        import yfinance as yf
+
+        event_date = datetime.fromisoformat(event_date_iso.replace("Z", "+00:00")).replace(tzinfo=None)
+        max_horizon = max(horizons_days.values())
+        start = event_date - timedelta(days=7)
+        end   = event_date + timedelta(days=max_horizon + 7)
+
+        hist = yf.download(
+            ticker,
+            start=start.strftime("%Y-%m-%d"),
+            end=end.strftime("%Y-%m-%d"),
+            interval="1d",
+            progress=False,
+            auto_adjust=True,
+        )
+        if hist.empty or len(hist) < 2:
+            return {}
+
+        rows = []
+        for ts, row in hist.iterrows():
+            ts_naive = ts.replace(tzinfo=None) if hasattr(ts, "tzinfo") and ts.tzinfo else ts
+            v = row["Close"]
+            val = float(v.iloc[0] if hasattr(v, "iloc") else v)
+            if val > 0 and not math.isnan(val):
+                rows.append((ts_naive, val))
+        if not rows:
+            return {}
+
+        price_before = None
+        for ts, val in rows:
+            if ts >= event_date - timedelta(days=5):
+                price_before = val
+                break
+        if price_before is None:
+            price_before = rows[0][1]
+
+        results: dict[str, dict] = {}
+        for label, horizon_days in horizons_days.items():
+            target_date = event_date + timedelta(days=horizon_days)
+            price_after = None
+            for ts, val in rows:
+                if ts >= target_date - timedelta(days=3):
+                    price_after = val
+                    break
+            if price_after is None and rows:
+                # Only usable when the fetch window actually reached this far —
+                # a horizon beyond the last available row (e.g. a very recent
+                # event, market not yet open that far out) is correctly left
+                # unresolved rather than silently reusing a nearer horizon's price.
+                if rows[-1][0] < target_date - timedelta(days=3):
+                    continue
+                price_after = rows[-1][1]
+            if price_before is None or price_after is None:
+                continue
+            results[label] = {
+                "price_before": round(price_before, 2),
+                "price_after":  round(price_after, 2),
+                "move_pct":     round((price_after / price_before - 1) * 100, 3),
+                "ticker":       ticker,
+            }
+        return results
+    except Exception as exc:
+        log.debug("evaluator.multi_horizon_price_fail", ticker=ticker, error=str(exc)[:80])
+        return {}
+
+
 def _verdict(predicted_dir: str, move_pct: float) -> tuple[str, float]:
     """
     Returns (verdict, score).

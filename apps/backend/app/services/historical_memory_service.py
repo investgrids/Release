@@ -236,6 +236,47 @@ async def store_event(event: dict) -> str:
         raise
 
 
+# NIFTY 50's own index ticker — same symbol _fetch_chart_sync/market_data.py
+# already use for index-level charting elsewhere in this codebase.
+_NIFTY_TICKER = "^NSEI"
+_NIFTY_HORIZONS_DAYS = {"nifty_1d": 1, "nifty_3d": 3, "nifty_1w": 7, "nifty_1m": 30}
+
+
+async def compute_nifty_outcomes(event_date: datetime) -> dict[str, float | None]:
+    """Free-tier data track, Stage 3 (2026-08-06): real, computed NIFTY-level
+    outcome fields for a HistoricalMarketEvent — nifty_1d/nifty_3d/nifty_1w/
+    nifty_1m, in percent (matching the seed data's own format, e.g. -13.2
+    meaning -13.2%). Uses prediction_evaluator.fetch_multi_horizon_prices_sync,
+    the generalized single-fetch-covers-every-horizon mechanism, run in an
+    executor since yfinance is a blocking library.
+
+    Deliberately scoped to ONLY these 4 fields, per this task's explicit
+    approval — does NOT compute sector_reactions or historical_winners/
+    losers (those need a separate design decision on sector-basket
+    computation, since seed data's sector labels don't map cleanly to real
+    index tickers — out of scope here).
+
+    Standalone utility, not wired into any automatic write path — nothing
+    calls this yet. triage_worker.py's auto-harvest stays paused; resuming
+    it is its own separate, explicit decision once this is verified working
+    on real data, not a side effect of this function existing.
+
+    Returns a dict with all 4 keys always present; any horizon that
+    couldn't be resolved (e.g. event too recent for the 1-month lookback to
+    have real data yet) is None for that key specifically, not a dropped
+    key — callers can pass this straight into store_event()'s expected
+    shape either way.
+    """
+    from app.services.prediction_evaluator import fetch_multi_horizon_prices_sync
+
+    loop = asyncio.get_event_loop()
+    event_date_iso = event_date.isoformat()
+    raw = await loop.run_in_executor(
+        None, fetch_multi_horizon_prices_sync, _NIFTY_TICKER, event_date_iso, _NIFTY_HORIZONS_DAYS,
+    )
+    return {label: (raw[label]["move_pct"] if label in raw else None) for label in _NIFTY_HORIZONS_DAYS}
+
+
 async def seed_historical_events() -> None:
     """Populate the memory with verified historical Indian market events on first run."""
     from app.db.session import AsyncSessionLocal

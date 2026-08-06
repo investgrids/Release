@@ -2185,7 +2185,15 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
         name="prediction-store",
     )
 
-    log.info("ai_search.done", query=query[:50], cos=len(companies_enriched), events=len(events), intent=intent)
+    # Free-tier data track, Stage 1 (2026-08-06): query-pattern instrumentation
+    # — entities + a thin_evidence flag, so real traffic can eventually answer
+    # "are users hitting well-covered names or the long tail" once enough of
+    # this has accumulated. thin_evidence reuses the exact source_count < 3
+    # threshold _confidence_caveats already uses — no new detection logic.
+    log.info(
+        "ai_search.done", query=query[:50], cos=len(companies_enriched), events=len(events), intent=intent,
+        entities=entities, thin_evidence=(len(events) + len(news) < 3),
+    )
     return result
 
 

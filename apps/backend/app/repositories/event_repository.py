@@ -44,9 +44,27 @@ class EventRepository:
         return result.scalar_one_or_none()
 
     async def get_pending_enrichment(self, limit: int = 10) -> list[Event]:
+        """Free-tier data track, Stage 2 (2026-08-06): now also picks up
+        'failed' events and 'processing' events stuck past a stale timeout —
+        previously only 'pending' was selected, so a worker crash (or any
+        exception escaping run_event_pipeline's own except-block, see its
+        docstring) left an event's status at 'processing' forever, and
+        get_failed_enrichment existed with zero call sites, meaning a failed
+        enrichment was never retried either. Confirmed live: one event
+        (nse-d3f8b9d2fc) has been stuck in 'processing' since 2026-07-23 —
+        14+ days — before this fix. `updated_at` refreshes on every
+        mark_status() call (Column-level onupdate, fires for Core UPDATE
+        statements too), so it's a reliable 'when did this last actually
+        change' signal for the stale-processing check."""
+        from datetime import datetime, timedelta, timezone
+        stale_before = datetime.now(timezone.utc) - timedelta(minutes=45)
         result = await self._db.execute(
             select(Event)
-            .where(Event.enrichment_status == "pending")
+            .where(or_(
+                Event.enrichment_status == "pending",
+                Event.enrichment_status == "failed",
+                (Event.enrichment_status == "processing") & (Event.updated_at < stale_before),
+            ))
             .order_by(Event.created_at.desc())
             .limit(limit)
         )

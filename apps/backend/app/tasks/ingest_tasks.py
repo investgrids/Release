@@ -228,7 +228,19 @@ async def job_enrich_events() -> None:
     from app.repositories.event_repository import EventRepository
     from app.pipeline.event_pipeline import run_event_pipeline
 
-    _BATCH = 5
+    # Free-tier data track, Stage 2 (2026-08-06): batch raised 5->10. Real
+    # daily event volume right now is low (1-5/day typical, confirmed via
+    # production query) and doesn't come close to saturating even the old
+    # 5-per-5-min ceiling — this is headroom for burst days (one real day,
+    # 2026-07-22, saw 50 events) rather than a fix for an active backlog,
+    # since none exists today. Left _AI_DELAY and the 300s tick interval
+    # unchanged — batch size doesn't change the per-call pacing rate (still
+    # sequential, one call per _AI_DELAY within a tick), so this doesn't
+    # increase pressure on DeepSeekProvider's own tenacity retry (3
+    # attempts, exponential backoff), which stays untouched and unshared
+    # with P0's priority system either way — just lets more events clear
+    # per tick when a burst does happen.
+    _BATCH = 10
     _AI_DELAY = 2  # seconds between AI calls
 
     import asyncio
