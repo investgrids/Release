@@ -136,5 +136,14 @@ def research_framing_rules(outlook_labels: list[str]) -> str:
         '- "extras.scenarios" probabilities (bull + base + bear) must sum to exactly 100.\n'
         '- "companies" must ONLY include real, listed NSE equities with a direct, specific, '
         "mechanistic connection to this exact query — never a government body, ministry, "
-        "or unlisted entity."
+        "or unlisted entity.\n"
+        '- "timeline.immediate"/"one_week"/"one_to_three_months"/"six_to_twelve_months"/'
+        '"one_to_three_years" must each say something genuinely different from the others — '
+        "do not restate the same point in different words across horizons. Keep each entry's "
+        "own stated timeframe consistent with its own label (don't write \"3-6 months\" inside "
+        "the \"one_week\" entry), and keep \"immediate\"'s tone consistent with \"investment.direction\" "
+        "— a bullish call needs a bullish-or-neutral immediate read, not a negative one.\n"
+        '- Every company named in "investment.summary"/"investment.bottom_line" must also appear '
+        'in the "companies" list, and vice versa — don\'t discuss a company in prose that isn\'t '
+        "in the structured list, or list one you never mention."
     )

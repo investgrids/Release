@@ -28,6 +28,7 @@ from app.db.models.event import Event, GovernmentPolicy
 from app.db.models_legacy import NewsArticle as NewsModel
 from app.services.ai_service import _call_with_fallback
 from app.services.ai_search.session_context import resolve_context, check_ambiguous_group, _REFERENTIAL_RE
+from app.services.ai_search.timeline_checks import TIMELINE_DIFFERENTIATION_INSTRUCTION as _TIMELINE_DIFFERENTIATION_RULE
 from app.services.news_fetcher import get_live_news
 
 log = structlog.get_logger(__name__)
@@ -271,6 +272,12 @@ def _referential_no_context_response(query: str) -> dict:
     )
     return {
         "query": query, "synthesis_incomplete": True,
+        # P4: closes the one gap the P3 labeling pass left — this was the
+        # only one of the honest-degradation responses shipping with no
+        # degraded_reason at all (not even None-as-a-value; the key was
+        # simply absent), indistinguishable from a normal response by this
+        # field alone.
+        "degraded_reason": "referential_no_context",
         "answer": {
             "summary": summary, "bottom_line": summary,
             "what_happened": "", "why_it_happened": "", "immediate_impact": "",
@@ -1369,6 +1376,8 @@ INSTRUCTIONS:
 - "near_term_outlook" must be "positive", "cautious", "neutral", or "negative".
 - "sentiment" must be "bullish", "bearish", or "neutral".
 - "key_drivers[].icon" must be ONE lowercase keyword from: procurement, policy, manufacturing, export, valuation, risk, demand, technology, capex, regulation, earnings, supply-chain, currency, commodity, credit.
+- {_TIMELINE_DIFFERENTIATION_RULE}
+- Every company named in "summary"/"bottom_line" must also appear in the "companies" list, and vice versa.
 - Return valid JSON only. No markdown. No commentary outside the JSON.
 
 JSON to fill and return:
@@ -1640,7 +1649,10 @@ CRITICAL RULES:
 - "investment_verdict.rating" MUST be exactly one of these 8 values, nothing else: {", ".join(f'"{l}"' for l in _OUTLOOK_LABELS)}. This is a RESEARCH platform, not an advisory one — never say Buy, Sell, Hold, Strong Buy, Strong Sell, Accumulate, or Reduce anywhere in any field.
 - "companies" must ONLY include companies with a direct, specific, mechanistic connection to this exact query. Do not pad the list with generic large-caps (e.g. HUL, Reliance, Tata Motors) unless the query is genuinely and specifically about them. Every entry must be a listed, tradeable equity with a real NSE symbol — never a government body, ministry, PSU research arm, or other unlisted entity (e.g. DRDO is not investable; if relevant, name the listed contractors it drives orders to instead).
 - "key_drivers[].icon" must be ONE lowercase keyword from: procurement, policy, manufacturing, export, valuation, risk, demand, technology, capex, regulation, earnings, supply-chain, currency, commodity, credit.
-- The "insights" titles must be SPECIFIC to the query "{query}" — choose angles that make sense for this exact topic. Use real NSE symbols, actual rupee amounts, and genuine Indian market context throughout.{_commodity_safety_note(query)}{_intent_overlay(intent_data, extra_context)}"""
+- The "insights" titles must be SPECIFIC to the query "{query}" — choose angles that make sense for this exact topic. Use real NSE symbols, actual rupee amounts, and genuine Indian market context throughout.
+- {_TIMELINE_DIFFERENTIATION_RULE}
+- The first "timeline" entry (nearest-term) must not contradict "investment_verdict.direction" in tone — a bullish call needs a bullish-or-neutral near-term entry, not a negative one.
+- Every company named in "summary"/"bottom_line" must also appear in the "companies" list, and vice versa — don't discuss a company in prose that isn't in the structured list, or list one you never mention.{_commodity_safety_note(query)}{_intent_overlay(intent_data, extra_context)}"""
 
 
 def _intent_overlay(intent_data: dict | None, extra_context: str = "") -> str:
@@ -2642,6 +2654,12 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     if not ai:
         ai = {
             "degraded": True,  # generic template, not real analysis — surfaced to the frontend so it doesn't present this as a completed AI verdict
+            # P4: distinguishes the two degraded causes for degraded_reason below —
+            # previously only visible in logs (ai_search.degraded_capacity /
+            # ai_search.json_parse_fail), never on the response itself, so a
+            # capacity-degraded response was indistinguishable from a real
+            # successful one by degraded_reason alone (it read as None either way).
+            "_degraded_reason": "capacity" if not raw else "parse_failure",
             "summary": f"Market intelligence analysis for: {query}. Analysis based on real-time database events and news.",
             "bottom_line": (
                 f"There isn't enough freshly generated analysis to answer “{query}” with confidence right now "
@@ -2768,6 +2786,22 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     top_sector = sectors_raw[0]["name"] if sectors_raw else None
     _entity_type = "search"
 
+    # P4: generate_scenario_analysis/generate_monitoring_checklist render
+    # this title straight into fallback-template text (e.g. "Strong
+    # performance for {title} driven by...") whenever the underlying call
+    # degrades — passing the raw literal query produced text like "Strong
+    # performance for What's the investment case for Infosys? driven by...".
+    # Prefer a resolved entity name (up to 2 companies, else the top
+    # sector); only fall back to the raw query when nothing resolved at all.
+    _resolved_title = (
+        ", ".join(
+            c.get("name") or c.get("symbol", "")
+            for c in companies_enriched[:2] if c.get("name") or c.get("symbol")
+        )
+        or top_sector
+        or query
+    )
+
     async def _safe(coro, default, label: str):
         try:
             return await coro
@@ -2784,11 +2818,11 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
         _safe(_generate_insights(query, ai_summary), [], "insights"),
         _safe(_build_ripple_chain(query), [], "ripple_chain"),
         _safe(
-            generate_scenario_analysis(_entity_type, ck, title=query, description=ai_summary, sector=top_sector or "", priority="interactive"),
+            generate_scenario_analysis(_entity_type, ck, title=_resolved_title, description=ai_summary, sector=top_sector or "", priority="interactive"),
             {}, "scenarios",
         ),
         _safe(
-            generate_monitoring_checklist(_entity_type, ck, title=query, description=ai_summary, sector=top_sector or "", priority="interactive"),
+            generate_monitoring_checklist(_entity_type, ck, title=_resolved_title, description=ai_summary, sector=top_sector or "", priority="interactive"),
             {}, "monitoring",
         ),
     )
@@ -3056,7 +3090,18 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
         # a full analysis — a 3+-entity compare got parallel per-entity
         # summaries, not the pairwise dimension analysis a 2-entity compare
         # gets. None for a normal single/two-entity response.
-        "degraded_reason": "multi_entity_partial" if is_multi_compare else None,
+        # P4: capacity/parse_failure take priority over multi_entity_partial
+        # when both are true (a 3+-entity query where the LLM call itself
+        # also failed) — nothing usable was generated at all, which is more
+        # fundamental than the multi-compare response-shape nuance. Closes
+        # the real live gap: these two states previously shipped with
+        # degraded_reason=None despite synthesis_incomplete=True, making
+        # them indistinguishable from a normal successful response by this
+        # field alone.
+        "degraded_reason": (
+            ai.get("_degraded_reason") if ai.get("degraded")
+            else ("multi_entity_partial" if is_multi_compare else None)
+        ),
         "answer": {
             "summary":          ai.get("summary", ""),
             "bottom_line":      _cap_words(ai.get("bottom_line", ai.get("summary", "")), 120),
@@ -3102,6 +3147,54 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
         },
         "timing": dict(_stage_ms),
     }
+
+    # P4: same post-hoc consistency checks V3 already runs via validate_and_repair
+    # (validation.py) — built as shared functions in timeline_checks.py so
+    # neither pipeline's checking can silently diverge from the other's again.
+    # V2 has no validate_and_repair-style report object, so each finding is
+    # logged (same graceful-degrade-and-log convention already used
+    # throughout this function) and the offending timeline entries are
+    # dropped from the list rather than left in place.
+    try:
+        from app.services.ai_search.timeline_checks import (
+            check_near_duplicate_entries, check_numeric_range_contradiction,
+            check_verdict_tense_contradiction,
+        )
+        _tl_entries = [
+            (str(item.get("date", "")), f"{item.get('title', '')} {item.get('description', '')}".strip())
+            for item in result["timeline"] if isinstance(item, dict)
+        ]
+        _tl_bad: set[str] = set()
+        _tense_flags = check_verdict_tense_contradiction(_tl_entries, investment_verdict.get("direction", "neutral"))
+        if _tense_flags:
+            _tl_bad.update(_tense_flags)
+            log.warning("ai_search.timeline_tense_contradiction", query=query[:80], entries=_tense_flags)
+        _numeric_flags = check_numeric_range_contradiction(_tl_entries)
+        if _numeric_flags:
+            _tl_bad.update(_numeric_flags)
+            log.warning("ai_search.timeline_numeric_contradiction", query=query[:80], entries=_numeric_flags)
+        _dup_pairs = check_near_duplicate_entries(_tl_entries)
+        if _dup_pairs:
+            _tl_bad.update(b for _, b in _dup_pairs)
+            log.warning("ai_search.timeline_near_duplicate", query=query[:80], pairs=_dup_pairs)
+        if _tl_bad:
+            result["timeline"] = [
+                item for item in result["timeline"]
+                if not (isinstance(item, dict) and str(item.get("date", "")) in _tl_bad)
+            ]
+    except Exception:
+        pass
+
+    try:
+        from app.services.ai_search.validation import _narrative_company_mentions
+        _narrative = f"{result['answer'].get('summary', '')} {result['answer'].get('bottom_line', '')}"
+        _mentioned = _narrative_company_mentions(_narrative)
+        _listed = {(c.get("symbol") or "").upper() for c in result["companies"] if isinstance(c, dict)}
+        _missing = {sym: name for sym, name in _mentioned.items() if sym not in _listed}
+        if _missing:
+            log.warning("ai_search.companies_narrative_mismatch", query=query[:80], missing=_missing)
+    except Exception:
+        pass
 
     if not _synthesis_incomplete:
         # Don't cache a degraded result for 30 minutes — a provider that

@@ -361,7 +361,14 @@ async def _assemble_response(
         "scenarios": ai.get("scenarios", {}),
         "monitoring": ai.get("monitoring", {}),
         "follow_up_questions": ai.get("follow_up_questions", []),
-        "investment_verdict": ai.get("investment_verdict", {}),
+        # P4: same canonical-confidence fix V2 already shipped and proved
+        # (ai_search_service.py) — investment_verdict.confidence used to
+        # keep whatever number the LLM self-rated, independent of and
+        # frequently miles from answer.confidence's real evidence-grounded
+        # score (a 53-point gap observed live). Force it to the one real
+        # blended number rather than presenting two disagreeing "confidence"
+        # fields as if they were interchangeable.
+        "investment_verdict": {**ai.get("investment_verdict", {}), "confidence": confidence_breakdown["final_confidence"]},
         "market_chart": chart,
         "graph": graph,
         "citations": list({a.get("source", "") for a in evidence.news if a.get("source")}),

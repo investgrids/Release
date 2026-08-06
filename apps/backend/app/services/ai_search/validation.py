@@ -9,9 +9,28 @@ See the plan's §5 table for the full checklist this implements.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from app.services.ai_search.schema import VERDICT_SCALE
+from app.services.ai_search.timeline_checks import (
+    check_near_duplicate_entries,
+    check_numeric_range_contradiction,
+    check_verdict_tense_contradiction,
+    tone as _tone,
+)
+
+# Nominal (lo_days, hi_days) window for each of V3's 5 fixed
+# timeline_intelligence keys — used by check_numeric_range_contradiction to
+# catch e.g. a "one_week" entry whose own text says "3-6 months".
+_HORIZON_DAYS = {
+    "immediate": (0, 1),
+    "one_week": (1, 7),
+    "one_to_three_months": (30, 90),
+    "six_to_twelve_months": (180, 365),
+    "one_to_three_years": (365, 1095),
+}
+_HORIZON_ORDER = list(_HORIZON_DAYS.keys())
 
 
 @dataclass
@@ -41,6 +60,52 @@ def _direction_to_verdict_scale(direction: str, confidence: float | None) -> str
 def _known_symbols() -> set[str]:
     from app.api.companies import _NSE_UNIVERSE
     return {c["symbol"] for c in _NSE_UNIVERSE}
+
+
+def _narrative_company_mentions(text: str) -> dict[str, str]:
+    """Real, listed NSE companies whose name/alias appears as a whole word
+    in `text` — reuses the same known-universe list _verify_companies_exist
+    already trusts, rather than any new NLP. Returns {symbol: matched_name}.
+    Whole-word matching only (not substring) to avoid the obvious false
+    positive class — a short alias like "it" or "hal" (as a word, not the
+    company) appearing inside unrelated text."""
+    from app.api.companies import _NSE_UNIVERSE
+    t = (text or "").lower()
+    if not t:
+        return {}
+    found: dict[str, str] = {}
+    for c in _NSE_UNIVERSE:
+        candidates = [c["name"].lower()] + [a.lower() for a in c.get("aliases", [])]
+        for cand in candidates:
+            if len(cand) < 3:
+                continue  # too short to whole-word-match reliably (e.g. "it", "lt")
+            if re.search(rf"\b{re.escape(cand)}\b", t):
+                found[c["symbol"]] = c["name"]
+                break
+    return found
+
+
+def _check_companies_narrative_consistency(out: dict, report: ValidationReport) -> None:
+    """The same 'two things computed independently, never cross-checked'
+    pattern as the confidence bug, applied to companies — verified live on
+    a defense-budget report: the summary named HAL, BEL, AND L&T, but the
+    structured companies[] list only had HAL and BEL. Detection only (never
+    silently fabricates a full company entry with a guessed impact score/
+    reason for a name the model didn't structurally analyze, and never
+    edits the narrative text) — flagged so it's visible to the benchmark
+    runner/transparency panel rather than silently shipped inconsistent."""
+    companies = out.get("companies")
+    if not isinstance(companies, list):
+        return
+    listed_symbols = {(c.get("symbol") or "").upper() for c in companies if isinstance(c, dict)}
+    narrative = f"{out.get('summary', '')} {out.get('bottom_line', '')}"
+    mentioned = _narrative_company_mentions(narrative)
+    missing = {sym: name for sym, name in mentioned.items() if sym not in listed_symbols}
+    if missing:
+        names = ", ".join(f"{name} ({sym})" for sym, name in missing.items())
+        report.omissions.append(
+            f"companies: narrative names {names} but the structured companies list omits {'it' if len(missing) == 1 else 'them'}"
+        )
 
 
 def validate_and_repair(parsed: dict) -> tuple[dict, ValidationReport]:
@@ -77,6 +142,10 @@ def validate_and_repair(parsed: dict) -> tuple[dict, ValidationReport]:
         pass
     try:
         _check_contradictions(out, report)
+    except Exception:
+        pass
+    try:
+        _check_companies_narrative_consistency(out, report)
     except Exception:
         pass
 
@@ -198,27 +267,26 @@ def _clamp_confidence_values(out: dict, report: ValidationReport) -> None:
 
 
 def _check_timeline_consistency(out: dict, report: ValidationReport) -> None:
-    """Cheap heuristic: immediate-term and 1-3yr framing shouldn't flatly
-    contradict each other in sentiment word choice (e.g. immediate says
-    "sharp decline" while long-term says "strong rally" with no bridging
-    explanation). Not a deep semantic check — deliberately conservative,
-    only flags the clearest cases to avoid false positives on genuinely
-    nuanced near-term-pain/long-term-gain theses."""
+    """Cheap heuristics, deliberately conservative — only flag the clearest
+    cases to avoid false positives on genuinely nuanced theses (e.g.
+    near-term-pain/long-term-gain). Four checks, in order:
+    1. immediate-term and 1-3yr framing shouldn't flatly contradict each
+       other in sentiment word choice with no bridging medium-term text.
+    2. no single entry's tone should flatly contradict the OVERALL verdict
+       direction either — (1) alone missed this: a negative "immediate"
+       entry under a bullish/Strong Positive verdict, with nothing
+       upstream or downstream ever comparing the two (verified live, the
+       RBI banking-stocks report).
+    3. no entry should state a timeframe inside its own text that falls
+       outside its own horizon label (verified live, defense-budget
+       report: a "one_to_three_months"-labeled entry's own sentence said
+       "next 3-6 months").
+    4. no two entries should be near-verbatim restatements of each other
+       (verified live, same report: 'immediate' and 'one_week' nearly
+       word-for-word identical)."""
     ti = out.get("timeline_intelligence")
     if not isinstance(ti, dict) or not ti:
         return
-    _NEGATIVE_WORDS = {"decline", "crash", "fall", "drop", "weak", "bearish", "sell-off", "selloff"}
-    _POSITIVE_WORDS = {"rally", "surge", "strong growth", "bullish", "outperform", "breakout"}
-
-    def _tone(text: str) -> str | None:
-        t = (text or "").lower()
-        neg = any(w in t for w in _NEGATIVE_WORDS)
-        pos = any(w in t for w in _POSITIVE_WORDS)
-        if neg and not pos:
-            return "negative"
-        if pos and not neg:
-            return "positive"
-        return None
 
     immediate = _tone(ti.get("immediate", ""))
     long_term = _tone(ti.get("one_to_three_years", ""))
@@ -227,6 +295,37 @@ def _check_timeline_consistency(out: dict, report: ValidationReport) -> None:
         # medium-term text to explain the transition — likely inconsistent.
         out["timeline_intelligence"] = {}
         report.omissions.append("timeline_intelligence: immediate/long-term tone contradicted with no bridging medium-term explanation")
+        return  # already wiped everything — nothing left for the checks below to examine
+
+    entries = [(k, ti.get(k, "")) for k in _HORIZON_ORDER if ti.get(k)]
+
+    verdict = out.get("investment_verdict") or {}
+    tense_flags = check_verdict_tense_contradiction(entries, verdict.get("direction", "neutral"))
+    for label in tense_flags:
+        ti[label] = ""
+    if tense_flags:
+        report.omissions.append(
+            f"timeline_intelligence: {', '.join(tense_flags)} tone contradicted the overall verdict direction — omitted"
+        )
+
+    numeric_flags = check_numeric_range_contradiction(entries, _HORIZON_DAYS)
+    for label in numeric_flags:
+        ti[label] = ""
+    if numeric_flags:
+        report.omissions.append(
+            f"timeline_intelligence: {', '.join(numeric_flags)} stated a timeframe outside its own horizon — omitted"
+        )
+
+    dup_pairs = check_near_duplicate_entries(entries)
+    if dup_pairs:
+        collapsed = set()
+        for label_a, label_b in dup_pairs:
+            if label_b not in collapsed:
+                ti[label_b] = ""
+                collapsed.add(label_b)
+        report.repairs.append(
+            f"timeline_intelligence: near-duplicate entries collapsed ({', '.join(f'{a}~{b}' for a, b in dup_pairs)})"
+        )
 
 
 def _verify_companies_exist(out: dict, report: ValidationReport) -> None:
