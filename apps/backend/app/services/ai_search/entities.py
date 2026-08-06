@@ -18,13 +18,111 @@ from __future__ import annotations
 import difflib
 import re
 
-from app.services.ai_search_service import (
-    _COMPANY_BARE_RE,
-    _COMPANY_SUFFIX_RE,
-    _POLICIES,
-    _SECTORS,
-    _match_companies,
+from app.services.ai_search.regexes import _POLICIES, _SECTORS
+
+# Strong signal: a capitalized phrase ending in a real corporate suffix —
+# e.g. "Bharat Quantum Computing Ltd". High-confidence enough that a
+# coincidental sector word elsewhere in the same phrase ("XYZ Defence Ltd")
+# shouldn't override it — "Ltd"/"Corp"/etc. essentially never appears in a
+# genuine sector/macro/policy question.
+_COMPANY_SUFFIX_RE = re.compile(
+    r"\b(?:[A-Z][a-zA-Z]*\s+){1,5}"
+    r"(?:Ltd\.?|Limited|Inc\.?|Corp\.?|Corporation|Industries|Technologies|"
+    r"Systems|Holdings|International|Enterprises|Group|Motors|Pharma|Energy)\b"
 )
+# Weak signal: a bare 2+ capitalized-word phrase with no corporate suffix —
+# e.g. "Tata Neuralink". Realistic company names can be this short, so the
+# minimum is 2 words, not 3 — but with no suffix to lean on, this tier stays
+# gated on zero sector/policy signal too (see caller), unlike the strong tier.
+_COMPANY_BARE_RE = re.compile(r"\b(?:[A-Z][a-zA-Z]{2,}\s+){1,4}[A-Z][a-zA-Z]{2,}\b")
+
+# P3: narrow signal for a SINGLE capitalized word immediately followed by a
+# stock-specific noun — "What's the outlook for Apple stock?" ("Apple"
+# alone doesn't satisfy _COMPANY_BARE_RE's 2-word minimum, and has no
+# corporate suffix, so it fell through both existing detectors undetected
+# — verified live). Deliberately narrow: catching every single capitalized
+# word here would false-positive on legitimate phrasing like "Indian stock
+# market" or "Global shares outlook" — _GENERIC_STOCK_PREFIX excludes the
+# common non-company descriptors this pattern would otherwise misfire on.
+_GENERIC_STOCK_PREFIX = {
+    "indian", "india", "us", "global", "foreign", "international", "domestic",
+    "local", "asian", "american", "chinese", "european", "any", "some",
+    "penny", "blue", "small", "large", "mid", "growth", "value", "dividend",
+}
+_SINGLE_WORD_STOCK_RE = re.compile(
+    r"\b([A-Z][a-zA-Z]{2,})\s+(?:stock|shares|share\s+price|stock\s+price)\b"
+)
+
+
+def _match_companies(q: str) -> list[str]:
+    """
+    Word-boundary-aware alias matching. Plain substring containment (the
+    original implementation) let short tickers/aliases match inside
+    unrelated words — found live via a broad test sweep: "ITC" matched
+    inside "sw-ITC-h", "REC" matched inside "REC-ent", "LIC" matched inside
+    "po-LIC-y". Every one of those produced a spurious extra company in the
+    response with no real connection to the query.
+    """
+    from app.api.companies import _NSE_UNIVERSE
+    matched: list[str] = []
+    for co in _NSE_UNIVERSE:
+        aliases = (co.get("aliases") or []) + [co["name"].lower(), co["symbol"].lower()]
+        for a in aliases:
+            if len(a) < 3:
+                continue
+            idx = q.find(a)
+            if idx == -1:
+                continue
+            before_ok = idx == 0 or not q[idx - 1].isalnum()
+            after_idx = idx + len(a)
+            after_ok = after_idx == len(q) or not q[after_idx].isalnum()
+            if before_ok and after_ok:
+                matched.append(co["symbol"])
+                break
+    return matched
+
+
+def _looks_like_unrecognized_company(query: str, entities: dict) -> bool:
+    """High-confidence-only signal that the query names a specific company
+    not in our real ~202-company NSE universe — used to short-circuit
+    straight to an honest "no verified company found" response instead of
+    letting the LLM either analyze a fictional entity or fall through to
+    the generic degraded-synthesis template (which reads as "we have real
+    data but couldn't finish the analysis", not "this company doesn't
+    exist" — the wrong message for a fabricated name).
+
+    Handles mixed queries too — e.g. "Compare Apple India Defence Ltd vs
+    HAL" has one real match (HAL) and one fake one; a naive "any real match
+    disqualifies this" rule would let the fake half through silently. Real
+    company text is stripped out first, then the residual is checked for a
+    still-unaccounted-for company-shaped phrase.
+    """
+    residual = query
+    if entities["companies"]:
+        from app.api.companies import _NSE_UNIVERSE
+        matched_set = set(entities["companies"])
+        for co in _NSE_UNIVERSE:
+            if co["symbol"] not in matched_set:
+                continue
+            for alias in (co.get("aliases") or []) + [co["name"], co["symbol"]]:
+                if len(alias) < 3:
+                    continue
+                residual = re.sub(re.escape(alias), " ", residual, flags=re.IGNORECASE)
+        # Mixed case: only the high-confidence suffix signal counts on the
+        # residual — leftover connector words ("Compare", "vs") after
+        # stripping real names could spuriously look bare-capitalized.
+        return bool(_COMPANY_SUFFIX_RE.search(residual))
+
+    if _COMPANY_SUFFIX_RE.search(residual):
+        return True
+    if entities["sectors"] or entities["policies"]:
+        return False
+    if _COMPANY_BARE_RE.search(residual):
+        return True
+    # P3: single-word unsupported-entity case ("Apple stock") — see
+    # _SINGLE_WORD_STOCK_RE's comment for why this is deliberately narrow.
+    m = _SINGLE_WORD_STOCK_RE.search(residual)
+    return bool(m and m.group(1).lower() not in _GENERIC_STOCK_PREFIX)
 
 # Below this ratio, a fuzzy candidate is too weak to trust as a real match —
 # only used as a "did you mean" suggestion, never silently substituted in.
@@ -217,7 +315,8 @@ def suggest_companies(query: str, limit: int = 3) -> list[dict]:
 
 
 def looks_like_unrecognized_company(query: str, entities: dict) -> bool:
-    """Re-exports V2's exact logic (ai_search_service._looks_like_unrecognized_company)
-    against the new canonical entities dict — same behavior, new call site."""
-    from app.services.ai_search_service import _looks_like_unrecognized_company
+    """Thin wrapper around this module's own _looks_like_unrecognized_company
+    (P5 Stage 1: relocated here from ai_search_service.py, both pipelines now
+    share this single definition instead of V3 importing V2's) against the
+    new canonical entities dict — same behavior, new call site."""
     return _looks_like_unrecognized_company(query, entities)

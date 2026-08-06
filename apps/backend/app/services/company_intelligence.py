@@ -103,7 +103,7 @@ async def get_ripple_position(symbol: str, sector: str | None) -> dict:
     """Real upstream path (seeded intelligence graph) -> real sector
     membership bridge -> real same-industry competitors downstream. See
     module docstring for why Suppliers/Customers aren't included."""
-    from app.services.ai_search_service import _build_ripple_chain
+    from app.services.ai_search.ripple_graph import _build_ripple_chain
 
     chain: list[dict] = []
     if sector:
@@ -147,7 +147,7 @@ def _competitors_for(symbol: str, sector: str | None, limit: int = 3) -> list[st
 
 
 async def get_historical(sector: str | None, company_name: str) -> dict | None:
-    from app.services.ai_search_service import _infer_historical_category
+    from app.services.ai_search.retrieval import _infer_historical_category
     from app.services.historical_memory_service import find_similar_events
 
     if not sector:

@@ -38,7 +38,8 @@ MAX_TOKENS = 6500
 
 
 def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str:
-    from app.services.ai_search_service import _OUTLOOK_LABELS, _commodity_safety_note, _intent_overlay
+    from app.services.ai_search.enrichment import _commodity_safety_note, _intent_overlay
+    from app.services.ai_search.regexes import _OUTLOOK_LABELS
     from app.api.companies import _NSE_UNIVERSE
 
     evs = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in evidence.events[:5]) or "None"

@@ -20,7 +20,10 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_search import cache as cache_mod
-from app.services.ai_search_service import (
+# P5 Stage 1 (2026-08-06): all relocated from ai_search_service.py to ai_search/
+# — zero behavior change, only which file owns the definition.
+from app.services.ai_search.enrichment import _fetch_valuation_sync, _fetch_vix_sync
+from app.services.ai_search.regexes import (
     _MACRO_TRIGGER,
     _OPPORTUNITY_TRIGGER,
     _RESULTS_TRIGGER,
@@ -29,8 +32,8 @@ from app.services.ai_search_service import (
     _THEME_TRIGGER,
     _VALUATION_TRIGGERS,
     _VIX_TRIGGER,
-    _fetch_valuation_sync,
-    _fetch_vix_sync,
+)
+from app.services.ai_search.retrieval import (
     _infer_historical_category,
     _infer_historical_sectors,
     _search_events,

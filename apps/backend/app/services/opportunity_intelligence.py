@@ -92,7 +92,7 @@ async def get_historical_similarity(sectors: list[str], title: str = "") -> dict
     (inferred from the opportunity's own title, same keyword inference AI
     Search's historical matching already uses) is worth more of the score
     than sectors alone."""
-    from app.services.ai_search_service import _infer_historical_category
+    from app.services.ai_search.retrieval import _infer_historical_category
     from app.services.historical_memory_service import find_similar_events
 
     category = _infer_historical_category(title.lower()) if title else None

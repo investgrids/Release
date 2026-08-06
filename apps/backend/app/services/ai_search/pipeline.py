@@ -42,7 +42,7 @@ def _route_specialist(query: str, intent_data: dict, entities: dict):
     alone missed real comparisons like "Between X and Y, which is the safer
     bet?"). intent_data is updated in place with the resolved holding/target
     so comparison.py's existing prompt-building code needs no changes."""
-    from app.services.ai_search_service import _SECTOR_TRIGGER
+    from app.services.ai_search.regexes import _SECTOR_TRIGGER
 
     is_cmp, holding, target = intent_mod.resolve_comparison(query, intent_data, entities)
     if is_cmp and intent_data.get("intent") not in (
@@ -78,11 +78,14 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     response is only non-None on the final yield. Both the non-streaming
     `run_ai_search_v3` and the SSE route consume this same generator so
     there's exactly one pipeline implementation, not two to keep in sync."""
-    from app.services.ai_search_service import (
-        _detect_decision_intent,
-        _detect_market_pulse_async,
-        _run_market_pulse_search,
-    )
+    # P5 Stage 1 (2026-08-06): _detect_decision_intent/_detect_market_pulse_async
+    # relocated to ai_search/ — imported from their new home below.
+    # _run_market_pulse_search deliberately still imported from
+    # ai_search_service.py — flagged there as a Stage 2 decision (Market
+    # Pulse "stays V2's exact mechanism" per this file's own earlier design).
+    from app.services.ai_search.decision_intent import _detect_decision_intent
+    from app.services.ai_search.market_pulse import _detect_market_pulse_async
+    from app.services.ai_search_service import _run_market_pulse_search
 
     _t0 = time.monotonic()
     stage_ms: dict[str, float] = {}
@@ -257,7 +260,7 @@ async def _assemble_response(
     (see schema.py) plus Phase 1's new fields. Reuses V2's own enrichment/
     graph-build machinery directly (untouched, imported) rather than
     reimplementing it."""
-    from app.services.ai_search_service import (
+    from app.services.ai_search.enrichment import (
         _classify_ripple_position,
         _enrich_sync,
         _fetch_chart_sync,
@@ -277,7 +280,7 @@ async def _assemble_response(
 
     sectors_raw = ai.get("sectors", [])
     for s in sectors_raw:
-        from app.services.ai_search_service import _sector_status, _sector_time_horizon
+        from app.services.ai_search.enrichment import _sector_status, _sector_time_horizon
         status = _sector_status(bool(s.get("positive", True)), float(s.get("score", 0) or 0))
         s["status"] = status
         s["time_horizon"] = _sector_time_horizon(status)

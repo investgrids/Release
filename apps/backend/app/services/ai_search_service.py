@@ -31,10 +31,46 @@ from app.services.ai_search.session_context import resolve_context, check_ambigu
 from app.services.ai_search.timeline_checks import TIMELINE_DIFFERENTIATION_INSTRUCTION as _TIMELINE_DIFFERENTIATION_RULE
 from app.services.news_fetcher import get_live_news
 
+# P5 Stage 1 (2026-08-06): the following were relocated out of this file into
+# ai_search/ so V3 no longer depends on this module at import time — moved
+# as complete closures (each symbol + everything it privately depended on),
+# zero behavior change. V2 imports them back here since it still needs all
+# of them for its own operation; only their defining file changed. Two items
+# (_unrecognized_company_response, _run_market_pulse_search) were explicitly
+# NOT relocated — flagged in place below as Stage 2 decisions.
+from app.services.ai_search.cache import _CACHE
+from app.services.ai_search.decision_intent import (
+    _BUDGET_RE, _COMPARE_RE, _COMPARE_RE_3, _COMPARE_RE_AND, _DECISION_INTENTS,
+    _HOLDING_RE, _HORIZON_RE, _RISK_RE, _SECTOR_NAMES, _SWITCH_FROM_TO_RE,
+    _TARGET_RE, _detect_decision_intent,
+)
+from app.services.ai_search.enrichment import (
+    _classify_ripple_position, _commodity_safety_note, _enrich_sync,
+    _fetch_chart_sync, _fetch_valuation_sync, _fetch_vix_sync,
+    _intent_overlay, _sector_status, _sector_time_horizon,
+)
+from app.services.ai_search.entities import (
+    _COMPANY_BARE_RE, _COMPANY_SUFFIX_RE, _GENERIC_STOCK_PREFIX,
+    _SINGLE_WORD_STOCK_RE, _looks_like_unrecognized_company, _match_companies,
+)
+from app.services.ai_search.market_pulse import (
+    _MARKET_PULSE_RE, _build_market_pulse_prompt, _classify_market_pulse_llm,
+    _detect_market_pulse, _detect_market_pulse_async,
+)
+from app.services.ai_search.regexes import (
+    _COMMODITY_NAMES, _COMMODITY_TICKERS, _MACRO_TRIGGER, _OPPORTUNITY_TRIGGER,
+    _OUTLOOK_LABELS, _POLICIES, _RESULTS_TRIGGER, _RISK_TRIGGER, _SECTOR_TRIGGER,
+    _SECTORS, _STOPWORDS, _THEME_TRIGGER, _VALUATION_TRIGGERS, _VIX_TRIGGER,
+)
+from app.services.ai_search.retrieval import (
+    _HIST_CATEGORY_KEYWORDS, _HIST_SECTOR_NAMES, _event_row_to_dict,
+    _infer_historical_category, _infer_historical_sectors, _search_events,
+    _search_news, _search_policies, _symbols_to_names, _words,
+)
+from app.services.ai_search.ripple_graph import _build_ripple_chain
+
 log = structlog.get_logger(__name__)
 
-# ── In-process cache (fallback when Redis unavailable) ───────────────────────
-_CACHE: dict[str, tuple[float, Any]] = {}
 _TTL = 1800  # 30 min
 
 
@@ -84,132 +120,22 @@ def resolve_cache_key(query: str, session_context: dict | None = None) -> str:
 
 
 # ── Entity extraction ─────────────────────────────────────────────────────────
-# Company matching reuses the real 202-company NSE universe (app.api.companies
-# ._NSE_UNIVERSE — symbol/name/sector/industry/cap/aliases, already the source
-# of truth for /api/companies and for entity_resolver.resolve_entities() used
-# elsewhere in this same file's ripple-chain building) instead of a 27-name
-# hardcoded list. This also fixes a latent bug: the old list matched on
-# arbitrary lowercase words like "hdfc", which _fetch_valuation_sync then
-# .upper()'d into "HDFC" — not a real ticker (HDFC Bank's actual symbol is
-# HDFCBANK) — so valuation data silently never loaded for it. Returning real
-# symbols directly fixes that as a side effect.
-_SECTORS = [
-    "railway", "infrastructure", "banking", "it", "technology", "defence", "energy",
-    "pharma", "auto", "fmcg", "metals", "realty", "telecom", "power", "finance", "logistics",
-]
-_POLICIES = [
-    "budget", "rbi", "sebi", "gst", "pli", "fdi", "npa", "repo rate",
-    "monetary policy", "fiscal policy", "make in india", "pm gati shakti",
-]
-
-
-def _match_companies(q: str) -> list[str]:
-    """
-    Word-boundary-aware alias matching. Plain substring containment (the
-    original implementation) let short tickers/aliases match inside
-    unrelated words — found live via a broad test sweep: "ITC" matched
-    inside "sw-ITC-h", "REC" matched inside "REC-ent", "LIC" matched inside
-    "po-LIC-y". Every one of those produced a spurious extra company in the
-    response with no real connection to the query.
-    """
-    from app.api.companies import _NSE_UNIVERSE
-    matched: list[str] = []
-    for co in _NSE_UNIVERSE:
-        aliases = (co.get("aliases") or []) + [co["name"].lower(), co["symbol"].lower()]
-        for a in aliases:
-            if len(a) < 3:
-                continue
-            idx = q.find(a)
-            if idx == -1:
-                continue
-            before_ok = idx == 0 or not q[idx - 1].isalnum()
-            after_idx = idx + len(a)
-            after_ok = after_idx == len(q) or not q[after_idx].isalnum()
-            if before_ok and after_ok:
-                matched.append(co["symbol"])
-                break
-    return matched
-
-
-# Strong signal: a capitalized phrase ending in a real corporate suffix —
-# e.g. "Bharat Quantum Computing Ltd". High-confidence enough that a
-# coincidental sector word elsewhere in the same phrase ("XYZ Defence Ltd")
-# shouldn't override it — "Ltd"/"Corp"/etc. essentially never appears in a
-# genuine sector/macro/policy question.
-_COMPANY_SUFFIX_RE = re.compile(
-    r"\b(?:[A-Z][a-zA-Z]*\s+){1,5}"
-    r"(?:Ltd\.?|Limited|Inc\.?|Corp\.?|Corporation|Industries|Technologies|"
-    r"Systems|Holdings|International|Enterprises|Group|Motors|Pharma|Energy)\b"
-)
-# Weak signal: a bare 2+ capitalized-word phrase with no corporate suffix —
-# e.g. "Tata Neuralink". Realistic company names can be this short, so the
-# minimum is 2 words, not 3 — but with no suffix to lean on, this tier stays
-# gated on zero sector/policy signal too (see caller), unlike the strong tier.
-_COMPANY_BARE_RE = re.compile(r"\b(?:[A-Z][a-zA-Z]{2,}\s+){1,4}[A-Z][a-zA-Z]{2,}\b")
-
-# P3: narrow signal for a SINGLE capitalized word immediately followed by a
-# stock-specific noun — "What's the outlook for Apple stock?" ("Apple"
-# alone doesn't satisfy _COMPANY_BARE_RE's 2-word minimum, and has no
-# corporate suffix, so it fell through both existing detectors undetected
-# — verified live). Deliberately narrow: catching every single capitalized
-# word here would false-positive on legitimate phrasing like "Indian stock
-# market" or "Global shares outlook" — _GENERIC_STOCK_PREFIX excludes the
-# common non-company descriptors this pattern would otherwise misfire on.
-_GENERIC_STOCK_PREFIX = {
-    "indian", "india", "us", "global", "foreign", "international", "domestic",
-    "local", "asian", "american", "chinese", "european", "any", "some",
-    "penny", "blue", "small", "large", "mid", "growth", "value", "dividend",
-}
-_SINGLE_WORD_STOCK_RE = re.compile(
-    r"\b([A-Z][a-zA-Z]{2,})\s+(?:stock|shares|share\s+price|stock\s+price)\b"
-)
-
-
-def _looks_like_unrecognized_company(query: str, entities: dict) -> bool:
-    """High-confidence-only signal that the query names a specific company
-    not in our real ~202-company NSE universe — used to short-circuit
-    straight to an honest "no verified company found" response instead of
-    letting the LLM either analyze a fictional entity or fall through to
-    the generic degraded-synthesis template (which reads as "we have real
-    data but couldn't finish the analysis", not "this company doesn't
-    exist" — the wrong message for a fabricated name).
-
-    Handles mixed queries too — e.g. "Compare Apple India Defence Ltd vs
-    HAL" has one real match (HAL) and one fake one; a naive "any real match
-    disqualifies this" rule would let the fake half through silently. Real
-    company text is stripped out first, then the residual is checked for a
-    still-unaccounted-for company-shaped phrase.
-    """
-    residual = query
-    if entities["companies"]:
-        from app.api.companies import _NSE_UNIVERSE
-        matched_set = set(entities["companies"])
-        for co in _NSE_UNIVERSE:
-            if co["symbol"] not in matched_set:
-                continue
-            for alias in (co.get("aliases") or []) + [co["name"], co["symbol"]]:
-                if len(alias) < 3:
-                    continue
-                residual = re.sub(re.escape(alias), " ", residual, flags=re.IGNORECASE)
-        # Mixed case: only the high-confidence suffix signal counts on the
-        # residual — leftover connector words ("Compare", "vs") after
-        # stripping real names could spuriously look bare-capitalized.
-        return bool(_COMPANY_SUFFIX_RE.search(residual))
-
-    if _COMPANY_SUFFIX_RE.search(residual):
-        return True
-    if entities["sectors"] or entities["policies"]:
-        return False
-    if _COMPANY_BARE_RE.search(residual):
-        return True
-    # P3: single-word unsupported-entity case ("Apple stock") — see
-    # _SINGLE_WORD_STOCK_RE's comment for why this is deliberately narrow.
-    m = _SINGLE_WORD_STOCK_RE.search(residual)
-    return bool(m and m.group(1).lower() not in _GENERIC_STOCK_PREFIX)
+# _SECTORS/_POLICIES/_match_companies/_COMPANY_SUFFIX_RE/_COMPANY_BARE_RE/
+# _GENERIC_STOCK_PREFIX/_SINGLE_WORD_STOCK_RE/_looks_like_unrecognized_company
+# now live in ai_search/entities.py + ai_search/regexes.py (P5 Stage 1),
+# imported above.
 
 
 def _unrecognized_company_response(query: str) -> dict:
-    """Minimal but schema-complete SearchResult — deliberately not routed
+    """P5 Stage 1 (2026-08-06): deliberately NOT relocated to ai_search/,
+    unlike the other symbols V3 imports from this file — this builds V2's
+    full flat SearchResult schema, which is genuinely V2-specific; V3's
+    pipeline.py imports this function directly rather than having its own
+    equivalent. Flagged for a Stage 2 decision (give V3 its own version in
+    its nested schema shape, vs. keep sharing this one) — not a Stage 1
+    extraction target since it isn't a clean behavior-neutral relocation.
+
+    Minimal but schema-complete SearchResult — deliberately not routed
     through _synthesis_incomplete's "degraded" framing, since this isn't a
     failure to synthesize; it's a correct, confident classification that
     the named entity isn't a real, tracked company.
@@ -389,575 +315,26 @@ def _extract_entities(query: str) -> dict:
 
 
 # ── Market Pulse intent — real-data-first, never LLM-ranked ──────────────────
-# "Which stocks performed well", "best sector", "market summary" and similar
-# queries used to fall through to the generic `general` intent, where the LLM
-# picked companies/sectors from nothing and got live prices bolted on
-# afterward. This intent short-circuits that entirely: market_pulse_service
-# fetches real top movers / sector performance / verified drivers BEFORE any
-# LLM call, and the model's only job is to explain what it's given.
-_MARKET_PULSE_RE = re.compile(
-    r"\b("
-    r"top\s+gainers?|top\s+losers?|"
-    r"which\s+stocks?\s+(?:performed|did)\s+well|"
-    r"which\s+stocks?\s+(?:fell|dropped|rose|gained|rallied|rallying|surged|crashed|are\s+up|are\s+down)|"
-    r"stocks?\s+(?:that\s+)?(?:performed|did)\s+well|"
-    r"(?:stocks?|large.?caps?)\s+(?:that\s+)?(?:rallied|rallying|surged|crashed|declined|declining|falling)|"
-    r"(?:rallying|declining|falling|crashing)\s+(?:in\s+the\s+market|today|the\s+most)|"
-    r"gaining\s+stocks?|declining\s+stocks?|"
-    r"outperform\w*\s+(?:the\s+)?(?:index|nifty|market)|underperform\w*\s+(?:the\s+)?(?:index|nifty|market)|"
-    r"strongest\s+momentum|weakest\s+momentum|"
-    r"dragging\s+(?:the\s+)?market|weighing\s+on\s+(?:the\s+)?market|"
-    r"best[- ]perform\w*|worst[- ]perform\w*|top[- ]perform\w*|"
-    r"best\s+sector|worst\s+sector|"
-    r"(?:leading|lagging|top|strongest|weakest)\s+sectors?|sector\s+rotation|"
-    r"sector\w*\s+(?:is|are)\s+(?:leading|lagging|outperform\w*|underperform\w*)|"
-    r"sector\s+(?:is\s+)?(?:institutional\s+money|money)\s+(?:is\s+)?flowing|"
-    r"market\s+summary|market\s+(?:today|recap|wrap|update)|"
-    r"how\s+is\s+the\s+market|how(?:'s|\s+is)\s+the\s+market\s+doing|"
-    r"(?:overall\s+)?mood\s+in\s+the\s+market|"
-    r"(?:good|bad)\s+day\s+for\s+the\s+markets?|"
-    r"summarize\s+(?:today'?s|this\s+week'?s)\s+(?:trading|market)|"
-    r"market\s+(?:bullish|bearish)\s+right\s+now|is\s+the\s+market\s+(?:bullish|bearish)|"
-    r"recap\s+of\s+(?:this\s+week|today)\s+in\s+the\s+markets?|"
-    r"how\s+did\s+(?:nifty|sensex|the\s+market)\s+(?:close|do)|"
-    r"today'?s\s+(?:top\s+|biggest\s+)?(?:gainers?|losers?|winners?|movers?|gaining\s+stocks?)|"
-    r"biggest\s+(?:gainers?|losers?|winners?|movers?)|"
-    r"52.?week\s+highs?|52.?week\s+lows?|most\s+active\s+stocks?|highest\s+volume\s+stocks?|"
-    r"what'?s\s+(?:driving|moving)\s+the\s+market|"
-    r"why\s+is\s+(?:the\s+)?(?:nifty|sensex|market)\s+(?:up|down)"
-    r")\b",
-    re.IGNORECASE,
-)
-
-
-def _detect_market_pulse(query: str) -> bool:
-    return bool(_MARKET_PULSE_RE.search(query))
-
-
-# ── Market Pulse — semantic fallback classifier ───────────────────────────────
-# The regex above is fast and free but has a hard recall ceiling: it matches
-# patterns, not meaning, so "which large-cap stocks rallied today" and "top
-# gainers" can land on opposite sides of the same regex even though they're
-# the same question. Confirmed empirically — re-running the regex against a
-# 308-question test set found 91%→18% recall across market-pulse-shaped
-# categories depending on phrasing. This is the actual fix: when the regex
-# doesn't match, ask a cheap/fast model a tightly-scoped yes/no question
-# instead of adding another 30 regex alternations that will still miss the
-# next paraphrase. Fails closed (False) on any error — a classifier hiccup
-# must never block the existing general-path pipeline, only add to it.
-_MARKET_PULSE_CLASSIFY_SYSTEM = (
-    "You classify Indian stock market search queries for a routing system. "
-    "Respond with exactly one word, 'yes' or 'no', nothing else.\n\n"
-    "Say 'yes' ONLY if the query is asking for real-time market data with NO "
-    "specific company and NO specific named sector in it — e.g. today's top "
-    "gaining/losing stocks, best/worst-performing sector (asked generically, "
-    "not naming which sector), most active stocks, or an overall market mood/"
-    "summary/recap.\n\n"
-    "Say 'no' for everything else: company research or recommendations, "
-    "comparisons ('X vs Y'), buy/sell/hold decisions, a SPECIFIC sector named "
-    "by the user (e.g. 'how is banking doing'), valuation, portfolio questions, "
-    "historical comparisons, macro/policy questions, IPOs, commodities, "
-    "currency, or general investing questions."
-)
-
-
-async def _classify_market_pulse_llm(query: str) -> bool:
-    try:
-        from app.services.ai_service import _call_with_fallback
-        raw = await _call_with_fallback(f'Query: "{query}"', _MARKET_PULSE_CLASSIFY_SYSTEM, max_tokens=5, priority="interactive")
-        return bool(raw) and raw.strip().lower().lstrip('"\'').startswith("y")
-    except Exception as exc:
-        log.warning("ai_search.market_pulse_classify_failed", error=str(exc)[:120])
-        return False
-
-
-async def _detect_market_pulse_async(query: str) -> bool:
-    """Fast regex first (no LLM cost for the obvious cases); only escalates
-    to the semantic classifier when the regex found nothing, so already-fast
-    queries stay fast and only the ambiguous ~86% pay the classification cost."""
-    if _detect_market_pulse(query):
-        return True
-    return await _classify_market_pulse_llm(query)
+# _MARKET_PULSE_RE/_detect_market_pulse/_MARKET_PULSE_CLASSIFY_SYSTEM/
+# _classify_market_pulse_llm/_detect_market_pulse_async now live in
+# ai_search/market_pulse.py (P5 Stage 1), imported above.
 
 
 # ── DB search helpers ─────────────────────────────────────────────────────────
-# Merged from two ad-hoc sets that already existed for the same reason —
-# _pick_stopwords (below, in the list_picks intent handler — added after a
-# live bug where "me" from "give ME top 5..." matched inside every
-# "X Invest-ME-nt Opportunity" title) and benchmarks/ai_search/runner.py's
-# _STOPWORDS — plus common question words, so _words() itself never treats
-# "what/is/the/for" as a meaningful search term. P1 fix: previously _words()
-# had zero stopword filtering, which is why every query's DB search was
-# dominated by these words regardless of actual topic.
-_STOPWORDS = {
-    "what", "whats", "how", "hows", "why", "when", "where", "who", "which",
-    "is", "are", "was", "were", "do", "does", "did",
-    "the", "a", "an", "and", "or", "for", "with", "from", "into", "this", "that",
-    "give", "me", "top", "best", "should", "recommend", "picks", "pick",
-    "stock", "stocks", "companies", "shares", "invest", "buy", "list", "some",
-}
-
-
-def _words(query: str) -> list[str]:
-    return [w for w in re.findall(r"\w+", query.lower()) if len(w) >= 2 and w not in _STOPWORDS][:8]
-
-
-def _event_row_to_dict(e: Event) -> dict:
-    return {
-        "id": e.id,
-        "title": e.title,
-        "summary": (e.summary or "")[:300],
-        "category": e.category or "Market",
-        "impact_score": round(float(e.impact_score or 0), 1),
-        "confidence": round(float(e.confidence or 0), 1),
-        "sectors": e.sectors or [],
-        "companies": e.companies or [],
-        "date": (
-            e.event_date.strftime("%b %d, %Y") if e.event_date else
-            e.published_at.strftime("%b %d, %Y") if e.published_at else ""
-        ),
-    }
-
-
-async def _search_events(
-    db: AsyncSession, query: str, limit: int = 10, entities: dict | None = None,
-) -> list[dict]:
-    ws = _words(query)
-    symbols = [s for s in (entities or {}).get("companies", []) if s]
-
-    # Entity-scoped filter first (P1 fix). Event.companies is a JSON list of
-    # {"symbol": ..., "name": ..., "impact": ...} dicts — 93% coverage
-    # (107/115 events) — NOT the relational EventCompany junction table,
-    # which exists but is effectively unpopulated (1 row against 115 events)
-    # and isn't what enrichment actually writes to today. ILIKE is anchored
-    # on the `"symbol": "X"` key specifically, not a bare substring of the
-    # whole JSON blob, so a different company's `name` field can't
-    # accidentally satisfy this company's symbol match.
-    if symbols:
-        company_conds = [Event.companies.ilike(f'%"symbol": "{s}"%') for s in symbols]
-        stmt = select(Event).where(or_(*company_conds)).order_by(Event.impact_score.desc()).limit(limit)
-        rows = (await db.execute(stmt)).scalars().all()
-        if rows:
-            return [_event_row_to_dict(e) for e in rows]
-        # Resolved a company but nothing is tagged to it — fall through to
-        # the word-match path below instead of returning nothing.
-
-    conds = [Event.title.ilike(f"%{w}%") for w in ws] + [Event.summary.ilike(f"%{w}%") for w in ws]
-    stmt = (
-        select(Event).where(or_(*conds)).order_by(Event.impact_score.desc()).limit(limit)
-        if conds else
-        select(Event).order_by(Event.impact_score.desc()).limit(limit)
-    )
-    rows = (await db.execute(stmt)).scalars().all()
-    return [_event_row_to_dict(e) for e in rows]
-
-
-def _symbols_to_names(symbols: list[str]) -> list[str]:
-    from app.api.companies import _NSE_UNIVERSE
-    by_symbol = {co["symbol"]: co["name"] for co in _NSE_UNIVERSE}
-    return [by_symbol[s] for s in symbols if s in by_symbol]
-
-
-async def _search_news(
-    db: AsyncSession, query: str, limit: int = 8, entities: dict | None = None,
-) -> list[dict]:
-    ws = _words(query)
-
-    def _matches(text: str) -> bool:
-        t = text.lower()
-        return any(w in t for w in ws)
-
-    results: list[dict] = []
-    try:
-        # get_live_news() carries no entity/company field at all — only
-        # headline/summary text — so this primary path can only benefit
-        # from P1's stopword filtering (via _words()/_matches() above), not
-        # entity-scoped filtering. Tagging the live RSS/yfinance cache with
-        # resolved entities is a real data-pipeline project, not a
-        # retrieval-layer fix — flagged as backlog, not attempted here.
-        live = await get_live_news(limit=20) or []
-        for a in live:
-            if _matches(a.get("headline", "") + " " + a.get("summary", "")):
-                results.append({
-                    "id": a["id"], "headline": a["headline"],
-                    "summary": (a.get("summary") or "")[:200],
-                    "source": a.get("source", ""), "published_at": a.get("published_at", ""),
-                    "impact_score": float(a.get("impact_score", 5.0)),
-                    "url": a.get("url"),
-                })
-    except Exception:
-        pass
-
-    if len(results) < limit:
-        # DB fallback: NewsArticle.companies is a JSON list of plain NAME
-        # strings (not {symbol,name} dicts like Event.companies), 7%
-        # coverage (161/2,248 rows) — so entity-scoped filtering here
-        # matches by company name, resolved from the entity symbol via the
-        # same NSE universe lookup _match_companies uses.
-        symbols = [s for s in (entities or {}).get("companies", []) if s]
-        names = _symbols_to_names(symbols)
-        db_rows = []
-        if names:
-            name_conds = [NewsModel.companies.ilike(f'%"{n}"%') for n in names]
-            stmt = (
-                select(NewsModel).where(or_(*name_conds))
-                .order_by(NewsModel.impact_score.desc()).limit(limit)
-            )
-            db_rows = (await db.execute(stmt)).scalars().all()
-
-        if not db_rows and ws:
-            conds = [NewsModel.headline.ilike(f"%{w}%") for w in ws]
-            # P1 fix: this query had no .order_by() at all before — rows
-            # came back in whatever order SQLite happened to return them,
-            # not by relevance or any other defined criterion.
-            stmt = (
-                select(NewsModel).where(or_(*conds))
-                .order_by(NewsModel.impact_score.desc()).limit(limit)
-            )
-            db_rows = (await db.execute(stmt)).scalars().all()
-
-        for r in db_rows:
-            if not any(x["id"] == r.id for x in results):
-                results.append({
-                    "id": r.id, "headline": r.headline,
-                    "summary": (r.summary or "")[:200],
-                    "source": r.source, "published_at": r.published_at,
-                    "impact_score": float(r.impact_score or 5.0) * 10,
-                    "url": None,
-                })
-
-    return results[:limit]
-
-
-async def _search_policies(
-    db: AsyncSession, query: str, limit: int = 5, entities: dict | None = None,
-) -> list[dict]:
-    # entities accepted for call-site consistency with _search_events/
-    # _search_news (P1) but not used to filter — GovernmentPolicy has no
-    # company/sector column, only ministry/title text.
-    ws = _words(query)
-    conds = [GovernmentPolicy.title.ilike(f"%{w}%") for w in ws]
-    stmt = (
-        select(GovernmentPolicy).where(or_(*conds)).limit(limit)
-        if conds else
-        select(GovernmentPolicy).limit(limit)
-    )
-    rows = (await db.execute(stmt)).scalars().all()
-    return [
-        {
-            "id": p.id, "title": p.title,
-            "ministry": p.ministry or "Ministry of Finance",
-            "summary": (p.summary or "")[:200],
-            "status": "Active", "impact_score": 75, "url": p.url,
-        }
-        for p in rows
-    ]
+# _STOPWORDS/_words/_event_row_to_dict/_search_events/_symbols_to_names/
+# _search_news/_search_policies now live in ai_search/retrieval.py +
+# ai_search/regexes.py (P5 Stage 1), imported above.
 
 
 # ── Intent detection ──────────────────────────────────────────────────────────
-_DECISION_INTENTS = {
-    # "move from" needed "move" directly before "from" — missed "move
-    # INVESTMENT from X to Y" (found live). (?:\s+\w+){0,3} tolerates
-    # filler words in between, same fix family as switch-from-to below.
-    "switch":           [r"\bswitch(?:ing)?\b", r"\brotate?\b", r"\binstead of\b", r"\bsell.{1,30}buy\b", r"\bmove\b(?:\s+\w+){0,3}\s+from\b", r"\breplace\b"],
-    "hold":             [r"\bshould i hold\b", r"\bkeep holding\b", r"\bcontinue holding\b", r"\bstill hold\b", r"\bhold or sell\b"],
-    "compare":          [r"\bcompare\b", r"\bvs\.?\b", r"\bversus\b", r"\bbetter than\b", r"\bwhich is better\b", r"\bwhich (?:one|company|stock)\b"],
-    "sell":             [r"\bshould i sell\b", r"\bwhen to sell\b", r"\bexit\b", r"\bbook (?:profit|loss)\b"],
-    # "top \d+ stocks" alone missed any real-world phrasing with a sector/
-    # theme qualifier between the count and the noun ("top 5 BANKING
-    # stocks") — (?:\w+\s+){0,4} tolerates multi-word qualifiers in between
-    # (found live: "top 5 EV AND DEFENCE stocks" needed {0,4}, not {0,2}),
-    # same fix pattern as the switch-from-to gap found this session. The
-    # last two patterns cover "best/top X stocks" with NO count at all
-    # (also found live — "best defence companies", "best AI stocks") —
-    # plural-only to avoid false-triggering on singular "the best stock to
-    # buy" type single-entity decision queries.
-    "list_picks":       [r"\bgive me \d+\b", r"\btop \d+ (?:\w+\s+){0,4}(?:stocks?|picks?|companies|shares)\b", r"\bbest \d+ (?:\w+\s+){0,4}(?:stocks?|picks?|companies|shares)\b", r"\brecommend \d+\b", r"\b\d+ best (?:stocks?|picks?)\b", r"\bwhich \d+ (?:\w+\s+){0,4}(?:stocks?|picks?)\b", r"\bbest (?:\w+\s+){0,3}(?:stocks|picks|companies|shares)\b", r"\btop (?:\w+\s+){0,3}(?:stocks|picks|companies|shares)\b"],
-    "news_reaction":    [r"\bjust (?:announced|reported|won|got|received|published)\b", r"\bafter.*q[1-4].*results?\b", r"\bq[1-4].*results?.*\bwhat\b", r"\bbreaking.*market\b", r"\breaction to\b", r"\bwhat (?:should i do|does this mean|now)\b.*\b(?:won|lost|beat|missed|announced)\b"],
-    "earnings_preview": [r"\bbefore (?:earnings|results|q[1-4])\b", r"\bpre.?(?:earnings|results?)\b", r"\bahead of (?:earnings|results?)\b", r"\bearnings (?:this|next) (?:week|month)\b"],
-    "entry_timing":     [r"\bgood time to enter\b", r"\bright time to (?:buy|invest)\b", r"\bentry (?:point|level|price)\b", r"\bwhen (?:to|should i) enter\b"],
-    "portfolio_review": [r"\bmy portfolio\b", r"\bconcentration risk\b", r"\basset allocation\b", r"\brebalance\b", r"\bportfolio (?:is|has|with)\b", r"\bi (?:own|hold|have) .+,"],
-    "buy":              [r"\bshould i buy\b", r"\bgood time to buy\b", r"\bworth buying\b", r"\bcan i buy\b"],
-    "decision":         [r"\bshould i\b", r"\bworth it\b", r"\bgood investment\b", r"\bsafe to invest\b"],
-}
-
-_HOLDING_RE = re.compile(
-    r"(?:i (?:hold|own|have|bought|invested in|am holding|currently hold|am in)|"
-    r"my (?:investment|portfolio|position|holding) (?:in|of)|"
-    r"i already (?:have|own|hold)|"
-    r"i (?:am planning to sell|want to sell))\s+([A-Za-z0-9 &.]+?)(?:\.|,|$|\?| and | should)",
-    re.IGNORECASE,
-)
-_TARGET_RE = re.compile(
-    r"(?:(?:buy|switch to|move to|invest in|purchase|rotate to|into)\s+([A-Za-z0-9 &.]+?)(?:\.|,|$|\?| instead| rather| now)|"
-    r"(?:and buy|to buy|or buy)\s+([A-Za-z0-9 &.]+?)(?:\.|,|$|\?))",
-    re.IGNORECASE,
-)
-_HORIZON_RE = re.compile(
-    r"\b(\d+[-\s](?:month|year|week)s?|short.?term|medium.?term|long.?term|"
-    r"1\s*month|3\s*months?|6\s*months?|1\s*year|3.5\s*years?)\b",
-    re.IGNORECASE,
-)
-_RISK_RE = re.compile(
-    r"\b(conservative|moderate|aggressive|low risk|high risk|safe)\b", re.IGNORECASE
-)
-_COMPARE_RE = re.compile(
-    r"(?:is\s+)?([A-Za-z][A-Za-z0-9 &.]{2,30}?)\s+"
-    r"(?:vs\.?|versus|better than|or)\s+"
-    r"([A-Za-z][A-Za-z0-9 &.]{2,30}?)(?:\s+for|\s+in|[?.,]|$)",
-    re.IGNORECASE,
-)
-# Same as _COMPARE_RE plus "and" as a connector — "and" is too ambiguous a
-# signal to trust in the general fallback (used for switch/hold/sell/buy/
-# decision/general), but inside a query whose intent already contains the
-# literal word "compare", "and" is the single most natural connector
-# ("Compare TCS and Infosys" — found live, unmatched by the vs/versus/or
-# original) and safe to accept there.
-_COMPARE_RE_AND = re.compile(
-    r"(?:is\s+)?([A-Za-z][A-Za-z0-9 &.]{2,30}?)\s+"
-    r"(?:vs\.?|versus|better than|or|and)\s+"
-    r"([A-Za-z][A-Za-z0-9 &.]{2,30}?)(?:\s+for|\s+in|[?.,]|$)",
-    re.IGNORECASE,
-)
-_SWITCH_FROM_TO_RE = re.compile(
-    r"(?:switch|rotate|move)(?:ing)?(?:\s+\w+){0,3}\s+(?:(?:out\s+of|away\s+from)|from)\s+"
-    r"([A-Za-z][A-Za-z0-9 &.]{1,30}?)\s+(?:to|into|for)\s+"
-    r"([A-Za-z][A-Za-z0-9 &.]{1,30}?)(?:\.|,|$|\?| now| instead)",
-    re.IGNORECASE,
-)
-_COMPARE_RE_3 = re.compile(
-    r"([A-Za-z][A-Za-z0-9 &.]{2,30}?)\s+(?:vs\.?|versus|or)\s+"
-    r"([A-Za-z][A-Za-z0-9 &.]{2,30}?)\s+(?:vs\.?|versus|or)\s+"
-    r"([A-Za-z][A-Za-z0-9 &.]{2,30}?)(?:\s+for|\s+in|[?.,]|$)",
-    re.IGNORECASE,
-)
-_BUDGET_RE = re.compile(
-    r"₹\s*([\d,]+)\s*(lakh|crore|thousand|k)?|(\d+)\s*(lakh|crore|thousand)\b",
-    re.IGNORECASE,
-)
-_SECTOR_NAMES = {
-    "banking", "it", "technology", "defence", "energy", "pharma", "auto",
-    "fmcg", "metals", "realty", "telecom", "power", "finance", "logistics",
-    "infrastructure", "railway", "railways", "healthcare", "consumption",
-    "manufacturing", "chemicals", "fertilizers", "insurance",
-}
-_COMMODITY_NAMES = {
-    "gold", "silver", "oil", "crude", "crude oil", "brent", "copper", "zinc",
-    "aluminium", "nickel", "platinum", "palladium", "natural gas",
-    "nifty", "sensex", "bank nifty", "nifty 50", "nifty50",
-    "bitcoin", "btc", "ethereum", "eth", "crypto", "cryptocurrency",
-    "real estate", "property", "land",
-    "usd", "dollar", "euro", "yen", "pound", "rupee",
-    "fd", "fixed deposit", "ppf", "bonds", "debt", "nps",
-    "mutual fund", "index fund", "etf",
-    "sgb", "sovereign gold bond",
-}
-# Commodity ETF tickers for common assets — used in prompt hints
-_COMMODITY_TICKERS = {
-    "gold": "GOLDBEES", "silver": "SILVERETF", "nifty": "NIFTYBEES",
-    "oil": "OILCOUNTRY", "crude": "OILCOUNTRY",
-}
-_VALUATION_TRIGGERS = re.compile(
-    r"\b(?:overvalued|undervalued|p[/\-]?e|pe ratio|price[- ]to[- ]earnings?|book value|"
-    r"fundamentals?|valuation|fair value|intrinsic value|expensive|cheap)\b",
-    re.IGNORECASE,
-)
-_VIX_TRIGGER = re.compile(r"\b(?:vix|volatility index|india vix)\b", re.IGNORECASE)
-
-# Additional data-first triggers — same pattern as _VALUATION_TRIGGERS/_VIX_TRIGGER
-# above: a cheap keyword regex gates a real (non-LLM) data fetch that gets
-# appended to extra_context, so the general-path LLM explains real numbers
-# instead of free-generating them. None of these change routing/schema —
-# they only ground the existing general/decision prompts with more evidence.
-_SECTOR_TRIGGER = re.compile(r"\b(?:sector|industry)\b", re.IGNORECASE)
-_OPPORTUNITY_TRIGGER = re.compile(r"\bopportunit(?:y|ies)\b", re.IGNORECASE)
-_THEME_TRIGGER = re.compile(r"\btheme\b", re.IGNORECASE)
-_RISK_TRIGGER = re.compile(r"\brisks?\b", re.IGNORECASE)
-_MACRO_TRIGGER = re.compile(
-    r"\b(?:inflation|repo rate|interest rate|rbi rate|gdp|crude oil|oil price|"
-    r"rupee|dollar|fii|dii|macro(?:economic)?)\b",
-    re.IGNORECASE,
-)
-_RESULTS_TRIGGER = re.compile(
-    r"\b(?:results?|earnings?)\b.*\b(?:announced|reported|posted|released|out|declared)\b|"
-    r"\b(?:announced|reported|posted|released|declared)\b.*\b(?:results?|earnings?)\b",
-    re.IGNORECASE,
-)
-
-
-def _commodity_safety_note(query: str) -> str:
-    """
-    The symbol-safety guidance that stops the model from inventing a fake
-    equity ticker for a commodity/currency/index used to only exist inside
-    the two-entity decision prompt (_build_decision_prompt's symbol_hint()).
-    A bare single-entity query like "Should I invest in gold?" got no such
-    guidance and went through the general schema, which expects a real NSE
-    equity symbol for every companies[] entry. This extends the same real
-    ETF-proxy mapping (_COMMODITY_TICKERS) to the general prompt whenever a
-    commodity/currency/index name is detected in the query text.
-    """
-    q = query.lower()
-    hit = next((name for name in _COMMODITY_NAMES if name in q), None)
-    if not hit:
-        return ""
-    ticker = _COMMODITY_TICKERS.get(hit)
-    ticker_note = f' A real ETF proxy exists for "{hit}": {ticker}.' if ticker else ""
-    return (
-        f'\n- The query mentions "{hit}", which is a commodity/currency/index/asset class, not a single '
-        f"listed equity. Do NOT invent a fake equity ticker for it in \"companies\". Either omit it from "
-        f'"companies" entirely, or if a real ETF/index-fund proxy exists, use that proxy\'s real NSE symbol '
-        f"instead.{ticker_note}"
-    )
-
-
-def _detect_decision_intent(query: str) -> dict:
-    q = query.lower()
-    detected_intent = "general"
-    for intent, patterns in _DECISION_INTENTS.items():
-        if any(re.search(p, q) for p in patterns):
-            detected_intent = intent
-            break
-
-    is_decision = detected_intent != "general"
-
-    holding = None
-    m = _HOLDING_RE.search(query)
-    if m:
-        holding = m.group(1).strip()
-
-    target = None
-    m2 = _TARGET_RE.search(query)
-    if m2:
-        target = (m2.group(1) or m2.group(2) or "").strip()
-
-    # Compare: try 3-way first, then 2-way
-    third_entity = None
-    if detected_intent == "compare":
-        mc3 = _COMPARE_RE_3.search(query)
-        if mc3:
-            holding = mc3.group(1).strip()
-            target  = mc3.group(2).strip()
-            third_entity = mc3.group(3).strip()
-        elif not holding and not target:
-            # _COMPARE_RE_AND (not the shared _COMPARE_RE) — "and" is only
-            # trusted as a connector here, where the query already contains
-            # the literal word "compare" ("Compare TCS and Infosys" — found
-            # live, unmatched by vs/versus/better-than/or alone).
-            mc = _COMPARE_RE_AND.search(query)
-            if mc:
-                holding = re.sub(r"^compare\s+(?:the\s+)?", "", mc.group(1).strip(), flags=re.IGNORECASE)
-                target  = mc.group(2).strip()
-    elif detected_intent == "switch" and not holding and not target:
-        # "switch/rotate/move FROM X TO Y" — the single most natural way to
-        # phrase a switch decision, and previously unhandled: _HOLDING_RE
-        # needs first-person possession language ("I hold X"), _TARGET_RE
-        # needs "switch TO X" (not "FROM X TO Y"), and _COMPARE_RE needs a
-        # vs/versus/or connector. All three miss this phrasing, so is_comparison
-        # silently came out False and the whole decision-comparison path
-        # (including the Decision Engine) never ran for it.
-        msft = _SWITCH_FROM_TO_RE.search(query)
-        if msft:
-            holding = msft.group(1).strip()
-            target  = msft.group(2).strip()
-        else:
-            mc = _COMPARE_RE.search(query)
-            if mc:
-                holding = mc.group(1).strip()
-                target  = mc.group(2).strip()
-    elif detected_intent in ("hold", "sell", "buy", "decision", "general") and not holding and not target:
-        # Fallback: try compare regex for "X vs Y" / "X or Y" phrasing even
-        # when no decision-intent keyword fired at all — "HDFC or ICICI?"
-        # (found live) previously stayed intent=general with is_comparison
-        # never even attempted, because "general" wasn't in this tuple.
-        # _COMPARE_RE's connector list already requires a real structural
-        # signal (vs/versus/better than/or), so this is safe to attempt
-        # unconditionally rather than gating it behind a specific intent.
-        mc = _COMPARE_RE.search(query)
-        if mc:
-            holding = mc.group(1).strip()
-            target  = mc.group(2).strip()
-
-    horizon = None
-    m3 = _HORIZON_RE.search(query)
-    if m3:
-        horizon = m3.group(1)
-
-    risk = None
-    m4 = _RISK_RE.search(query)
-    if m4:
-        risk = m4.group(1)
-
-    # Budget/amount extraction
-    budget = None
-    mb = _BUDGET_RE.search(query)
-    if mb:
-        amt_str = ((mb.group(1) or mb.group(3)) or "").replace(",", "")
-        unit    = ((mb.group(2) or mb.group(4)) or "").lower()
-        if amt_str:
-            try:
-                amt = float(amt_str)
-                if unit in ("lakh",):
-                    budget = f"₹{amt:.0f} lakh"
-                elif unit in ("crore",):
-                    budget = f"₹{amt:.0f} crore"
-                elif unit in ("thousand", "k"):
-                    budget = f"₹{amt * 1000:.0f}"
-                else:
-                    budget = f"₹{amt_str}"
-            except ValueError:
-                pass
-
-    # Count for list_picks
-    pick_count = 3
-    if detected_intent == "list_picks":
-        cm = re.search(r"\b(\d+)\b", query)
-        if cm:
-            pick_count = min(int(cm.group(1)), 10)
-
-    # Sector entity detection — flag when holding/target is a sector, not a company
-    holding_is_sector    = bool(holding and holding.lower().strip() in _SECTOR_NAMES)
-    target_is_sector     = bool(target  and target.lower().strip()  in _SECTOR_NAMES)
-    # Commodity/asset class detection — Gold, Silver, Nifty, crypto, bonds, etc.
-    holding_is_commodity = bool(holding and holding.lower().strip() in _COMMODITY_NAMES)
-    target_is_commodity  = bool(target  and target.lower().strip()  in _COMMODITY_NAMES)
-
-    # Portfolio extraction for multi-stock queries
-    portfolio: list[str] = []
-    if detected_intent == "portfolio_review":
-        pm = re.search(
-            r"(?:i (?:own|hold|have)|portfolio (?:is|has|includes?))[^\w]+"
-            r"((?:[A-Za-z][A-Za-z0-9 &.]+(?:,\s*|\s+and\s+)){1,5}[A-Za-z][A-Za-z0-9 &.]+)",
-            query, re.IGNORECASE,
-        )
-        if pm:
-            raw = pm.group(1)
-            portfolio = [p.strip() for p in re.split(r",\s*|\s+and\s+", raw) if p.strip()][:6]
-
-    # A genuine two-asset comparison needs BOTH sides actually named by the
-    # user — "should I invest in defence stocks" only ever fills `target`
-    # (via the "invest in X" pattern), never `holding`. Without this check,
-    # the decision-comparison prompt used to fabricate a placeholder
-    # "Asset A" / RELIANCE holding and frame every single-entity question as
-    # a two-way switch decision nobody asked for.
-    is_comparison = bool(holding) and bool(target)
-
-    return {
-        "is_decision":       is_decision,
-        "is_comparison":     is_comparison,
-        "intent":            detected_intent,
-        "holding":           holding,
-        "target":            target,
-        "third_entity":      third_entity,
-        "horizon":           horizon,
-        "risk":              risk,
-        "budget":            budget,
-        "pick_count":        pick_count,
-        "holding_is_sector":    holding_is_sector,
-        "target_is_sector":     target_is_sector,
-        "holding_is_commodity": holding_is_commodity,
-        "target_is_commodity":  target_is_commodity,
-        "portfolio":            portfolio,
-    }
+# _DECISION_INTENTS/_HOLDING_RE/_TARGET_RE/_HORIZON_RE/_RISK_RE/_COMPARE_RE/
+# _COMPARE_RE_AND/_SWITCH_FROM_TO_RE/_COMPARE_RE_3/_BUDGET_RE/_SECTOR_NAMES/
+# _detect_decision_intent now live in ai_search/decision_intent.py.
+# _COMMODITY_NAMES/_COMMODITY_TICKERS/_VALUATION_TRIGGERS/_VIX_TRIGGER/
+# _SECTOR_TRIGGER/_OPPORTUNITY_TRIGGER/_THEME_TRIGGER/_RISK_TRIGGER/
+# _MACRO_TRIGGER/_RESULTS_TRIGGER now live in ai_search/regexes.py.
+# _commodity_safety_note now lives in ai_search/enrichment.py.
+# (P5 Stage 1, all imported above.)
 
 
 # ── Research outlook enum (replaces Buy/Sell/Hold advisory language) ──────────
@@ -966,11 +343,8 @@ def _detect_decision_intent(query: str) -> dict:
 # for one of these exact 8 labels, and _normalize_outlook() below forcibly
 # remaps whatever the AI actually returns, so a model ignoring instructions
 # (or an older cached response) can never leak "Buy"/"Sell"/"Hold" to the UI.
-_OUTLOOK_LABELS = [
-    "Strongly Constructive", "Constructive", "Positive Outlook",
-    "Selectively Constructive", "Neutral", "Cautious",
-    "Elevated Risk", "High Uncertainty",
-]
+# _OUTLOOK_LABELS itself now lives in ai_search/regexes.py (imported above)
+# — shared with V3's specialists/validation.py, which is why it moved.
 _OUTLOOK_LABELS_LOWER = {lbl.lower(): lbl for lbl in _OUTLOOK_LABELS}
 _ADVISORY_LANGUAGE_MAP = {
     "strong buy": "Strongly Constructive", "buy": "Constructive", "accumulate": "Constructive",
@@ -1023,65 +397,10 @@ def _suitable_for(horizon: str, risk_level: str) -> str:
     return "Balanced / Medium-Term Investors"
 
 
-def _sector_status(positive: bool, score: float) -> str:
-    s = score or 0
-    if positive:
-        if s >= 85:
-            return "Structural Tailwind"
-        if s >= 65:
-            return "Beneficiary"
-        return "Indirect Benefit"
-    if s <= 35:
-        return "Structural Headwind"
-    return "Headwind"
-
-
-def _sector_time_horizon(status: str) -> str:
-    return {
-        "Structural Tailwind": "3-5 Years", "Structural Headwind": "3-5 Years",
-        "Beneficiary": "2-3 Years", "Headwind": "2-3 Years",
-        "Indirect Benefit": "1-2 Years",
-    }.get(status, "1-2 Years")
-
-
-def _classify_ripple_position(companies: list[dict]) -> None:
-    """
-    Mutates `companies` in place, adding `ripple_position`. Deterministic,
-    based on sort rank within each impact_type group — not left entirely to
-    the AI, so labeling is consistent regardless of prompt compliance.
-    """
-    beneficiaries = [c for c in companies if (c.get("impact_type") or "").lower() == "beneficiary"]
-    at_risk       = [c for c in companies if (c.get("impact_type") or "").lower() == "at_risk"]
-    for i, c in enumerate(beneficiaries):
-        c["ripple_position"] = "Primary Beneficiary" if i < 2 else "Secondary Beneficiary"
-    for i, c in enumerate(at_risk):
-        c["ripple_position"] = "Primary Pressure" if i < 2 else "Secondary Pressure"
-    for c in companies:
-        c.setdefault("ripple_position", "Indirect Exposure")
-
-
-# Canonical vocabulary used by historical_memory_service's seed table — live
-# events only ever carry event_type="macro", which never matches this, so
-# historical comparison must be inferred from the query text itself instead.
-_HIST_CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "Monetary Policy":       ("rbi", "repo rate", "interest rate", "rate cut", "rate hike", "monetary policy"),
-    "Union Budget":          ("union budget", "budget 20", "capex outlay", "fiscal budget", "finance bill", "budget capex", "the budget", "latest budget", "budget announcement", "budget spending"),
-    "Infrastructure Policy": ("pli scheme", "production-linked incentive", "infrastructure policy", "production linked"),
-    "Geopolitical":          ("war", "geopolitical", "sanctions", "conflict", "border tension", "pakistan", "ukraine", "military"),
-    "Global Market Shock":   ("global market", "recession", "financial crisis", "bankruptcy", "fed taper", "contagion", "circuit breaker"),
-    "Corporate Crisis":      ("fraud", "default", "scam", "corporate crisis", "insolvency", "moratorium"),
-    "Commodity Shock":       ("crude", "oil price", "commodity shock", "gold price", "wti"),
-    "Election":              ("election", "lok sabha", "poll result", "government formation"),
-    "Regulatory":            ("gst", "regulation", "sebi", "compliance", "regulatory", "demonetization", "demonetisation"),
-    "Trade Policy":          ("trade deal", "tariff", "import duty", "export ban"),
-}
-_HIST_SECTOR_NAMES = [
-    "PSU Banks", "Housing Finance", "Capital Markets", "Capital Goods", "Specialty Chemicals",
-    "Consumer Durables", "Real Estate", "Oil & Gas", "Banking", "NBFC", "Defence", "Infrastructure",
-    "Metal", "Cement", "Auto", "Retail", "FMCG", "Aviation", "Railway", "PSU", "Pharma",
-    "Electronics", "Textile", "Telecom", "Media", "Ports", "Utilities", "Jewellery", "Hotels",
-    "Fertilizers", "Paints", "Tyres", "Financials", "Consumer", "Tourism", "Logistics", "Finance",
-]
+# _sector_status/_sector_time_horizon/_classify_ripple_position now live in
+# ai_search/enrichment.py. _HIST_CATEGORY_KEYWORDS/_HIST_SECTOR_NAMES/
+# _infer_historical_category/_infer_historical_sectors now live in
+# ai_search/retrieval.py. (P5 Stage 1, all imported above.)
 
 
 def _cap_words(text: str, limit: int = 120) -> str:
@@ -1118,17 +437,6 @@ def _key_difference(hist_query: dict, h: dict) -> str:
     if not parts:
         return "Limited structured overlap — treat as a loose historical reference only."
     return ("; ".join(parts) + ".")[0].upper() + ("; ".join(parts) + ".")[1:]
-
-
-def _infer_historical_category(query_lower: str) -> str | None:
-    for category, keywords in _HIST_CATEGORY_KEYWORDS.items():
-        if any(k in query_lower for k in keywords):
-            return category
-    return None
-
-
-def _infer_historical_sectors(query_lower: str) -> list[str]:
-    return [s for s in _HIST_SECTOR_NAMES if s.lower() in query_lower]
 
 
 def _build_market_horizons(ai: dict, confidence: float, sentiment: str) -> list[dict]:
@@ -1225,86 +533,8 @@ def _system_with_date() -> str:
     return f"{_SYSTEM}\n\n{current_date_context()}"
 
 
-def _fmt_drivers(drivers: list[dict]) -> str:
-    if not drivers:
-        return "no verified driver found"
-    return "; ".join(f"{d['driver']} [{d['confidence_tier']} confidence] ({d['evidence']})" for d in drivers)
-
-
-def _build_market_pulse_prompt(query: str, pulse: dict) -> str:
-    """
-    Market Pulse prompt — the LLM never selects or ranks anything here. Every
-    stock, sector, and number below was fetched by market_pulse_service
-    BEFORE this prompt was built. The model's only job is to explain the
-    given data in prose; it must not add, remove, or reorder any entry, and
-    must say so plainly (not invent a reason) when a stock has no verified
-    driver attached.
-    """
-    status = pulse.get("market_status") or {}
-    idx_lines = "\n".join(
-        f"- {i['name']}: {i['value']} ({i['change']})" for i in (pulse.get("indices") or [])
-    ) or "None"
-    lead_sec = "\n".join(f"- {s['name']}: {s['value']}" for s in (pulse.get("leading_sectors") or [])) or "None"
-    lag_sec  = "\n".join(f"- {s['name']}: {s['value']}" for s in (pulse.get("lagging_sectors") or [])) or "None"
-    gainers  = "\n".join(
-        f"- {g['company']} ({g['ticker']}) {g['value']} at {g['subtitle']} — verified drivers: {_fmt_drivers(g['verified_drivers'])}"
-        for g in (pulse.get("top_gainers") or [])
-    ) or "None"
-    losers   = "\n".join(
-        f"- {g['company']} ({g['ticker']}) {g['value']} at {g['subtitle']} — verified drivers: {_fmt_drivers(g['verified_drivers'])}"
-        for g in (pulse.get("top_losers") or [])
-    ) or "None"
-    opp = pulse.get("biggest_opportunity") or {}
-    risk = pulse.get("biggest_risk") or {}
-    watch = "\n".join(
-        f"- {w.get('date','')}: {w.get('title','')} ({w.get('category','')})" for w in (pulse.get("what_to_watch_next") or [])
-    ) or "None scheduled"
-
-    return f"""Query: "{query}"
-
-REAL MARKET DATA (already fetched — do not add, remove, reorder, or re-rank anything below; your only job is to explain it):
-
-Market status: {status.get('status', 'unknown')} ({status.get('time_ist', '')}, {status.get('date', '')})
-Market mood (from live intelligence engine): {pulse.get('market_mood', 'Neutral')} · direction: {pulse.get('market_direction', 'sideways')}
-
-Indices:
-{idx_lines}
-
-Leading sectors (real % change):
-{lead_sec}
-
-Lagging sectors (real % change):
-{lag_sec}
-
-Top gainers (real price + % change; verified drivers are the ONLY real evidence available for why each moved):
-{gainers}
-
-Top losers (real price + % change):
-{losers}
-
-Biggest opportunity on record: {opp.get('title', 'None')} — {opp.get('summary', '')}
-Biggest risk on record: {risk.get('headline') or risk.get('reason') or 'None'}
-
-Upcoming (real calendar):
-{watch}
-
-INSTRUCTIONS:
-- For each gainer/loser, write ONE sentence using ONLY the verified drivers given for it. If a stock's verified drivers say "no verified driver found", your sentence MUST say that plainly (e.g. "No specific news or sector driver was identified for this move — likely broad-market or idiosyncratic trading."). Do not invent a reason.
-- "market_summary" = 2-3 sentences synthesizing the real mood/index data above. Do not state index levels or % moves that aren't in the data above.
-- "sector_narrative" = 1 sentence on what the real leading/lagging sector split suggests.
-- "ai_conclusion" = 2-3 sentences: is today's move broad-based (many sectors/stocks participating) or narrow (isolated names)? What does the pattern across the real sectors and movers above suggest? This is synthesis of the given data, not new facts.
-- "what_to_watch_summary" = 1-2 sentences framing the real upcoming calendar items above. Do not invent events not listed.
-- Return valid JSON only. No markdown. No commentary outside the JSON.
-
-JSON to fill and return:
-{{
-  "market_summary": "",
-  "sector_narrative": "",
-  "gainer_narratives": {{ "<TICKER>": "one sentence per gainer above, keyed by ticker" }},
-  "loser_narratives": {{ "<TICKER>": "one sentence per loser above, keyed by ticker" }},
-  "ai_conclusion": "",
-  "what_to_watch_summary": ""
-}}"""
+# _fmt_drivers/_build_market_pulse_prompt now live in ai_search/market_pulse.py
+# (P5 Stage 1, imported above).
 
 
 def _build_decision_prompt(
@@ -1668,80 +898,7 @@ CRITICAL RULES:
 - Every company named in "summary"/"bottom_line" must also appear in the "companies" list, and vice versa — don't discuss a company in prose that isn't in the structured list, or list one you never mention.{_commodity_safety_note(query)}{_intent_overlay(intent_data, extra_context)}"""
 
 
-def _intent_overlay(intent_data: dict | None, extra_context: str = "") -> str:
-    """Return an intent-specific instruction block appended to the main prompt."""
-    if not intent_data:
-        return f"\n\nADDITIONAL CONTEXT:\n{extra_context}" if extra_context else ""
-
-    intent     = intent_data.get("intent", "general")
-    budget     = intent_data.get("budget") or ""
-    pick_count = intent_data.get("pick_count") or 3
-    portfolio  = intent_data.get("portfolio") or []
-    horizon    = intent_data.get("horizon") or "medium-term"
-    budget_note = f"\n- User has {budget} to invest — calibrate sizing accordingly." if budget else ""
-    portfolio_note = f"\n- Portfolio holdings: {', '.join(portfolio)}" if portfolio else ""
-
-    overlays: dict[str, str] = {
-        "list_picks": f"""
-
-INTENT: LIST PICKS — User wants a ranked stock list, not an essay.
-- Return exactly {pick_count} companies in "companies" array, ranked by conviction (highest first).
-- "investment_verdict.rating" must be "Top {pick_count} Picks Identified".
-- "investment_verdict.top_picks" must contain the top 3 NSE symbols.
-- Each company "reason" must be a specific 1-sentence thesis (not generic).
-- "follow_up_questions" must address: position sizing, entry triggers, stop-loss, time horizon.{budget_note}""",
-
-        "news_reaction": f"""
-
-INTENT: NEWS REACTION — A recent event just happened; user wants immediate guidance.
-- "summary" must be exactly what this news means for investors RIGHT NOW (2 sentences).
-- "immediate_impact" must name specific sectors/stocks and expected directional move.
-- "medium_term" must describe the thesis window (days/weeks, not months).
-- "follow_up_questions" must include: price level where thesis breaks, add/reduce decision, key upcoming catalyst.
-- Prioritize recency — today's news beats older context.{budget_note}""",
-
-        "earnings_preview": f"""
-
-INTENT: EARNINGS PREVIEW — User is positioning ahead of results.
-- "summary" must cover: consensus expectations, key metrics to watch, beat vs miss thresholds.
-- "risks" must list miss scenarios with expected stock reactions (e.g. "-5% if revenue misses by 2%").
-- "opportunities" must list beat scenarios with upside estimates.
-- "key_drivers" should reference the company's recent earnings reaction pattern where relevant.
-- "follow_up_questions" must address: historical move range, key metric focus, risk/reward ratio.
-- "timeline" must show: results date, pre-result window, post-result action.{budget_note}""",
-
-        "entry_timing": f"""
-
-INTENT: ENTRY TIMING — User wants to know if now is a good entry point.
-- "summary" must assess: current price vs historical range, risk/reward at today's level.
-- "immediate_impact" must state the current technical setup (near 52W high/low, recent trend).
-- "opportunities" must list: entry triggers and what confirms the setup.
-- "risks" must list: why this level could be a trap (overhead resistance, near-term catalysts).
-- "follow_up_questions" must include: stop-loss level, scale-in strategy, what invalidates the thesis.
-- HORIZON: {horizon}.{budget_note}""",
-
-        "portfolio_review": f"""
-
-INTENT: PORTFOLIO REVIEW — User wants portfolio-level analysis.
-- "summary" must cover: sector concentration, single-factor exposure, missing diversifiers.
-- "sectors" must list all sectors covered AND key missing ones (label missing ones "Underweight").
-- "risks" must include portfolio-level risks: concentration, correlation, liquidity.
-- "opportunities" must include: diversification adds, rebalancing actions.
-- "follow_up_questions" must address: rebalancing triggers, missing asset classes, hedging options, tax implications.{portfolio_note}{budget_note}""",
-
-        "sell": f"""
-
-INTENT: SELL / EXIT ANALYSIS — User is evaluating whether to exit a position.
-- "summary" must weigh: exit thesis strength vs opportunity cost of remaining.
-- "investment_verdict.direction" should be "bearish" if exit is recommended, "neutral" otherwise.
-- "risks" must include: what happens if the bearish thesis is wrong (false exit risk).
-- "opportunities" must include: where to redeploy capital after exiting.
-- "follow_up_questions" must include: tax implications, redeployment options, what would reverse the sell thesis.{budget_note}""",
-    }
-
-    overlay = overlays.get(intent, "")
-    ctx_block = f"\n\nADDITIONAL CONTEXT:\n{extra_context}" if extra_context else ""
-    return overlay + ctx_block
+# _intent_overlay now lives in ai_search/enrichment.py (P5 Stage 1, imported above).
 
 
 # ── Insight card generation (separate focused call) ───────────────────────────
@@ -1798,128 +955,8 @@ async def _generate_insights(query: str, summary: str) -> list[dict]:
     return []
 
 
-# ── Company price enrichment ──────────────────────────────────────────────────
-def _enrich_sync(companies: list[dict]) -> list[dict]:
-    """Add live prices synchronously (runs in executor)."""
-    from app.services.market_data import _fetch_quote, _fmt_price, _fetch_history
-    enriched = []
-    for c in companies:
-        sym = c.get("symbol", "")
-        # Strip exchange suffix if AI already included it (e.g. HDFCBANK.NS → HDFCBANK)
-        sym_base = re.sub(r'\.(NS|BO|BSE|NSE)$', '', sym.strip().upper())
-        try:
-            q = _fetch_quote(f"{sym_base}.NS")
-            if q:
-                c["price"]    = _fmt_price(q["price"])
-                c["change"]   = f"{'+' if q['positive'] else ''}{q['pct']:.2f}%"
-                c["positive"] = q["positive"]
-                # Tiny sparkline (5d daily)
-                hist = _fetch_history(f"{sym_base}.NS", "5d", "1d")
-                c["chart"] = [h["value"] for h in (hist or [])][-5:]
-            else:
-                c["price"] = "—"; c["change"] = "—"; c["positive"] = True; c["chart"] = []
-        except Exception:
-            c["price"] = "—"; c["change"] = "—"; c["positive"] = True; c["chart"] = []
-        enriched.append(c)
-    return enriched
-
-
-# ── Valuation data fetch ──────────────────────────────────────────────────────
-def _fetch_valuation_sync(symbols: list[str]) -> dict:
-    """Fetch P/E, P/B, 52W range from yfinance for valuation-sensitive queries."""
-    import yfinance as yf
-    result: dict = {}
-    for sym in symbols[:3]:
-        try:
-            info = yf.Ticker(f"{sym}.NS").info or {}
-            pe  = info.get("trailingPE") or info.get("forwardPE")
-            pb  = info.get("priceToBook")
-            hi  = info.get("fiftyTwoWeekHigh")
-            lo  = info.get("fiftyTwoWeekLow")
-            result[sym] = {
-                k: v for k, v in {
-                    "pe": round(float(pe), 1) if pe else None,
-                    "pb": round(float(pb), 2) if pb else None,
-                    "52w_high": round(float(hi), 1) if hi else None,
-                    "52w_low":  round(float(lo), 1) if lo else None,
-                }.items() if v is not None
-            }
-        except Exception:
-            pass
-    return result
-
-
-def _fetch_vix_sync() -> float | None:
-    """Fetch current India VIX level."""
-    import yfinance as yf
-    try:
-        hist = yf.download("^INDIAVIX", period="1d", interval="1d", progress=False, auto_adjust=True, timeout=10)
-        if not hist.empty:
-            close = hist["Close"].iloc[-1]
-            v = float(close.iloc[0] if hasattr(close, "iloc") else close)
-            return round(v, 2)
-    except Exception:
-        pass
-    return None
-
-
-# ── Market chart ──────────────────────────────────────────────────────────────
-def _fetch_chart_sync(tickers: list) -> dict:
-    """Fetch 1D intraday chart. Uses company tickers when provided, else indices."""
-    import yfinance as yf
-    import math
-
-    def _series(ticker: str):
-        try:
-            hist = yf.download(ticker, period="1d", interval="60m",
-                               progress=False, auto_adjust=True, timeout=10)
-            if hist.empty:
-                return [], []
-            labels, vals = [], []
-            for idx, row in hist.iterrows():
-                try:
-                    close = row["Close"]
-                    v = float(close.iloc[0] if hasattr(close, "iloc") else close)
-                    if math.isnan(v) or math.isinf(v):
-                        continue
-                    labels.append(idx.strftime("%H:%M"))
-                    vals.append(v)
-                except Exception:
-                    continue
-            return labels, vals
-        except Exception:
-            return [], []
-
-    def _norm(vals: list) -> list:
-        if not vals:
-            return []
-        base = vals[0] or 1
-        return [round((v / base - 1) * 100, 3) for v in vals]
-
-    # Company-specific chart when companies were identified in the query
-    if tickers:
-        series, labels = [], []
-        for name, ticker, color in tickers[:4]:
-            lbls, vals = _series(ticker)
-            if vals:
-                if len(lbls) > len(labels):
-                    labels = lbls
-                series.append({"name": name, "data": _norm(vals), "color": color})
-        if series:
-            return {"labels": labels, "series": series}
-
-    # Fallback: generic market indices
-    n_l, n_v = _series("^NSEI")
-    _, b_v   = _series("^NSEBANK")
-    _, it_v  = _series("^CNXIT")
-    return {
-        "labels": n_l,
-        "series": [
-            {"name": "Nifty 50",   "data": _norm(n_v),  "color": "#818cf8"},
-            {"name": "Bank Nifty", "data": _norm(b_v),  "color": "#34d399"},
-            {"name": "Nifty IT",   "data": _norm(it_v), "color": "#fb923c"},
-        ],
-    }
+# _enrich_sync/_fetch_valuation_sync/_fetch_vix_sync/_fetch_chart_sync now
+# live in ai_search/enrichment.py (P5 Stage 1, imported above).
 
 
 # ── Network graph ─────────────────────────────────────────────────────────────
@@ -1945,89 +982,8 @@ def _build_graph(query: str, sectors: list[dict], companies: list[dict]) -> dict
 
 
 # ── Ripple chain (real graph traversal — MarketRipple's differentiator) ───────
-_FALL_WORDS = re.compile(r"\b(falls?|falling|drops?|declin\w*|cuts?|lower|down|crash\w*|slump\w*)\b", re.IGNORECASE)
-
-
-async def _build_ripple_chain(query: str) -> list[dict]:
-    """
-    Resolves the query's primary entity to a real intelligence-graph node and
-    returns a branching, depth-leveled causal structure — every node at every
-    level is a genuine weighted-edge traversal result from
-    `intelligence_graph_service.ripple_from_node` (first-order, second-order,
-    third-order effects), never a single cherry-picked linear path and never
-    an invented node. Returns [] when the query's entity isn't a graph node
-    yet (graceful — not every query has one).
-
-    Shape: [{"depth": 0, "nodes": [{id,label,type,direction,weight,parent_id}]}, ...]
-    """
-    try:
-        from app.ai_pipeline.retrieval.entity_resolver import resolve_entities
-        from app.services.intelligence_graph_service import ripple_from_node
-
-        entities = [e for e in await resolve_entities(query, limit=5) if e.get("in_graph")]
-        if not entities:
-            return []
-        change = "fall" if _FALL_WORDS.search(query) else "rise"
-
-        # The highest-scored entity isn't always useful as a ripple source —
-        # e.g. "Defence" (sector) can outrank "Union Budget Defence Boost"
-        # (policy) on text-match score alone, yet Defence is a sink node
-        # with no outgoing edges. Try candidates in score order and use the
-        # first one that actually produces a real traversal.
-        source, impacts = None, []
-        for candidate in entities:
-            result = await ripple_from_node(candidate["id"], change=change, max_depth=4)
-            candidate_impacts = result.get("impacts", [])
-            if candidate_impacts:
-                source, impacts = candidate, candidate_impacts
-                break
-        if not impacts:
-            return []
-
-        # ripple_from_node's BFS can append the same node more than once
-        # (each time a higher-weight path to it is found via a different
-        # parent) without removing the earlier, weaker entry — collapse to
-        # one entry per node, keeping its strongest path, before grouping by
-        # depth. Without this a node could land in the level-nodes list
-        # twice, producing duplicate React keys on render.
-        best_by_node: dict[str, dict] = {}
-        for impact in impacts:
-            nid = (impact.get("node") or {}).get("id")
-            if not nid:
-                continue
-            prev = best_by_node.get(nid)
-            if prev is None or float(impact.get("accumulated_weight", 0) or 0) > float(prev.get("accumulated_weight", 0) or 0):
-                best_by_node[nid] = impact
-
-        by_depth: dict[int, list[dict]] = {}
-        for impact in best_by_node.values():
-            node = impact.get("node", {}) or {}
-            depth = impact.get("depth", 1)
-            path = impact.get("path", [])
-            parent_id = path[-1].get("from") if path else source["id"]
-            by_depth.setdefault(depth, []).append({
-                "id": node.get("id"), "label": node.get("label"), "type": node.get("node_type"),
-                "direction": impact.get("impact_direction", "uncertain"),
-                "weight": round(float(impact.get("accumulated_weight", 0) or 0), 2),
-                "parent_id": parent_id,
-            })
-
-        levels: list[dict] = [{
-            "depth": 0,
-            "nodes": [{
-                "id": source["id"], "label": source["label"], "type": source["node_type"],
-                "direction": "positive" if change == "rise" else "negative", "weight": 1.0, "parent_id": None,
-            }],
-        }]
-        for depth in sorted(by_depth.keys())[:4]:
-            # Cap branch width per level so the diagram stays readable —
-            # strongest real edges win, nothing here is invented.
-            nodes = sorted(by_depth[depth], key=lambda n: n["weight"], reverse=True)[:5]
-            levels.append({"depth": depth, "nodes": nodes})
-        return levels
-    except Exception as exc:
-        log.warning("ai_search.ripple_chain_failed", error=str(exc)[:150])
-        return []
+# _FALL_WORDS/_build_ripple_chain now live in ai_search/ripple_graph.py
+# (P5 Stage 1, imported above).
 
 
 # ── Market Pulse pipeline — real data first, AI explains only ─────────────────
@@ -2051,7 +1007,14 @@ def _parse_json_response(raw: str | None) -> dict:
 
 
 async def _run_market_pulse_search(query: str) -> dict:
-    """
+    """P5 Stage 1 (2026-08-06): deliberately NOT relocated, unlike
+    _build_market_pulse_prompt/_detect_market_pulse_async (both now in
+    ai_search/market_pulse.py) — this is the actual orchestration V3's own
+    pipeline.py imports directly rather than reimplementing, per that
+    file's own docstring: Market Pulse "stays V2's exact mechanism," not an
+    oversight. Flagged for the same Stage 2 decision as
+    _unrecognized_company_response.
+
     Real-data-first path for "which stocks performed well", "best sector",
     "market summary" and similar queries. market_intelligence_service fetches
     every fact BEFORE any LLM call; the model is only allowed to explain what

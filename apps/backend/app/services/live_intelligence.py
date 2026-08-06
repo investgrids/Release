@@ -140,7 +140,7 @@ async def _detect_policy_ripple(db: AsyncSession) -> dict | None:
     itself is still real (not fabricated), but the freshness claim was
     false. `is_fallback` now marks that distinction so the frontend can be
     honest about it instead of implying "detected right now.\""""
-    from app.services.ai_search_service import _build_ripple_chain
+    from app.services.ai_search.ripple_graph import _build_ripple_chain
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_CLUSTER_WINDOW_HOURS)
     policy_row = (await db.execute(
@@ -242,7 +242,7 @@ async def _detect_historical_match(article) -> dict | None:
     signal like AI Search's query-text-derived one has), so its ceiling is
     structurally lower — a modest real score here is still a real, honest
     signal, not a weaker version of the same claim."""
-    from app.services.ai_search_service import _infer_historical_category
+    from app.services.ai_search.retrieval import _infer_historical_category
     from app.services.historical_memory_service import find_similar_events
 
     sectors = sorted(

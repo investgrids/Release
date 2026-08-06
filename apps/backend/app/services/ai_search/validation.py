@@ -352,7 +352,7 @@ def _check_contradictions(out: dict, report: ValidationReport) -> None:
     """The named failure mode: bullish sentiment + a heavily bearish scenario
     + a top-tier positive rating all coexisting. Downgrades toward neutral
     and adds a caveat rather than silently picking a side."""
-    from app.services.ai_search_service import _OUTLOOK_LABELS
+    from app.services.ai_search.regexes import _OUTLOOK_LABELS
 
     verdict = out.get("investment_verdict") or {}
     sentiment = (out.get("sentiment") or "neutral").lower()

@@ -48,7 +48,7 @@ def _identify_sector(query: str, sector_rows: list[dict]) -> str | None:
 
 
 def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str:
-    from app.services.ai_search_service import _OUTLOOK_LABELS
+    from app.services.ai_search.regexes import _OUTLOOK_LABELS
 
     sector_rows = evidence.sector_rows
     target_sector = _identify_sector(query, sector_rows)

@@ -46,7 +46,7 @@ def _humanize_params(params: dict) -> str:
 
 
 def build_prompt(original_query: str, evidence_context: str, companies: list[dict], is_comparison: bool, params: dict) -> str:
-    from app.services.ai_search_service import _OUTLOOK_LABELS
+    from app.services.ai_search.regexes import _OUTLOOK_LABELS
 
     co_names = ", ".join(f"{c.get('symbol')} ({c.get('name')})" for c in companies[:5] if c.get("symbol")) or "none identified"
     investment_group = render_investment_group()

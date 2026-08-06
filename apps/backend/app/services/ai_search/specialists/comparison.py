@@ -38,7 +38,7 @@ MAX_TOKENS = 7000
 
 
 def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str:
-    from app.services.ai_search_service import (
+    from app.services.ai_search.regexes import (
         _COMMODITY_TICKERS,
         _OUTLOOK_LABELS,
     )

@@ -23,9 +23,103 @@ resilience contract as _build_ripple_chain itself.
 """
 from __future__ import annotations
 
+import re
+
+import structlog
+
+log = structlog.get_logger(__name__)
+
 _ROW_HEIGHT = 130
 _COL_WIDTH = 170
 _MAX_PER_ROW = 6
+
+_FALL_WORDS = re.compile(r"\b(falls?|falling|drops?|declin\w*|cuts?|lower|down|crash\w*|slump\w*)\b", re.IGNORECASE)
+
+
+async def _build_ripple_chain(query: str) -> list[dict]:
+    """
+    Resolves the query's primary entity to a real intelligence-graph node and
+    returns a branching, depth-leveled causal structure — every node at every
+    level is a genuine weighted-edge traversal result from
+    `intelligence_graph_service.ripple_from_node` (first-order, second-order,
+    third-order effects), never a single cherry-picked linear path and never
+    an invented node. Returns [] when the query's entity isn't a graph node
+    yet (graceful — not every query has one).
+
+    Shape: [{"depth": 0, "nodes": [{id,label,type,direction,weight,parent_id}]}, ...]
+
+    P5 Stage 1 (2026-08-06): relocated here from ai_search_service.py — this
+    module was already the sole consumer (V2 itself doesn't call this
+    directly; both pipelines' entry points to this logic go through here).
+    """
+    try:
+        from app.ai_pipeline.retrieval.entity_resolver import resolve_entities
+        from app.services.intelligence_graph_service import ripple_from_node
+
+        entities = [e for e in await resolve_entities(query, limit=5) if e.get("in_graph")]
+        if not entities:
+            return []
+        change = "fall" if _FALL_WORDS.search(query) else "rise"
+
+        # The highest-scored entity isn't always useful as a ripple source —
+        # e.g. "Defence" (sector) can outrank "Union Budget Defence Boost"
+        # (policy) on text-match score alone, yet Defence is a sink node
+        # with no outgoing edges. Try candidates in score order and use the
+        # first one that actually produces a real traversal.
+        source, impacts = None, []
+        for candidate in entities:
+            result = await ripple_from_node(candidate["id"], change=change, max_depth=4)
+            candidate_impacts = result.get("impacts", [])
+            if candidate_impacts:
+                source, impacts = candidate, candidate_impacts
+                break
+        if not impacts:
+            return []
+
+        # ripple_from_node's BFS can append the same node more than once
+        # (each time a higher-weight path to it is found via a different
+        # parent) without removing the earlier, weaker entry — collapse to
+        # one entry per node, keeping its strongest path, before grouping by
+        # depth. Without this a node could land in the level-nodes list
+        # twice, producing duplicate React keys on render.
+        best_by_node: dict[str, dict] = {}
+        for impact in impacts:
+            nid = (impact.get("node") or {}).get("id")
+            if not nid:
+                continue
+            prev = best_by_node.get(nid)
+            if prev is None or float(impact.get("accumulated_weight", 0) or 0) > float(prev.get("accumulated_weight", 0) or 0):
+                best_by_node[nid] = impact
+
+        by_depth: dict[int, list[dict]] = {}
+        for impact in best_by_node.values():
+            node = impact.get("node", {}) or {}
+            depth = impact.get("depth", 1)
+            path = impact.get("path", [])
+            parent_id = path[-1].get("from") if path else source["id"]
+            by_depth.setdefault(depth, []).append({
+                "id": node.get("id"), "label": node.get("label"), "type": node.get("node_type"),
+                "direction": impact.get("impact_direction", "uncertain"),
+                "weight": round(float(impact.get("accumulated_weight", 0) or 0), 2),
+                "parent_id": parent_id,
+            })
+
+        levels: list[dict] = [{
+            "depth": 0,
+            "nodes": [{
+                "id": source["id"], "label": source["label"], "type": source["node_type"],
+                "direction": "positive" if change == "rise" else "negative", "weight": 1.0, "parent_id": None,
+            }],
+        }]
+        for depth in sorted(by_depth.keys())[:4]:
+            # Cap branch width per level so the diagram stays readable —
+            # strongest real edges win, nothing here is invented.
+            nodes = sorted(by_depth[depth], key=lambda n: n["weight"], reverse=True)[:5]
+            levels.append({"depth": depth, "nodes": nodes})
+        return levels
+    except Exception as exc:
+        log.warning("ai_search.ripple_chain_failed", error=str(exc)[:150])
+        return []
 
 
 def _sector_for(symbol: str) -> str | None:
@@ -72,8 +166,6 @@ async def build(
     risks: list[str],
     opportunities: list[str],
 ) -> dict:
-    from app.services.ai_search_service import _build_ripple_chain
-
     nodes: list[dict] = []
     edges: list[dict] = []
     seen_ids: set[str] = set()

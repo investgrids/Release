@@ -29,12 +29,14 @@ historical precedent matches: hours). Lets "HAL vs BEL" and "Should I buy
 HAL" reuse the same HAL company-intelligence fetch without either query
 having hit Layer 1 or 2.
 
-All three layers share the same underlying store as V2's existing cache
-(ai_search_service._CACHE) — the proven, already-running in-process
-mechanism — namespaced by key prefix so nothing collides. This module
-adds no new cache backend, no new eviction policy, nothing V2 didn't
-already have; it only adds normalization (Layer 2) and finer-grained keys
-(Layer 3) on top of the same dict.
+All three layers share the same underlying store V2 also uses (`_CACHE`,
+defined below — P5 Stage 1 relocated it here from ai_search_service.py,
+which now imports it back from this module; the proven, already-running
+in-process mechanism didn't change, only which file owns the definition)
+— namespaced by key prefix so nothing collides. This module adds no new
+cache backend, no new eviction policy, nothing V2 didn't already have; it
+only adds normalization (Layer 2) and finer-grained keys (Layer 3) on top
+of the same dict.
 """
 from __future__ import annotations
 
@@ -44,9 +46,17 @@ from typing import Any, Awaitable, Callable, TypeVar
 
 import structlog
 
-from app.services.ai_search_service import _CACHE
-
 log = structlog.get_logger(__name__)
+
+# P5 Stage 1 (2026-08-06): relocated here from ai_search_service.py — the
+# one STATEFUL symbol in the whole extraction. V2 now imports this object
+# back from here (`from app.services.ai_search.cache import _CACHE`) rather
+# than defining it — both pipelines must mutate the exact same dict, not two
+# separate instances that happen to share a name. Verified explicitly via
+# object identity (id(_CACHE) compared across both import paths), not just
+# "imports without error" — a silent split here would quietly break caching
+# for one pipeline while everything else looked fine.
+_CACHE: dict[str, tuple[float, Any]] = {}
 
 T = TypeVar("T")
 
