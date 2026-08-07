@@ -519,18 +519,22 @@ async def _assemble_response(
         "specialist": specialist_kind,
         # P5 Stage 2, item 5: degraded_reason is the single source of truth;
         # synthesis_incomplete is derived from it, never set independently.
-        # Priority matches V2's: a failed-to-generate response (was_degraded)
-        # takes priority over multi_entity_partial — more severe than
-        # "compared 2 of 3 real entities". P5 Stage 4: was hardcoded to
-        # "parse_failure" regardless of cause — now reads the real cause
-        # (base.py's parse_specialist_json sets "capacity" when the LLM
-        # never returned any text at all, vs "parse_failure" when it did but
-        # couldn't be parsed), mirroring V2's existing distinction.
+        # Priority: was_degraded (failed to generate at all) > grounding_collapsed
+        # (generated, but its own supporting companies collapsed during
+        # validation) > multi_entity_partial (generated fine, just covers
+        # fewer entities than named) — each a strictly less severe
+        # degradation than the one before it. P5 Stage 4: was_degraded's
+        # reason was hardcoded to "parse_failure" regardless of cause — now
+        # reads the real cause (base.py's parse_specialist_json sets
+        # "capacity" when the LLM never returned any text at all, vs
+        # "parse_failure" when it did but couldn't be parsed), mirroring
+        # V2's existing distinction.
         "degraded_reason": (
             ai.get("_degraded_reason", "parse_failure") if was_degraded
+            else "grounding_collapsed" if validation_report.grounding_collapsed
             else ("multi_entity_partial" if dropped_companies else None)
         ),
-        "synthesis_incomplete": was_degraded or bool(dropped_companies),
+        "synthesis_incomplete": was_degraded or bool(dropped_companies) or validation_report.grounding_collapsed,
         "answer": {
             "summary": ai.get("summary", ""),
             "bottom_line": ai.get("bottom_line", ai.get("summary", "")),
@@ -585,10 +589,17 @@ async def _assemble_response(
             "breakdown": {},
             # P5 Stage 2, item 3: honest signal when a 3+-entity comparison
             # got collapsed to the 2 actually compared — never silent.
+            # P5 Stage 4: same treatment when the companies array itself
+            # collapsed during validation — the verdict's rating was already
+            # downgraded by _check_grounding_collapse; this is the
+            # user-facing explanation for why.
             "caveats": (
-                [f"This comparison covers 2 of {len(dropped_companies) + 2} companies named in "
-                 f"the query — {', '.join(dropped_companies)} not included."]
-                if dropped_companies else []
+                ([f"This comparison covers 2 of {len(dropped_companies) + 2} companies named in "
+                  f"the query — {', '.join(dropped_companies)} not included."]
+                 if dropped_companies else [])
+                + ([f"This verdict's supporting company data could not be validated — treat this "
+                    f"{(ai.get('investment_verdict') or {}).get('direction', 'directional')} call with reduced confidence."]
+                   if validation_report.grounding_collapsed else [])
             ),
         },
         # ── Phase 1 new fields ──

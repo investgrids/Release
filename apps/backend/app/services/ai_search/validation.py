@@ -41,6 +41,15 @@ class ValidationReport:
     repairs: list[str] = field(default_factory=list)
     omissions: list[str] = field(default_factory=list)
     contradiction_flagged: bool = False
+    # P5 Stage 4 — set by _dedupe_companies (raw counts, always recorded
+    # when a companies array was present) and read by _check_grounding_collapse.
+    pre_dedup_company_count: int | None = None
+    post_dedup_company_count: int | None = None
+    # P5 Stage 4 — set by _check_grounding_collapse; read by pipeline.py's
+    # _assemble_response to set degraded_reason="grounding_collapsed" and
+    # add a caveat, the same way contradiction_flagged/dropped_companies
+    # already drive their own signals downstream.
+    grounding_collapsed: bool = False
 
     @property
     def clean(self) -> bool:
@@ -148,6 +157,10 @@ def validate_and_repair(parsed: dict) -> tuple[dict, ValidationReport]:
         _check_companies_narrative_consistency(out, report)
     except Exception:
         pass
+    try:
+        _check_grounding_collapse(out, report)
+    except Exception:
+        pass
 
     return out, report
 
@@ -230,6 +243,11 @@ def _dedupe_companies(out: dict, report: ValidationReport) -> None:
             best_by_symbol[sym] = c
         elif float(c.get("impact_score", 0) or 0) > float(best_by_symbol[sym].get("impact_score", 0) or 0):
             best_by_symbol[sym] = c
+    # P5 Stage 4 — recorded unconditionally (not just when a repair fires)
+    # so _check_grounding_collapse always has real pre/post counts to
+    # compare, even on the common case where nothing was actually dropped.
+    report.pre_dedup_company_count = len(companies)
+    report.post_dedup_company_count = len(order)
     if len(order) < len(companies):
         out["companies"] = [best_by_symbol[s] for s in order]
         report.repairs.append(f"companies: deduped {len(companies)} -> {len(order)} entries")
@@ -381,3 +399,51 @@ def _check_contradictions(out: dict, report: ValidationReport) -> None:
         if isinstance(ai_conclusion, dict) and ai_conclusion.get("investor_action_note"):
             ai_conclusion["investor_action_note"] = None
             report.omissions.append("ai_conclusion.investor_action_note omitted due to unresolved contradiction")
+
+
+def _check_grounding_collapse(out: dict, report: ValidationReport) -> None:
+    """P5 Stage 4 — same shape as _check_contradictions: a verdict must
+    never ship with a confident directional tone once its own grounding
+    (the companies array) has collapsed during validation. _dedupe_companies
+    discarding symbol-less entries is correct behavior (never fabricate a
+    ticker) — this catches what happens *downstream* of that correct
+    decision, not a flaw in it.
+
+    Found live: a sector-vs-sector query ("Should I rotate from Banking to
+    Pharma right now?") shipped a bullish/Constructive verdict backed by
+    zero validated companies, after both raw entries were discarded — one a
+    bare sector name with no symbol, one a name corrupted by a regex bug in
+    entity extraction (since fixed — decision_intent.py's
+    _SWITCH_FROM_TO_RE). This check is independent of that root-cause fix:
+    it's the safety net for whenever the companies array collapses, for
+    whatever reason, not just this one now-closed cause."""
+    pre = report.pre_dedup_company_count
+    post = report.post_dedup_company_count
+    if pre is None or post is None or pre == 0:
+        return
+    collapsed = post == 0 or post < pre * 0.5
+    if not collapsed:
+        return
+
+    verdict = out.get("investment_verdict") or {}
+    direction = verdict.get("direction", "neutral")
+    if direction == "neutral":
+        # A neutral/cautious call has no confident directional tone to be
+        # ungrounded — nothing to temper.
+        return
+
+    from app.services.ai_search.regexes import _OUTLOOK_LABELS
+
+    report.grounding_collapsed = True
+    rating = verdict.get("rating", "")
+    try:
+        idx = _OUTLOOK_LABELS.index(rating)
+        new_idx = min(idx + 2, len(_OUTLOOK_LABELS) - 1)
+        verdict["rating"] = _OUTLOOK_LABELS[new_idx]
+    except ValueError:
+        verdict["rating"] = "Selectively Constructive"
+    report.repairs.append(
+        f"investment_verdict.rating downgraded from '{rating}' to '{verdict['rating']}' — "
+        f"companies array collapsed from {pre} to {post} during validation, leaving this "
+        f"{direction} verdict without validated grounding"
+    )

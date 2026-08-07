@@ -183,6 +183,27 @@ _GENERIC_SUFFIX_WORDS = {
     "consultancy", "solutions", "products", "power", "steel", "cement",
 }
 
+# P5 Stage 4 — ordinary English words confirmed live to fuzzy-match a real
+# company's SHORT alias at a deceptively high ratio, despite carrying no
+# company-identifying signal: "latest" -> "latent" (Latent View Analytics,
+# 0.83), "continue" -> "container" (Container Corp, 0.82), "infrastructure"
+# -> "gmr/irb/jsw infrastructure" (0.875 — a large fraction of each short
+# alias's own length, the same substring-inflation failure _GENERIC_SUFFIX_
+# WORDS already exists to prevent, just not yet covering this word).
+# _GENERIC_SUFFIX_WORDS doesn't fit these — they're not corporate-suffix
+# words, they're ordinary vocabulary that happens to collide. Different
+# mechanism from a misspelling: a real English word used correctly isn't a
+# typo of anything, so excluding it costs nothing on the legitimate-match
+# side (verified: none of "Relaince"/"Infosis"/"HDFC Bnak"/"Infy" are real
+# dictionary words, and none are in this list). Quantified via a ~105-word
+# scan of ordinary query vocabulary: only these 3 triggered — a real but
+# bounded pattern (~3%), not systemic. Same curation model as
+# _GENERIC_SUFFIX_WORDS above: seeded from confirmed cases, grown as new
+# ones are found live, not a preemptive dictionary.
+_FUZZY_EXCLUDED_WORDS = {
+    "latest", "continue", "infrastructure",
+}
+
 
 def _word_ngrams(text: str, max_len: int = 3) -> list[str]:
     """1-to-max_len contiguous word n-grams, longest-first (so a full 2-word
@@ -226,6 +247,8 @@ def _strip_generic(text: str) -> str:
 
 def _fuzzy_candidates(token: str, cutoff: float, limit: int = 3) -> list[tuple[dict, float]]:
     if len(token) < 3:
+        return []
+    if token.lower() in _FUZZY_EXCLUDED_WORDS:
         return []
     token_core = _strip_generic(token)
     if len(token_core) < 3:

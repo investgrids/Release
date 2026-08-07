@@ -80,7 +80,22 @@ def resolve_comparison(query: str, intent_data: dict, entities: dict) -> tuple[b
             idx = query.lower().find(needle)
             return idx if idx >= 0 else 10_000
 
-        ordered = sorted(matches, key=_first_pos)
+        # P5 Stage 4 — defense in depth, independent of entities.py's own
+        # false-positive fix: an exact/alias match names a real,
+        # unambiguous company; a fuzzy match is inherently less trustworthy
+        # (it's a similarity guess, however well-tuned the matcher is).
+        # An exact match should never be displaced from the 2 kept entities
+        # by a fuzzy one that merely happens to appear earlier in the
+        # sentence — found live: "continue" (fuzzy match -> CONCOR)
+        # appearing before "BEL"/"HAL" (both exact) in "Should I continue
+        # holding BEL or switch to HAL?" pushed BEL, the query's actual
+        # subject, out of the kept pair. Position still breaks ties within
+        # the same confidence tier.
+        def _sort_key(m: dict) -> tuple[int, int]:
+            tier = 0 if m.get("match_type") == "exact" else 1
+            return (tier, _first_pos(m))
+
+        ordered = sorted(matches, key=_sort_key)
         return True, ordered[0]["name"], ordered[1]["name"]
 
     # Comparison-shaped text but fewer than 2 real companies resolved (e.g.
