@@ -42,6 +42,7 @@ from app.services.news_fetcher import get_live_news
 # this file. _unrecognized_company_response stays V2-only (V3 now has its
 # own native version, pipeline.py's _unrecognized_company_response_v3).
 from app.services.ai_search.cache import _CACHE
+from app.services.ai_search.horizon import compute_horizon as _compute_horizon
 from app.services.ai_search.market_pulse import _run_market_pulse_search
 from app.services.ai_search.decision_intent import (
     _BUDGET_RE, _COMPARE_RE, _COMPARE_RE_3, _COMPARE_RE_AND, _DECISION_INTENTS,
@@ -1803,7 +1804,12 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     # Research Outlook — rating is forced through the 8-label enum regardless
     # of what the AI returned; this is a research platform, never advisory.
     _verdict_raw  = ai.get("investment_verdict", {}) or {}
-    _verdict_horizon = _verdict_raw.get("horizon", "6-12 months")
+    # P5 Stage 3, item 4 — real horizon only when the AI didn't state one;
+    # a real AI-stated horizon is always kept as-is. Shared with V3's
+    # equivalent fallback (pipeline.py's _assemble_response) via horizon.py.
+    _verdict_horizon = _verdict_raw.get("horizon") or _compute_horizon(
+        _vix_level, similar, ai.get("medium_term"), ai.get("long_term"),
+    )
     _verdict_risk    = "High" if _final_confidence < 50 else ("Medium" if _final_confidence < 75 else "Low")
 
     if intent == "list_picks":

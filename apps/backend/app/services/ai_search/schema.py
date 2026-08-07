@@ -81,11 +81,20 @@ def flatten_nested(nested: dict) -> dict:
             "rating": inv.get("rating", "Neutral"),
             "direction": inv.get("direction", "neutral"),
             "confidence": inv.get("confidence", 50),
-            "horizon": inv.get("horizon", "6-12 months"),
+            # P5 Stage 3: no hardcoded fallback here anymore — None when the
+            # LLM didn't state one is the honest intermediate value; a real
+            # deterministic horizon gets computed and injected in
+            # pipeline.py's _assemble_response, which has the evidence/VIX/
+            # historical signals this flattening step doesn't.
+            "horizon": inv.get("horizon"),
             "top_picks": ext.get("top_picks", []),
             "risks": rsk.get("risks", [])[:2],
             "catalysts": dec.get("what_changes_the_view", [])[:2],
-            "opportunity_score": inv.get("confidence", 50),
+            # P5 Stage 3: was `inv.get("confidence", 50)` — silently aliased
+            # to the confidence field, never independently computed. Real
+            # value (or None when no live Opportunity Radar match exists)
+            # computed and injected in pipeline.py's _assemble_response.
+            "opportunity_score": None,
         },
         "follow_up_questions": ext.get("follow_up_questions", []),
         "timeline": tl.get("milestones", []),

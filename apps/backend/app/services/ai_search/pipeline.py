@@ -20,6 +20,7 @@ from app.services.ai_search import cache as cache_mod
 from app.services.ai_search import entities as entities_mod
 from app.services.ai_search import evidence as evidence_mod
 from app.services.ai_search import followups as followups_mod
+from app.services.ai_search.horizon import compute_horizon
 from app.services.ai_search import intent as intent_mod
 from app.services.ai_search import investment_watch as investment_watch_mod
 from app.services.ai_search import ripple_graph as ripple_graph_mod
@@ -330,7 +331,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
 
     response = await _assemble_response(
         query, validated, evidence, specialist_kind, was_degraded, validation_report,
-        dropped_companies=dropped_companies,
+        db, entities, dropped_companies=dropped_companies,
     )
     _checkpoint("assembly_ms", _t_stage)
     response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
@@ -387,6 +388,7 @@ async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict |
 
 async def _assemble_response(
     query: str, ai: dict, evidence, specialist_kind: str, was_degraded: bool, validation_report,
+    db: AsyncSession, entities: dict,
     dropped_companies: list[str] | None = None,
 ) -> dict:
     """Builds the final response dict — a strict superset of V2's shape
@@ -457,6 +459,51 @@ async def _assemble_response(
     confidence_breakdown = postprocess.compute_confidence_breakdown(evidence, ai, evidence.mie_state)
     response_id = str(uuid.uuid4())
 
+    # P5 Stage 3, item 3 — real opportunity_score, reusing V2's own sourcing
+    # mechanism verbatim: a live DB lookup against Opportunity Radar's
+    # pre-computed table, matched by this query's own companies/sectors.
+    # None (not a fabricated 50) when no Radar match exists — true for most
+    # queries, since Radar only tracks a curated subset of names. A visual
+    # gauge elsewhere may still choose a neutral midpoint for display; this
+    # field itself never fabricates one.
+    opportunity_score: float | None = None
+    try:
+        _opp_terms = (entities.get("companies") or []) + (entities.get("sectors") or [])
+        if _opp_terms:
+            from app.services.opportunity_service import OpportunityService
+            _opp_hits = await OpportunityService(db).list_by_sector_or_theme(_opp_terms[:4], limit=1)
+            if _opp_hits:
+                opportunity_score = _opp_hits[0]["opportunity_score"]
+    except Exception as exc:
+        log.warning("ai_search_v3.opportunity_score_fail", exc=str(exc)[:120])
+
+    # P5 Stage 3, item 1 — Investment Verdict Engine, the same engine V2
+    # already uses for this exact field (investment_verdict_engine.py, not
+    # opportunity_intelligence.py — its output shape is a structural mismatch
+    # for engine_verdict, see Stage 3's investigation report). Produces the
+    # identical {rating, tier, direction, ...} shape the frontend already
+    # renders as "Data engine rating" — no frontend change needed. V2's own
+    # rating-override reconciliation (verdict_basis, tier-disagreement logic)
+    # is intentionally NOT ported here — out of this item's stated scope.
+    engine_verdict: dict | None = None
+    try:
+        from app.services.investment_verdict_engine import compute_investment_verdict as _compute_engine_verdict
+        engine_verdict = _compute_engine_verdict(
+            direction=(evidence.mie_state or {}).get("signals", {}).get("direction", "sideways"),
+            confidence_score=confidence_breakdown["final_confidence"],
+            opportunity_score=opportunity_score,
+            vix_level=evidence.vix_level,
+        )
+    except Exception as exc:
+        log.warning("ai_search_v3.engine_verdict_fail", exc=str(exc)[:120])
+
+    # P5 Stage 3, item 4 — real horizon only when the LLM didn't state one;
+    # a real LLM-stated horizon is always kept as-is.
+    _llm_horizon = (ai.get("investment_verdict") or {}).get("horizon")
+    horizon = _llm_horizon or compute_horizon(
+        evidence.vix_level, evidence.similar_historical, ai.get("medium_term"), ai.get("long_term"),
+    )
+
     response = {
         "query": query,
         # Identifies this generated ANSWER (stable across repeat cache-hit
@@ -513,7 +560,13 @@ async def _assemble_response(
         # score (a 53-point gap observed live). Force it to the one real
         # blended number rather than presenting two disagreeing "confidence"
         # fields as if they were interchangeable.
-        "investment_verdict": {**ai.get("investment_verdict", {}), "confidence": confidence_breakdown["final_confidence"]},
+        "investment_verdict": {
+            **ai.get("investment_verdict", {}),
+            "confidence": confidence_breakdown["final_confidence"],
+            "horizon": horizon,
+            "opportunity_score": opportunity_score,
+            "engine_verdict": engine_verdict,
+        },
         "market_chart": chart,
         "graph": graph,
         "citations": list({a.get("source", "") for a in evidence.news if a.get("source")}),
