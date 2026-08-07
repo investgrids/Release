@@ -3,7 +3,7 @@ import Link from "next/link";
 import { TrendingUp, LayoutGrid, Layers, MousePointerClick, RefreshCw, Thermometer } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Market Heatmap | MarketRipple",
+  title: "Market Heatmap",
 };
 
 export default function HeatmapPage() {

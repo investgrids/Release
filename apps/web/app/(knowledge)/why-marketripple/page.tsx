@@ -25,6 +25,7 @@ export const metadata: Metadata = {
     title: "Why MarketRipple — Beyond Traditional Market Platforms",
     description:
       "MarketRipple goes beyond data aggregation to deliver structured market intelligence with explainable AI, built for India's unique equity ecosystem.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

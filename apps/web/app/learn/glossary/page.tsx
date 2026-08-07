@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Market Glossary — Indian Stock Market Terms Explained",
     description: "Plain-language definitions of Indian stock market terminology and MarketRipple's scoring concepts.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

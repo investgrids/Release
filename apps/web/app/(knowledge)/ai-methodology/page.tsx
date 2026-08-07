@@ -33,6 +33,7 @@ export const metadata: Metadata = {
     title: "AI & Methodology — How MarketRipple's Intelligence Works",
     description:
       "Transparent AI: understand the NLP, graph algorithms, Bayesian inference, and scoring models that power MarketRipple's market intelligence.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

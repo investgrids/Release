@@ -141,7 +141,7 @@ export async function generateMetadata({ params }: { params: Promise<{ sector: s
   const { sector } = await params;
   const url = `${SITE}/sectors/${sector}`;
   const d = await fetchSector(sector);
-  if (!d) return { title: "Sector — MarketRipple", alternates: { canonical: url } };
+  if (!d) return { title: "Sector Not Found", alternates: { canonical: url } };
   const desc = `${d.name} sector on NSE${d.value ? ` — live performance (${d.value})` : ""}, constituent stocks, and AI-driven opportunity and event analysis on MarketRipple.`;
   return {
     title: `${d.name} Sector — AI Analysis`,

@@ -26,6 +26,7 @@ export const metadata: Metadata = {
     title: "How MarketRipple Works — AI Market Intelligence Pipeline",
     description:
       "From breaking news to investment opportunity in seconds. See how MarketRipple's AI pipeline transforms raw market events into actionable intelligence for Indian investors.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

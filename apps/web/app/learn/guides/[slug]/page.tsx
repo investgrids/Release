@@ -15,7 +15,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: guide.title,
     description: guide.summary,
-    openGraph: { title: `${guide.title} | MarketRipple Guide`, description: guide.summary },
+    openGraph: {
+      title: `${guide.title} | MarketRipple Guide`, description: guide.summary,
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
+    },
   };
 }
 

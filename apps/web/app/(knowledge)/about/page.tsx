@@ -33,6 +33,7 @@ export const metadata: Metadata = {
     title: "About MarketRipple — AI-Powered Market Intelligence Platform",
     description:
       "MarketRipple connects market events to companies to investment opportunities using explainable AI built specifically for Indian markets.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

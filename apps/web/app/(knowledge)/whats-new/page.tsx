@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     title: "What's New — MarketRipple Release Notes & Changelog",
     description:
       "Follow MarketRipple's continuous evolution: new AI features, data improvements, and platform updates released every month.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

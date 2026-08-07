@@ -33,6 +33,7 @@ export const metadata: Metadata = {
     title: "Data Sources — Where MarketRipple Gets Its Intelligence",
     description:
       "Every data source behind MarketRipple's market intelligence — equities, derivatives, commodities, corporate filings, economic releases, and news — with refresh frequencies and data philosophy.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

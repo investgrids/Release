@@ -14,6 +14,13 @@ _HEADERS = {
     "Accept": "application/json",
     "Referer": "https://www.nseindia.com/",
 }
+# NSE's own field naming is misleading: `desc` (and `subject`) is a short
+# announcement *category* label ("General Updates", "Press Release",
+# "Others"), not a headline — confirmed against live API data 2026-08-07.
+# `attchmntText` holds the real, substantive sentence and is what should
+# become the headline/title; `desc`/`subject` is kept only as a fallback
+# for the rare item where attchmntText is empty.
+_MAX_HEADLINE_LEN = 180
 
 
 class NSEProvider(BaseProvider):
@@ -46,15 +53,20 @@ class NSEProvider(BaseProvider):
         return await self._get(params)
 
     def normalize(self, raw: dict) -> RawItem | None:
-        headline = (raw.get("desc") or raw.get("subject") or "").strip()
-        if not headline:
+        category = (raw.get("desc") or raw.get("subject") or "").strip()
+        body = (raw.get("attchmntText") or "").strip()
+        source_text = body or category
+        if not source_text:
             return None
+        headline = source_text[:_MAX_HEADLINE_LEN]
+        if len(source_text) > _MAX_HEADLINE_LEN:
+            headline = headline.rsplit(" ", 1)[0].rstrip(",.;") + "…"
         an_no = raw.get("an_no", "")
-        uid = f"nse-{an_no}" if an_no else f"nse-{hashlib.md5(headline.encode()).hexdigest()[:10]}"
+        uid = f"nse-{an_no}" if an_no else f"nse-{hashlib.md5(source_text.encode()).hexdigest()[:10]}"
         return RawItem(
             id=uid,
-            headline=headline[:512],
-            summary=(raw.get("attchmntText") or headline)[:1000],
+            headline=headline,
+            summary=source_text[:1000],
             source="NSE",
             published_at=(raw.get("sort_date") or "")[:10],
             companies=[raw["symbol"]] if raw.get("symbol") else [],

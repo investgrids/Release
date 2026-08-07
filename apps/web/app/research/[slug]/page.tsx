@@ -83,7 +83,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const url = `${SITE}/research/${slug}`;
   const a = await fetchArticle(slug);
-  if (!a) return { title: "Comparison — MarketRipple Research", alternates: { canonical: url } };
+  if (!a) return { title: "Comparison Not Found", alternates: { canonical: url } };
   const desc = (a.meta_description || a.executive_summary || a.headline).slice(0, 160);
   return {
     title: a.seo_title || a.headline,

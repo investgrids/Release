@@ -10,7 +10,7 @@ import ComparePage from "@/app/compare/page";
 import IPOHubPage from "@/app/ipo-hub/page";
 
 export const metadata: Metadata = {
-  title: "Companies — NSE Listed Companies & AI Rankings | MarketRipple",
+  title: "Companies — NSE Listed Companies & AI Rankings",
   description:
     "Find India's best companies using AI — search the full NSE universe, AI-ranked Best Stocks, sector breakdowns, side-by-side comparison, and IPO tracking, all in one place.",
 };

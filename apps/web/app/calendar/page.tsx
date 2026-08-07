@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Policy & Calendar | MarketRipple",
     description: "Recent policy events and the upcoming economic calendar, in one place.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

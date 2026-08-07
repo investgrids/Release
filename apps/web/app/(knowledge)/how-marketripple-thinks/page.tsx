@@ -32,6 +32,7 @@ export const metadata: Metadata = {
     title: "How MarketRipple Thinks — AI Reasoning & Market Relationships",
     description:
       "See the full reasoning chain behind every market insight: confidence levels, causal relationships, and alternative scenario analysis.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

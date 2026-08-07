@@ -3,7 +3,7 @@ import Link from "next/link";
 import { TrendingUp, LineChart, Layers, Globe, Banknote, Bookmark } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Market Breadth | MarketRipple",
+  title: "Market Breadth",
 };
 
 export default function MarketBreadthPage() {

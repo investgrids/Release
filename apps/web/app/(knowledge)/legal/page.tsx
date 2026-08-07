@@ -10,13 +10,14 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Legal — Privacy Policy, Terms of Service & Disclaimer | MarketRipple",
+  title: "Legal — Privacy Policy, Terms of Service & Disclaimer",
   description:
     "Read MarketRipple's Privacy Policy, Terms of Service, AI Disclaimer, Risk Disclosure, and Cookie Information. Platform governed under Indian law.",
   openGraph: {
     title: "Legal — Privacy Policy, Terms of Service & Disclaimer | MarketRipple",
     description:
       "Privacy Policy, Terms of Service, AI Disclaimer, Risk Disclosure, and Cookie Information for MarketRipple — AI-powered Indian market intelligence.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
 

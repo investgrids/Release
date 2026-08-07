@@ -95,7 +95,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const url = `${SITE}/historical/${id}`;
   const d = await fetchEvent(id);
-  if (!d) return { title: "Historical Pattern Not Found — MarketRipple", alternates: { canonical: url } };
+  if (!d) return { title: "Historical Pattern Not Found", alternates: { canonical: url } };
   const title = `${d.event_title} — What Happened & What It Means Now`;
   const description = (d.key_lesson || d.what_happened || `${d.event_title}: real historical market data on how Nifty and key sectors reacted.`).slice(0, 160);
   return {

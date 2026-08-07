@@ -3,7 +3,7 @@ import Link from "next/link";
 import { fetchAPI } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "Sectors — NSE Sectoral Performance | MarketRipple",
+  title: "Sectors — NSE Sectoral Performance",
 };
 
 interface SectorRow {

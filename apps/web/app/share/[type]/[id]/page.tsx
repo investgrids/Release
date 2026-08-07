@@ -162,9 +162,9 @@ export async function generateMetadata({
   params: Promise<{ type: string; id: string }>;
 }): Promise<Metadata> {
   const { type, id } = await params;
-  if (!isValid(type)) return { title: "MarketRipple" };
+  if (!isValid(type)) return { title: "Not Found" };
   const entity = await fetchEntity(type, id);
-  if (!entity) return { title: "MarketRipple" };
+  if (!entity) return { title: "Not Found" };
   const url  = `${SITE}/share/${type}/${id}`;
   const desc = (entity.description ?? "").slice(0, 160) || "AI-powered market intelligence from MarketRipple.";
   return {

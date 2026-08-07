@@ -9,6 +9,7 @@ import {
   Layers,
   Lock,
 } from "lucide-react";
+import { safeJsonLd } from "@/lib/text";
 
 // Metadata cannot be exported from a client component in Next.js 15.
 // Declare it in a separate file or move to a parent layout if needed.
@@ -168,6 +169,18 @@ const SECTIONS = [
   },
 ];
 
+const FAQ_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: SECTIONS.flatMap((section) =>
+    section.questions.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: { "@type": "Answer", text: item.a },
+    }))
+  ),
+};
+
 function AccordionItem({
   q,
   a,
@@ -221,6 +234,7 @@ export default function FAQPage() {
 
   return (
     <main className="min-w-0 pb-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(FAQ_JSONLD) }} />
       {/* Hero */}
       <div className="mb-10">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">

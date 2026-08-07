@@ -154,7 +154,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const fallbackUrl = `${SITE}/intelligence/signal/${slug}`;
   const a = await fetchSignal(slug);
-  if (!a) return { title: "Signal — MarketRipple Live Intelligence", alternates: { canonical: fallbackUrl } };
+  if (!a) return { title: "Signal Not Found", alternates: { canonical: fallbackUrl } };
   // Trust the backend's canonical_url (settings.frontend_url, always
   // "https://www.marketripple.in") over this page's own SITE constant —
   // they previously disagreed (this page fell back to a non-www domain

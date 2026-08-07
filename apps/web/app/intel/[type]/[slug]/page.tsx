@@ -41,8 +41,8 @@ export async function generateMetadata(
   const typeLabel = { company: "Company", event: "Market Event", theme: "Theme", news: "News" }[type];
 
   const title = intel?.market_story
-    ? `${slug} — ${intel.key_takeaway?.slice(0, 60) ?? "Market Intelligence"} | InvestGrids`
-    : `${slug} ${typeLabel} Intelligence | InvestGrids`;
+    ? `${slug} — ${intel.key_takeaway?.slice(0, 60) ?? "Market Intelligence"}`
+    : `${slug} ${typeLabel} Intelligence`;
 
   const description = intel?.market_story?.slice(0, 155)
     ?? `AI-powered market intelligence for ${slug} — opportunities, risks, sectors and themes.`;
@@ -54,7 +54,7 @@ export async function generateMetadata(
       title,
       description,
       type: "article",
-      siteName: "InvestGrids",
+      siteName: "MarketRipple",
     },
     twitter: {
       card: "summary_large_image",

@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ sector: s
   const { sector: slug } = await params;
   const url = `${SITE}/best-stocks/${slug}`;
   const sector = await resolveSector(slug);
-  if (!sector) return { title: "Sector Not Found — MarketRipple", alternates: { canonical: url } };
+  if (!sector) return { title: "Sector Not Found", alternates: { canonical: url } };
   const title = `Best ${sector} Stocks Right Now — Ranked by Real Opportunity Score`;
   const description = `Which ${sector} stocks are best positioned right now, ranked by MarketRipple's AI Company Intelligence Score — real signals from published analysis and Opportunity Radar — with the actual reason behind each ranking.`;
   return {

@@ -11,15 +11,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const url = `${SITE}/commodities/${id}`;
   const data = await getCommodities();
   const found = data ? findCommodity(data, id) : null;
-  if (!found) return { title: "Commodity Not Found — MarketRipple", alternates: { canonical: url } };
+  if (!found) return { title: "Commodity Not Found", alternates: { canonical: url } };
   const { item } = found;
-  const title = `${item.name} Price Today — Live ${item.unit} | MarketRipple`;
+  const title = `${item.name} Price Today — Live ${item.unit}`;
   const description = `Live ${item.name} price: ${item.price} ${item.unit}, ${item.change} (${item.pct >= 0 ? "+" : ""}${item.pct}%) today, with a real 7-day trend chart.`;
   return {
     title,
     description,
-    openGraph: { type: "website", title, description, url, siteName: "MarketRipple" },
-    twitter: { card: "summary", title, description },
+    openGraph: {
+      type: "website", title, description, url, siteName: "MarketRipple",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
+    },
+    twitter: { card: "summary", title, description, images: ["/opengraph-image"] },
     alternates: { canonical: url },
   };
 }
