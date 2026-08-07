@@ -20,6 +20,26 @@ import re
 
 from app.services.ai_search.regexes import _POLICIES, _SECTORS
 
+# Word-boundary anchoring for short sector/policy tokens that are also
+# substrings of unrelated common words — "it" (IT sector) inside "its",
+# "pli" (Production Linked Incentive) inside "compliance". Ported from
+# V2's identical fix (ai_search_service.py's _SHORT_TOKEN_RE/_term_in_query).
+# Deliberately scoped to only these two: everything else in _SECTORS/
+# _POLICIES is either a multi-word phrase or long/distinctive enough that
+# no real collision has been found — blanket \b-anchoring risks breaking
+# legitimate substring matches this codebase has no evidence about either
+# way (e.g. "auto" inside "automobile").
+_SHORT_TOKEN_RE = {
+    "it": re.compile(r"\bit\b"),
+    "pli": re.compile(r"\bpli\b"),
+}
+
+
+def _term_in_query(term: str, q: str) -> bool:
+    pat = _SHORT_TOKEN_RE.get(term)
+    return bool(pat.search(q)) if pat else term in q
+
+
 # Strong signal: a capitalized phrase ending in a real corporate suffix —
 # e.g. "Bharat Quantum Computing Ltd". High-confidence enough that a
 # coincidental sector word elsewhere in the same phrase ("XYZ Defence Ltd")
@@ -282,8 +302,8 @@ def extract_entities(query: str) -> dict:
                 })
                 seen_symbols.add(co["symbol"])
 
-    sectors = [s for s in _SECTORS if s in q_lower]
-    policies = [p for p in _POLICIES if p in q_lower]
+    sectors = [s for s in _SECTORS if _term_in_query(s, q_lower)]
+    policies = [p for p in _POLICIES if _term_in_query(p, q_lower)]
 
     return {
         # kept as plain symbol list for backward compatibility with every

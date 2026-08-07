@@ -35,10 +35,14 @@ from app.services.news_fetcher import get_live_news
 # ai_search/ so V3 no longer depends on this module at import time — moved
 # as complete closures (each symbol + everything it privately depended on),
 # zero behavior change. V2 imports them back here since it still needs all
-# of them for its own operation; only their defining file changed. Two items
-# (_unrecognized_company_response, _run_market_pulse_search) were explicitly
-# NOT relocated — flagged in place below as Stage 2 decisions.
+# of them for its own operation; only their defining file changed.
+# P5 Stage 2 (2026-08-07): _run_market_pulse_search also relocated (into
+# ai_search/market_pulse.py, alongside the prompt-building it already
+# shared with V3) — closes one of V3's two remaining direct imports from
+# this file. _unrecognized_company_response stays V2-only (V3 now has its
+# own native version, pipeline.py's _unrecognized_company_response_v3).
 from app.services.ai_search.cache import _CACHE
+from app.services.ai_search.market_pulse import _run_market_pulse_search
 from app.services.ai_search.decision_intent import (
     _BUDGET_RE, _COMPARE_RE, _COMPARE_RE_3, _COMPARE_RE_AND, _DECISION_INTENTS,
     _HOLDING_RE, _HORIZON_RE, _RISK_RE, _SECTOR_NAMES, _SWITCH_FROM_TO_RE,
@@ -135,16 +139,18 @@ def _unrecognized_company_response(query: str) -> dict:
     its nested schema shape, vs. keep sharing this one) — not a Stage 1
     extraction target since it isn't a clean behavior-neutral relocation.
 
-    Minimal but schema-complete SearchResult — deliberately not routed
-    through _synthesis_incomplete's "degraded" framing, since this isn't a
-    failure to synthesize; it's a correct, confident classification that
-    the named entity isn't a real, tracked company.
+    Minimal but schema-complete SearchResult.
 
     P3: this is the "unsupported entity" response the task named (Apple-
-    stock case) — degraded_reason is set even though synthesis_incomplete
-    stays False, since the two fields answer different questions: "did
-    synthesis fail" (no) vs. "is this a plain successful analysis"
-    (also no, machine-distinguishably so)."""
+    stock case). P5 Stage 2 (2026-08-07): previously set
+    synthesis_incomplete=False alongside degraded_reason="unsupported_entity",
+    reasoning that "did synthesis fail" and "is this a confident
+    classification" were different questions — but the actual decision made
+    for the unification (see historical_memory-adjacent P5 Stage 2 task
+    file) is that degraded_reason is the single source of truth and
+    synthesis_incomplete is purely derived from it (degraded_reason is not
+    None), no independently-tracked exceptions. This isn't a full analysis
+    either way — fixed to True to match."""
     summary = (
         f"No verified company found matching this query. MarketRipple only analyzes "
         f"companies in its tracked NSE universe, and nothing in “{query}” matched a "
@@ -152,7 +158,7 @@ def _unrecognized_company_response(query: str) -> dict:
         f"publicly listed on the NSE."
     )
     return {
-        "query": query, "synthesis_incomplete": False, "degraded_reason": "unsupported_entity",
+        "query": query, "synthesis_incomplete": True, "degraded_reason": "unsupported_entity",
         "answer": {
             "summary": summary, "bottom_line": summary,
             "what_happened": "", "why_it_happened": "", "immediate_impact": "",
@@ -235,12 +241,15 @@ def _ambiguous_entity_response(query: str, ambiguous: dict) -> dict:
     """Schema-complete SearchResult for a bare conglomerate name ("What is
     the investment case for Tata?") that names a real family but not a
     specific member — P3. `ambiguous` is check_ambiguous_group()'s return
-    shape: {"term": str, "candidates": [{"symbol","name"}]}. Confident
-    classification (this term genuinely is ambiguous), not a failure —
-    synthesis_incomplete=False, matching _unrecognized_company_response's
-    framing — but still carries degraded_reason so it's machine-
-    distinguishable from a real successful analysis (P3 decision: label
-    now, unify into the full taxonomy in P4)."""
+    shape: {"term": str, "candidates": [{"symbol","name"}]}.
+
+    P5 Stage 2 (2026-08-07): previously set synthesis_incomplete=False
+    ("confident classification, not a failure" — P3's original framing)
+    while still carrying a real degraded_reason. The unification decision
+    made degraded_reason the single source of truth with
+    synthesis_incomplete purely derived from it — fixed to True (this
+    genuinely isn't a full analysis, regardless of how confidently it was
+    classified as ambiguous)."""
     names = ", ".join(f'{c["name"]} ({c["symbol"]})' for c in ambiguous["candidates"])
     summary = (
         f'"{ambiguous["term"]}" names a group with multiple listed companies, not one '
@@ -248,7 +257,7 @@ def _ambiguous_entity_response(query: str, ambiguous: dict) -> dict:
         f"{names}?"
     )
     return {
-        "query": query, "synthesis_incomplete": False, "degraded_reason": "ambiguous_entity",
+        "query": query, "synthesis_incomplete": True, "degraded_reason": "ambiguous_entity",
         "answer": {
             "summary": summary, "bottom_line": summary,
             "what_happened": "", "why_it_happened": "", "immediate_impact": "",
@@ -987,93 +996,12 @@ def _build_graph(query: str, sectors: list[dict], companies: list[dict]) -> dict
 
 
 # ── Market Pulse pipeline — real data first, AI explains only ─────────────────
-def _parse_json_response(raw: str | None) -> dict:
-    if not raw:
-        return {}
-    try:
-        clean = raw.strip()
-        if clean.startswith("```"):
-            clean = re.sub(r"^```(?:json)?\s*", "", clean)
-            clean = re.sub(r"\s*```$", "", clean).strip()
-        return json.loads(clean)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        if m:
-            try:
-                return json.loads(m.group())
-            except Exception:
-                pass
-    return {}
+# _parse_json_response now lives in ai_search/market_pulse.py (P5 Stage 2) —
+# its only V2 call site was inside _run_market_pulse_search, relocated with it.
 
 
-async def _run_market_pulse_search(query: str) -> dict:
-    """P5 Stage 1 (2026-08-06): deliberately NOT relocated, unlike
-    _build_market_pulse_prompt/_detect_market_pulse_async (both now in
-    ai_search/market_pulse.py) — this is the actual orchestration V3's own
-    pipeline.py imports directly rather than reimplementing, per that
-    file's own docstring: Market Pulse "stays V2's exact mechanism," not an
-    oversight. Flagged for the same Stage 2 decision as
-    _unrecognized_company_response.
-
-    Real-data-first path for "which stocks performed well", "best sector",
-    "market summary" and similar queries. market_intelligence_service fetches
-    every fact BEFORE any LLM call; the model is only allowed to explain what
-    it's given (see _build_market_pulse_prompt) — it cannot add, remove, or
-    reorder a single stock or sector.
-    """
-    from app.services.market_intelligence_service import get_market_pulse
-
-    try:
-        pulse = await get_market_pulse()
-    except Exception as exc:
-        log.warning("ai_search.market_pulse_fetch_failed", error=str(exc)[:150])
-        pulse = {}
-
-    prompt = _build_market_pulse_prompt(query, pulse)
-    raw = await _call_with_fallback(prompt, _system_with_date(), max_tokens=2500, priority="interactive")
-    ai = _parse_json_response(raw)
-    synthesis_incomplete = not bool(ai)
-
-    def _attach_narrative(movers: list[dict], narratives: dict) -> list[dict]:
-        out = []
-        for m in movers:
-            n = narratives.get(m.get("ticker", "")) if isinstance(narratives, dict) else None
-            if not n:
-                drivers = m.get("verified_drivers") or []
-                # Real key is "driver" (market_intelligence_service._verified_drivers_for),
-                # never "label" — the old d["label"] crashed with a KeyError on every
-                # mover whose ticker wasn't covered by the AI-generated narratives,
-                # taking down the whole market-pulse response with a 500.
-                n = ("; ".join(d.get("driver", "") for d in drivers if d.get("driver")) if drivers
-                     else "No verified driver identified for this move — likely broad-market or idiosyncratic trading.")
-                if not n:
-                    n = "No verified driver identified for this move — likely broad-market or idiosyncratic trading."
-            out.append({**m, "narrative": n})
-        return out
-
-    return {
-        "type":                "market_pulse",
-        "query":               query,
-        "synthesis_incomplete": synthesis_incomplete,
-        "generated_at":        pulse.get("generated_at"),
-        "market_status":       pulse.get("market_status", {}),
-        "indices":             pulse.get("indices", []),
-        "market_mood":         pulse.get("market_mood"),
-        "market_direction":    pulse.get("market_direction"),
-        "market_summary":      ai.get("market_summary") or "Real-time market data is shown below; a written summary couldn't be generated right now.",
-        "sector_narrative":    ai.get("sector_narrative") or "",
-        "leading_sectors":     pulse.get("leading_sectors", []),
-        "lagging_sectors":     pulse.get("lagging_sectors", []),
-        "top_gainers":         _attach_narrative(pulse.get("top_gainers", []), ai.get("gainer_narratives") or {}),
-        "top_losers":          _attach_narrative(pulse.get("top_losers", []), ai.get("loser_narratives") or {}),
-        "most_active":         pulse.get("most_active", []),
-        "biggest_opportunity": pulse.get("biggest_opportunity"),
-        "biggest_risk":        pulse.get("biggest_risk"),
-        "ai_conclusion":       ai.get("ai_conclusion") or "",
-        "what_to_watch_next":  pulse.get("what_to_watch_next", []),
-        "what_to_watch_summary": ai.get("what_to_watch_summary") or "",
-        "scores":              pulse.get("scores", {}),
-    }
+# _run_market_pulse_search now lives in ai_search/market_pulse.py (P5 Stage 2,
+# imported above) — both pipelines share the single definition.
 
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
@@ -2045,7 +1973,24 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     # "couldn't complete analysis" state instead of a confident-looking report
     # built entirely from generic fallback templates (main answer and/or the
     # separately-generated scenarios/checklist can each degrade independently).
-    _synthesis_incomplete = bool(ai.get("degraded")) or bool(isinstance(scenarios, dict) and scenarios.get("degraded"))
+    #
+    # P5 Stage 2, item 5 (V2-side audit, 2026-08-07): degraded_reason is the
+    # single source of truth; synthesis_incomplete is derived from it below,
+    # never set independently. Computed here (before degraded_reason, which
+    # needs it) — three real gaps closed:
+    #  1. is_multi_compare (3+ entities, main answer succeeded) previously
+    #     set degraded_reason="multi_entity_partial" while this flag stayed
+    #     False — the exact inconsistency this unification targets.
+    #  2. scenarios.get("degraded") (the separately-generated scenarios call
+    #     failed independently of the main answer) previously set this flag
+    #     True with degraded_reason staying None whenever the query also
+    #     wasn't a multi-compare — "the scenarios.degraded-only case found
+    #     during P4 verification" the original task note referenced.
+    #  3. _unrecognized_company_response/_ambiguous_entity_response (P3)
+    #     hardcoded this False alongside a real degraded_reason — see those
+    #     functions directly, fixed the same way.
+    _scenario_only_degraded = bool(isinstance(scenarios, dict) and scenarios.get("degraded")) and not ai.get("degraded")
+    _synthesis_incomplete = bool(ai.get("degraded")) or _scenario_only_degraded or is_multi_compare
     _checkpoint("assembly_ms")
     # True end-to-end time from function entry, not a sum of the named
     # buckets — the market-pulse pre-check (before intent detection even
@@ -2074,9 +2019,15 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
         # degraded_reason=None despite synthesis_incomplete=True, making
         # them indistinguishable from a normal successful response by this
         # field alone.
+        #
+        # P5 Stage 2 (2026-08-07): added scenario_degraded — the
+        # scenarios-only-failed case (main answer succeeded, the separately-
+        # generated scenarios call didn't) previously left this None too.
         "degraded_reason": (
             ai.get("_degraded_reason") if ai.get("degraded")
-            else ("multi_entity_partial" if is_multi_compare else None)
+            else "multi_entity_partial" if is_multi_compare
+            else "scenario_degraded" if _scenario_only_degraded
+            else None
         ),
         "answer": {
             "summary":          ai.get("summary", ""),

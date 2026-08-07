@@ -4,21 +4,56 @@ Search pipelines (V2: ai_search_service.py, V3: this package) — extracted
 verbatim from ai_search_service.py during P5 Stage 1 (2026-08-06), zero
 behavior change.
 
-Note: the actual Market Pulse SEARCH orchestration (_run_market_pulse_search
-in ai_search_service.py) deliberately stays in V2 — its own docstring
-confirms Market Pulse "stays V2's exact mechanism," not an oversight — this
-module only holds the detection/classification/prompt-building pieces both
-pipelines share.
+P5 Stage 2 (2026-08-07): _run_market_pulse_search relocated here too,
+closing one of V3's last two remaining imports from ai_search_service.py.
+Mechanical move, preserving exact V2 behavior — this file's own earlier
+docstring already said Market Pulse "stays V2's exact mechanism," meaning
+the orchestration logic itself, not its file location. V2's ai_search_service.py
+now imports this relocated version instead of keeping its own copy.
 """
 from __future__ import annotations
 
+import json
 import re
 
 import structlog
 
 from app.services.ai_service import _call_with_fallback
+from app.services.ai_search.date_context import current_date_context
 
 log = structlog.get_logger(__name__)
+
+_SYSTEM = (
+    "You are a senior Indian equity market analyst at an institutional fund. "
+    "Generate structured market intelligence for professional investors. "
+    "Respond with valid JSON only. No markdown fences. No commentary."
+)
+
+
+def _system_with_date() -> str:
+    """P4 temporal-context fix, relocated verbatim: computed fresh on every
+    call, never baked into a module-level constant — see date_context.py's
+    docstring for the confirmed real hallucination this traces back to."""
+    return f"{_SYSTEM}\n\n{current_date_context()}"
+
+
+def _parse_json_response(raw: str | None) -> dict:
+    if not raw:
+        return {}
+    try:
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = re.sub(r"^```(?:json)?\s*", "", clean)
+            clean = re.sub(r"\s*```$", "", clean).strip()
+        return json.loads(clean)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group())
+            except Exception:
+                pass
+    return {}
 
 # ── Market Pulse intent — real-data-first, never LLM-ranked ──────────────────
 # "Which stocks performed well", "best sector", "market summary" and similar
@@ -191,3 +226,63 @@ JSON to fill and return:
   "ai_conclusion": "",
   "what_to_watch_summary": ""
 }}"""
+
+
+async def _run_market_pulse_search(query: str) -> dict:
+    """P5 Stage 2 (2026-08-07): relocated verbatim from ai_search_service.py
+    — see this module's own docstring. Real-data-first path for "which
+    stocks performed well", "best sector", "market summary" and similar
+    queries. market_intelligence_service fetches every fact BEFORE any LLM
+    call; the model is only allowed to explain what it's given (see
+    _build_market_pulse_prompt) — it cannot add, remove, or reorder a
+    single stock or sector.
+    """
+    from app.services.market_intelligence_service import get_market_pulse
+
+    try:
+        pulse = await get_market_pulse()
+    except Exception as exc:
+        log.warning("ai_search.market_pulse_fetch_failed", error=str(exc)[:150])
+        pulse = {}
+
+    prompt = _build_market_pulse_prompt(query, pulse)
+    raw = await _call_with_fallback(prompt, _system_with_date(), max_tokens=2500, priority="interactive")
+    ai = _parse_json_response(raw)
+    synthesis_incomplete = not bool(ai)
+
+    def _attach_narrative(movers: list[dict], narratives: dict) -> list[dict]:
+        out = []
+        for m in movers:
+            n = narratives.get(m.get("ticker", "")) if isinstance(narratives, dict) else None
+            if not n:
+                drivers = m.get("verified_drivers") or []
+                n = ("; ".join(d.get("driver", "") for d in drivers if d.get("driver")) if drivers
+                     else "No verified driver identified for this move — likely broad-market or idiosyncratic trading.")
+                if not n:
+                    n = "No verified driver identified for this move — likely broad-market or idiosyncratic trading."
+            out.append({**m, "narrative": n})
+        return out
+
+    return {
+        "type":                "market_pulse",
+        "query":               query,
+        "synthesis_incomplete": synthesis_incomplete,
+        "generated_at":        pulse.get("generated_at"),
+        "market_status":       pulse.get("market_status", {}),
+        "indices":             pulse.get("indices", []),
+        "market_mood":         pulse.get("market_mood"),
+        "market_direction":    pulse.get("market_direction"),
+        "market_summary":      ai.get("market_summary") or "Real-time market data is shown below; a written summary couldn't be generated right now.",
+        "sector_narrative":    ai.get("sector_narrative") or "",
+        "leading_sectors":     pulse.get("leading_sectors", []),
+        "lagging_sectors":     pulse.get("lagging_sectors", []),
+        "top_gainers":         _attach_narrative(pulse.get("top_gainers", []), ai.get("gainer_narratives") or {}),
+        "top_losers":          _attach_narrative(pulse.get("top_losers", []), ai.get("loser_narratives") or {}),
+        "most_active":         pulse.get("most_active", []),
+        "biggest_opportunity": pulse.get("biggest_opportunity"),
+        "biggest_risk":        pulse.get("biggest_risk"),
+        "ai_conclusion":       ai.get("ai_conclusion") or "",
+        "what_to_watch_next":  pulse.get("what_to_watch_next", []),
+        "what_to_watch_summary": ai.get("what_to_watch_summary") or "",
+        "scores":              pulse.get("scores", {}),
+    }
