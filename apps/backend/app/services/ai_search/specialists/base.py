@@ -50,10 +50,24 @@ def parse_specialist_json(raw: str, query: str) -> tuple[dict, bool]:
                 # crash the *logging call itself* while handling a parse
                 # failure, masking the real error under a UnicodeEncodeError.
                 log.warning("ai_search_v3.json_parse_fail", raw=raw[:300].encode("ascii", "replace").decode())
+    else:
+        # P5 Stage 4 — mirrors V2's ai_search.degraded_capacity distinction
+        # (ai_search_service.py). Previously this branch was silent and
+        # indistinguishable from a parse failure: `raw` empty means every
+        # provider tier was exhausted before any text came back (a capacity
+        # problem), not "got text back, couldn't parse it as JSON" — found
+        # live during P5 Stage 3's regression run (ai.all_providers_failed
+        # followed by a response mislabeled degraded_reason=parse_failure).
+        log.warning("ai_search_v3.degraded_capacity", query=query[:120])
 
     if parsed:
         return flatten_nested(parsed), False
-    return degraded_response(query), True
+    degraded = degraded_response(query)
+    # P5 Stage 4: carries the real cause through to pipeline.py's
+    # _assemble_response, which previously hardcoded "parse_failure"
+    # regardless of whether the LLM ever returned any text at all.
+    degraded["_degraded_reason"] = "capacity" if not raw else "parse_failure"
+    return degraded, True
 
 
 def degraded_response(query: str) -> dict:

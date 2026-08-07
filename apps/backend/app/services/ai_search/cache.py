@@ -80,8 +80,31 @@ def _norm(text: str) -> str:
     return " ".join(text.lower().strip().split())
 
 
-def exact_key(query: str) -> str:
-    return "v3:exact:" + hashlib.md5(_norm(query).encode()).hexdigest()
+def _session_signature(session_context: dict | None) -> str:
+    """P5 Stage 4 fix — normalized signature of the ONLY session_context
+    fields that actually influence entity resolution: session_context.py's
+    resolve_context() reads companies/sectors and nothing else. Folded into
+    the Layer-1 exact key below so two sessions holding different resolved
+    context never collide on identical literal query text (found live:
+    session A with prior context TCS and session B with prior context
+    RELIANCE both asking "What about its main competitor?" — B silently
+    got A's cached TCS-competitor answer). Empty string when there's
+    nothing to disambiguate on (no session_context, or an empty one) —
+    that's what keeps the common case (no prior session, or a session with
+    nothing merge-worthy) sharing one cache entry exactly as before,
+    instead of needlessly fragmenting the cache per session."""
+    if not session_context:
+        return ""
+    companies = sorted({c.upper() for c in (session_context.get("companies") or [])})
+    sectors = sorted({s.lower() for s in (session_context.get("sectors") or [])})
+    if not companies and not sectors:
+        return ""
+    return "|ctx:" + ",".join(companies) + ";" + ",".join(sectors)
+
+
+def exact_key(query: str, session_context: dict | None = None) -> str:
+    basis = _norm(query) + _session_signature(session_context)
+    return "v3:exact:" + hashlib.md5(basis.encode()).hexdigest()
 
 
 # Several fine-grained detected intents ask the same effective question for
@@ -131,11 +154,17 @@ def semantic_key(intent_data: dict, entities: dict) -> str | None:
     return None
 
 
-def get_response(query: str, intent_data: dict | None = None, entities: dict | None = None) -> Any | None:
+def get_response(
+    query: str, intent_data: dict | None = None, entities: dict | None = None,
+    session_context: dict | None = None,
+) -> Any | None:
     """Layer 1 then Layer 2 lookup for a full pipeline response. Layer 2 is
     only checked once intent/entities are available (they're resolved
-    before this is called a second time in the pipeline — see pipeline.py)."""
-    hit = _get(exact_key(query), EXACT_TTL)
+    before this is called a second time in the pipeline — see pipeline.py).
+    session_context is threaded into the Layer-1 key (see _session_signature)
+    even on this pre-resolution first call — it's already available in full
+    at that point, before entity resolution runs, so there's no need to wait."""
+    hit = _get(exact_key(query, session_context), EXACT_TTL)
     if hit is not None:
         return hit
     if intent_data is not None and entities is not None:
@@ -145,11 +174,17 @@ def get_response(query: str, intent_data: dict | None = None, entities: dict | N
     return None
 
 
-def set_response(query: str, result: Any, intent_data: dict | None = None, entities: dict | None = None) -> None:
+def set_response(
+    query: str, result: Any, intent_data: dict | None = None, entities: dict | None = None,
+    session_context: dict | None = None,
+) -> None:
     """Writes the exact key always, plus the semantic key when computable —
     so the *next* differently-phrased-but-equivalent query hits Layer 2
-    even though this exact phrasing seeded it."""
-    _set(exact_key(query), result)
+    even though this exact phrasing seeded it. Layer 2's semantic_key is
+    already entity-aware by construction (built from resolved companies/
+    sectors, not raw text) and needs no session_context fix of its own —
+    only Layer 1 collided across sessions."""
+    _set(exact_key(query, session_context), result)
     if intent_data is not None and entities is not None:
         sk = semantic_key(intent_data, entities)
         if sk:

@@ -202,7 +202,10 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
         return
 
     # Layer 1 — exact query cache, checked before any resolution work.
-    exact_hit = cache_mod.get_response(query)
+    # session_context is threaded through even at this pre-resolution point
+    # (see cache.py's _session_signature) — the two sessions with different
+    # held context must never collide on identical literal query text.
+    exact_hit = cache_mod.get_response(query, session_context=session_context)
     if exact_hit is not None:
         log.info("ai_search_v3.cache_hit", layer="exact", query=query[:50])
         yield "finalizing", STAGE_LABELS["finalizing"], exact_hit
@@ -225,7 +228,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     if ambiguous:
         log.info("ai_search_v3.ambiguous_entity", term=ambiguous["term"])
         result = _ambiguous_entity_response(query, ambiguous)
-        cache_mod.set_response(query, result)
+        cache_mod.set_response(query, result, session_context=session_context)
         yield "finalizing", STAGE_LABELS["finalizing"], result
         return
 
@@ -247,7 +250,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     ):
         log.info("ai_search_v3.referential_no_context", query=query[:80])
         result = _referential_no_context_response(query)
-        cache_mod.set_response(query, result)
+        cache_mod.set_response(query, result, session_context=session_context)
         yield "finalizing", STAGE_LABELS["finalizing"], result
         return
 
@@ -259,7 +262,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
                 f"{s['name']} ({s['symbol']})" for s in suggestions
             ) + "?"
             result["company_suggestions"] = suggestions
-        cache_mod.set_response(query, result)
+        cache_mod.set_response(query, result, session_context=session_context)
         yield "finalizing", STAGE_LABELS["finalizing"], result
         return
 
@@ -292,7 +295,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
 
     # Layer 2 — semantic cache: same resolved companies/intent shape as a
     # previously-answered, differently-phrased query.
-    semantic_hit = cache_mod.get_response(query, intent_data, entities)
+    semantic_hit = cache_mod.get_response(query, intent_data, entities, session_context=session_context)
     if semantic_hit is not None:
         log.info("ai_search_v3.cache_hit", layer="semantic", query=query[:50])
         yield "finalizing", STAGE_LABELS["finalizing"], semantic_hit
@@ -349,7 +352,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     response["watch_subject"] = subject
 
     if not was_degraded:
-        cache_mod.set_response(query, response, intent_data, entities)
+        cache_mod.set_response(query, response, intent_data, entities, session_context=session_context)
 
         # Phase 2B — Investment Watch's persistence half. Best-effort: a
         # snapshot-write failure must never affect the actual search
@@ -516,11 +519,15 @@ async def _assemble_response(
         "specialist": specialist_kind,
         # P5 Stage 2, item 5: degraded_reason is the single source of truth;
         # synthesis_incomplete is derived from it, never set independently.
-        # Priority matches V2's: parse_failure (was_degraded) takes priority
-        # over multi_entity_partial — a response that failed to parse at all
-        # is a more severe degradation than "compared 2 of 3 real entities".
+        # Priority matches V2's: a failed-to-generate response (was_degraded)
+        # takes priority over multi_entity_partial — more severe than
+        # "compared 2 of 3 real entities". P5 Stage 4: was hardcoded to
+        # "parse_failure" regardless of cause — now reads the real cause
+        # (base.py's parse_specialist_json sets "capacity" when the LLM
+        # never returned any text at all, vs "parse_failure" when it did but
+        # couldn't be parsed), mirroring V2's existing distinction.
         "degraded_reason": (
-            "parse_failure" if was_degraded
+            ai.get("_degraded_reason", "parse_failure") if was_degraded
             else ("multi_entity_partial" if dropped_companies else None)
         ),
         "synthesis_incomplete": was_degraded or bool(dropped_companies),
