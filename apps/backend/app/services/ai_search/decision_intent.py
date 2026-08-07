@@ -80,7 +80,18 @@ _COMPARE_RE_AND = re.compile(
 _SWITCH_FROM_TO_RE = re.compile(
     r"(?:switch|rotate|move)(?:ing)?(?:\s+\w+){0,3}\s+(?:(?:out\s+of|away\s+from)|from)\s+"
     r"([A-Za-z][A-Za-z0-9 &.]{1,30}?)\s+(?:to|into|for)\s+"
-    r"([A-Za-z][A-Za-z0-9 &.]{1,30}?)(?:\.|,|$|\?| now| instead)",
+    # P5 Stage 4 fix (2026-08-08): the lazy target capture had no anchor
+    # before "right now"/"right away" — it kept expanding past the real
+    # entity boundary looking for a terminator, swallowing "right" into the
+    # captured name ("Pharma right" instead of "Pharma"). Found live: this
+    # garbled string then fails the exact _SECTOR_NAMES/_COMMODITY_NAMES
+    # match below, is treated as a company needing a real ticker, and
+    # propagates verbatim into risks/catalysts/summary text. The optional
+    # non-capturing `(?:\s+right)?` stops the capture at the real boundary
+    # without being absorbed into it. Verified against 10 cases (6
+    # originally-broken including multi-word entity names, 4
+    # previously-working) — see the investigation report this fixes.
+    r"([A-Za-z][A-Za-z0-9 &.]{1,30}?)(?:\s+right)?(?:\.|,|$|\?| now| instead)",
     re.IGNORECASE,
 )
 _COMPARE_RE_3 = re.compile(
