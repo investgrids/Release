@@ -205,9 +205,16 @@ function AccordionItem({
         className="flex w-full items-start justify-between gap-4 px-5 py-4 text-left"
         aria-expanded={isOpen}
       >
-        <span className="text-[14px] font-medium leading-snug text-text-primary">
+        {/* SEO/AEO fix (deferred from the original audit): question text
+            was a plain <span> — no heading structure at all across the
+            23 real Q&A pairs on this page, which hurts both classic SEO
+            (heading hierarchy) and AI answer-engine extraction (AEO),
+            where a clean h2 section / h3 question pattern is what lets
+            an answer engine pull a direct Q&A pair confidently. h3 is
+            valid inside a <button> (flow content). */}
+        <h3 className="text-[14px] font-medium leading-snug text-text-primary">
           {q}
-        </span>
+        </h3>
         <ChevronDown
           className={`mt-0.5 h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${
             isOpen ? "rotate-180 text-text-secondary" : ""
@@ -281,9 +288,12 @@ export default function FAQPage() {
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
                     Section {si + 1} of {SECTIONS.length}
                   </p>
-                  <p className={`text-[15px] font-semibold ${section.color}`}>
+                  {/* SEO/AEO fix: section label was a plain <p> — now h2,
+                      giving the page a real h1 (page title) -> h2 (5
+                      sections) -> h3 (23 questions) hierarchy. */}
+                  <h2 className={`text-[15px] font-semibold ${section.color}`}>
                     {section.label}
-                  </p>
+                  </h2>
                 </div>
                 <span className="ml-auto text-[12px] text-text-muted">
                   {section.questions.length} questions

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
+import { Brain } from "lucide-react";
 import { AskAICta } from "@/components/AskAICta";
 import { RelatedContent } from "@/components/RelatedContent";
 import { safeJsonLd } from "@/lib/text";
@@ -111,6 +112,16 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
     description: article.meta_description || article.executive_summary,
     url,
     publisher: { "@type": "Organization", name: "MarketRipple" },
+    // SEO fix (deferred from the original audit): named authorship —
+    // matches the exact pattern already established for AIPE's other
+    // article types (comparison_publisher.py/signal_publisher.py's own
+    // json_ld both already set this). Organization, not a fabricated
+    // Person — the content genuinely is AI-generated, not written by a
+    // named human, and inventing a fake byline would be the deceptive
+    // thing Google's E-E-A-T guidance explicitly warns against; an
+    // honest Organization-type author satisfies the schema requirement
+    // without misrepresenting how the content was made.
+    author: { "@type": "Organization", name: "MarketRipple AI Intelligence Engine" },
     breadcrumb: {
       "@type": "BreadcrumbList",
       itemListElement: [
@@ -138,6 +149,14 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
       <div>
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400">AI Comparison Research</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight text-text-primary">{article.headline}</h1>
+        {/* Visible author disclosure — matches the exact pattern already
+            established on newsroom article pages: the JSON-LD author
+            field above declares this to crawlers, but a human reader saw
+            nothing on the page itself before this. */}
+        <p className="mt-2 flex items-center gap-1.5 text-[12px] text-text-muted">
+          <Brain className="h-3.5 w-3.5 text-violet-400" />
+          By <span className="font-semibold text-text-secondary">MarketRipple AI Intelligence Engine</span> — AI-generated from real market data, not written by a human reporter.
+        </p>
         {article.executive_summary && (
           <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-text-secondary">{article.executive_summary}</p>
         )}

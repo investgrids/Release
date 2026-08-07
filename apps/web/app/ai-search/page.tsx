@@ -549,7 +549,14 @@ function EmptyState({ onSearch }: { onSearch: (q: string) => void }) {
         <div className="absolute -inset-4 rounded-full bg-violet-500/5 blur-xl"/>
       </div>
       <div>
-        <h2 className="text-xl font-semibold text-text-primary mb-2">AI Decision Intelligence Engine</h2>
+        {/* SEO fix (deferred from the original audit): the page had no
+            real <h1> at all on its default/crawled state — both existing
+            h1s in SearchResults only render after a search runs, using
+            result.query as text, which a crawler never sees on the bare
+            URL. EmptyState and SearchResults are mutually exclusive
+            renders (see the ternary below), so this is always the only
+            h1 present, never a duplicate. */}
+        <h1 className="text-xl font-semibold text-text-primary mb-2">AI Decision Intelligence Engine</h1>
         <p className="text-sm text-text-secondary max-w-md leading-relaxed">Ask any investment decision question — hold, switch, compare, or analyse. Get explainable AI reasoning, evidence, and trade-offs.</p>
       </div>
       <div className="w-full max-w-xl space-y-2">

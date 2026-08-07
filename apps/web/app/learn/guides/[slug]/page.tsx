@@ -2,7 +2,36 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, ArrowLeft, Clock, Lightbulb } from "lucide-react";
-import { GUIDES, getGuide, getRelatedGuides } from "@/lib/guides-data";
+import { GUIDES, getGuide, getRelatedGuides, type Guide } from "@/lib/guides-data";
+import { safeJsonLd } from "@/lib/text";
+
+// SEO fix (deferred from the original audit): HowTo schema for product
+// guides. Confirmed content fit before adding this anywhere — a guide's
+// `steps` are genuinely sequential actions the READER performs ("Start
+// with the AI Market Brief", "Check the session tab you need"), the
+// actual use case HowTo schema is designed for. /how-it-works was also
+// flagged for HowTo in the original audit but explicitly NOT given it
+// here: that page's "steps" describe MarketRipple's own internal
+// pipeline (ingestion -> AI analysis -> ripple engine -> ...), not
+// actions a reader takes — applying HowTo there would misrepresent the
+// content to Google, which explicitly warns against HowTo markup for
+// content that isn't real step-by-step instructions.
+function guideHowToJsonLd(guide: Guide, url: string) {
+  const minutes = parseInt(guide.readTime, 10);
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: guide.title,
+    description: guide.summary,
+    ...(Number.isFinite(minutes) ? { totalTime: `PT${minutes}M` } : {}),
+    step: guide.steps.map(s => ({
+      "@type": "HowToStep",
+      name: s.title,
+      text: s.body,
+    })),
+    url,
+  };
+}
 
 export function generateStaticParams() {
   return GUIDES.map(g => ({ slug: g.slug }));
@@ -28,9 +57,14 @@ export default async function GuideDetailPage({ params }: { params: Promise<{ sl
   if (!guide) notFound();
 
   const related = getRelatedGuides(guide);
+  const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
   return (
     <div className="space-y-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(guideHowToJsonLd(guide, `${SITE}/learn/guides/${slug}`)) }}
+      />
       <nav className="flex items-center gap-1.5 text-[11px] text-text-muted">
         <Link href="/learn/guides" className="hover:text-text-secondary">Guides</Link>
         <ChevronRight className="h-3 w-3" />
