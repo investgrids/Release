@@ -870,12 +870,19 @@ async def _fetch_rich_historical(
     from sqlalchemy import or_
     from app.db.models.historical_memory import HistoricalMarketEvent
     from app.services.historical_memory_service import get_verified_historical_events
+    from app.db.json_utils import json_array_contains
 
     filters = []
     if category:
         filters.append(HistoricalMarketEvent.category == category)
+    # Was HistoricalMarketEvent.sectors.contains([s]) — silently broken on
+    # this deployment's SQLite database (see json_utils.py's module
+    # docstring). Confirmed root cause of run_historical_cycle producing
+    # zero articles for the 2 days since P3.5 shipped: 13 real Banking-
+    # tagged rows and 7 real Defence/Infrastructure-tagged rows exist with
+    # complete outcome data, but this query returned 0 for both topics.
     for s in (sectors or []):
-        filters.append(HistoricalMarketEvent.sectors.contains([s]))
+        filters.append(json_array_contains(HistoricalMarketEvent.sectors, s))
     if not filters:
         return []
 

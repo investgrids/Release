@@ -165,12 +165,26 @@ async def _has_fresh_event_since(db, symbol: str, since: datetime) -> bool:
     )).all()
     if not rows:
         return False
+    # Was EventTriage.tickers.contains([tag]) — silently broken on this
+    # deployment's SQLite database (see json_utils.py's module docstring):
+    # confirmed live, this exact pattern returns 0 rows against real
+    # matches. Fixed here to json_array_contains.
+    #
+    # Separate, NOT fixed here: `tag = f"NSE:{symbol}"` assumes tickers are
+    # stored "NSE:SYMBOL" — confirmed live that real EventTriage.tickers
+    # data is overwhelmingly NOT in that format (48/50 sampled rows had no
+    # "NSE:" prefix at all; formats seen include bare symbols, ".NS"-suffixed
+    # Yahoo-style tickers, and at least one index code mixed in). Even with
+    # the containment bug fixed, this specific lookup will still rarely
+    # match real data — a distinct data-format issue, flagged for its own
+    # investigation rather than guessed at here.
+    from app.db.json_utils import json_array_contains
     tag = f"NSE:{symbol}"
     matched = (await db.execute(
         select(EventTriage.id)
         .where(EventTriage.triaged_at > since)
         .where(EventTriage.urgency >= _MIN_EVENT_URGENCY)
-        .where(EventTriage.tickers.contains([tag]))
+        .where(json_array_contains(EventTriage.tickers, tag))
         .limit(1)
     )).first()
     return matched is not None

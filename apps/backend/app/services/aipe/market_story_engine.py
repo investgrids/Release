@@ -173,18 +173,23 @@ async def fetch_historical_context(
     """
     from app.db.models.historical_memory import HistoricalMarketEvent
     from app.services.historical_memory_service import get_verified_historical_events
+    from app.db.json_utils import json_array_contains
     from sqlalchemy import or_
 
     if not sectors and not keywords:
         return []
 
     try:
-        # Build flexible filter: any sector overlap or keyword match in tags
+        # Build flexible filter: any sector overlap or keyword match in tags.
+        # Was .contains([s])/.contains([kw]) — silently broken on this
+        # deployment's SQLite database (see json_utils.py's module
+        # docstring): confirmed live, always returned 0 rows against real
+        # multi-element array matches.
         filters = []
         for s in sectors[:3]:
-            filters.append(HistoricalMarketEvent.sectors.contains([s]))
+            filters.append(json_array_contains(HistoricalMarketEvent.sectors, s))
         for kw in keywords[:3]:
-            filters.append(HistoricalMarketEvent.tags.contains([kw]))
+            filters.append(json_array_contains(HistoricalMarketEvent.tags, kw))
 
         if not filters:
             return []

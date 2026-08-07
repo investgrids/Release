@@ -283,8 +283,13 @@ async def get_company_insights(
     # show up as a "historical event" for it before any real outcome existed.
     from app.db.models.historical_memory import HistoricalMarketEvent
     from app.services.historical_memory_service import get_verified_historical_events
+    from app.db.json_utils import json_array_contains
+    # Was HistoricalMarketEvent.companies.contains([symbol]) — silently
+    # broken on this deployment's SQLite database (see json_utils.py's
+    # module docstring): confirmed live, returned 0 rows against 9 real
+    # matches for a real symbol before this fix.
     historical = await get_verified_historical_events(
-        db, extra_filters=[HistoricalMarketEvent.companies.contains([symbol])], limit=8,
+        db, extra_filters=[json_array_contains(HistoricalMarketEvent.companies, symbol)], limit=8,
     )
     hero_images = await _fetch_hero_images(db, [a.id for a in matched])
 
