@@ -52,6 +52,15 @@ def _slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")
 
 
+def _truncate_at_word(text: str, limit: int) -> str:
+    """Clip to `limit` chars on a word boundary, not mid-word — see the
+    identical helper in comparison_publisher.py for why this matters for
+    the Google SERP snippet."""
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(" ,.;:—-") + "…"
+
+
 def _today_str() -> str:
     ist = datetime.now(timezone.utc)
     return ist.strftime("%Y-%m-%d")
@@ -175,7 +184,7 @@ async def publish_signal(db: AsyncSession, item: dict) -> dict:
         existing.companies_affected = companies_affected
         existing.sectors_affected = sectors_affected
         existing.seo_title = f"{headline} - {label}"
-        existing.meta_description = summary[:160]
+        existing.meta_description = _truncate_at_word(summary, 160)
         existing.canonical_url = canonical_url
         existing.json_ld = json_ld
         existing.market_context = market_context
@@ -194,7 +203,7 @@ async def publish_signal(db: AsyncSession, item: dict) -> dict:
             headline=headline, executive_summary=summary, key_takeaway=summary,
             companies_affected=companies_affected, sectors_affected=sectors_affected,
             sources=["MarketRipple Live Intelligence Engine"],
-            seo_title=f"{headline} - {label}", meta_description=summary[:160],
+            seo_title=f"{headline} - {label}", meta_description=_truncate_at_word(summary, 160),
             canonical_url=canonical_url, json_ld=json_ld, market_context=market_context,
             published_at=now, last_updated=now,
         ))

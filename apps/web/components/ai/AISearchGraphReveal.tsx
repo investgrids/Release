@@ -118,25 +118,33 @@ export function AISearchGraphReveal({ nodes, edges, className = "" }: Props) {
               style={{ transformOrigin: `${p.x}px ${p.y}px` }}>
               <circle cx={p.x} cy={p.y} r={r + 6} fill={color} fillOpacity={0.15} />
               <circle cx={p.x} cy={p.y} r={r} fill={color} fillOpacity={0.85} />
+              {/* Phase 1 UI fix #6: was a hardcoded #e2e8f0 (light gray) —
+                  readable on this component's own dark card background but
+                  near-invisible if that assumption ever breaks, and not a
+                  real theme-aware token. rgb(var(--text-primary)) matches
+                  the theme-variable pattern this file already uses for
+                  NODE_COLORS.default, so labels stay legible in both
+                  themes. Truncation loosened (11/16 -> 18/24) — the old
+                  limit cut most real company/policy names mid-word. */}
               <text x={p.x} y={p.y + r + 12} textAnchor="middle" fontSize={isQuery ? 9 : 8}
-                fontWeight={isQuery ? 600 : 400} fill="#e2e8f0" className="select-none">
-                {truncate(n.label, isQuery ? 16 : 11)}
+                fontWeight={isQuery ? 600 : 400} fill="rgb(var(--text-primary))" className="select-none">
+                {truncate(n.label, isQuery ? 24 : 18)}
               </text>
             </motion.g>
           );
         })}
       </svg>
 
-      <div className="mt-1 flex items-center justify-between">
-        <div className="flex flex-wrap gap-2">
-          {uniqueTypes.map(t => (
-            <span key={t} className="flex items-center gap-1 text-[10px] text-text-muted">
-              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: NODE_COLORS[t] || NODE_COLORS.default }} />
-              {TYPE_LABELS[t] || t}
-            </span>
-          ))}
-        </div>
-        <span className="text-[10px] text-text-muted">{nodes.length}n · {edges.length}e</span>
+      {/* Phase 1 UI fix #6: dropped the developer-facing "Nn · Ne" node/edge
+          count (raw internal metadata, meaningless to a user) that used to
+          sit here. */}
+      <div className="mt-1 flex flex-wrap gap-2">
+        {uniqueTypes.map(t => (
+          <span key={t} className="flex items-center gap-1 text-[10px] text-text-muted">
+            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: NODE_COLORS[t] || NODE_COLORS.default }} />
+            {TYPE_LABELS[t] || t}
+          </span>
+        ))}
       </div>
     </div>
   );

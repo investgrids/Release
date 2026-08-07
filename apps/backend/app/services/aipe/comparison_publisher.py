@@ -27,6 +27,16 @@ from app.core.config import settings
 _MAX_ATTEMPTS = 3
 
 
+def _truncate_at_word(text: str, limit: int) -> str:
+    """Clip to `limit` chars on a word boundary — a raw text[:limit] slice
+    regularly lands mid-word or leaves a dangling comma/semicolon in the
+    Google SERP snippet, which is exactly the kind of thing that hurts
+    click-through on an otherwise well-optimized meta description."""
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(" ,.;:—-") + "…"
+
+
 def _slugify(text: str) -> str:
     s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return s
@@ -145,7 +155,10 @@ async def publish_comparison_article(
 
     headline = f"{name_a} vs {name_b}: Which Is The Better Investment?"
     decision_summary = di.get("decision_summary") or ai_answer.get("bottom_line") or ""
-    meta_description = (decision_summary or f"AI-powered comparison of {name_a} and {name_b} — valuation, growth drivers, risks, and a research-framed verdict on MarketRipple.")[:160]
+    meta_description = _truncate_at_word(
+        decision_summary or f"AI-powered comparison of {name_a} and {name_b} — valuation, growth drivers, risks, and a research-framed verdict on MarketRipple.",
+        160,
+    )
 
     what_happened = compose_what_happened(di, name_a, name_b)
     why_it_matters = compose_why_it_matters(di, name_a, name_b)

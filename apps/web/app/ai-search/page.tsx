@@ -70,7 +70,8 @@ interface MarketHorizon { horizon: string; window: string; confidence: number | 
 interface MonitorItem   { title: string; why_it_matters: string; importance: string; frequency: string; }
 interface ReasoningMethod { label: string; used: boolean; }
 interface ConfidenceData  { level: string; score: number | null; reasons: string[]; breakdown: Record<string, number>; caveats: string[]; }
-interface InvestmentVerdict { rating: string; direction: string; confidence: number | null; horizon: string; top_picks: string[]; risks: string[]; catalysts: string[]; opportunity_score: number | null; risk_level?: string; suitable_for?: string; }
+interface EngineVerdict { tier?: string; rating?: string; [key: string]: unknown; }
+interface InvestmentVerdict { rating: string; direction: string; confidence: number | null; horizon: string; top_picks: string[]; risks: string[]; catalysts: string[]; opportunity_score: number | null; risk_level?: string; suitable_for?: string; verdict_basis?: string; engine_verdict?: EngineVerdict | null; }
 interface ChartSeries  { name: string; data: number[]; color: string; }
 interface MarketChart  { labels: string[]; series: ChartSeries[]; }
 interface GraphNode    { id: string; label: string; type: string; x: number; y: number; }
@@ -186,16 +187,22 @@ interface MarketPulseResult {
 // Qualitative only — no counts/percentages, since none are known until the
 // real response arrives. Loops indefinitely (see SearchWaitingState) so a
 // slow provider-fallback request never looks "finished" and stuck.
-const WAITING_PHRASES: string[] = [
-  "Understanding the market context…",
-  "Scanning today's events and news…",
-  "Connecting today's events…",
-  "Checking historical market reactions…",
-  "Weighing sector and company impact…",
-  "Structuring the intelligence graph…",
-  "Drafting the analysis…",
-  "Almost there — finalizing the report…",
-];
+/** Phase 1 UI fix #4: the previous WAITING_PHRASES cycled through 8
+ * specific-sounding pipeline stages ("Structuring the intelligence
+ * graph…", "Drafting the analysis…") on a fixed 2.8s timer, completely
+ * disconnected from what's actually happening — V2's search is a single
+ * blocking request/response with no real stage signal reaching the
+ * frontend (unlike V3's SSE streaming, which does have real stages —
+ * see SearchProgressStages, used when the V3 flag is on). Real observed
+ * latency is 17-65s, worse under load. Rather than keep implying fake
+ * granular progress, this ties honest, generic messaging to REAL elapsed
+ * time — a message a slow query and a fast query both make true.*/
+function waitingMessage(elapsedSec: number): string {
+  if (elapsedSec < 8)  return "Gathering real-time events and market data…";
+  if (elapsedSec < 20) return "Running the AI analysis — this usually takes 20–40 seconds…";
+  if (elapsedSec < 40) return "Still working — queries covering multiple companies or sectors take longer…";
+  return "This is taking longer than usual, but the analysis is still running…";
+}
 
 const EXAMPLES = [
   "Should I invest in defence stocks after the latest budget?",
@@ -405,6 +412,32 @@ function riskLevel(confidence: number | null | undefined): { label: string; colo
   return { label: "High", color: "text-rose-400 bg-rose-500/10 border-rose-500/20" };
 }
 
+/** Phase 1 UI fix #1: the Confidence stat used to render a hardcoded
+ * text-emerald-400 regardless of value — a 17% and an 85% confidence
+ * looked identical. Same 85/65 boundaries as riskLevel() (informed by
+ * confidence_service.py's Low/Medium/High tiers) but not inverted — a
+ * high confidence VALUE itself should read as green, not risk-mapped. */
+function confidenceColor(confidence: number | null | undefined): string {
+  if (confidence === null || confidence === undefined) return "text-text-muted";
+  if (confidence >= 85) return "text-emerald-400";
+  if (confidence >= 65) return "text-amber-400";
+  return "text-rose-400";
+}
+
+/** Phase 1 UI fix #2: verdict_basis and engine_verdict are computed on
+ * every response but were never rendered — the most trustworthy fields in
+ * the response (whether the verdict is backed by MarketRipple's own
+ * deterministic data engine, or is an AI-only estimate, and whether the
+ * two agreed or disagreed). Plain-language labels for the real basis
+ * values the backend emits (ai_search_service.py). */
+const VERDICT_BASIS_LABEL: Record<string, { label: string; color: string }> = {
+  ai_aligned_with_data:        { label: "Backed by our data engine", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+  data_overridden_ai:          { label: "Backed by our data engine (overrode AI's initial read)", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+  real_screener:               { label: "Backed by our data engine", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+  ai_only_engine_unavailable:  { label: "AI-only estimate — data engine unavailable", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+  ai_only_no_real_match:       { label: "AI-only estimate — no matching real data", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+};
+
 /** Suitable for label from horizon */
 function suitableFor(horizon: string): string {
   if (!horizon) return "All investors";
@@ -461,15 +494,13 @@ function AmbientGraphPulse() {
 }
 
 function SearchWaitingState({ query }: { query: string }) {
-  const [phraseIdx, setPhraseIdx] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
   const startRef = useRef(Date.now());
 
   useEffect(() => {
     startRef.current = Date.now();
-    const phraseTimer = setInterval(() => setPhraseIdx(i => (i + 1) % WAITING_PHRASES.length), 2800);
     const clockTimer = setInterval(() => setElapsedSec(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
-    return () => { clearInterval(phraseTimer); clearInterval(clockTimer); };
+    return () => { clearInterval(clockTimer); };
   }, []);
 
   return (
@@ -487,12 +518,12 @@ function SearchWaitingState({ query }: { query: string }) {
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.p key={phraseIdx}
+          <motion.p key={waitingMessage(elapsedSec)}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.4 }}
             className="flex items-center gap-2 text-[13px] text-text-secondary">
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400 animate-pulse" />
-            {WAITING_PHRASES[phraseIdx]}
+            {waitingMessage(elapsedSec)}
           </motion.p>
         </AnimatePresence>
 
@@ -981,7 +1012,13 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       </div>
 
       {/* ── Hero Decision Panel ───────────────────────────────────────────────── */}
-      {heroData && <InvestmentVerdictHero data={heroData} />}
+      {/* Phase 1 UI fix #5: heroData already only builds when V3-only fields
+          (decision_engine_v2/ai_conclusion) are present — which V2 never
+          populates, confirmed against ai_search_service.py — so this never
+          rendered on the live path anyway. Explicit flag gate added so
+          that's the code's stated intent, not an incidental side effect of
+          absent data. */}
+      {AI_SEARCH_V3_ENABLED && heroData && <InvestmentVerdictHero data={heroData} />}
 
       {/* ── Context indicator (Phase 1.7) ──────────────────────────────────────
           Only appears when the research session actually contributed
@@ -1057,18 +1094,30 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           {result.synthesis_incomplete && <DegradedBadge/>}
         </div>
 
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-4 mb-3">
           <DirectionIcon direction={dir} size={64}/>
-          <div className="flex items-center gap-2.5">
-            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${OUTLOOK_DOT[outlookLabel] ?? "bg-amber-400"}`}/>
-            <p className={`text-[26px] font-extrabold leading-tight ${verdictColor}`}>{outlookLabel}</p>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2.5">
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${OUTLOOK_DOT[outlookLabel] ?? "bg-amber-400"}`}/>
+              <p className={`text-[26px] font-extrabold leading-tight ${verdictColor}`}>{outlookLabel}</p>
+            </div>
+            {/* Phase 1 UI fix #2: verdict_basis is the single most trustworthy
+                signal in the response — whether this verdict is backed by
+                MarketRipple's own deterministic data engine, or is an AI-only
+                estimate — surfaced prominently next to the verdict itself,
+                not buried or thrown away. */}
+            {investment_verdict?.verdict_basis && VERDICT_BASIS_LABEL[investment_verdict.verdict_basis] && (
+              <span className={`w-fit rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${VERDICT_BASIS_LABEL[investment_verdict.verdict_basis].color}`}>
+                {VERDICT_BASIS_LABEL[investment_verdict.verdict_basis].label}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: "Confidence", value: conf != null ? `${conf}%` : "Unscored", color: "text-emerald-400" },
+            { label: "Confidence", value: conf != null ? `${conf}%` : "Unscored", color: confidenceColor(conf) },
             { label: "Time Horizon", value: investment_verdict?.horizon || "Not specified", color: investment_verdict?.horizon ? "text-text-primary" : "text-text-muted" },
             { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0] },
             { label: "Suitable For", value: suitableForLabel, color: "text-text-primary" },
@@ -1079,6 +1128,44 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
             </div>
           ))}
         </div>
+
+        {/* Phase 1 UI fix #2: engine_verdict — the real deterministic
+            rating/tier from MarketRipple's own Investment Verdict Engine —
+            as a smaller supporting detail, not equal visual weight to the
+            main verdict above. Native <details> — no new state needed. */}
+        {investment_verdict?.engine_verdict && (
+          <details className="mt-3 group">
+            <summary className="cursor-pointer text-[10.5px] font-medium text-text-muted hover:text-text-secondary transition list-none flex items-center gap-1">
+              <span className="inline-block transition-transform group-open:rotate-90">▸</span>
+              Why this rating
+            </summary>
+            <div className="mt-2 rounded-[10px] border border-surface-border/6 bg-text-primary/[0.02] px-3 py-2 text-[11px] text-text-secondary">
+              {investment_verdict.engine_verdict.rating && (
+                <p>Data engine rating: <span className="font-semibold text-text-primary">{investment_verdict.engine_verdict.rating}</span></p>
+              )}
+              {investment_verdict.engine_verdict.tier && (
+                <p>Tier: <span className="font-semibold text-text-primary">{investment_verdict.engine_verdict.tier}</span></p>
+              )}
+            </div>
+          </details>
+        )}
+
+        {/* Phase 1 UI fix #3: caveats used to render at 10px/70%-opacity,
+            buried ~22 sections down the page — the smallest text on the
+            screen explaining why the biggest text on the screen (the
+            verdict above) might be wrong. Moved adjacent to the verdict,
+            readable size — doesn't need to dominate, but needs to be seen
+            without scrolling past two dozen other sections first. */}
+        {(confidence_data?.caveats?.length ?? 0) > 0 && (
+          <div className="mt-3 rounded-[12px] border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">Lower confidence if</p>
+            <div className="space-y-1">
+              {confidence_data!.caveats.slice(0, 3).map((c, i) => (
+                <p key={i} className="text-[12px] text-amber-700 dark:text-amber-200/90 leading-snug">{c}</p>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 2. Executive Summary ──────────────────────────────────────────────── */}
@@ -1292,10 +1379,30 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
             </div>
             <div className="relative overflow-x-auto">
               <div className="flex items-start gap-0 min-w-max">
-                {related_events.slice(0, 5).map((ev, i) => {
+                {/* Phase 1 UI fix #7: observed live rendering out of
+                    chronological order (Aug 01 -> Jul 28 -> Jun 25 -> Jul
+                    08 -> Jun 18). No sort call existed anywhere in this
+                    render path — related_events was rendered in whatever
+                    order the API happened to return it, which is a
+                    relevance/impact ordering, not date order. A component
+                    explicitly labeled "Timeline" with a connected-dot
+                    visual needs to guarantee its own chronological
+                    invariant at render time rather than depend on the
+                    API's ordering intent matching it — same Date parsing
+                    inferStatus already trusts for this exact field.*/}
+                {[...related_events]
+                  .sort((a, b) => {
+                    const ta = new Date(a.date).getTime();
+                    const tb = new Date(b.date).getTime();
+                    if (isNaN(ta) && isNaN(tb)) return 0;
+                    if (isNaN(ta)) return 1;
+                    if (isNaN(tb)) return -1;
+                    return ta - tb;
+                  })
+                  .slice(0, 5).map((ev, i, arr) => {
                   const status = inferStatus(ev.date);
                   const sc = EVENT_STATUS_COLORS[status];
-                  const isLast = i === related_events.slice(0, 5).length - 1;
+                  const isLast = i === arr.length - 1;
                   return (
                     <div key={ev.id} className="flex items-start">
                       <div className="flex flex-col items-center w-32">
@@ -1380,10 +1487,11 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       {/* ── 8b. Decision Timeline + Confidence Explainability (Phase 2C) ─────── */}
       {/* V3-only fields (timeline_intelligence / confidence_breakdown) — the
           panels above (Market Impact Over Time) and the evidence checklist
-          in the Hero already cover the V2-equivalent ground, so these are
-          additive and simply render nothing on a V2 response. */}
-      <DecisionTimelinePanel timeline={timeline_intelligence} />
-      <ConfidenceBreakdownPanel breakdown={confidence_breakdown ?? null} />
+          in the Hero already cover the V2-equivalent ground, so these were
+          already additive and rendered nothing on a V2 response. Phase 1 UI
+          fix #5: explicit flag gate added so that's the stated intent. */}
+      {AI_SEARCH_V3_ENABLED && <DecisionTimelinePanel timeline={timeline_intelligence} />}
+      {AI_SEARCH_V3_ENABLED && <ConfidenceBreakdownPanel breakdown={confidence_breakdown ?? null} />}
 
       {/* ── 9. Historical Comparison ──────────────────────────────────────────── */}
       <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
@@ -1563,16 +1671,6 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
               <p className="text-[11px] text-text-muted">No reasoning-source breakdown available for this query.</p>
             )}
           </div>
-          {(confidence_data?.caveats?.length ?? 0) > 0 && (
-            <div className="mt-3 pt-3 border-t border-surface-border/6">
-              <p className="text-[9px] uppercase tracking-wider text-amber-500/70 mb-1.5">Lower confidence if</p>
-              <div className="space-y-1">
-                {confidence_data!.caveats.slice(0, 3).map((c, i) => (
-                  <p key={i} className="text-[10px] text-amber-600/70 dark:text-amber-300/70 leading-tight">{c}</p>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

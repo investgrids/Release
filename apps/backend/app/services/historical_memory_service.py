@@ -277,6 +277,65 @@ async def compute_nifty_outcomes(event_date: datetime) -> dict[str, float | None
     return {label: (raw[label]["move_pct"] if label in raw else None) for label in _NIFTY_HORIZONS_DAYS}
 
 
+async def backfill_nifty_outcomes(dry_run: bool = True) -> dict[str, list[str]]:
+    """Free-tier data track, Stage 3 follow-on (2026-08-07): backfills
+    nifty_1d/3d/1w/1m on existing HistoricalMarketEvent rows that are
+    missing outcome data, using compute_nifty_outcomes. This is the
+    "manual backfill of existing rows" scope from the Stage 3 follow-on
+    task file — it does NOT touch triage_worker.py's paused auto-harvest,
+    which stays a separate, explicit decision (store_event() already
+    accepts nifty_1d/3d/1w/1m generically, so wiring a resumed harvest
+    into this utility needs no further code change here when that
+    decision is made).
+
+    Idempotent and additive only: selects rows where nifty_1m is NULL,
+    never touches rows that already have real outcome data. Safe to
+    re-run — rows that still can't resolve (e.g. too recent for the
+    1-month lookback) are reported as skipped, not retried destructively.
+    """
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.historical_memory import HistoricalMarketEvent
+    from sqlalchemy import select
+
+    updated: list[str] = []
+    skipped: list[str] = []
+    failed: list[str] = []
+
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(HistoricalMarketEvent).where(HistoricalMarketEvent.nifty_1m.is_(None))
+        )).scalars().all()
+
+        for row in rows:
+            if not row.event_date:
+                skipped.append(row.id)
+                continue
+            try:
+                outcomes = await compute_nifty_outcomes(row.event_date)
+            except Exception as exc:
+                log.warning("historical_memory.backfill_error", id=row.id, error=str(exc))
+                failed.append(row.id)
+                continue
+            if outcomes.get("nifty_1m") is None:
+                skipped.append(row.id)
+                continue
+            if not dry_run:
+                row.nifty_1d = outcomes["nifty_1d"]
+                row.nifty_3d = outcomes["nifty_3d"]
+                row.nifty_1w = outcomes["nifty_1w"]
+                row.nifty_1m = outcomes["nifty_1m"]
+            updated.append(row.id)
+
+        if not dry_run and updated:
+            await db.commit()
+
+    log.info(
+        "historical_memory.backfill_done",
+        dry_run=dry_run, updated=len(updated), skipped=len(skipped), failed=len(failed),
+    )
+    return {"updated": updated, "skipped": skipped, "failed": failed}
+
+
 async def seed_historical_events() -> None:
     """Populate the memory with verified historical Indian market events on first run."""
     from app.db.session import AsyncSessionLocal
