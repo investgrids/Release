@@ -112,6 +112,21 @@ async def get_ripple_position(symbol: str, sector: str | None) -> dict:
         except Exception:
             chain = []
 
+    # _build_ripple_chain resolves its argument via free-text word-overlap
+    # matching against EVERY graph node, not just sectors — found live for
+    # "Finance" (ICICIGI's sector, not itself a seeded sector label; the
+    # seed only has "Banking"/"NBFC"): it latched onto an unrelated,
+    # auto-added EVENT node whose headline happened to mention "Bajaj
+    # Finance," and returned that headline plus its own un-normalized,
+    # lowercase auto-added sector edges ("auto") as if they were this
+    # company's real sector position. A sector lookup must only ever
+    # accept a chain that actually resolved to a sector node — anything
+    # else (event, company, ...) is discarded in favor of the same minimal
+    # fallback already used when the chain comes back empty.
+    root_type = chain[0]["nodes"][0].get("type") if chain and chain[0].get("nodes") else None
+    if root_type != "sector":
+        chain = []
+
     upstream = [level["nodes"][0]["label"] for level in chain if level["nodes"]][:3] if chain else []
     if sector and (not upstream or upstream[-1].lower() != sector.lower()):
         upstream = upstream + [sector] if sector not in upstream else upstream
