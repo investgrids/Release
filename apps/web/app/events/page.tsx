@@ -14,6 +14,7 @@ import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
 import type { ReactNode } from "react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { truncateForQuery } from "@/lib/text";
 
 
 interface Event {
@@ -249,7 +250,7 @@ function EventCard({ ev }: { ev: Event }) {
             className="flex items-center gap-1 text-[12px] font-medium text-indigo-400 hover:text-indigo-600 dark:text-indigo-300 transition">
             Ripple Effect →
           </Link>
-          <Link href={`/ai-search?q=${encodeURIComponent(ev.title)}`}
+          <Link href={`/ai-search?q=${encodeURIComponent(truncateForQuery(ev.title))}`}
             className="ml-auto flex items-center gap-1 text-[11px] font-medium text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
             Ask AI →
           </Link>

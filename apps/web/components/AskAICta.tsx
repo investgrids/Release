@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { trackEvent } from "@/lib/analytics";
+import { truncateForQuery } from "@/lib/text";
 
 /**
  * Small client island for the "Ask MarketRipple AI" CTA used on server-
@@ -14,7 +15,7 @@ import { trackEvent } from "@/lib/analytics";
 export function AskAICta({ query, source }: { query: string; source: string }) {
   return (
     <Link
-      href={`/ai-search?q=${encodeURIComponent(query)}` as any}
+      href={`/ai-search?q=${encodeURIComponent(truncateForQuery(query))}` as any}
       onClick={() => trackEvent("ai_search_cta_click", { source })}
       className="font-semibold text-violet-600 dark:text-violet-300 hover:text-violet-700 dark:text-violet-200 transition"
     >

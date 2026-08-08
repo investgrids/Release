@@ -7,6 +7,7 @@ import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc } from "@/lib/scoring";
+import { truncateForQuery } from "@/lib/text";
 
 
 interface NewsArticle {
@@ -242,7 +243,7 @@ export default function NewsPage() {
                           })}
                         </div>
                       )}
-                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/ai-search?q=${encodeURIComponent(a.headline)}`); }}
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/ai-search?q=${encodeURIComponent(truncateForQuery(a.headline))}`); }}
                         className="mt-1.5 text-[10px] font-medium text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
                         Ask AI →
                       </button>
@@ -335,11 +336,11 @@ export default function NewsPage() {
                   topComp ? {
                     label: `Ask AI: Does this news change ${topComp}'s investment outlook?`,
                     why:   `Because market reactions to news are often temporary — you need to know if the fundamentals actually changed.`,
-                    href:  `/ai-search?q=${q(`Does "${top.headline}" change the investment thesis for ${topComp}? Is the market reaction justified or an overreaction?`)}`,
+                    href:  `/ai-search?q=${q(`Does "${truncateForQuery(top.headline)}" change the investment thesis for ${topComp}? Is the market reaction justified or an overreaction?`)}`,
                   } : {
                     label: "Ask AI: Is the market reaction to this news justified?",
                     why:   "Because news creates noise — AI helps separate genuine signal from short-term overreaction.",
-                    href:  `/ai-search?q=${q(`Is the market reaction to "${top.headline}" justified or is it an overreaction?`)}`,
+                    href:  `/ai-search?q=${q(`Is the market reaction to "${truncateForQuery(top.headline)}" justified or is it an overreaction?`)}`,
                   },
                   {
                     label: "View the related market event",

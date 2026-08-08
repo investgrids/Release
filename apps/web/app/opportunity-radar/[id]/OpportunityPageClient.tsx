@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use, useRef } from "react";
 import type { ReactNode } from "react";
-import { fixMojibake } from "@/lib/text";
+import { fixMojibake, truncateForQuery } from "@/lib/text";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { RelatedContent } from "@/components/RelatedContent";
 import { NextSteps } from "@/components/NextSteps";
@@ -549,7 +549,7 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
             primary: {
               label: `Ask AI about ${d.title}`,
               why: "Get a full investment analysis, not just the opportunity summary — risks, valuation, and timing.",
-              href: `/ai-search?q=${encodeURIComponent(`Tell me about this opportunity: ${d.title}. Which companies benefit most and what are the risks?`)}`,
+              href: `/ai-search?q=${encodeURIComponent(`Tell me about this opportunity: ${truncateForQuery(d.title)}. Which companies benefit most and what are the risks?`)}`,
             },
             groups: [
               ...(d.companies.length >= 2 ? [{

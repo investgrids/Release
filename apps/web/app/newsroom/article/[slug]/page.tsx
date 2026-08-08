@@ -5,10 +5,10 @@ import {
   ArrowLeft, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, Building2, Clock,
   BookOpen, HelpCircle, Eye, ListChecks, Activity, Shield,
   Brain, Layers, MessageCircleQuestion, GitCommit, RadioTower,
-  Sparkles, Target, Radio, ChevronRight, Compass, Database,
+  Sparkles, Target, ChevronRight, Compass, Database,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { cleanText, isRealSymbol, safeJsonLd } from "@/lib/text";
+import { cleanText, isRealSymbol, safeJsonLd, truncateForQuery } from "@/lib/text";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
@@ -134,6 +134,27 @@ async function fetchInsight(slug: string): Promise<InsightDetail | null> {
     return cleanArticle(raw);
   } catch {
     return null;
+  }
+}
+
+interface Quote { price_str: string; change_pct_str: string; positive: boolean }
+
+// Short revalidate (unlike the article's own 30-min cache) — this is the
+// one genuinely time-sensitive number on the page, and the "Live Article"
+// framing only means anything if the price actually is close to live.
+async function fetchQuotes(symbols: string[]): Promise<Record<string, Quote>> {
+  if (!symbols.length) return {};
+  try {
+    const res = await fetch(`${API}/api/data/quotes?symbols=${encodeURIComponent(symbols.join(","))}`, { next: { revalidate: 60 } });
+    if (!res.ok) return {};
+    const data = await res.json();
+    const out: Record<string, Quote> = {};
+    for (const q of data.quotes ?? []) {
+      out[q.symbol] = { price_str: q.price_str, change_pct_str: q.change_pct_str, positive: q.positive };
+    }
+    return out;
+  } catch {
+    return {};
   }
 }
 
@@ -294,6 +315,7 @@ export default async function ArticlePage(
 
   const meta = TYPE_META[article.article_type] ?? DEFAULT_TYPE_META;
   const companies = article.companies_affected ?? [];
+  const quotes = await fetchQuotes(companies.filter(c => isRealSymbol(c.symbol)).map(c => c.symbol));
   const sectors = article.sectors_affected ?? [];
   const opportunities = article.opportunities ?? [];
   const winners = companies.filter(c => c.impact === "positive");
@@ -579,22 +601,33 @@ export default async function ArticlePage(
           <section className="mb-8">
             <Eyebrow icon={Building2}>Company Impact</Eyebrow>
             <Card className="overflow-hidden">
-              <div className="grid grid-cols-[1fr_auto_2fr_auto] items-center gap-3 border-b border-surface-border/6 bg-text-primary/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
-                <span>Company</span><span>AI Impact</span><span>Why</span><span className="text-right">Expected Horizon</span>
+              <div className="grid grid-cols-[1fr_auto_auto_2fr_auto] items-center gap-3 border-b border-surface-border/6 bg-text-primary/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
+                <span>Company</span><span>Price</span><span>AI Impact</span><span>Why</span><span className="text-right">Expected Horizon</span>
               </div>
-              {companies.map((c, i) => (
-                <div key={i} className={`grid grid-cols-[1fr_auto_2fr_auto] items-center gap-3 px-4 py-3 ${i < companies.length - 1 ? "border-b border-surface-border/4" : ""}`}>
+              {companies.map((c, i) => {
+                const q = quotes[c.symbol];
+                return (
+                <div key={i} className={`grid grid-cols-[1fr_auto_auto_2fr_auto] items-center gap-3 px-4 py-3 ${i < companies.length - 1 ? "border-b border-surface-border/4" : ""}`}>
                   <div className="min-w-0">
                     <Link href={`/companies/${c.symbol}`} className="block text-[13px] font-bold text-sky-600 dark:text-sky-300 hover:text-sky-700 dark:text-sky-200 transition">{c.symbol}</Link>
                     <span className="truncate text-[11px] text-text-muted">{c.name}</span>
                   </div>
+                  {q ? (
+                    <div className="shrink-0 text-right">
+                      <p className="text-[12px] font-bold text-text-primary tabular-nums">₹{q.price_str}</p>
+                      <p className={`text-[10px] font-semibold tabular-nums ${q.positive ? "text-emerald-500" : "text-rose-500"}`}>{q.change_pct_str}</p>
+                    </div>
+                  ) : (
+                    <span className="shrink-0 text-right text-[11px] text-text-muted">—</span>
+                  )}
                   <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>
                     {IMPACT_DOT[c.impact] ?? IMPACT_DOT.neutral} {c.impact}
                   </span>
                   <span className="min-w-0 text-[12px] leading-5 text-text-secondary">{c.reason || "—"}</span>
                   <span className="shrink-0 text-right text-[11px] text-text-muted">{c.timeframe ? (HORIZON_LABEL[c.timeframe] ?? c.timeframe) : "—"}</span>
                 </div>
-              ))}
+                );
+              })}
             </Card>
           </section>
         )}
@@ -810,33 +843,6 @@ export default async function ArticlePage(
           </section>
         )}
 
-        {/* ══════════ 12. LIVE ARTICLE BADGE ══════════ */}
-        {status.label === "Active" || status.label === "Monitoring" ? (
-          <Card className="mb-8 flex flex-wrap items-center justify-between gap-4 border-sky-500/20 bg-sky-500/[0.04] p-5">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/15">
-                <Radio className="h-4 w-4 animate-pulse text-sky-400" />
-              </span>
-              <div>
-                <p className="text-[12px] font-bold uppercase tracking-widest text-sky-400">Live Article — Auto-Updating</p>
-                <p className="text-[11px] text-text-muted">Last update {fmtRelative(article.last_updated || article.published_at)}</p>
-              </div>
-            </div>
-            <div className="flex gap-5 text-right">
-              <div>
-                <p className="text-[18px] font-black text-text-primary">{article.update_count ?? 0}</p>
-                <p className="text-[9px] uppercase tracking-wide text-text-muted">Updates</p>
-              </div>
-              {watch.length > 0 && (
-                <div>
-                  <p className="text-[18px] font-black text-text-primary">{watch.length}</p>
-                  <p className="text-[9px] uppercase tracking-wide text-text-muted">Signals Tracked</p>
-                </div>
-              )}
-            </div>
-          </Card>
-        ) : null}
-
         {/* What to watch next */}
         {watch.length > 0 && (
           <section className="mb-8">
@@ -1013,7 +1019,7 @@ export default async function ArticlePage(
           primary: {
             label: "Ask AI about this story",
             why: "Get a full investment analysis grounded in this article's own evidence, not just the summary.",
-            href: `/ai-search?q=${encodeURIComponent(article.headline)}`,
+            href: `/ai-search?q=${encodeURIComponent(truncateForQuery(article.headline))}`,
           },
           groups: [
             ...(companies.length >= 2 ? [{

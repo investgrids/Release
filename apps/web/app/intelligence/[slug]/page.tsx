@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import MiniIntelligenceGraph from "@/components/MiniIntelligenceGraph";
 import { API_BASE_URL as API } from "@/lib/api";
-import { isRealSymbol } from "@/lib/text";
+import { isRealSymbol, truncateForQuery } from "@/lib/text";
 
 function makeNodeId(nodeType: string, label: string): string {
   const slug = label.toLowerCase().replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
@@ -193,7 +193,7 @@ export default async function IntelligenceArticlePage({
   // Suggested AI questions
   const suggestedQuestions = [
     `How will this impact ${sectors[0]?.name ?? art.article_type.replace(/_/g, " ")} stocks?`,
-    watchNext[0] ? `What should I watch for ${watchNext[0].title ?? "next"}?` : null,
+    watchNext[0] ? `What should I watch for ${truncateForQuery(watchNext[0].title ?? "next")}?` : null,
     companies[0] ? `Should I buy or sell ${typeof companies[0] === "string" ? companies[0] : companies[0]?.name ?? companies[0]?.symbol}?` : null,
   ].filter(Boolean).slice(0, 3) as string[];
 
@@ -552,7 +552,7 @@ export default async function IntelligenceArticlePage({
                 <p className="text-[13px] font-bold text-text-primary">Ask AI follow-up</p>
               </div>
               <Link
-                href={`/ai-search?q=${encodeURIComponent(`Tell me more about: ${art.headline}`)}`}
+                href={`/ai-search?q=${encodeURIComponent(`Tell me more about: ${truncateForQuery(art.headline)}`)}`}
                 className="flex w-full items-center justify-between rounded-xl border border-surface-border/8 bg-text-primary/[0.03] px-4 py-3 text-[13px] text-text-muted hover:border-violet-500/30 hover:bg-text-primary/[0.05] transition"
               >
                 <span>e.g., How will this impact {sectors[0] ? (typeof sectors[0] === "string" ? sectors[0] : sectors[0].name) : "the market"}?</span>

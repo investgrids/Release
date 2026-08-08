@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Radar, GitBranch, Rocket, History, ArrowRight, Sparkles, BookOpen, TrendingUp, TrendingDown, HelpCircle } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { safeJsonLd } from "@/lib/text";
+import { safeJsonLd, truncateForQuery } from "@/lib/text";
 import { SignalActions } from "@/components/intelligence/SignalActions";
 
 /**
@@ -508,7 +508,7 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
 
           <Card title="Continue Your Research">
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              <Link href={`/ai-search?q=${encodeURIComponent(a.headline)}`}
+              <Link href={`/ai-search?q=${encodeURIComponent(truncateForQuery(a.headline))}`}
                 className="flex items-center justify-between rounded-[12px] border border-violet-500/20 bg-violet-500/[0.05] px-4 py-3 transition hover:border-violet-500/35">
                 <span className="text-[13px] font-semibold text-violet-700 dark:text-violet-200">Ask MarketRipple AI</span>
                 <ArrowRight className="h-4 w-4 text-violet-400" />

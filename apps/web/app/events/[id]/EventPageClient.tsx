@@ -11,7 +11,7 @@ import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
 import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
-import { isRealSymbol } from "@/lib/text";
+import { isRealSymbol, truncateForQuery } from "@/lib/text";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { InvestmentThesisCard, OpportunityLifecycleCard, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, MultiHorizonOutlookCard } from "@/components/intelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
@@ -486,22 +486,38 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
 }
 
 // ── Tab: Companies ────────────────────────────────────────────────────────────
+// `companies` is the full identified list; `beneficiaries`/`losers` are the
+// subset the backend classified with a clear direction (event_service.py's
+// impact_type === "beneficiary"/"loser"). A company can be identified but
+// classified neither way (e.g. impact_type "neutral", or unset) — found live
+// on a routine "financial results" filing showing "Companies: 1" with both
+// beneficiaries and losers empty, so the company silently vanished from this
+// tab entirely. The `neutral` group below is exactly that leftover set —
+// still rendered, so "1 company identified" never again means "0 shown."
 function CompaniesTab({ data }: { data: EventDetail }) {
   if (!data.companies.length) return <Empty msg="Company analysis not yet available."/>;
+  const classifiedSymbols = new Set([...data.beneficiaries, ...data.losers].map(c => c.symbol));
+  const neutral = data.companies.filter(c => !classifiedSymbols.has(c.symbol));
+  const STYLE: Record<string, { badge: string; border: string; bg: string; impact: string }> = {
+    emerald: { badge: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300", border: "border-emerald-500/10", bg: "bg-emerald-500/[0.04]", impact: "text-emerald-400" },
+    rose:    { badge: "bg-rose-500/20 text-rose-600 dark:text-rose-300",       border: "border-rose-500/10", bg: "bg-rose-500/[0.04]", impact: "text-rose-400" },
+    slate:   { badge: "bg-text-primary/10 text-text-secondary",                border: "border-surface-border/10", bg: "bg-text-primary/[0.02]", impact: "text-text-secondary" },
+  };
   return (
     <div className="space-y-4">
       {[
-        { list: data.beneficiaries, label: "Beneficiaries",      color: "emerald", tag: "↑ BENEFIT" },
-        { list: data.losers,        label: "Negatively Affected", color: "rose",    tag: "↓ RISK"    },
-      ].filter(g => g.list.length > 0).map(group => (
+        { list: data.beneficiaries, label: "Beneficiaries",          color: "emerald", tag: "↑ BENEFIT" },
+        { list: data.losers,        label: "Negatively Affected",    color: "rose",    tag: "↓ RISK"    },
+        { list: neutral,            label: "Mentioned — Impact Unclear", color: "slate", tag: "NEUTRAL"  },
+      ].filter(g => g.list.length > 0).map(group => {
+        const s = STYLE[group.color];
+        return (
         <Card key={group.label} title={group.label}>
           <div className="space-y-2">
             {group.list.map((c, i) => {
               const real = isRealSymbol(c.symbol);
               const avatar = (
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold
-                  ${group.color === "emerald" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/20 text-rose-600 dark:text-rose-300"}
-                  ${real ? "transition hover:opacity-80" : ""}`}>
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold ${s.badge} ${real ? "transition hover:opacity-80" : ""}`}>
                   {(real ? c.symbol : c.name).slice(0, 3)}
                 </div>
               );
@@ -509,8 +525,7 @@ function CompaniesTab({ data }: { data: EventDetail }) {
                 <span className="text-[13px] font-semibold text-text-primary">{c.name || c.symbol}</span>
               );
               return (
-              <div key={i} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5
-                ${group.color === "emerald" ? "border-emerald-500/10 bg-emerald-500/[0.04]" : "border-rose-500/10 bg-rose-500/[0.04]"}`}>
+              <div key={i} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${s.border} ${s.bg}`}>
                 {real ? <Link href={`/companies/${c.symbol}`}>{avatar}</Link> : avatar}
                 <div className="min-w-0 flex-1">
                   {real ? (
@@ -520,12 +535,11 @@ function CompaniesTab({ data }: { data: EventDetail }) {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-[10px] text-text-muted">Impact</p>
-                  <p className={`text-[14px] font-black ${c.impact_score === null || c.impact_score === undefined ? "text-text-muted" : group.color === "emerald" ? "text-emerald-400" : "text-rose-400"}`}>
+                  <p className={`text-[14px] font-black ${c.impact_score === null || c.impact_score === undefined ? "text-text-muted" : s.impact}`}>
                     {c.impact_score === null || c.impact_score === undefined ? "—" : c.impact_score.toFixed(0)}
                   </p>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold
-                  ${group.color === "emerald" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/20 text-rose-600 dark:text-rose-300"}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${s.badge}`}>
                   {group.tag}
                 </span>
               </div>
@@ -533,7 +547,8 @@ function CompaniesTab({ data }: { data: EventDetail }) {
             })}
           </div>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -969,7 +984,7 @@ function VerdictCard({ data }: { data: EventDetail }) {
       {/* Action row */}
       <div className="mt-4 flex items-center gap-3 border-t border-surface-border/5 pt-3">
         <Link
-          href={`/ai-search?q=${encodeURIComponent(`What should I do about: ${data.event.title}`)}`}
+          href={`/ai-search?q=${encodeURIComponent(`What should I do about: ${truncateForQuery(data.event.title)}`)}`}
           className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-[13px] font-bold text-text-primary transition hover:bg-violet-500"
         >
           <Sparkles className="h-3.5 w-3.5" />
@@ -996,17 +1011,31 @@ function WhatNextSection({ data }: { data: EventDetail }) {
   const topBen    = data.beneficiaries[0];
   const topRisk   = data.losers[0];
   const topSec    = data.affectedSectors[0]?.sector;
-  const title     = data.event.title;
+  const title     = truncateForQuery(data.event.title);
   const benCount  = data.beneficiaries.length;
   const riskCount = data.losers.length;
+  // Same leftover-set reasoning as CompaniesTab: a company can be identified
+  // without a benefit/risk classification. When that's the only company on
+  // record, the takeaway/primary action should still name it instead of
+  // claiming "0 companies" when 1 was actually found.
+  const classifiedSymbols = new Set([...data.beneficiaries, ...data.losers].map(c => c.symbol));
+  const topNeutral = data.companies.find(c => !classifiedSymbols.has(c.symbol));
 
   return (
     <NextSteps config={{
-      takeaway: `${benCount} ${benCount === 1 ? "company stands" : "companies stand"} to benefit and ${riskCount} face headwinds — the market may not have fully priced this in yet.`,
+      takeaway: (benCount || riskCount)
+        ? `${benCount} ${benCount === 1 ? "company stands" : "companies stand"} to benefit and ${riskCount} face headwinds — the market may not have fully priced this in yet.`
+        : topNeutral
+        ? `${topNeutral.name || topNeutral.symbol} is identified as impacted, though this event's direction (benefit or risk) isn't yet classified.`
+        : `No companies have been identified for this event yet — check back once enrichment completes.`,
       primary: topBen ? {
         label: `Research ${topBen.name || topBen.symbol}`,
         why:   `Because they're the highest-conviction beneficiary — this event directly improves their order book and revenue outlook.`,
         href:  `/companies/${topBen.symbol}`,
+      } : topNeutral ? {
+        label: `Research ${topNeutral.name || topNeutral.symbol}`,
+        why:   `Because they're the company this event is actually about — start there before asking AI for a broader read.`,
+        href:  `/companies/${topNeutral.symbol}`,
       } : {
         label: `Ask AI: Who benefits most from this event?`,
         why:   `Because identifying specific winners is the first step toward an actionable investment thesis.`,
@@ -1206,7 +1235,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
           className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 transition">
           ✦ Intelligence Feed
         </Link>
-        <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${ev.title}`)}`} />
+        <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${truncateForQuery(ev.title)}`)}`} />
         {data.beneficiaries?.[0] && (
           <SmartCTA variant="see-companies" href={`/companies/${data.beneficiaries[0].symbol}`} context={data.beneficiaries[0].name || data.beneficiaries[0].symbol} />
         )}

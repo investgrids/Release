@@ -11,7 +11,7 @@ import { MarketSessionGate }  from "@/components/MarketSessionGate";
 import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
-import { cleanText } from "@/lib/text";
+import { cleanText, truncateForQuery } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
 
@@ -943,7 +943,7 @@ async function TodaysBiggestEventsCard() {
                     Similar Events" as separate views don't exist yet, and
                     a broken/placeholder link is worse than not having it. */}
                 <div className="mt-2.5 flex items-center gap-3 border-t border-surface-border/5 pt-2">
-                  <Link href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${e.title}`)}` as any} className="text-[10px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">Analyze with AI →</Link>
+                  <Link href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${truncateForQuery(e.title)}`)}` as any} className="text-[10px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">Analyze with AI →</Link>
                   <Link href={`/ripple?event=${e.id}` as any} className="text-[10px] font-semibold text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">Ripple Analysis →</Link>
                   <Link href={`/events/${e.id}` as any} className="text-[10px] font-semibold text-text-muted hover:text-text-secondary transition">Full Event Analysis →</Link>
                   {e.confidence != null && <span className="ml-auto text-[10px] text-text-muted">Confidence <span className="font-bold text-text-secondary">{Math.round(e.confidence)}%</span></span>}

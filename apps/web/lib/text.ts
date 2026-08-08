@@ -61,6 +61,19 @@ export function cleanText(s?: string | null): string {
   return decodeEntities(fixMojibake(s));
 }
 
+// "Ask AI" CTAs across the site (events hub, event detail, homepage) embed
+// a real headline/title into an /ai-search?q= query template — several
+// independently embedded the raw, untruncated title, which for an NSE
+// announcement can run 200+ characters ("Sanginita Chemicals Limited has
+// submitted the Exchange a copy Srutinizers report of..."), producing a
+// URL over 200 chars and a robotic-sounding query with a full paragraph
+// stuffed into it (both confirmed live, flagged by an SEO crawl). Same
+// 80-char/ellipsis truncation events/page.tsx's own `shortTitle` already
+// used correctly in one place — centralized so every CTA site gets it.
+export function truncateForQuery(text: string, max = 80): string {
+  return text.length > max ? text.slice(0, max - 3) + "…" : text;
+}
+
 // When the AI can't identify a specific ticker for a vaguely-referenced
 // company (e.g. "the multibagger stock" with no name given in the source
 // event), it writes a placeholder into the symbol field rather than

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
+import { truncateForQuery } from "@/lib/text";
 import {
   ArrowRight, Zap, Building2, BookOpen,
   Target, Activity, Search, ExternalLink,
@@ -103,7 +104,7 @@ async function fetchEntity(type: EntityType, id: string): Promise<EntityData | n
         return {
           title:       `AI Answer: ${query}`,
           description: `MarketRipple's AI has analyzed "${query}" with sourced, evidence-backed market intelligence.`,
-          href:        `/ai-search?q=${encodeURIComponent(query)}`,
+          href:        `/ai-search?q=${encodeURIComponent(truncateForQuery(query))}`,
           type,
         };
       }

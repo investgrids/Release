@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAlerts, BreakingAlert } from "./AlertProvider";
 import { AlertOctagon, Zap, AlertTriangle } from "lucide-react";
+import { truncateForQuery } from "@/lib/text";
 
 /* ── Helpers ─────────────────────────────────────────────── */
 const URGENCY_STYLE = {
@@ -111,7 +112,7 @@ function AlertCard({ alert, onDismiss }: { alert: BreakingAlert; onDismiss: () =
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             <Link
-              href={`/ai-search?q=${encodeURIComponent(alert.query ?? alert.headline)}`}
+              href={`/ai-search?q=${encodeURIComponent(truncateForQuery(alert.query ?? alert.headline))}`}
               className="flex-1 rounded-[12px] bg-gradient-to-r from-violet-600 to-sky-500 px-3 py-2 text-center text-xs font-semibold text-text-primary hover:opacity-90 transition"
             >
               View Full AI Analysis →

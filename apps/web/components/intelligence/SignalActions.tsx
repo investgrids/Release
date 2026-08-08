@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Sparkles, GitCompare, Building2, Link2, Check, Radar } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
+import { truncateForQuery } from "@/lib/text";
 
 /**
  * Signal detail page — Quick Actions + Share (UI-only redesign, no new
@@ -38,7 +39,7 @@ export function SignalActions({
       <div className="rounded-[16px] border border-surface-border/8 bg-text-primary/[0.02] p-4 backdrop-blur">
         <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Quick Actions</p>
         <div className="space-y-1.5">
-          <Link href={`/ai-search?q=${encodeURIComponent(headline)}` as any}
+          <Link href={`/ai-search?q=${encodeURIComponent(truncateForQuery(headline))}` as any}
             onClick={() => trackEvent("signal_cta_click", { action: "analyze_ai" })}
             className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[12.5px] font-medium text-text-secondary transition hover:bg-text-primary/[0.05] hover:text-violet-600 dark:text-violet-300">
             <Sparkles className="h-3.5 w-3.5 shrink-0" /> Analyze with AI

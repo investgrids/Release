@@ -11,7 +11,13 @@ export async function generateMetadata({
   const { id } = await params;
   const url = `${SITE}/ripple/${id}`;
   try {
-    const res = await fetch(`${API}/api/ripple/${id}`, { next: { revalidate: 3600 } });
+    // SEO fix: was /api/ripple/{id} — always 404 (confirmed live), which
+    // silently fell through to the generic "Ripple Intelligence" fallback
+    // below for every single ripple page, no exceptions — a crawler flagged
+    // 10 of them as duplicate titles, but the underlying bug affects all of
+    // them. The real endpoint (matching what RipplePageClient.tsx's own
+    // client-side fetch already uses successfully) is /api/ripple/event/{id}.
+    const res = await fetch(`${API}/api/ripple/event/${id}`, { next: { revalidate: 3600 } });
     if (res.ok) {
       const data  = await res.json();
       const title = data.event_title ?? data.title ?? "Ripple Intelligence";
