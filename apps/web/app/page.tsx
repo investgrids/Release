@@ -736,7 +736,15 @@ function LiveIntelligenceCard({ item }: { item: any }) {
   return (
     <div className="group relative flex h-full flex-col rounded-[18px] border border-surface-border/7 bg-text-primary/[0.02] p-4 transition hover:border-violet-500/25">
       {href && (
-        <Link href={href as any} className="absolute inset-0 z-0 rounded-[18px]" aria-label={`View full intelligence: ${cleanText(item.headline)}`} />
+        // SEO fix: this stretched-link pattern (see comment above) previously
+        // shipped as a self-closing <a> with only an aria-label — accessible
+        // to screen readers, but crawlers weight visible anchor text far more
+        // than aria-label, and this <a> had none. An sr-only span gives it
+        // real text content without touching the visual "invisible overlay"
+        // behavior or aria-label (which still controls the announced name).
+        <Link href={href as any} className="absolute inset-0 z-0 rounded-[18px]" aria-label={`View full intelligence: ${cleanText(item.headline)}`}>
+          <span className="sr-only">{cleanText(item.headline)}</span>
+        </Link>
       )}
       <div className="pointer-events-none relative z-10 flex h-full flex-col">
         <div className="flex flex-wrap items-center gap-1.5">
