@@ -308,7 +308,7 @@ function BigGauge({ score, size = 120 }: { score: number | null | undefined; siz
           transform={`rotate(-90 ${cx} ${cy})`}
           style={{ transition: "stroke-dasharray 1s ease" }}/>
       )}
-      <text x={cx} y={cy + 6} textAnchor="middle" fill="white"
+      <text x={cx} y={cy + 6} textAnchor="middle" fill="rgb(var(--text-primary))"
         fontSize={unscored ? size * 0.14 : size * 0.22} fontWeight="800" fontFamily="inherit">
         {unscored ? "N/A" : `${score}%`}
       </text>

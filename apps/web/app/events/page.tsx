@@ -707,7 +707,7 @@ export default function EventsPage() {
             } : {
               label: `Ask AI: Which companies are most at risk?`,
               why:   `Because understanding the specific winners and losers is the first step to an actionable investment thesis.`,
-              href:  `/ai-search?q=${q(`Which companies are most affected by "${topEv.title}" and what should investors do?`)}`,
+              href:  `/ai-search?q=${q(`Which companies are most affected by "${shortTitle}" and what should investors do?`)}`,
             },
             groups: [
               {
@@ -716,7 +716,7 @@ export default function EventsPage() {
                   {
                     label: "Ask AI: How long will this impact last?",
                     why:   "Because impact duration determines whether this is a short-term trade or a long-term investment thesis.",
-                    href:  `/ai-search?q=${q(`How long will the market impact of "${topEv.title}" last and what should investors do?`)}`,
+                    href:  `/ai-search?q=${q(`How long will the market impact of "${shortTitle}" last and what should investors do?`)}`,
                   },
                   {
                     label: "Open the full event analysis",
