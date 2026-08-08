@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Flame, Landmark, Building2, Repeat2, Telescope, Zap, Link2, BarChart2, Plane, Factory } from "lucide-react";
+import { Flame, Landmark, Building2, Repeat2, Telescope, Zap, Link2, BarChart2 } from "lucide-react";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
 import { API_BASE_URL as API } from "@/lib/api";
@@ -55,71 +55,27 @@ export async function RippleChainTab() {
     <div className="space-y-8">
       <MarketContextStrip />
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-indigo-500/15 bg-surface-card p-8">
-        <div className="flex items-start justify-between gap-6">
-          <div className="max-w-2xl">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-[11px] font-bold text-indigo-400">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg> FLAGSHIP FEATURE
-              </span>
-              <span className="text-[11px] text-text-muted">Powered by Ripple Engine AI</span>
-            </div>
-            <h1 className="text-[32px] font-black text-text-primary leading-tight mb-3">
-              Market Dependency Graph™
-              <br />
-              <span className="text-[22px] font-semibold text-text-secondary">Powered by Ripple Engine AI</span>
-            </h1>
-            <p className="text-[14px] text-text-secondary leading-7 max-w-xl">
-              When one thing changes in the economy, it triggers a chain of effects. An interest rate cut makes loans cheaper, which helps real estate, which affects cement companies. This tool maps that entire chain — so you can see what to watch before the market reacts.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {([
-                { icon: <Flame className="h-3.5 w-3.5" />,     text: "Commodity chains" },
-                { icon: <Landmark className="h-3.5 w-3.5" />,  text: "Sector impacts" },
-                { icon: <Building2 className="h-3.5 w-3.5" />, text: "Company P&L effects" },
-                { icon: <Landmark className="h-3.5 w-3.5" />,  text: "Policy responses" },
-                { icon: <Repeat2 className="h-3.5 w-3.5" />,   text: "Currency dynamics" },
-                { icon: <Telescope className="h-3.5 w-3.5" />, text: "What-if scenarios" },
-              ] as { icon: ReactNode; text: string }[]).map(f => (
-                <span key={f.text} className="flex items-center gap-1.5 rounded-full border border-surface-border/7 bg-text-primary/[0.03] px-3 py-1.5 text-[11px] text-text-secondary">
-                  {f.icon}{f.text}
-                </span>
-              ))}
-            </div>
-          </div>
-          {/* Mini graph teaser — links to the real interactive graph at /graph
-              rather than standing alone as a decorative mockup implying live
-              data it doesn't have. */}
-          <Link href="/graph" className="hidden lg:flex flex-col items-center gap-2 shrink-0 group">
-            <div className="relative w-[200px] h-[180px]">
-              {/* Concentric rings */}
-              {[180, 140, 100, 60].map((s, i) => (
-                <div key={i} className="absolute inset-0 flex items-center justify-center">
-                  <div className="rounded-full border border-surface-border/5" style={{ width: s, height: s }} />
-                </div>
-              ))}
-              {/* Center node */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-12 w-12 rounded-full border-2 border-indigo-500 bg-indigo-500/10 flex items-center justify-center text-indigo-400"><Zap className="h-5 w-5" /></div>
-              </div>
-              {/* Surrounding mini nodes */}
-              {([
-                { angle: -90,  color: "border-amber-500/60 bg-amber-500/12",   icon: <Flame className="h-3 w-3 text-amber-400" />,    x: 100, y: 10 },
-                { angle: -30,  color: "border-rose-500/60 bg-rose-500/12",    icon: <Plane className="h-3 w-3 text-rose-400" />,     x: 160, y: 60 },
-                { angle:  30,  color: "border-emerald-500/60 bg-emerald-500/12", icon: <Factory className="h-3 w-3 text-emerald-400" />,x: 150, y: 120 },
-                { angle:  90,  color: "border-sky-500/60 bg-sky-500/12",     icon: <Landmark className="h-3 w-3 text-sky-400" />,   x: 100, y: 160 },
-                { angle: 150,  color: "border-violet-500/60 bg-violet-500/12",  icon: <Building2 className="h-3 w-3 text-violet-400" />,x: 40, y: 120 },
-                { angle: 210,  color: "border-teal-500/60 bg-teal-500/12",    icon: <Repeat2 className="h-3 w-3 text-teal-400" />,   x: 30, y: 60 },
-              ] as { angle: number; color: string; icon: ReactNode; x: number; y: number }[]).map((n, i) => (
-                <div key={i} className="absolute" style={{ left: n.x - 12, top: n.y - 12 }}>
-                  <div className={`w-6 h-6 rounded-lg border ${n.color} flex items-center justify-center`}>{n.icon}</div>
-                </div>
-              ))}
-            </div>
-            <p className="text-[10px] text-text-muted text-center group-hover:text-indigo-400 transition-colors">Open the interactive graph →</p>
-          </Link>
+      {/* Feature tags + interactive-graph teaser — the title/pitch this used
+          to repeat ("Market Dependency Graph™ / Powered by Ripple Engine AI")
+          now lives once, in the hub's own HubHero above this tab. */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-indigo-500/15 bg-surface-card p-5">
+        <div className="flex flex-wrap gap-3">
+          {([
+            { icon: <Flame className="h-3.5 w-3.5" />,     text: "Commodity chains" },
+            { icon: <Landmark className="h-3.5 w-3.5" />,  text: "Sector impacts" },
+            { icon: <Building2 className="h-3.5 w-3.5" />, text: "Company P&L effects" },
+            { icon: <Landmark className="h-3.5 w-3.5" />,  text: "Policy responses" },
+            { icon: <Repeat2 className="h-3.5 w-3.5" />,   text: "Currency dynamics" },
+            { icon: <Telescope className="h-3.5 w-3.5" />, text: "What-if scenarios" },
+          ] as { icon: ReactNode; text: string }[]).map(f => (
+            <span key={f.text} className="flex items-center gap-1.5 rounded-full border border-surface-border/7 bg-text-primary/[0.03] px-3 py-1.5 text-[11px] text-text-secondary">
+              {f.icon}{f.text}
+            </span>
+          ))}
         </div>
+        <Link href="/graph" className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-indigo-400 transition hover:text-indigo-300">
+          <Zap className="h-3.5 w-3.5" /> Open the interactive graph →
+        </Link>
       </div>
 
       {/* ── How it works ─────────────────────────────────────────────────── */}
@@ -254,7 +210,7 @@ export async function RippleChainTab() {
                   {
                     label: "Ask AI: What are the second-order effects?",
                     why:   "Because ripple effects compound — the real opportunity is often in companies two steps removed from the headline event.",
-                    href:  `/ai-search?q=${q(`What are the second-order market effects of "${top.title}"? Which companies benefit indirectly?`)}`,
+                    href:  `/ai-search?q=${q(`What are the second-order market effects of "${shortTitle}"? Which companies benefit indirectly?`)}`,
                   },
                 ],
               },
