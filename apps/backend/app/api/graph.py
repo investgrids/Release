@@ -24,6 +24,11 @@ _PRICE_TTL = 120  # 2-minute freshness for live prices
 _YF_SEM = asyncio.Semaphore(6)
 _YF_CALL_TIMEOUT = 9.0  # seconds per individual yfinance call
 
+# Tickers currently being refreshed in the background, so /live's polling
+# (every 30s per client) doesn't pile up duplicate refresh tasks for the
+# same ticker while an earlier one is still in flight.
+_refreshing: set[str] = set()
+
 
 def _yf_price(ticker: str) -> dict | None:
     """Synchronous yfinance fast_info fetch — run in executor."""
@@ -117,12 +122,39 @@ async def get_stats():
     }
 
 
+async def _refresh_one(ticker: str) -> None:
+    """Background refresh — writes straight into _price_cache, no return
+    value read by anyone. Never awaited by a request; fire-and-forget."""
+    loop = asyncio.get_running_loop()
+    try:
+        async with _YF_SEM:
+            await asyncio.wait_for(
+                loop.run_in_executor(None, _yf_price, ticker),
+                timeout=_YF_CALL_TIMEOUT,
+            )
+    except asyncio.TimeoutError:
+        log.warning("graph.live.yf_timeout", ticker=ticker)
+    except Exception as exc:
+        log.warning("graph.live.yf_refresh_failed", ticker=ticker, error=str(exc)[:150])
+    finally:
+        _refreshing.discard(ticker)
+
+
 @router.get("/live")
 async def get_live_data():
     """
     Live price data for all ticker-bearing nodes in the graph.
     Also returns lightweight topology metadata so clients can detect graph changes.
-    Prices are cached 2 minutes in-process; graph topology is fetched from Redis/DB.
+
+    Serves straight from the in-process cache — never blocks on a live
+    yfinance call. Found live: with the graph now at 266 unique tickers
+    (grows over time via event auto-ingestion, nothing prunes it), the old
+    design synchronously fetched every ticker on every request — 6-way
+    concurrency x up to 9s/call meant worst-case minutes, routinely
+    exceeding both the frontend's 12s timeout and even a 15s external probe,
+    which is exactly why the UI showed permanently "Offline." Missing/stale
+    entries now trigger a bounded background refresh instead of being
+    waited on, so this endpoint's latency no longer scales with graph size.
     """
     from app.services.intelligence_graph_service import get_full_graph
 
@@ -149,29 +181,26 @@ async def get_live_data():
         if tkr not in ticker_map:
             ticker_map[tkr] = nid
 
-    # Fetch all prices concurrently in executor.
-    # Semaphore caps parallel Yahoo requests to 6; wait_for kills hangers after 9 s.
-    loop = asyncio.get_running_loop()
-
-    async def _fetch_one(ticker: str) -> tuple[str, dict | None]:
-        async with _YF_SEM:
-            try:
-                result = await asyncio.wait_for(
-                    loop.run_in_executor(None, _yf_price, ticker),
-                    timeout=_YF_CALL_TIMEOUT,
-                )
-            except asyncio.TimeoutError:
-                log.warning("graph.live.yf_timeout", ticker=ticker)
-                result = None
-        return ticker, result
-
-    results = await asyncio.gather(*[_fetch_one(t) for t in ticker_map])
-
+    now = time.time()
     prices: dict[str, dict] = {}
-    for ticker, data in results:
-        if data:
-            node_id = ticker_map[ticker]
-            prices[node_id] = {**data, "ticker": ticker}
+    stale_or_missing: list[str] = []
+    for ticker, node_id in ticker_map.items():
+        cached = _price_cache.get(ticker)
+        if cached:
+            age = now - cached[0]
+            prices[node_id] = {**cached[1], "ticker": ticker, "age_s": round(age)}
+            if age >= _PRICE_TTL:
+                stale_or_missing.append(ticker)
+        else:
+            stale_or_missing.append(ticker)
+
+    # Kick off background refreshes, deduped against ones already in
+    # flight — never awaited, so this request returns immediately
+    # regardless of how many tickers need a refresh.
+    for ticker in stale_or_missing:
+        if ticker not in _refreshing:
+            _refreshing.add(ticker)
+            asyncio.create_task(_refresh_one(ticker))
 
     # Lightweight topology fingerprint: node count + edge count
     topology = {
