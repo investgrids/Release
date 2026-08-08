@@ -12,9 +12,9 @@ import {
 import { WatchlistButton } from "@/components/WatchlistButton";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
+import { truncateForQuery } from "@/lib/text";
 import type { ReactNode } from "react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { truncateForQuery } from "@/lib/text";
 
 
 interface Event {
@@ -373,7 +373,15 @@ export default function EventsPage() {
     // that view's own premise assumes, and every event still carries its
     // real score for the score circle / impact badge / Impact filter chips
     // to rank and filter with client-side.
-    fetch(`${API}/api/events/?sort_by=published_at&limit=${limit}`, { cache: "no-store" })
+    //
+    // scored_only=true: most of that feed is raw NSE/BSE compliance
+    // filings (chairman resignations, duplicate share certificates, FCCB
+    // notices) that never clear the Scoring Engine's minimum-evidence bar
+    // — real disclosures, but no assessed company impact, so showing them
+    // here is noise with an "Unscored" badge and nothing else. The API
+    // widens its DB pool server-side to still fill `limit` with real,
+    // scored events instead of mostly nulls.
+    fetch(`${API}/api/events/?sort_by=published_at&limit=${limit}&scored_only=true`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : [])
       .then(d => { if (Array.isArray(d)) setEvents(d); })
       .catch(() => {})
@@ -383,6 +391,14 @@ export default function EventsPage() {
   const filtered = events.filter(ev => {
     if (categoryFilter && ev.category !== categoryFilter) return false;
     if (impactFilter !== "All" && impactLabel(ev.impact_score) !== impactFilter) return false;
+    // A Low-impact event that also names a specific company (a routine
+    // single-company compliance filing — "sent a letter providing weblink
+    // of the Annual Report," "Newspaper Publication") is noise: real, but
+    // not worth a card in the main feed. A Low-impact event with NO
+    // company tag can still carry broad market relevance, so it stays.
+    // Only applies when the user hasn't explicitly asked to see Low
+    // impact — an explicit filter choice is never silently overridden.
+    if (impactFilter === "All" && impactLabel(ev.impact_score) === "Low" && ev.companies.length > 0) return false;
     if (query) {
       const q = query.toLowerCase();
       if (!ev.title.toLowerCase().includes(q) && !(ev.summary ?? "").toLowerCase().includes(q)) return false;

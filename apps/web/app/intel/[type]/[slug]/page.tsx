@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, TrendingUp, AlertTriangle, Building2, Globe, Clock, BookOpen } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
@@ -89,9 +89,15 @@ export default async function IntelPage(
   if (!VALID_TYPES.includes(type)) notFound();
 
   const intel = await fetchIntelligence(type, rawSlug);
-  if (!intel || !intel.market_story) notFound();
-
   const meta = TYPE_META[type];
+  // Confirmed live: "Intelligence Report" is linked from every event/
+  // company/news card unconditionally, but most events (routine,
+  // low-urgency filings) never get an AI intelligence synthesis —
+  // fetchIntelligence then returns real JSON with market_story: "" (not a
+  // fetch failure). notFound() there was a dead end even though the
+  // underlying entity has a perfectly real page. Redirect to it instead —
+  // never a link that goes nowhere.
+  if (!intel || !intel.market_story) redirect(meta.href(rawSlug));
   const humanSlug = rawSlug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   // Two-layer header: a short real headline (first sentence of the AI's
   // own key_takeaway — never the raw opaque slug, which used to render
