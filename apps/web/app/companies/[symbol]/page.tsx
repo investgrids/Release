@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import StockPage, { type StockDetail } from "./CompanyPageClient";
 
@@ -15,13 +16,24 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
  * minimum real prose a search result snippet or a non-JS crawler needs.
  */
 
-async function fetchStock(symbol: string): Promise<StockDetail | null> {
+// SEO fix: previously a 404 from the backend (symbol genuinely doesn't
+// exist — verified live via /companies/ABNB, /companies/AEGISCHEM,
+// /companies/BAJAJEL all returning a real 404 there) and any OTHER failure
+// (network error, a transient 5xx) both collapsed to the same `null`,
+// which just skipped the <h1>/description block below and still shipped
+// HTTP 200 — an indexable-looking page with no real content for a company
+// that doesn't exist. Distinguishing "genuinely not found" from "couldn't
+// fetch right now" matters: only the former should ever 404 the page —
+// a transient backend blip shouldn't tell a crawler a valid company page
+// doesn't exist.
+async function fetchStock(symbol: string): Promise<{ data: StockDetail | null; symbolNotFound: boolean }> {
   try {
     const res = await fetch(`${API}/api/stocks/${symbol}`, { next: { revalidate: 300 } });
-    if (!res.ok) return null;
-    return await res.json();
+    if (res.status === 404) return { data: null, symbolNotFound: true };
+    if (!res.ok) return { data: null, symbolNotFound: false };
+    return { data: await res.json(), symbolNotFound: false };
   } catch {
-    return null;
+    return { data: null, symbolNotFound: false };
   }
 }
 
@@ -56,7 +68,8 @@ function withPeriod(text: string) {
 export default async function CompanyPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = await params;
   const upper = symbol.toUpperCase();
-  const stock = await fetchStock(upper);
+  const { data: stock, symbolNotFound } = await fetchStock(upper);
+  if (symbolNotFound) notFound();
   const related = stock ? await fetchRelated(upper, stock.name, stock.sector) : null;
   const url = `${SITE}/companies/${upper}`;
 
