@@ -479,8 +479,8 @@ export default async function ArticlePage(
               )}
             </div>
             {article.confidence_score != null && (
-              <div className="text-right">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Confidence</p>
+              <div className="text-right" title="The AI's own confidence in this article's analysis — not the same metric as the evidence-based Confidence Breakdown shown on company pages.">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Article Confidence</p>
                 <p className="text-[28px] font-black text-text-primary">{Math.round(article.confidence_score * 100)}%</p>
               </div>
             )}
@@ -504,7 +504,12 @@ export default async function ArticlePage(
 
           {(companies.length > 0 || sectors.length > 0) && (
             <div className="mt-5 border-t border-surface-border/10 pt-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Reasons</p>
+              {/* Was labeled "Reasons," directly under "Confidence" — read as
+                  "why the confidence score is what it is." It isn't: these
+                  are each company/sector's own impact reason, unrelated to
+                  the confidence number above. Relabeled to stop implying a
+                  connection that doesn't exist. */}
+              <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Why These Are Affected</p>
               <ul className="space-y-1.5">
                 {[...companies, ...sectors].filter(x => x.reason).slice(0, 3).map((x, i) => (
                   <li key={i} className="flex items-start gap-2 text-[13px] leading-5 text-text-secondary">
