@@ -3,10 +3,60 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 export interface Crumb {
   label: string;
   href?: string; // omit on the final/current crumb
+}
+
+// The root layout renders one global <Breadcrumbs/> above every page's
+// {children} (see layout.tsx) — a page nested underneath has no direct way
+// to hand it real, server-fetched title data (a company name, an event
+// headline) instead of the humanized-raw-slug fallback. This context is
+// that channel: a page calls useBreadcrumbOverride() with its real crumbs
+// once its data loads, and the root Breadcrumbs reads it instead of
+// re-deriving from the URL. Client-side only (fixes the post-hydration DOM
+// real users and JS-executing crawlers see; the very first static HTML
+// still briefly shows the humanized fallback, same tradeoff every other
+// client-fetched personalization in this app already makes).
+const BreadcrumbOverrideContext = createContext<{
+  override: Crumb[] | null;
+  setOverride: (items: Crumb[] | null) => void;
+} | null>(null);
+
+export function BreadcrumbOverrideProvider({ children }: { children: ReactNode }) {
+  const [override, setOverride] = useState<Crumb[] | null>(null);
+  return (
+    <BreadcrumbOverrideContext.Provider value={{ override, setOverride }}>
+      {children}
+    </BreadcrumbOverrideContext.Provider>
+  );
+}
+
+// Call with the real crumb trail once a page's own data has loaded (or
+// `null` while it's still loading/unavailable, to fall back to the
+// auto-derived one rather than show nothing). Clears itself on unmount so
+// navigating to a different page never leaks a stale override forward.
+export function useBreadcrumbOverride(items: Crumb[] | null) {
+  const ctx = useContext(BreadcrumbOverrideContext);
+  const key = items ? JSON.stringify(items) : null;
+  useEffect(() => {
+    if (!ctx) return;
+    ctx.setOverride(items);
+    return () => ctx.setOverride(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, key]);
+}
+
+// Drop-in for a SERVER page/component that already has the real title at
+// render time (it doesn't need useEffect's client-only timing at all) but
+// can't call a hook itself without becoming a client component. Renders
+// nothing — just registers the override via the client boundary this
+// component itself crosses.
+export function BreadcrumbSetter({ items }: { items: Crumb[] }) {
+  useBreadcrumbOverride(items);
+  return null;
 }
 
 // Static segment → display label for every route this maps into a hub/tab.
@@ -56,7 +106,7 @@ function humanize(segment: string): string {
 // (e.g. "newsroom" -> /newsroom, a real page). Confirmed live: /newsroom/
 // article 404s — a crawler flagged the resulting link as "non-descriptive
 // anchor text", but the deeper issue is the href itself points nowhere.
-const NON_LINKABLE_SEGMENTS = new Set(["article"]);
+const NON_LINKABLE_SEGMENTS = new Set(["article", "intel"]);
 
 function autoCrumbs(pathname: string): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
@@ -74,9 +124,11 @@ function autoCrumbs(pathname: string): Crumb[] {
 
 export function Breadcrumbs({ items, siteUrl }: { items?: Crumb[]; siteUrl?: string }) {
   const pathname = usePathname();
+  // Hooks must run unconditionally, before the early-return below.
+  const overrideCtx = useContext(BreadcrumbOverrideContext);
   if (!pathname || pathname === "/") return null;
 
-  const crumbs = items ?? autoCrumbs(pathname);
+  const crumbs = items ?? overrideCtx?.override ?? autoCrumbs(pathname);
   if (crumbs.length === 0) return null;
 
   // NEXT_PUBLIC_ vars are inlined at build time — identical on server and

@@ -14,6 +14,7 @@ import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { NextSteps } from "@/components/NextSteps";
+import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
 import { fixMojibake } from "@/lib/text";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc } from "@/lib/scoring";
@@ -168,6 +169,15 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
   const insights: RippleInsights | null = data?.insights as RippleInsights ?? null;
 
   const { data: intelligence } = useIntelligence("event", id || undefined);
+
+  // SEO fix: the site-wide breadcrumb otherwise falls back to humanizing
+  // the raw id ("nse-d414146c3c" -> "Nse D414146c3c") — real, meaningless
+  // text, confirmed live. Overrides it with the real event headline once
+  // loaded; null while still loading, so it falls back to the auto-derived
+  // crumb rather than show nothing.
+  useBreadcrumbOverride(
+    data?.event_title ? [{ label: "Ripple Intelligence", href: "/ripple" }, { label: data.event_title }] : null
+  );
 
   // ── Loading state ───────────────────────────────────────────────────────
   if (loading) return (

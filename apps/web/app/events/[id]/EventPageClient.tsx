@@ -9,6 +9,7 @@ import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { Target, Building2, BarChart2, Sparkles, MailX, ArrowRight } from "lucide-react";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
+import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { isRealSymbol } from "@/lib/text";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
@@ -1127,6 +1128,14 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
     }, 60_000);
     return () => clearInterval(iv);
   }, [id]);
+
+  // SEO fix: the site-wide breadcrumb otherwise falls back to humanizing
+  // the raw id ("nse-bm-139fb66a89" -> "Nse Bm 139fb66a89") — confirmed
+  // live, same class of bug as the ripple pages. Overrides with the real
+  // event title once loaded.
+  useBreadcrumbOverride(
+    data?.event?.title ? [{ label: "Events", href: "/events" }, { label: data.event.title }] : null
+  );
 
   if (loading) return <main className="min-w-0 pb-10"><Skeleton/></main>;
 

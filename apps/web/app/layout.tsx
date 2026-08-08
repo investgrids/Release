@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Geist } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
@@ -10,7 +10,11 @@ import { NavLoadingProvider } from "@/components/NavLoadingProvider";
 import { AlertProvider }      from "@/components/AlertProvider";
 import { MarketIntelligenceProvider } from "@/components/MarketIntelligenceProvider";
 import { BreakingNewsAlert }  from "@/components/BreakingNewsAlert";
-import { Breadcrumbs }        from "@/components/Breadcrumbs";
+import { Breadcrumbs, BreadcrumbOverrideProvider } from "@/components/Breadcrumbs";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
 
 // next/font downloads Inter at build time, self-hosts it, and injects an
 // optimised <link rel="preload"> — no external roundtrip, no FOUT.
@@ -61,7 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // suppressHydrationWarning: browser extensions (dark-mode tools, password
     // managers) often inject attributes on <html> between SSR and hydration,
     // causing a harmless but noisy hydration mismatch warning.
-    <html lang="en-IN" className={inter.variable} suppressHydrationWarning>
+    <html lang="en-IN" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
       <head>
         {/* Theme FOUC prevention — must run before first paint, so it's a
             plain blocking inline script, not next/script (which defers).
@@ -113,7 +117,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               areaServed: "IN",
               availableLanguage: ["English"],
             },
-            sameAs: [],
+            // Only the handle already self-declared elsewhere in this file's
+            // own twitter.site/twitter.creator metadata — not adding
+            // unverified profile URLs for platforms the site doesn't
+            // actually declare a presence on.
+            sameAs: ["https://x.com/marketripple"],
           }) }}
         />
         {/* WebSite + SearchAction (SEO Phase 2, §2.3) — enables Google's
@@ -141,14 +149,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SiteHeader />
               <main className="min-h-[calc(100vh-72px)]">
                 {/* Auto-generated from the URL on every page (skips "/" —
-                    see Breadcrumbs.tsx). Pages with a real human-readable
-                    title for a dynamic segment (a company name, an article
-                    headline) should render their own <Breadcrumbs items=.../>
-                    instead, to replace the raw-slug fallback. */}
-                <div className="mx-auto max-w-[1600px] px-6 pt-4">
-                  <Breadcrumbs />
-                </div>
-                {children}
+                    see Breadcrumbs.tsx). A page with a real human-readable
+                    title for a dynamic segment (a company name, an event
+                    headline) calls useBreadcrumbOverride() with it once its
+                    data loads, via the shared BreadcrumbOverrideProvider
+                    below — replaces the humanized-raw-slug fallback without
+                    that page needing to render its own second <Breadcrumbs>. */}
+                <BreadcrumbOverrideProvider>
+                  <div className="mx-auto max-w-[1600px] px-6 pt-4">
+                    <Breadcrumbs />
+                  </div>
+                  {children}
+                </BreadcrumbOverrideProvider>
               </main>
               <BreakingNewsAlert />
             </NavLoadingProvider>

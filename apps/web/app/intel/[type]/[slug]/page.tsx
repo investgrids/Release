@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, TrendingUp, AlertTriangle, Building2, Globe, Clock, BookOpen } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { isRealSymbol, safeJsonLd } from "@/lib/text";
+import { BreadcrumbSetter } from "@/components/Breadcrumbs";
 
 
 const VALID_TYPES = ["company", "event", "theme", "news"] as const;
@@ -39,9 +40,13 @@ export async function generateMetadata(
   const intel = await fetchIntelligence(type, rawSlug);
   const slug = rawSlug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   const typeLabel = { company: "Company", event: "Market Event", theme: "Theme", news: "News" }[type];
+  // Real headline (first sentence of the AI's own synthesis), never the
+  // raw opaque slug — same fix as the page's own H1 (was literally
+  // rendering ids like "nse-d3f8b9d2fc" as "Nse D3f8b9d2fc" in both places).
+  const headline = intel?.key_takeaway?.split(/(?<=[.!?])\s+/)[0];
 
-  const title = intel?.market_story
-    ? `${slug} — ${intel.key_takeaway?.slice(0, 60) ?? "Market Intelligence"}`
+  const title = headline
+    ? headline
     : `${slug} ${typeLabel} Intelligence`;
 
   const description = intel?.market_story?.slice(0, 155)
@@ -88,6 +93,12 @@ export default async function IntelPage(
 
   const meta = TYPE_META[type];
   const humanSlug = rawSlug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  // Two-layer header: a short real headline (first sentence of the AI's
+  // own key_takeaway — never the raw opaque slug, which used to render
+  // literally as "Nse D3f8b9d2fc") plus the full key_takeaway as a
+  // subtitle layer underneath when there's more to it than one sentence.
+  const headline = intel.key_takeaway?.split(/(?<=[.!?])\s+/)[0] || humanSlug;
+  const subtitle = intel.key_takeaway && intel.key_takeaway !== headline ? intel.key_takeaway : null;
 
   const conf = intel.confidence ?? {};
   const confScore: number = conf.score ?? 0;
@@ -104,6 +115,11 @@ export default async function IntelPage(
 
   return (
     <main className="min-h-screen bg-surface-card text-text-primary">
+      {/* SEO fix: neither /intel nor /intel/{type} is a real standalone
+          page (no page.tsx at either level) — the auto-breadcrumb would
+          otherwise link both segments to a 404, on top of showing the raw
+          slug instead of the real headline. Explicit, non-linked crumbs. */}
+      <BreadcrumbSetter items={[{ label: meta.label }, { label: headline }]} />
       {/* Structured data for SEO */}
       <script
         type="application/ld+json"
@@ -140,8 +156,11 @@ export default async function IntelPage(
             <BookOpen className="h-2.5 w-2.5" /> {meta.label}
           </span>
           <h1 className="mt-2 text-[28px] font-black leading-tight text-text-primary">
-            {humanSlug}
+            {headline}
           </h1>
+          {subtitle && (
+            <p className="mt-2 text-[15px] leading-relaxed text-text-secondary">{subtitle}</p>
+          )}
           <div className="mt-3 flex items-center gap-3">
             <span className={`text-[12px] font-bold ${confColor}`}>
               Confidence: {confLevel} ({confScore}%)
@@ -156,14 +175,6 @@ export default async function IntelPage(
             )}
           </div>
         </div>
-
-        {/* Key Takeaway */}
-        {intel.key_takeaway && (
-          <div className="mb-6 rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">Key Takeaway</p>
-            <p className="text-[15px] font-semibold leading-snug text-text-primary">{intel.key_takeaway}</p>
-          </div>
-        )}
 
         {/* Market Story */}
         {intel.market_story && (
