@@ -982,7 +982,7 @@ async def generate_ripple_graph(
             clean = re.sub(r"\s*```$", "", clean).strip()
         # Remove JS-style comments before parsing
         clean = re.sub(r"\s*//[^\n]*", "", clean)
-        result = json.loads(clean)
+        result = _validate_ripple_companies(json.loads(clean))
         await _store_async(cache_key, result)
         return result
     except Exception:
@@ -991,13 +991,134 @@ async def generate_ripple_graph(
         if m:
             try:
                 clean2 = re.sub(r"\s*//[^\n]*", "", m.group())
-                result = json.loads(clean2)
+                result = _validate_ripple_companies(json.loads(clean2))
                 await _store_async(cache_key, result)
                 return result
             except Exception:
                 pass
         log.warning("ripple.ai.parse_failed", raw_len=len(raw))
         return {}
+
+
+def _validate_ripple_companies(result: dict) -> dict:
+    """
+    Stopgap validation for generate_ripple_graph()'s raw LLM output — there
+    was NONE before this (confirmed live, via the real production DB): of
+    the 4 real ai_generated ripple graphs stored, one padded a single-
+    company "Initiation of Forensic Audit" event with 18 unrelated large-
+    caps (MRF, Asian Paints, Bharti Airtel, ONGC...) with no plausible
+    connection to the event, and listed "Mindtree" and "LTI" as two
+    separate companies years after they merged into LTIM; another invented
+    "Energy Efficiency Services" / ticker ENERJEN, which matches no real
+    NSE-listed entity in this platform's universe.
+
+    What this DOES fix: drops company-type nodes (and any edge touching
+    them) that don't resolve to a real symbol/name/alias in _NSE_UNIVERSE —
+    catches both pure inventions (ENERJEN) and stale/pre-merger entities
+    (Mindtree, LTI — "mindtree" is now only a valid alias of LTIM, not a
+    standalone company, so it correctly fails to resolve on its own).
+
+    What this does NOT fix, on purpose — not solved by this pass, still
+    open, tracked as its own follow-up: a real company padded into an
+    event it has no real relevance to (the 18-large-caps case) still
+    passes, since every one of those tickers IS real; so do fabricated
+    confidence/impact_strength scores attached to an otherwise-real
+    company. This makes the graph's company nodes real, not necessarily
+    relevant or accurately scored — do not read "validated" as "trustworthy."
+
+    Also drops real companies that are simply outside _NSE_UNIVERSE's
+    coverage (confirmed live: "NCL Industries Limited," "Capillary
+    Technologies India Limited," and "Renew Power" all got dropped from
+    real sampled graphs for this reason, not because they're fake) — this
+    is a curated ~500-symbol list, not the full NSE. Fail-closed is the
+    intended tradeoff for a fabrication stopgap: a real-but-uncovered
+    company being dropped is preferable to a fabricated one being kept.
+
+    Matches by id/label/ticker THROUGH aliases, not by ticker alone: the
+    prompt asks the model for a "ticker" field, but every real sampled
+    response had it null — matching on ticker alone would have validated
+    nothing. Exact match first, then a word-boundary-safe substring
+    fallback — needed because the exact pass alone produced a real false
+    positive on this exact sampled data: the model wrote "Power Grid
+    Corporation," but this platform's real entry is named "Power Grid
+    Corporation of India" with alias "power grid" — an exact-only match
+    would have wrongly dropped a genuinely real company. Same word-
+    boundary-substring approach entities.py's own _match_companies already
+    uses, not a new pattern.
+
+    The substring fallback only fires for MULTI-WORD aliases (containing a
+    space) — found live, against this same sampled data: allowing
+    single-word aliases into the substring pass let "Larsen & Toubro
+    Infotech Limited" (LTI, merged into LTIM years ago, no longer a
+    standalone company) wrongly resolve to LT — the unrelated PARENT
+    conglomerate — because LT's own registered aliases include the bare
+    surnames "larsen" and "toubro" individually, and both happen to appear
+    inside LTI's full name too. A single generic word is common enough to
+    coincidentally appear inside an unrelated company's name; a multi-word
+    phrase like "power grid" is specific enough that it doesn't. Restricting
+    the fallback to phrases keeps the Power Grid fix while dropping LTI
+    exactly like the exact-match-only version already correctly did for
+    bare "LTI"/"Mindtree" as standalone entities.
+    """
+    import re
+
+    nodes = result.get("nodes")
+    if not isinstance(nodes, list):
+        return result
+
+    from app.api.companies import _NSE_UNIVERSE
+    alias_to_symbol: dict[str, str] = {}
+    for co in _NSE_UNIVERSE:
+        for key in [co.get("symbol"), co.get("name"), *(co.get("aliases") or [])]:
+            if key:
+                alias_to_symbol[key.strip().lower()] = co["symbol"]
+
+    def _resolve(candidates: tuple) -> str | None:
+        norm_candidates = [str(c).strip().lower() for c in candidates if c]
+        for c in norm_candidates:
+            if c in alias_to_symbol:
+                return alias_to_symbol[c]
+        # Substring fallback, word-boundary-safe, restricted to multi-word
+        # aliases only — a single generic word (e.g. "larsen") can
+        # coincidentally appear inside an unrelated company's full name;
+        # a multi-word phrase (e.g. "power grid") is specific enough that
+        # it doesn't. See docstring for the real false positive this caught.
+        for c in norm_candidates:
+            for alias, symbol in alias_to_symbol.items():
+                if " " in alias and len(alias) >= 4 and re.search(rf"\b{re.escape(alias)}\b", c):
+                    return symbol
+        return None
+
+    valid_ids: set[str] = set()
+    kept_nodes: list = []
+    dropped: list = []
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        if n.get("type") != "company":
+            kept_nodes.append(n)
+            if n.get("id"):
+                valid_ids.add(n["id"])
+            continue
+        resolved = _resolve((n.get("id"), n.get("label"), n.get("ticker")))
+        if resolved:
+            kept_nodes.append(n)
+            if n.get("id"):
+                valid_ids.add(n["id"])
+        else:
+            dropped.append(n.get("label") or n.get("id"))
+
+    if dropped:
+        log.warning("ripple.ai.company_validation_dropped", dropped=dropped[:10])
+
+    result["nodes"] = kept_nodes
+    edges = result.get("edges")
+    if isinstance(edges, list):
+        result["edges"] = [
+            e for e in edges
+            if isinstance(e, dict) and e.get("source") in valid_ids and e.get("target") in valid_ids
+        ]
+    return result
 
 
 async def get_event_ai_summary(title: str, description: str, *, priority: Priority) -> dict:
