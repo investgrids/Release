@@ -48,6 +48,16 @@ function humanize(segment: string): string {
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// Segments that are real, meaningful crumb LABELS but not real, standalone
+// PAGES — pure URL namespacing for a dynamic route (e.g. "article" in
+// /newsroom/article/[slug]; the article's own real page is the full path
+// with the slug, not /newsroom/article on its own). Every other non-final
+// segment gets a real link because it corresponds to a real hub/index page
+// (e.g. "newsroom" -> /newsroom, a real page). Confirmed live: /newsroom/
+// article 404s — a crawler flagged the resulting link as "non-descriptive
+// anchor text", but the deeper issue is the href itself points nowhere.
+const NON_LINKABLE_SEGMENTS = new Set(["article"]);
+
 function autoCrumbs(pathname: string): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
   const crumbs: Crumb[] = [];
@@ -56,7 +66,8 @@ function autoCrumbs(pathname: string): Crumb[] {
     hrefSoFar += `/${seg}`;
     const isLast = i === segments.length - 1;
     const label = SEGMENT_LABEL[seg] ?? humanize(decodeURIComponent(seg));
-    crumbs.push({ label, href: isLast ? undefined : hrefSoFar });
+    const linkable = !isLast && !NON_LINKABLE_SEGMENTS.has(seg);
+    crumbs.push({ label, href: linkable ? hrefSoFar : undefined });
   });
   return crumbs;
 }
