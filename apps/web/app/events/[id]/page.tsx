@@ -52,7 +52,10 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const detail = await fetchEvent(id);
   const ev = detail?.event;
   const related = ev ? await fetchRelated(id, ev.title, detail?.affectedSectors?.[0]?.sector) : null;
-  const url = `${SITE}/events/${id}`;
+  // Same SEO fix as layout.tsx's generateMetadata — prefer the real,
+  // human-readable slug over the opaque id for the URL this page asserts
+  // as its own identity (JSON-LD url + breadcrumb item).
+  const url = `${SITE}/events/${ev?.slug || id}`;
   const description = ev ? withPeriod(
     detail?.summary?.why_it_matters || detail?.summary?.text || ev.description || `${ev.title} — real-time market intelligence and ripple-chain impact analysis on MarketRipple.`
   ) : "";

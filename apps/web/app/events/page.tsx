@@ -19,6 +19,7 @@ import { truncateForQuery } from "@/lib/text";
 
 interface Event {
   id: string;
+  slug?: string;
   title: string;
   summary: string;
   impact_score: number | null;
@@ -242,7 +243,7 @@ function EventCard({ ev }: { ev: Event }) {
             className="flex items-center gap-1 text-[12px] font-bold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
             Intelligence Report →
           </Link>
-          <Link href={`/events/${ev.id}`}
+          <Link href={`/events/${ev.slug || ev.id}`}
             className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
             Full Story →
           </Link>
@@ -275,7 +276,7 @@ function EventCard({ ev }: { ev: Event }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
             </svg>
           </button>
-          <Link href={`/events/${ev.id}`} title="View Details"
+          <Link href={`/events/${ev.slug || ev.id}`} title="View Details"
             className="flex h-6 w-6 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.03] text-text-muted hover:text-sky-400 hover:border-sky-500/30 transition">
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -322,7 +323,7 @@ function PriorityEventsBar({ events }: { events: Event[] }) {
         {top3.map((ev, i) => {
           const row = ROWS[i];
           return (
-            <Link key={ev.id} href={`/events/${ev.id}`}
+            <Link key={ev.id} href={`/events/${ev.slug || ev.id}`}
               className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition hover:brightness-110 ${row.cls}`}>
               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${row.dot}`} />
               <span className="w-[90px] shrink-0 text-[10px] font-black uppercase tracking-wider">{row.label}</span>
@@ -722,7 +723,7 @@ export default function EventsPage() {
                   {
                     label: "Open the full event analysis",
                     why:   "Because the detail view shows beneficiaries, at-risk companies, historical parallels, and monitoring signals.",
-                    href:  `/events/${topEv.id}`,
+                    href:  `/events/${topEv.slug || topEv.id}`,
                   },
                 ],
               },

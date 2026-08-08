@@ -1198,7 +1198,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
 
   return (
     <main className="min-w-0 pb-10">
-      <TrackPageVisit type="event" id={ev.id} title={ev.title} subtitle={ev.event_type} href={`/events/${ev.id}`} />
+      <TrackPageVisit type="event" id={ev.id} title={ev.title} subtitle={ev.event_type} href={`/events/${ev.slug || ev.id}`} />
       <MarketContextStrip />
 
       {/* ── Breadcrumb + actions ───────────────────────────────────────── */}

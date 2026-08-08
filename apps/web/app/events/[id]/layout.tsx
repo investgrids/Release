@@ -9,12 +9,19 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const url = `${SITE}/events/${id}`;
+  // SEO fix: every event already has a real, human-readable slug in the DB
+  // (e.g. "nmdc-limited-has-informed-the-exchange-about-general-updates-
+  // nse-4cc9") that was never actually used — every link pointed at the
+  // opaque id instead. The backend now accepts either for lookup, so old
+  // id-based links (already indexed, bookmarked) keep working; canonical
+  // below is what tells search engines the slug is the real address.
+  let url = `${SITE}/events/${id}`;
   try {
     const res = await fetch(`${API}/api/events/${id}`, { next: { revalidate: 3600 } });
     if (res.ok) {
       const data = await res.json();
       const event = data.event ?? data;
+      if (event.slug) url = `${SITE}/events/${event.slug}`;
       const title = event.title ?? "Market Event";
       const desc  = (data.summary?.text ?? event.description ?? "").slice(0, 160) || "Market event analysis on MarketRipple.";
       return {

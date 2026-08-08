@@ -124,7 +124,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   // submitting these URLs in the sitemap only produced Search Console
   // "Page with redirect" warnings for pages that never had real content.
   const [events, radar, companiesPage1, news, insights, sectors, research, historical] = await Promise.all([
-    safeJson<Array<{ id: string; date?: string }>>(`${API}/api/events/?limit=100`, []),
+    safeJson<Array<{ id: string; slug?: string; date?: string }>>(`${API}/api/events/?limit=100`, []),
     safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
     safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
@@ -149,7 +149,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   };
 
   const eventRoutes: SitemapEntry[] = (Array.isArray(events) ? events : []).map(e => ({
-    url: `${base}/events/${e.id}`,
+    url: `${base}/events/${e.slug || e.id}`,
     lastModified: e.date ?? now,
     changeFrequency: "weekly",
     priority: 0.75,
