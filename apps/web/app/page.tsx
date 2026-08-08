@@ -665,13 +665,23 @@ async function HomepageIntelligenceHero() {
           {companies.length > 0 && (
             <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
               <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Stocks To Watch</p>
+              {/* impact is an AI event-impact call ("this catalyst helps/hurts
+                  this company"), not a live price quote — found live: it can
+                  read "positive" while the stock is actually trading down for
+                  unrelated reasons, and a bare ▲/▼ arrow reads exactly like a
+                  price-ticker direction to anyone market-literate, creating a
+                  false "the site contradicts itself" impression. Labeled
+                  "Bullish/Bearish Catalyst" instead of an arrow so it's
+                  unambiguous this is an assessment, not today's price move. */}
               <div className="grid grid-cols-2 gap-2">
                 {companies.map((c: any, i: number) => (
                   <Link key={i} href={`/companies/${c.symbol}` as any}
-                    className={`flex items-center justify-between rounded-[10px] border px-2.5 py-1.5 text-[11.5px] font-semibold transition hover:opacity-80 ${
+                    title={c.impact === "positive" ? "AI-assessed positive catalyst — not today's live price" : "AI-assessed negative catalyst — not today's live price"}
+                    className={`flex flex-col justify-between rounded-[10px] border px-2.5 py-1.5 text-[11.5px] font-semibold transition hover:opacity-80 ${
                       c.impact === "positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300"
                     }`}>
-                    {cleanText(c.symbol || c.name)} <span>{c.impact === "positive" ? "▲" : "▼"}</span>
+                    <span>{cleanText(c.symbol || c.name)}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wide opacity-80">{c.impact === "positive" ? "Bullish Catalyst" : "Bearish Catalyst"}</span>
                   </Link>
                 ))}
               </div>
