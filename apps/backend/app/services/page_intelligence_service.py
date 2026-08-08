@@ -46,6 +46,40 @@ def _cset(key: str, value: dict) -> None:
     _CACHE[key] = (time.time(), value)
 
 
+def _names(items: list) -> list[str]:
+    """Event.companies/sectors sometimes hold plain strings, sometimes
+    {"symbol"/"name"/"sector": ..., "impact": ...} dicts (see events.py's
+    own CompanyImpact normalization) — ', '.join() on the raw list raises
+    TypeError the instant a dict shows up, which used to take down this
+    whole context-building step (caught by the outer except, silently
+    falling back to the empty-story placeholder)."""
+    out = []
+    for it in items or []:
+        if isinstance(it, dict):
+            name = it.get("symbol") or it.get("name") or it.get("sector") or ""
+            if name:
+                out.append(str(name))
+        elif it:
+            out.append(str(it))
+    return out
+
+
+def _mie_story_text(mie: dict) -> str:
+    """engine.py's `story` field is a dict ({"text": ..., ...}), not a
+    plain string — every caller here used to do mie.get("story", "")[:N],
+    which raised (str(exc) == the bare slice repr, e.g. "slice(None, 250,
+    None)") the instant MIE had a real story synthesized, i.e. almost
+    always in a live system. Caught by the outer try/except, so every one
+    of get_company_intelligence/get_event_intelligence/get_theme_intelligence
+    silently fell back to the empty "Insufficient data" placeholder —
+    the frontend's `if (!intel.market_story) notFound()` then 404'd the
+    Intelligence Report page for essentially every event/company/theme."""
+    story = mie.get("story")
+    if isinstance(story, dict):
+        return story.get("text") or ""
+    return story or ""
+
+
 # ── AI system prompt ──────────────────────────────────────────────────────────
 _SYSTEM = (
     "You are the MarketRipple Intelligence Engine — the AI brain for Indian stock market analysis. "
@@ -329,7 +363,7 @@ async def get_company_intelligence(symbol: str) -> dict:
         try:
             from app.services.intelligence.engine import get_intelligence_state
             mie = await get_intelligence_state()
-            mie_story = mie.get("story", "")
+            mie_story = _mie_story_text(mie)
             mie_mood  = mie.get("signals", {}).get("mood", "")
         except Exception:
             pass
@@ -400,7 +434,7 @@ async def get_event_intelligence(event_id: str) -> dict:
         try:
             from app.services.intelligence.engine import get_intelligence_state
             mie = await get_intelligence_state()
-            mie_story = mie.get("story", "")
+            mie_story = _mie_story_text(mie)
         except Exception:
             pass
 
@@ -413,9 +447,9 @@ async def get_event_intelligence(event_id: str) -> dict:
         if mie_story:
             parts.append(f"MASTER MARKET NARRATIVE: {mie_story[:250]}")
         if event.sectors:
-            parts.append(f"SECTORS: {', '.join(event.sectors)}")
+            parts.append(f"SECTORS: {', '.join(_names(event.sectors))}")
         if event.companies:
-            parts.append(f"COMPANIES: {', '.join(event.companies)}")
+            parts.append(f"COMPANIES: {', '.join(_names(event.companies))}")
         if news_rows:
             parts.append("RELATED MARKET NEWS:")
             for n in news_rows[:4]:
@@ -472,7 +506,7 @@ async def get_theme_intelligence(theme_id: str) -> dict:
         try:
             from app.services.intelligence.engine import get_intelligence_state
             mie = await get_intelligence_state()
-            mie_story     = mie.get("story", "")
+            mie_story     = _mie_story_text(mie)
             mie_top_theme = mie.get("signals", {}).get("top_theme", "")
         except Exception:
             pass
@@ -541,7 +575,7 @@ async def get_news_intelligence(news_id: str) -> dict:
             f"IMPACT SCORE: {article.impact_score:.0f}",
         ]
         if article.companies:
-            parts.append(f"COMPANIES: {', '.join(article.companies[:6])}")
+            parts.append(f"COMPANIES: {', '.join(_names(article.companies)[:6])}")
         if related_events:
             parts.append("CURRENT MARKET CONTEXT (top events):")
             for ev in related_events[:3]:
