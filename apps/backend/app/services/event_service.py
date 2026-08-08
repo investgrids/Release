@@ -40,9 +40,21 @@ class EventService:
             logger.debug("Cache hit: event %s", event_id)
             return cached
 
+        # Accept either the real id or the real, human-readable slug (SEO
+        # fix — event pages were only ever linked by id, e.g.
+        # "/events/nse-4cc93acbc1", even though every event already has a
+        # real title-based slug in the DB, just never used). id lookup
+        # first since it's the more common/cheaper path (existing links,
+        # internal calls); slug is the fallback, not the other way round.
         event = await self._events.get_by_id(event_id)
         if event is None:
+            event = await self._events.get_by_slug(event_id)
+        if event is None:
             return None
+        # Every downstream repository call below is keyed by the REAL id,
+        # not whatever the caller passed in — reassign so a slug-based
+        # lookup doesn't silently break every one of them.
+        event_id = event.id
 
         # Fan out all DB reads concurrently
         (

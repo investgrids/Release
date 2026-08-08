@@ -26,6 +26,7 @@ def _build_summary(e, companies: list) -> EventSummary:
     impact = normalize_impact_score(e.id, e.impact_score)
     return EventSummary(
         id=e.id,
+        slug=e.slug or "",
         title=e.title,
         summary=e.summary or "",
         impact_score=impact,

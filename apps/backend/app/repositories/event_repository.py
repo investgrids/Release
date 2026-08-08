@@ -38,10 +38,17 @@ class EventRepository:
         return result.scalar_one_or_none()
 
     async def get_by_slug(self, slug: str) -> Optional[Event]:
+        # scalar_one_or_none() would raise on a collision — confirmed live,
+        # 7 of 1142 slugs are shared by 2-4 different events (generic
+        # compliance-filing boilerplate headlines like "To consider and
+        # approve the financial results...", where even the id-suffix the
+        # slug generator appends wasn't enough to disambiguate). Rather than
+        # 500 on those, deterministically take the most recently created
+        # match — the slug generator itself is unchanged/out of scope here.
         result = await self._db.execute(
-            select(Event).where(Event.slug == slug)
+            select(Event).where(Event.slug == slug).order_by(Event.created_at.desc()).limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def get_pending_enrichment(self, limit: int = 10) -> list[Event]:
         """Free-tier data track, Stage 2 (2026-08-06): now also picks up

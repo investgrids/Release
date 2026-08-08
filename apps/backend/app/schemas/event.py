@@ -9,6 +9,7 @@ class CompanyImpact(BaseModel):
 
 class EventSummary(BaseModel):
     id: str
+    slug: str = ""
     title: str
     summary: str
     # None means "not yet scored" — must stay distinct from a real 0, which
