@@ -57,7 +57,18 @@ export const metadata: Metadata = {
     title:       "MarketRipple — AI-Powered Market Intelligence",
     description: "Understand Indian market events, ripple effects, and investment opportunities with AI-powered analysis.",
   },
-  alternates: { canonical: SITE_URL },
+  // SEO fix: this used to be `alternates: { canonical: SITE_URL }` — a
+  // blanket default that every page without its OWN canonical silently
+  // inherited, incorrectly telling search engines the homepage was the
+  // canonical version of /companies, /faq, /ripple, /about, and more
+  // (confirmed live via curl on all of them, flagged by an SEO crawl as
+  // "non-canonical URL" on 21 pages — the real number affected is likely
+  // higher, every page site-wide that has no metadata export of its own).
+  // Removed rather than made dynamic: a root layout's static `metadata`
+  // export has no access to the actual requested path, so there's no
+  // correct single value to put here — the homepage now sets its own
+  // (app/page.tsx), and no canonical tag is strictly better than a wrong
+  // one for every other page until each gets its own (tracked separately).
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

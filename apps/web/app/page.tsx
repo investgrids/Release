@@ -1,4 +1,5 @@
 import { Suspense, cache } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight, ChevronRight, Calendar, Building2, BarChart3,
@@ -13,6 +14,19 @@ import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { cleanText } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
+
+// SEO fix: the root layout previously set a blanket alternates.canonical
+// pointing here (the homepage) for EVERY page site-wide — any page that
+// didn't define its own canonical silently inherited this one, telling
+// search engines the homepage was the canonical version of pages like
+// /companies, /faq, /ripple, /about (confirmed live: <link rel="canonical"
+// href=".../"> on all of them). The homepage itself needs the exact same
+// tag it was implicitly relying on the root default for — this makes that
+// explicit and local, so the root default could be removed without the
+// homepage losing its own canonical.
+export const metadata: Metadata = {
+  alternates: { canonical: process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in" },
+};
 
 // The AI-generated morning brief (and, less often, real event data) lists
 // market indices and macro instruments in the same companies_affected /
