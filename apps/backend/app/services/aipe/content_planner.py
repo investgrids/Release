@@ -227,6 +227,18 @@ def plan_extra_angles(
 
     companies = [c for c in (companies_affected or []) if c.get("symbol")]
     primary_entity_norm = (primary_angle_entity or "").upper().split(".")[0]
+    if not primary_entity_norm and primary_article_type == "company_intelligence" and companies:
+        # A "primary" company_intelligence article stores angle_entity=None —
+        # that column only gets populated on actual angle spinoffs, never on
+        # the primary itself — so primary_angle_entity (== article.angle_entity,
+        # see publisher.py) is always empty here, and the skip-guard below
+        # could never match. Confirmed live: a single-company event (e.g. an
+        # ADVANZEN acquisition) published both a "primary" and a redundant
+        # "per_company" angle for the exact same, only company — two
+        # near-identical articles, two different AI-guessed slugs, real
+        # duplicate content. The primary's own subject is companies[0], the
+        # same value the API's primary_entity field surfaces.
+        primary_entity_norm = str(companies[0]["symbol"]).upper().split(".")[0]
     for c in companies[:max_companies]:
         symbol = str(c["symbol"]).upper().split(".")[0]
         # Was `symbol in primary_story_id.upper()` — story IDs are slugs

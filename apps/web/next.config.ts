@@ -50,6 +50,18 @@ const nextConfig: NextConfig = {
       // Story model and the real Opportunity model — send to the list
       // rather than guessing a matching detail page.
       { source: "/stories/:slug",      destination: "/newsroom/themes",         permanent: true },
+
+      // Duplicate-article cleanup (2026-08-09) — a bug in plan_extra_angles
+      // (content_planner.py) let a single-company event's "primary" article
+      // spawn a redundant "per_company" angle for that same, only company:
+      // two near-identical articles, two independently AI-guessed slugs.
+      // Fixed at the generation source; these 3 already-published pairs
+      // (found via a full-catalog scan, not just the one originally
+      // reported) still need their old URLs redirected rather than deleted,
+      // since they may already be indexed or linked externally.
+      { source: "/newsroom/article/advanced-enzyme-technologies-acquisition-meaning-for-advanzen-investors-nse-31cb", destination: "/newsroom/article/advanzens-acquisition-meaning-for-investors-nse-31cb", permanent: true },
+      { source: "/newsroom/article/jsw-energy-acquisition-impact-nse-62db",                                          destination: "/newsroom/article/jsw-energy-clean-coal-acquisition-impact-on-investors-nse-62db", permanent: true },
+      { source: "/newsroom/article/paytm-block-deal-shares-jump-investors-rss-e261",                                 destination: "/newsroom/article/paytm-block-deal-impact-investors-rss-e261", permanent: true },
     ];
   },
   async headers() {
