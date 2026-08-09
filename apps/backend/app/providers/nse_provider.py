@@ -17,10 +17,15 @@ _URL = "https://www.nseindia.com/api/corporate-announcements?index=equities"
 # happened" content, flagged as a separate follow-up rather than forced
 # into this event-shaped feed). corporates-corporateActions and
 # corporates-financial-results were probed live and returned empty
-# without a symbol-scoped query — not pursued this pass (would need a
-# per-symbol fan-out, a materially different shape from the bulk pulls
-# used here).
+# without a symbol-scoped query at the time — not pursued that pass.
 _BOARD_MEETINGS_URL = "https://www.nseindia.com/api/corporate-board-meetings?index=equities"
+# Data track — NSE survey re-probe (2026-08-09): corporates-corporateActions
+# now confirmed live, bulk, no symbol needed (returns real dividend/split/
+# bonus records — a genuinely new content type nothing else here covers).
+# corporates-financial-results was re-checked at the same time and is still
+# empty in bulk even with a date range — that one still needs a per-symbol
+# fan-out to return anything, not pursued.
+_CORPORATE_ACTIONS_URL = "https://www.nseindia.com/api/corporates-corporateActions?index=equities"
 _HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "application/json",
@@ -74,15 +79,24 @@ class NSEProvider(BaseProvider):
             board_meetings = []
         for item in board_meetings:
             item["_kind"] = "board_meeting"
-        return announcements + board_meetings
+        try:
+            corporate_actions = await self._get(_CORPORATE_ACTIONS_URL)
+        except Exception:
+            corporate_actions = []
+        for item in corporate_actions:
+            item["_kind"] = "corporate_action"
+        return announcements + board_meetings + corporate_actions
 
     async def fetch_by_date(self, target: date) -> list[dict]:
         params = {"from_date": target.isoformat(), "to_date": target.isoformat()}
         return await self._get(_URL, params)
 
     def normalize(self, raw: dict) -> RawItem | None:
-        if raw.get("_kind") == "board_meeting":
+        kind = raw.get("_kind")
+        if kind == "board_meeting":
             return self._normalize_board_meeting(raw)
+        if kind == "corporate_action":
+            return self._normalize_corporate_action(raw)
         return self._normalize_announcement(raw)
 
     def _normalize_announcement(self, raw: dict) -> RawItem | None:
@@ -134,5 +148,44 @@ class NSEProvider(BaseProvider):
             published_at=published_at,
             companies=[symbol] if symbol else [],
             impact_score=6.5,
+            event_type="corporate",
+        )
+
+    def _normalize_corporate_action(self, raw: dict) -> RawItem | None:
+        # Unlike announcements/board-meetings, `subject` here is already the
+        # real, specific sentence ("Interim Dividend - Rs 23 Per Share"), not
+        # a generic category label — confirmed against live API data
+        # 2026-08-09. No fallback field needed.
+        source_text = (raw.get("subject") or "").strip()
+        if not source_text:
+            return None
+        # Same misdating risk already documented for board meetings:
+        # exDate/recDate are the *future* effective dates of the action
+        # (when it takes effect), not when NSE recorded/broadcast it.
+        # caBroadcastDate is the only "when we found out" field, but it's
+        # frequently null in practice — left blank rather than guessed at
+        # with an effective date, same principle as bm_date above.
+        published_at = ""
+        broadcast = raw.get("caBroadcastDate")
+        if broadcast:
+            try:
+                published_at = datetime.strptime(broadcast, "%d-%b-%Y %H:%M:%S").date().isoformat()
+            except ValueError:
+                try:
+                    published_at = datetime.strptime(broadcast, "%d-%b-%Y").date().isoformat()
+                except ValueError:
+                    published_at = ""
+        symbol = raw.get("symbol", "")
+        ex_date = raw.get("exDate", "")
+        uid_src = f"{symbol}|{ex_date}|{source_text}"
+        uid = f"nse-ca-{hashlib.md5(uid_src.encode()).hexdigest()[:10]}"
+        return RawItem(
+            id=uid,
+            headline=_clip_headline(source_text),
+            summary=source_text[:1000],
+            source="NSE",
+            published_at=published_at,
+            companies=[symbol] if symbol else [],
+            impact_score=7.0,
             event_type="corporate",
         )
