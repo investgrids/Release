@@ -374,14 +374,19 @@ export default function EventsPage() {
     // real score for the score circle / impact badge / Impact filter chips
     // to rank and filter with client-side.
     //
-    // scored_only=true: most of that feed is raw NSE/BSE compliance
-    // filings (chairman resignations, duplicate share certificates, FCCB
-    // notices) that never clear the Scoring Engine's minimum-evidence bar
-    // — real disclosures, but no assessed company impact, so showing them
-    // here is noise with an "Unscored" badge and nothing else. The API
-    // widens its DB pool server-side to still fill `limit` with real,
-    // scored events instead of mostly nulls.
-    fetch(`${API}/api/events/?sort_by=published_at&limit=${limit}&scored_only=true`, { cache: "no-store" })
+    // scored_only=true DISABLED (2026-08-09): confirmed live, the Scoring
+    // Engine currently isn't assigning impact_score to any recent event
+    // (0 of the last 100, spanning ~17h) — job_enrich_events runs every 5
+    // minutes and reports success, but nothing is actually getting scored
+    // right now (separate, deeper issue, not diagnosed here). With
+    // scored_only=true, the backend's pool-widening logic (real, correctly
+    // implemented — searches up to 1000 events for a scored one) still
+    // finds none, so the page showed zero events — a real production
+    // outage, not the intended "hide noise" behavior. Reverted to the
+    // unfiltered feed so real events show (with their existing "Unscored"
+    // badge for ones with no score yet) until the scoring pipeline issue
+    // is found and fixed, at which point this can safely go back to true.
+    fetch(`${API}/api/events/?sort_by=published_at&limit=${limit}`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : [])
       .then(d => { if (Array.isArray(d)) setEvents(d); })
       .catch(() => {})

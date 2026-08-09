@@ -3,10 +3,10 @@ import { fetchAPI } from "@/lib/api";
 import { CompaniesHubClient } from "./_components/CompaniesHubClient";
 import { OverviewTab } from "./_components/OverviewTab";
 import { AllCompaniesTab } from "./_components/AllCompaniesTab";
-import { BestStocksContent } from "@/app/best-stocks/BestStocksContent";
-import { SectorsContent } from "@/app/sectors/SectorsContent";
-import { CompareContent } from "@/app/compare/CompareContent";
-import { IPOHubContent } from "@/app/ipo-hub/IPOHubContent";
+import BestStocksHubPage from "@/app/best-stocks/page";
+import SectorsPage from "@/app/sectors/page";
+import ComparePage from "@/app/compare/page";
+import IPOHubPage from "@/app/ipo-hub/page";
 
 export const metadata: Metadata = {
   title: "Companies — NSE Listed Companies & AI Rankings",
@@ -54,10 +54,10 @@ export default async function CompaniesHubPage({
   let content: React.ReactNode;
   switch (tab) {
     case "all-companies": content = <AllCompaniesTab q={q} sector={sector} cap={cap} sort={sort} page={page} />; break;
-    case "best-stocks":   content = <BestStocksContent headingLevel="h2" />; break;
-    case "sectors":       content = <SectorsContent headingLevel="h2" />; break;
-    case "compare":       content = <CompareContent headingLevel="h2" />; break;
-    case "ipo-hub":       content = <IPOHubContent headingLevel="h2" />; break;
+    case "best-stocks":   content = <BestStocksHubPage />; break;
+    case "sectors":       content = <SectorsPage />; break;
+    case "compare":       content = <ComparePage />; break;
+    case "ipo-hub":       content = <IPOHubPage />; break;
     default:              content = <OverviewTab />;
   }
 
