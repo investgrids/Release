@@ -364,7 +364,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media, tools  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -426,6 +426,8 @@ app.include_router(scores.router, prefix="/api/scores", tags=["scores"])
 app.include_router(intelligence_pages.router, prefix="/api/intelligence", tags=["intelligence"])
 # ── Company Announcements — BSE/NSE corporate filings feed ───────────────────
 app.include_router(announcements.router, prefix="/api/announcements", tags=["announcements"])
+# ── Data tools — user-facing surfaces over this platform's own coverage signals ──
+app.include_router(tools.router, prefix="/api/tools", tags=["tools"])
 # ── AIPE Publishing Engine — autonomous intelligence article publishing ────────
 app.include_router(publishing.router, prefix="/api/publishing", tags=["publishing"])
 # ── Public Insights — read-only published-article surface for /insights pages ──

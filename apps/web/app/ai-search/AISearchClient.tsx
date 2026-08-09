@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw, Building2, ChevronRight, Target, Truck, Landmark, Factory, Ship, LineChart as LineChartIcon, ShieldAlert, Users, Cpu, Wallet, Scale, Receipt, GitBranch, DollarSign, Package, CreditCard, Eye, ListChecks, ArrowRight, Clock, AlertTriangle, GitCompare, FileText } from "lucide-react";
+import { Search, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw, Building2, ChevronRight, Target, Truck, Landmark, Factory, Ship, LineChart as LineChartIcon, ShieldAlert, ShieldCheck, Users, Cpu, Wallet, Scale, Receipt, GitBranch, DollarSign, Package, CreditCard, Eye, ListChecks, ArrowRight, Clock, AlertTriangle, GitCompare, FileText } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { DecisionIntelligencePanel, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
@@ -947,7 +947,14 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
   const topSec  = sectors?.[0];
   const topPol  = policies?.[0];
   const hasRipple = (ripple_chain?.length ?? 0) > 1;
-  const hasContinueResearchCta = !!(topCo || hasRipple || (topCo && topCo2) || topEv || topSec || topPol || topFU);
+  // "compare"-specialist queries ("I hold X, should I switch to Y") are
+  // exactly the shape this platform can't yet answer with real per-holding
+  // coverage data for more than the 1-2 companies named in this one
+  // question — surfaced as its own CTA, not folded into the generic
+  // topCo/topCo2 compare-page link above, since that one compares the two
+  // named companies' fundamentals, not data coverage across a real portfolio.
+  const isComparisonQuery = result.specialist === "comparison";
+  const hasContinueResearchCta = !!(topCo || hasRipple || (topCo && topCo2) || topEv || topSec || topPol || topFU || isComparisonQuery);
 
   // Distinct from the Executive Summary — describes HOW the answer was
   // built (source mix + methodology), never restates WHAT it concluded.
@@ -1729,6 +1736,12 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
               label: "Ask Another Question",
               sub: "Continue AI research",
               action: () => onFollowUp(topFU),
+            } : null,
+            isComparisonQuery ? {
+              icon: <ShieldCheck size={15} strokeWidth={1.7}/>,
+              label: "Check Your Full Portfolio",
+              sub: "Real data coverage, not just these two",
+              href: "/tools/portfolio-confidence",
             } : null,
           ].filter(Boolean).map((cta, i) => (
             cta!.action ? (

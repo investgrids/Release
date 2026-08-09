@@ -65,6 +65,15 @@ const NAV_PRIMARY: NavItem[] = [
   },
   { label: "Opportunity Radar", href: "/opportunity-radar" },
   { label: "AI Search", href: "/ai-search" },
+  {
+    // First of 5 planned tools — a real Tools Home page plus a sub array,
+    // same shape every other hub above already uses, so tool 2 is a
+    // one-line addition here, not a nav redesign.
+    label: "Tools", href: "/tools",
+    sub: [
+      { label: "Portfolio Confidence Check", href: "/tools/portfolio-confidence", blurb: "How much real coverage do your holdings actually have?" },
+    ],
+  },
 ];
 
 function getISTSession() {

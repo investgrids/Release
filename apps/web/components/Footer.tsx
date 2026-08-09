@@ -30,6 +30,7 @@ const PRODUCT_LINKS = [
   { label: "AI Search",           href: "/ai-search" },
   { label: "Historical Patterns", href: "/historical" },
   { label: "Commodities",         href: "/commodities" },
+  { label: "Tools",                href: "/tools" },
 ];
 
 // New group, moved out of primary header nav — real, existing pages (all

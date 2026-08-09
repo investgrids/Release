@@ -1982,6 +1982,11 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
                         why:   `Because ${stock.sector ?? "sector"} moves create upstream and downstream implications that affect the entire thesis.`,
                         href:  `/ripple`,
                       },
+                      {
+                        label: `Check real coverage on ${stock.name}`,
+                        why:   `Because a thesis is only as good as the real, recent data behind it — see exactly how much event and news activity we're tracking on this name.`,
+                        href:  "/tools/portfolio-confidence",
+                      },
                     ],
                   },
                 ],
