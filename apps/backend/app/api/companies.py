@@ -21,7 +21,14 @@ from fastapi import APIRouter, Query
 router = APIRouter()
 
 # ── Company Universe ──────────────────────────────────────────────────────────
-# ~260 NSE-listed companies with static metadata.
+# 505 NSE-listed companies with static metadata (2026-08-09 — 510 originally,
+# minus 3 delisted/unresolvable symbols dropped, minus 2 accidental
+# duplicates found and removed (ETERNAL/LTM each had a second, incomplete
+# entry already sitting further down the list from an earlier partial
+# rename that never removed the old row). Previously said "~260" here,
+# already stale by the time it said that — kept falling out of sync with the
+# actual list below it every time an entry was added; nobody owns re-syncing
+# a comment nobody's told to check.
 # Cap categories:  large = approx Nifty 100 universe
 #                  mid   = approx Nifty 150 midcap
 #                  small = below that
@@ -34,7 +41,7 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"WIPRO",      "name":"Wipro Ltd",                      "sector":"Technology",     "industry":"IT Services",           "cap":"large", "aliases":["wipro"]},
     {"symbol":"HCLTECH",    "name":"HCL Technologies Ltd",           "sector":"Technology",     "industry":"IT Services",           "cap":"large", "aliases":["hcl","hcltech"]},
     {"symbol":"TECHM",      "name":"Tech Mahindra Ltd",              "sector":"Technology",     "industry":"IT Services",           "cap":"large", "aliases":["tech mahindra"]},
-    {"symbol":"LTIM",       "name":"LTIMindtree Ltd",                "sector":"Technology",     "industry":"IT Services",           "cap":"large", "aliases":["ltimindtree","mindtree"]},
+    {"symbol":"LTM",        "name":"LTIMindtree Ltd",                "sector":"Technology",     "industry":"IT Services",           "cap":"large", "aliases":["ltimindtree","mindtree","ltim"]},
     {"symbol":"PERSISTENT", "name":"Persistent Systems Ltd",         "sector":"Technology",     "industry":"IT Services",           "cap":"mid",   "aliases":["persistent"]},
     {"symbol":"MPHASIS",    "name":"Mphasis Ltd",                    "sector":"Technology",     "industry":"IT Services",           "cap":"mid",   "aliases":["mphasis"]},
     {"symbol":"COFORGE",    "name":"Coforge Ltd",                    "sector":"Technology",     "industry":"IT Services",           "cap":"mid",   "aliases":["coforge","niit tech"]},
@@ -155,7 +162,12 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"IPCALAB",    "name":"IPCA Laboratories Ltd",          "sector":"Pharmaceuticals","industry":"Pharmaceuticals",       "cap":"mid",   "aliases":["ipca"]},
     {"symbol":"GRANULES",   "name":"Granules India Ltd",             "sector":"Pharmaceuticals","industry":"APIs",                  "cap":"mid",   "aliases":["granules india","granules"]},
     {"symbol":"NATCOPHARM", "name":"Natco Pharma Ltd",               "sector":"Pharmaceuticals","industry":"Pharmaceuticals",       "cap":"mid",   "aliases":["natco pharma","natco"]},
-    {"symbol":"JBCHEPHARM", "name":"JB Chemicals & Pharmaceuticals", "sector":"Pharmaceuticals","industry":"Pharmaceuticals",       "cap":"mid",   "aliases":["jb chemicals","jb chem"]},
+    # JBCHEPHARM removed (2026-08-09) — absent from bhavcopy's EQ series on
+    # 4 consecutive trading days (04-07 Aug 2026) and from every other series
+    # too; yfinance's fast_info returns a stale-looking price but its
+    # historical-bars fetch also fails for the same window. No successor
+    # symbol found under any name/fragment search — dropped rather than
+    # guessed at, per this investigation's own "do not guess" standard.
     {"symbol":"ZYDUSLIFE",  "name":"Zydus Lifesciences Ltd",         "sector":"Pharmaceuticals","industry":"Pharmaceuticals",       "cap":"large", "aliases":["zydus","cadila"]},
     {"symbol":"ABBOTINDIA", "name":"Abbott India Ltd",               "sector":"Pharmaceuticals","industry":"Pharmaceuticals",       "cap":"large", "aliases":["abbott india","abbott"]},
     {"symbol":"APOLLOHOSP", "name":"Apollo Hospitals Enterprise Ltd","sector":"Healthcare",     "industry":"Hospitals",             "cap":"large", "aliases":["apollo hospitals","apollo"]},
@@ -181,7 +193,7 @@ _NSE_UNIVERSE: list[dict] = [
     # ── Consumer / Retail ─────────────────────────────────────────────────────
     {"symbol":"TITAN",      "name":"Titan Company Ltd",              "sector":"Consumer",       "industry":"Jewellery & Watches",   "cap":"large", "aliases":["titan","tanishq","fastrack"]},
     {"symbol":"DMART",      "name":"Avenue Supermarts Ltd",          "sector":"Consumer",       "industry":"Supermarkets",          "cap":"large", "aliases":["dmart","avenue supermarts","d-mart"]},
-    {"symbol":"ZOMATO",     "name":"Zomato Ltd",                     "sector":"Consumer",       "industry":"Food Delivery",         "cap":"large", "aliases":["zomato","blinkit"]},
+    {"symbol":"ETERNAL",    "name":"Eternal Ltd",                    "sector":"Consumer",       "industry":"Food Delivery",         "cap":"large", "aliases":["zomato","blinkit","eternal"]},
     {"symbol":"NYKAA",      "name":"FSN E-Commerce Ventures Ltd",    "sector":"Consumer",       "industry":"Beauty E-Commerce",     "cap":"mid",   "aliases":["nykaa","fsn"]},
     {"symbol":"IRCTC",      "name":"Indian Railway Catering and Tourism","sector":"Consumer",   "industry":"Rail Tourism",          "cap":"large", "aliases":["irctc"]},
     {"symbol":"TRENT",      "name":"Trent Ltd",                      "sector":"Consumer",       "industry":"Fashion Retail",        "cap":"mid",   "aliases":["trent","westside","zudio"]},
@@ -226,7 +238,7 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"ATUL",       "name":"Atul Ltd",                       "sector":"Chemicals",      "industry":"Specialty Chemicals",   "cap":"mid",   "aliases":["atul ltd","atul"]},
     {"symbol":"NAVINFLUOR", "name":"Navin Fluorine International Ltd","sector":"Chemicals",     "industry":"Fluorochemicals",       "cap":"mid",   "aliases":["navin fluorine"]},
     {"symbol":"TATACHEM",   "name":"Tata Chemicals Ltd",             "sector":"Chemicals",      "industry":"Chemicals",             "cap":"mid",   "aliases":["tata chemicals"]},
-    {"symbol":"VINATI",     "name":"Vinati Organics Ltd",            "sector":"Chemicals",      "industry":"Specialty Chemicals",   "cap":"mid",   "aliases":["vinati organics","vinati"]},
+    {"symbol":"VINATIORGA", "name":"Vinati Organics Ltd",            "sector":"Chemicals",      "industry":"Specialty Chemicals",   "cap":"mid",   "aliases":["vinati organics","vinati"]},
     {"symbol":"PIIND",      "name":"PI Industries Ltd",              "sector":"Chemicals",      "industry":"Agrochemicals",         "cap":"mid",   "aliases":["pi industries"]},
     {"symbol":"CLEAN",      "name":"Clean Science & Technology Ltd", "sector":"Chemicals",      "industry":"Specialty Chemicals",   "cap":"mid",   "aliases":["clean science"]},
     {"symbol":"COROMANDEL", "name":"Coromandel International Ltd",   "sector":"Chemicals",      "industry":"Fertilisers",           "cap":"mid",   "aliases":["coromandel"]},
@@ -281,7 +293,10 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"ABFRL",      "name":"Aditya Birla Fashion and Retail Ltd", "sector":"Retail",     "industry":"Apparel Retail",         "cap":"mid",   "aliases":["aditya birla fashion","abfrl"]},
     {"symbol":"VMART",      "name":"V-Mart Retail Ltd",              "sector":"Retail",         "industry":"Value Retail",           "cap":"small", "aliases":["v-mart","vmart"]},
     {"symbol":"INDIGO",     "name":"InterGlobe Aviation Ltd",        "sector":"Aviation",       "industry":"Airlines",               "cap":"large", "aliases":["indigo","interglobe aviation"]},
-    {"symbol":"SPICEJET",   "name":"SpiceJet Ltd",                   "sector":"Aviation",       "industry":"Airlines",               "cap":"small", "aliases":["spicejet"]},
+    # SPICEJET removed (2026-08-09) — same investigation as JBCHEPHARM above:
+    # absent from bhavcopy for 4 consecutive trading days; yfinance returns a
+    # hard "quote not found" 404, a stronger signal than the other two
+    # removals. No successor symbol found.
     {"symbol":"HINDZINC",   "name":"Hindustan Zinc Ltd",             "sector":"Metals",         "industry":"Zinc & Silver Mining",   "cap":"large", "aliases":["hindustan zinc","hind zinc"]},
     {"symbol":"GMRAIRPORT", "name":"GMR Airports Infrastructure Ltd","sector":"Infra",          "industry":"Airport Infrastructure", "cap":"large", "aliases":["gmr infrastructure","gmr airports","gmr"]},
     {"symbol":"IRB",        "name":"IRB Infrastructure Developers Ltd", "sector":"Infra",       "industry":"Road Infrastructure",    "cap":"mid",   "aliases":["irb infrastructure","irb"]},
@@ -296,7 +311,10 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"IIFL",       "name":"IIFL Finance Ltd",               "sector":"NBFC",           "industry":"Diversified NBFC",       "cap":"mid",   "aliases":["iifl finance","iifl"]},
     {"symbol":"MOTILALOFS", "name":"Motilal Oswal Financial Services Ltd", "sector":"Broking",  "industry":"Broking & Asset Management", "cap":"mid", "aliases":["motilal oswal","motilal oswal financial"]},
     {"symbol":"KFINTECH",   "name":"KFin Technologies Ltd",          "sector":"Fintech",        "industry":"RTA Services",           "cap":"mid",   "aliases":["kfin technologies","kfintech"]},
-    {"symbol":"GUJGASLTD",  "name":"Gujarat Gas Ltd",                "sector":"Energy",         "industry":"City Gas Distribution",  "cap":"mid",   "aliases":["gujarat gas"]},
+    # GUJGASLTD removed (2026-08-09) — same investigation as JBCHEPHARM/
+    # SPICEJET above: absent from bhavcopy for 4 consecutive trading days,
+    # yfinance's historical-bars fetch fails for the same window. No
+    # successor symbol found.
 
     # ═══════════════════════════════════════════════════════════════════════
     # Nifty 500 expansion (2026-07-26). Sourced from Wikipedia's NIFTY_500
@@ -383,7 +401,12 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"CHALET", "name":"Chalet Hotels Ltd", "sector":"Consumer", "industry":"Consumer Services", "cap":"mid", "aliases":["chalet"]},
     {"symbol":"DEVYANI", "name":"Devyani International Ltd", "sector":"Consumer", "industry":"Consumer Services", "cap":"mid", "aliases":["devyani"]},
     {"symbol":"EIHOTEL", "name":"EIH Ltd", "sector":"Consumer", "industry":"Consumer Services", "cap":"mid", "aliases":["eih", "eihotel"]},
-    {"symbol":"ETERNAL", "name":"Eternal Ltd", "sector":"Consumer", "industry":"Consumer Services", "cap":"large", "aliases":["eternal"]},
+    # ETERNAL duplicate removed here (2026-08-09) — a second, less complete
+    # entry already existed further up the list (found while renaming the
+    # stale ZOMATO entry to ETERNAL; someone had partially fixed this
+    # before but left the old ZOMATO row in place). Kept the richer one
+    # (real "zomato"/"blinkit" aliases, more specific "Food Delivery"
+    # industry) over this one.
     {"symbol":"FIRSTCRY", "name":"Brainbees Solutions Ltd", "sector":"Consumer", "industry":"Consumer Services", "cap":"mid", "aliases":["brainbees", "firstcry"]},
     {"symbol":"INDHOTEL", "name":"Indian Hotels Co. Ltd", "sector":"Consumer", "industry":"Consumer Services", "cap":"large", "aliases":["indhotel"]},
     {"symbol":"ITCHOTELS", "name":"ITC Hotels Ltd", "sector":"Consumer", "industry":"Consumer Services", "cap":"mid", "aliases":["itchotels"]},
@@ -587,7 +610,11 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"IKS", "name":"Inventurus Knowledge Solutions Ltd", "sector":"Technology", "industry":"Information Technology", "cap":"mid", "aliases":["iks", "inventurus", "inventurus knowledge"]},
     {"symbol":"INTELLECT", "name":"Intellect Design Arena Ltd", "sector":"Technology", "industry":"Information Technology", "cap":"mid", "aliases":["intellect", "intellect design"]},
     {"symbol":"LATENTVIEW", "name":"Latent View Analytics Ltd", "sector":"Technology", "industry":"Information Technology", "cap":"mid", "aliases":["latent", "latent view", "latentview"]},
-    {"symbol":"LTM", "name":"LTM Ltd", "sector":"Technology", "industry":"Information Technology", "cap":"mid", "aliases":["ltm"]},
+    # LTM duplicate removed here (2026-08-09) — same pattern as the ETERNAL
+    # duplicate above: a second, incomplete/wrong entry (name "LTM Ltd" not
+    # the real "LTIMindtree Ltd", cap wrongly "mid" for a large IT major)
+    # already existed further up, from a previous partial fix that never
+    # removed the old LTIM row. Kept the more accurate one.
     {"symbol":"MAPMYINDIA", "name":"C.E. Info Systems Ltd", "sector":"Technology", "industry":"Information Technology", "cap":"mid", "aliases":["info", "mapmyindia"]},
     {"symbol":"NETWEB", "name":"Netweb Technologies India Ltd", "sector":"Technology", "industry":"Information Technology", "cap":"mid", "aliases":["netweb"]},
     {"symbol":"NEWGEN", "name":"Newgen Software Technologies Ltd", "sector":"Technology", "industry":"Information Technology", "cap":"mid", "aliases":["newgen", "newgen software"]},
