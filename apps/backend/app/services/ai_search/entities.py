@@ -9,9 +9,16 @@ exist in the real NSE universe.
 No new third-party dependency — uses stdlib `difflib`, since a fuzzy-matching
 library (rapidfuzz/python-Levenshtein) isn't currently vendored and adding
 one is a decision better made once real precision/recall numbers exist (see
-plan's Open Risks). difflib's SequenceMatcher-based ratio is slower than a
-compiled library at large scale but the NSE universe here is ~260 companies —
-negligible at that size.
+plan's Open Risks). Universe-expansion investigation (2026-08-09) measured
+this scaling badly with corpus size when each comparison built a fresh
+SequenceMatcher from nothing (~1s at 510 companies -> ~3.7s at a ~2,300
+proxy scale) — fixed by caching the corpus and reusing SequenceMatcher's
+per-token b2j index across a whole comparison pass (see `_corpus`/
+`_fuzzy_candidates`), the same reuse pattern stdlib's own
+`difflib.get_close_matches` already uses internally. Still O(query n-grams x
+corpus size) in comparison count, just with the expensive per-comparison
+setup work removed — worth re-measuring if the universe grows enough that
+raw comparison count itself becomes the bottleneck again.
 """
 from __future__ import annotations
 
@@ -156,15 +163,40 @@ def _universe() -> list[dict]:
     return _NSE_UNIVERSE
 
 
-def _corpus() -> list[tuple[str, dict]]:
-    """(searchable_text, company_row) pairs — name, symbol, and every alias,
-    each pointing back to its parent row so a fuzzy hit resolves to the real
-    canonical symbol regardless of which alias it matched against."""
-    pairs: list[tuple[str, dict]] = []
-    for co in _universe():
+# Module-level cache, keyed by id(_NSE_UNIVERSE) — invalidated only when the
+# universe list itself changes (which in practice only happens across a
+# process restart on a code deploy; nothing mutates it in place at runtime,
+# confirmed by grep across every consumer). Universe-expansion investigation
+# (2026-08-09) measured entity extraction going from ~1s to ~3.7s per query
+# as the corpus grew, root-caused to two compounding costs paid on every
+# single call: this list rebuilt from scratch, and (in _fuzzy_candidates
+# below) a fresh difflib.SequenceMatcher constructed per (token, corpus-
+# entry) pair with no reuse of either side's precomputed index.
+_CORPUS_CACHE: dict[int, list[tuple[str, str, dict]]] = {}
+
+
+def _corpus() -> list[tuple[str, str, dict]]:
+    """(searchable_text, stripped_core_text, company_row) triples — name,
+    symbol, and every alias, each pointing back to its parent row so a fuzzy
+    hit resolves to the real canonical symbol regardless of which alias it
+    matched against. The stripped-core form is precomputed once here rather
+    than recomputed on every fuzzy comparison (it used to be recomputed once
+    per (token, entry) pair — the same text stripped identically every time)."""
+    universe = _universe()
+    key = id(universe)
+    cached = _CORPUS_CACHE.get(key)
+    if cached is not None:
+        return cached
+    _CORPUS_CACHE.clear()
+    pairs: list[tuple[str, str, dict]] = []
+    for co in universe:
         texts = {co["name"].lower(), co["symbol"].lower(), *[a.lower() for a in (co.get("aliases") or [])]}
         for t in texts:
-            pairs.append((t, co))
+            core = _strip_generic(t)
+            if len(core) < 3:
+                continue
+            pairs.append((t, core, co))
+    _CORPUS_CACHE[key] = pairs
     return pairs
 
 
@@ -254,12 +286,23 @@ def _fuzzy_candidates(token: str, cutoff: float, limit: int = 3) -> list[tuple[d
     if len(token_core) < 3:
         return []
     corpus = _corpus()
+    # Same reuse pattern stdlib's own difflib.get_close_matches uses: one
+    # SequenceMatcher per token (not per comparison pair), with the token
+    # fixed as the "b" side via set_seq2 — its b2j index (the expensive part
+    # of a comparison) is then built exactly once per token and reused
+    # across every corpus entry, instead of being rebuilt from scratch on
+    # every single (token, entry) pair as the old `SequenceMatcher(a=...,
+    # b=...)`-per-comparison version did. real_quick_ratio()/quick_ratio()
+    # are cheap upper-bound checks — same pre-filter get_close_matches
+    # applies before paying for the full ratio() computation.
+    matcher = difflib.SequenceMatcher()
+    matcher.set_seq2(token_core)
     scored: list[tuple[dict, float]] = []
-    for text, co in corpus:
-        text_core = _strip_generic(text)
-        if len(text_core) < 3:
+    for text, text_core, co in corpus:
+        matcher.set_seq1(text_core)
+        if matcher.real_quick_ratio() < cutoff or matcher.quick_ratio() < cutoff:
             continue
-        ratio = difflib.SequenceMatcher(a=token_core, b=text_core).ratio()
+        ratio = matcher.ratio()
         if ratio >= cutoff:
             scored.append((co, ratio))
     # Dedupe by symbol, keep the best-scoring alias match per company.
