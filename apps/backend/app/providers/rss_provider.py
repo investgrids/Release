@@ -40,6 +40,37 @@ def _is_india_relevant(text: str) -> bool:
     return any(kw in low for kw in _INDIA_KEYWORDS)
 
 
+# _is_india_relevant is a geography filter, not a topic one — any Indian
+# entertainment/sports story mentioning "India" or reporting collections in
+# "crore" trivially passes it (confirmed live: NDTV Profit's general "latest"
+# feed, not markets-scoped, produced two fully-indexed box-office pages —
+# "The Odyssey Box Office Collection..." and "...Spider-Man... In India" —
+# both pass _is_india_relevant purely because their summaries say "India").
+# This second filter targets the actual off-topic content, independent of
+# geography. Phrase-based rather than a bare "box office" ban so it doesn't
+# catch a legitimate article like "PVR Inox profit jumps on strong box
+# office, stock rallies" — real finance content about a listed cinema chain
+# reacting to box-office numbers, which should still pass.
+_OFF_TOPIC_PHRASES = (
+    "box office collection",
+    "movie review", "film review",
+    "ott release", "web series review",
+)
+
+# A real finance story about a listed cinema chain (PVR/Inox) can
+# legitimately say "box office collections boosted profit" — only exclude
+# when no market-specific signal is also present, so the phrase filter
+# above doesn't sweep up genuine stock coverage along with it.
+_MARKET_CONTEXT_OVERRIDE = {"stock", "shares", "nse", "bse", "multiplex", "listed"}
+
+
+def _is_off_topic(text: str) -> bool:
+    low = text.lower()
+    if not any(kw in low for kw in _OFF_TOPIC_PHRASES):
+        return False
+    return not any(kw in low for kw in _MARKET_CONTEXT_OVERRIDE)
+
+
 def _parse_pub_date(date_str: str) -> str:
     if not date_str:
         return ""
@@ -73,7 +104,8 @@ class RSSProvider(BaseProvider):
 
     def normalize(self, raw: dict) -> RawItem | None:
         headline = (raw.get("headline") or "").strip()
-        if not headline or not _is_india_relevant(headline + " " + raw.get("summary", "")):
+        combined = headline + " " + raw.get("summary", "")
+        if not headline or not _is_india_relevant(combined) or _is_off_topic(combined):
             return None
         uid = raw.get("id") or f"rss-{hashlib.md5(headline.encode()).hexdigest()[:10]}"
         return RawItem(

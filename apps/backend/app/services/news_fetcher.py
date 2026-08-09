@@ -195,6 +195,32 @@ def _is_india_relevant(headline: str, summary: str = "") -> bool:
     return any(kw in text for kw in _INDIA_KEYWORDS)
 
 
+# _is_india_relevant is a geography filter, not a topic one — any Indian
+# entertainment/sports story mentioning "India" or reporting collections in
+# "crore" trivially passes it (confirmed live: this fetcher's own
+# NDTV Profit feed — "feeds.feedburner.com/ndtvprofit-latest", not
+# markets-scoped — produced two fully-indexed box-office pages via this
+# exact function; their live- prefixed ids match _make_id() above). This
+# second filter targets the off-topic content itself. Phrase-based rather
+# than a bare "box office" ban so it doesn't catch a legitimate article
+# like "PVR Inox profit jumps on strong box office, stock rallies" — real
+# finance content about a listed cinema chain reacting to box-office
+# numbers, which should still pass.
+_OFF_TOPIC_PHRASES = (
+    "box office collection",
+    "movie review", "film review",
+    "ott release", "web series review",
+)
+_MARKET_CONTEXT_OVERRIDE = {"stock", "shares", "nse", "bse", "multiplex", "listed"}
+
+
+def _is_off_topic(headline: str, summary: str = "") -> bool:
+    text = (headline + " " + summary).lower()
+    if not any(kw in text for kw in _OFF_TOPIC_PHRASES):
+        return False
+    return not any(kw in text for kw in _MARKET_CONTEXT_OVERRIDE)
+
+
 def _extract_companies(headline: str, summary: str = "") -> list[str]:
     # Search headline + first 300 chars of summary to catch company mentions not in title
     text = " " + (headline + " " + summary[:300]).lower() + " "
@@ -332,8 +358,10 @@ async def get_live_news(limit: int = 20) -> list[dict]:
             continue
         for article in batch:
             aid = article["id"]
-            if aid not in seen_ids and _is_india_relevant(
-                article.get("headline", ""), article.get("summary", "")
+            if (
+                aid not in seen_ids
+                and _is_india_relevant(article.get("headline", ""), article.get("summary", ""))
+                and not _is_off_topic(article.get("headline", ""), article.get("summary", ""))
             ):
                 seen_ids.add(aid)
                 merged.append(article)

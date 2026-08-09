@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import NewsDetailPage, { type NewsArticle } from "./NewsPageClient";
 
@@ -26,6 +27,13 @@ function withPeriod(text: string) {
 export default async function NewsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const article = await fetchArticle(id);
+
+  // A missing article (deleted, filtered by the off-topic content check,
+  // or never existed) was previously rendering an empty page at HTTP 200 —
+  // a soft 404 that leaves stale/filtered URLs (like the box-office pages
+  // the topic filter now excludes) sitting in Google's index indefinitely
+  // instead of naturally deindexing.
+  if (!article) notFound();
 
   return (
     <>
