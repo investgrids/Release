@@ -240,7 +240,19 @@ async def job_enrich_events() -> None:
     # attempts, exponential backoff), which stays untouched and unshared
     # with P0's priority system either way — just lets more events clear
     # per tick when a burst does happen.
-    _BATCH = 10
+    # TEMPORARY EMERGENCY PAUSE (2026-08-09): _safe_json_call swallows every
+    # AI-call exception (429s included) and returns a fallback, so a
+    # rate-limited pipeline still reaches mark_status(eid, "done") with
+    # impact_score=None — the exact same terminal trap a 369-event backlog
+    # was just reset out of. Both OpenRouter and Gemini's free tiers have
+    # hit this; with zero pacing between the pipeline's 8 sequential AI
+    # calls, the just-reset backlog would re-trap itself within a few
+    # cycles. Set to 0 (was 10) until real backoff/pacing ships — this is
+    # the P0 watch-item flagged at Stage 2 (2026-08-06): "confirm the
+    # provider client actually handles rate limits gracefully under higher
+    # load — don't recreate P0's original problem in a system nobody's
+    # watching." Revert to 10 once the pacing fix lands.
+    _BATCH = 0
     _AI_DELAY = 2  # seconds between AI calls
 
     import asyncio
