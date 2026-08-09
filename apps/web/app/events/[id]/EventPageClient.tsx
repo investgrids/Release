@@ -996,7 +996,7 @@ function VerdictCard({ data }: { data: EventDetail }) {
             Research {topBen.name || topBen.symbol} →
           </Link>
         )}
-        <Link href={`/ripple/${data.event.id}`}
+        <Link href={`/ripple/${data.event.slug || data.event.id}`}
           className="ml-auto text-[12px] font-medium text-text-muted transition hover:text-text-secondary">
           See ripple chain →
         </Link>
@@ -1053,11 +1053,11 @@ function WhatNextSection({ data }: { data: EventDetail }) {
             topSec ? {
               label: `Trace the ripple across ${topSec}`,
               why:   `Because indirect effects in adjacent sectors often create the best risk-adjusted opportunities.`,
-              href:  `/ripple/${data.event.id}`,
+              href:  `/ripple/${data.event.slug || data.event.id}`,
             } : {
               label: "Trace the full ripple chain",
               why:   "Because second-order effects compound — the real opportunity is often two steps removed from the headline.",
-              href:  `/ripple/${data.event.id}`,
+              href:  `/ripple/${data.event.slug || data.event.id}`,
             },
           ],
         },
@@ -1239,7 +1239,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
         {data.beneficiaries?.[0] && (
           <SmartCTA variant="see-companies" href={`/companies/${data.beneficiaries[0].symbol}`} context={data.beneficiaries[0].name || data.beneficiaries[0].symbol} />
         )}
-        <SmartCTA variant="view-ripple" href={`/ripple/${ev.id}`} />
+        <SmartCTA variant="view-ripple" href={`/ripple/${ev.slug || ev.id}`} />
       </div>
 
       {/* ── Page title + event header ──────────────────────────────────── */}

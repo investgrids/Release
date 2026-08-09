@@ -2,6 +2,7 @@ import Link from "next/link";
 
 interface TrendingEventItem {
   id: string;
+  slug?: string;
   score: number;
   title: string;
   tags: string[];
@@ -38,7 +39,7 @@ export function TrendingEvents({ events }: TrendingEventsProps) {
         {events.map((event) => (
           <Link
             key={event.id}
-            href={`/events/${event.id}`}
+            href={`/events/${event.slug || event.id}`}
             className="flex items-start gap-3 rounded-[16px] border border-surface-border/5 bg-bg/60 p-3.5 hover:border-surface-border/10 hover:bg-text-primary/[0.03] transition"
           >
             <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br text-xl font-bold ${scoreBg(event.score)}`}>

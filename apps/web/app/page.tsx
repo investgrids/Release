@@ -631,7 +631,7 @@ async function HomepageIntelligenceHero() {
 
         {/* RIGHT — Evidence */}
         <div className="space-y-4">
-          <Link href={ev ? `/events/${ev.id}` as any : "/events"} className="block rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4 transition hover:border-violet-500/25">
+          <Link href={ev ? `/events/${ev.slug || ev.id}` as any : "/events"} className="block rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4 transition hover:border-violet-500/25">
             <div className="mb-1 flex items-center justify-between">
               <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Why Today Matters</p>
               {ev?.lifecycle && _LIFECYCLE_BADGE[ev.lifecycle] && (
@@ -928,7 +928,7 @@ async function TodaysBiggestEventsCard() {
                     {e.impact_score != null ? Math.round(e.impact_score) : "—"}
                   </span>
                 </div>
-                <Link href={`/events/${e.id}` as any} className="group mt-1.5 block">
+                <Link href={`/events/${e.slug || e.id}` as any} className="group mt-1.5 block">
                   <p className="text-[13px] font-bold leading-snug text-text-primary group-hover:text-violet-700 dark:text-violet-200 transition line-clamp-2">{cleanText(e.title)}</p>
                 </Link>
                 {sectors.length > 0 && (
@@ -955,7 +955,7 @@ async function TodaysBiggestEventsCard() {
                 <div className="mt-2.5 flex items-center gap-3 border-t border-surface-border/5 pt-2">
                   <Link href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${truncateForQuery(e.title)}`)}` as any} className="text-[10px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">Analyze with AI →</Link>
                   <Link href={`/ripple?event=${e.id}` as any} className="text-[10px] font-semibold text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">Ripple Analysis →</Link>
-                  <Link href={`/events/${e.id}` as any} className="text-[10px] font-semibold text-text-muted hover:text-text-secondary transition">Full Event Analysis →</Link>
+                  <Link href={`/events/${e.slug || e.id}` as any} className="text-[10px] font-semibold text-text-muted hover:text-text-secondary transition">Full Event Analysis →</Link>
                   {e.confidence != null && <span className="ml-auto text-[10px] text-text-muted">Confidence <span className="font-bold text-text-secondary">{Math.round(e.confidence)}%</span></span>}
                 </div>
               </div>
@@ -1314,7 +1314,7 @@ async function LatestIntelligenceRow() {
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function HomePage() {
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 px-5 py-6 pb-12 md:px-8">
+    <div className="space-y-5 py-6 pb-12">
 
       {/* Ticker strip */}
       <Suspense fallback={<Sk h={80} />}>

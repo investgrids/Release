@@ -61,6 +61,7 @@ async def get_active_events(db: AsyncSession, symbol: str, sector: str | None, l
     scored by the same active_score/lifecycle engine that ranks every
     other event surface — never a second, company-specific ranking."""
     from app.db.models.intelligence import EventTriage
+    from app.db.models.event import Event
     from app.services.event_lifecycle import compute_active_score, compute_lifecycle
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=_LOOKBACK_DAYS)
@@ -80,6 +81,18 @@ async def get_active_events(db: AsyncSession, symbol: str, sector: str | None, l
             sector_matches.append(r)
 
     pool = direct + sector_matches
+    # Found live: EventTriage.id is its own row id (a UUID) — never the same
+    # value as EventTriage.event_id (the real Event this triage result is
+    # about, e.g. "nse-1f3ac042b7"). The frontend link this feeds
+    # (CompanyIntelligenceSection.tsx) was built from r.id, so it has never
+    # pointed at a real /events/{id} page for any of these — unrelated to
+    # the nse- slug migration, a pre-existing dead link, fixed here too.
+    event_ids = list({r.event_id for r in pool if r.event_id})
+    slug_by_event_id: dict[str, str] = {}
+    if event_ids:
+        ev_rows = (await db.execute(select(Event.id, Event.slug).where(Event.id.in_(event_ids)))).all()
+        slug_by_event_id = {eid: (slug or "") for eid, slug in ev_rows}
+
     seen_ids = set()
     items = []
     for r in pool:
@@ -87,7 +100,8 @@ async def get_active_events(db: AsyncSession, symbol: str, sector: str | None, l
             continue
         seen_ids.add(r.id)
         items.append({
-            "id": r.id,
+            "id": r.event_id,
+            "slug": slug_by_event_id.get(r.event_id, ""),
             "headline": r.one_liner or r.headline,
             "urgency": r.urgency,
             "sentiment": r.sentiment,

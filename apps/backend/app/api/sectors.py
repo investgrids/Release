@@ -198,7 +198,7 @@ async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)
         ev_words = {w.lower() for s in (e.sectors or []) for w in _sector_words(s)}
         if _words_overlap(target_words, ev_words):
             events.append({
-                "id": e.id, "title": e.title, "impact_score": e.impact_score,
+                "id": e.id, "slug": e.slug or "", "title": e.title, "impact_score": e.impact_score,
                 "date": (e.event_date or e.published_at).isoformat() if (e.event_date or e.published_at) else None,
             })
         if len(events) >= 6:

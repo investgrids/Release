@@ -11,6 +11,7 @@ import { AlertProvider }      from "@/components/AlertProvider";
 import { MarketIntelligenceProvider } from "@/components/MarketIntelligenceProvider";
 import { BreakingNewsAlert }  from "@/components/BreakingNewsAlert";
 import { Breadcrumbs, BreadcrumbOverrideProvider } from "@/components/Breadcrumbs";
+import { PageContainer } from "@/components/PageContainer";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
@@ -167,10 +168,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     below — replaces the humanized-raw-slug fallback without
                     that page needing to render its own second <Breadcrumbs>. */}
                 <BreadcrumbOverrideProvider>
-                  <div className="mx-auto max-w-[1600px] px-6 pt-4">
+                  <PageContainer className="pt-4">
                     <Breadcrumbs />
-                  </div>
-                  {children}
+                  </PageContainer>
+                  <PageContainer>{children}</PageContainer>
                 </BreadcrumbOverrideProvider>
               </main>
               <BreakingNewsAlert />

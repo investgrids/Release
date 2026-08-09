@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.db.session import get_db
 from app.db.models.event import Event, EventCompany, EventSector
 from app.db.models_legacy import Story
+from app.repositories.event_repository import EventRepository
 from app.services.ripple_service import get_or_generate_ripple, generate_scenario_ripple
 
 router = APIRouter()
@@ -46,9 +47,16 @@ async def get_event_ripple(
     regenerate: bool = Query(False, description="Force AI regeneration"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get or generate the Ripple Engine dependency graph for a specific event."""
-    ev_res = await db.execute(select(Event).where(Event.id == event_id))
-    event  = ev_res.scalar_one_or_none()
+    """Get or generate the Ripple Engine dependency graph for a specific event.
+
+    Accepts either the real event id or its public slug (same id-or-slug
+    resolution as /api/events/{id} — Ripple pages represent the same Event
+    record, just a different view of it, so they share the same slug
+    rather than needing one of their own)."""
+    repo = EventRepository(db)
+    event = await repo.get_by_id(event_id)
+    if event is None:
+        event = await repo.get_by_slug(event_id)
     if not event:
         # Handle demo IDs from the static fallback list page
         if event_id in _DEMO_RIPPLES:
@@ -58,6 +66,7 @@ async def get_event_ripple(
                 db,
             )
         raise HTTPException(status_code=404, detail="Event not found")
+    event_id = event.id
 
     # Load junction-table companies/sectors
     comp_res = await db.execute(select(EventCompany).where(EventCompany.event_id == event_id))
@@ -72,7 +81,7 @@ async def get_event_ripple(
     if not sectors and isinstance(event.sectors, list):
         sectors = [{"sector": s} if isinstance(s, str) else s for s in event.sectors]
 
-    return await get_or_generate_ripple(
+    result = await get_or_generate_ripple(
         event_id=event_id,
         event_title=event.title or "",
         event_summary=(event.summary or event.description or "")[:1000],
@@ -83,6 +92,14 @@ async def get_event_ripple(
         db=db,
         force_regenerate=regenerate,
     )
+    # SEO fix: /ripple/[id] pages linked by raw event id, same "nse-" leak
+    # as /events/[id] before tonight's fix — the frontend needs the real
+    # slug to build/redirect to the canonical /ripple/{slug} URL. Not a new
+    # DB field: event.slug already exists (Ripple pages represent the same
+    # Event record Events does), just wasn't being surfaced in this response.
+    if isinstance(result, dict):
+        result["event_slug"] = event.slug or ""
+    return result
 
 
 # ── POST /api/ripple/scenario ─────────────────────────────────────────────────

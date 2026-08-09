@@ -23,7 +23,7 @@ export default async function BestStocksHubPage() {
   const sectors = await getSectorsWithCounts();
 
   return (
-    <main className="mx-auto max-w-[900px] px-5 py-8 pb-16 sm:px-6">
+    <main className="mx-auto max-w-[900px] py-8 pb-16">
       <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-text-muted">
         <TrendingUp className="h-3.5 w-3.5" /> Best Stocks
       </div>

@@ -74,6 +74,24 @@ export function truncateForQuery(text: string, max = 80): string {
   return text.length > max ? text.slice(0, max - 3) + "…" : text;
 }
 
+// For <title>/meta description/og:description — unlike truncateForQuery's
+// hard character cut (fine for a query string nobody reads character-by-
+// character), a title or description that stops mid-word reads as broken,
+// not just long. Confirmed live: an intel page's meta description ending
+// "...This is amidst a quiet " (no ellipsis, trailing space, dangling
+// clause) from a plain slice(0, 155). Trims to the last whole word within
+// the limit instead.
+export function truncateAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  // Only trim to the word boundary if it doesn't throw away too much —
+  // a boundary very early in the string means one unbroken long word, not
+  // a normal sentence, so a mid-word cut is the lesser evil there.
+  const trimmed = lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut;
+  return trimmed.trimEnd() + "…";
+}
+
 // When the AI can't identify a specific ticker for a vaguely-referenced
 // company (e.g. "the multibagger stock" with no name given in the source
 // event), it writes a placeholder into the symbol field rather than

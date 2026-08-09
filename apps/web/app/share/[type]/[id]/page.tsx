@@ -43,7 +43,7 @@ async function fetchEntity(type: EntityType, id: string): Promise<EntityData | n
           sector:      d.affectedSectors?.[0]?.sector,
           score:       d.impactScore,
           confidence:  d.confidence,
-          href:        `/events/${id}`,
+          href:        `/events/${ev.slug || id}`,
           type,
         };
       }
@@ -88,14 +88,17 @@ async function fetchEntity(type: EntityType, id: string): Promise<EntityData | n
         };
       }
       case "ripple": {
-        const r = await fetch(`${API}/api/ripple/${id}`, { next: { revalidate: 3600 } });
+        // Was /api/ripple/{id} — always 404 (same bug already found and
+        // fixed in ripple/[id]/layout.tsx earlier tonight; this call site
+        // was missed in that pass). Real endpoint is /api/ripple/event/{id}.
+        const r = await fetch(`${API}/api/ripple/event/${id}`, { next: { revalidate: 3600 } });
         if (!r.ok) return null;
         const d = await r.json();
         return {
           title:       d.event_title ?? d.title ?? "Ripple Intelligence",
           description: d.insights?.summary ?? d.summary ?? "",
           sector:      d.insights?.impacted_sectors?.[0]?.name,
-          href:        `/ripple/${id}`,
+          href:        `/ripple/${d.event_slug || id}`,
           type,
         };
       }

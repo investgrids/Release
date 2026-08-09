@@ -174,6 +174,7 @@ async def get_homepage_event_intelligence(db: AsyncSession) -> dict:
         "top_events": [e.model_dump() for e in top],
         "primary": {
             "id": primary_summary.id,
+            "slug": detail["event"].get("slug", ""),
             "title": detail["event"]["title"],
             "why_it_matters": why,
             "sectors": [s.get("sector") for s in sectors][:4],

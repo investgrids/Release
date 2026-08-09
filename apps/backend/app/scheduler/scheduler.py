@@ -305,7 +305,7 @@ async def start_scheduler() -> AsyncIOScheduler:
     # (adds well under 2 minutes to full boot-repair completion) and safe
     # (every one of these jobs is already independently idempotent).
     from datetime import datetime
-    from app.tasks.daily_tasks import job_repair_evergreen_contamination, job_repair_unfilled_placeholders, job_repair_comparison_missing_fields, job_repair_why_it_matters_bloat, job_repair_pipe_enum_leaks, job_backfill_company_signals
+    from app.tasks.daily_tasks import job_repair_evergreen_contamination, job_repair_unfilled_placeholders, job_repair_comparison_missing_fields, job_repair_why_it_matters_bloat, job_repair_pipe_enum_leaks, job_backfill_company_signals, job_repair_event_slugs
 
     _boot_now = datetime.now(timezone.utc)
     _boot_jobs = [
@@ -319,6 +319,10 @@ async def start_scheduler() -> AsyncIOScheduler:
         # _normalize_pipe_enum_leaks, applied going forward at generation
         # time; this only repairs rows published before that fix).
         (job_repair_pipe_enum_leaks, "repair_pipe_enum_leaks_startup"),
+        # SEO URL migration backfill — regenerates any event slug that
+        # still leaks its source id ("...-nse-4cc9") via the old eid[:8]
+        # disambiguator. See daily_tasks.py's job_repair_event_slugs.
+        (job_repair_event_slugs, "repair_event_slugs_startup"),
         # Backfills AICompanySignal rows for articles/opportunities
         # published before the AI Company Intelligence Score engine
         # shipped (see daily_tasks.py's job_backfill_company_signals

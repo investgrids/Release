@@ -77,7 +77,7 @@ export default async function BestStocksSectorPage({ params }: { params: Promise
   };
 
   return (
-    <main className="mx-auto max-w-[900px] px-5 py-8 pb-16 sm:px-6">
+    <main className="mx-auto max-w-[900px] py-8 pb-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
       <nav className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">

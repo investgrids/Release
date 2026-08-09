@@ -3,6 +3,7 @@ import { ClipboardList } from "lucide-react";
 
 interface EventRow {
   id: string;
+  slug?: string;
   title: string;
   score: number | null;
   tags: string[];
@@ -82,7 +83,7 @@ export function TopEventsSection({ events }: { events: EventRow[] }) {
         {events.slice(0, 5).map((e) => (
           <Link
             key={e.id}
-            href={`/events/${e.id}`}
+            href={`/events/${e.slug || e.id}`}
             className="grid grid-cols-[1fr_60px_140px_90px_60px] items-center gap-3 rounded-2xl border border-surface-border/4 bg-text-primary/[0.02] px-3 py-2.5 hover:border-sky-500/15 hover:bg-text-primary/[0.04] transition"
           >
             {/* Title + tags */}

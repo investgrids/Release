@@ -9,7 +9,9 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const url = `${SITE}/ripple/${id}`;
+  // SEO fix: prefer the real slug (same Event record Events pages already
+  // resolve to) over the opaque id this URL may have been reached with.
+  let url = `${SITE}/ripple/${id}`;
   try {
     // SEO fix: was /api/ripple/{id} — always 404 (confirmed live), which
     // silently fell through to the generic "Ripple Intelligence" fallback
@@ -20,6 +22,7 @@ export async function generateMetadata({
     const res = await fetch(`${API}/api/ripple/event/${id}`, { next: { revalidate: 3600 } });
     if (res.ok) {
       const data  = await res.json();
+      if (data.event_slug) url = `${SITE}/ripple/${data.event_slug}`;
       const title = data.event_title ?? data.title ?? "Ripple Intelligence";
       const desc  = (data.insights?.summary ?? data.summary ?? "").slice(0, 160) || "Trace how a market event ripples through sectors and companies on MarketRipple.";
       return {

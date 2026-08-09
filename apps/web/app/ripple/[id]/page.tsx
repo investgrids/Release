@@ -42,7 +42,12 @@ export default async function RippleDetailPage({ params }: { params: Promise<{ i
   const data = await fetchRipple(id);
   const sector = data?.insights?.impacted_sectors?.[0]?.name;
   const related = data ? await fetchRelated(id, data.event_title, sector) : null;
-  const url = `${SITE}/ripple/${id}`;
+  // SEO fix: same treatment as /events/[id] — prefer the real, human-
+  // readable slug (Ripple pages represent the same Event record Events
+  // does, so they share its slug) over the opaque id this URL was reached
+  // with. middleware.ts issues a real 301 for old id-based links; this is
+  // what makes this page assert the slug as its own canonical identity.
+  const url = `${SITE}/ripple/${data?.event_slug || id}`;
   const description = data ? withPeriod(
     data.insights?.summary || `${data.event_title} — ripple-chain market dependency analysis on MarketRipple.`
   ) : "";

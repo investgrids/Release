@@ -19,7 +19,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 interface SectorStock { symbol: string; name: string; price: string; change: string; positive: boolean }
 interface SectorOpportunity { id: number; slug: string; title: string; opportunity_score: number | null; confidence: number | null }
-interface SectorEvent { id: string; title: string; impact_score: number | null; date: string | null }
+interface SectorEvent { id: string; slug?: string; title: string; impact_score: number | null; date: string | null }
 interface SectorIntelligence {
   id: string; name: string;
   // null for sectors with real constituent stocks + opportunities/events
@@ -199,7 +199,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
   };
 
   return (
-    <main className="mx-auto max-w-[1400px] space-y-6 px-6 py-6 pb-16">
+    <main className="mx-auto max-w-[1400px] space-y-6 py-6 pb-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
       <nav className="flex items-center gap-2 text-[12px] text-text-muted">
@@ -293,7 +293,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
           {d.events.length > 0 ? (
             <div className="space-y-2">
               {d.events.map((e) => (
-                <Link key={e.id} href={`/events/${e.id}`}
+                <Link key={e.id} href={`/events/${e.slug || e.id}`}
                   className="flex items-center justify-between rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 transition hover:border-violet-500/25">
                   <p className="text-[13px] text-text-primary line-clamp-1">{e.title}</p>
                   {e.impact_score != null && (

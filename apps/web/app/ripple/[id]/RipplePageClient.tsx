@@ -80,6 +80,7 @@ interface RippleInsights {
 }
 export interface RippleData {
   event_title: string;
+  event_slug?: string;
   event_impact: number | null;
   graph_data: { nodes: RippleNode[]; edges: RippleEdge[] };
   insights: RippleInsights;
@@ -935,7 +936,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
               {
                 label: "Read the full event analysis",
                 why:   "Because the origin event determines how you should read every downstream effect in this chain.",
-                href:  `/events/${id}`,
+                href:  `/events/${data?.event_slug || id}`,
               },
               {
                 label: "See resulting opportunities",
@@ -953,7 +954,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
         <Link href="/ripple" className="text-[12px] text-text-muted hover:text-text-secondary transition">
           ← Back to Ripple Engine Hub
         </Link>
-        <Link href={`/events/${id}`} className="text-[12px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
+        <Link href={`/events/${data?.event_slug || id}`} className="text-[12px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
           View Full Event Details →
         </Link>
       </div>

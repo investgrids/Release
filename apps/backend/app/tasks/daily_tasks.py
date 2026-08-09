@@ -363,6 +363,76 @@ async def job_repair_evergreen_contamination() -> None:
         log.info("job.repair_evergreen_contamination.done", repaired=len(rows))
 
 
+async def job_repair_event_slugs() -> None:
+    """One-off backfill for the "nse-" slug leak found live (2026-08-08):
+    every event slug used to end with eid[:8] as its collision
+    disambiguator, and since ids look like "nse-4cc93acbc1", that suffix
+    is literally "nse-4cc9" — the source prefix embedded in what's meant to
+    be an opaque-source-id-free public URL. event_pipeline.py's slug
+    generator (_make_unique_slug) already stopped doing this for new
+    events; this repairs everything ingested before that fix.
+
+    Regenerates only the affected rows (slug ending in a source prefix +
+    hex fragment), using the same app-owned numeric-suffix collision
+    strategy new events already get. middleware.ts's 301 redirect covers
+    every already-indexed/bookmarked URL built from the OLD slug — this
+    repair doesn't need to preserve them, just stop generating new ones.
+
+    Naturally idempotent — a repaired slug no longer matches the pattern,
+    so later boots find nothing left to do.
+
+    Detection is deliberately a broad substring match, not a regex trying
+    to reverse-engineer eid[:8]'s exact old shape — found live, that
+    disambiguator produced at least three different tail shapes depending
+    on the source id's own format ("-nse-4cc9", a bare trailing "-nse-"
+    for ids with a doubled "nse-nse-" prefix, and single-character tails
+    like "-nse-bm-f" for "nse-bm-..." ids). A normal title-derived slug
+    essentially never organically contains "-nse-" or "-bse-" as
+    substrings, so treating any hit as a leak is safe and doesn't need to
+    match the bug's exact historical output shape.
+
+    Also repairs NULL/empty slugs and slugs starting with "nse-"/"bse-"
+    outright — found live (2026-08-08 final SEO audit): a freshly-ingested
+    event's row can exist with slug=NULL for the short window between
+    insert and _make_unique_slug assigning it, and the sitemap route (with
+    its own 1-hour fetch cache) can capture that window and bake a raw
+    "nse-bm-..." URL into what it serves. The sitemap's own query now
+    filters out slug-less events rather than falling back to the id (see
+    sitemap.xml/route.ts's hasCleanSlug), so this no longer reaches a
+    user — but a NULL/empty slug is also just a real, incomplete row this
+    job should finish, same as any other unassigned slug."""
+    from sqlalchemy import select, or_
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.event import Event
+    from app.repositories.event_repository import EventRepository
+    from app.pipeline.event_pipeline import _make_unique_slug
+
+    async with AsyncSessionLocal() as db:
+        leaked = (await db.execute(
+            select(Event).where(or_(
+                Event.slug.is_(None),
+                Event.slug == "",
+                Event.slug.like("nse-%"),
+                Event.slug.like("bse-%"),
+                Event.slug.like("%-nse-%"),
+                Event.slug.like("%-bse-%"),
+            ))
+        )).scalars().all()
+        if not leaked:
+            log.debug("job.repair_event_slugs.skip", found=0)
+            return
+
+        log.info("job.repair_event_slugs.start", found=len(leaked))
+        repo = EventRepository(db)
+        for e in leaked:
+            old_slug = e.slug
+            e.slug = await _make_unique_slug(repo, e.title or "", exclude_id=e.id)
+            db.add(e)
+            log.info("job.repair_event_slugs.fixed", id=e.id, old_slug=old_slug, new_slug=e.slug)
+        await db.commit()
+        log.info("job.repair_event_slugs.done", repaired=len(leaked))
+
+
 async def job_repair_unfilled_placeholders() -> None:
     """One-off cleanup of already-published articles containing a literal
     unfilled template placeholder (e.g. "On [specific date], tensions

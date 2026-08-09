@@ -7,7 +7,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 import { InvestmentWatchPanel, type WatchSubject } from "@/components/ai/InvestmentWatchPanel";
 import { ConfidenceBreakdownPanel } from "@/components/ai/ConfidenceBreakdownPanel";
 
-interface ActiveEvent { id: string; headline: string; urgency: number; sentiment: string; lifecycle: string; active_score: number; direct: boolean; }
+interface ActiveEvent { id: string; slug?: string; headline: string; urgency: number; sentiment: string; lifecycle: string; active_score: number; direct: boolean; }
 interface RipplePosition { upstream: string[]; company: string; downstream: string[]; }
 interface Historical { event_title: string; similarity: number; key_lesson: string | null; winners: string[]; losers: string[]; }
 interface RelatedOpportunity { id: number; slug: string; title: string; opportunity_score: number; }
@@ -103,7 +103,7 @@ export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: 
             </p>
             <div className="space-y-2">
               {data.active_events!.map(e => (
-                <Link key={e.id} href={`/events/${e.id}` as any}
+                <Link key={e.id} href={`/events/${e.slug || e.id}` as any}
                   className="group flex items-start gap-2 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-2.5 transition hover:border-surface-border/[0.12]">
                   <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${_LIFECYCLE_DOT[e.lifecycle] ?? "bg-slate-500"}`} />
                   <p className="min-w-0 flex-1 text-[12px] leading-snug text-text-secondary line-clamp-2 group-hover:text-text-primary transition">{e.headline}</p>

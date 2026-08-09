@@ -53,5 +53,14 @@ async function fetchGraph() {
 
 export default async function GraphPage() {
   const graph = await fetchGraph();
-  return <GraphCanvas initialGraph={graph} />;
+  return (
+    // Full-viewport pan/zoom canvas — deliberately breaks out of the root
+    // layout's PageContainer (max-w-[1600px] + horizontal padding), which
+    // would otherwise squeeze the graph and misalign its viewport-relative
+    // overlays. Standard full-bleed break-out: 100vw width, re-centered
+    // with a negative margin, independent of the parent's own padding.
+    <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen">
+      <GraphCanvas initialGraph={graph} />
+    </div>
+  );
 }

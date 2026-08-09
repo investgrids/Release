@@ -123,7 +123,7 @@ export async function RippleChainTab() {
             return (
               <Link
                 key={ev.id}
-                href={`/ripple/${ev.id}`}
+                href={`/ripple/${ev.slug || ev.id}`}
                 className="group rounded-xl border border-surface-border/7 bg-surface-card p-5 hover:border-indigo-500/25 hover:bg-surface-card transition-all"
               >
                 {/* Header */}

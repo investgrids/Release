@@ -404,16 +404,23 @@ async def get_event_intelligence(event_id: str) -> dict:
 
     try:
         from app.db.session import AsyncSessionLocal
-        from app.db.models_legacy import Event, NewsArticle
+        from app.db.models_legacy import NewsArticle
+        from app.repositories.event_repository import EventRepository
         from sqlalchemy import select, desc
 
         async with AsyncSessionLocal() as db:
-            event = (await db.execute(
-                select(Event).where(Event.id == event_id)
-            )).scalar_one_or_none()
+            # Same id-or-slug resolution as every other event-linked route
+            # tonight — /intel/event/{id} was still id-only, confirmed live
+            # (http://localhost:3000/intel/event/nse-beb61f4571 — the one
+            # "Intelligence Report" link this migration missed).
+            repo = EventRepository(db)
+            event = await repo.get_by_id(event_id)
+            if event is None:
+                event = await repo.get_by_slug(event_id)
 
             if not event:
                 return _fallback("event", event_id)
+            event_id = event.id
 
             news_rows = (await db.execute(
                 select(NewsArticle).order_by(desc(NewsArticle.impact_score)).limit(5)
@@ -463,6 +470,10 @@ async def get_event_intelligence(event_id: str) -> dict:
             "event", event_id, "\n".join(parts),
             source_count=len(news_rows) + 1, similar=similar,
         )
+        # SEO fix: /intel/event/{id} was id-only end to end — the frontend
+        # needs the real slug to build its own canonical/redirect URL.
+        if isinstance(result, dict):
+            result["slug"] = event.slug or ""
         _cset(ck, result)
         return result
 

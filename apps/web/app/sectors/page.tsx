@@ -28,7 +28,7 @@ export default async function SectorsPage() {
   const negative = sectors.filter((s) => !s.positive).length;
 
   return (
-    <main className="mx-auto max-w-[1400px] space-y-6 px-6 py-6 pb-16">
+    <main className="mx-auto max-w-[1400px] space-y-6 py-6 pb-16">
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

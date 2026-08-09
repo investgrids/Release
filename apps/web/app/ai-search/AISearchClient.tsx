@@ -2187,7 +2187,7 @@ export default function AISearchClient() {
 
   return (
     <>
-      <div className="mx-auto flex max-w-[1600px] items-start gap-6 px-6 py-6">
+      <div className="flex items-start gap-6 py-6">
       {/* ── Main content column ──────────────────────────────────────────────── */}
       <div className="min-w-0 flex-1 space-y-4 pb-6">
         {/* Current Context — removable chips reflecting the live research session */}

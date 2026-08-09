@@ -28,9 +28,23 @@ from app.services.historical_memory_service import find_similar_events
 logger = structlog.get_logger(__name__)
 
 
-def _make_slug(title: str, suffix: str = "") -> str:
-    base = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:160]
-    return f"{base}-{suffix}"[:180] if suffix else base
+async def _make_unique_slug(repo: "EventRepository", title: str, exclude_id: str) -> str:
+    """Replaces _make_slug's eid[:8] disambiguator (which embedded "nse-"
+    into the public URL — confirmed live, e.g. "...updates-nse-4cc9" — since
+    every event id starts with its source prefix). Collisions are real:
+    confirmed live, 7 of 1142 events shared an identical generic compliance-
+    filing title. Disambiguates with an application-owned numeric suffix
+    instead, checked against the DB — never derived from the source id, so
+    it can never leak "nse-" (or any other source prefix) again."""
+    base = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:160] or "event"
+    slug = base
+    n = 2
+    while True:
+        existing = await repo.get_by_slug(slug)
+        if existing is None or existing.id == exclude_id:
+            return slug
+        slug = f"{base}-{n}"[:180]
+        n += 1
 
 
 async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
@@ -124,7 +138,7 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         # ── Stage 10: Persist everything atomically ──────────────────────────
         logger.debug("[Pipeline:%s] persist", eid)
 
-        slug = _make_slug(title, suffix=eid[:8])
+        slug = await _make_unique_slug(repo, title, exclude_id=eid)
 
         merged_summary = {
             **ai_summary,

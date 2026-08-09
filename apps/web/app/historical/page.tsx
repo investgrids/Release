@@ -60,7 +60,7 @@ export default async function HistoricalHubPage() {
   const sortedGroups = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
 
   return (
-    <main className="mx-auto max-w-[1100px] px-5 py-8 pb-16 sm:px-6">
+    <main className="mx-auto max-w-[1100px] py-8 pb-16">
       <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-text-muted">
         <BookOpen className="h-3.5 w-3.5" /> Historical Patterns
       </div>

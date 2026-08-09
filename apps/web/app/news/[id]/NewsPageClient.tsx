@@ -27,7 +27,7 @@ export interface NewsArticle {
 }
 interface StockInfo { price: string; pct_change: number; sector?: string; }
 interface Event {
-  id: string; title: string; summary: string; impact_score: number | null;
+  id: string; slug?: string; title: string; summary: string; impact_score: number | null;
   sectors: string[]; companies: (string | { symbol: string; name: string })[];
   category: string; date: string; source?: string;
 }
@@ -358,7 +358,7 @@ function RelatedEventCard({ ev }: { ev: Event }) {
         <div className="mt-1.5 flex items-center gap-2">
           <span className="text-[10px] text-text-muted">{ev.date}</span>
           <span className="text-[10px] text-text-muted">•</span>
-          <Link href={`/events/${ev.id}`} className="text-[10px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View Details →</Link>
+          <Link href={`/events/${ev.slug || ev.id}`} className="text-[10px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View Details →</Link>
         </div>
       </div>
       <div className={`flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-full border ${scoreColor}`}>

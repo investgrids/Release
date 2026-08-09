@@ -39,3 +39,9 @@ omniroute-temp/
 
 .env*
 .vercel
+
+# Local scratch/investigation artifacts — debug scripts, log dumps, task
+# planning docs; never meant to be committed (found during the Phase 1-3
+# pre-deployment audit to contain a live VERCEL_OIDC_TOKEN in two untracked
+# .env-pattern files that weren't caught by the .env* rule above).
+.scratch/

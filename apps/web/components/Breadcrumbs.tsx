@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export interface Crumb {
   label: string;
@@ -27,8 +27,18 @@ const BreadcrumbOverrideContext = createContext<{
 
 export function BreadcrumbOverrideProvider({ children }: { children: ReactNode }) {
   const [override, setOverride] = useState<Crumb[] | null>(null);
+  // Found live (React error #185, "Maximum update depth exceeded" on
+  // /events and /events/[id]): value={{ override, setOverride }} without
+  // memoization creates a brand-new object on every render of this
+  // provider — which is every render triggered by setOverride itself.
+  // useBreadcrumbOverride's effect has `ctx` in its dependency array, so a
+  // new ctx reference re-fires that effect, which calls setOverride again,
+  // which re-renders this provider, which creates a new ctx — infinite
+  // loop. Memoizing on `override` (the only thing that should ever change
+  // this value) keeps ctx referentially stable across unrelated re-renders.
+  const value = useMemo(() => ({ override, setOverride }), [override]);
   return (
-    <BreadcrumbOverrideContext.Provider value={{ override, setOverride }}>
+    <BreadcrumbOverrideContext.Provider value={value}>
       {children}
     </BreadcrumbOverrideContext.Provider>
   );
@@ -45,8 +55,21 @@ export function useBreadcrumbOverride(items: Crumb[] | null) {
     if (!ctx) return;
     ctx.setOverride(items);
     return () => ctx.setOverride(null);
+    // `ctx` deliberately NOT a dependency, even after memoizing the
+    // provider's value (previous fix, still needed on its own merits) —
+    // items is a fresh array literal on every caller render, so
+    // setOverride(items) always receives a new reference regardless of
+    // content, which changes `override` state, which changes `ctx` (even
+    // memoized, `override` genuinely changed), which — if `ctx` were a
+    // dependency here — re-fires this effect with the SAME content,
+    // calling setOverride again with yet another new reference: an
+    // infinite loop (confirmed live, React error #185 on every /events
+    // and /events/[id] page load). Re-firing only needs to be gated on
+    // `key`, the actual content fingerprint — ctx.setOverride itself is
+    // already a stable function reference from useState, safe to call
+    // without being a listed dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, key]);
+  }, [key]);
 }
 
 // Drop-in for a SERVER page/component that already has the real title at

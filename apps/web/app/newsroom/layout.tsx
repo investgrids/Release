@@ -13,7 +13,11 @@ export const metadata: Metadata = {
 export default function NewsroomLayout({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-surface-card text-text-primary">
-      <div className="border-b border-surface-border/7 bg-black/20 lg:hidden">
+      {/* Mobile app-bar — deliberately edge-to-edge (background spans the
+          full viewport regardless of the root layout's PageContainer
+          padding around this whole route), via the standard full-bleed
+          break-out: 100vw width, re-centered with a negative margin. */}
+      <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen border-b border-surface-border/7 bg-black/20 lg:hidden">
         <div className="px-4 py-3 sm:px-6">
           <Link href="/newsroom" className="flex items-center gap-2">
             <Radio className="h-3.5 w-3.5 text-sky-400" />
@@ -24,7 +28,7 @@ export default function NewsroomLayout({ children }: { children: React.ReactNode
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-[1600px]">
+      <div className="flex">
         {/* Sidebar — desktop only; the mobile header above covers small screens */}
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-surface-border/7 bg-black/10 p-4 lg:flex">
           <Link href="/newsroom" className="mb-6 flex items-center gap-2 px-1">

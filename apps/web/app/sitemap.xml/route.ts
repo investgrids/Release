@@ -20,6 +20,19 @@ export const revalidate = 3600;
 const base  = process.env.NEXT_PUBLIC_SITE_URL     ?? "https://www.marketripple.in";
 const now   = new Date().toISOString();
 
+// SEO fix: eventRoutes/rippleRoutes used to fall back to the raw internal id
+// (`e.slug || e.id`) whenever slug was missing — which happens for a real,
+// narrow window on every freshly-ingested event (the DB row is written
+// before `_make_unique_slug` finishes assigning its slug; see
+// event_pipeline.py). Combined with this route's 1-hour fetch cache, that
+// let a raw "nse-"/"bse-" URL get baked into a served sitemap. Rather than
+// fall back to the id, skip the entry entirely until it has a real slug —
+// it's still crawlable via internal links, and reappears in the sitemap on
+// the next revalidate once the slug is assigned.
+function hasCleanSlug(slug: string | null | undefined): slug is string {
+  return !!slug && !/^(nse-|bse-)/i.test(slug);
+}
+
 async function safeJson<T>(url: string, fallback: T): Promise<T> {
   try {
     const ac = new AbortController();
@@ -123,8 +136,12 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   // /stories/:slug 301-redirects to /newsroom/themes for every id, so
   // submitting these URLs in the sitemap only produced Search Console
   // "Page with redirect" warnings for pages that never had real content.
-  const [events, radar, companiesPage1, news, insights, sectors, research, historical] = await Promise.all([
+  const [events, ripple, radar, companiesPage1, news, insights, sectors, research, historical] = await Promise.all([
     safeJson<Array<{ id: string; slug?: string; date?: string }>>(`${API}/api/events/?limit=100`, []),
+    // Ripple pages exist for the same "featured" high-impact events the
+    // Ripple hub itself surfaces — not blindly mirroring every event route,
+    // since not every event has a ripple analysis worth indexing.
+    safeJson<Array<{ id: string; slug?: string; event_date?: string }>>(`${API}/api/ripple/featured?limit=20`, []),
     safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
     safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
@@ -148,12 +165,23 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     companies: [...(companiesPage1.companies ?? []), ...extraCompanyPages.flatMap(p => p.companies ?? [])],
   };
 
-  const eventRoutes: SitemapEntry[] = (Array.isArray(events) ? events : []).map(e => ({
-    url: `${base}/events/${e.slug || e.id}`,
-    lastModified: e.date ?? now,
-    changeFrequency: "weekly",
-    priority: 0.75,
-  }));
+  const eventRoutes: SitemapEntry[] = (Array.isArray(events) ? events : [])
+    .filter(e => hasCleanSlug(e.slug))
+    .map(e => ({
+      url: `${base}/events/${e.slug}`,
+      lastModified: e.date ?? now,
+      changeFrequency: "weekly",
+      priority: 0.75,
+    }));
+
+  const rippleRoutes: SitemapEntry[] = (Array.isArray(ripple) ? ripple : [])
+    .filter(e => hasCleanSlug(e.slug))
+    .map(e => ({
+      url: `${base}/ripple/${e.slug}`,
+      lastModified: e.event_date ?? now,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    }));
 
   const radarRoutes: SitemapEntry[] = (radar.items ?? []).map(r => ({
     url: `${base}/opportunity-radar/${r.id}`,
@@ -267,7 +295,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     priority: 0.8,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  return [...staticRoutes, ...eventRoutes, ...rippleRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }
 
 export async function GET() {

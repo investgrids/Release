@@ -43,7 +43,7 @@ export default async function CommodityDetailPage({ params }: { params: Promise<
   const range = maxVal - minVal || 1;
 
   return (
-    <main className="mx-auto max-w-[760px] px-5 py-8 pb-16 sm:px-6">
+    <main className="mx-auto max-w-[760px] py-8 pb-16">
       <nav className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
         <Link href="/commodities" className="flex items-center gap-1 hover:text-text-secondary transition">
           <ArrowLeft className="h-3 w-3" /> Commodities

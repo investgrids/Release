@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, TrendingUp, AlertTriangle, Building2, Globe, Clock, BookOpen } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { isRealSymbol, safeJsonLd } from "@/lib/text";
+import { isRealSymbol, safeJsonLd, truncateAtWord } from "@/lib/text";
 import { BreadcrumbSetter } from "@/components/Breadcrumbs";
 
 
@@ -45,12 +45,21 @@ export async function generateMetadata(
   // rendering ids like "nse-d3f8b9d2fc" as "Nse D3f8b9d2fc" in both places).
   const headline = intel?.key_takeaway?.split(/(?<=[.!?])\s+/)[0];
 
+  // Found live: the AI's own key_takeaway sentence run through as the raw
+  // <title>, uncapped — one sample ran ~130 chars ("Investors should be
+  // cautious of the mild bearish tilt in the market and keep a close eye
+  // on the earnings releases."), well past Google's ~60-char SERP display
+  // width, so it just gets cut off mid-clause. Same fix for the
+  // description, which was a plain slice(0, 155) — confirmed live, one
+  // sample ended "...This is amidst a quiet " with no ellipsis, a
+  // dangling clause mid-word.
   const title = headline
-    ? headline
+    ? truncateAtWord(headline, 60)
     : `${slug} ${typeLabel} Intelligence`;
 
-  const description = intel?.market_story?.slice(0, 155)
-    ?? `AI-powered market intelligence for ${slug} — opportunities, risks, sectors and themes.`;
+  const description = intel?.market_story
+    ? truncateAtWord(intel.market_story, 155)
+    : `AI-powered market intelligence for ${slug} — opportunities, risks, sectors and themes.`;
 
   return {
     title,
@@ -60,14 +69,23 @@ export async function generateMetadata(
       description,
       type: "article",
       siteName: "MarketRipple",
+      // Was missing entirely — a shared link (WhatsApp, X, LinkedIn) had
+      // no preview image, just bare text. Same fallback image every other
+      // article-type page on the site already uses.
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: ["/opengraph-image"],
     },
     alternates: {
-      canonical: `/intel/${type}/${rawSlug}`,
+      // Found live: /intel/event/{id} stayed id-based end to end (e.g.
+      // /intel/event/nse-beb61f4571) — this migration's other event/ripple
+      // fixes didn't cover this route. event.slug (when the type is
+      // "event" and intel resolved) is the real canonical destination.
+      canonical: `/intel/${type}/${type === "event" && intel?.slug ? intel.slug : rawSlug}`,
     },
   };
 }
@@ -98,6 +116,13 @@ export default async function IntelPage(
   // underlying entity has a perfectly real page. Redirect to it instead —
   // never a link that goes nowhere.
   if (!intel || !intel.market_story) redirect(meta.href(rawSlug));
+  // Same "assert the real slug as this page's own URL" fix as /events/[id]
+  // and /ripple/[id] — only for type "event" (the only type this endpoint
+  // returns a real slug for; company/theme/news URLs are unaffected by
+  // this migration, see the task file).
+  if (type === "event" && intel.slug && intel.slug !== rawSlug) {
+    redirect(`/intel/event/${intel.slug}`);
+  }
   const humanSlug = rawSlug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   // Two-layer header: a short real headline (first sentence of the AI's
   // own key_takeaway — never the raw opaque slug, which used to render
