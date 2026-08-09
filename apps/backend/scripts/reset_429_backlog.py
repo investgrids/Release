@@ -12,9 +12,16 @@ unrelated AttributeError, not a 429 — excluded from this list). Only event
 IDs whose pipeline run had an immediately-preceding 429 in the logs, and
 nothing else, are included.
 
-Run once via: railway run -s backend -- python scripts/reset_429_backlog.py
-Safe to re-run: only touches enrichment_status, and only for IDs already
-sitting at "done" with a null score (skips anything already reprocessed).
+NOTE: this script cannot actually be run via `railway run` — it executes
+locally, and production is SQLite on a Railway-attached volume
+(/data/ig.db), unreachable except from inside the container. The identical
+logic is exposed instead as an admin-key-gated route,
+POST /api/admin/reset-429-backlog (app/api/admin.py), triggered once via
+curl. This file is kept as the reviewable source of truth for that logic
+and removed together with the route once the backfill is confirmed.
+Safe to re-run (either form): only touches enrichment_status, and only for
+IDs already sitting at "done" with a null score (skips anything already
+reprocessed).
 """
 import asyncio
 import pathlib
