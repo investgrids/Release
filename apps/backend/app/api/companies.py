@@ -21,11 +21,13 @@ from fastapi import APIRouter, Query
 router = APIRouter()
 
 # ── Company Universe ──────────────────────────────────────────────────────────
-# 505 NSE-listed companies with static metadata (2026-08-09 — 510 originally,
+# 512 NSE-listed companies with static metadata (2026-08-09 — 510 originally,
 # minus 3 delisted/unresolvable symbols dropped, minus 2 accidental
 # duplicates found and removed (ETERNAL/LTM each had a second, incomplete
 # entry already sitting further down the list from an earlier partial
-# rename that never removed the old row). Previously said "~260" here,
+# rename that never removed the old row), plus 7 from the Tier 1 sectoral-
+# index-verified expansion; see the "Tier 1 universe expansion" comment near
+# the end of this list for sourcing detail). Previously said "~260" here,
 # already stale by the time it said that — kept falling out of sync with the
 # actual list below it every time an entry was added; nobody owns re-syncing
 # a comment nobody's told to check.
@@ -654,6 +656,42 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"INDIGRID", "name":"IndiGrid Infrastructure Trust", "sector":"InvIT", "industry":"Power Transmission InvIT", "cap":"mid", "aliases":["indigrid"]},
     {"symbol":"PGINVIT", "name":"Powergrid Infrastructure Investment Trust", "sector":"InvIT", "industry":"Power Transmission InvIT", "cap":"mid", "aliases":["powergrid invit", "pginvit"]},
     {"symbol":"IRBINVIT", "name":"IRB InvIT Fund", "sector":"InvIT", "industry":"Road Infrastructure InvIT", "cap":"mid", "aliases":["irb invit", "irbinvit"]},
+
+    # ── Tier 1 universe expansion (2026-08-09) ──────────────────────────────
+    # Sourced from NSE's own sectoral-index constituent files (niftyindices.
+    # com/IndexConstituent/ind_{index}list.csv — official, live-verified,
+    # real Industry field per company, not a guess or placeholder), the only
+    # NSE-published source found with genuine industry classification beyond
+    # this file's own hand-curated entries (see the universe-expansion
+    # investigation's Step 2 finding: bhavcopy itself carries no sector/
+    # industry column at all). 14 sectoral/thematic index files were pulled;
+    # after dedup against the 505 companies already above, only 7 were
+    # genuinely new — the other ~180 constituents across those 14 files were
+    # already present, confirming the investigation's own finding that these
+    # index files mostly overlap the already-curated large/mid-cap set
+    # rather than extending meaningfully past it. This is real, but it means
+    # Tier 1 as sourced lands at 512, not the ~700-900 originally estimated
+    # — reaching that range would need additional NSE index files beyond the
+    # 14 named in this task, a scope decision not made here (see report).
+    # `industry` values are the CSV's own field verbatim, except PSB's
+    # ("Financial Services" in the source file) mapped to "Banks" to match
+    # every other bank entry's existing terminology in this file — real
+    # company, real classification, just aligned to this file's own already-
+    # established vocabulary rather than introducing a new one-off value.
+    # `cap` tier is not present in the source file; assigned from each
+    # company's real live market cap (yfinance, 2026-08-09) using the
+    # existing entries' own tier boundaries as a reference — those
+    # boundaries are visibly fuzzy/judgment-based in the pre-existing data
+    # too (e.g. RBLBANK at ~Rs.60,000cr is tagged "small" while FEDERALBNK at
+    # ~Rs.88,000cr is "mid"), so this is a best-effort placement consistent
+    # with that existing convention, not a precise computed rule.
+    {"symbol":"DBCORP",    "name":"D.B. Corp Ltd",                  "sector":"Media",          "industry":"Media Entertainment & Publication", "cap":"small", "aliases":["db corp","dainik bhaskar"]},
+    {"symbol":"HATHWAY",   "name":"Hathway Cable & Datacom Ltd",    "sector":"Media",          "industry":"Media Entertainment & Publication", "cap":"small", "aliases":["hathway","hathway cable"]},
+    {"symbol":"NETWORK18", "name":"Network18 Media & Investments Ltd", "sector":"Media",       "industry":"Media Entertainment & Publication", "cap":"small", "aliases":["network18","network 18"]},
+    {"symbol":"NAZARA",    "name":"Nazara Technologies Ltd",        "sector":"Media",          "industry":"Media Entertainment & Publication", "cap":"mid",   "aliases":["nazara","nazara technologies"]},
+    {"symbol":"TIPSMUSIC", "name":"Tips Music Ltd",                 "sector":"Media",          "industry":"Media Entertainment & Publication", "cap":"mid",   "aliases":["tips music","tips industries"]},
+    {"symbol":"PFOCUS",    "name":"Prime Focus Ltd",                "sector":"Media",          "industry":"Media Entertainment & Publication", "cap":"mid",   "aliases":["prime focus"]},
+    {"symbol":"PSB",       "name":"Punjab & Sind Bank",             "sector":"Banking",        "industry":"Banks",                  "cap":"mid",   "aliases":["punjab and sind bank","punjab & sind bank"]},
 ]
 
 # ── Build in-memory search index ──────────────────────────────────────────────
