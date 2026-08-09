@@ -2,12 +2,18 @@ import Link from "next/link";
 import { WatchlistButton } from "@/components/WatchlistButton";
 import { CompanySearchInput } from "../_components/SearchInput";
 import { FilterSidebar } from "../_components/FilterSidebar";
-import { filterAndRank, ALL_SECTORS } from "@/lib/companies-data";
 
-// Extracted verbatim from the former app/companies/page.tsx (pre-hub-refactor)
-// — same filterAndRank/live-quotes pipeline, just relocated so it can be one
-// tab of the Companies hub instead of the entire route. Header/stats moved
-// to the shared HubHero.
+// Was: local filterAndRank() over a static, hand-maintained copy of the
+// company universe (lib/companies-data.ts) plus a separate live-quotes
+// fetch. That static copy silently drifted from the real backend
+// _NSE_UNIVERSE (194 companies vs. the backend's 512, confirmed live —
+// it still had a symbol this app renamed days earlier) since nothing
+// ever kept the two in sync. The backend's own /api/companies/ endpoint
+// already does the filter/sort/paginate/live-price work this component
+// used to reimplement locally — this component was already an async
+// server component making its own per-request fetch (for quotes), so
+// switching the filter/list itself to the same live backend call is the
+// same rendering pattern already in use here, not a new one.
 
 const BACKEND = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const PAGE_SIZE = 20;
@@ -82,37 +88,48 @@ function pageHref(base: URLSearchParams, p: number) {
   return `/companies?${sp.toString()}`;
 }
 
+interface ListResponse {
+  total: number;
+  page: number;
+  total_pages: number;
+  companies: {
+    symbol: string; name: string; sector: string; industry: string;
+    cap: "large" | "mid" | "small";
+    price: string | null; pct: number | null; positive: boolean | null;
+  }[];
+}
+
 export async function AllCompaniesTab({
   q, sector, cap, sort, page,
 }: { q: string; sector: string; cap: string; sort: string; page: number }) {
-  const filtered    = filterAndRank(q, sector, cap, sort);
-  const total       = filtered.length;
-  const totalPages  = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const safePage    = Math.min(page, totalPages);
-  const pageItems   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const params = new URLSearchParams({
+    q, sector, cap, sort, page: String(page), page_size: String(PAGE_SIZE), live: "true",
+  });
 
-  type Quote = { symbol: string; price_str: string; change_percent: number; positive: boolean };
-  let priceMap: Record<string, Quote> = {};
-  if (pageItems.length > 0) {
-    try {
-      const symbols = pageItems.map(c => c.symbol).join(",");
-      const res = await fetch(`${BACKEND}/api/data/quotes?symbols=${encodeURIComponent(symbols)}`, {
+  let total = 0, totalPages = 1, safePage = page;
+  let companies: ListResponse["companies"] = [];
+  let sectors: string[] = [];
+  try {
+    const [listRes, sectorsRes] = await Promise.all([
+      fetch(`${BACKEND}/api/companies/?${params.toString()}`, {
+        cache: "no-store", signal: AbortSignal.timeout(15000),
+      }),
+      fetch(`${BACKEND}/api/companies/sectors`, {
         cache: "no-store", signal: AbortSignal.timeout(8000),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const quotes: Quote[] = data.quotes ?? [];
-        priceMap = Object.fromEntries(quotes.map(q => [q.symbol, q]));
-      }
-    } catch { /* price fetch failed — show placeholders; data still loads */ }
-  }
-
-  const companies = pageItems.map(co => ({
-    ...co,
-    price:    priceMap[co.symbol]?.price_str     ?? null,
-    pct:      priceMap[co.symbol]?.change_percent ?? null,
-    positive: priceMap[co.symbol]?.positive       ?? null,
-  }));
+      }),
+    ]);
+    if (listRes.ok) {
+      const data: ListResponse = await listRes.json();
+      total = data.total;
+      totalPages = data.total_pages;
+      safePage = data.page;
+      companies = data.companies;
+    }
+    if (sectorsRes.ok) {
+      const data = await sectorsRes.json();
+      sectors = data.sectors ?? [];
+    }
+  } catch { /* backend unreachable — render the empty state below */ }
 
   const baseParams = new URLSearchParams();
   if (q)                       baseParams.set("q", q);
@@ -127,7 +144,7 @@ export async function AllCompaniesTab({
 
   return (
     <div className="flex items-start gap-5">
-      <FilterSidebar sectors={ALL_SECTORS} initialSector={sector} initialCap={cap} initialSort={sort} initialQ={q} />
+      <FilterSidebar sectors={sectors} initialSector={sector} initialCap={cap} initialSort={sort} initialQ={q} />
 
       <div className="min-w-0 flex-1 space-y-3">
         <CompanySearchInput defaultValue={q} sector={sector} cap={cap} sort={sort} />

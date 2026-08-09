@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import { COMPANIES, ALL_SECTORS } from "@/lib/companies-data";
 import { fetchAPI } from "@/lib/api";
 import { CompaniesHubClient } from "./_components/CompaniesHubClient";
 import { OverviewTab } from "./_components/OverviewTab";
 import { AllCompaniesTab } from "./_components/AllCompaniesTab";
-import BestStocksHubPage from "@/app/best-stocks/page";
-import SectorsPage from "@/app/sectors/page";
-import ComparePage from "@/app/compare/page";
-import IPOHubPage from "@/app/ipo-hub/page";
+import { BestStocksContent } from "@/app/best-stocks/BestStocksContent";
+import { SectorsContent } from "@/app/sectors/SectorsContent";
+import { CompareContent } from "@/app/compare/CompareContent";
+import { IPOHubContent } from "@/app/ipo-hub/IPOHubContent";
 
 export const metadata: Metadata = {
   title: "Companies — NSE Listed Companies & AI Rankings",
@@ -35,11 +34,19 @@ export default async function CompaniesHubPage({
 
   // Real numbers only — no "5,000+" placeholder. Article total comes from
   // the same /api/insights/ endpoint the rest of the app already uses.
-  const articlesTotal = await fetchAPI<{ total: number }>("/api/insights/?limit=1").then(d => d.total).catch(() => null);
+  // Companies/sectors used to read a static local copy of the universe
+  // (lib/companies-data.ts) that had silently drifted to 194 companies vs.
+  // the backend's real 512 — now reads the same live source everything
+  // else in this hub does.
+  const [articlesTotal, companiesTotal, sectorsCount] = await Promise.all([
+    fetchAPI<{ total: number }>("/api/insights/?limit=1").then(d => d.total).catch(() => null),
+    fetchAPI<{ total: number }>("/api/companies/?page_size=6").then(d => d.total).catch(() => null),
+    fetchAPI<{ sectors: string[] }>("/api/companies/sectors").then(d => d.sectors.length).catch(() => null),
+  ]);
 
   const stats = [
-    { label: "Companies",  value: COMPANIES.length.toLocaleString() },
-    { label: "Sectors",    value: String(ALL_SECTORS.length) },
+    ...(companiesTotal != null ? [{ label: "Companies", value: companiesTotal.toLocaleString() }] : []),
+    ...(sectorsCount != null ? [{ label: "Sectors", value: String(sectorsCount) }] : []),
     ...(articlesTotal != null ? [{ label: "AI Articles", value: articlesTotal.toLocaleString() }] : []),
     { label: "Prices",     value: "Live" },
   ];
@@ -47,10 +54,10 @@ export default async function CompaniesHubPage({
   let content: React.ReactNode;
   switch (tab) {
     case "all-companies": content = <AllCompaniesTab q={q} sector={sector} cap={cap} sort={sort} page={page} />; break;
-    case "best-stocks":   content = <BestStocksHubPage />; break;
-    case "sectors":       content = <SectorsPage />; break;
-    case "compare":       content = <ComparePage />; break;
-    case "ipo-hub":       content = <IPOHubPage />; break;
+    case "best-stocks":   content = <BestStocksContent headingLevel="h2" />; break;
+    case "sectors":       content = <SectorsContent headingLevel="h2" />; break;
+    case "compare":       content = <CompareContent headingLevel="h2" />; break;
+    case "ipo-hub":       content = <IPOHubContent headingLevel="h2" />; break;
     default:              content = <OverviewTab />;
   }
 
