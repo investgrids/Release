@@ -39,6 +39,14 @@ async def _push_to_triage_bus(items: list[RawItem], new_ids: set[str], source: s
                 summary=item.summary,
                 source=source,
                 source_url=item.url or "",
+                # item.source is the real, specific outlet each provider
+                # already sets (e.g. "Economic Times", "NSE", "RBI") — was
+                # being silently discarded in favor of the broad "news"/
+                # "policy" category passed in above, which is why every
+                # triaged event's attribution collapsed to the same two
+                # generic strings regardless of which of the 6+ real
+                # sources it actually came from.
+                origin=item.source or "",
                 sectors=[],
                 companies=item.companies or [],
                 raw_impact=float(item.impact_score or 5.0),

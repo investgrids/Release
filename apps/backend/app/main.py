@@ -364,7 +364,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media, tools  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media, tools, coverage, daily_brief_intelligence, facts  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -412,6 +412,13 @@ app.include_router(company_scores.router,     prefix="/api/company-scores",     
 app.include_router(stream.router,             prefix="/api/stream",               tags=["stream"])
 # Intelligence market endpoints (story, themes, feed, explain)
 app.include_router(intelligence_market.router, prefix="/api/intelligence/market",  tags=["intelligence-market"])
+# Critical Event Coverage observability (funnel counts, uncovered critical events)
+app.include_router(coverage.router,            prefix="/api/coverage",            tags=["coverage"])
+# Daily Brief aggregation — connects opening_prediction_service + market
+# overview + EventTriage tiering into one response (see module docstring)
+app.include_router(daily_brief_intelligence.router, prefix="/api/daily-brief",     tags=["daily-brief"])
+# Fact Registry — Phase 2, computed once/day from Phase 1's engines
+app.include_router(facts.router,               prefix="/api/facts",               tags=["facts"])
 # ── Market Intelligence Engine — single source of truth ──────────────────────
 app.include_router(mie.router, prefix="/api/mie", tags=["mie"])
 # ── Historical Market Memory — verified past events for AI grounding ──────────

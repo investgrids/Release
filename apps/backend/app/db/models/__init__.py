@@ -22,6 +22,9 @@ from app.db.models.company_announcements import CompanyAnnouncement
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.score_history import ScoreHistory
 from app.db.models.feedback import FeedbackSubmission
+from app.db.models.returning_user_feedback import ReturningUserFeedback
+from app.db.models.event_coverage import EventCoverage
+from app.db.models.fact import Fact
 from app.db.models.generated_media import GeneratedMedia
 from app.db.models.ai_search_feedback import AISearchFeedback
 from app.db.models.ai_search_followup_click import AISearchFollowupClick
@@ -52,6 +55,9 @@ __all__ = [
     "IntelligenceArticle",
     "ScoreHistory",
     "FeedbackSubmission",
+    "ReturningUserFeedback",
+    "EventCoverage",
+    "Fact",
     "GeneratedMedia",
     "AISearchFeedback",
     "AISearchFollowupClick",

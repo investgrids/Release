@@ -314,12 +314,21 @@ def should_generate_today(
     existing_story_ids: set[str],
     daily_count: int,
     max_per_day: int = 8,
+    *,
+    critical: bool = False,
 ) -> tuple[bool, str]:
     """
     Check if we should generate a new article or skip.
     Returns (should_generate, reason).
+
+    critical=True (a Critical/High-priority event per coverage_engine)
+    bypasses the daily article cap — the audit's core finding was that an
+    important event could be silently dropped just because 8 other,
+    possibly less important, articles already published today. It still
+    goes through duplicate detection at the call site, so this only means
+    "don't drop it for being late," not "publish it twice."
     """
-    if daily_count >= max_per_day:
+    if daily_count >= max_per_day and not critical:
         return False, f"Daily limit reached ({daily_count}/{max_per_day})"
 
     # Morning and wrap: exactly one per day
@@ -327,5 +336,8 @@ def should_generate_today(
         if story_id in existing_story_ids:
             return False, f"{article_type} already generated for today"
         return True, "Scheduled daily intelligence"
+
+    if daily_count >= max_per_day and critical:
+        return True, f"Critical event bypasses daily cap ({daily_count}/{max_per_day})"
 
     return True, f"New {article_type} approved"

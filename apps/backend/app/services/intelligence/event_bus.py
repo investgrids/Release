@@ -18,6 +18,12 @@ class RawEvent:
     summary: str
     source: str                              # news | policy | price | synthetic
     source_url: str = ""
+    # The real, specific origin (e.g. "Economic Times", "NSE", "RBI RSS
+    # Feed") — kept separate from `source` above because live_intelligence.py
+    # filters on `source == "policy"` as a category, not an outlet name.
+    # "" for anything that never had one (e.g. legacy call sites) — real
+    # citation code must treat that as "unknown," never fabricate a name.
+    origin: str = ""
     sectors: list[str] = field(default_factory=list)
     companies: list[str] = field(default_factory=list)
     raw_impact: float = 5.0

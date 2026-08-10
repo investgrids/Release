@@ -63,6 +63,7 @@ async def run_price_monitor_cycle() -> None:
                             "Automated price threshold alert."
                         ),
                         source="price",
+                        origin="Live Price Monitor",
                         raw_impact=min(10.0, abs(change_pct) * 2),
                         meta={"instrument": key, "change_pct": change_pct, "price": price},
                     ))

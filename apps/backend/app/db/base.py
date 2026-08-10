@@ -19,4 +19,7 @@ import app.db.models.company_announcements  # noqa: F401 E402  — registers com
 import app.db.models.intelligence_article   # noqa: F401 E402  — registers AIPE intelligence articles table
 import app.db.models.score_history   # noqa: F401 E402  — registers score history table
 import app.db.models.feedback        # noqa: F401 E402  — registers feedback_submissions table
+import app.db.models.returning_user_feedback  # noqa: F401 E402  — registers returning_user_feedback table
+import app.db.models.event_coverage  # noqa: F401 E402  — registers event_coverage table
+import app.db.models.fact  # noqa: F401 E402  — registers facts table
 import app.db.models.generated_media # noqa: F401 E402  — registers generated_media table

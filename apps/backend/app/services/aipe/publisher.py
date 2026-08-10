@@ -40,6 +40,12 @@ from app.services.aipe.duplicate_detector import (
     get_today_story_ids,
 )
 from app.services.aipe.intelligence_filter import filter_triage_batch
+from app.services.coverage_engine import (
+    classify as coverage_classify,
+    is_must_cover as coverage_is_must_cover,
+    mark_covered_by_existing as coverage_mark_covered_by_existing,
+    mark_published as coverage_mark_published,
+)
 from app.services.aipe.market_story_engine import (
     fetch_historical_context,
     get_high_urgency_triage,
@@ -83,6 +89,63 @@ def get_engine_stats() -> dict[str, Any]:
     s.pop("_total_publish_time", None)
     s.pop("_total_published", None)
     return s
+
+
+_CANONICAL_SECTOR_NAMES: dict[str, str] = {
+    "banking": "Banking", "it": "IT", "pharma": "Pharma", "energy": "Energy",
+    "auto": "Auto", "fmcg": "FMCG", "metals": "Metals", "infrastructure": "Infrastructure",
+    "defence": "Defence", "realty": "Realty", "chemicals": "Chemicals",
+    "telecom": "Telecom", "finance": "Finance",
+}
+
+
+def _sector_link(name: str) -> str:
+    """Real per-sector destination, replacing the audit-confirmed bug where
+    every sector in related_themes/internal_links pointed at the same
+    static /newsroom/themes URL regardless of which sector it actually
+    was. Fuzzy-matches against the same 13 canonical sectors the real
+    /sectors/{id} page and /api/sectors/{id}/intelligence route already
+    serve (app.api.sectors._SECTOR_STOCKS), reusing that file's own
+    word-overlap matcher rather than a second one. Falls back to the
+    generic themes page only when no confident match exists — never
+    guesses a specific but wrong sector URL."""
+    from app.api.sectors import _words_overlap  # noqa: PLC0415
+    target_words = set(name.lower().split())
+    for key, display in _CANONICAL_SECTOR_NAMES.items():
+        candidate_words = {key} | set(display.lower().split())
+        # _words_overlap's alias lookup is keyed by the CANONICAL word
+        # ("it" -> {"technology", "information"}), checked against every
+        # word in its *first* argument — candidate_words (containing "it")
+        # must be first, or "Information Technology" never matches "it"
+        # (confirmed live: passing them the other way around silently sent
+        # every IT-sector article to the generic /newsroom/themes fallback).
+        if _words_overlap(candidate_words, target_words):
+            return f"/sectors/{key}"
+    return "/newsroom/themes"
+
+
+_SOURCE_CATEGORY_LABELS = {
+    "news": "Financial news wire",
+    "policy": "Government/regulatory source",
+    "price": "Live market price feed",
+    "synthetic": "MarketRipple market monitor",
+}
+
+
+def _derive_sources(event: dict[str, Any]) -> list[str]:
+    """Real, deterministic source attribution — replaces trusting the
+    LLM's own `sources` field (see content_templates.py's note on why that
+    field was removed from the schema). Uses the real per-item origin
+    captured at ingestion (event_bus.RawEvent.origin, e.g. "Economic
+    Times", "NSE") when available, falling back to the broad ingestion
+    category label, never a fabricated name."""
+    origin = event.get("origin")
+    if origin:
+        return [origin]
+    category = event.get("source")
+    if category and category in _SOURCE_CATEGORY_LABELS:
+        return [_SOURCE_CATEGORY_LABELS[category]]
+    return ["MarketRipple Market Intelligence"]
 
 
 # ── Single article publish ────────────────────────────────────────────────────
@@ -200,7 +263,7 @@ async def _publish_new_article(
     for sec in (article_data.get("sectors_affected") or [])[:3]:
         name = sec.get("name", "")
         if name:
-            internal_links.append({"text": name, "href": "/newsroom/themes", "type": "sector"})
+            internal_links.append({"text": name, "href": _sector_link(name), "type": "sector"})
     internal_links += [
         {"text": "AI Search", "href": "/ai-search", "type": "tool"},
         {"text": "Market Intelligence", "href": "/market-intelligence", "type": "tool"},
@@ -214,13 +277,27 @@ async def _publish_new_article(
         if c.get("symbol")
     ]
     related_sectors = [
-        {"theme": s.get("name", ""), "link": "/newsroom/themes"}
+        {"theme": s.get("name", ""), "link": _sector_link(s.get("name", ""))}
         for s in (article_data.get("sectors_affected") or [])[:4]
         if s.get("name")
     ]
 
     # Historical refs
     hist_refs = [h.get("id", "") for h in historical if h.get("id")]
+
+    # SEO Intelligence (Phase 3) — deterministic, derived from the same
+    # real companies_affected/sectors_affected already computed above, not
+    # a second LLM call.
+    from app.services.seo_intelligence import compute_seo_intelligence
+    seo_intel = compute_seo_intelligence(
+        article_type=article_type,
+        headline=article_data.get("headline", ""),
+        companies_affected=article_data.get("companies_affected") or [],
+        sectors_affected=article_data.get("sectors_affected") or [],
+        themes=mie_context.get("themes"),
+        has_historical=bool(historical),
+        sector_link_fn=_sector_link,
+    )
 
     # Market context snapshot
     snap = await get_latest_market_snapshot(db)
@@ -265,7 +342,14 @@ async def _publish_new_article(
         ripple_effect=article_data.get("ripple_effect", []),
         what_to_watch_next=article_data.get("what_to_watch_next", []),
         faqs=faqs,
-        sources=article_data.get("sources", ["MarketRipple Intelligence Engine"]),
+        sources=_derive_sources(triage_event),
+        # SEO Intelligence
+        headline_angle=seo_intel["headline_angle"],
+        primary_keyword=seo_intel["primary_keyword"],
+        secondary_keywords=seo_intel["secondary_keywords"],
+        entity_keywords=seo_intel["entity_keywords"],
+        question_keywords=seo_intel["question_keywords"],
+        internal_link_candidates=seo_intel["internal_link_candidates"],
         # Relationships
         related_article_ids=[],
         internal_links=internal_links,
@@ -578,128 +662,146 @@ async def run_aipe_cycle() -> None:
 
             if daily_count >= _MAX_PER_DAY:
                 log.info("aipe.cycle.daily_limit_reached", count=daily_count)
-                # Still run updater even if limit reached
-            else:
-                # ── 5. Process each approved signal ───────────────────────────
-                for triage_event, filter_reason in approved:
-                    if daily_count >= _MAX_PER_DAY:
-                        break
+                # Critical/High events (coverage_engine.is_must_cover) must
+                # still be evaluated below even past the cap — only
+                # non-critical processing actually stops here.
 
-                    article_type, story_id, priority = select_article_type(
-                        triage_event, mie_context
+            # ── 5. Process each approved signal ───────────────────────────
+            # (runs regardless of the daily-cap check above — the loop body
+            # itself decides per-event whether the cap applies, see
+            # is_critical below)
+            for triage_event, filter_reason in approved:
+                ev_urgency = int(triage_event.get("urgency") or 0)
+                ev_importance = int(triage_event.get("importance") or 0)
+                ev_headline = triage_event.get("headline") or triage_event.get("title") or ""
+                _, ev_tier = coverage_classify(ev_urgency, ev_importance, ev_headline)
+                is_critical = coverage_is_must_cover(ev_tier)
+
+                if daily_count >= _MAX_PER_DAY and not is_critical:
+                    continue
+
+                article_type, story_id, priority = select_article_type(
+                    triage_event, mie_context
+                )
+
+                should_gen, plan_reason = should_generate_today(
+                    article_type, story_id, today_story_ids, daily_count, _MAX_PER_DAY,
+                    critical=is_critical,
+                )
+
+                if not should_gen:
+                    log.info("aipe.cycle.skipped", reason=plan_reason)
+                    continue
+
+                # Duplicate detection
+                headline = ev_headline
+                duplicate = await find_duplicate(
+                    db,
+                    story_id=story_id,
+                    article_type=article_type,
+                    headline=headline,
+                    trigger_event_id=triage_event.get("event_id"),
+                )
+
+                if duplicate:
+                    # Update existing article
+                    from app.services.aipe.continuous_updater import update_article
+                    updated = await update_article(db, duplicate, mie_context, [triage_event])
+                    if updated:
+                        _STATS["updated_today"] = _STATS.get("updated_today", 0) + 1
+                    await coverage_mark_covered_by_existing(
+                        db, event_id=triage_event.get("event_id"), article_id=duplicate.id
                     )
-
-                    should_gen, plan_reason = should_generate_today(
-                        article_type, story_id, today_story_ids, daily_count, _MAX_PER_DAY
+                    log.info("aipe.cycle.updated_duplicate", story_id=story_id)
+                else:
+                    # Create new article
+                    event_group_id = triage_event.get("event_id") or story_id
+                    article = await _publish_new_article(
+                        db, triage_event, mie_context, article_type, story_id,
+                        parent_event_group_id=event_group_id,
                     )
-
-                    if not should_gen:
-                        log.info("aipe.cycle.skipped", reason=plan_reason)
-                        continue
-
-                    # Duplicate detection
-                    headline = triage_event.get("headline") or triage_event.get("title") or ""
-                    duplicate = await find_duplicate(
-                        db,
-                        story_id=story_id,
-                        article_type=article_type,
-                        headline=headline,
-                        trigger_event_id=triage_event.get("event_id"),
-                    )
-
-                    if duplicate:
-                        # Update existing article
-                        from app.services.aipe.continuous_updater import update_article
-                        updated = await update_article(db, duplicate, mie_context, [triage_event])
-                        if updated:
-                            _STATS["updated_today"] = _STATS.get("updated_today", 0) + 1
-                        log.info("aipe.cycle.updated_duplicate", story_id=story_id)
-                    else:
-                        # Create new article
-                        event_group_id = triage_event.get("event_id") or story_id
-                        article = await _publish_new_article(
-                            db, triage_event, mie_context, article_type, story_id,
-                            parent_event_group_id=event_group_id,
+                    if article and article.status == "published":
+                        daily_count += 1
+                        today_story_ids.add(story_id)
+                        await coverage_mark_published(
+                            db, event_id=triage_event.get("event_id"), article_id=article.id
                         )
-                        if article and article.status == "published":
-                            daily_count += 1
-                            today_story_ids.add(story_id)
 
-                            # ── Fan out: spin off per-company / sector-rollup /
-                            # theme / question angles from the same event
-                            # instead of stopping at one article (see
-                            # content_planner.plan_extra_angles).
-                            angle_plans = plan_extra_angles(
-                                article_type, story_id, article.headline,
-                                article.companies_affected, article.sectors_affected,
-                                primary_angle_entity=article.angle_entity,
-                            )[:_MAX_ANGLES_PER_EVENT]
-                            with perf_stats.timed("campaign"):
-                                for angle_type, angle_story_id, angle, angle_entity, angle_question in angle_plans:
-                                    if daily_count >= _MAX_PER_DAY:
-                                        break
-                                    await asyncio.sleep(2)
-                                    angle_event = dict(triage_event)
-                                    angle_mie_context = mie_context
-                                    if angle in ("per_company", "question"):
-                                        angle_event["tickers"] = [angle_entity]
-                                    elif angle == "sector_rollup":
-                                        angle_event["sectors"] = [angle_entity]
-                                    elif angle == "theme":
-                                        # {themes} in THEME_INTELLIGENCE's prompt is sourced
-                                        # from mie_context, not the event dict — override it
-                                        # here so the angle actually locks onto this one theme
-                                        # instead of the generic active-themes list.
-                                        angle_mie_context = {**mie_context, "themes": [angle_entity]}
-                                    dup_headline = angle_question or f"{headline} — {angle_entity}"
-                                    angle_dup = await find_duplicate(
-                                        db, story_id=angle_story_id, article_type=angle_type,
-                                        headline=dup_headline,
-                                        trigger_event_id=triage_event.get("event_id"),
-                                        angle=angle, angle_entity=angle_entity,
-                                    )
-                                    if angle_dup:
-                                        continue
-                                    angle_article = await _publish_new_article(
-                                        db, angle_event, angle_mie_context, angle_type, angle_story_id,
-                                        angle=angle, angle_entity=angle_entity,
-                                        parent_event_group_id=event_group_id,
-                                        question=angle_question or "",
-                                    )
-                                    if angle_article and angle_article.status == "published":
-                                        if angle == "per_company" and angle_entity:
-                                            # Confirmed live: a "per_company" article
-                                            # generated for one angle_entity (e.g.
-                                            # RELIANCE) frequently still lists sibling
-                                            # companies from the same source event in
-                                            # its own companies_affected (ONGC, BEL) —
-                                            # the LLM was steered toward this entity via
-                                            # angle_event["tickers"] above, but wasn't
-                                            # told to OMIT the others. Since a separate
-                                            # per_company article already exists for
-                                            # each sibling, this made two independently
-                                            # real, non-duplicate-content articles read
-                                            # as near-identical (SEO audit's "9 events
-                                            # each produced 2-5 near-identical articles"
-                                            # finding). Narrowing the stored field to
-                                            # this angle's own real focus is a filter on
-                                            # already-generated real data, not new
-                                            # content — never invents a reason or drops
-                                            # the row if nothing matches.
-                                            own = [
-                                                c for c in (angle_article.companies_affected or [])
-                                                if str(c.get("symbol", "")).upper().split(".")[0] == angle_entity.upper()
-                                            ]
-                                            if own:
-                                                angle_article.companies_affected = own
-                                                db.add(angle_article)
-                                                await db.commit()
-                                        daily_count += 1
-                                        today_story_ids.add(angle_story_id)
-                                        log.info("aipe.cycle.angle_published", angle=angle, entity=angle_entity, story_id=angle_story_id)
+                        # ── Fan out: spin off per-company / sector-rollup /
+                        # theme / question angles from the same event
+                        # instead of stopping at one article (see
+                        # content_planner.plan_extra_angles).
+                        angle_plans = plan_extra_angles(
+                            article_type, story_id, article.headline,
+                            article.companies_affected, article.sectors_affected,
+                            primary_angle_entity=article.angle_entity,
+                        )[:_MAX_ANGLES_PER_EVENT]
+                        with perf_stats.timed("campaign"):
+                            for angle_type, angle_story_id, angle, angle_entity, angle_question in angle_plans:
+                                if daily_count >= _MAX_PER_DAY:
+                                    break
+                                await asyncio.sleep(2)
+                                angle_event = dict(triage_event)
+                                angle_mie_context = mie_context
+                                if angle in ("per_company", "question"):
+                                    angle_event["tickers"] = [angle_entity]
+                                elif angle == "sector_rollup":
+                                    angle_event["sectors"] = [angle_entity]
+                                elif angle == "theme":
+                                    # {themes} in THEME_INTELLIGENCE's prompt is sourced
+                                    # from mie_context, not the event dict — override it
+                                    # here so the angle actually locks onto this one theme
+                                    # instead of the generic active-themes list.
+                                    angle_mie_context = {**mie_context, "themes": [angle_entity]}
+                                dup_headline = angle_question or f"{headline} — {angle_entity}"
+                                angle_dup = await find_duplicate(
+                                    db, story_id=angle_story_id, article_type=angle_type,
+                                    headline=dup_headline,
+                                    trigger_event_id=triage_event.get("event_id"),
+                                    angle=angle, angle_entity=angle_entity,
+                                )
+                                if angle_dup:
+                                    continue
+                                angle_article = await _publish_new_article(
+                                    db, angle_event, angle_mie_context, angle_type, angle_story_id,
+                                    angle=angle, angle_entity=angle_entity,
+                                    parent_event_group_id=event_group_id,
+                                    question=angle_question or "",
+                                )
+                                if angle_article and angle_article.status == "published":
+                                    if angle == "per_company" and angle_entity:
+                                        # Confirmed live: a "per_company" article
+                                        # generated for one angle_entity (e.g.
+                                        # RELIANCE) frequently still lists sibling
+                                        # companies from the same source event in
+                                        # its own companies_affected (ONGC, BEL) —
+                                        # the LLM was steered toward this entity via
+                                        # angle_event["tickers"] above, but wasn't
+                                        # told to OMIT the others. Since a separate
+                                        # per_company article already exists for
+                                        # each sibling, this made two independently
+                                        # real, non-duplicate-content articles read
+                                        # as near-identical (SEO audit's "9 events
+                                        # each produced 2-5 near-identical articles"
+                                        # finding). Narrowing the stored field to
+                                        # this angle's own real focus is a filter on
+                                        # already-generated real data, not new
+                                        # content — never invents a reason or drops
+                                        # the row if nothing matches.
+                                        own = [
+                                            c for c in (angle_article.companies_affected or [])
+                                            if str(c.get("symbol", "")).upper().split(".")[0] == angle_entity.upper()
+                                        ]
+                                        if own:
+                                            angle_article.companies_affected = own
+                                            db.add(angle_article)
+                                            await db.commit()
+                                    daily_count += 1
+                                    today_story_ids.add(angle_story_id)
+                                    log.info("aipe.cycle.angle_published", angle=angle, entity=angle_entity, story_id=angle_story_id)
 
-                    # Rate limit between AI calls
-                    await asyncio.sleep(2)
+                # Rate limit between AI calls
+                await asyncio.sleep(2)
 
             # ── 5b. Scheduled article path (session-triggered, no triage needed) ─
             session = mie_context.get("session", "closed")
@@ -1016,7 +1118,12 @@ async def run_historical_cycle() -> None:
                     historical_events=historical,
                     ripple_effect=article_data.get("ripple_effect", []),
                     what_to_watch_next=article_data.get("what_to_watch_next", []),
-                    faqs=faqs, sources=article_data.get("sources", ["MarketRipple Intelligence Engine"]),
+                    # Historical/evergreen path — driven by a fixed topic,
+                    # not a real ingested event, so there's no per-item
+                    # origin to derive (see _derive_sources). The honest
+                    # attribution here is what actually generated it: this
+                    # app's own verified historical events database.
+                    faqs=faqs, sources=["MarketRipple Historical Intelligence Database"],
                     seo_title=article_data.get("seo_title"), meta_description=article_data.get("meta_description"),
                     canonical_url=f"{site_url}{article_path}", json_ld=json_ld,
                     confidence_score=float(article_data.get("confidence_score") or 0.7),

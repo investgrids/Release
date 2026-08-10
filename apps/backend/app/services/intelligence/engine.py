@@ -178,6 +178,7 @@ async def read_top_events(limit: int = 12, min_urgency: int = 4, hours: int = 8)
                     "tickers":       r.tickers or [],
                     "broadcast":     r.broadcast,
                     "source":        r.source,
+                    "origin":        r.origin,
                     "triaged_at":    r.triaged_at.isoformat() if r.triaged_at else None,
                     "priority_score": priority_score,
                     "priority_tier":  priority_tier,

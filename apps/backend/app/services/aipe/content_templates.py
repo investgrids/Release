@@ -67,9 +67,17 @@ Return this JSON schema (include ALL fields — use null for missing data, never
   "seo_title": "(string) 50-65 chars — must follow the same investor-benefit pattern as headline, e.g. 'What RBI's Rate Hold Means For SBI, HDFC Bank Investors'",
   "meta_description": "(string) 145-158 chars — compelling search snippet",
   "slug": "(string) url-safe-slug-with-hyphens, max 80 chars",
-  "confidence_score": (float 0.0-1.0),
-  "sources": ["MarketRipple Intelligence Engine", "NSE India", "BSE India"]
+  "confidence_score": (float 0.0-1.0)
 }}"""
+# "sources" is deliberately NOT part of this schema — it used to be here as
+# a literal example array (["MarketRipple Intelligence Engine", "NSE India",
+# "BSE India"]), which the LLM reliably echoed back verbatim regardless of
+# what actually triggered the article (confirmed live: every article's
+# "Supporting Evidence" badges were identical). Real source attribution is
+# now derived deterministically in publisher.py from the triggering event's
+# actual ingestion origin (see event_bus.RawEvent.origin /
+# EventTriage.origin) — code-computed, not LLM-guessed — so it's never
+# asked for here.
 
 
 # ── 1. Morning Intelligence ───────────────────────────────────────────────────

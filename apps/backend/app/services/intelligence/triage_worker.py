@@ -144,6 +144,7 @@ async def _ai_triage(headline: str, summary: str) -> dict:
 async def _store_triage(triage: TriagedEvent) -> None:
     from app.db.session import AsyncSessionLocal
     from app.db.models.intelligence import EventTriage
+    from app.services import coverage_engine
 
     triage_id = str(uuid4())[:16]
     try:
@@ -152,6 +153,7 @@ async def _store_triage(triage: TriagedEvent) -> None:
                 id=triage_id,
                 event_id=triage.raw.id,
                 source=triage.raw.source,
+                origin=(triage.raw.origin or None),
                 headline=triage.raw.headline[:512],
                 urgency=triage.urgency,
                 importance=triage.importance,
@@ -169,6 +171,16 @@ async def _store_triage(triage: TriagedEvent) -> None:
                 refresh_homepage=triage.refresh_homepage,
             ))
             await db.commit()
+            # Critical Event Coverage — every triaged event gets a coverage
+            # row (see coverage_engine's module docstring), not just the
+            # ones that end up important, so "what did we see today" stays
+            # a complete answer.
+            await coverage_engine.register_event(
+                db, event_id=triage.raw.id, source=triage.raw.source,
+                headline=triage.raw.headline, urgency=triage.urgency,
+                importance=triage.importance, sectors=triage.sectors,
+                companies=triage.tickers,
+            )
     except Exception as exc:
         log.error("triage.store_failed", error=str(exc))
 

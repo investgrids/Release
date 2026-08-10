@@ -84,6 +84,15 @@ class IntelligenceArticle(Base):
     faqs                 = Column(JSON, nullable=False, default=list)
     sources              = Column(JSON, nullable=False, default=list)
 
+    # ── SEO Intelligence (Phase 3) — deterministic, derived from the
+    # article's own real companies/sectors, never LLM-generated ───────────────
+    headline_angle       = Column(String(24), nullable=True)
+    primary_keyword      = Column(String(160), nullable=True)
+    secondary_keywords   = Column(JSON, nullable=False, default=list)
+    entity_keywords      = Column(JSON, nullable=False, default=list)
+    question_keywords    = Column(JSON, nullable=False, default=list)
+    internal_link_candidates = Column(JSON, nullable=False, default=list)
+
     # ── Relationships (auto-linked by Relationship Engine) ────────────────────
     related_article_ids  = Column(JSON, nullable=False, default=list)
     internal_links       = Column(JSON, nullable=False, default=list)

@@ -26,6 +26,13 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("intelligence_articles", "parent_event_group_id",   "VARCHAR(64)"),
     ("intelligence_articles", "is_evergreen",            "BOOLEAN NOT NULL DEFAULT 0"),
     ("intelligence_articles", "share_count",              "INTEGER NOT NULL DEFAULT 0"),
+    ("event_triage", "origin",                             "VARCHAR(128)"),
+    ("intelligence_articles", "headline_angle",             "VARCHAR(24)"),
+    ("intelligence_articles", "primary_keyword",            "VARCHAR(160)"),
+    ("intelligence_articles", "secondary_keywords",         "JSON DEFAULT '[]'"),
+    ("intelligence_articles", "entity_keywords",            "JSON DEFAULT '[]'"),
+    ("intelligence_articles", "question_keywords",          "JSON DEFAULT '[]'"),
+    ("intelligence_articles", "internal_link_candidates",   "JSON DEFAULT '[]'"),
 ]
 
 

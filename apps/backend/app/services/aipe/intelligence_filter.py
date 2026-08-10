@@ -152,8 +152,18 @@ def filter_triage_batch(
     """
     Filter a batch of triage events. Returns list of (event, reason) tuples
     that passed the intelligence filter, sorted by urgency descending.
-    Enforces max_per_cycle limit.
+    Enforces max_per_cycle limit — EXCEPT for Critical/High-priority events
+    (per app.services.intelligence.engine.compute_priority, the same tiers
+    already used homepage-wide), which are never truncated by the per-
+    cycle cap. This is the fix for the audit's core finding: an important
+    event competing against 4+ other approved events in the same 5-min
+    cycle used to be silently dropped just for not being in the top 3 by
+    urgency — it may still land in a later cycle since the 3-hour lookback
+    re-considers it, but there's no guarantee of that, so Critical/High
+    events get a hard guarantee here instead of a probabilistic one.
     """
+    from app.services.coverage_engine import classify, is_must_cover
+
     passed: list[tuple[dict, str, int]] = []
     for ev in triage_events:
         ok, reason = should_generate_intelligence(ev, source="triage")
@@ -161,4 +171,11 @@ def filter_triage_batch(
             passed.append((ev, reason, int(ev.get("urgency") or 0)))
 
     passed.sort(key=lambda x: x[2], reverse=True)
-    return [(ev, reason) for ev, reason, _ in passed[:max_per_cycle]]
+    top = passed[:max_per_cycle]
+    overflow_ids = {id(ev) for ev, _, _ in top}
+    critical_overflow = [
+        (ev, reason, urgency) for ev, reason, urgency in passed[max_per_cycle:]
+        if id(ev) not in overflow_ids
+        and is_must_cover(classify(urgency, int(ev.get("importance") or 0), ev.get("headline") or ev.get("title"))[1])
+    ]
+    return [(ev, reason) for ev, reason, _ in top + critical_overflow]

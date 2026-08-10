@@ -14,6 +14,7 @@ class EventTriage(Base):
     id = Column(String, primary_key=True, index=True)
     event_id = Column(String, nullable=False, index=True)
     source = Column(String(64), nullable=False)           # news/policy/price/synthetic
+    origin = Column(String(128), nullable=True)            # real outlet, e.g. "Economic Times", "NSE"
     headline = Column(Text, nullable=False)
     urgency = Column(Integer, nullable=False, default=0)   # 0–10
     importance = Column(Integer, nullable=False, default=0)
