@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Portfolio Data Confidence Check — MarketRipple",
-  description: "Paste your holdings and see, honestly, which ones have strong real-time event and news coverage on MarketRipple — and which ones we're not tracking much on yet.",
+  title: "Portfolio Intelligence Brief — MarketRipple",
+  description: "What's happening across the companies you own, right now — real events, news, market-moving price signals, and shared themes across your holdings, plus where MarketRipple's intelligence coverage is thin. No login, no broker connection, no portfolio storage.",
   openGraph: {
     type: "website",
-    title: "Portfolio Data Confidence Check — MarketRipple",
-    description: "See which of your holdings have real, recent data coverage — and which ones don't, with honest reasons why.",
+    title: "Portfolio Intelligence Brief",
+    description: "A daily intelligence view powered by real events, news, themes, and market impact across your holdings.",
     siteName: "MarketRipple",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Portfolio Data Confidence Check — MarketRipple",
-    description: "See which of your holdings have real, recent data coverage — and which ones don't.",
+    title: "Portfolio Intelligence Brief",
+    description: "What's happening across the companies you own — right now.",
   },
 };
 
