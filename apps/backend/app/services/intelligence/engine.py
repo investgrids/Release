@@ -15,6 +15,7 @@ Cache key: mie:state:v1  (TTL 5 min during market hours, 30 min otherwise)
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
@@ -194,6 +195,44 @@ async def read_top_events(limit: int = 12, min_urgency: int = 4, hours: int = 8)
 _read_top_events = read_top_events
 
 
+# ── Keyword floor (word-boundary matched, not substring) ────────────────────
+# A production audit (2026-08-10) found the old naive `"rbi" in text` check
+# classifying every Triveni Turbine filing as Critical purely because
+# "Turbine" contains "rbi" — 8 of 9 sampled Critical/High events that day
+# were routine board-meeting/results notices, not real news. Two changes:
+#
+#   1. Every keyword is now matched on real word boundaries (\b), so "rbi"
+#      can no longer match inside "Turbine", "results" can't match inside
+#      some longer token, etc.
+#   2. The floor is split into two tiers. Strong/specific keywords
+#      (acquisition, merger, RBI, budget, war, Fed) still elevate a routine-
+#      flagged notice — "board meeting to consider an acquisition" is real,
+#      distinct information regardless of the routine framing around it.
+#      Weak/generic keywords (results, earnings, government) — the exact
+#      ones the audit found firing on ordinary boilerplate — only elevate
+#      when the text does NOT also match a routine-filing pattern. Reuses
+#      intelligence_filter._is_hard_no's existing pattern list rather than
+#      a second one, per the audit's own recommendation.
+_CRITICAL_KEYWORDS = ("rbi", "repo rate", "monetary policy", "budget", "war", "fed", "federal reserve")
+_HIGH_KEYWORDS_STRONG = ("acquisition", "merger", "block deal", "bulk deal", "sebi")
+_HIGH_KEYWORDS_WEAK = ("earnings", "results", "government")
+
+_CRITICAL_PATTERNS = [re.compile(r"\b" + re.escape(k) + r"\b") for k in _CRITICAL_KEYWORDS]
+_HIGH_STRONG_PATTERNS = [re.compile(r"\b" + re.escape(k) + r"\b") for k in _HIGH_KEYWORDS_STRONG]
+_HIGH_WEAK_PATTERNS = [re.compile(r"\b" + re.escape(k) + r"\b") for k in _HIGH_KEYWORDS_WEAK]
+
+
+def _matches_any(patterns: list[re.Pattern], text: str) -> bool:
+    return any(p.search(text) for p in patterns)
+
+
+def _is_routine_filing(text: str) -> bool:
+    # Local import: intelligence_filter.py's own routine-filing patterns
+    # (AGM, board meeting, record date, etc.) — reused, not duplicated.
+    from app.services.aipe.intelligence_filter import _is_hard_no
+    return _is_hard_no(text)
+
+
 def _compute_priority(urgency: int | None, importance: int | None, category: str | None, headline: str | None) -> tuple[int, str]:
     """
     Intelligence Priority Queue — every event gets a 0-100 priority score and a tier:
@@ -203,20 +242,21 @@ def _compute_priority(urgency: int | None, importance: int | None, category: str
       Low      (<60):    Routine exchange filings, director changes, compliance filings
 
     Base score comes from the triage worker's own urgency/importance (1-10 each,
-    already reflects the AI's read of event significance). A small keyword floor
+    already reflects the AI's read of event significance). A keyword floor
     ensures the named always-critical/high categories land in the right tier even
-    when the raw urgency score alone would place them lower.
+    when the raw urgency score alone would place them lower — see the module-
+    level comment above this function for the word-boundary / routine-filing
+    exclusion this floor now applies.
     """
     base = round(((urgency or 0) + (importance or 0)) / 2 * 10)
 
     text = f"{category or ''} {headline or ''}".lower()
-    if any(k in text for k in (
-        "rbi", "repo rate", "monetary policy", "budget", "war", "fed ", "federal reserve",
-    )):
+
+    if _matches_any(_CRITICAL_PATTERNS, text):
         base = max(base, 95)
-    elif any(k in text for k in (
-        "earnings", "results", "government", "acquisition", "merger", "block deal", "bulk deal",
-    )):
+    elif _matches_any(_HIGH_STRONG_PATTERNS, text):
+        base = max(base, 80)
+    elif _matches_any(_HIGH_WEAK_PATTERNS, text) and not _is_routine_filing(text):
         base = max(base, 80)
 
     base = min(base, 100)

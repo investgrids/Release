@@ -41,6 +41,14 @@ _HARD_NO_PATTERNS = [
     r"trading window",
     r"\bdemat\b",
     r"\bsebi complaint\b",
+    # Standard SEBI LODR board-meeting-intimation boilerplate — the subject
+    # line NSE announcements use for "we're holding a board meeting whose
+    # agenda includes approving quarterly results," not the results
+    # themselves. Confirmed live (2026-08-10 audit): this exact fragment,
+    # with no "board meeting" prefix surviving in the truncated headline,
+    # was still reaching the priority engine's weak-keyword floor via
+    # "results" alone.
+    r"to consider and approve.*(financial results|unaudited results)",
 ]
 
 # ── Hard YES — macro/structural events that always get intelligence ───────────
