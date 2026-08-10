@@ -157,6 +157,16 @@ class Settings(BaseSettings):
     opportunity_worker_interval_sec: int = 86400
     event_enrichment_interval_sec: int = 300
 
+    # ── Fact Grounding (AI Article Pipeline fix, 2026-08-10) ─────────────────
+    # Shadow/log-only by default: validate_fact_grounding() always RUNS and
+    # logs every violation (see publisher.py), but only actually blocks
+    # publish when this is true. Deliberately starting False — per the
+    # explicit rollout plan — to observe real production behavior first
+    # (violation rate, and how often fetch_price_moves() hits a total
+    # failure) before turning this into a hard gate. Flip to true on Railway
+    # once a day or two of shadow logs look clean.
+    fact_grounding_enforce: bool = False
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

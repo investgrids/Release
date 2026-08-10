@@ -54,6 +54,7 @@ from app.services.aipe.market_story_engine import (
     has_mie_changed,
 )
 from app.services.aipe.quality_validator import validate
+from app.services.aipe.fact_grounding import validate_fact_grounding
 from app.services.aipe import perf_stats
 
 log = structlog.get_logger(__name__)
@@ -197,6 +198,35 @@ async def _publish_new_article(
     seo_score = compute_seo_score(article_data)
     with perf_stats.timed("validation"):
         passed, results, quality_score = validate(article_data, seo_score)
+
+    # Fact Grounding, Phase 1 (2026-08-10). ALWAYS runs and ALWAYS logs —
+    # only actually blocks publish when settings.fact_grounding_enforce is
+    # true. Starting in shadow/log-only mode on purpose (default False): the
+    # rollout plan is to watch real production violation rates and, just as
+    # important, how often fetch_price_moves() hits a total failure (see
+    # fact_grounding.py's fail-closed handling) for a day or two before
+    # turning this into a hard gate — cheaper to catch a miscalibrated
+    # validator in logs than after it's silently blocked real publishes.
+    # price_moves is the SAME snapshot article_generator.py grounded the
+    # prompt with (None if that fetch totally failed), not a fresh fetch —
+    # note .pop's default only applies when the key is ABSENT, so a real
+    # None value (real failure) is preserved, not coerced to {}.
+    price_moves = article_data.pop("_price_moves_grounding", {})
+    fact_grounded, fact_errors = validate_fact_grounding(
+        article_data, price_moves,
+        source_headline=triage_event.get("headline") or triage_event.get("title") or "",
+        source_summary=triage_event.get("one_liner") or triage_event.get("summary") or "",
+    )
+    results["fact_grounding"] = fact_grounded
+    if not fact_grounded:
+        results["fact_grounding_errors"] = fact_errors
+        log.warning(
+            "publisher.fact_grounding_violation",
+            type=article_type, errors=fact_errors,
+            enforced=settings.fact_grounding_enforce,
+        )
+        if settings.fact_grounding_enforce:
+            passed = False
 
     now = datetime.now(timezone.utc)
     article_id = str(uuid.uuid4())

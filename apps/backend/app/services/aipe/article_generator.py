@@ -19,6 +19,7 @@ import structlog
 
 from app.services.ai_service import _call_with_fallback
 from app.services.aipe.content_templates import SYSTEM_PROMPT, get_template
+from app.services.aipe.fact_grounding import fetch_price_moves, format_price_grounding
 
 log = structlog.get_logger(__name__)
 
@@ -65,6 +66,24 @@ async def generate_intelligence_article(
 
     market_context_str = _format_market_context(mie_context)
 
+    # Fact Grounding, Phase 1 (2026-08-10) — real per-company price moves,
+    # fetched from the same live quote service the article page itself
+    # uses, injected into the existing market_context slot so the LLM
+    # writes company impact from real numbers instead of inventing a
+    # direction/magnitude. See fact_grounding.py's module docstring for the
+    # full rationale; validate_fact_grounding() below cross-checks the
+    # LLM's actual output against these same numbers after generation.
+    candidate_symbols = [
+        (c.get("symbol") or c.get("name") or "") for c in tickers
+    ] if isinstance(tickers, list) and tickers and isinstance(tickers[0], dict) else (
+        [str(t) for t in tickers] if isinstance(tickers, list) else []
+    )
+    candidate_symbols = [s for s in candidate_symbols if s]
+    price_moves = await fetch_price_moves(candidate_symbols) if candidate_symbols else {}
+    price_grounding = format_price_grounding(price_moves)
+    if price_grounding:
+        market_context_str = f"{market_context_str} | {price_grounding}"
+
     user_prompt = template.format(
         headline=event.get("headline") or event.get("title") or "Market Event",
         summary=(event.get("one_liner") or event.get("summary") or "")[:600],
@@ -89,7 +108,15 @@ async def generate_intelligence_article(
     if not raw:
         return None
 
-    return _parse_and_validate(raw, article_type, event)
+    parsed = _parse_and_validate(raw, article_type, event)
+    if parsed is not None:
+        # Pipeline-internal only — never a real IntelligenceArticle column;
+        # publisher.py reads this to run validate_fact_grounding() against
+        # the SAME price snapshot the prompt itself was grounded in, rather
+        # than re-fetching (which could drift between generation and
+        # validation, and doubles the live-quote API load for no benefit).
+        parsed["_price_moves_grounding"] = price_moves
+    return parsed
 
 
 def _format_market_context(ctx: dict[str, Any]) -> str:
