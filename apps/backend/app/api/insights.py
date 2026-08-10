@@ -16,6 +16,7 @@ POST /api/insights/{slug}/share -> record one share-channel click (no dedup)
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -27,8 +28,45 @@ from app.core.redis import cache_get, cache_set
 from app.db.models.generated_media import GeneratedMedia
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.session import get_db
+from app.services.seo_intelligence import resolve_headline_angle
+from app.services.symbol_normalization import normalize_symbol
 
 router = APIRouter()
+
+
+def _normalized_companies(companies: list[dict] | None) -> list[dict]:
+    """
+    Serve-time symbol normalization (AI Newsroom redesign, 2026-08-10) —
+    applied here rather than only at publish time so it also fixes articles
+    published before symbol_normalization.py existed, without a data
+    backfill. Never drops a company mention: only replaces a malformed
+    symbol (e.g. the BSE numeric "BOM:500400" form) with either its
+    resolved NSE ticker or None (never a fabricated one) — the company's
+    name/reason/impact stay intact either way, only the linkability changes.
+    """
+    out: list[dict] = []
+    for c in (companies or []):
+        if not isinstance(c, dict):
+            continue
+        resolved = normalize_symbol(c.get("symbol"), c.get("name"))
+        out.append({**c, "symbol": resolved})
+    return out
+
+
+def _normalized_related_companies(related: list[dict] | None) -> list[dict]:
+    """Same serve-time fix as _normalized_companies, for the
+    related_companies shape ({symbol, name, link}) — a company that can't
+    be resolved is dropped rather than kept with a broken link, since
+    related_companies (unlike companies_affected) exists purely to be
+    clicked."""
+    out: list[dict] = []
+    for c in (related or []):
+        if not isinstance(c, dict):
+            continue
+        resolved = normalize_symbol(c.get("symbol"), c.get("name"))
+        if resolved:
+            out.append({**c, "symbol": resolved, "link": f"/companies/{resolved}"})
+    return out
 
 
 async def _fetch_hero_images(db: AsyncSession, article_ids: list[str]) -> dict[str, str]:
@@ -133,7 +171,13 @@ def _read_time_minutes(a: IntelligenceArticle) -> int:
 
 
 def _list_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> dict:
+    # Ranking runs against the article's own real headline/body text, so it
+    # must see the original (unnormalized) symbols/names — normalization is
+    # a display-time concern, applied to the entities only after ranking.
     primary_entity, secondary_entities = _rank_primary_entity(a)
+    normalized_companies = _normalized_companies(a.companies_affected)
+    primary_entity = _normalized_companies([primary_entity])[0] if primary_entity else None
+    secondary_entities = _normalized_companies(secondary_entities)
     return {
         "id":                 a.id,
         "slug":               a.slug,
@@ -147,11 +191,19 @@ def _list_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> dict
         "executive_summary":  a.executive_summary,
         "seo_title":          a.seo_title,
         "meta_description":   a.meta_description,
-        "companies_affected": a.companies_affected,
+        "companies_affected": normalized_companies,
         "primary_entity":     primary_entity,
         "secondary_entities": secondary_entities,
         "sectors_affected":   a.sectors_affected,
         "confidence_score":   a.confidence_score,
+        # SEO Intelligence (Phase 3, wired into the article surface as part
+        # of the AI Newsroom redesign, 2026-08-10) — computed at publish
+        # time by seo_intelligence.py and stored on the row; headline_angle
+        # is translated through the legacy taxonomy map here so pre-redesign
+        # articles (stored under the old 7-value taxonomy) read the same as
+        # new ones without a data migration.
+        "headline_angle":     resolve_headline_angle(a.headline_angle),
+        "primary_keyword":    a.primary_keyword,
         # event_score is already the same real 0-100 relevance score the rest
         # of the app calls "impact_score" (Events, etc.) — aliased here for
         # naming consistency across the homepage's article and event cards.
@@ -160,8 +212,16 @@ def _list_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> dict
         "views":              a.views,
         "share_count":        a.share_count,
         "update_count":       a.update_count,
-        "published_at":       a.published_at.isoformat() if a.published_at else None,
-        "last_updated":       a.last_updated.isoformat() if a.last_updated else None,
+        # SQLite reads DateTime(timezone=True) columns back tz-naive (see
+        # get_verified_historical_events/tools.py for the same footgun) even
+        # though every write path here uses datetime.now(timezone.utc) — so
+        # a bare .isoformat() silently drops the UTC offset. Browsers then
+        # parse that offset-less string as LOCAL time, not UTC, making
+        # freshly published articles display with wildly wrong "Xh ago"
+        # labels. Reattach the UTC tzinfo before serializing so every
+        # consumer gets a real, unambiguous offset.
+        "published_at":       a.published_at.replace(tzinfo=timezone.utc).isoformat() if a.published_at else None,
+        "last_updated":       a.last_updated.replace(tzinfo=timezone.utc).isoformat() if a.last_updated else None,
         # Siblings (per-company/per-angle articles off the same underlying
         # event) share this ID — list consumers need it too, not just the
         # detail page, to merge siblings into one row instead of showing
@@ -172,6 +232,19 @@ def _list_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> dict
 
 def _detail_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> dict:
     base = _list_row(a, hero_image_url)
+    # internal_link_candidates was computed at publish time (see
+    # publisher.py) — its company links are re-normalized here too, for the
+    # same reason companies_affected is: articles published before
+    # symbol_normalization.py existed still have raw/unresolved symbols
+    # baked into the stored JSON, and this fixes them for every reader
+    # without a data migration.
+    raw_candidates = a.internal_link_candidates or []
+    internal_link_candidates = [
+        link for link in raw_candidates
+        if link.get("type") != "company" or normalize_symbol(
+            (link.get("href") or "").rsplit("/", 1)[-1], link.get("label"),
+        )
+    ]
     base.update({
         "why_it_matters":      a.why_it_matters,
         "what_happened":       a.what_happened,
@@ -183,11 +256,18 @@ def _detail_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> di
         "faqs":                a.faqs,
         "sources":             a.sources,
         "internal_links":      a.internal_links,
-        "related_companies":   a.related_companies,
+        "related_companies":   _normalized_related_companies(a.related_companies),
         "related_themes":      a.related_themes,
+        # SEO Intelligence (rest of the fields — headline_angle/primary_keyword
+        # already surfaced in _list_row above since cards/list consumers use
+        # those too; these four are only needed on the full article page).
+        "secondary_keywords":       a.secondary_keywords,
+        "entity_keywords":          a.entity_keywords,
+        "question_keywords":        a.question_keywords,
+        "internal_link_candidates": internal_link_candidates,
         "story_version":       a.story_version,
         "update_history":      a.update_history,
-        "created_at":          a.created_at.isoformat() if a.created_at else None,
+        "created_at":          a.created_at.replace(tzinfo=timezone.utc).isoformat() if a.created_at else None,
         "canonical_url":       a.canonical_url,
         "json_ld":             a.json_ld,
         # Generic structured-data slot — comparison_intelligence articles
@@ -377,8 +457,6 @@ async def insights_stats(db: AsyncSession = Depends(get_db)):
     Real aggregate stats for the AI Newsroom's trust/freshness banner —
     every value is a live query, nothing precomputed or fabricated.
     """
-    from datetime import datetime, timezone, timedelta
-
     _IST = timezone(timedelta(hours=5, minutes=30))
     today_ist = datetime.now(_IST).replace(hour=0, minute=0, second=0, microsecond=0)
     today_utc = today_ist.astimezone(timezone.utc)
@@ -441,8 +519,44 @@ async def insights_stats(db: AsyncSession = Depends(get_db)):
         "events_covered":     events_covered,
         "themes_covered":     len(themes),
         "avg_confidence":     round(avg_confidence, 2) if avg_confidence is not None else None,
-        "last_updated":       last_updated.isoformat() if last_updated else None,
+        "last_updated":       last_updated.replace(tzinfo=timezone.utc).isoformat() if last_updated else None,
     }
+
+
+@router.get("/trending")
+async def trending_today(limit: int = Query(4, le=20), db: AsyncSession = Depends(get_db)):
+    """
+    Real view-ranked articles from TODAY (IST calendar day, same convention
+    as insights_stats' today_articles) — powers the Library's "Trending
+    Today" rail. Deliberately a separate endpoint from sort_by=views on the
+    generic list, which ranks across all time and was silently surfacing
+    weeks-old high-view articles under a "Today" label (confirmed live:
+    July articles topping a rail labeled "Trending Today").
+
+    published_at reads back tz-naive from SQLite (see _list_row's comment),
+    so the today-cutoff is applied in Python against a bounded recent
+    fetch rather than pushed into a WHERE clause that would silently
+    string-compare a tz-aware cutoff against a naive stored value.
+    """
+    _IST = timezone(timedelta(hours=5, minutes=30))
+    today_ist = datetime.now(_IST).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_utc = today_ist.astimezone(timezone.utc)
+
+    result = await db.execute(
+        select(IntelligenceArticle)
+        .where(IntelligenceArticle.status == "published")
+        .order_by(IntelligenceArticle.published_at.desc())
+        .limit(500)
+    )
+    recent = result.scalars().all()
+    todays = [
+        a for a in recent
+        if a.published_at and a.published_at.replace(tzinfo=timezone.utc) >= today_utc
+    ]
+    todays.sort(key=lambda a: (a.views or 0), reverse=True)
+    top = todays[:limit]
+    hero_images = await _fetch_hero_images(db, [a.id for a in top])
+    return {"items": [_list_row(a, hero_images.get(a.id)) for a in top]}
 
 
 @router.get("/search")

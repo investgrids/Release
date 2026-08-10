@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, ArrowRight, TrendingUp, TrendingDown, AlertTriangle, Building2, Clock,
-  BookOpen, HelpCircle, Eye, ListChecks, Activity, Shield,
-  Brain, Layers, MessageCircleQuestion, GitCommit, RadioTower,
-  Sparkles, Target, ChevronRight, Compass, Database,
+  TrendingUp, TrendingDown, AlertTriangle, Building2, Clock,
+  BookOpen, HelpCircle, Eye, ListChecks, Activity,
+  Brain, Layers, GitCommit, RadioTower,
+  Sparkles, Target, ArrowRight, Compass, Database,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText, isRealSymbol, safeJsonLd, truncateForQuery } from "@/lib/text";
@@ -15,30 +15,37 @@ import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyShareBar } from "@/components/StickyShareBar";
 import { HeroImage } from "@/components/HeroImage";
 import { NextSteps } from "@/components/NextSteps";
+import { VerdictCard } from "@/components/article/VerdictCard";
+import { EvidenceList, type EvidenceFact } from "@/components/article/EvidenceList";
+import { CompanyImpactTable } from "@/components/article/CompanyImpactTable";
+import { RelatedIntelligence } from "@/components/article/RelatedIntelligence";
 
-// ── Article type metadata ────────────────────────────────────────────────────
+// ── Article type metadata — light-first, matching Daily Brief's own
+// color-token convention (text-{c}-700 dark:text-{c}-300, border-{c}-200
+// dark:border-{c}-500/30, bg-{c}-50 dark:bg-{c}-500/10) instead of the
+// dark-only literals this page used before the redesign. ─────────────────
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
-  breaking_intelligence:  { label: "Breaking Intelligence",  color: "text-rose-400 border-rose-500/30 bg-rose-500/10" },
-  morning_intelligence:   { label: "Morning Intelligence",    color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
-  company_intelligence:   { label: "Company Intelligence",    color: "text-sky-400 border-sky-500/30 bg-sky-500/10" },
-  sector_intelligence:    { label: "Sector Intelligence",     color: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
-  theme_intelligence:     { label: "Theme Intelligence",      color: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
-  policy_intelligence:    { label: "Policy Intelligence",     color: "text-indigo-400 border-indigo-500/30 bg-indigo-500/10" },
-  ripple_intelligence:    { label: "Ripple Intelligence",     color: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10" },
-  opportunity_intelligence: { label: "Opportunity Intelligence", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
-  market_wrap:             { label: "Market Wrap",            color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
-  weekly_intelligence:     { label: "Weekly Intelligence",    color: "text-sky-400 border-sky-500/30 bg-sky-500/10" },
-  monthly_intelligence:    { label: "Monthly Intelligence",   color: "text-sky-400 border-sky-500/30 bg-sky-500/10" },
-  educational_intelligence:{ label: "Investor Education",     color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
-  question_intelligence:   { label: "Investor Q&A",           color: "text-pink-400 border-pink-500/30 bg-pink-500/10" },
-  historical_intelligence: { label: "Historical Intelligence", color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
+  breaking_intelligence:    { label: "Breaking Intelligence",   color: "text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10" },
+  morning_intelligence:     { label: "Morning Intelligence",    color: "text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10" },
+  company_intelligence:     { label: "Company Intelligence",    color: "text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10" },
+  sector_intelligence:      { label: "Sector Intelligence",     color: "text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10" },
+  theme_intelligence:       { label: "Theme Intelligence",      color: "text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10" },
+  policy_intelligence:      { label: "Policy Intelligence",     color: "text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10" },
+  ripple_intelligence:      { label: "Ripple Intelligence",     color: "text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-500/30 bg-cyan-50 dark:bg-cyan-500/10" },
+  opportunity_intelligence: { label: "Opportunity Intelligence", color: "text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10" },
+  market_wrap:               { label: "Market Wrap",            color: "text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10" },
+  weekly_intelligence:       { label: "Weekly Intelligence",    color: "text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10" },
+  monthly_intelligence:      { label: "Monthly Intelligence",   color: "text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10" },
+  educational_intelligence:  { label: "Investor Education",     color: "text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10" },
+  question_intelligence:     { label: "Investor Q&A",           color: "text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-500/30 bg-pink-50 dark:bg-pink-500/10" },
+  historical_intelligence:   { label: "Historical Intelligence", color: "text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10" },
 };
 const DEFAULT_TYPE_META = { label: "Market Intelligence", color: "text-text-secondary border-surface-border/20 bg-text-primary/5" };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CompanyAffected { name: string; symbol: string; impact: "positive" | "negative" | "neutral"; reason?: string; timeframe?: string; }
+interface CompanyAffected { name: string; symbol: string | null; impact: "positive" | "negative" | "neutral"; reason?: string; timeframe?: string; }
 interface SectorAffected { name: string; impact?: "positive" | "negative" | "neutral"; magnitude?: "high" | "medium" | "low"; reason?: string; }
 interface Opportunity { title: string; description: string; timeframe?: string; risk?: string; }
 interface Risk { title: string; description: string; severity?: string; mitigation?: string; }
@@ -48,6 +55,7 @@ interface Faq { question: string; answer: string; }
 interface RelatedCompany { symbol: string; name: string; link: string; }
 interface RelatedTheme { theme: string; link: string; }
 interface RelatedArticle { slug: string; headline: string; angle: string; angle_entity?: string | null; article_type: string; }
+interface LinkCandidate { label: string; href: string; type: string; }
 interface UpdateEntry {
   at: string; version: number; reason: string; summary: string;
   previous_takeaway?: string | null; new_takeaway?: string | null; confidence?: number;
@@ -86,16 +94,24 @@ interface InsightDetail {
   share_count?: number;
   update_history?: UpdateEntry[];
   parent_event_group_id?: string | null;
+  // SEO Intelligence (Phase 3, wired into the article surface as part of
+  // the AI Newsroom redesign, 2026-08-10) — deterministic, computed at
+  // publish time from this article's own real companies/sectors, never a
+  // second LLM call. See apps/backend/app/services/seo_intelligence.py.
+  headline_angle?: string | null;
+  primary_keyword?: string | null;
+  secondary_keywords?: string[];
+  entity_keywords?: string[];
+  question_keywords?: string[];
+  internal_link_candidates?: LinkCandidate[];
 }
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 
 // Cleans every real AIPE-authored text field once, at the data layer,
-// rather than sprinkling cleanText() through ~800 lines of JSX below — the
+// rather than sprinkling cleanText() through the JSX below — the
 // mojibake/HTML-entity issue (see lib/text.ts) can appear in any of these
-// fields since they're all real ingested/generated text. This page didn't
-// have the fix at all before relocating here, despite being the most-read
-// content page in the app.
+// fields since they're all real ingested/generated text.
 function cleanArticle(a: InsightDetail): InsightDetail {
   return {
     ...a,
@@ -104,8 +120,10 @@ function cleanArticle(a: InsightDetail): InsightDetail {
     executive_summary: a.executive_summary ? cleanText(a.executive_summary) : a.executive_summary,
     why_it_matters: a.why_it_matters ? cleanText(a.why_it_matters) : a.why_it_matters,
     what_happened: a.what_happened ? cleanText(a.what_happened) : a.what_happened,
-    // Drop entries where the AI couldn't identify a real ticker (writes a
-    // placeholder like "Not Provided" instead) — these render as broken
+    // Drop entries where the symbol couldn't be resolved to a real ticker
+    // (the backend's normalize_symbol already returns null for these — see
+    // app/services/symbol_normalization.py — rather than a fabricated or
+    // malformed one) — these would otherwise render as broken
     // /companies/{symbol} links elsewhere on this page, not just odd text.
     companies_affected: (a.companies_affected ?? []).filter(c => isRealSymbol(c.symbol)).map(c => ({ ...c, name: cleanText(c.name), reason: c.reason ? cleanText(c.reason) : c.reason })),
     sectors_affected: (a.sectors_affected ?? []).map(s => ({ ...s, name: cleanText(s.name), reason: s.reason ? cleanText(s.reason) : s.reason })),
@@ -177,9 +195,9 @@ function fmtRelative(iso?: string): string {
 }
 
 const IMPACT_STYLE: Record<string, string> = {
-  positive: "border-emerald-500/25 bg-emerald-500/10 text-emerald-400",
-  negative: "border-rose-500/25 bg-rose-500/10 text-rose-400",
-  neutral:  "border-surface-border/50 bg-text-primary/5 text-text-secondary",
+  positive: "border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  negative: "border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300",
+  neutral:  "border-surface-border/20 bg-text-primary/5 text-text-secondary",
 };
 const IMPACT_DOT: Record<string, string> = { positive: "🟢", negative: "🔴", neutral: "⚪" };
 const RISK_DOT: Record<string, string> = { low: "🟢", medium: "🟡", high: "🔴" };
@@ -208,9 +226,9 @@ function deriveEventStatus(article: { article_type: string; is_evergreen?: boole
   }
   const anchor = article.last_updated || article.published_at;
   const hoursSince = anchor ? (Date.now() - new Date(anchor).getTime()) / 3_600_000 : Infinity;
-  if (hoursSince <= 24) return { label: "Active", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10", icon: RadioTower };
-  if (hoursSince <= 24 * 7) return { label: "Monitoring", color: "text-amber-400 border-amber-500/30 bg-amber-500/10", icon: Activity };
-  return { label: "Resolved", color: "text-sky-400 border-sky-500/30 bg-sky-500/10", icon: GitCommit };
+  if (hoursSince <= 24) return { label: "Active", color: "text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10", icon: RadioTower };
+  if (hoursSince <= 24 * 7) return { label: "Monitoring", color: "text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10", icon: Activity };
+  return { label: "Resolved", color: "text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10", icon: GitCommit };
 }
 
 // AI Investment Verdict — derived entirely from the article's own real,
@@ -236,13 +254,6 @@ function deriveVerdict(companies: CompanyAffected[], sectors: SectorAffected[]) 
   return { stance, focus, horizons: [...horizons] };
 }
 
-const STANCE_STYLE: Record<string, { color: string; icon: typeof TrendingUp; bg: string }> = {
-  Bullish: { color: "text-emerald-400", icon: TrendingUp, bg: "from-emerald-500/15 to-transparent border-emerald-500/25" },
-  Bearish: { color: "text-rose-400", icon: TrendingDown, bg: "from-rose-500/15 to-transparent border-rose-500/25" },
-  Mixed:   { color: "text-amber-400", icon: Activity, bg: "from-amber-500/15 to-transparent border-amber-500/25" },
-  Neutral: { color: "text-text-secondary", icon: Activity, bg: "from-text-primary/10 to-transparent border-surface-border/15" },
-};
-
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
 export async function generateMetadata(
@@ -262,10 +273,16 @@ export async function generateMetadata(
   // the article has none, consistent with this app's "never fabricate"
   // rule — no article, no image, no invented stock photo.
   const image = article.hero_image_url ? `${API}${article.hero_image_url}` : null;
+  // entity_keywords are real (every term traceable to this article's own
+  // companies/sectors/themes — see seo_intelligence.py's module docstring),
+  // so surfacing them as a <meta name="keywords"> tag doesn't fabricate
+  // anything; it's a plain-text restatement of entities already on the page.
+  const keywords = (article.entity_keywords ?? []).length > 0 ? article.entity_keywords : undefined;
 
   return {
     title,
     description,
+    keywords,
     openGraph: {
       title,
       description,
@@ -287,18 +304,15 @@ export async function generateMetadata(
 
 // ── Small presentational helpers ────────────────────────────────────────────
 
-// Same opaque-fill technique as .glass-card/.card-content (globals.css) —
-// backdrop-blur is a real GPU compositing cost; an opaque token-driven fill
-// reads identically without it. Using the plain classes here (not the
-// .card-content utility class) since most Card usages on this page are
-// static content containers, not the hover-lift teaser card that class
-// implies.
+// Light-first card, matching Daily Brief's own token pattern (rounded-2xl
+// border-surface-border/7 bg-text-primary/[0.02]) rather than the article
+// page's old dark-only bg-surface-card/90 fill.
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-surface-border/50 bg-surface-card/90 ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] ${className}`}>{children}</div>;
 }
 function Eyebrow({ icon: Icon, children }: { icon: typeof Activity; children: React.ReactNode }) {
   return (
-    <h2 className="mb-4 flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-text-muted">
+    <h2 className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-text-muted">
       <Icon className="h-3.5 w-3.5" /> {children}
     </h2>
   );
@@ -315,7 +329,7 @@ export default async function ArticlePage(
 
   const meta = TYPE_META[article.article_type] ?? DEFAULT_TYPE_META;
   const companies = article.companies_affected ?? [];
-  const quotes = await fetchQuotes(companies.filter(c => isRealSymbol(c.symbol)).map(c => c.symbol));
+  const quotes = await fetchQuotes(companies.filter(c => isRealSymbol(c.symbol)).map(c => c.symbol as string));
   const sectors = article.sectors_affected ?? [];
   const opportunities = article.opportunities ?? [];
   const winners = companies.filter(c => c.impact === "positive");
@@ -328,16 +342,13 @@ export default async function ArticlePage(
   const relatedCompanies = article.related_companies ?? [];
   const relatedThemes = article.related_themes ?? [];
   const relatedArticles = article.related_articles ?? [];
+  const linkCandidates = article.internal_link_candidates ?? [];
   const sources = article.sources ?? [];
   const questionSiblings = relatedArticles.filter(r => r.angle === "question");
   const updateHistory = article.update_history ?? [];
-  const campaignCompanies = relatedArticles.filter(r => r.angle === "per_company").length;
-  const campaignSectors = relatedArticles.filter(r => r.angle === "sector_rollup").length;
-  const campaignThemes = relatedArticles.filter(r => r.angle === "theme").length;
   const status = deriveEventStatus(article);
   const StatusIcon = status.icon;
   const verdict = deriveVerdict(companies, sectors);
-  const VerdictIcon = STANCE_STYLE[verdict.stance].icon;
 
   // Real, historically-verified base rate — only shown when the article
   // actually cites measured outcomes, never estimated.
@@ -346,13 +357,37 @@ export default async function ArticlePage(
     ? Math.round((measuredOutcomes.filter(h => (h.outcome ?? 0) >= 0).length / measuredOutcomes.length) * 100)
     : null;
 
-  // "Ask AI" — real follow-up questions built from this article's own
-  // real companies, not invented topics.
-  const askPrompts = [
+  // "Ask AI" — real follow-up questions built from this article's own real
+  // companies, plus the SEO layer's question_keywords (also entity-derived,
+  // never invented — see seo_intelligence.build_keyword_set) filling out
+  // the AEO angle without duplicating anything already asked.
+  const askPrompts = Array.from(new Set([
     ...companies.slice(0, 2).map(c => `How will this affect ${c.name}?`),
-    companies[0] ? `Should I buy ${companies[0].symbol}?` : null,
+    ...(companies[0] ? [`Should I buy ${companies[0].symbol}?`] : []),
+    ...(article.question_keywords ?? []),
     "Explain this for beginners",
-  ].filter(Boolean) as string[];
+  ]));
+
+  // Article-level Evidence (Decision 3) — built entirely from fields already
+  // on this article, split into what happened (Fact) vs the AI's own read
+  // of it (Interpretation). No new engine, no Fact Registry extension.
+  const evidenceFacts: EvidenceFact[] = [
+    ...(article.published_at ? [{ label: "Published", detail: fmtDate(article.published_at) ?? undefined }] : []),
+    ...((article.update_count ?? 0) > 0 && article.last_updated
+      ? [{ label: `Updated ${article.update_count}×`, detail: fmtDate(article.last_updated) ?? undefined }] : []),
+    ...historical.slice(0, 6).map(h => ({
+      label: h.event ?? "Historical precedent",
+      detail: [h.date, h.outcome != null ? `${h.outcome >= 0 ? "+" : ""}${h.outcome}%` : null].filter(Boolean).join(" — ") || undefined,
+    })),
+  ];
+  const evidenceInterpretations: EvidenceFact[] = [
+    ...[...companies, ...sectors].filter(x => x.reason).slice(0, 5).map(x => ({
+      label: `${x.name} (${x.impact ?? "neutral"})`, detail: x.reason,
+    })),
+    ...opportunities.slice(0, 3).map(o => ({ label: o.title, detail: o.description })),
+    ...risks.slice(0, 3).map(r => ({ label: r.title, detail: r.description })),
+    ...watch.slice(0, 3).map(w => ({ label: "What to watch", detail: w })),
+  ];
 
   // Hero images are generated asynchronously by a worker some time after
   // publish (see image_worker.py) — json_ld is built once at publish time
@@ -360,9 +395,15 @@ export default async function ArticlePage(
   // the backend didn't have yet. Overlaying it here, at render time, means
   // the very next page load after the image lands gets a correct Article
   // schema — no backend job needs to remember to go back and patch it.
-  const jsonLd = article.json_ld && article.hero_image_url
-    ? { ...article.json_ld, image: `${API}${article.hero_image_url}` }
-    : article.json_ld;
+  // entity_keywords/secondary_keywords are appended the same way — real,
+  // already-computed SEO fields the backend didn't have when json_ld was
+  // first built for older articles.
+  const jsonLd = article.json_ld ? {
+    ...article.json_ld,
+    ...(article.hero_image_url ? { image: `${API}${article.hero_image_url}` } : {}),
+    ...(article.secondary_keywords?.length ? { keywords: article.secondary_keywords.join(", ") } : {}),
+    ...(article.entity_keywords?.length ? { about: article.entity_keywords.map(name => ({ "@type": "Thing", name })) } : {}),
+  } : article.json_ld;
 
   return (
     <main className="min-h-screen bg-bg text-text-primary">
@@ -382,7 +423,7 @@ export default async function ArticlePage(
         shareCount={article.share_count}
       />
 
-      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
 
         <ArticleViewTracker slug={article.slug} />
 
@@ -405,7 +446,8 @@ export default async function ArticlePage(
           />
         </div>
 
-        {/* ══════════ 1. HERO ══════════ */}
+        {/* ══════════════════════ TIER 1 — ABOVE THE FOLD ══════════════════════ */}
+
         <div className="mb-8">
           <HeroImage
             heroImageUrl={article.hero_image_url}
@@ -427,18 +469,14 @@ export default async function ArticlePage(
               </span>
             )}
           </div>
-          <h1 className="mt-3 text-[28px] font-black leading-tight text-text-primary sm:text-[34px]">
+          <h1 className="mt-3 text-[26px] font-black leading-tight text-text-primary sm:text-[32px]">
             {article.headline}
           </h1>
-          {/* Visible author/publisher disclosure — the JSON-LD schema below
+          {/* Visible author/publisher disclosure — the JSON-LD schema above
               already declares this to crawlers, but a human reader saw
-              nothing on the page itself. Google's AI-content and E-E-A-T
-              guidance expects a clear, disclosed byline, not just structured
-              data invisible to the eye — same "genuinely visible, not
-              cloaked" principle used for every SSR summary block this
-              session. */}
+              nothing on the page itself. */}
           <p className="mt-2 flex items-center gap-1.5 text-[12px] text-text-muted">
-            <Brain className="h-3.5 w-3.5 text-violet-400" />
+            <Brain className="h-3.5 w-3.5 text-accent-violet" />
             By <span className="font-semibold text-text-secondary">MarketRipple AI Intelligence Engine</span> — AI-generated from real market data, not written by a human reporter.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
@@ -448,7 +486,7 @@ export default async function ArticlePage(
               </span>
             )}
             {(article.update_count ?? 0) > 0 && (
-              <span className="flex items-center gap-1 text-[11px] font-semibold text-sky-400">
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-sky-600 dark:text-sky-300">
                 <Eye className="h-3 w-3" /> Updated {article.update_count}× · last {fmtRelative(article.last_updated)}
               </span>
             )}
@@ -456,80 +494,57 @@ export default async function ArticlePage(
               <Eye className="h-3 w-3" /> {(article.views ?? 0).toLocaleString("en-IN")} read this
             </span>
             {article.parent_event_group_id && (
-              <span className="flex items-center gap-1 text-[11px] text-violet-400">
+              <span className="flex items-center gap-1 text-[11px] text-accent-violet">
                 <Layers className="h-3 w-3" /> Part of a {relatedArticles.length + 1}-article campaign
               </span>
             )}
           </div>
         </div>
 
-        {/* ══════════ 2. AI INVESTMENT VERDICT ══════════ */}
-        <Card className={`mb-8 overflow-hidden bg-gradient-to-br p-6 sm:p-8 ${STANCE_STYLE[verdict.stance].bg}`}>
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">AI Investment Verdict</p>
-              <div className="mt-2 flex items-center gap-2.5">
-                <VerdictIcon className={`h-7 w-7 ${STANCE_STYLE[verdict.stance].color}`} />
-                <span className={`text-[28px] font-black ${STANCE_STYLE[verdict.stance].color}`}>{verdict.stance}</span>
-              </div>
-              {verdict.focus && (
-                <p className="mt-1 text-[13px] text-text-secondary">
-                  Current view: <span className="font-semibold text-text-primary">{verdict.stance} on {verdict.focus}</span>
-                </p>
-              )}
-            </div>
-            {article.confidence_score != null && (
-              <div className="text-right" title="The AI's own confidence in this article's analysis — not the same metric as the evidence-based Confidence Breakdown shown on company pages.">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Article Confidence</p>
-                <p className="text-[28px] font-black text-text-primary">{Math.round(article.confidence_score * 100)}%</p>
+        {/* Above-the-fold 2-column: LEFT = AI verdict (the "so what"),
+            RIGHT = 30-second answer + quick facts (the "prove it") — same
+            verdict-then-evidence pairing Daily Brief uses above its own
+            fold. */}
+        <div className="mb-8 grid gap-4 lg:grid-cols-2">
+          <VerdictCard
+            stance={verdict.stance}
+            focus={verdict.focus}
+            confidenceScore={article.confidence_score}
+            horizons={verdict.horizons}
+            topAction={opportunities.length > 0 ? { title: opportunities[0].title, description: opportunities[0].description } : null}
+            whyAffected={[...companies, ...sectors].filter(x => x.reason).slice(0, 3).map(x => x.reason as string)}
+          />
+
+          <div className="space-y-4">
+            {article.key_takeaway && (
+              <div className="rounded-2xl border border-accent-violet/20 bg-accent-violet/[0.05] p-5">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-accent-violet">30-Second Answer</p>
+                <p className="text-[13.5px] leading-relaxed text-text-primary">{article.key_takeaway}</p>
               </div>
             )}
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-4 sm:grid-cols-4">
+              <div>
+                <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Companies</p>
+                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{companies.length}</p>
+              </div>
+              <div>
+                <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Sectors</p>
+                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{sectors.length}</p>
+              </div>
+              <div>
+                <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Sources</p>
+                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{sources.length}</p>
+              </div>
+              <div>
+                <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Confidence</p>
+                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{article.confidence_score != null ? `${Math.round(article.confidence_score * 100)}%` : "—"}</p>
+              </div>
+            </div>
           </div>
+        </div>
 
-          {verdict.horizons.length > 0 && (
-            <div className="mt-5 flex flex-wrap gap-2">
-              {verdict.horizons.map(h => (
-                <span key={h} className="rounded-full border border-surface-border/15 bg-text-primary/5 px-3 py-1 text-[11px] font-semibold text-text-secondary">{h}</span>
-              ))}
-            </div>
-          )}
+        {/* ══════════════════════ TIER 2 — CORE INTELLIGENCE ══════════════════════ */}
 
-          {opportunities.length > 0 && (
-            <div className="mt-5 border-t border-surface-border/10 pt-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Action</p>
-              <p className="text-[15px] font-bold text-text-primary">{opportunities[0].title}</p>
-              <p className="mt-1 text-[13px] leading-6 text-text-secondary">{opportunities[0].description}</p>
-            </div>
-          )}
-
-          {(companies.length > 0 || sectors.length > 0) && (
-            <div className="mt-5 border-t border-surface-border/10 pt-5">
-              {/* Was labeled "Reasons," directly under "Confidence" — read as
-                  "why the confidence score is what it is." It isn't: these
-                  are each company/sector's own impact reason, unrelated to
-                  the confidence number above. Relabeled to stop implying a
-                  connection that doesn't exist. */}
-              <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Why These Are Affected</p>
-              <ul className="space-y-1.5">
-                {[...companies, ...sectors].filter(x => x.reason).slice(0, 3).map((x, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[13px] leading-5 text-text-secondary">
-                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted" /> {x.reason}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </Card>
-
-        {/* ══════════ 3. TL;DR ══════════ */}
-        {article.key_takeaway && (
-          <div className="mb-8 rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">TL;DR — 30 Seconds</p>
-            <p className="text-[15px] font-semibold leading-snug text-text-primary">{article.key_takeaway}</p>
-          </div>
-        )}
-
-        {/* Why it matters / What happened (prose) */}
         {article.why_it_matters && (
           <section className="mb-8">
             <Eyebrow icon={Sparkles}>Why It Matters</Eyebrow>
@@ -543,10 +558,6 @@ export default async function ArticlePage(
           </section>
         )}
 
-        {/* ══════════ 4/5. SECTOR IMPACT + RIPPLE EFFECT (paired — both are
-            short, non-linearly-read reference blocks, not part of the main
-            narrative flow, so they pair well side by side on wide screens
-            instead of each claiming a full-width row) ══════════ */}
         {(sectors.length > 0 || rippleLinks.length > 0) && (
           <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {sectors.length > 0 && (
@@ -582,12 +593,12 @@ export default async function ArticlePage(
                     {rippleLinks.map((r, i) => (
                       <div key={i} className="flex items-start gap-3">
                         <div className="flex flex-col items-center pt-1">
-                          <span className="h-2.5 w-2.5 rounded-full bg-violet-400" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-accent-violet" />
                           {i < rippleLinks.length - 1 && <span className="mt-1 h-8 w-px bg-text-primary/10" />}
                         </div>
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-text-primary">
-                            {r.from_entity} <ArrowRight className="h-3.5 w-3.5 text-violet-400" /> {r.to_entity}
+                            {r.from_entity} <ArrowRight className="h-3.5 w-3.5 text-accent-violet" /> {r.to_entity}
                           </div>
                           <p className="mt-1 text-[12px] leading-5 text-text-secondary">{r.mechanism}</p>
                           {r.timeframe && <span className="mt-1 inline-block text-[10px] uppercase tracking-wide text-text-muted">{r.timeframe}-term</span>}
@@ -601,53 +612,23 @@ export default async function ArticlePage(
           </div>
         )}
 
-        {/* ══════════ 6. COMPANY IMPACT TABLE ══════════ */}
         {companies.length > 0 && (
           <section className="mb-8">
             <Eyebrow icon={Building2}>Company Impact</Eyebrow>
-            <Card className="overflow-hidden">
-              <div className="grid grid-cols-[1fr_auto_auto_2fr_auto] items-center gap-3 border-b border-surface-border/6 bg-text-primary/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
-                <span>Company</span><span>Price</span><span>AI Impact</span><span>Why</span><span className="text-right">Expected Horizon</span>
-              </div>
-              {companies.map((c, i) => {
-                const q = quotes[c.symbol];
-                return (
-                <div key={i} className={`grid grid-cols-[1fr_auto_auto_2fr_auto] items-center gap-3 px-4 py-3 ${i < companies.length - 1 ? "border-b border-surface-border/4" : ""}`}>
-                  <div className="min-w-0">
-                    <Link href={`/companies/${c.symbol}`} className="block text-[13px] font-bold text-sky-600 dark:text-sky-300 hover:text-sky-700 dark:text-sky-200 transition">{c.symbol}</Link>
-                    <span className="truncate text-[11px] text-text-muted">{c.name}</span>
-                  </div>
-                  {q ? (
-                    <div className="shrink-0 text-right">
-                      <p className="text-[12px] font-bold text-text-primary tabular-nums">₹{q.price_str}</p>
-                      <p className={`text-[10px] font-semibold tabular-nums ${q.positive ? "text-emerald-500" : "text-rose-500"}`}>{q.change_pct_str}</p>
-                    </div>
-                  ) : (
-                    <span className="shrink-0 text-right text-[11px] text-text-muted">—</span>
-                  )}
-                  <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>
-                    {IMPACT_DOT[c.impact] ?? IMPACT_DOT.neutral} {c.impact}
-                  </span>
-                  <span className="min-w-0 text-[12px] leading-5 text-text-secondary">{c.reason || "—"}</span>
-                  <span className="shrink-0 text-right text-[11px] text-text-muted">{c.timeframe ? (HORIZON_LABEL[c.timeframe] ?? c.timeframe) : "—"}</span>
-                </div>
-                );
-              })}
-            </Card>
+            <CompanyImpactTable companies={companies as { symbol: string; name: string; impact: "positive" | "negative" | "neutral"; reason?: string; timeframe?: string }[]} quotes={quotes} />
           </section>
         )}
 
-        {/* ══════════ 7. WINNERS & LOSERS ══════════ */}
         {(winners.length > 0 || losers.length > 0) && (
           <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {winners.length > 0 && (
               <Card className="p-5">
-                <h3 className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-widest text-emerald-400">
+                <h3 className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                   <TrendingUp className="h-3.5 w-3.5" /> Likely Winners
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {winners.map((c, i) => (
-                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-300 hover:text-emerald-700 dark:text-emerald-200 transition">
+                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1.5 text-[12px] font-semibold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-200 transition">
                       {c.name}
                     </Link>
                   ))}
@@ -656,12 +637,12 @@ export default async function ArticlePage(
             )}
             {losers.length > 0 && (
               <Card className="p-5">
-                <h3 className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-widest text-rose-400">
+                <h3 className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-300">
                   <TrendingDown className="h-3.5 w-3.5" /> Likely Losers
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {losers.map((c, i) => (
-                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-rose-500/25 bg-rose-500/10 px-3 py-1.5 text-[12px] font-semibold text-rose-600 dark:text-rose-300 hover:text-rose-700 dark:text-rose-200 transition">
+                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 px-3 py-1.5 text-[12px] font-semibold text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-200 transition">
                       {c.name}
                     </Link>
                   ))}
@@ -671,7 +652,6 @@ export default async function ArticlePage(
           </section>
         )}
 
-        {/* ══════════ 8/Risks. INVESTMENT OPPORTUNITIES + RISKS (paired) ══════════ */}
         {(opportunities.length > 0 || risks.length > 0) && (
           <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {opportunities.length > 0 && (
@@ -682,18 +662,18 @@ export default async function ArticlePage(
                     <Card key={i} className="p-4">
                       <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
                         <div className="col-span-2 sm:col-span-4">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Recommendation</p>
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-text-muted">Recommendation</p>
                           <p className="mt-1 text-[14px] font-bold text-text-primary">{o.title}</p>
                         </div>
                         {o.timeframe && (
                           <div>
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Expected Duration</p>
+                            <p className="text-[9px] font-bold uppercase tracking-wide text-text-muted">Expected Duration</p>
                             <p className="mt-1 text-[12px] font-semibold text-text-secondary">{OPPORTUNITY_DURATION_LABEL[o.timeframe] ?? o.timeframe}</p>
                           </div>
                         )}
                         {o.risk && (
                           <div>
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Risk</p>
+                            <p className="text-[9px] font-bold uppercase tracking-wide text-text-muted">Risk</p>
                             <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold capitalize text-text-secondary">
                               {RISK_DOT[o.risk] ?? RISK_DOT.medium} {o.risk}
                             </p>
@@ -702,7 +682,7 @@ export default async function ArticlePage(
                       </div>
                       {o.description && (
                         <div className="mt-3 border-t border-surface-border/6 pt-3">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Why?</p>
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-text-muted">Why?</p>
                           <p className="mt-1 text-[12px] leading-5 text-text-secondary">{o.description}</p>
                         </div>
                       )}
@@ -718,17 +698,17 @@ export default async function ArticlePage(
                 <div className="space-y-3">
                   {risks.map((r, i) => (
                     <div key={i} className={`rounded-xl border p-4 ${
-                      r.severity === "high" ? "border-rose-500/20 bg-rose-500/[0.04]" : "border-amber-500/15 bg-amber-500/[0.04]"
+                      r.severity === "high" ? "border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/[0.04]" : "border-amber-200 dark:border-amber-500/15 bg-amber-50 dark:bg-amber-500/[0.04]"
                     }`}>
                       <div className="flex items-start justify-between gap-3">
-                        <h3 className={`text-[13px] font-semibold ${r.severity === "high" ? "text-rose-600 dark:text-rose-300" : "text-amber-600 dark:text-amber-300"}`}>
+                        <h3 className={`text-[13px] font-semibold ${r.severity === "high" ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300"}`}>
                           {r.title}
                         </h3>
                         {r.severity && (
                           <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] capitalize ${
                             r.severity === "high"
-                              ? "border-rose-500/20 bg-rose-500/10 text-rose-400"
-                              : "border-amber-500/20 bg-amber-500/10 text-amber-400"
+                              ? "border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                              : "border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300"
                           }`}>{r.severity}</span>
                         )}
                       </div>
@@ -746,7 +726,8 @@ export default async function ArticlePage(
           </div>
         )}
 
-        {/* ══════════ 9/10. HISTORICAL INTELLIGENCE + INTELLIGENCE TIMELINE (paired) ══════════ */}
+        {/* ══════════════════════ TIER 3 — DEEPER INTELLIGENCE ══════════════════════ */}
+
         {(historical.length > 0 || updateHistory.length > 0) && (
           <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {historical.length > 0 && (
@@ -763,7 +744,7 @@ export default async function ArticlePage(
                         <div className="flex shrink-0 items-center gap-2 text-text-muted">
                           <span>{h.date}</span>
                           {h.outcome != null && (
-                            <span className={h.outcome >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                            <span className={h.outcome >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
                               {h.outcome >= 0 ? "+" : ""}{h.outcome}%
                             </span>
                           )}
@@ -773,7 +754,7 @@ export default async function ArticlePage(
                   </div>
                   {positiveOutcomeRate != null && (
                     <div className="mt-4 flex items-center gap-3 rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
-                      <span className="text-[22px] font-black text-emerald-400">{positiveOutcomeRate}%</span>
+                      <span className="text-[22px] font-black text-emerald-600 dark:text-emerald-400">{positiveOutcomeRate}%</span>
                       <span className="text-[12px] leading-5 text-text-secondary">
                         of {measuredOutcomes.length} similar historical events saw a positive outcome
                       </span>
@@ -790,7 +771,7 @@ export default async function ArticlePage(
                   <div className="relative pl-6 pb-5">
                     <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-sky-500" />
                     <span className="absolute left-[5px] top-4 bottom-0 w-px bg-text-primary/10" />
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-300">
                       {fmtDate(article.created_at || article.published_at)}
                     </p>
                     <p className="text-[13px] font-semibold text-text-primary">Article Published</p>
@@ -803,7 +784,7 @@ export default async function ArticlePage(
                         <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-emerald-500" />
                         {i < updateHistory.length - 1 && <span className="absolute left-[5px] top-4 bottom-0 w-px bg-text-primary/10" />}
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">{fmtDate(u.at)} · v{u.version}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">{fmtDate(u.at)} · v{u.version}</p>
                           {u.confidence != null && prevConf != null && u.confidence !== prevConf && (
                             <span className="text-[10px] font-bold text-text-secondary">
                               Confidence {Math.round(prevConf * 100)}%→{Math.round(u.confidence * 100)}%
@@ -823,7 +804,6 @@ export default async function ArticlePage(
           </div>
         )}
 
-        {/* ══════════ 11. AI OPINION EVOLUTION ══════════ */}
         {updateHistory.length > 0 && (
           <section className="mb-8">
             <Eyebrow icon={Brain}>AI Opinion Evolution</Eyebrow>
@@ -834,11 +814,11 @@ export default async function ArticlePage(
                   <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{updateHistory[0].previous_takeaway ?? article.key_takeaway}</p>
                 </div>
                 {updateHistory.map((u, i) => (
-                  <div key={i} className={`ml-4 rounded-xl border p-3.5 ${i === updateHistory.length - 1 ? "border-emerald-500/15 bg-emerald-500/[0.04]" : "border-surface-border/6 bg-text-primary/[0.02]"}`}>
-                    <p className={`text-[9px] font-bold uppercase tracking-wider ${i === updateHistory.length - 1 ? "text-emerald-500" : "text-text-muted"}`}>
+                  <div key={i} className={`ml-4 rounded-xl border p-3.5 ${i === updateHistory.length - 1 ? "border-emerald-200 dark:border-emerald-500/15 bg-emerald-50 dark:bg-emerald-500/[0.04]" : "border-surface-border/6 bg-text-primary/[0.02]"}`}>
+                    <p className={`text-[9px] font-bold uppercase tracking-wider ${i === updateHistory.length - 1 ? "text-emerald-700 dark:text-emerald-400" : "text-text-muted"}`}>
                       {i === updateHistory.length - 1 ? "Current" : `v${u.version}`} — {fmtDate(u.at)}
                     </p>
-                    <p className={`mt-1.5 text-[12px] leading-5 ${i === updateHistory.length - 1 ? "text-text-secondary" : "text-text-secondary"}`}>
+                    <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">
                       {u.new_takeaway ?? u.summary}
                     </p>
                   </div>
@@ -848,7 +828,6 @@ export default async function ArticlePage(
           </section>
         )}
 
-        {/* What to watch next */}
         {watch.length > 0 && (
           <section className="mb-8">
             <Eyebrow icon={ListChecks}>What to Watch Next</Eyebrow>
@@ -863,13 +842,25 @@ export default async function ArticlePage(
           </section>
         )}
 
-        {/* FAQ */}
+        <div className="mb-8">
+          <EvidenceList
+            sources={sources}
+            facts={evidenceFacts}
+            interpretations={evidenceInterpretations}
+            confidenceScore={article.confidence_score}
+            historicalCount={historical.length}
+            storyVersion={article.story_version}
+          />
+        </div>
+
+        {/* ══════════════════════ TIER 4 — SEARCH & DISCOVERY ══════════════════════ */}
+
         {faqs.length > 0 && (
           <section className="mb-8">
             <Eyebrow icon={HelpCircle}>Frequently Asked Questions</Eyebrow>
             <div className="space-y-2">
               {faqs.map((f, i) => (
-                <details key={i} className="group rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-3 open:bg-text-primary/[0.045]">
+                <details key={i} className="group rounded-xl border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 open:bg-text-primary/[0.035]">
                   <summary className="cursor-pointer list-none text-[13px] font-semibold text-text-primary marker:content-none">
                     {f.question}
                   </summary>
@@ -880,30 +871,13 @@ export default async function ArticlePage(
           </section>
         )}
 
-        {/* People Also Asked */}
-        {questionSiblings.length > 0 && (
-          <section className="mb-8">
-            <Eyebrow icon={MessageCircleQuestion}>People Also Asked</Eyebrow>
-            <div className="space-y-2">
-              {questionSiblings.map((r, i) => (
-                <Link key={i} href={`/newsroom/article/${r.slug}`}
-                  className="flex items-center justify-between rounded-xl border border-pink-500/15 bg-pink-500/[0.03] px-4 py-3 hover:border-pink-500/30 transition">
-                  <p className="text-[13px] font-medium text-text-primary">{r.headline}</p>
-                  <ArrowLeft className="h-3.5 w-3.5 shrink-0 rotate-180 text-pink-400" />
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ══════════ ASK AI ABOUT THIS EVENT ══════════ */}
         {askPrompts.length > 0 && (
           <section className="mb-8">
             <Eyebrow icon={Sparkles}>Ask AI About This Event</Eyebrow>
             <div className="flex flex-wrap gap-2">
               {askPrompts.map((q, i) => (
                 <Link key={i} href={`/ai-search?q=${encodeURIComponent(q)}`}
-                  className="rounded-full border border-violet-500/25 bg-violet-500/[0.06] px-4 py-2 text-[12px] font-semibold text-violet-600 dark:text-violet-300 hover:bg-violet-500/15 hover:text-violet-700 dark:text-violet-200 transition">
+                  className="rounded-full border border-accent-violet/25 bg-accent-violet/[0.06] px-4 py-2 text-[12px] font-semibold text-accent-violet hover:bg-accent-violet/15 transition">
                   {q}
                 </Link>
               ))}
@@ -911,91 +885,15 @@ export default async function ArticlePage(
           </section>
         )}
 
-        {/* ══════════ 13. RELATED CAMPAIGN ══════════ */}
-        {relatedArticles.length > 0 && (
-          <section className="mb-8">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-text-muted">
-                <Layers className="h-3.5 w-3.5 text-violet-400" /> Related Campaign
-              </h2>
-              <span className="text-[10px] text-text-muted">{relatedArticles.length + 1} articles</span>
-            </div>
-            <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] text-text-muted">
-              {campaignCompanies > 0 && <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5">{campaignCompanies} {campaignCompanies === 1 ? "company" : "companies"}</span>}
-              {campaignSectors > 0 && <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5">{campaignSectors} sector</span>}
-              {campaignThemes > 0 && <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5">{campaignThemes} theme</span>}
-              {questionSiblings.length > 0 && <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5">{questionSiblings.length} Q&amp;A</span>}
-            </div>
-            <div className="space-y-2">
-              {relatedArticles.map((r, i) => (
-                <Link key={i} href={`/newsroom/article/${r.slug}`}
-                  className="flex items-center justify-between rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-3 hover:border-surface-border/20 transition">
-                  <div>
-                    <span className="text-[10px] uppercase tracking-wider text-text-muted">
-                      {r.angle === "per_company" ? r.angle_entity
-                        : r.angle === "sector_rollup" ? `${r.angle_entity} Sector`
-                        : r.angle === "theme" ? `${r.angle_entity} Theme`
-                        : r.angle === "question" ? "Q&A"
-                        : (TYPE_META[r.article_type] ?? DEFAULT_TYPE_META).label}
-                    </span>
-                    <p className="text-[12px] font-medium text-text-secondary">{r.headline}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+        <section className="mb-8">
+          <RelatedIntelligence
+            campaignSiblings={relatedArticles}
+            relatedCompanies={relatedCompanies}
+            relatedThemes={relatedThemes}
+            linkCandidates={linkCandidates}
+          />
+        </section>
 
-        {/* Related companies/themes */}
-        {(relatedCompanies.length > 0 || relatedThemes.length > 0) && (
-          <section className="mb-8">
-            <Eyebrow icon={Building2}>Related Companies &amp; Themes</Eyebrow>
-            <div className="flex flex-wrap gap-2">
-              {relatedCompanies.map((c, i) => (
-                <Link key={`co-${i}`} href={c.link}
-                  className="rounded-full border border-sky-500/20 bg-sky-500/[0.06] px-3 py-1.5 text-[11px] font-medium text-sky-600 dark:text-sky-300 hover:text-sky-700 dark:text-sky-200 transition">
-                  {c.name}
-                </Link>
-              ))}
-              {relatedThemes.map((t, i) => (
-                <Link key={`th-${i}`} href={t.link}
-                  className="rounded-full border border-violet-500/20 bg-violet-500/[0.06] px-3 py-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-300 hover:text-violet-700 dark:text-violet-200 transition">
-                  {t.theme}
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ══════════ EVIDENCE PANEL (collapsible) ══════════ */}
-        <details className="group mb-8 rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-5 open:bg-text-primary/[0.03]">
-          <summary className="flex cursor-pointer list-none items-center justify-between marker:content-none">
-            <span className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-text-muted">
-              <Shield className="h-3.5 w-3.5" /> Evidence Panel
-            </span>
-            <ChevronRight className="h-4 w-4 text-text-muted transition group-open:rotate-90" />
-          </summary>
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">AI Confidence</p>
-              <p className="mt-1 text-[16px] font-bold text-text-primary">{article.confidence_score != null ? `${Math.round(article.confidence_score * 100)}%` : "—"}</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Sources</p>
-              <p className="mt-1 text-[16px] font-bold text-text-primary">{sources.length || "—"}</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Historical Data</p>
-              <p className="mt-1 text-[16px] font-bold text-text-primary">{historical.length} events</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Story Version</p>
-              <p className="mt-1 text-[16px] font-bold text-text-primary">v{article.story_version ?? 1}</p>
-            </div>
-          </div>
-        </details>
-
-        {/* ══════════ SOURCES USED — attribution, never the primary CTA ══════════ */}
         {sources.length > 0 && (
           <div className="mb-8">
             <p className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
@@ -1003,7 +901,7 @@ export default async function ArticlePage(
             </p>
             <div className="flex flex-wrap gap-1.5">
               {sources.map((s, i) => (
-                <span key={i} className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-1 text-[11px] text-text-secondary">
+                <span key={i} className="rounded-full border border-surface-border/10 bg-text-primary/[0.02] px-2.5 py-1 text-[11px] text-text-secondary">
                   {s}
                 </span>
               ))}
@@ -1017,8 +915,8 @@ export default async function ArticlePage(
         </p>
 
         {/* ══════════ CONTINUE RESEARCH ══════════ — cross-links this
-            article into the rest of the platform (Platform Integration
-            Sprint) instead of dead-ending at "read the article, done." */}
+            article into the rest of the platform instead of dead-ending at
+            "read the article, done." */}
         <NextSteps config={{
           takeaway: cleanText(article.key_takeaway || article.headline),
           primary: {
@@ -1038,12 +936,12 @@ export default async function ArticlePage(
             {
               label: "Continue Research",
               actions: [
-                ...(relatedCompanies.slice(0, 1).map((c: any) => ({
+                ...(relatedCompanies.slice(0, 1).map((c: RelatedCompany) => ({
                   label: `Open ${c.name} company page`,
                   why: "See the full research terminal for this company.",
                   href: c.link,
                 }))),
-                ...(relatedThemes.slice(0, 1).map((t: any) => ({
+                ...(relatedThemes.slice(0, 1).map((t: RelatedTheme) => ({
                   label: `Explore ${t.theme} theme`,
                   why: "See every company and event tied to this theme.",
                   href: t.link,

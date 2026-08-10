@@ -17,39 +17,91 @@ from __future__ import annotations
 
 from typing import Any
 
-# ── Headline angle classification ────────────────────────────────────────────
-# Mirrors the vocabulary from content_planner.py's own question templates
-# (Positive/Negative/Neutral) and _COMPANY_KW/_THEME_KW keyword lists,
-# reused rather than re-invented, but answers a different question: not
-# "which article_type template" but "which real-world search angle does
-# this article's own content actually support."
-HEADLINE_ANGLES = ("news", "question", "investor", "sector", "comparison", "explanation", "historical")
+# ── Headline angle classification — 11-strategy taxonomy ────────────────────
+# Adopted 2026-08-10 per the AI Newsroom redesign audit, replacing the
+# original 7-value taxonomy (news/question/investor/sector/comparison/
+# explanation/historical) built for Daily Brief's own SEO layer. Old stored
+# values are never deleted or rewritten in the DB — LEGACY_ANGLE_MAP
+# translates them at read time (see insights.py), so historical rows keep
+# their original value in storage but every API consumer always sees the
+# current 11-value taxonomy.
+HEADLINE_ANGLES = (
+    "BREAKING_NEWS", "DATA_STATUS", "INVESTOR_IMPACT", "QUESTION_AEO",
+    "COMPANY_IMPACT", "COMPARISON", "HISTORICAL_PATTERN", "SECTOR_IMPACT",
+    "EARNINGS", "IPO", "RISK_OPPORTUNITY",
+)
+
+# Old value -> new value. DATA_STATUS is the closest available bucket for
+# the old "explanation" (evergreen/educational content) — not a perfect
+# semantic match, but the 11-strategy list has no dedicated "explainer"
+# category, and DATA_STATUS ("here is a factual status/data point") is a
+# reasonable catch-all rather than inventing a 12th value unilaterally.
+LEGACY_ANGLE_MAP: dict[str, str] = {
+    "news": "BREAKING_NEWS",
+    "question": "QUESTION_AEO",
+    "investor": "INVESTOR_IMPACT",
+    "sector": "SECTOR_IMPACT",
+    "comparison": "COMPARISON",
+    "explanation": "DATA_STATUS",
+    "historical": "HISTORICAL_PATTERN",
+}
+
+
+def resolve_headline_angle(stored_value: str | None) -> str | None:
+    """Read-time translation for pre-2026-08-10 rows — see module note above."""
+    if not stored_value:
+        return None
+    if stored_value in HEADLINE_ANGLES:
+        return stored_value
+    return LEGACY_ANGLE_MAP.get(stored_value, stored_value)
+
+
+_EARNINGS_KEYWORDS = ("results", "earnings", "profit", "revenue", "q1 ", "q2 ", "q3 ", "q4 ", "quarterly")
+_IPO_KEYWORDS = ("ipo", "listing", "public issue", "subscription", "grey market premium")
+_RISK_OPPORTUNITY_KEYWORDS = ("opportunity", "risk", "warning", "caution", "downside", "upside")
 
 
 def classify_headline_angle(
     article_type: str,
+    headline: str,
     companies_affected: list[dict[str, Any]],
     sectors_affected: list[dict[str, Any]],
     has_historical: bool,
 ) -> str:
+    """
+    Deterministic, evidence-based classification — every branch is grounded
+    in the article's own real article_type/companies/sectors/headline text,
+    nothing inferred beyond what's already there. Order matters: more
+    specific signals (article_type, IPO/earnings keywords) are checked
+    before the more general company/sector fallbacks.
+    """
+    text = (headline or "").lower()
     companies = [c for c in (companies_affected or []) if c.get("symbol")]
     sectors = [s for s in (sectors_affected or []) if s.get("name")]
 
     if article_type == "question_intelligence":
-        return "question"
+        return "QUESTION_AEO"
     if article_type == "comparison_intelligence":
-        return "comparison"
-    if article_type in ("educational_intelligence",):
-        return "explanation"
+        return "COMPARISON"
     if article_type == "historical_intelligence" or (has_historical and not companies):
-        return "historical"
-    if len(companies) == 1 and any((c.get("impact") or "").lower() in ("positive", "negative") for c in companies):
-        return "investor"
+        return "HISTORICAL_PATTERN"
+    if article_type == "educational_intelligence":
+        return "DATA_STATUS"
+    if any(k in text for k in _IPO_KEYWORDS):
+        return "IPO"
+    if any(k in text for k in _EARNINGS_KEYWORDS):
+        return "EARNINGS"
+    if any(k in text for k in _RISK_OPPORTUNITY_KEYWORDS):
+        return "RISK_OPPORTUNITY"
+    if len(companies) == 1 and article_type == "company_intelligence":
+        return "COMPANY_IMPACT"
+    if len(companies) >= 1 and any((c.get("impact") or "").lower() in ("positive", "negative") for c in companies):
+        return "INVESTOR_IMPACT"
     if len(sectors) >= 2 and not companies:
-        return "sector"
+        return "SECTOR_IMPACT"
     if companies:
-        return "news"
-    return "news"
+        return "INVESTOR_IMPACT"
+    return "BREAKING_NEWS"
 
 
 # ── Keyword set — every term traceable to a real entity on the article ──────
@@ -112,13 +164,23 @@ def internal_link_candidates(
     sectors_affected: list[dict[str, Any]],
     has_historical: bool,
     sector_link_fn,
+    normalize_symbol_fn=None,
 ) -> list[dict[str, str]]:
     """sector_link_fn: the real per-sector URL resolver (publisher._sector_link)
     — passed in rather than imported, so this module has no dependency on
-    publisher.py (publisher.py depends on this module, not the reverse)."""
+    publisher.py (publisher.py depends on this module, not the reverse).
+
+    normalize_symbol_fn: optional app.services.symbol_normalization.normalize_symbol,
+    same passed-in-not-imported pattern. Resolves malformed codes (e.g. the
+    BSE numeric "BOM:500400" form) to a canonical NSE symbol via real
+    name-matching, or returns None to drop the link rather than publish a
+    broken /companies/BOM:500400 URL. When omitted, falls back to the bare
+    upper-cased symbol (legacy behavior) for callers that haven't wired
+    normalization yet."""
     links: list[dict[str, str]] = []
     for c in (companies_affected or [])[:4]:
-        sym = (c.get("symbol") or "").upper()
+        raw_sym = c.get("symbol") or ""
+        sym = normalize_symbol_fn(raw_sym, c.get("name")) if normalize_symbol_fn else raw_sym.upper()
         if sym:
             links.append({"label": c.get("name") or sym, "href": f"/companies/{sym}", "type": "company"})
     for s in (sectors_affected or [])[:2]:
@@ -140,8 +202,11 @@ def compute_seo_intelligence(
     themes: list[str] | None,
     has_historical: bool,
     sector_link_fn,
+    normalize_symbol_fn=None,
 ) -> dict[str, Any]:
-    angle = classify_headline_angle(article_type, companies_affected, sectors_affected, has_historical)
+    angle = classify_headline_angle(article_type, headline, companies_affected, sectors_affected, has_historical)
     keywords = build_keyword_set(headline, companies_affected, sectors_affected, themes)
-    links = internal_link_candidates(companies_affected, sectors_affected, has_historical, sector_link_fn)
+    links = internal_link_candidates(
+        companies_affected, sectors_affected, has_historical, sector_link_fn, normalize_symbol_fn,
+    )
     return {"headline_angle": angle, **keywords, "internal_link_candidates": links}

@@ -254,10 +254,16 @@ async def _publish_new_article(
             for f in faqs[:5]
         ]
 
-    # Build internal links
+    # Build internal links. Symbols are resolved through normalize_symbol
+    # (AI Newsroom redesign, 2026-08-10) rather than a bare .upper() — the
+    # LLM's own companies_affected sometimes carries a malformed exchange-
+    # qualified code (e.g. "BOM:500400") that .upper() alone would still
+    # publish as a broken /companies/BOM:500400 link. A company that can't
+    # be confidently resolved is skipped here entirely rather than linked.
+    from app.services.symbol_normalization import normalize_symbol
     internal_links: list[dict] = []
     for co in (article_data.get("companies_affected") or [])[:4]:
-        sym = co.get("symbol", "").upper()
+        sym = normalize_symbol(co.get("symbol"), co.get("name"))
         if sym:
             internal_links.append({"text": co.get("name", sym), "href": f"/companies/{sym}", "type": "company"})
     for sec in (article_data.get("sectors_affected") or [])[:3]:
@@ -272,9 +278,10 @@ async def _publish_new_article(
 
     # Related entity lists
     related_companies = [
-        {"symbol": c.get("symbol", ""), "name": c.get("name", ""), "link": f"/companies/{c.get('symbol', '')}"}
+        {"symbol": sym, "name": c.get("name", ""), "link": f"/companies/{sym}"}
         for c in (article_data.get("companies_affected") or [])[:6]
-        if c.get("symbol")
+        for sym in [normalize_symbol(c.get("symbol"), c.get("name"))]
+        if sym
     ]
     related_sectors = [
         {"theme": s.get("name", ""), "link": _sector_link(s.get("name", ""))}
@@ -297,6 +304,7 @@ async def _publish_new_article(
         themes=mie_context.get("themes"),
         has_historical=bool(historical),
         sector_link_fn=_sector_link,
+        normalize_symbol_fn=normalize_symbol,
     )
 
     # Market context snapshot
