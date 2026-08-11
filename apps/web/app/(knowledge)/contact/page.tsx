@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ContactForm } from "@/components/ContactForm";
+import { safeJsonLd } from "@/lib/text";
 import {
   LifeBuoy,
   MessageSquare,
@@ -15,16 +16,33 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
 export const metadata: Metadata = {
   title: "Contact MarketRipple — Support, Feedback & Partnerships",
   description:
     "Reach the MarketRipple team for support, feedback, business enquiries, partnerships, media requests, or bug reports.",
+  alternates: { canonical: `${SITE_URL}/contact` },
   openGraph: {
     title: "Contact MarketRipple — Support, Feedback & Partnerships",
     description:
       "Reach the MarketRipple team for support, feedback, business enquiries, partnerships, media requests, or bug reports.",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
+};
+
+// The root layout already emits the site-wide Organization schema with its
+// own contactPoint block (email, areaServed, availableLanguage) — this page
+// only adds a ContactPage node that references that same Organization by
+// name/url rather than repeating the contactPoint fields a second time.
+const CONTACT_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  name: "Contact MarketRipple",
+  description:
+    "Reach the MarketRipple team for support, feedback, business enquiries, partnerships, media requests, or bug reports.",
+  url: `${SITE_URL}/contact`,
+  about: { "@type": "Organization", name: "MarketRipple", url: SITE_URL },
 };
 
 // ── Contact categories ─────────────────────────────────────────────────────────
@@ -131,6 +149,7 @@ const RESPONSE_TIMES = [
 export default function ContactPage() {
   return (
     <main className="min-w-0 pb-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(CONTACT_JSONLD) }} />
       {/* Hero */}
       <div className="mb-10">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
@@ -152,7 +171,7 @@ export default function ContactPage() {
           id="contact-categories"
           className="mb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted"
         >
-          Contact Channels
+          How Do I Get in Touch?
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORIES.map((cat) => {
@@ -257,7 +276,7 @@ export default function ContactPage() {
             id="response-times"
             className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted"
           >
-            Expected Response Times
+            How Fast Will I Hear Back?
           </h2>
         </div>
         <div className="overflow-x-auto rounded-xl border border-surface-border/8">

@@ -1,8 +1,21 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Library, BookOpen, GraduationCap, ArrowRight } from "lucide-react";
 import { GLOSSARY } from "@/lib/glossary-data";
 import { GUIDES } from "@/lib/guides-data";
 import { ARTICLES } from "@/lib/articles-data";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
+// The parent layout (learn/layout.tsx) sets a title *template*
+// ("%s | MarketRipple Learn"), so this only needs to supply the
+// page-specific half — Next.js composes the two automatically.
+export const metadata: Metadata = {
+  title: "Learn Hub — Glossary, Guides & Investor Education",
+  description:
+    "Browse MarketRipple's Knowledge Library: a plain-language glossary of Indian market terms, step-by-step product guides, and investor education articles — all in one place.",
+  alternates: { canonical: `${SITE_URL}/learn` },
+};
 
 export default function LearnHubPage() {
   const sections = [
@@ -88,6 +101,35 @@ export default function LearnHubPage() {
             </section>
           );
         })}
+      </div>
+
+      {/* Cross-link into the Knowledge Center — the glossary/guide entries
+          above describe MarketRipple concepts (scores, ripple effects, data
+          sourcing) that are explained in full depth on these pages. */}
+      <div className="rounded-2xl border border-surface-border/8 bg-surface-card p-6">
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+          Go Deeper
+        </h2>
+        <p className="mt-3 max-w-2xl text-[13px] leading-6 text-text-secondary">
+          These pages explain what MarketRipple's terms and features mean. For the
+          mechanics behind them, see how{" "}
+          <Link href="/ai-methodology" className="font-medium text-violet-400 underline-offset-2 hover:underline">
+            Impact and Confidence scores are actually calculated
+          </Link>
+          , walk through{" "}
+          <Link href="/how-marketripple-thinks" className="font-medium text-violet-400 underline-offset-2 hover:underline">
+            how the AI reasons through ripple effects
+          </Link>
+          , browse the{" "}
+          <Link href="/data-sources" className="font-medium text-violet-400 underline-offset-2 hover:underline">
+            data sources
+          </Link>{" "}
+          behind every number, or read{" "}
+          <Link href="/how-it-works" className="font-medium text-violet-400 underline-offset-2 hover:underline">
+            the full pipeline
+          </Link>{" "}
+          from breaking news to opportunity score.
+        </p>
       </div>
     </div>
   );

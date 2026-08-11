@@ -16,24 +16,45 @@ import {
   Car,
   Monitor,
   Landmark,
-  DollarSign,
-  BarChart2,
   Brain,
   Globe,
   Link2,
   BookOpen,
+  Activity,
+  Copy,
+  Scale,
+  History,
+  Swords,
+  Radio,
+  Zap,
+  ShieldCheck,
 } from "lucide-react";
+import { safeJsonLd } from "@/lib/text";
 
 export const metadata: Metadata = {
   title: "How MarketRipple Thinks — AI Reasoning & Market Relationships",
   description:
     "Understand how MarketRipple's AI reasons through market events — from triggers to ripple effects — with full transparency on confidence levels and alternative scenarios.",
+  alternates: {
+    canonical: "https://www.marketripple.in/how-marketripple-thinks",
+  },
   openGraph: {
     title: "How MarketRipple Thinks — AI Reasoning & Market Relationships",
     description:
       "See the full reasoning chain behind every market insight: confidence levels, causal relationships, and alternative scenario analysis.",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
+};
+
+const ARTICLE_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  headline: "How MarketRipple Thinks — AI Reasoning & Market Relationships",
+  description:
+    "Understand how MarketRipple's AI reasons through market events — from triggers to ripple effects — with full transparency on confidence levels and alternative scenarios.",
+  url: "https://www.marketripple.in/how-marketripple-thinks",
+  author: { "@type": "Organization", name: "MarketRipple", url: "https://www.marketripple.in" },
+  publisher: { "@type": "Organization", name: "MarketRipple", url: "https://www.marketripple.in" },
 };
 
 // ── Confidence Badge ──────────────────────────────────────────────────────────
@@ -297,48 +318,59 @@ const rbiRateCutNodes: Array<{ sector: string; direction: "positive" | "negative
 ];
 
 // ── Relationship Types ─────────────────────────────────────────────────────────
+// The real, fixed taxonomy every edge in MarketRipple's knowledge graph is
+// classified under (see IGEdge.edge_type in the backend graph model). The
+// number of actual edges grows continuously as new events are ingested —
+// these seven types are what stays constant.
 const relationshipTypes = [
   {
-    icon: <Banknote className="h-5 w-5" />,
-    name: "Commodity Chain",
-    description: "How a change in commodity price (crude, gold, copper, natural gas) propagates through downstream industries, affecting input costs, margins, and consumer prices.",
-    example: "Crude oil rise → ATF rise → airline cost pressure → ticket price inflation → tourism slowdown",
-    color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  },
-  {
-    icon: <DollarSign className="h-5 w-5" />,
-    name: "Currency Effect",
-    description: "How INR movement creates asymmetric impact — exporters benefit from a weak rupee while importers face higher costs. Tracks hedging ratios and natural hedges.",
-    example: "INR weakens → IT exports get USD revenue boost → Pharma API imports costlier → Oil companies' margins compress",
-    color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
-  },
-  {
-    icon: <GitBranch className="h-5 w-5" />,
-    name: "Sector Contagion",
-    description: "How weakness in one sector spreads to adjacent sectors through supply chains, credit linkages, or sentiment contagion. Critical for understanding systemic risks.",
-    example: "NBFC liquidity crisis → developer project stalls → cement & steel demand drops → infra stocks re-rate",
-    color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
-  },
-  {
-    icon: <Landmark className="h-5 w-5" />,
-    name: "Policy Response",
-    description: "How government ministries and RBI react to economic conditions. Models historical policy response functions and likely intervention timelines and magnitudes.",
-    example: "Inflation spike → RBI hawkish pivot → rate hikes → credit tightening → consumption slowdown",
-    color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
-  },
-  {
-    icon: <BarChart2 className="h-5 w-5" />,
-    name: "Corporate Earnings",
-    description: "Direct P&L impact modeling — revenue sensitivity, cost pass-through ability, margin elasticity, and leverage effects on EPS for each event scenario.",
-    example: "Raw material cost +15% → Company with pricing power absorbs 60%, passes 40% → EPS impact calculated",
+    icon: <TrendingUp className="h-5 w-5" />,
+    name: "Benefits",
+    description: "The plainest edge in the graph — an event, trend, or entity creates a direct tailwind for another's revenue, margins, or sentiment.",
+    example: "RBI repo rate cut → NBFCs & housing financiers benefits (lower cost of funds, faster credit growth)",
     color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   },
   {
-    icon: <Brain className="h-5 w-5" />,
-    name: "Sentiment Shift",
-    description: "How market psychology — FII flows, retail participation, options positioning — amplifies or dampens fundamental impacts. Tracks fear/greed indicators.",
-    example: "Global risk-off → FII sell Indian equities → INR weakens → Nifty corrects → VIX spikes → options skew shifts",
+    icon: <TrendingDown className="h-5 w-5" />,
+    name: "Hurts",
+    description: "The inverse of benefits — direct cost pressure, demand destruction, or margin compression flowing from one entity to another.",
+    example: "Crude oil price spike → airlines hurts (ATF cost surge erodes margins)",
     color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+  },
+  {
+    icon: <Banknote className="h-5 w-5" />,
+    name: "Supplies",
+    description: "A literal upstream-to-downstream input relationship — raw materials, components, or intermediate goods. The most concrete, verifiable edge type in the graph.",
+    example: "Chinese bulk-drug manufacturers supplies Indian pharma companies (API intermediates)",
+    color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  },
+  {
+    icon: <GitBranch className="h-5 w-5" />,
+    name: "Depends_on",
+    description: "A broader structural reliance than a direct supply link — an entity's output or pricing is tied to an import, a benchmark, or a regulatory approval.",
+    example: "Oil marketing companies depends_on the international Brent crude benchmark for retail fuel pricing",
+    color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+  },
+  {
+    icon: <Swords className="h-5 w-5" />,
+    name: "Competes_with",
+    description: "Two companies or sectors vie for the same customers, market share, or capital — a gain for one typically comes at the other's expense.",
+    example: "IndiGo competes_with SpiceJet & Air India for domestic passenger market share",
+    color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+  },
+  {
+    icon: <Radio className="h-5 w-5" />,
+    name: "Influences",
+    description: "A softer, non-mechanical directional pull — sentiment, positioning, or correlation rather than a hard causal chain. Carries wider confidence bands than the harder edge types.",
+    example: "Sustained FII selling influences INR direction, even without a direct fundamental link",
+    color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+  },
+  {
+    icon: <Zap className="h-5 w-5" />,
+    name: "Triggered_by",
+    description: "The root-cause edge — an effect's link back to the event that set it in motion. This is the edge the Ripple Engine walks backward to answer \"why\" at every node in a cascade, like the Israel–Iran chain above.",
+    example: "Crude oil price spike triggered_by Strait of Hormuz disruption risk",
+    color: "text-fuchsia-400 bg-fuchsia-500/10 border-fuchsia-500/20",
   },
 ];
 
@@ -445,8 +477,17 @@ const frameworkSteps = [
     icon: <Tag className="h-6 w-6" />,
     name: "Classify",
     tagline: "Categorise & Score",
-    description:
-      "Each event is classified by type (Monetary Policy, Geopolitical, Corporate, Commodity), assigned an impact score (0–10), and mapped to relevant sectors and listed companies using a trained entity recognition model.",
+    description: (
+      <>
+        Each event is classified by type (Monetary Policy, Geopolitical, Corporate, Commodity),
+        assigned an impact score (0–10), and mapped to relevant sectors and companies within
+        MarketRipple&apos;s actively tracked universe of{" "}
+        <Link href="/data-sources" className="underline decoration-dotted underline-offset-2 hover:text-text-primary">
+          512 NSE-listed companies
+        </Link>{" "}
+        using a trained entity recognition model.
+      </>
+    ),
     color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
   },
   {
@@ -454,8 +495,17 @@ const frameworkSteps = [
     icon: <GitBranch className="h-6 w-6" />,
     name: "Connect",
     tagline: "Trace Relationships",
-    description:
-      "The Ripple Engine traverses MarketRipple's knowledge graph — a directed network of events, sectors, commodities, currencies, and companies connected by weighted causal edges. Each edge carries a confidence score derived from historical data (2010–2024) and Bayesian inference.",
+    description: (
+      <>
+        The Ripple Engine traverses MarketRipple&apos;s knowledge graph — a directed network of
+        events, sectors, commodities, currencies, and companies connected by weighted causal
+        edges. Each edge carries a confidence score informed by{" "}
+        <Link href="/historical" className="underline decoration-dotted underline-offset-2 hover:text-text-primary">
+          24 verified historical market events spanning 2008–2024
+        </Link>{" "}
+        and Bayesian inference.
+      </>
+    ),
     color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   },
   {
@@ -469,10 +519,44 @@ const frameworkSteps = [
   },
 ];
 
+// ── Fact-Grounding Validators ─────────────────────────────────────────────────
+// Shipped 2026-08-10 — deterministic, non-AI checks that run on every
+// company-impact analysis before it can publish (currently shadow/log-only,
+// see note below the cards).
+const factGroundingChecks = [
+  {
+    icon: <Copy className="h-5 w-5" />,
+    name: "Shared-Reason Detection",
+    description:
+      "Catches a real production bug: the same boilerplate causal explanation reused near word-for-word across two different companies, which reads like individual analysis but isn't. Flagged whenever two companies' stated reasons are a 90%+ text match.",
+    color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+  },
+  {
+    icon: <Scale className="h-5 w-5" />,
+    name: "Sentiment/Magnitude Consistency",
+    description:
+      "Cross-checks every company's stated impact — positive, negative, or neutral — against its real price move for the day. A company down 5.84% but tagged “neutral,” or one that's up but tagged “negative,” gets flagged before publication.",
+    color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+  },
+  {
+    icon: <History className="h-5 w-5" />,
+    name: "Status-Tense Consistency",
+    description:
+      "Compares the article's language against the source event's own language to catch tense mismatches — a draft or proposed regulation described as finalized, or an already-decided policy described as still pending.",
+    color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+  },
+];
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function HowMarketRippleThinksPage() {
   return (
-    <main className="min-w-0 space-y-16 pb-16" aria-label="How MarketRipple Thinks">
+    <>
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: safeJsonLd escapes "<"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(ARTICLE_JSONLD) }}
+      />
+      <main className="min-w-0 space-y-16 pb-16" aria-label="How MarketRipple Thinks">
 
       {/* ── HERO ──────────────────────────────────────────────────────── */}
       <section aria-labelledby="hero-heading">
@@ -520,7 +604,7 @@ export default function HowMarketRippleThinksPage() {
             id="framework-heading"
             className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
           >
-            The Thinking Framework
+            How does MarketRipple think through a market event?
           </h2>
           <p className="mt-2 text-sm text-text-secondary">
             Every MarketRipple insight follows a four-stage reasoning process — from raw
@@ -620,7 +704,7 @@ export default function HowMarketRippleThinksPage() {
             id="confidence-heading"
             className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
           >
-            The Confidence System
+            How are confidence scores calculated?
           </h2>
           <p className="mt-2 text-sm text-text-secondary">
             Every claim MarketRipple makes carries a confidence level — so you always know
@@ -665,6 +749,81 @@ export default function HowMarketRippleThinksPage() {
         </div>
       </section>
 
+      {/* ── FACT GROUNDING ────────────────────────────────────────────── */}
+      <section aria-labelledby="fact-grounding-heading" className="space-y-6">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+            Validation Layer
+          </p>
+          <h2
+            id="fact-grounding-heading"
+            className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
+          >
+            How does MarketRipple keep AI-written analysis honest?
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-text-secondary">
+            Before writing a company-impact analysis, MarketRipple&apos;s AI pipeline fetches
+            each affected company&apos;s real percentage price move for the day — from the same
+            live quote service used across{" "}
+            <Link href="/data-sources" className="underline decoration-dotted underline-offset-2 hover:text-text-primary">
+              MarketRipple&apos;s data sources
+            </Link>{" "}
+            — and feeds those real numbers directly into the generation prompt, so the model
+            writes from what actually happened instead of inventing a direction or magnitude.
+            After generation, three deterministic checks — no LLM involved — run against the
+            output before it can publish.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5 md:p-6">
+          <div className="flex items-start gap-3">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+              aria-hidden="true"
+            >
+              <Activity className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-[14px] font-bold text-text-primary">Real Price Grounding</h3>
+              <p className="mt-1 text-[12px] leading-5 text-text-secondary">
+                Every company mentioned in a draft analysis gets its real, live today&apos;s %
+                price change pulled in before a single word is generated — the model is never
+                left to guess whether a stock moved up, down, or sideways.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {factGroundingChecks.map((check) => (
+            <div
+              key={check.name}
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
+            >
+              <div
+                className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl border ${check.color}`}
+                aria-hidden="true"
+              >
+                {check.icon}
+              </div>
+              <h3 className="text-[14px] font-bold text-text-primary">{check.name}</h3>
+              <p className="mt-2 text-[12px] leading-5 text-text-secondary">
+                {check.description}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-4">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+          <p className="text-[12px] leading-5 text-text-secondary">
+            <span className="font-semibold text-amber-600 dark:text-amber-300">Currently in shadow mode:</span>{" "}
+            violations are logged for review, not yet blocking publication, while MarketRipple
+            observes real-world violation rates before turning this into a hard publish gate.
+          </p>
+        </div>
+      </section>
+
       {/* ── RELATIONSHIP TYPES ────────────────────────────────────────── */}
       <section aria-labelledby="relationships-heading" className="space-y-6">
         <div>
@@ -675,12 +834,14 @@ export default function HowMarketRippleThinksPage() {
             id="relationships-heading"
             className="mt-2 text-[22px] font-black text-text-primary md:text-[28px]"
           >
-            How Relationships Are Built
+            What relationship types does MarketRipple&apos;s knowledge graph use?
           </h2>
           <p className="mt-2 text-sm text-text-secondary">
-            MarketRipple&apos;s knowledge graph recognises six fundamental relationship types
-            between events and market outcomes. Each type carries its own confidence
-            model and propagation rules.
+            Every edge in MarketRipple&apos;s knowledge graph is classified under one of seven
+            fixed relationship types, between events, companies, sectors, and market outcomes.
+            The graph itself keeps growing as new events are ingested — the number of actual
+            relationships has no fixed ceiling — but these seven types are the taxonomy that
+            stays constant.
           </p>
         </div>
 
@@ -912,6 +1073,7 @@ export default function HowMarketRippleThinksPage() {
           </Link>
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

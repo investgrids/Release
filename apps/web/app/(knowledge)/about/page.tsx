@@ -25,10 +25,13 @@ import {
   Activity,
 } from "lucide-react";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
 export const metadata: Metadata = {
   title: "About MarketRipple — AI-Powered Market Intelligence Platform",
   description:
     "MarketRipple is an AI-powered Indian stock market intelligence platform that helps investors understand not just what happened in markets, but why it happened and what opportunities exist.",
+  alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
     title: "About MarketRipple — AI-Powered Market Intelligence Platform",
     description:
@@ -78,7 +81,7 @@ const SOLUTIONS = [
     icon: GitBranch,
     title: "We Connect Events",
     description:
-      "Our Ripple Engine traces cause-effect chains across 700+ market relationship types — commodity dependencies, currency effects, policy responses, sector contagion, and FII/DII flows.",
+      "Our Ripple Engine traces cause-effect chains across seven relationship types — benefits, hurts, supplies, depends_on, competes_with, influences, and triggered_by — spanning commodity dependencies, currency effects, policy responses, sector contagion, and FII/DII flows.",
     color: "text-sky-400",
   },
   {
@@ -95,61 +98,73 @@ const FEATURES = [
     icon: Globe2,
     title: "Market Intelligence",
     description: "Real-time pre-market, live, and after-market dashboards with Gift Nifty, India VIX, US Futures, Asian & European indices, FII/DII flows, and AI opening predictions.",
+    href: "/market-intelligence",
   },
   {
     icon: Calendar,
     title: "Events Engine",
     description: "Classified events by type (Monetary, Fiscal, Regulatory, Earnings, Global) with AI-generated impact analysis, sector mapping, timeline tracking, and historical comparison.",
+    href: "/events",
   },
   {
     icon: Layers,
     title: "Ripple Intelligence",
     description: "Proprietary cause-effect engine that traces how one event cascades across sectors, companies, and market segments — visualised as an interactive knowledge graph.",
+    href: "/ripple",
   },
   {
     icon: Radar,
     title: "Opportunity Radar",
-    description: "Algorithmic scoring of investment opportunities 0–100 using event impact, AI confidence, sector momentum, and historical precedent across BSE and NSE listed companies.",
+    description: "Algorithmic scoring of investment opportunities 0–100 using event impact, AI confidence, sector momentum, and historical precedent across the 512 companies MarketRipple actively tracks.",
+    href: "/opportunity-radar",
   },
   {
     icon: Search,
     title: "AI Search",
     description: "Natural language queries across the entire MarketRipple intelligence graph — sourced, explainable answers with multi-horizon outlook in seconds.",
+    href: "/ai-search",
   },
   {
     icon: Building2,
     title: "Company Intelligence",
     description: "Deep company profiles with event exposure mapping, financial data, AI investment thesis, scenario analysis, and sector dependency charts.",
+    href: "/companies",
   },
   {
     icon: BookMarked,
     title: "Market Stories",
     description: "AI-curated thematic narratives that connect multiple events, sectors, and companies into a coherent market story — updated as the situation evolves.",
+    href: "/newsroom/themes",
   },
   {
     icon: Newspaper,
-    title: "News Intelligence",
-    description: "Real-time news with AI-generated impact scores, sentiment analysis, affected sectors, and direct links to related market events and companies.",
+    title: "AI Newsroom",
+    description: "AI-written market articles built on real per-company price data, each with an Evidence section split into verified Fact and labelled AI Interpretation, plus an AI Investment Verdict derived from real company and sector data.",
+    href: "/newsroom",
   },
   {
     icon: Activity,
     title: "Sector & Index Tracker",
     description: "Live Nifty sector indices, heatmaps, and individual stock movers with AI-annotated context for every price movement that matters.",
+    href: "/sectors",
   },
   {
     icon: Zap,
     title: "Expected Horizons",
     description: "AI-powered multi-horizon investment outlook across 5 time frames — Immediate, Short Term, Medium Term, Long Term, and Structural — with catalysts, risks, and confidence scores.",
+    href: undefined,
   },
   {
     icon: Clock,
     title: "Economic Calendar",
     description: "Forward-looking calendar of scheduled market events — RBI meetings, earnings dates, policy announcements — with expected impact and sector exposure.",
+    href: "/calendar",
   },
   {
     icon: Brain,
     title: "AI Transparency System",
     description: "Every AI output shows its reasoning, evidence sources, confidence score, and limitations — so you always know how MarketRipple arrived at its analysis.",
+    href: "/ai-methodology",
   },
 ];
 
@@ -179,6 +194,25 @@ const PHILOSOPHY = [
 export default function AboutPage() {
   return (
     <main className="min-w-0 space-y-16 pb-20">
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: static JSON-LD
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "AboutPage",
+            name: "About MarketRipple",
+            url: `${SITE_URL}/about`,
+            description:
+              "MarketRipple is an AI-powered Indian stock market intelligence platform that helps investors understand not just what happened in markets, but why it happened and what opportunities exist.",
+            mainEntity: {
+              "@type": "Organization",
+              name: "MarketRipple",
+              url: SITE_URL,
+            },
+          }),
+        }}
+      />
       {/* ── Hero ── */}
       <section className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-violet-500/[0.06] to-surface-bg p-8 md:p-12">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-400">
@@ -219,7 +253,7 @@ export default function AboutPage() {
           The Problem
         </p>
         <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
-          Why Traditional Platforms Fail Investors
+          Why Do Traditional Platforms Fail Investors?
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           The Indian market generates enormous amounts of information daily. Traditional
@@ -268,7 +302,7 @@ export default function AboutPage() {
           Our Solution
         </p>
         <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
-          Three Things We Do That Others Don&apos;t
+          What Do We Do That Others Don&apos;t?
         </h2>
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {SOLUTIONS.map((s) => (
@@ -293,7 +327,7 @@ export default function AboutPage() {
           Core Features
         </p>
         <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
-          Everything Inside MarketRipple
+          What&apos;s Inside MarketRipple?
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           Twelve interconnected features that work together to give you a complete picture
@@ -314,7 +348,15 @@ export default function AboutPage() {
                   Feature {String(i + 1).padStart(2, "0")}
                 </span>
               </div>
-              <h3 className="mt-3 text-sm font-bold text-text-primary">{f.title}</h3>
+              <h3 className="mt-3 text-sm font-bold text-text-primary">
+                {f.href ? (
+                  <Link href={f.href} className="underline-offset-4 hover:text-violet-400 hover:underline">
+                    {f.title}
+                  </Link>
+                ) : (
+                  f.title
+                )}
+              </h3>
               <p className="mt-1.5 text-sm leading-5 text-text-muted">{f.description}</p>
             </article>
           ))}

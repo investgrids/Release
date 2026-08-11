@@ -16,12 +16,17 @@ import {
   ArrowRight,
   ChevronRight,
   CheckCircle2,
+  ShieldCheck,
+  FileCheck,
 } from "lucide-react";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 export const metadata: Metadata = {
   title: "How MarketRipple Works — AI Market Intelligence Pipeline",
   description:
     "Discover the full pipeline behind MarketRipple — from breaking news ingestion through AI analysis, Ripple Engine processing, and Opportunity Radar scoring to surfacing investment opportunities in seconds.",
+  alternates: { canonical: `${SITE_URL}/how-it-works` },
   openGraph: {
     title: "How MarketRipple Works — AI Market Intelligence Pipeline",
     description:
@@ -37,37 +42,39 @@ const STEPS = [
     number: "01",
     icon: Radio,
     title: "Breaking News Ingestion",
-    tagline: "500+ sources. Real-time. Always on.",
+    tagline: "Exchanges, regulators, and financial media. Real-time. Always on.",
     description:
-      "MarketRipple's data pipeline monitors over 500 sources across global and Indian financial media — including NSE/BSE corporate filings, RBI press releases, SEBI circulars, Ministry of Finance notifications, PIB announcements, Reuters, Bloomberg feeds, and premium Indian financial news services.",
+      "MarketRipple's data pipeline monitors exchange filings, regulatory releases, and Indian financial media in real time — NSE/BSE corporate filings, RBI press releases, SEBI circulars, PIB announcements, and RSS feeds from outlets including the Economic Times, Business Standard, Mint, Moneycontrol, and Reuters India.",
     details: [
       "NSE/BSE corporate disclosures and exchange filings",
       "RBI press releases and MPC meeting minutes",
       "SEBI circulars and regulatory announcements",
-      "Global macro feeds: Fed, ECB, commodity markets",
-      "Indian financial news: ET, Mint, Business Standard",
+      "PIB and Ministry of Finance notifications",
+      "Indian financial news: ET, Business Standard, Mint, Moneycontrol",
     ],
     accent: "violet",
     time: "< 15 seconds",
     timeLabel: "Ingestion latency",
+    href: undefined,
   },
   {
     number: "02",
     icon: Brain,
-    title: "AI Analysis",
-    tagline: "LLMs extract signal from noise.",
+    title: "AI Analysis & Fact-Grounding",
+    tagline: "LLMs extract signal from noise — checked against real prices before publish.",
     description:
-      "Large Language Models trained on Indian financial data analyse each ingested item. The AI extracts key entities (companies, sectors, commodities, currencies), assesses market relevance, generates a human-readable summary, and assigns a confidence score based on source credibility, event novelty, and impact precedent.",
+      "Large Language Models trained on Indian financial data analyse each ingested item. The AI extracts key entities (companies, sectors, commodities, currencies), assesses market relevance, and generates a human-readable summary. For company-impact analysis, real per-company price-move data is fetched and fed into the same prompt, so the model writes from actual numbers rather than inventing a direction or magnitude — deterministic validators then check every draft for shared boilerplate reasons reused across companies, sentiment tags that contradict the real price move, and draft-vs-decided status mismatches, as a safeguard ahead of publish.",
     details: [
       "Named entity recognition for stocks, sectors, and commodities",
-      "Impact magnitude estimation (High / Medium / Low / Negligible)",
-      "Source credibility scoring and cross-reference verification",
+      "Impact magnitude estimation grounded in real per-company price moves",
+      "Fact-grounding validators catch shared boilerplate and sentiment/price mismatches",
       "Duplicate detection and event deduplication across sources",
       "Confidence score assignment with supporting evidence",
     ],
     accent: "sky",
     time: "< 8 seconds",
     timeLabel: "Analysis latency",
+    href: undefined,
   },
   {
     number: "03",
@@ -86,14 +93,15 @@ const STEPS = [
     accent: "amber",
     time: "Structured",
     timeLabel: "Event format",
+    href: "/events",
   },
   {
     number: "04",
     icon: Waves,
     title: "Ripple Engine Processing",
-    tagline: "Cause-effect chains across 700+ relationship types.",
+    tagline: "Cause-effect chains across 7 relationship types.",
     description:
-      "MarketRipple's proprietary Ripple Engine is the core differentiator. It traces cause-effect relationships from every market event across seven dependency types, mapping how one event creates cascading effects across the Indian market ecosystem — with confidence scores on every relationship edge.",
+      "MarketRipple's proprietary Ripple Engine is the core differentiator. It traces cause-effect relationships from every market event across seven dependency types — benefits, hurts, supplies, depends_on, competes_with, influences, and triggered_by — mapping how one event creates cascading effects across the Indian market ecosystem, with confidence scores on every relationship edge, as a growing, dynamically-built graph of real event-driven relationships.",
     details: [
       "Commodity chain dependencies (crude oil → paint, aviation, logistics)",
       "Currency effects (INR/USD movement → IT exports, import-heavy sectors)",
@@ -104,8 +112,9 @@ const STEPS = [
       "Market sentiment shifts (event narrative → sector rotation triggers)",
     ],
     accent: "violet",
-    time: "700+",
+    time: "7 types",
     timeLabel: "Relationship types",
+    href: "/ripple",
   },
   {
     number: "05",
@@ -118,12 +127,13 @@ const STEPS = [
       "Nodes: companies, sectors, commodities, currencies, policy instruments",
       "Edges: 7 dependency types with direction and magnitude",
       "Confidence scores on every graph relationship",
-      "Historical validation against 3+ years of Indian market data",
+      "Historical validation against 24 verified events spanning 2008–2024",
       "Real-time updates as new events are processed",
     ],
     accent: "sky",
     time: "Live Graph",
     timeLabel: "Intelligence network",
+    href: undefined,
   },
   {
     number: "06",
@@ -142,6 +152,7 @@ const STEPS = [
     accent: "emerald",
     time: "3 layers",
     timeLabel: "Exposure depth",
+    href: "/companies",
   },
   {
     number: "07",
@@ -160,6 +171,7 @@ const STEPS = [
     accent: "violet",
     time: "5–15 events",
     timeLabel: "Per story",
+    href: "/newsroom/themes",
   },
   {
     number: "08",
@@ -178,6 +190,7 @@ const STEPS = [
     accent: "amber",
     time: "0–100",
     timeLabel: "Opportunity score",
+    href: "/opportunity-radar",
   },
   {
     number: "09",
@@ -196,6 +209,7 @@ const STEPS = [
     accent: "sky",
     time: "< 3 sec",
     timeLabel: "Query response",
+    href: "/ai-search",
   },
 ] as const;
 
@@ -204,7 +218,7 @@ const TECH_CARDS = [
     icon: Cpu,
     title: "AI Models",
     description:
-      "Domain-adapted Large Language Models fine-tuned on Indian financial data — SEBI filings, RBI reports, earnings transcripts, and 3+ years of BSE/NSE market events. Combined with retrieval-augmented generation (RAG) to ground every output in real market data.",
+      "Domain-adapted Large Language Models fine-tuned on Indian financial data — SEBI filings, RBI reports, earnings transcripts, and 24 verified historical market events spanning 2008–2024. Combined with retrieval-augmented generation (RAG) and real per-company price-move grounding to ground every output in real market data.",
     stat: "15-min",
     statLabel: "Intelligence refresh cycle",
     accent: "violet",
@@ -213,18 +227,18 @@ const TECH_CARDS = [
     icon: Database,
     title: "Data Pipeline",
     description:
-      "Real-time ingestion from 500+ financial data sources with deduplication, entity normalisation, and quality scoring. The pipeline handles structured data (exchange filings, regulatory databases) and unstructured text (news, press releases, social signals) in a unified processing architecture.",
-    stat: "500+",
-    statLabel: "Sources monitored",
+      "Real-time ingestion from exchanges (NSE, BSE), regulators (RBI, SEBI, PIB), and Indian financial news RSS feeds, with deduplication, entity normalisation, and quality scoring. The pipeline handles structured data (exchange filings, regulatory databases) and unstructured text (news, press releases) in a unified processing architecture.",
+    stat: "Real-time",
+    statLabel: "Ingestion cadence",
     accent: "sky",
   },
   {
     icon: Network,
     title: "Graph Engine",
     description:
-      "A dynamic market knowledge graph with 700+ typed relationship edges covering Indian market dependencies. The graph is updated in real-time as events are processed, enabling fast graph traversal queries for ripple analysis, sector contagion mapping, and company exposure scoring.",
-    stat: "700+",
-    statLabel: "Market relationship types",
+      "A dynamic market knowledge graph built across 7 real relationship types — benefits, hurts, supplies, depends_on, competes_with, influences, triggered_by — covering Indian market dependencies. The graph grows in real-time as events are processed, enabling fast graph traversal queries for ripple analysis, sector contagion mapping, and company exposure scoring.",
+    stat: "7",
+    statLabel: "Relationship types",
     accent: "emerald",
   },
 ];
@@ -271,6 +285,25 @@ const TECH_ACCENT: Record<string, { border: string; icon: string; stat: string }
 export default function HowItWorksPage() {
   return (
     <main className="min-w-0 space-y-16 pb-20">
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: static JSON-LD
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "HowTo",
+            name: "How MarketRipple Works — AI Market Intelligence Pipeline",
+            description:
+              "The nine-stage pipeline MarketRipple runs every market event through — from breaking news ingestion to AI search-ready intelligence.",
+            step: STEPS.map((s) => ({
+              "@type": "HowToStep",
+              position: Number(s.number),
+              name: s.title,
+              text: s.description,
+            })),
+          }),
+        }}
+      />
       {/* ── Hero ── */}
       <section className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-violet-500/[0.06] to-surface-bg p-8 md:p-12">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400">
@@ -313,7 +346,7 @@ export default function HowItWorksPage() {
           The Intelligence Pipeline
         </p>
         <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
-          9 Steps from News to Opportunity
+          How Does News Become an Investment Opportunity?
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           Every market event flows through each stage of the pipeline — producing
@@ -360,7 +393,13 @@ export default function HowItWorksPage() {
                         <span className="text-[10px] text-text-muted">{step.timeLabel}</span>
                       </div>
                       <h3 className="mt-1.5 text-base font-black text-text-primary md:text-lg">
-                        {step.title}
+                        {step.href ? (
+                          <Link href={step.href} className="underline-offset-4 hover:underline">
+                            {step.title}
+                          </Link>
+                        ) : (
+                          step.title
+                        )}
                       </h3>
                       <p className={`text-xs font-semibold ${a.icon} mt-0.5`}>
                         {step.tagline}
@@ -397,7 +436,7 @@ export default function HowItWorksPage() {
           Technology
         </p>
         <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
-          What Powers the Pipeline
+          What Powers the Pipeline?
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           Three technology layers working together to deliver real-time market intelligence
@@ -429,13 +468,67 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
+      {/* ── Editorial Integrity ── */}
+      <section>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+          Editorial Integrity
+        </p>
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
+          How Does MarketRipple Keep Its AI Honest?
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
+          Generation is only half the pipeline. Two mechanisms keep every published article
+          grounded in real data and clearly labelled where it is the model&apos;s own read.
+        </p>
+        <div className="mt-8 grid gap-5 sm:grid-cols-2">
+          <article
+            className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-6"
+            aria-label="Fact-grounding validators"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-500/20 bg-surface-card">
+              <ShieldCheck className="h-5 w-5 text-emerald-400" aria-hidden="true" />
+            </div>
+            <h3 className="mt-4 text-base font-bold text-text-primary">Fact-Grounding Validators</h3>
+            <p className="mt-2 text-sm leading-6 text-text-secondary">
+              Real per-company price-move data is fetched and fed into the AI&apos;s prompt so
+              company-impact analysis is written from actual numbers, not invented ones.
+              Deterministic validators then check every draft for shared boilerplate reasons
+              reused across companies, sentiment tags that contradict the real price move, and
+              draft-vs-decided status mismatches, as a safeguard ahead of publish.
+            </p>
+          </article>
+          <article
+            className="rounded-xl border border-sky-500/20 bg-sky-500/[0.04] p-6"
+            aria-label="Newsroom Evidence and AI Investment Verdict"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-sky-500/20 bg-surface-card">
+              <FileCheck className="h-5 w-5 text-sky-400" aria-hidden="true" />
+            </div>
+            <h3 className="mt-4 text-base font-bold text-text-primary">
+              Fact vs. AI Interpretation
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-text-secondary">
+              Every article on the{" "}
+              <Link href="/newsroom" className="underline decoration-dotted underline-offset-2 hover:text-sky-400">
+                AI Newsroom
+              </Link>{" "}
+              carries an Evidence section split into &ldquo;Fact&rdquo; — what happened, sources,
+              historical outcomes — and &ldquo;AI Interpretation&rdquo; — the model&apos;s own read,
+              clearly labelled as such. An AI Investment Verdict is shown alongside it: an
+              aggregate stance derived from real company and sector data, never a fabricated
+              buy or sell rating.
+            </p>
+          </article>
+        </div>
+      </section>
+
       {/* ── Pipeline Summary ── */}
       <section className="rounded-2xl border border-surface-border/8 bg-surface-card p-6 md:p-8">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
           Pipeline Summary
         </p>
         <h2 className="mt-3 text-lg font-black text-text-primary">
-          From Raw News to Structured Opportunity
+          How Does Raw News Become a Structured Opportunity?
         </h2>
         <div className="mt-6 flex flex-wrap items-center gap-2 text-sm">
           {[

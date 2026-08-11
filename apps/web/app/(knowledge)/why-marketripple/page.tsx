@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   Check,
@@ -17,10 +18,13 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
 export const metadata: Metadata = {
   title: "Why MarketRipple — Beyond Traditional Market Platforms",
   description:
     "Discover why MarketRipple is different from traditional market data platforms. We explain news, connect events, and surface opportunities — built specifically for Indian markets.",
+  alternates: { canonical: `${SITE_URL}/why-marketripple` },
   openGraph: {
     title: "Why MarketRipple — Beyond Traditional Market Platforms",
     description:
@@ -40,14 +44,38 @@ const TRADITIONAL = [
   "Generic global templates applied to India",
 ];
 
-const MARKETRIPPLE_FEATURES = [
-  "Explains news with AI impact analysis and sector tagging",
-  "Connects events — traces why prices moved and what's next",
-  "Visualises Ripple Effects across sectors and companies",
-  "Discovers relationships between events, sectors, and stocks",
-  "Surfaces investment opportunities via Opportunity Radar",
-  "Uses Explainable AI — reasoning shown for every output",
-  "Built ground-up for BSE, NSE, RBI, SEBI, and Indian macro",
+const LINK_CLASS = "underline decoration-dotted underline-offset-2 hover:text-violet-400";
+
+const MARKETRIPPLE_FEATURES: { key: string; content: ReactNode }[] = [
+  { key: "explain", content: "Explains news with AI impact analysis and sector tagging" },
+  {
+    key: "connect",
+    content: (
+      <>
+        Connects <Link href="/events" className={LINK_CLASS}>events</Link> — traces why prices moved and what&apos;s next
+      </>
+    ),
+  },
+  {
+    key: "ripple",
+    content: (
+      <>
+        Visualises <Link href="/ripple" className={LINK_CLASS}>Ripple Effects</Link> across sectors and companies
+      </>
+    ),
+  },
+  { key: "discover", content: "Discovers relationships between events, sectors, and stocks" },
+  {
+    key: "opportunity",
+    content: (
+      <>
+        Surfaces investment opportunities via{" "}
+        <Link href="/opportunity-radar" className={LINK_CLASS}>Opportunity Radar</Link>
+      </>
+    ),
+  },
+  { key: "explainable", content: "Uses Explainable AI — reasoning shown for every output" },
+  { key: "grounded", content: "Built ground-up for BSE, NSE, RBI, SEBI, and Indian macro" },
 ];
 
 const PHILOSOPHY = [
@@ -79,37 +107,43 @@ const INDIA_REASONS = [
     icon: Building2,
     label: "BSE & NSE Ecosystem",
     description:
-      "Deep knowledge of 5,000+ listed companies, sector-specific index behaviour, circuit breaker mechanics, F&O expiry dynamics, and NSE/BSE-specific market microstructure.",
+      "The Indian market has 5,000+ listed companies across BSE/NSE — MarketRipple actively tracks 512 of them in depth, with sector-specific index behaviour, circuit breaker mechanics, F&O expiry dynamics, and NSE/BSE-specific market microstructure.",
+    href: "/companies",
   },
   {
     icon: Landmark,
     label: "SEBI Regulations",
     description:
       "Real-time tracking of SEBI circulars, insider trading disclosures, promoter pledge data, mutual fund mandate changes, and regulatory actions that move specific stocks.",
+    href: undefined,
   },
   {
     icon: Globe,
     label: "RBI Monetary Policy",
     description:
       "Structured analysis of MPC decisions, repo rate impacts, CRR/SLR changes, liquidity operations, and their sector-specific effects on banking, NBFC, and rate-sensitive companies.",
+    href: undefined,
   },
   {
     icon: Users,
     label: "FII & DII Flows",
     description:
       "Daily institutional flow intelligence — connecting FII selling in financials to specific derivative positions, or DII buying in pharma to sector rotation signals with historical context.",
+    href: "/market-intelligence",
   },
   {
     icon: CalendarDays,
     label: "Budget & Policy Cycles",
     description:
       "India's unique annual Union Budget, interim budgets, state budgets, and quarterly policy reviews create predictable event cycles. MarketRipple tracks and analyses each with sector-specific impact mapping.",
+    href: "/calendar",
   },
   {
     icon: TrendingUp,
     label: "Sector-Specific Knowledge",
     description:
       "From PLI scheme beneficiaries to agrochemical monsoon sensitivity, from IT sector US-recession exposure to power sector renewable capacity additions — MarketRipple speaks Indian market.",
+    href: "/sectors",
   },
 ];
 
@@ -163,6 +197,21 @@ const PHILOSOPHY_ACCENT: Record<string, { bg: string; border: string; icon: stri
 export default function WhyMarketRipplePage() {
   return (
     <main className="min-w-0 space-y-16 pb-20">
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: static JSON-LD
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            name: "Why MarketRipple — Beyond Traditional Market Platforms",
+            url: `${SITE_URL}/why-marketripple`,
+            description:
+              "Discover why MarketRipple is different from traditional market data platforms. We explain news, connect events, and surface opportunities — built specifically for Indian markets.",
+            isPartOf: { "@type": "WebSite", name: "MarketRipple", url: SITE_URL },
+          }),
+        }}
+      />
       {/* ── Hero ── */}
       <section className="rounded-2xl border border-surface-border/8 bg-gradient-to-br from-violet-500/[0.06] to-surface-bg p-8 md:p-12">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-400">
@@ -190,7 +239,7 @@ export default function WhyMarketRipplePage() {
           The Difference
         </p>
         <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
-          Traditional Platforms vs MarketRipple
+          How Is MarketRipple Different From Traditional Platforms?
         </h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {/* Traditional */}
@@ -224,12 +273,12 @@ export default function WhyMarketRipplePage() {
             </div>
             <ul className="divide-y divide-surface-border/4 px-6" aria-label="MarketRipple features">
               {MARKETRIPPLE_FEATURES.map((item) => (
-                <li key={item} className="flex items-start gap-3 py-4">
+                <li key={item.key} className="flex items-start gap-3 py-4">
                   <Check
                     className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"
                     aria-hidden="true"
                   />
-                  <span className="text-sm leading-5 text-text-secondary">{item}</span>
+                  <span className="text-sm leading-5 text-text-secondary">{item.content}</span>
                 </li>
               ))}
             </ul>
@@ -269,7 +318,7 @@ export default function WhyMarketRipplePage() {
           Real Example
         </p>
         <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
-          See the Difference in Action
+          What Does the Difference Look Like in Practice?
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           The same event. Two completely different levels of understanding.
@@ -399,7 +448,7 @@ export default function WhyMarketRipplePage() {
           Built for India
         </p>
         <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
-          Why MarketRipple Is Designed for Indian Markets
+          Why Is MarketRipple Designed for Indian Markets?
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
           Indian equity markets have unique dynamics that generic global platforms
@@ -416,7 +465,13 @@ export default function WhyMarketRipplePage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-surface-border/8 bg-text-primary/[0.03]">
                 <r.icon className="h-4 w-4 text-sky-400" aria-hidden="true" />
               </div>
-              <h3 className="mt-3 text-sm font-bold text-text-primary">{r.label}</h3>
+              <h3 className="mt-3 text-sm font-bold text-text-primary">
+                {r.href ? (
+                  <Link href={r.href} className={LINK_CLASS}>{r.label}</Link>
+                ) : (
+                  r.label
+                )}
+              </h3>
               <p className="mt-1.5 text-sm leading-5 text-text-muted">{r.description}</p>
             </article>
           ))}

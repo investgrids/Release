@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { GLOSSARY, GLOSSARY_CATEGORIES } from "@/lib/glossary-data";
+import { safeJsonLd } from "@/lib/text";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 export const metadata: Metadata = {
   title: "Market Glossary — Indian Stock Market Terms Explained",
   description:
     "Plain-language definitions of Indian stock market terminology — Nifty 50, Sensex, FII/DII, repo rate, P/E ratio, and more — plus MarketRipple's own scoring concepts.",
+  alternates: { canonical: `${SITE_URL}/learn/glossary` },
   openGraph: {
     title: "Market Glossary — Indian Stock Market Terms Explained",
     description: "Plain-language definitions of Indian stock market terminology and MarketRipple's scoring concepts.",
@@ -13,15 +17,36 @@ export const metadata: Metadata = {
   },
 };
 
+// Built directly from GLOSSARY — the same real, written definitions
+// rendered on the page — so this can never drift into fabricated terms.
+const GLOSSARY_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "DefinedTermSet",
+  name: "MarketRipple Market Glossary",
+  description:
+    "Plain-language definitions of Indian stock market terminology and MarketRipple's own scoring concepts.",
+  url: `${SITE_URL}/learn/glossary`,
+  hasDefinedTerm: GLOSSARY.map((t) => ({
+    "@type": "DefinedTerm",
+    name: t.term,
+    description: t.shortDef,
+    url: `${SITE_URL}/learn/glossary/${t.slug}`,
+  })),
+};
+
 export default function GlossaryIndexPage() {
   return (
     <div className="space-y-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(GLOSSARY_JSONLD) }} />
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Knowledge Library</p>
         <h1 className="mt-3 text-[26px] font-black leading-tight text-text-primary md:text-[32px]">Market Glossary</h1>
         <p className="mt-3 max-w-2xl text-[14px] leading-6 text-text-secondary">
-          {GLOSSARY.length} terms — from index basics to MarketRipple's own scoring language. Each entry
-          is a real, written definition, not a one-line dictionary snippet.
+          {GLOSSARY.length} terms — from index basics to{" "}
+          <Link href="/ai-methodology" className="text-violet-400 underline-offset-2 hover:underline">
+            MarketRipple's own scoring language
+          </Link>
+          . Each entry is a real, written definition, not a one-line dictionary snippet.
         </p>
       </div>
 

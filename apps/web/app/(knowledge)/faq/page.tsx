@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import {
   ChevronDown,
   HelpCircle,
@@ -10,6 +11,36 @@ import {
   Lock,
 } from "lucide-react";
 import { safeJsonLd } from "@/lib/text";
+
+// Answers are plain strings so FAQ_JSONLD (below) stays a faithful,
+// unmodified copy of what's visible — the JSON-LD and the accordion
+// must never drift. Known in-text mentions of other MarketRipple pages
+// are turned into real <Link>s at render time only, via linkifyAnswer();
+// the underlying text driving both the UI and the JSON-LD is untouched.
+const PAGE_LINKS: Record<string, string> = {
+  "What's New page": "/whats-new",
+  "AI & Methodology page": "/ai-methodology",
+  "Legal page": "/legal",
+  "Contact page": "/contact",
+};
+
+function linkifyAnswer(text: string): ReactNode[] {
+  const keys = Object.keys(PAGE_LINKS);
+  const pattern = new RegExp(`(${keys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "g");
+  return text.split(pattern).map((part, i) =>
+    PAGE_LINKS[part] ? (
+      <Link
+        key={i}
+        href={PAGE_LINKS[part]}
+        className="font-medium text-sky-400 underline-offset-2 hover:underline"
+      >
+        {part}
+      </Link>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
 
 // Metadata cannot be exported from a client component in Next.js 15.
 // Declare it in a separate file or move to a parent layout if needed.
@@ -35,7 +66,7 @@ const SECTIONS = [
       },
       {
         q: "Is MarketRipple free to use?",
-        a: "Yes — the current version of MarketRipple is completely free to use. All core features including the Events Engine, AI Search, Market Intelligence dashboard, Opportunity Radar, Stories, Sector Heatmap, Economic Calendar, Ripple Engine, and Company Intelligence pages are available at no cost. Premium plans are planned for a future release and will include advanced portfolio analysis, custom alert builders, deeper AI research reports, and API access for professional users. The What's New page has the latest roadmap information.",
+        a: "Yes — the current version of MarketRipple is completely free to use. All core features including the Events Engine, AI Search, Market Intelligence dashboard, Opportunity Radar, Stories, Sector Heatmap, Economic Calendar, Ripple Engine, Company Intelligence pages, and the Portfolio Intelligence Brief are available at no cost. Premium plans are planned for a future release and will include custom alert builders, deeper AI research reports, and API access for professional users. The What's New page has the latest roadmap information.",
       },
       {
         q: "Does MarketRipple require login or account creation?",
@@ -135,6 +166,10 @@ const SECTIONS = [
         q: "Can I track specific companies?",
         a: "Yes. Each listed company on MarketRipple has its own Company Intelligence page, accessible by searching the company name or symbol. A company page shows: all events that directly or indirectly affect the company, with impact direction (positive/negative/neutral); AI analysis of the company's exposure to each major market theme; sector context showing how peers are being affected; opportunity radar entries featuring the company; and related stories in which the company plays a beneficiary or risk role. Company pages are updated continuously as new events are classified that involve that ticker.",
       },
+      {
+        q: "What is the Portfolio Intelligence Brief?",
+        a: "The Portfolio Intelligence Brief is a free tool that turns your holdings into a daily intelligence briefing. Paste in your holdings — no login, no broker connection, and nothing is stored — and MarketRipple generates a brief covering the real events and news touching each position, market-impact price signals, and themes shared across your holdings. It also gives you an honest view of where MarketRipple's own coverage is thin for a given holding, rather than presenting confident analysis where the underlying data is weak. It replaced the earlier Portfolio Confidence tool with a fuller intelligence view, not just a coverage-gap check.",
+      },
     ],
   },
   {
@@ -158,12 +193,13 @@ const SECTIONS = [
         a: "MarketRipple's web platform is already fully mobile-optimised and responsive, providing a near-native experience on iOS and Android browsers. All features — including the interactive Ripple graph, Opportunity Radar, AI Search, and Stories — work on mobile devices. Dedicated native apps for iOS and Android are on the development roadmap. When available, native apps will offer push notifications for breaking news alerts, offline access to saved intelligence, and biometric authentication. Check the What's New page for the latest status on mobile app development.",
       },
       {
+        id: "bug",
         q: "How do I report a bug or request a feature?",
         a: "Use the Contact page to get in touch. For bugs, select 'Bug Reports' and describe what you were doing, what you expected to happen, and what actually happened — screenshots are very helpful. For feature requests, write to support@marketripple.in with 'Feature Request' in the subject line and describe the problem you want solved and how you imagine a solution might work. All bug reports and feature requests are reviewed by the team. Critical bugs affecting core functionality are addressed within 24 hours on business days.",
       },
       {
         q: "What are the upcoming premium features?",
-        a: "The MarketRipple premium tier (planned, not yet live) will include: Advanced Portfolio Analysis — connect your holdings to see personalised event impact assessments across your specific portfolio; Custom Alert Builder — define precise conditions (sector + impact score + confidence threshold) to trigger personalised alerts; Deeper AI Reports — downloadable PDF research reports with extended analysis, sector comparisons, and multi-scenario projections; API Access — programmatic access to MarketRipple's event classification, company data, and opportunity scores for professional and institutional users; and Priority Data Refresh — near-zero latency data for high-frequency research workflows.",
+        a: "The MarketRipple premium tier (planned, not yet live) will include: Custom Alert Builder — define precise conditions (sector + impact score + confidence threshold) to trigger personalised alerts; Deeper AI Reports — downloadable PDF research reports with extended analysis, sector comparisons, and multi-scenario projections; API Access — programmatic access to MarketRipple's event classification, company data, and opportunity scores for professional and institutional users; and Priority Data Refresh — near-zero latency data for high-frequency research workflows. Portfolio-level intelligence is already live and free today via the Portfolio Intelligence Brief.",
       },
     ],
   },
@@ -226,7 +262,7 @@ function AccordionItem({
           isOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
         }`}
       >
-        <p className="px-5 pb-5 text-[13px] leading-6 text-text-secondary">{a}</p>
+        <p className="px-5 pb-5 text-[13px] leading-6 text-text-secondary">{linkifyAnswer(a)}</p>
       </div>
     </div>
   );
@@ -234,6 +270,20 @@ function AccordionItem({
 
 export default function FAQPage() {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
+
+  // Deep-links like /faq#bug should land with the matching question already
+  // expanded, not just scrolled to a collapsed row.
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    for (let si = 0; si < SECTIONS.length; si++) {
+      const qi = SECTIONS[si].questions.findIndex((q) => (q as { id?: string }).id === hash);
+      if (qi !== -1) {
+        setOpenItems((prev) => ({ ...prev, [`${si}-${qi}`]: true }));
+        return;
+      }
+    }
+  }, []);
 
   function toggle(key: string) {
     setOpenItems((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -304,14 +354,20 @@ export default function FAQPage() {
               <div className="space-y-2">
                 {section.questions.map((item, qi) => {
                   const key = `${si}-${qi}`;
+                  // Some questions carry their own anchor id (e.g. "bug" for
+                  // the bug-report question) so external links — like the
+                  // "Bug Reports" category on /contact — can deep-link to
+                  // the exact question instead of just the parent section.
+                  const anchorId = (item as { id?: string }).id;
                   return (
-                    <AccordionItem
-                      key={key}
-                      q={item.q}
-                      a={item.a}
-                      isOpen={!!openItems[key]}
-                      onToggle={() => toggle(key)}
-                    />
+                    <div key={key} id={anchorId} className={anchorId ? "scroll-mt-24" : undefined}>
+                      <AccordionItem
+                        q={item.q}
+                        a={item.a}
+                        isOpen={!!openItems[key]}
+                        onToggle={() => toggle(key)}
+                      />
+                    </div>
                   );
                 })}
               </div>

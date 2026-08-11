@@ -8,17 +8,35 @@ import {
   Cookie,
   ChevronRight,
 } from "lucide-react";
+import { safeJsonLd } from "@/lib/text";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 export const metadata: Metadata = {
   title: "Legal — Privacy Policy, Terms of Service & Disclaimer",
   description:
     "Read MarketRipple's Privacy Policy, Terms of Service, AI Disclaimer, Risk Disclosure, and Cookie Information. Platform governed under Indian law.",
+  alternates: { canonical: `${SITE_URL}/legal` },
   openGraph: {
     title: "Legal — Privacy Policy, Terms of Service & Disclaimer | MarketRipple",
     description:
       "Privacy Policy, Terms of Service, AI Disclaimer, Risk Disclosure, and Cookie Information for MarketRipple — AI-powered Indian market intelligence.",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
+};
+
+// A plain WebPage node — not TermsOfService/PrivacyPolicy, which schema.org
+// does not define as distinct types. This just identifies the page itself
+// for crawlers; the substantive legal content stays as regular HTML.
+const LEGAL_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  name: "Legal — Privacy Policy, Terms of Service & Disclaimer",
+  description:
+    "MarketRipple's Privacy Policy, Terms of Service, AI Disclaimer, Risk Disclosure, and Cookie Information.",
+  url: `${SITE_URL}/legal`,
+  isPartOf: { "@type": "WebSite", name: "MarketRipple", url: SITE_URL },
+  dateModified: "2026-08-11",
 };
 
 // ── Section navigation ─────────────────────────────────────────────────────────
@@ -100,6 +118,7 @@ function DisclaimerCallout({ children }: { children: React.ReactNode }) {
 export default function LegalPage() {
   return (
     <main className="min-w-0 pb-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(LEGAL_JSONLD) }} />
       {/* Page header */}
       <div className="mb-8">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
@@ -111,7 +130,7 @@ export default function LegalPage() {
         <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-secondary">
           MarketRipple is operated and governed under Indian law. Please read these
           documents carefully before using the platform. Last updated:{" "}
-          <span className="font-medium text-text-secondary">July 2025</span>.
+          <span className="font-medium text-text-secondary">August 2026</span>.
         </p>
 
         {/* Section nav */}
@@ -175,6 +194,18 @@ export default function LegalPage() {
                 "To analyse aggregate demand for different platform sections and AI features.",
               ]}
             />
+          </Sub>
+
+          <Sub title="Tools That Process What You Paste">
+            <p className="mt-2 text-[13px] leading-6 text-text-secondary">
+              Some tools — like the Portfolio Intelligence Brief — ask you to paste or
+              type information directly into the page, such as a list of stock
+              holdings. This applies generally: any such tool works entirely
+              within your browser session, requires no login, makes no broker
+              connection, and does not persist what you enter on our servers.
+              The information is used only to generate your results for that
+              session and is gone once you close or refresh the page.
+            </p>
           </Sub>
 
           <Sub title="Third-Party Services">
@@ -581,7 +612,7 @@ export default function LegalPage() {
       <div className="mt-10 rounded-xl border border-surface-border/8 bg-text-primary/[0.02] p-5">
         <p className="text-[12px] leading-6 text-text-muted">
           These legal documents were last updated in{" "}
-          <span className="text-text-secondary">July 2025</span>. For questions
+          <span className="text-text-secondary">August 2026</span>. For questions
           regarding any of the above, write to{" "}
           <a
             href="mailto:support@marketripple.in"

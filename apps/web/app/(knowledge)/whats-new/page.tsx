@@ -8,11 +8,15 @@ import {
   CheckCircle2,
   CircleDot,
 } from "lucide-react";
+import { safeJsonLd } from "@/lib/text";
 
 export const metadata: Metadata = {
   title: "What's New — MarketRipple Release Notes & Changelog",
   description:
     "Explore the latest features, improvements, and fixes shipped in every version of MarketRipple — the AI-powered Indian stock market intelligence platform.",
+  alternates: {
+    canonical: "https://www.marketripple.in/whats-new",
+  },
   openGraph: {
     title: "What's New — MarketRipple Release Notes & Changelog",
     description:
@@ -41,6 +45,27 @@ interface Release {
 // ── Data ───────────────────────────────────────────────────────────────────────
 
 const RELEASES: Release[] = [
+  {
+    version: "1.5",
+    date: "August 2026",
+    codename: "Portfolio Intelligence & Newsroom",
+    headline:
+      "A major upgrade to how MarketRipple explains impact — a relaunched portfolio briefing tool, fact-grounded AI articles, and a redesigned AI Newsroom reading experience.",
+    changes: [
+      {
+        type: "Feature",
+        text: "Portfolio Intelligence Brief — relaunched from Portfolio Confidence into a fuller portfolio view. Paste your holdings (no login, no broker connection, nothing stored) and get a daily brief covering the real events and news touching each position, market-impact price signals, and themes shared across your holdings — plus an honest read on where MarketRipple's own coverage is thin for any given holding.",
+      },
+      {
+        type: "Feature",
+        text: "Redesigned AI Newsroom article experience — a new AI Investment Verdict surfaces the takeaway up front, the Evidence section is now clearly split into Fact vs AI Interpretation, and related companies, sectors, and events are linked more usefully throughout each article.",
+      },
+      {
+        type: "Improvement",
+        text: "Fact-grounding validators added to the AI article pipeline (shadow mode) — real per-company price-move data now grounds AI-generated company impact analysis, with automated checks catching inconsistencies before publish.",
+      },
+    ],
+  },
   {
     version: "1.4",
     date: "June 2025",
@@ -210,10 +235,6 @@ const COMING_SOON = [
     desc: "Daily foreign and domestic institutional investor flow data with trend analysis and market impact correlation.",
   },
   {
-    title: "Portfolio Tracker Integration",
-    desc: "Connect your holdings to see personalised event impact assessments and opportunity scores specific to your portfolio.",
-  },
-  {
     title: "Custom Alert Builder",
     desc: "Define precise alert conditions — sector, impact score threshold, company, confidence level — for tailored notifications.",
   },
@@ -230,6 +251,20 @@ const COMING_SOON = [
     desc: "Native mobile experience with push notifications for breaking alerts, offline access, and biometric authentication.",
   },
 ];
+
+const RELEASES_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: "MarketRipple Release Notes",
+  description: "Every MarketRipple release, newest first, with the features, improvements, and fixes shipped in each version.",
+  itemListOrder: "https://schema.org/ItemListOrderDescending",
+  itemListElement: RELEASES.map((release, idx) => ({
+    "@type": "ListItem",
+    position: idx + 1,
+    name: `Version ${release.version} — ${release.codename}`,
+    description: release.headline,
+  })),
+};
 
 // ── Badge ──────────────────────────────────────────────────────────────────────
 
@@ -264,6 +299,7 @@ function ChangeBadge({ type }: { type: ChangeType }) {
 export default function WhatsNewPage() {
   return (
     <main className="min-w-0 pb-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(RELEASES_JSONLD) }} />
       {/* Hero */}
       <div className="mb-10">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
@@ -281,10 +317,10 @@ export default function WhatsNewPage() {
         {/* Stats row */}
         <div className="mt-6 flex flex-wrap gap-3">
           {[
-            { label: "Versions Shipped", value: "5" },
-            { label: "Features Launched", value: "24+" },
-            { label: "Fixes & Improvements", value: "16+" },
-            { label: "Latest Version", value: "1.4" },
+            { label: "Versions Shipped", value: "6" },
+            { label: "Features Launched", value: "26+" },
+            { label: "Fixes & Improvements", value: "17+" },
+            { label: "Latest Version", value: "1.5" },
           ].map((s) => (
             <div
               key={s.label}

@@ -4,6 +4,9 @@ export const metadata: Metadata = {
   title: "FAQ — Frequently Asked Questions",
   description:
     "Answers to the most common questions about MarketRipple — how the AI works, where data comes from, what the platform covers, and what's coming next.",
+  alternates: {
+    canonical: "https://www.marketripple.in/faq",
+  },
   openGraph: {
     title: "FAQ — Frequently Asked Questions | MarketRipple",
     description:

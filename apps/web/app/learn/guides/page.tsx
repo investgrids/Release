@@ -3,10 +3,13 @@ import Link from "next/link";
 import { Clock, ChevronRight } from "lucide-react";
 import { GUIDES, GUIDE_CATEGORIES } from "@/lib/guides-data";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
 export const metadata: Metadata = {
   title: "Product Guides — How to Use MarketRipple",
   description:
     "Step-by-step guides to MarketRipple's real features — the Market Intelligence dashboard, AI Search, Opportunity Radar, Ripple Maps, and Impact/Confidence scores.",
+  alternates: { canonical: `${SITE_URL}/learn/guides` },
   openGraph: {
     title: "Product Guides — How to Use MarketRipple",
     description: "Step-by-step guides to MarketRipple's real features.",
@@ -21,7 +24,12 @@ export default function GuidesIndexPage() {
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Knowledge Library</p>
         <h1 className="mt-3 text-[26px] font-black leading-tight text-text-primary md:text-[32px]">Product Guides</h1>
         <p className="mt-3 max-w-2xl text-[14px] leading-6 text-text-secondary">
-          How to actually use MarketRipple's real, shipped features — not marketing copy, step-by-step walkthroughs.
+          How to actually use MarketRipple's real, shipped features — not marketing copy, step-by-step
+          walkthroughs. For the reasoning behind the features themselves, see{" "}
+          <Link href="/how-it-works" className="text-violet-400 underline-offset-2 hover:underline">
+            how MarketRipple's pipeline works
+          </Link>{" "}
+          end to end.
         </p>
       </div>
 

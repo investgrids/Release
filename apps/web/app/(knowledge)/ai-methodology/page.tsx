@@ -23,18 +23,38 @@ import {
   Database,
   Zap,
   Sigma,
+  ShieldCheck,
+  Copy,
+  Scale,
+  History,
+  Activity,
 } from "lucide-react";
+import { safeJsonLd } from "@/lib/text";
 
 export const metadata: Metadata = {
   title: "AI & Methodology — How MarketRipple's Intelligence Works",
   description:
     "Deep dive into how MarketRipple's AI search, Ripple Engine, Opportunity Radar, and Stories generation systems work — with full transparency on algorithms and limitations.",
+  alternates: {
+    canonical: "https://www.marketripple.in/ai-methodology",
+  },
   openGraph: {
     title: "AI & Methodology — How MarketRipple's Intelligence Works",
     description:
       "Transparent AI: understand the NLP, graph algorithms, Bayesian inference, and scoring models that power MarketRipple's market intelligence.",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
+};
+
+const ARTICLE_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  headline: "AI & Methodology — How MarketRipple's Intelligence Works",
+  description:
+    "Deep dive into how MarketRipple's AI search, Ripple Engine, Opportunity Radar, and Stories generation systems work — with full transparency on algorithms and limitations.",
+  url: "https://www.marketripple.in/ai-methodology",
+  author: { "@type": "Organization", name: "MarketRipple", url: "https://www.marketripple.in" },
+  publisher: { "@type": "Organization", name: "MarketRipple", url: "https://www.marketripple.in" },
 };
 
 // ── Section wrapper ─────────────────────────────────────────────────────────
@@ -103,7 +123,7 @@ function StepCard({
   number: string;
   icon: ReactNode;
   title: string;
-  description: string;
+  description: ReactNode;
   color: string;
 }) {
   return (
@@ -139,8 +159,17 @@ const aiSearchSteps = [
     step: "2",
     icon: <Database className="h-4 w-4" />,
     title: "Semantic Search",
-    detail:
-      "Query is embedded into vector space and matched against MarketRipple's knowledge graph containing 50,000+ event-company-sector relationships. Semantic similarity retrieves top-K relevant context passages.",
+    detail: (
+      <>
+        Query is embedded into vector space and matched against MarketRipple&apos;s{" "}
+        <Link href="/data-sources" className="underline decoration-dotted underline-offset-2 hover:text-text-primary">
+          knowledge graph
+        </Link>{" "}
+        — a continuously growing network of real event-company-sector relationships built from
+        its 512-company coverage universe. Semantic similarity retrieves top-K relevant context
+        passages.
+      </>
+    ),
     color: "text-sky-400 bg-sky-500/10 border-sky-500/25",
   },
   {
@@ -169,50 +198,68 @@ const aiSearchSteps = [
   },
 ];
 
-// ── Opportunity Score Weights ─────────────────────────────────────────────────
+// ── Opportunity Score Factors ─────────────────────────────────────────────────
+// Deliberately qualitative, not a fixed public percentage formula: MarketRipple's
+// centralized scoring engine computes Opportunity scores from real, verifiable
+// signals with weights that are versioned and retuned over time, not a single
+// number that would go stale the moment the model updates. barPct only drives
+// the visual bar below — it's illustrative ordering, not an asserted weight.
 const scoreWeights = [
   {
-    factor: "Event Impact Score",
-    weight: 30,
+    factor: "Event Impact",
+    emphasis: "Primary factor",
+    barPct: 95,
     icon: <Zap className="h-4 w-4" />,
     description:
-      "Magnitude (scale of financial impact) × Breadth (number of sectors and companies affected) × Duration (transient vs. structural change). Scored 0–10, then normalised to 0–30 contribution.",
+      "Magnitude (scale of financial impact), breadth (sectors and companies affected), and duration (transient vs. structural change) — typically the single biggest driver of an opportunity's score.",
     color: "bg-violet-500",
     textColor: "text-violet-400",
   },
   {
-    factor: "AI Confidence Score",
-    weight: 25,
+    factor: "AI Confidence",
+    emphasis: "Strong factor",
+    barPct: 80,
     icon: <Brain className="h-4 w-4" />,
     description:
-      "Aggregate confidence across the full ripple chain. Higher confidence = more actionable signal. Computed as geometric mean of confidence at each causal step, weighted by depth.",
+      "Aggregate confidence across the full ripple chain — how many independent sources confirm the read, how well it matches historical precedent, and whether other sectors or companies are already confirming the same direction.",
     color: "bg-sky-500",
     textColor: "text-sky-400",
   },
   {
     factor: "Sector Momentum",
-    weight: 20,
+    emphasis: "Moderate factor",
+    barPct: 60,
     icon: <TrendingUp className="h-4 w-4" />,
     description:
-      "Current price momentum, earnings revision trend, and FII/DII flow direction for the affected sector. Trailing 30-day momentum with mean-reversion adjustment for over-extended moves.",
+      "Current price momentum, earnings revision trend, and institutional (FII/DII) flow direction for the affected sector.",
     color: "bg-emerald-500",
     textColor: "text-emerald-400",
   },
   {
     factor: "Historical Precedent",
-    weight: 15,
+    emphasis: "Moderate factor",
+    barPct: 55,
     icon: <BarChart2 className="h-4 w-4" />,
-    description:
-      "Outcome of similar past events — how the sector and specific companies actually performed. Backtested on 14 years of Indian market data (2010–2024). Adjusted for regime changes.",
+    description: (
+      <>
+        Outcome of similar past events — how the sector and specific companies actually
+        performed, drawn from MarketRipple&apos;s library of{" "}
+        <Link href="/historical" className="underline decoration-dotted underline-offset-2 hover:text-text-primary">
+          24 verified historical events (2008–2024)
+        </Link>
+        . Adjusted for regime changes.
+      </>
+    ),
     color: "bg-amber-500",
     textColor: "text-amber-400",
   },
   {
     factor: "Time Sensitivity",
-    weight: 10,
+    emphasis: "Fine-tuning factor",
+    barPct: 35,
     icon: <Clock className="h-4 w-4" />,
     description:
-      "Urgency of the opportunity (event recency, information decay rate) and reversibility (is this a one-time event or a structural change?). Higher score for time-sensitive, irreversible shifts.",
+      "Urgency of the opportunity (event recency, information decay rate) and reversibility (is this a one-time event or a structural change?). Time-sensitive, irreversible shifts score higher.",
     color: "bg-rose-500",
     textColor: "text-rose-400",
   },
@@ -232,8 +279,17 @@ const rippleSteps = [
     number: "02",
     icon: <Layers className="h-5 w-5" />,
     title: "Relationship Detection",
-    description:
-      "Trained on 14 years of Indian market data (NSE/BSE price movements, earnings, macro releases). The model identifies which event-outcome pairs have statistically significant and economically meaningful relationships, filtering spurious correlations.",
+    description: (
+      <>
+        Trained on MarketRipple&apos;s library of{" "}
+        <Link href="/historical" className="underline decoration-dotted underline-offset-2 hover:text-text-primary">
+          24 verified historical market events spanning 2008–2024
+        </Link>{" "}
+        (NSE/BSE price movements, earnings, macro releases), continuously expanded as new
+        events are added. The model identifies which event-outcome pairs have economically
+        meaningful relationships, filtering spurious correlations.
+      </>
+    ),
     color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
   },
   {
@@ -296,8 +352,36 @@ const storiesSteps = [
     icon: <CheckCircle2 className="h-5 w-5" />,
     title: "Quality Control",
     description:
-      "Automated fact-checking cross-references all named companies against their actual sector classifications, verifies that stated financial metrics are within plausible ranges, and flags internal contradictions before publishing.",
+      "Automated checks cross-reference named companies against their actual sector classifications and flag internal contradictions before publishing — plus a dedicated fact-grounding pass, described in full below, that checks company-impact claims against each company's real price move for the day.",
     color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+  },
+];
+
+// ── Fact-Grounding Validators ─────────────────────────────────────────────────
+// Shipped 2026-08-10, currently shadow/log-only (fact_grounding_enforce=False
+// in the backend config) while real-world violation rates are observed before
+// this becomes a hard publish gate.
+const factGroundingChecks = [
+  {
+    icon: <Copy className="h-5 w-5" />,
+    title: "Shared-Reason Detection",
+    description:
+      "Flags the same boilerplate causal reason reused near word-for-word (≥90% text match) across two different companies in the same article — reads like individual analysis, isn't.",
+    color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+  },
+  {
+    icon: <Scale className="h-5 w-5" />,
+    title: "Sentiment/Magnitude Consistency",
+    description:
+      "Checks each company's stated impact tag (positive/negative/neutral) against its real fetched price move. A ±2% or larger move tagged \"neutral,\" or a move in the opposite direction of the stated tag, is flagged.",
+    color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+  },
+  {
+    icon: <History className="h-5 w-5" />,
+    title: "Status-Tense Consistency",
+    description:
+      "Compares the article's own language against the source event's language to catch a draft/proposed regulation described as finalized, or an already-decided policy described as still pending.",
+    color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
   },
 ];
 
@@ -360,7 +444,13 @@ const exampleQuerySteps = [
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function AIMethodologyPage() {
   return (
-    <main className="min-w-0 space-y-16 pb-16" aria-label="AI Methodology">
+    <>
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: safeJsonLd escapes "<"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(ARTICLE_JSONLD) }}
+      />
+      <main className="min-w-0 space-y-16 pb-16" aria-label="AI Methodology">
 
       {/* ── HERO ──────────────────────────────────────────────────────── */}
       <section aria-labelledby="hero-heading">
@@ -381,9 +471,9 @@ export default function AIMethodologyPage() {
             confidence level — explained in plain language.
           </p>
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatTile label="Knowledge Graph Nodes" value="50K+" sub="Events, companies, sectors" color="text-violet-400" />
-            <StatTile label="Historical Data" value="14 yrs" sub="2010–2024 Indian markets" color="text-sky-400" />
-            <StatTile label="Relationship Types" value="6" sub="Causal edge categories" color="text-emerald-400" />
+            <StatTile label="Companies Tracked" value="512" sub="Curated NSE-listed universe" color="text-violet-400" />
+            <StatTile label="Historical Events" value="24" sub="Verified events, 2008–2024" color="text-sky-400" />
+            <StatTile label="Relationship Types" value="7" sub="Causal edge categories" color="text-emerald-400" />
             <StatTile label="Cascade Depth" value="4 levels" sub="Upstream to downstream" color="text-amber-400" />
           </div>
         </div>
@@ -394,7 +484,7 @@ export default function AIMethodologyPage() {
         id="ai-search-heading"
         badge="Feature Deep-Dive"
         badgeColor="text-violet-400"
-        title="AI Search: How It Works"
+        title="How does MarketRipple's AI search work?"
         subtitle="MarketRipple's AI search goes far beyond keyword matching. It understands the financial intent behind your question and reasons through the answer step by step."
       >
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -477,8 +567,8 @@ export default function AIMethodologyPage() {
         id="radar-heading"
         badge="Scoring Model"
         badgeColor="text-emerald-400"
-        title="Opportunity Radar: Score Methodology"
-        subtitle="Every opportunity on the Radar is assigned a composite score (0–100) built from five independently weighted factors. Here is exactly how the maths works."
+        title="How is an Opportunity Radar score calculated?"
+        subtitle="Every opportunity on the Radar gets a composite score (0–100), computed by MarketRipple's centralized scoring engine from real, verifiable signals — never a fabricated number. Here's what actually moves the score, roughly ordered by typical influence."
       >
         <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5 md:p-7">
           <div className="mb-6 flex items-center gap-3">
@@ -488,7 +578,7 @@ export default function AIMethodologyPage() {
             <div>
               <p className="text-[12px] font-bold text-text-primary">Opportunity Score Formula</p>
               <p className="text-[11px] text-text-muted font-mono mt-0.5">
-                Score = Σ (factor_score × weight) — normalised to 0–100
+                Score = weighted composite of real signals — normalised to 0–100
               </p>
             </div>
           </div>
@@ -506,26 +596,27 @@ export default function AIMethodologyPage() {
                     </div>
                     <div>
                       <p className="text-[13px] font-bold text-text-primary">{item.factor}</p>
-                      <p className={`text-[10px] font-bold ${item.textColor}`}>
-                        Weight: {item.weight}%
-                      </p>
                     </div>
                   </div>
-                  <span className={`shrink-0 text-2xl font-black ${item.textColor}`}>
-                    {item.weight}%
+                  <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${item.textColor} border-current/30`}>
+                    {item.emphasis}
                   </span>
                 </div>
                 <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-text-primary/[0.05]">
                   <div
                     className={`h-full rounded-full ${item.color}`}
-                    style={{ width: `${item.weight * 3.33}%` }}
-                    aria-label={`${item.weight}% weight`}
+                    style={{ width: `${item.barPct}%` }}
+                    aria-hidden="true"
                   />
                 </div>
                 <p className="text-[12px] leading-5 text-text-secondary">{item.description}</p>
               </div>
             ))}
           </div>
+          <p className="mt-2 text-[11px] italic text-text-muted">
+            Exact weights are versioned and retuned as the underlying formula improves — see the
+            factors above for what consistently matters, not a fixed public percentage split.
+          </p>
         </div>
       </Section>
 
@@ -561,55 +652,148 @@ export default function AIMethodologyPage() {
         </div>
       </Section>
 
+      {/* ── FACT GROUNDING ────────────────────────────────────────────── */}
+      <Section
+        id="fact-grounding-heading"
+        badge="Validation Layer"
+        badgeColor="text-rose-400"
+        title="How does MarketRipple keep AI-written analysis honest?"
+        subtitle="Before generating a company-impact analysis, the AI pipeline fetches each affected company's real percentage price move for the day and feeds it directly into the generation prompt, so the model writes from what actually happened instead of inventing a direction or magnitude. After generation, three deterministic checks — no LLM involved — run against the output before it can publish."
+      >
+        <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5 md:p-6">
+          <div className="flex items-start gap-3">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+              aria-hidden="true"
+            >
+              <Activity className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-[14px] font-bold text-text-primary">Real Price Grounding</h3>
+              <p className="mt-1 text-[12px] leading-5 text-text-secondary">
+                Real per-company price moves are fetched from the same live quote service used
+                across{" "}
+                <Link href="/data-sources" className="underline decoration-dotted underline-offset-2 hover:text-text-primary">
+                  MarketRipple&apos;s data sources
+                </Link>
+                , then appended into the article generator&apos;s existing market-context prompt
+                slot — no schema change, no new AI call, just real numbers the model is told not
+                to contradict.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {factGroundingChecks.map((check) => (
+            <div
+              key={check.title}
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5"
+            >
+              <div
+                className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl border ${check.color}`}
+                aria-hidden="true"
+              >
+                {check.icon}
+              </div>
+              <h3 className="text-[14px] font-bold text-text-primary">{check.title}</h3>
+              <p className="mt-2 text-[12px] leading-5 text-text-secondary">
+                {check.description}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-4">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+          <p className="text-[12px] leading-5 text-text-secondary">
+            <span className="font-semibold text-amber-600 dark:text-amber-300">Currently in shadow mode:</span>{" "}
+            violations are logged for review, not yet blocking publication, while MarketRipple
+            observes real-world violation rates before turning this into a hard publish gate.
+          </p>
+        </div>
+      </Section>
+
       {/* ── CONFIDENCE SCORE CALCULATION ──────────────────────────────── */}
       <Section
         id="confidence-heading"
         badge="Scoring Detail"
         badgeColor="text-indigo-400"
-        title="Confidence Score: The Full Calculation"
-        subtitle="Confidence is not a gut feeling — it is a computed estimate that accounts for evidence quality, recency, corroboration, and domain-specific model accuracy."
+        title="How is MarketRipple's confidence score calculated?"
+        subtitle="Confidence is not a gut feeling — it's a computed, point-based score from MarketRipple's dedicated confidence-scoring service, built entirely from real evidence signals rather than an AI self-rating."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           {[
             {
               icon: <CheckCircle2 className="h-5 w-5" />,
-              factor: "Source Credibility",
-              weight: "30%",
+              factor: "Source Count",
+              points: "0–15 pts",
               detail:
-                "Official regulatory sources (RBI, SEBI, NSE, BSE, Ministry filings) receive maximum credibility weight. Verified financial journalism is weighted at 70–80%. Social media and unverified sources receive minimal weight and are flagged as low-credibility inputs.",
+                "Distinct trusted news, filings, and event sources behind the claim. More independent sources confirming the same fact raises confidence; a single unconfirmed source caps it low.",
               color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
             },
             {
-              icon: <Clock className="h-5 w-5" />,
-              factor: "Recency Weighting",
-              weight: "20%",
-              detail:
-                "Information decays in relevance. Events from the past 7 days carry full weight; 7–30 days carry 80% weight; 30–90 days carry 60%. For structural relationships (sector-commodity linkages), historical data retains higher relevance.",
-              color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
-            },
-            {
-              icon: <Layers className="h-5 w-5" />,
-              factor: "Source Corroboration",
-              weight: "25%",
-              detail:
-                "When 3+ independent sources confirm the same fact or relationship, confidence receives a significant boost. A single-source claim carries baseline confidence; five or more independent confirmations pushes a signal to Very High confidence tier.",
-              color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-            },
-            {
               icon: <BarChart2 className="h-5 w-5" />,
-              factor: "Historical Accuracy",
-              weight: "15%",
-              detail:
-                "Each event-outcome relationship is backtested on 14 years of data. The model's own historical prediction accuracy for that specific relationship type adjusts the base confidence. A relationship the model has predicted correctly 90% of the time earns higher confidence.",
+              factor: "Historical Precedent",
+              points: "0–25 pts — the single largest factor",
+              detail: (
+                <>
+                  How many similar events exist in MarketRipple&apos;s library of{" "}
+                  <Link href="/historical" className="underline decoration-dotted underline-offset-2 hover:text-text-primary">
+                    24 verified historical events (2008–2024)
+                  </Link>
+                  , and how accurate the model&apos;s past reads of those events turned out to be.
+                </>
+              ),
               color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
             },
             {
-              icon: <Target className="h-5 w-5" />,
-              factor: "Domain Expertise",
-              weight: "10%",
+              icon: <TrendingUp className="h-5 w-5" />,
+              factor: "Market Confirmation",
+              points: "0–20 pts",
               detail:
-                "Sector-specific sub-models for Banking, IT, Pharma, Commodities, and Infrastructure have been calibrated on sector-expert knowledge. Cross-sector effects use the general model; within-sector effects benefit from the specialised sub-model's higher precision.",
+                "Whether sectors or indices are already moving in the direction the analysis expects, and by how much — real-time confirmation from the market itself, not just narrative.",
+              color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+            },
+            {
+              icon: <Layers className="h-5 w-5" />,
+              factor: "Sector Confirmation",
+              points: "0–15 pts",
+              detail:
+                "Whether sector peers are independently confirming the same trend, beyond just the specific company or event being analysed.",
+              color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+            },
+            {
+              icon: <Target className="h-5 w-5" />,
+              factor: "Macro Alignment",
+              points: "0–15 pts",
+              detail:
+                "Whether the read is consistent with the prevailing macro regime — rates, inflation, growth trajectory — rather than fighting it.",
+              color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+            },
+            {
+              icon: <Zap className="h-5 w-5" />,
+              factor: "Company Sensitivity",
+              points: "0–10 pts",
+              detail:
+                "How directly and predictably this specific company's fundamentals respond to this event type. A high-sensitivity company earns a larger swing in confidence than a diversified one.",
               color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+            },
+            {
+              icon: <Brain className="h-5 w-5" />,
+              factor: "AI Self-Certainty",
+              points: "0–10 pts",
+              detail:
+                "The model's own calibrated certainty rating — included as one signal among many, never allowed to dominate the score on its own.",
+              color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+            },
+            {
+              icon: <AlertTriangle className="h-5 w-5" />,
+              factor: "Volatility Adjustment",
+              points: "−10 to +5 pts",
+              detail:
+                "A penalty in turbulent markets, a small bonus in calm ones — the same evidence supports a firmer conclusion when conditions are stable than when they're chaotic.",
+              color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
             },
           ].map((item) => (
             <div
@@ -627,7 +811,7 @@ export default function AIMethodologyPage() {
                   <div>
                     <p className="text-[14px] font-bold text-text-primary">{item.factor}</p>
                     <p className="text-[10px] text-text-muted">
-                      Contributes {item.weight} of total confidence
+                      {item.points}
                     </p>
                   </div>
                 </div>
@@ -636,6 +820,11 @@ export default function AIMethodologyPage() {
             </div>
           ))}
         </div>
+        <p className="mt-4 text-[11px] italic text-text-muted">
+          Points across all eight signals are summed and capped at 100 — an analysis with every
+          signal firing at full strength can exceed the cap before it's applied, so a genuinely
+          strong, well-corroborated read comfortably clears the Very High threshold.
+        </p>
       </Section>
 
       {/* ── AI LIMITATIONS ────────────────────────────────────────────── */}
@@ -764,6 +953,7 @@ export default function AIMethodologyPage() {
           </Link>
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

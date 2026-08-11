@@ -24,17 +24,52 @@ import {
   Zap,
   Package,
 } from "lucide-react";
+import { safeJsonLd } from "@/lib/text";
 
 export const metadata: Metadata = {
   title: "Data Sources — Where MarketRipple Gets Its Intelligence",
   description:
     "Full transparency on every data source MarketRipple uses: market prices, corporate filings, economic data, news, and how each source feeds into AI analysis.",
+  alternates: {
+    canonical: "https://www.marketripple.in/data-sources",
+  },
   openGraph: {
     title: "Data Sources — Where MarketRipple Gets Its Intelligence",
     description:
       "Every data source behind MarketRipple's market intelligence — equities, derivatives, commodities, corporate filings, economic releases, and news — with refresh frequencies and data philosophy.",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
+};
+
+const DATASET_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  name: "MarketRipple Market Intelligence Data Sources",
+  description:
+    "The verified data sources MarketRipple aggregates to power its AI-driven Indian market intelligence: equity and derivatives pricing, corporate filings, economic and regulatory data, and news, refreshed on documented schedules.",
+  url: "https://www.marketripple.in/data-sources",
+  creator: {
+    "@type": "Organization",
+    name: "MarketRipple",
+    url: "https://www.marketripple.in",
+  },
+  keywords: [
+    "NSE data",
+    "BSE data",
+    "Indian stock market data",
+    "RBI",
+    "SEBI",
+    "corporate filings",
+    "market intelligence",
+  ],
+  variableMeasured: [
+    "Equity prices",
+    "News & events",
+    "Economic indicators",
+    "Corporate filings",
+    "Shareholding patterns",
+    "Historical market data",
+  ],
 };
 
 // ── Section heading ──────────────────────────────────────────────────────────
@@ -119,9 +154,9 @@ const marketDataSources = [
     icon: <TrendingUp className="h-4 w-4" />,
     name: "Equity Prices — BSE & NSE",
     description:
-      "OHLCV data for all listed equities on Bombay Stock Exchange and National Stock Exchange. Free tier provides 15-minute delayed prices; real-time feed available via exchange-licensed data providers.",
-    tags: ["BSE", "NSE", "OHLCV", "15-min delay (free)", "Real-time (licensed)"],
-    note: "Coverage: ~5,400 BSE-listed companies · ~2,200 NSE-listed securities",
+      "OHLCV data sourced primarily via Fyers (TOTP-authenticated) with yfinance as an automatic fallback. Free tier provides 15-minute delayed prices; real-time feed available via exchange-licensed data providers.",
+    tags: ["BSE", "NSE", "Fyers", "yfinance", "OHLCV", "15-min delay (free)"],
+    note: "MarketRipple actively tracks 512 companies in depth, drawn from the ~5,400 BSE-listed and ~2,200 NSE-listed universe",
     color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
   },
   {
@@ -355,12 +390,11 @@ const newsSources = [
     category: "Financial News",
     sources: [
       "Economic Times (Markets & Corporate)",
-      "Business Standard",
-      "Mint",
       "Moneycontrol",
-      "Financial Express",
-      "Bloomberg Quint / BQ Prime",
-      "Reuters India",
+      "NDTV Profit",
+      "Business Standard",
+      "Livemint",
+      "Google News (India markets search)",
     ],
     icon: <Newspaper className="h-4 w-4" />,
     color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
@@ -397,6 +431,7 @@ const newsSources = [
 export default function DataSourcesPage() {
   return (
     <main className="min-w-0 space-y-16 pb-16" aria-label="Data Sources">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(DATASET_JSONLD) }} />
 
       {/* ── HERO ──────────────────────────────────────────────────────── */}
       <section aria-labelledby="hero-heading">
@@ -418,6 +453,14 @@ export default function DataSourcesPage() {
             verification, and are transparent about the origin and latency of every
             data point.
           </p>
+          <p className="mt-3 max-w-2xl text-[13px] leading-6 text-text-muted">
+            The BSE and NSE together list roughly 5,400 and 2,200 companies respectively.
+            MarketRipple actively tracks{" "}
+            <Link href="/companies" className="font-semibold text-violet-300 underline-offset-2 hover:underline">
+              512 companies
+            </Link>{" "}
+            in depth — a curated NSE-listed universe, not the full exchange listing.
+          </p>
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">Data Sources</p>
@@ -430,14 +473,14 @@ export default function DataSourcesPage() {
               <p className="mt-0.5 text-[11px] text-text-muted">Target from source</p>
             </div>
             <div className="rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">Companies Covered</p>
-              <p className="mt-1 text-2xl font-black text-violet-400">5,400+</p>
-              <p className="mt-0.5 text-[11px] text-text-muted">BSE-listed securities</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">Companies Tracked</p>
+              <p className="mt-1 text-2xl font-black text-violet-400">512</p>
+              <p className="mt-0.5 text-[11px] text-text-muted">Curated NSE-listed universe</p>
             </div>
             <div className="rounded-xl border border-surface-border/8 bg-surface-card px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">History</p>
-              <p className="mt-1 text-2xl font-black text-amber-400">14 yrs</p>
-              <p className="mt-0.5 text-[11px] text-text-muted">2010–2024 backtested</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">Historical Events</p>
+              <p className="mt-1 text-2xl font-black text-amber-400">24</p>
+              <p className="mt-0.5 text-[11px] text-text-muted">Verified events, 2008–2024</p>
             </div>
           </div>
         </div>
@@ -497,7 +540,7 @@ export default function DataSourcesPage() {
           id="news-data-heading"
           badge="Category 4"
           badgeColor="text-amber-400"
-          title="News & Media"
+          title="Where Does MarketRipple's News Come From?"
           subtitle="Financial news aggregation from India's leading publications, official government channels, and global wires — with AI-powered relevance filtering."
         />
         <div className="grid gap-4 sm:grid-cols-3">
@@ -538,9 +581,11 @@ export default function DataSourcesPage() {
               </p>
               <p className="mt-1 text-[12px] leading-5 text-text-secondary">
                 MarketRipple processes hundreds of news items daily. An NLP relevance classifier filters out
-                opinion pieces, sponsored content, and low-signal articles — surfacing only events with
-                genuine market implications. The classifier is trained on 3 years of annotated financial
-                news with precision &gt;90% on held-out test sets.
+                opinion pieces, sponsored content, and low-signal articles — surfacing only{" "}
+                <Link href="/events" className="font-semibold text-amber-300 underline-offset-2 hover:underline">
+                  events
+                </Link>{" "}
+                with genuine market implications.
               </p>
             </div>
           </div>
@@ -553,7 +598,7 @@ export default function DataSourcesPage() {
           id="refresh-heading"
           badge="Data Freshness"
           badgeColor="text-indigo-400"
-          title="Refresh Frequency"
+          title="How Fresh Is MarketRipple's Data?"
           subtitle="How often each data type is updated — so you always know how current your analysis is."
         />
         <div className="rounded-xl border border-surface-border/8 bg-surface-card overflow-hidden">
@@ -633,7 +678,7 @@ export default function DataSourcesPage() {
           id="pipeline-heading"
           badge="Infrastructure"
           badgeColor="text-rose-400"
-          title="Data Processing Pipeline"
+          title="How Does Raw Data Become Market Intelligence?"
           subtitle="How raw data becomes structured market intelligence — the four-stage pipeline from ingestion to the MarketRipple knowledge graph."
         />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
