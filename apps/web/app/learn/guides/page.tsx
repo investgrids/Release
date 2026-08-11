@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Product Guides — How to Use MarketRipple",
     description: "Step-by-step guides to MarketRipple's real features.",
+    url: `${SITE_URL}/learn/guides`,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };

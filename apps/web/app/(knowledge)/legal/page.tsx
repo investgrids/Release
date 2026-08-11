@@ -21,6 +21,7 @@ export const metadata: Metadata = {
     title: "Legal — Privacy Policy, Terms of Service & Disclaimer | MarketRipple",
     description:
       "Privacy Policy, Terms of Service, AI Disclaimer, Risk Disclosure, and Cookie Information for MarketRipple — AI-powered Indian market intelligence.",
+    url: `${SITE_URL}/legal`,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };

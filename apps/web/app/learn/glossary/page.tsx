@@ -8,11 +8,12 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.i
 export const metadata: Metadata = {
   title: "Market Glossary — Indian Stock Market Terms Explained",
   description:
-    "Plain-language definitions of Indian stock market terminology — Nifty 50, Sensex, FII/DII, repo rate, P/E ratio, and more — plus MarketRipple's own scoring concepts.",
+    "Plain-language definitions of Indian stock market terminology — Nifty 50, Sensex, FII/DII, repo rate, P/E ratio, and MarketRipple's own scoring concepts.",
   alternates: { canonical: `${SITE_URL}/learn/glossary` },
   openGraph: {
     title: "Market Glossary — Indian Stock Market Terms Explained",
     description: "Plain-language definitions of Indian stock market terminology and MarketRipple's scoring concepts.",
+    url: `${SITE_URL}/learn/glossary`,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };

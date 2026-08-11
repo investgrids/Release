@@ -25,12 +25,13 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.i
 export const metadata: Metadata = {
   title: "How MarketRipple Works — AI Market Intelligence Pipeline",
   description:
-    "Discover the full pipeline behind MarketRipple — from breaking news ingestion through AI analysis, Ripple Engine processing, and Opportunity Radar scoring to surfacing investment opportunities in seconds.",
+    "The full pipeline behind MarketRipple — from breaking news ingestion through AI analysis and Ripple Engine processing to surfacing investment opportunities.",
   alternates: { canonical: `${SITE_URL}/how-it-works` },
   openGraph: {
     title: "How MarketRipple Works — AI Market Intelligence Pipeline",
     description:
       "From breaking news to investment opportunity in seconds. See how MarketRipple's AI pipeline transforms raw market events into actionable intelligence for Indian investors.",
+    url: `${SITE_URL}/how-it-works`,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };

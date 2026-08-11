@@ -13,7 +13,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.i
 export const metadata: Metadata = {
   title: "Learn Hub — Glossary, Guides & Investor Education",
   description:
-    "Browse MarketRipple's Knowledge Library: a plain-language glossary of Indian market terms, step-by-step product guides, and investor education articles — all in one place.",
+    "MarketRipple's Knowledge Library: a plain-language glossary of Indian market terms, step-by-step product guides, and investor education articles.",
   alternates: { canonical: `${SITE_URL}/learn` },
 };
 

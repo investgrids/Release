@@ -23,12 +23,13 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.i
 export const metadata: Metadata = {
   title: "Why MarketRipple — Beyond Traditional Market Platforms",
   description:
-    "Discover why MarketRipple is different from traditional market data platforms. We explain news, connect events, and surface opportunities — built specifically for Indian markets.",
+    "Why MarketRipple is different from traditional market data platforms — explaining news, connecting events, and surfacing opportunities for Indian markets.",
   alternates: { canonical: `${SITE_URL}/why-marketripple` },
   openGraph: {
     title: "Why MarketRipple — Beyond Traditional Market Platforms",
     description:
       "MarketRipple goes beyond data aggregation to deliver structured market intelligence with explainable AI, built for India's unique equity ecosystem.",
+    url: `${SITE_URL}/why-marketripple`,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };

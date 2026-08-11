@@ -27,6 +27,7 @@ export const metadata: Metadata = {
     title: "Contact MarketRipple — Support, Feedback & Partnerships",
     description:
       "Reach the MarketRipple team for support, feedback, business enquiries, partnerships, media requests, or bug reports.",
+    url: `${SITE_URL}/contact`,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
 };
