@@ -199,8 +199,10 @@ const IMPACT_STYLE: Record<string, string> = {
   negative: "border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300",
   neutral:  "border-surface-border/20 bg-text-primary/5 text-text-secondary",
 };
-const IMPACT_DOT: Record<string, string> = { positive: "🟢", negative: "🔴", neutral: "⚪" };
-const RISK_DOT: Record<string, string> = { low: "🟢", medium: "🟡", high: "🔴" };
+// Plain CSS dots, not emoji — emoji glyphs render inconsistently across
+// platforms (Windows in particular renders "⚪"/"🟡" as shaded/glossy
+// spheres, clashing with this flat design system).
+const RISK_DOT: Record<string, string> = { low: "bg-emerald-500", medium: "bg-amber-500", high: "bg-rose-500" };
 // Real data doesn't always follow the schema's documented enum strictly —
 // opportunities[].timeframe has shown up with the *other* field's vocabulary
 // (immediate|short|medium|long, from companies_affected[].timeframe) as well
@@ -674,8 +676,9 @@ export default async function ArticlePage(
                         {o.risk && (
                           <div>
                             <p className="text-[9px] font-bold uppercase tracking-wide text-text-muted">Risk</p>
-                            <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold capitalize text-text-secondary">
-                              {RISK_DOT[o.risk] ?? RISK_DOT.medium} {o.risk}
+                            <p className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold capitalize text-text-secondary">
+                              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${RISK_DOT[o.risk] ?? RISK_DOT.medium}`} />
+                              {o.risk}
                             </p>
                           </div>
                         )}

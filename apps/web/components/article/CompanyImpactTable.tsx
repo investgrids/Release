@@ -21,7 +21,15 @@ const IMPACT_STYLE: Record<string, string> = {
   negative: "border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300",
   neutral:  "border-surface-border/20 bg-text-primary/5 text-text-secondary",
 };
-const IMPACT_DOT: Record<string, string> = { positive: "🟢", negative: "🔴", neutral: "⚪" };
+// Plain CSS dots, not emoji — the emoji glyphs (🟢🔴⚪) render inconsistently
+// across platforms (Windows in particular renders "⚪" as a shaded/glossy
+// sphere rather than a flat circle, clashing with the rest of this flat
+// design system) and can't inherit the badge's own text color.
+const IMPACT_DOT: Record<string, string> = {
+  positive: "bg-emerald-500",
+  negative: "bg-rose-500",
+  neutral:  "bg-text-muted",
+};
 const HORIZON_LABEL: Record<string, string> = {
   immediate: "Today", short: "1 Week", weeks: "1 Week", medium: "1 Month", months: "1 Month", long: "Long Term",
 };
@@ -48,8 +56,9 @@ export function CompanyImpactTable({ companies, quotes }: { companies: CompanyIm
             ) : (
               <span className="shrink-0 text-right text-[11px] text-text-muted">—</span>
             )}
-            <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>
-              {IMPACT_DOT[c.impact] ?? IMPACT_DOT.neutral} {c.impact}
+            <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${IMPACT_DOT[c.impact] ?? IMPACT_DOT.neutral}`} />
+              {c.impact}
             </span>
             <span className="min-w-0 text-[12px] leading-5 text-text-secondary">{c.reason || "—"}</span>
             <span className="shrink-0 text-right text-[11px] text-text-muted">{c.timeframe ? (HORIZON_LABEL[c.timeframe] ?? c.timeframe) : "—"}</span>
