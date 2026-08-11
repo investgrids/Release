@@ -96,6 +96,59 @@ def compose_why_it_matters(di: dict, name_a: str, name_b: str) -> str | None:
     return " ".join(parts) or None
 
 
+# companies_affected used to hardcode impact="neutral" and
+# reason="Comparison subject" for BOTH companies on every comparison
+# article, regardless of what the run actually concluded — confirmed live
+# on acc-vs-ultracemco: 5 of 6 real comparison dimensions favored
+# UltraTech, and holding_analysis/target_analysis already carry a real,
+# specific thesis per company, but neither ever reached the article. This
+# derives both fields from that same already-generated data instead —
+# never a new LLM call, never an invented claim, same "real data, don't
+# fabricate" rule the rest of this module follows.
+def _build_companies_affected(di: dict, name_a: str, symbol_a: str, name_b: str, symbol_b: str) -> list[dict]:
+    holding_analysis = di.get("holding_analysis") or {}
+    target_analysis = di.get("target_analysis") or {}
+    comparison = di.get("comparison") or []
+
+    holding_wins = sum(1 for c in comparison if c.get("advantage") == "holding")
+    target_wins = sum(1 for c in comparison if c.get("advantage") == "target")
+
+    # A real, code-computed lean from the same dimension-by-dimension table
+    # already shown on the page — not a fabricated score. Only calls it
+    # for one side when the lean is clear (a 1-dimension edge on a 6-
+    # dimension comparison isn't a real signal); a close/tied comparison
+    # honestly stays neutral for both rather than forcing a winner.
+    impact_a, impact_b = "neutral", "neutral"
+    if holding_wins > target_wins and holding_wins - target_wins >= 2:
+        impact_a, impact_b = "positive", "negative"
+    elif target_wins > holding_wins and target_wins - holding_wins >= 2:
+        impact_a, impact_b = "negative", "positive"
+
+    reason_a = holding_analysis.get("thesis") or "Comparison subject"
+    reason_b = target_analysis.get("thesis") or "Comparison subject"
+
+    return [
+        {"name": name_a, "symbol": symbol_a, "impact": impact_a, "reason": reason_a},
+        {"name": name_b, "symbol": symbol_b, "impact": impact_b, "reason": reason_b},
+    ]
+
+
+# Was ai_stance alone ("Neutral"/"Bullish"/...) — a bare one-word label
+# with no context, confirmed live rendering as the entire "30-Second
+# Answer" on the article page. decision_summary is the real synthesized
+# comparison sentence already generated on the same run; leading with the
+# stance word (when present) keeps the quick-scan verdict while the
+# sentence gives it substance. Extracted as its own function (same reason
+# as compose_what_happened/_build_companies_affected) so the backfill
+# endpoint can recompute it from an already-published article's own stored
+# market_context without a fresh AI Search call.
+def compose_key_takeaway(di: dict, decision_summary: str) -> str:
+    ai_stance = (di.get("decision_framework") or {}).get("ai_stance")
+    if ai_stance and decision_summary:
+        return f"{ai_stance}. {decision_summary}"
+    return decision_summary or ai_stance or ""
+
+
 async def _try_generate(query: str, db: AsyncSession) -> dict | None:
     from app.services.ai_search_service import run_ai_search
 
@@ -159,6 +212,7 @@ async def publish_comparison_article(
         decision_summary or f"AI-powered comparison of {name_a} and {name_b} — valuation, growth drivers, risks, and a research-framed verdict on MarketRipple.",
         160,
     )
+    key_takeaway = compose_key_takeaway(di, decision_summary)
 
     what_happened = compose_what_happened(di, name_a, name_b)
     why_it_matters = compose_why_it_matters(di, name_a, name_b)
@@ -193,10 +247,7 @@ async def publish_comparison_article(
         },
     }
 
-    companies_affected = [
-        {"name": name_a, "symbol": symbol_a, "impact": "neutral", "reason": "Comparison subject"},
-        {"name": name_b, "symbol": symbol_b, "impact": "neutral", "reason": "Comparison subject"},
-    ]
+    companies_affected = _build_companies_affected(di, name_a, symbol_a, name_b, symbol_b)
     sectors_affected = [{"name": sector, "impact": "neutral", "magnitude": "medium"}] if sector else []
 
     # market_context is the generic free-form JSON field on this model —
@@ -216,7 +267,7 @@ async def publish_comparison_article(
     if existing:
         existing.headline = headline
         existing.executive_summary = decision_summary
-        existing.key_takeaway = di.get("decision_framework", {}).get("ai_stance") or decision_summary
+        existing.key_takeaway = key_takeaway
         existing.what_happened = what_happened
         existing.why_it_matters = why_it_matters
         existing.companies_affected = companies_affected
@@ -235,7 +286,7 @@ async def publish_comparison_article(
             angle="comparison", is_evergreen=True,
             lifecycle_status="published", status="published",
             headline=headline, executive_summary=decision_summary,
-            key_takeaway=di.get("decision_framework", {}).get("ai_stance") or decision_summary,
+            key_takeaway=key_takeaway,
             what_happened=what_happened,
             why_it_matters=why_it_matters,
             companies_affected=companies_affected, sectors_affected=sectors_affected,

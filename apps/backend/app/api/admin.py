@@ -96,3 +96,67 @@ async def backfill_seo_intelligence(
     has_more = remaining.scalar_one_or_none() is not None
 
     return {"updated": updated, "has_more": has_more}
+
+
+@router.post("/backfill-comparison-content", dependencies=[Depends(require_admin_key)])
+async def backfill_comparison_content(
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    One-time repair for every already-published comparison_intelligence
+    article, after a live bug report (2026-08-11): companies_affected
+    hardcoded reason="Comparison subject" and impact="neutral" for BOTH
+    companies on every comparison, and key_takeaway was set to the bare
+    stance word alone (e.g. "Neutral") with no context — both rendered as
+    generic/unhelpful placeholders on the article page's "Why These Are
+    Affected" and "30-Second Answer" sections, even though the article's
+    OWN already-stored market_context.decision_intelligence (from the
+    original run_ai_search call) carried real per-company theses and a
+    real decision summary the whole time.
+
+    Recomputes from each article's own already-stored market_context —
+    no fresh run_ai_search call, no new AI generation, nothing invented.
+    Idempotent and safe to re-run: articles whose companies_affected no
+    longer contain the literal placeholder string are skipped.
+    """
+    from app.db.models.intelligence_article import IntelligenceArticle
+    from app.services.aipe.comparison_publisher import _build_companies_affected, compose_key_takeaway
+
+    result = await db.execute(
+        select(IntelligenceArticle)
+        .where(IntelligenceArticle.status == "published")
+        .where(IntelligenceArticle.article_type == "comparison_intelligence")
+        .limit(limit)
+    )
+    articles = result.scalars().all()
+
+    updated = 0
+    skipped = 0
+    for a in articles:
+        companies = a.companies_affected or []
+        still_placeholder = any((c.get("reason") or "") == "Comparison subject" for c in companies)
+        if not still_placeholder:
+            skipped += 1
+            continue
+
+        di = (a.market_context or {}).get("decision_intelligence") or {}
+        if not di:
+            skipped += 1
+            continue
+
+        # Real symbols/names come from the article's own already-stored
+        # companies_affected — never re-derived or guessed.
+        if len(companies) != 2:
+            skipped += 1
+            continue
+        name_a, symbol_a = companies[0].get("name", ""), companies[0].get("symbol", "")
+        name_b, symbol_b = companies[1].get("name", ""), companies[1].get("symbol", "")
+
+        a.companies_affected = _build_companies_affected(di, name_a, symbol_a, name_b, symbol_b)
+        decision_summary = a.executive_summary or di.get("decision_summary") or ""
+        a.key_takeaway = compose_key_takeaway(di, decision_summary)
+        updated += 1
+
+    await db.commit()
+    return {"updated": updated, "skipped": skipped, "total_checked": len(articles)}
