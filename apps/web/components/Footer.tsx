@@ -7,7 +7,6 @@ const COMPANY_LINKS = [
   { label: "How MarketRipple Works",   href: "/how-it-works" },
   { label: "How MarketRipple Thinks",  href: "/how-marketripple-thinks" },
   { label: "AI & Methodology",    href: "/ai-methodology" },
-  { label: "Data Sources",        href: "/data-sources" },
   { label: "FAQ",                 href: "/faq" },
   { label: "What's New",          href: "/whats-new" },
   { label: "Contact Us",          href: "/contact" },

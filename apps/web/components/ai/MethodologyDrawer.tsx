@@ -231,7 +231,6 @@ export function MethodologyDrawer({
             {[
               { label: "How MarketRipple Thinks", href: "/how-marketripple-thinks" },
               { label: "AI & Methodology", href: "/ai-methodology" },
-              { label: "Data Sources", href: "/data-sources" },
             ].map(link => (
               <Link
                 key={link.href}

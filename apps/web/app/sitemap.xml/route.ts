@@ -68,7 +68,6 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     { url: `${base}/how-it-works`,               lastModified: now, changeFrequency: "monthly",priority: 0.5 },
     { url: `${base}/how-marketripple-thinks`,    lastModified: now, changeFrequency: "monthly",priority: 0.5 },
     { url: `${base}/ai-methodology`,             lastModified: now, changeFrequency: "monthly",priority: 0.5 },
-    { url: `${base}/data-sources`,               lastModified: now, changeFrequency: "monthly",priority: 0.4 },
     { url: `${base}/faq`,                        lastModified: now, changeFrequency: "monthly",priority: 0.4 },
     { url: `${base}/whats-new`,                  lastModified: now, changeFrequency: "weekly", priority: 0.4 },
     { url: `${base}/legal`,                      lastModified: now, changeFrequency: "yearly", priority: 0.3 },

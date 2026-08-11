@@ -120,11 +120,7 @@ export default function LearnHubPage() {
           <Link href="/how-marketripple-thinks" className="font-medium text-violet-400 underline-offset-2 hover:underline">
             how the AI reasons through ripple effects
           </Link>
-          , browse the{" "}
-          <Link href="/data-sources" className="font-medium text-violet-400 underline-offset-2 hover:underline">
-            data sources
-          </Link>{" "}
-          behind every number, or read{" "}
+          , or read{" "}
           <Link href="/how-it-works" className="font-medium text-violet-400 underline-offset-2 hover:underline">
             the full pipeline
           </Link>{" "}

@@ -257,7 +257,7 @@ const AUDIENCES = [
   { icon: GraduationCap, title: "New Investors", description: "Learn market mechanics in plain language via the Glossary and Learning Center — no jargon, no assumed knowledge.", href: "/learn" },
   { icon: Zap, title: "Active Investors", description: "Real-time events, breaking alerts, and Opportunity Radar for day-to-day decision-making.", href: "/opportunity-radar" },
   { icon: Microscope, title: "Experienced Investors", description: "Deep company and sector analysis, head-to-head comparisons, and full Ripple Engine cascade tracing.", href: "/compare" },
-  { icon: Sparkles, title: "Researchers & Analysts", description: "Full data-source transparency, verified historical pattern matching, and structured AI Search for research queries.", href: "/data-sources" },
+  { icon: Sparkles, title: "Researchers & Analysts", description: "Full methodology transparency, verified historical pattern matching, and structured AI Search for research queries.", href: "/ai-methodology" },
 ];
 
 // Section 10 — 10 of the 23 real Q&A pairs from faq/page.tsx, reused
