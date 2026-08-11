@@ -34,7 +34,7 @@ import { safeJsonLd } from "@/lib/text";
 export const metadata: Metadata = {
   title: "AI & Methodology — How MarketRipple's Intelligence Works",
   description:
-    "Deep dive into how MarketRipple's AI search, Ripple Engine, Opportunity Radar, and Stories generation systems work — with full transparency on algorithms and limitations.",
+    "How MarketRipple's AI search, Ripple Engine, Opportunity Radar, and Stories systems work — with full transparency on algorithms and limitations.",
   alternates: {
     canonical: "https://www.marketripple.in/ai-methodology",
   },

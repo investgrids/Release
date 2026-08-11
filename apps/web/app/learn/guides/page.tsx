@@ -8,7 +8,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.i
 export const metadata: Metadata = {
   title: "Product Guides — How to Use MarketRipple",
   description:
-    "Step-by-step guides to MarketRipple's real features — the Market Intelligence dashboard, AI Search, Opportunity Radar, Ripple Maps, and Impact/Confidence scores.",
+    "Step-by-step guides to MarketRipple's real features — Market Intelligence, AI Search, Opportunity Radar, Ripple Maps, and Impact/Confidence scores.",
   alternates: { canonical: `${SITE_URL}/learn/guides` },
   openGraph: {
     title: "Product Guides — How to Use MarketRipple",

@@ -34,7 +34,7 @@ import { safeJsonLd } from "@/lib/text";
 export const metadata: Metadata = {
   title: "How MarketRipple Thinks — AI Reasoning & Market Relationships",
   description:
-    "Understand how MarketRipple's AI reasons through market events — from triggers to ripple effects — with full transparency on confidence levels and alternative scenarios.",
+    "How MarketRipple's AI reasons through market events — from triggers to ripple effects — with full transparency on confidence levels.",
   alternates: {
     canonical: "https://www.marketripple.in/how-marketripple-thinks",
   },
