@@ -24,15 +24,18 @@ const LiveMarketTab    = dynamic(() => import("@/components/market/tabs/LiveMark
 const AfterMarketTab   = dynamic(() => import("@/components/market/tabs/AfterMarketTab").then(m => m.AfterMarketTab),     { loading: TabSkeleton });
 const GlobalMarketsTab = dynamic(() => import("@/components/market/tabs/GlobalMarketsTab").then(m => m.GlobalMarketsTab), { loading: TabSkeleton });
 
-type TabId = "overview" | "pre-market" | "live-market" | "after-market" | "global-markets" | "commodities" | "calendar" | "sector-intelligence";
+type TabId = "overview" | "pre-market" | "live-market" | "after-market" | "global-markets" | "calendar" | "sector-intelligence";
 
+// Commodities is deliberately NOT a tab here — it's its own standalone page
+// (/commodities), not embedded in Market Intelligence. It briefly was during
+// an in-progress nav refactor; reverted per explicit direction to keep the
+// previous structure.
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview",             label: "Overview"            },
   { id: "pre-market",           label: "Pre-Market"          },
   { id: "live-market",          label: "Live Market"         },
   { id: "after-market",         label: "After Market"        },
   { id: "global-markets",       label: "Global Markets"      },
-  { id: "commodities",          label: "Commodities"         },
   { id: "calendar",             label: "Economic Calendar"   },
   { id: "sector-intelligence",  label: "Sector Intelligence" },
 ];
@@ -64,7 +67,6 @@ export function MarketClient({
   initialCalendar,
   initialInsights,
   initialMovers,
-  commoditiesContent,
   calendarContent,
   sectorContent,
 }: {
@@ -76,7 +78,6 @@ export function MarketClient({
   initialCalendar:      any[];
   initialInsights:      any;
   initialMovers:        any;
-  commoditiesContent?:  React.ReactNode;
   calendarContent?:     React.ReactNode;
   sectorContent?:       React.ReactNode;
 }) {
@@ -226,7 +227,6 @@ export function MarketClient({
           {activeTab === "live-market"       && <LiveMarketTab initialData={overview}/>}
           {activeTab === "after-market"      && <AfterMarketTab initialData={overview}/>}
           {activeTab === "global-markets"    && <GlobalMarketsTab/>}
-          {activeTab === "commodities"       && (commoditiesContent ?? <TabSkeleton/>)}
           {activeTab === "calendar"          && (calendarContent ?? <TabSkeleton/>)}
           {activeTab === "sector-intelligence" && (sectorContent ?? <TabSkeleton/>)}
         </div>
