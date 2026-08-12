@@ -14,6 +14,7 @@ import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSect
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { scoreToColor, impactToStyle } from "@/lib/scoring";
+import { neutralRating } from "@/lib/text";
 import "reactflow/dist/style.css";
 import {
   Star, Check, Sparkles, TrendingUp, IndianRupee, Target, Zap,
@@ -1269,7 +1270,7 @@ function AIForecast({ stock }: { stock: StockDetail }) {
         <div className="mt-4 flex items-center justify-between rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] px-5 py-4">
           <div>
             <p className="text-[11px] text-text-muted">AI Investment Rating</p>
-            <p className="text-[22px] font-black text-text-primary mt-0.5">Strong {isPos ? "Buy" : "Hold"}</p>
+            <p className="text-[22px] font-black text-text-primary mt-0.5">{isPos ? "Positive" : "Neutral"}</p>
           </div>
           <div className="text-[52px] font-black text-violet-400">{Math.round((n2(stock.roe) + stock.gov_score) / 2)}</div>
         </div>
@@ -1508,7 +1509,7 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
     ? Math.round(Object.values(stock.dna_scores).reduce((a, b) => a + b, 0) / Math.max(Object.values(stock.dna_scores).length, 1))
     : 72;
   const col = scoreColor(ai_score);
-  const rec_label = stock.recommendation.charAt(0).toUpperCase() + stock.recommendation.slice(1);
+  const rec_label = neutralRating(stock.recommendation);
   const recommendations: { label: string; icon: React.ReactNode }[] = [
     { label: "Add to Watchlist",     icon: <Star className="h-4 w-4" /> },
     { label: "Set Price Alert",      icon: <Bell className="h-4 w-4" /> },
@@ -1863,13 +1864,13 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
                       entityTitle={stock.name}
                       entityDescription={stock.description}
                       entitySector={stock.sector}
-                      thesis={stock.description ? stock.description.slice(0, 280) : `${stock.name} operates in the ${stock.sector} with analyst consensus at ${stock.recommendation}.`}
+                      thesis={stock.description ? stock.description.slice(0, 280) : `${stock.name} operates in the ${stock.sector} with analyst consensus reading ${neutralRating(stock.recommendation).toLowerCase()}.`}
                       confidence={stock.buy_count != null && stock.analyst_count
                         ? Math.round((stock.buy_count / Math.max(stock.analyst_count, 1)) * 100)
                         : 60
                       }
                       timeHorizon={
-                        (stock.recommendation === "Buy" || stock.recommendation === "Strong Buy") ? "12–18 months" : "6–12 months"
+                        ["buy", "strong buy"].includes((stock.recommendation || "").toLowerCase()) ? "12–18 months" : "6–12 months"
                       }
                       assumptions={[
                         `Sector tailwinds in ${stock.sector || "the sector"} continue`,
@@ -1904,9 +1905,9 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
                         if (pe > 40) return "mature" as const;
                         return "emerging" as const;
                       })()}
-                      description={`Analyst consensus: ${stock.recommendation ?? "Hold"} · PE: ${stock.pe ?? "N/A"}`}
-                      whyAssigned={`${stock.buy_count ?? 0} of ${stock.analyst_count ?? 0} analysts rate this a Buy. ${stock.pe ? `Current PE of ${stock.pe} reflects ` + (parseFloat(stock.pe) > 30 ? "premium valuation" : "reasonable valuation") + "." : ""}`}
-                      historicalComparison={`Companies with similar analyst buy ratios in the ${stock.sector ?? "sector"} have historically delivered above-market returns over 12–18 months.`}
+                      description={`Analyst consensus: ${neutralRating(stock.recommendation)} · PE: ${stock.pe ?? "N/A"}`}
+                      whyAssigned={`${stock.buy_count ?? 0} of ${stock.analyst_count ?? 0} analysts rate this stock positively. ${stock.pe ? `Current PE of ${stock.pe} reflects ` + (parseFloat(stock.pe) > 30 ? "premium valuation" : "reasonable valuation") + "." : ""}`}
+                      historicalComparison={`Companies with similar positive-rating ratios in the ${stock.sector ?? "sector"} have historically delivered above-market returns over 12–18 months.`}
                       confidence={stock.analyst_count ? Math.round(Math.min(90, 50 + (stock.buy_count ?? 0) / Math.max(stock.analyst_count, 1) * 40)) : 55}
                       expectedEvolution={`If earnings trajectory holds, the opportunity is expected to ${stock.buy_count != null && stock.analyst_count && stock.buy_count / Math.max(stock.analyst_count, 1) > 0.6 ? "strengthen toward peak momentum" : "consolidate before the next catalyst"}.`}
                       risks={[
@@ -1952,7 +1953,7 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
 
               {/* Intelligent guidance — derived from company data */}
               <NextSteps config={{
-                takeaway: `${stock.name} is rated ${stock.recommendation ?? "—"} with a P/E of ${stock.pe ?? "N/A"}x — understand the valuation context before sizing a position.`,
+                takeaway: `${stock.name} analyst consensus reads ${neutralRating(stock.recommendation)} with a P/E of ${stock.pe ?? "N/A"}x — understand the valuation context before sizing a position.`,
                 primary: {
                   label: `Ask AI: Is ${stock.name} fairly valued right now?`,
                   why:   `Because a P/E of ${stock.pe ?? "N/A"}x needs to be compared against sector peers and growth expectations to be meaningful.`,

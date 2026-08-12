@@ -8,10 +8,33 @@ import SectorsPage from "@/app/sectors/page";
 import ComparePage from "@/app/compare/page";
 import IPOHubPage from "@/app/ipo-hub/page";
 
+const TITLE = "Companies — NSE Listed Companies & AI Rankings";
+// Trimmed from 171 to within the ~160-char guideline (was truncating with
+// an ellipsis mid-word in real search-result previews).
+const DESCRIPTION =
+  "Find India's best companies using AI — search the full NSE universe, AI-ranked Best Stocks, sector breakdowns, and side-by-side comparison, all in one place.";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
 export const metadata: Metadata = {
-  title: "Companies — NSE Listed Companies & AI Rankings",
-  description:
-    "Find India's best companies using AI — search the full NSE universe, AI-ranked Best Stocks, sector breakdowns, side-by-side comparison, and IPO tracking, all in one place.",
+  title: TITLE,
+  description: DESCRIPTION,
+  // The tab switcher (?tab=) keeps every variant on one canonical URL —
+  // without this, /companies?tab=sectors etc. had no signal telling
+  // crawlers it's the same page as /companies, not separate content.
+  alternates: { canonical: `${SITE_URL}/companies` },
+  openGraph: {
+    type: "website",
+    title: TITLE,
+    description: DESCRIPTION,
+    url: `${SITE_URL}/companies`,
+    siteName: "MarketRipple",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 export const dynamic = "force-dynamic";
 

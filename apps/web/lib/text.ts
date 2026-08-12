@@ -103,6 +103,22 @@ export function isRealSymbol(symbol?: string | null): boolean {
   return !!symbol && !PLACEHOLDER_SYMBOLS.has(symbol.trim().toLowerCase());
 }
 
+// Neutralizes the raw analyst-consensus recommendation string (real data
+// from Finnhub/yfinance, "strong buy"/"buy"/"hold"/"sell"/"strong sell" —
+// see app/api/stocks.py) into non-directive language. MarketRipple doesn't
+// issue buy/sell recommendations, so no UI copy should read as one, even
+// when quoting third-party analyst consensus. Lives here (not in the
+// client-only CompanyPageClient.tsx) so both the client UI and the
+// server-rendered company page can share one definition.
+export function neutralRating(recommendation?: string | null): string {
+  const r = (recommendation || "").toLowerCase().trim();
+  if (r === "strong buy") return "Strongly Positive";
+  if (r === "buy") return "Positive";
+  if (r === "sell") return "Cautious";
+  if (r === "strong sell") return "Strongly Cautious";
+  return "Neutral";
+}
+
 // AI-generated market narratives (morning briefs) and, less often, real
 // event data list market indices and macro instruments in the same
 // companies_affected / event.companies shape a real company uses ("Sensex"
