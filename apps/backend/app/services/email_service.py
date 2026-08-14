@@ -1,73 +1,49 @@
 """
 Outbound transactional email — currently just the returning-user feedback
-notification (see app/api/feedback.py). Plain smtplib over STARTTLS rather
-than a SaaS email API: no new dependency, no vendor lock-in, works with
-whatever mailbox already receives support@marketripple.in (Zoho/Google
-Workspace/etc — the account isn't provisioned with a specific API-based
-provider today).
+notification (see app/api/feedback.py). Uses the Hostinger Mail API (bearer
+token, REST) rather than plain SMTP — this backend's support@marketripple.in
+mailbox is Hostinger-hosted and Hostinger issues a proper scoped API token
+for it (see https://api.mail.hostinger.com), which is simpler and more
+reliable here than the smtplib/STARTTLS path this replaced (no SMTP
+host/port branching, no thread-pool wrapping for a sync library — the API
+is a single async POST).
 
-SMTP credentials never reach the frontend — this module is backend-only,
-and the request that triggers an email always returns success/failure
-based on whether the DB write succeeded, not whether the email sent (see
-callers). A missing/misconfigured SMTP_HOST just logs a warning and no-ops
-rather than raising, so email delivery is best-effort, not a hard
-dependency for the feature it supports.
+The API token never reaches the frontend — this module is backend-only, and
+the request that triggers an email always returns success/failure based on
+whether the DB write succeeded, not whether the email sent (see callers). A
+missing/misconfigured token just logs a warning and no-ops rather than
+raising, so email delivery is best-effort, not a hard dependency for the
+feature it supports.
 """
 from __future__ import annotations
 
-import asyncio
-import smtplib
-from concurrent.futures import ThreadPoolExecutor
-from email.message import EmailMessage
-
+import httpx
 import structlog
 
 from app.core.config import settings
 
 log = structlog.get_logger(__name__)
 
-
-def _send_sync(to: str, subject: str, body: str) -> bool:
-    if not settings.smtp_host:
-        log.warning("email.not_configured", subject=subject)
-        return False
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = settings.smtp_from
-    msg["To"] = to
-    msg.set_content(body)
-    try:
-        # Port 465 is implicit TLS (the connection is encrypted from the
-        # first byte) — calling starttls() on it hangs/fails because the
-        # server never speaks plaintext SMTP to upgrade from. Port 587 (and
-        # 25) is the opposite: plaintext first, then upgraded via STARTTLS.
-        # Hostinger's smtp.hostinger.com, like most providers, only offers
-        # 465, so this needs to branch on port rather than always STARTTLS.
-        if settings.smtp_port == 465:
-            with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10) as server:
-                if settings.smtp_user:
-                    server.login(settings.smtp_user, settings.smtp_password)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
-                server.starttls()
-                if settings.smtp_user:
-                    server.login(settings.smtp_user, settings.smtp_password)
-                server.send_message(msg)
-        return True
-    except Exception as exc:
-        log.warning("email.send_failed", error=str(exc), subject=subject)
-        return False
+_API_BASE = "https://api.mail.hostinger.com/api/v1"
 
 
 async def send_email(to: str, subject: str, body: str) -> bool:
-    loop = asyncio.get_event_loop()
-    executor = ThreadPoolExecutor(max_workers=1)
+    if not settings.hostinger_mail_api_token or not settings.hostinger_mailbox_resource_id:
+        log.warning("email.not_configured", subject=subject)
+        return False
+    url = f"{_API_BASE}/mailboxes/{settings.hostinger_mailbox_resource_id}/send"
+    headers = {"Authorization": f"Bearer {settings.hostinger_mail_api_token}"}
+    payload = {"to": [to], "subject": subject, "text": body}
     try:
-        return await asyncio.wait_for(
-            loop.run_in_executor(executor, _send_sync, to, subject, body),
-            timeout=15.0,
-        )
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+        # 204 No Content on success per the API's own spec — anything else
+        # (401 bad/rotated token, 422 malformed payload, 5xx upstream) is a
+        # real failure, logged with the response body for diagnosis.
+        if resp.status_code == 204:
+            return True
+        log.warning("email.send_failed", status=resp.status_code, body=resp.text[:300], subject=subject)
+        return False
     except Exception as exc:
-        log.warning("email.send_timeout", error=str(exc), subject=subject)
+        log.warning("email.send_failed", error=str(exc), subject=subject)
         return False

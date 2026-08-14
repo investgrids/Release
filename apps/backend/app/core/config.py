@@ -128,13 +128,10 @@ class Settings(BaseSettings):
     # Set on Railway to enable. Unset locally disables it — email_service.py
     # logs a warning and no-ops rather than failing the request that
     # triggered it (matches admin_api_key's "unset = feature off" posture).
-    # Provider-agnostic SMTP (not a specific SaaS API) so it works with
-    # whatever inbox already receives support@marketripple.in.
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_user: str = ""
-    smtp_password: str = ""
-    smtp_from: str = "MarketRipple <noreply@marketripple.in>"
+    # Hostinger Mail API (bearer token) — support@marketripple.in's real
+    # mailboxResourceId, from GET /api/v1/me with the token below.
+    hostinger_mail_api_token: str = ""
+    hostinger_mailbox_resource_id: str = ""
     feedback_notify_email: str = "support@marketripple.in"
 
     # ── Finnhub ───────────────────────────────────────────────────────────────
