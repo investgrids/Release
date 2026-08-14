@@ -33,6 +33,15 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("intelligence_articles", "entity_keywords",            "JSON DEFAULT '[]'"),
     ("intelligence_articles", "question_keywords",          "JSON DEFAULT '[]'"),
     ("intelligence_articles", "internal_link_candidates",   "JSON DEFAULT '[]'"),
+    # alembic/versions/0003_event_coverage_failure_reason.py and
+    # 0004_event_retry_backoff.py — alembic isn't wired into the deploy
+    # path (see module docstring), so these migration files alone never
+    # touched the real production DB; this list is what actually does.
+    ("event_coverage", "failure_reason",   "VARCHAR(256)"),
+    ("events", "retry_count",              "INTEGER NOT NULL DEFAULT 0"),
+    ("events", "last_attempt_at",          "DATETIME"),
+    ("events", "next_retry_at",            "DATETIME"),
+    ("events", "last_failure_reason",      "VARCHAR(64)"),
 ]
 
 
