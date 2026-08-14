@@ -61,7 +61,7 @@ export default function HeatmapPage() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             Live Market Intelligence
           </Link>
-          <Link href="/sectors"
+          <Link href="/companies?tab=sectors"
             className="flex items-center gap-2 rounded-2xl border border-surface-border/10 bg-text-primary/[0.04] px-5 py-2.5 text-[13px] font-medium text-text-primary transition hover:bg-text-primary/[0.07]">
             View Sectors →
           </Link>

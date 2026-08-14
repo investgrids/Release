@@ -17,8 +17,10 @@ from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.db.models_legacy import NewsArticle
 from app.db.models.event import Event
-from app.providers import NSEProvider, BSEProvider, RSSProvider, RBIProvider, PIBProvider, SEBIProvider, RawItem
+from app.db.models.macro_release import MacroRelease
+from app.providers import NSEProvider, BSEProvider, RSSProvider, RBIProvider, PIBProvider, SEBIProvider, FedProvider, RawItem
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
+from app.services.macro_extraction import extract_macro_release
 
 log = structlog.get_logger(__name__)
 
@@ -136,6 +138,36 @@ async def _create_events(db, items: list[RawItem], new_ids: set[str],
     return saved
 
 
+async def _persist_macro_releases(db, items: list[RawItem]) -> int:
+    """Phase 7 (2026-08 audit): attempts real numeric extraction on RBI/PIB
+    items via app.services.macro_extraction. Most items won't match — PIB/
+    RBI press releases are often administrative notices with no numeric
+    figure at all — and that's correct: only a genuinely parseable release
+    gets a MacroRelease row, never a guessed one. Shares its id with the
+    Event row created from the same RawItem (see _create_events) so the
+    two can be joined without a formal foreign key."""
+    if not items:
+        return 0
+    existing = await _existing_ids(db, MacroRelease, [i.id for i in items])
+    saved = 0
+    seen: set[str] = set()
+    for item in items:
+        if item.id in existing or item.id in seen:
+            continue
+        parsed = extract_macro_release(
+            item.headline, item.summary, source=item.source,
+            url=item.url, published_at=item.published_at,
+        )
+        if not parsed:
+            continue
+        seen.add(item.id)
+        db.add(MacroRelease(id=item.id, event_id=item.id, **parsed))
+        saved += 1
+    if saved:
+        await db.commit()
+    return saved
+
+
 async def _persist_policies(db, items: list[RawItem]) -> int:
     """Upsert government policies for RBI/PIB/SEBI items."""
     repo = GovernmentPolicyRepository(db)
@@ -195,7 +227,7 @@ async def job_ingest_news() -> None:
     await delete_pattern("dashboard:*")
 
 
-# ── Job: policy ingest (RBI + PIB + SEBI) — every hour ───────────────────────
+# ── Job: policy ingest (RBI + PIB + SEBI + Fed) — every hour ─────────────────
 
 async def job_ingest_policy() -> None:
     t0 = time.perf_counter()
@@ -204,22 +236,27 @@ async def job_ingest_policy() -> None:
     rbi_items  = await RBIProvider().fetch_and_normalize()
     pib_items  = await PIBProvider().fetch_and_normalize()
     sebi_items = await SEBIProvider().fetch_and_normalize()
+    fed_items  = await FedProvider().fetch_and_normalize()
 
-    all_items = rbi_items + pib_items + sebi_items
+    all_items = rbi_items + pib_items + sebi_items + fed_items
 
     async with AsyncSessionLocal() as db:
         new_ids = await _persist_articles(db, all_items)
         new_id_set = set(new_ids)
         policies_saved = await _persist_policies(db, all_items)
         events_created = await _create_events(db, all_items, new_id_set, "policy")
+        # Macro extraction only makes sense for RBI/PIB — SEBI releases are
+        # market-conduct/regulatory notices, not economic data prints.
+        macro_saved = await _persist_macro_releases(db, rbi_items + pib_items)
 
     elapsed = round((time.perf_counter() - t0) * 1000)
     log.info(
         "job.ingest_policy.done",
-        rbi=len(rbi_items), pib=len(pib_items), sebi=len(sebi_items),
+        rbi=len(rbi_items), pib=len(pib_items), sebi=len(sebi_items), fed=len(fed_items),
         new_articles=len(new_ids),
         policies=policies_saved,
         new_events=events_created,
+        macro_releases=macro_saved,
         elapsed_ms=elapsed,
     )
 
@@ -248,20 +285,41 @@ async def job_enrich_events() -> None:
     # attempts, exponential backoff), which stays untouched and unshared
     # with P0's priority system either way — just lets more events clear
     # per tick when a burst does happen.
-    # TEMPORARY EMERGENCY PAUSE (2026-08-09): _safe_json_call swallows every
-    # AI-call exception (429s included) and returns a fallback, so a
-    # rate-limited pipeline still reaches mark_status(eid, "done") with
-    # impact_score=None — the exact same terminal trap a 369-event backlog
-    # was just reset out of. Both OpenRouter and Gemini's free tiers have
-    # hit this; with zero pacing between the pipeline's 8 sequential AI
-    # calls, the just-reset backlog would re-trap itself within a few
-    # cycles. Set to 0 (was 10) until real backoff/pacing ships — this is
-    # the P0 watch-item flagged at Stage 2 (2026-08-06): "confirm the
-    # provider client actually handles rate limits gracefully under higher
-    # load — don't recreate P0's original problem in a system nobody's
-    # watching." Revert to 10 once the pacing fix lands.
-    _BATCH = 0
-    _AI_DELAY = 2  # seconds between AI calls
+    # EMERGENCY PAUSE (2026-08-09) LIFTED (2026-08-12): root cause was zero
+    # pacing between the pipeline's 7 sequential AI-call stages WITHIN one
+    # event — _AI_DELAY below only ever paced between different events, so
+    # even a single event alone could burn through a free-tier provider's
+    # per-minute quota on its own. event_pipeline.py now sleeps
+    # _STAGE_DELAY=1.5s between its own AI-calling stages, which is the
+    # "real pacing" this pause was waiting on. _safe_json_call's swallow-
+    # and-fallback behavior on exhausted retries is UNCHANGED (touching the
+    # shared AI-provider layer risked affecting every other caller — AIPE,
+    # AI Search — not just this one pipeline).
+    #
+    # Correction (2026-08-13, re-audit): the paragraph that used to be here
+    # said the "completes as done with impact_score=None" trap was still
+    # open. It's now PARTIALLY closed — event_pipeline.py's classify-stage
+    # health probe (_CLASSIFY_FALLBACK check) catches the case where the AI
+    # is unavailable from the very first call and marks the event 'failed'
+    # instead, which get_pending_enrichment already retries. What's still
+    # genuinely open: (1) intermittent/partial failure — the AI answers
+    # stage 2 for real but then falls back on stage 4, 6, or 8 — still
+    # completes as 'done' with partially-fallback data, undetected; (2) no
+    # retry cap or backoff — get_pending_enrichment orders by
+    # created_at DESC across pending+failed+stale-processing with no
+    # retry_count, so a repeatedly-failing old event can be starved
+    # indefinitely once enough newer pending events exist, with no
+    # dead-letter signal when that happens. Neither is fixed in this pass;
+    # both are called out explicitly in this audit's final report rather
+    # than left implied.
+    #
+    # Batch/delay: restarting at a conservative batch (3, not the
+    # pre-incident 10) given real volume is 1-5/day typical (confirmed via
+    # production query) — this is headroom, not a backlog-clearing push.
+    # Watch enrichment_status='pending' counts after this ships; raise back
+    # toward 10 only once a few days confirm no repeat rate-limit storm.
+    _BATCH = 3
+    _AI_DELAY = 3  # seconds between AI calls (raised from 2s alongside the new inter-stage pacing)
 
     import asyncio
 

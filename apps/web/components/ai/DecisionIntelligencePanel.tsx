@@ -97,7 +97,7 @@ function ScoreRing({ score, size = 44 }: { score: number; size?: number }) {
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="4"
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
         style={{ transition: "stroke-dasharray 0.8s ease" }} />
-      <text x={size / 2} y={size / 2 + 5} textAnchor="middle" fill="white"
+      <text x={size / 2} y={size / 2 + 5} textAnchor="middle" fill="rgb(var(--text-primary))"
         fontSize={size > 44 ? "13" : "11"} fontWeight="700"
         style={{ transform: `rotate(90deg) translate(0px, -${size}px)` }}>
         {score}

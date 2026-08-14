@@ -230,6 +230,17 @@ def _detect_template(title: str, summary: str) -> str:
         return "geopolitical"
     if any(w in text for w in ["crude", "opec", "petroleum", "brent", "oil price"]):
         return "energy"
+    # Checked before the domestic "monetary" branch below — a Fed/ECB/PBOC
+    # decision is also plainly "monetary policy," and the domestic template
+    # would otherwise catch it first and model it as an RBI-repo-rate chain,
+    # which is the wrong transmission mechanism entirely (global event ->
+    # USD/INR -> exporters, not RBI decision -> bank NIM).
+    if any(w in text for w in [
+        "fed rate", "federal reserve", "fomc", "fed decision", "fed chair",
+        "ecb rate", "european central bank", "bank of japan", "boj rate",
+        "china gdp", "china pmi", "china economy", "china macro", "pboc",
+    ]):
+        return "global_monetary"
     if any(w in text for w in ["rbi", "repo rate", "rate cut", "rate hike", "interest rate", "monetary policy"]):
         return "monetary"
     if any(w in text for w in ["budget", "fiscal", "capex", "tax revenue", "deficit", "finance minister"]):
@@ -246,6 +257,8 @@ def _build_fallback_graph(
         return _geopolitical_template(title, impact)
     if t == "energy":
         return _energy_template(title, impact)
+    if t == "global_monetary":
+        return _global_monetary_template(title, impact)
     if t == "monetary":
         return _monetary_template(title, impact)
     if t == "fiscal":
@@ -538,6 +551,107 @@ def _monetary_template(title: str, impact: float) -> dict:
             {"period": "1-4 Weeks",   "description": "Banks announce MCLR/loan rate changes; credit demand adjusts"},
             {"period": "1-3 Months",  "description": "Real estate sales and auto bookings show measurable response"},
             {"period": "3-6 Months",  "description": "GDP growth forecast revisions; FII positioning adjusts to India vs EM peers"},
+        ],
+    }
+    return {"nodes": nodes, "edges": edges, "insights": insights}
+
+
+# ── Template: Global monetary policy → India transmission ─────────────────────
+# The only fallback template that starts OUTSIDE India (Fed/ECB/BoJ/PBOC) and
+# models the transmission mechanism into Indian markets, per the spec example:
+# Fed decision -> USD/INR -> IT exporters/pharma exporters (benefit from a
+# weaker rupee) vs import-heavy companies/oil import bill (hurt by it).
+# pos=True means hawkish-for-India (Fed holds/hikes -> stronger dollar ->
+# weaker rupee), matching how a "positive" impact score already means
+# "notable move" elsewhere in this file, not "good for India."
+
+def _global_monetary_template(title: str, impact: float) -> dict:
+    pos = impact >= 5
+    dir_ = "up" if pos else "down"
+    sign = "+" if pos else "-"
+    nodes = [
+        _n("event_center",   title[:45],                "event",    "mixed",                 round(impact/10,1), 0, "🌐", "neutral", f"Impact {impact:.0f}/10"),
+        _n("usd_index",      "US Dollar (DXY)",         "currency", "positive" if pos else "negative", 0.85, 1, "💵", dir_, f"{sign}0.7%"),
+        _n("us_treasury",    "US 10Y Treasury Yield",   "indicator","positive" if pos else "negative", 0.80, 1, "📋", dir_, f"{sign}10 bps"),
+        _n("inr_usd",        "INR vs USD",              "currency", "negative" if pos else "positive", 0.82, 1, "💱", "down" if pos else "up", f"{'−' if pos else '+'}0.6%"),
+        _n("fii_flows",      "FII Flows (India)",       "indicator","negative" if pos else "positive", 0.75, 1, "💸", "down" if pos else "up", "Outflows" if pos else "Inflows"),
+        _n("it_exporters",   "IT Exporters",            "sector",   "positive" if pos else "negative", 0.80, 2, "💻", dir_, "Revenue ↑" if pos else "Revenue ↓"),
+        _n("pharma_exports", "Pharma Exporters",        "sector",   "positive" if pos else "negative", 0.72, 2, "💊", dir_, "USD revenue ↑" if pos else "USD revenue ↓"),
+        _n("tcs",            "TCS",                     "company",  "positive" if pos else "negative", 0.78, 2, "🏢", dir_, f"{sign}1.2%"),
+        _n("infosys",        "Infosys",                 "company",  "positive" if pos else "negative", 0.76, 2, "🏢", dir_, f"{sign}1.1%"),
+        _n("oil_import_bill","Oil Import Bill (INR)",   "indicator","negative" if pos else "positive", 0.78, 2, "🛢️", "up" if pos else "down", "Costlier" if pos else "Cheaper"),
+        _n("import_heavy",   "Import-Heavy Companies",  "sector",   "negative" if pos else "positive", 0.70, 2, "📦", "down" if pos else "up", "Margin pressure" if pos else "Margin relief"),
+        _n("gold_prices",    "Gold Prices (INR)",       "commodity","positive" if pos else "negative", 0.60, 2, "🥇", dir_, f"{sign}0.5%"),
+        _n("imported_infl",  "Imported Inflation Risk", "indicator","negative" if pos else "positive", 0.68, 3, "📈", "up" if pos else "down", "Rising" if pos else "Easing"),
+        _n("rbi_response",   "RBI Policy Stance",       "policy",   "neutral",                 0.55, 3, "🏛️", "neutral", "Watching Fed"),
+        _n("nifty_it",       "Nifty IT Index",          "indicator","positive" if pos else "negative", 0.72, 3, "📊", dir_, f"{sign}0.9%"),
+        _n("ev_import_cost", "Consumer Electronics Cost","sector",  "negative" if pos else "positive", 0.55, 3, "📱", "up" if pos else "down", "Costlier" if pos else "Cheaper"),
+        _n("gdp_growth",     "India GDP Growth Impact", "indicator","negative" if pos else "positive", 0.50, 4, "📊", "down" if pos else "up", f"{'−' if pos else '+'}0.1% FY"),
+    ]
+    edges = [
+        _e("event_center", "usd_index",      "causes",    0.85, 0.88, "The Fed/global central bank decision directly moves the dollar index",         "immediate"),
+        _e("event_center", "us_treasury",    "causes",    0.78, 0.82, "Policy rate expectations reprice US Treasury yields immediately",              "immediate"),
+        _e("usd_index",    "inr_usd",        "causes",    0.80, 0.85, "A stronger dollar mechanically weakens the rupee against it",                  "immediate"),
+        _e("us_treasury",  "fii_flows",      "influences",0.72, 0.78, "Higher US yields make US debt relatively more attractive than EM equities",   "immediate"),
+        _e("fii_flows",    "inr_usd",        "influences",0.65, 0.70, "FII outflows add dollar-selling pressure on top of the DXY move",              "short_term"),
+        _e("inr_usd",      "it_exporters",   "benefits",  0.78, 0.82, "IT services bill in USD — a weaker rupee raises INR-reported revenue",         "short_term"),
+        _e("inr_usd",      "pharma_exports", "benefits",  0.70, 0.75, "Generic pharma exports are largely USD-denominated, same currency tailwind",   "short_term"),
+        _e("it_exporters", "tcs",            "benefits",  0.78, 0.82, "TCS derives the large majority of revenue from US dollar contracts",           "short_term"),
+        _e("it_exporters", "infosys",        "benefits",  0.76, 0.80, "Infosys has similar USD revenue concentration to TCS",                        "short_term"),
+        _e("it_exporters", "nifty_it",       "influences",0.75, 0.80, "IT majors dominate the Nifty IT index weighting",                             "short_term"),
+        _e("inr_usd",       "oil_import_bill","hurts",    0.80, 0.85, "India imports ~85% of crude — a weaker rupee raises the INR cost of the same barrel", "immediate"),
+        _e("inr_usd",       "import_heavy",  "hurts",     0.70, 0.75, "Companies reliant on imported components face higher INR input costs",        "short_term"),
+        _e("import_heavy",  "ev_import_cost","hurts",     0.60, 0.68, "Imported electronics components get costlier in rupee terms",                  "short_term"),
+        _e("inr_usd",       "gold_prices",   "causes",    0.55, 0.62, "Gold is dollar-priced globally — a weaker rupee raises the domestic price",    "short_term"),
+        _e("oil_import_bill","imported_infl","causes",    0.68, 0.72, "A costlier oil import bill feeds directly into domestic fuel and transport prices", "medium_term"),
+        _e("imported_infl", "rbi_response",  "influences",0.55, 0.60, "Imported inflation pressure narrows RBI's room to cut rates independently",   "medium_term"),
+        _e("fii_flows",     "gdp_growth",    "influences",0.50, 0.55, "Sustained FII outflows and a weaker rupee are a mild drag on growth momentum", "long_term"),
+    ]
+    insights = {
+        "summary": (
+            f"A {'hawkish' if pos else 'dovish'} shift from the global central bank is transmitting into Indian "
+            "markets primarily through the rupee. A weaker INR is a genuine two-sided story: IT and pharma "
+            "exporters see an INR revenue tailwind from the same move that raises India's oil import bill and "
+            "squeezes import-heavy manufacturers — this isn't a uniformly negative event for India."
+            if pos else
+            f"A {'dovish' if not pos else 'hawkish'} shift from the global central bank eases pressure on the rupee "
+            "and typically brings FII inflows back to Indian equities, though IT/pharma exporters see a smaller "
+            "currency tailwind on their USD revenue as a result."
+        ),
+        "key_drivers": [
+            "Dollar index (DXY) move driven directly by the policy decision",
+            "US Treasury yield differential vs India, driving FII flow direction",
+            "USD/INR pass-through to import bills and export-sector revenue",
+        ],
+        "ripple_strength": {"direct": "High", "indirect": "High", "long_term": "Medium"},
+        "market_volatility": "Medium", "inflation_risk": "Elevated" if pos else "Low", "growth_impact": "Negative" if pos else "Positive",
+        "beneficiaries": [
+            {"name": "TCS",     "ticker": "TCS",     "confidence": 0.80, "impact": "Positive", "reason": "USD-denominated revenue benefits from rupee weakness"},
+            {"name": "Infosys", "ticker": "INFY",    "confidence": 0.78, "impact": "Positive", "reason": "Same USD revenue currency tailwind as TCS"},
+            {"name": "Sun Pharma", "ticker": "SUNPHARMA", "confidence": 0.72, "impact": "Positive", "reason": "US generic exports priced in dollars"},
+        ] if pos else [
+            {"name": "Indian Oil Corp", "ticker": "IOC", "confidence": 0.70, "impact": "Positive", "reason": "Lower INR cost of imported crude eases under-recovery pressure"},
+        ],
+        "losers": [
+            {"name": "Indian Oil Corp", "ticker": "IOC", "confidence": 0.75, "impact": "Negative", "reason": "Rupee weakness raises the INR cost of imported crude"},
+            {"name": "Voltas",  "ticker": "VOLTAS", "confidence": 0.62, "impact": "Negative", "reason": "Imported component costs rise for consumer electronics/appliances"},
+        ] if pos else [
+            {"name": "TCS", "ticker": "TCS", "confidence": 0.60, "impact": "Slightly Negative", "reason": "A firmer rupee trims the currency tailwind on USD revenue"},
+        ],
+        "impacted_commodities": [
+            {"name": "Gold (INR)", "current_price": "₹71,200/10g", "change_pct": 0.50 if pos else -0.30, "positive": pos},
+        ],
+        "impacted_sectors": [
+            {"name": "IT Services",              "strength": "High", "positive": pos},
+            {"name": "Pharma Exports",           "strength": "Medium", "positive": pos},
+            {"name": "Oil Marketing Companies",  "strength": "High", "positive": not pos},
+            {"name": "Import-Heavy Manufacturing","strength": "Medium", "positive": not pos},
+        ],
+        "ripple_timeline": [
+            {"period": "0-7 Days",   "description": "DXY and USD/INR move immediately; IT stocks and FII flow data react same-day"},
+            {"period": "1-4 Weeks",  "description": "Oil marketing companies adjust retail fuel pricing; IT exporters flag currency tailwind/headwind in commentary"},
+            {"period": "1-3 Months", "description": "Imported inflation shows up in CPI if the rupee move is sustained; RBI factors it into policy"},
+            {"period": "3-6 Months", "description": "Export order books and import-substitution capex plans adjust to the new currency baseline"},
         ],
     }
     return {"nodes": nodes, "edges": edges, "insights": insights}

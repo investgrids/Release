@@ -5,11 +5,12 @@ from .rss_provider import RSSProvider
 from .rbi_provider import RBIProvider
 from .pib_provider import PIBProvider
 from .sebi_provider import SEBIProvider
+from .fed_provider import FedProvider
 from .economic_calendar_provider import EconomicCalendarProvider
 
 __all__ = [
     "BaseProvider", "RawItem",
     "NSEProvider", "BSEProvider", "RSSProvider",
-    "RBIProvider", "PIBProvider", "SEBIProvider",
+    "RBIProvider", "PIBProvider", "SEBIProvider", "FedProvider",
     "EconomicCalendarProvider",
 ]

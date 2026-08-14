@@ -13,7 +13,11 @@ export interface ActionGroup {
 }
 
 export interface GuidanceConfig {
-  takeaway: string;           // Key insight from the current page
+  // Optional (2026-08 audit) — omit it when the page already shows its own
+  // Key Takeaway elsewhere (e.g. events/[id] now surfaces one via the
+  // Event Intelligence tab's IntelligenceBlock); every other caller still
+  // passes a real string and keeps rendering it exactly as before.
+  takeaway?: string;          // Key insight from the current page
   primary:  GuidedAction;     // The single ★ Recommended action
   groups:   ActionGroup[];    // Grouped secondary actions
   path?:    string[];         // Intelligence research chain
@@ -28,12 +32,14 @@ export function NextSteps({ config }: { config: GuidanceConfig }) {
     <div className="overflow-hidden rounded-[20px] border border-surface-border/7 bg-surface-card/90">
 
       {/* ── Key Takeaway ─────────────────────────────────────────────────────── */}
-      <div className="border-b border-surface-border/5 px-5 py-4">
-        <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-text-muted">
-          Key Takeaway
-        </p>
-        <p className="text-[13px] leading-5 text-text-secondary">{config.takeaway}</p>
-      </div>
+      {config.takeaway && (
+        <div className="border-b border-surface-border/5 px-5 py-4">
+          <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-text-muted">
+            Key Takeaway
+          </p>
+          <p className="text-[13px] leading-5 text-text-secondary">{config.takeaway}</p>
+        </div>
+      )}
 
       {/* ── ★ Recommended Action ─────────────────────────────────────────────── */}
       <Link

@@ -84,17 +84,43 @@ async def list_all_events(
     limit:    int = Query(default=50, ge=1, le=200),
     category: Optional[str] = Query(None),
 ):
-    """List all stored historical events, optionally filtered by category."""
+    """List all stored historical events, optionally filtered by category.
+
+    Each event's `historical_score`/`stars` is computed from its full
+    category group (not just the returned page) so filtering/pagination
+    never skews the real per-category aggregate math behind it.
+    """
     try:
+        from datetime import datetime, timezone
+        from app.services.historical_memory_service import (
+            compute_category_pattern, compute_historical_score, compute_avg_similarity,
+        )
         from app.db.session import AsyncSessionLocal
         from app.db.models.historical_memory import HistoricalMarketEvent
-        from sqlalchemy import select, desc
+        from sqlalchemy import select
 
         async with AsyncSessionLocal() as db:
-            q = select(HistoricalMarketEvent).order_by(desc(HistoricalMarketEvent.event_date))
-            if category:
-                q = q.where(HistoricalMarketEvent.category == category)
-            rows = (await db.execute(q.limit(limit))).scalars().all()
+            all_rows = (await db.execute(select(HistoricalMarketEvent))).scalars().all()
+
+        by_category: dict[str, list] = {}
+        for r in all_rows:
+            by_category.setdefault(r.category, []).append(r)
+
+        display = sorted(all_rows, key=lambda r: r.event_date or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+        if category:
+            display = [r for r in display if r.category == category]
+        display = display[:limit]
+
+        pattern_cache: dict[str, dict] = {}
+
+        def _score_for(r) -> dict:
+            group = by_category[r.category]
+            pat = pattern_cache.get(r.category)
+            if pat is None:
+                pat = compute_category_pattern(group, current_id="")
+                pattern_cache[r.category] = pat
+            similarity = compute_avg_similarity(r, group)
+            return compute_historical_score(r, group, pat, similarity)
 
         return {
             "events": [
@@ -109,10 +135,11 @@ async def list_all_events(
                     "nifty_1m":      r.nifty_1m,
                     "opportunity_score": r.opportunity_score,
                     "risk_score":    r.risk_score,
+                    "historical_score": _score_for(r),
                 }
-                for r in rows
+                for r in display
             ],
-            "count": len(rows),
+            "count": len(display),
         }
     except Exception as exc:
         log.warning("historical.list_error", error=str(exc))
@@ -157,6 +184,143 @@ async def memory_stats():
         raise HTTPException(status_code=503, detail=str(exc))
 
 
+def _nearest_point(series: list[dict], target: "date", tolerance_days: int = 7):
+    """Nearest real trading-day point to `target`, or None if the closest
+    point available is further than `tolerance_days` away — e.g. a +90D
+    window for an event that happened last week genuinely has no data yet,
+    and should read as unavailable rather than silently reusing whatever
+    the nearest (much closer) point happens to be."""
+    from datetime import datetime as _dt
+    best, best_diff = None, None
+    for p in series:
+        d = _dt.strptime(p["date"], "%Y-%m-%d").date()
+        diff = abs((d - target).days)
+        if best_diff is None or diff < best_diff:
+            best_diff, best = diff, p
+    if best is None or best_diff > tolerance_days:
+        return None
+    return best
+
+
+def _compute_window_returns(series: list[dict], event_date: "date") -> dict:
+    """Real, standardized before/after return windows computed from the
+    actual fetched daily series — Before: 7D/30D/90D pre-event, After:
+    1D/7D/30D/90D post-event. A window is omitted (None) rather than
+    approximated when no real trading day exists close enough to it."""
+    from datetime import timedelta as _td
+
+    event_pt = _nearest_point(series, event_date, tolerance_days=5)
+    if not event_pt or not event_pt["value"]:
+        return {"before": {}, "after": {}}
+    event_price = event_pt["value"]
+
+    before = {}
+    for label, days in [("7d", 7), ("30d", 30), ("90d", 90)]:
+        p = _nearest_point(series, event_date - _td(days=days))
+        before[label] = round((event_price - p["value"]) / p["value"] * 100, 2) if p and p["value"] else None
+
+    after = {}
+    for label, days in [("1d", 1), ("7d", 7), ("30d", 30), ("90d", 90)]:
+        p = _nearest_point(series, event_date + _td(days=days))
+        after[label] = round((p["value"] - event_price) / event_price * 100, 2) if p and p["value"] else None
+
+    return {"before": before, "after": after}
+
+
+_RANGE_AFTER_DAYS = {"1M": 30, "3M": 90, "6M": 180, "1Y": 365}
+
+
+@router.get("/{event_id}/chart")
+async def get_event_nifty_chart(event_id: str, range: str = Query("1Y", pattern="^(1M|3M|6M|1Y)$")):
+    """Real daily NIFTY 50 closes around the event, plus standardized
+    before/after window returns computed from that same real series — the
+    seed events only store 4 discrete aggregate returns (nifty_1d/3d/1w/1m),
+    not a daily series or a 90-day-before figure, so both the chart line
+    and the window stats need their own live yfinance query.
+
+    Always fetches a fixed wide window (95 days before, 380 days after —
+    enough to cover a 1Y display range and every standardized window) in a
+    single call; `range` only controls how much of that same real series is
+    returned for charting, so switching ranges client-side needs no extra
+    backend round-trip.
+    """
+    import math
+    from datetime import timedelta
+    import yfinance as yf
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.historical_memory import HistoricalMarketEvent
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as db:
+        row = (await db.execute(
+            select(HistoricalMarketEvent).where(HistoricalMarketEvent.id == event_id)
+        )).scalar_one_or_none()
+
+    if not row or not row.event_date:
+        raise HTTPException(status_code=404, detail="Historical event not found")
+
+    event_date = row.event_date.date() if hasattr(row.event_date, "date") else row.event_date
+    fetch_start = row.event_date - timedelta(days=95)
+    fetch_end = row.event_date + timedelta(days=380)
+
+    def _fetch() -> list[dict]:
+        try:
+            hist = yf.download("^NSEI", start=fetch_start, end=fetch_end, interval="1d",
+                                progress=False, auto_adjust=True, timeout=15)
+            if hist.empty:
+                return []
+            out = []
+            for idx, r in hist.iterrows():
+                try:
+                    close = r["Close"]
+                    if hasattr(close, "iloc"):
+                        close = close.iloc[0]
+                    v = float(close)
+                    if math.isnan(v) or math.isinf(v):
+                        continue
+                    out.append({"date": str(idx.date()), "value": round(v, 2)})
+                except Exception:
+                    continue
+            return out
+        except Exception as exc:
+            log.warning("historical.chart_fetch_failed", event_id=event_id, error=str(exc))
+            return []
+
+    # yfinance's own `timeout=` param only bounds the final data-download
+    # call — its internal session/cookie/crumb requests have historically
+    # not always honored it, which can hang the executor thread with no
+    # outer bound. wait_for() can't force-kill that OS thread (a Python
+    # ThreadPoolExecutor limitation), but it does stop THIS request from
+    # blocking on it forever, which is what actually matters here.
+    import asyncio
+    loop = asyncio.get_event_loop()
+    try:
+        full_series = await asyncio.wait_for(loop.run_in_executor(None, _fetch), timeout=20)
+    except asyncio.TimeoutError:
+        log.warning("historical.chart_fetch_timeout", event_id=event_id)
+        full_series = []
+
+    windows = _compute_window_returns(full_series, event_date)
+
+    from datetime import datetime as _dt
+    after_days = _RANGE_AFTER_DAYS[range]
+    display_start = (row.event_date - timedelta(days=30)).date()
+    display_end = (row.event_date + timedelta(days=after_days)).date()
+    display_series = [
+        p for p in full_series
+        if display_start <= _dt.strptime(p["date"], "%Y-%m-%d").date() <= display_end
+    ]
+
+    return {
+        "event_id": event_id,
+        "event_date": row.event_date.strftime("%Y-%m-%d"),
+        "range": range,
+        "series": display_series,
+        "full_series": full_series,
+        "windows": windows,
+    }
+
+
 @router.get("/{event_id}")
 async def get_event(event_id: str):
     """Get full detail of a single historical event."""
@@ -170,8 +334,46 @@ async def get_event(event_id: str):
                 select(HistoricalMarketEvent).where(HistoricalMarketEvent.id == event_id)
             )).scalar_one_or_none()
 
-        if not row:
-            raise HTTPException(status_code=404, detail="Historical event not found")
+            if not row:
+                raise HTTPException(status_code=404, detail="Historical event not found")
+
+            # Cross-event pattern stats — every other stored event sharing
+            # this category, aggregated honestly (see compute_category_
+            # pattern's docstring on how n=1 degrades).
+            from app.services.historical_memory_service import (
+                compute_category_pattern, compute_pattern_snapshot,
+                compute_historical_score, compute_avg_similarity,
+            )
+            cat_rows = (await db.execute(
+                select(HistoricalMarketEvent).where(HistoricalMarketEvent.category == row.category)
+            )).scalars().all()
+            pattern = compute_category_pattern(cat_rows, current_id=row.id)
+            pattern_snapshot = compute_pattern_snapshot(row, cat_rows, pattern)
+            similarity = compute_avg_similarity(row, cat_rows)
+            historical_score = compute_historical_score(row, cat_rows, pattern, similarity)
+
+            # Attach each timeline entry's own real historical_score too —
+            # "Similar Historical Patterns" renders these as star ratings,
+            # which should be the same disclosed formula, not opportunity_score.
+            rows_by_id = {r.id: r for r in cat_rows}
+            for item in pattern["timeline"]:
+                r = rows_by_id.get(item["id"])
+                if r is not None:
+                    r_sim = compute_avg_similarity(r, cat_rows)
+                    item["historical_score"] = compute_historical_score(r, cat_rows, pattern, r_sim)
+
+        # Real, deterministic verdict — same engine Opportunity Radar uses
+        # (opportunity_score/confidence/risk/trend all real fields on this
+        # row already), not a separate invented rating for this page.
+        verdict = None
+        if row.opportunity_score is not None and row.confidence is not None:
+            from app.services.opportunity_intelligence import compute_investment_verdict
+            risk_level = "High" if (row.risk_score or 0) >= 60 else "Medium" if (row.risk_score or 0) >= 30 else "Low"
+            trend = "up" if row.sentiment == "bullish" else "down" if row.sentiment == "bearish" else "neutral"
+            verdict = compute_investment_verdict(
+                opportunity_score=row.opportunity_score, confidence=row.confidence,
+                risk_level=risk_level, trend=trend,
+            )
 
         return {
             "id":                  row.id,
@@ -200,6 +402,10 @@ async def get_event(event_id: str):
             "what_happened":       row.what_happened,
             "key_lesson":          row.key_lesson,
             "source":              row.source,
+            "verdict":             verdict,
+            "pattern":             pattern,
+            "pattern_snapshot":    pattern_snapshot,
+            "historical_score":    historical_score,
         }
     except HTTPException:
         raise

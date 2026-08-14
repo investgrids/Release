@@ -713,6 +713,15 @@ def _fetch_top_movers() -> dict:
             "positive": positive,
         }
 
+    # Real, uncapped counts across the whole sampled universe — the
+    # gainers/losers lists below are independently sliced to :4 each for
+    # display, so len(gainers)/len(losers) always collapses to the same
+    # 4-vs-4 ratio (confirmed live: every breadth "estimate" downstream
+    # that used those capped list lengths came out exactly 50/50, e.g.
+    # 600 advances / 600 declines, regardless of real market conditions).
+    advancing_count = sum(1 for r in rows if r["pct"] > 0)
+    declining_count = sum(1 for r in rows if r["pct"] < 0)
+
     rows.sort(key=lambda r: r["pct"], reverse=True)
     gainers = [_fmt(r["sym"], r["curr"], r["pct"], True)  for r in rows if r["pct"] > 0][:4]
     losers  = [_fmt(r["sym"], r["curr"], r["pct"], False) for r in reversed(rows) if r["pct"] < 0][:4]
@@ -730,7 +739,11 @@ def _fetch_top_movers() -> dict:
         for r in rows[:4]
     ]
 
-    result = {"gainers": gainers, "losers": losers, "active": active}
+    result = {
+        "gainers": gainers, "losers": losers, "active": active,
+        "advancing_count": advancing_count, "declining_count": declining_count,
+        "sample_size": len(rows),
+    }
     _movers_cache["ts"] = now
     _movers_cache["data"] = result
     return result

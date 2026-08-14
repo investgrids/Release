@@ -1,20 +1,19 @@
 "use client";
 
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { GitBranch, History, TrendingUp, TrendingDown, Target } from "lucide-react";
+import { GitBranch, Target } from "lucide-react";
 import { HubHero, type HubStat } from "@/components/HubHero";
 import { HubTabBar, type HubTab } from "@/components/HubTabBar";
+import { useDelayedPending } from "@/hooks/useDelayedPending";
 
-// Kept as 5 dedicated tabs, not collapsed into sections — this is the
-// product's own stated flagship differentiator, and the reasoning flow
-// (ripple effect → has this happened before → winners → losers →
-// investment thesis) reads as a connected argument this way.
+// Historical Patterns / Winners / Losers tabs removed (2026-08 audit, per
+// explicit request) — that content is already shown in full on the
+// dedicated /historical page; duplicating it here as three more tabs was
+// the same content twice, not a distinct view.
 const TABS: HubTab[] = [
-  { id: "chain",      label: "Ripple Chain",         icon: <GitBranch className="h-3.5 w-3.5" /> },
-  { id: "historical", label: "Historical Patterns",  icon: <History className="h-3.5 w-3.5" /> },
-  { id: "winners",    label: "Historical Winners",   icon: <TrendingUp className="h-3.5 w-3.5" /> },
-  { id: "losers",     label: "Historical Losers",    icon: <TrendingDown className="h-3.5 w-3.5" /> },
-  { id: "thesis",     label: "Investment Thesis",    icon: <Target className="h-3.5 w-3.5" /> },
+  { id: "chain",  label: "Ripple Chain",      icon: <GitBranch className="h-3.5 w-3.5" /> },
+  { id: "thesis", label: "Investment Thesis", icon: <Target className="h-3.5 w-3.5" /> },
 ];
 
 export function RippleHubClient({
@@ -25,6 +24,8 @@ export function RippleHubClient({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const showLoading = useDelayedPending(isPending);
 
   return (
     <div className="pb-16">
@@ -36,9 +37,17 @@ export function RippleHubClient({
         stats={stats}
       />
       <div className="mb-5">
-        <HubTabBar hub="Ripple Intelligence" tabs={TABS} active={activeTab} onChange={(id) => router.push(`/ripple?tab=${id}`)} />
+        <HubTabBar hub="Ripple Intelligence" tabs={TABS} active={activeTab} pending={showLoading}
+          onChange={(id) => startTransition(() => router.push(`/ripple?tab=${id}`))} />
       </div>
-      {children}
+      <div className="relative">
+        {showLoading && (
+          <div className="absolute inset-0 z-10 flex items-start justify-center bg-bg/60 pt-20 backdrop-blur-[1px]">
+            <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-violet-400 border-t-transparent" />
+          </div>
+        )}
+        {children}
+      </div>
     </div>
   );
 }

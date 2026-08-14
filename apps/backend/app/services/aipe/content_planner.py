@@ -16,6 +16,8 @@ import re
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
+from app.services.keyword_matching import compile_keywords, matches_any
+
 _IST = timezone(timedelta(hours=5, minutes=30))
 
 
@@ -42,6 +44,15 @@ def _text(event: dict[str, Any]) -> str:
 
 
 # ── Keyword → article type mappings ──────────────────────────────────────────
+# Re-audit (2026-08-13): these were matched with bare `kw in text` — the
+# same false-positive class app.services.intelligence.engine.compute_priority
+# was already fixed for ("rbi" inside "turbine"), unfixed here. Concretely
+# verified false positives before this fix: "ai" matched "maintain",
+# "chairman", "again", "retail", "captain"; "ev" matched "event", "revenue",
+# "seven", "every"; "pli" matched "compliance"; "rbi" matched "turbine". Now
+# word-boundary matched via the same shared mechanism engine.py uses (see
+# app.services.keyword_matching) instead of a second, independently-drifting
+# implementation of the same fix.
 _POLICY_KW = [
     "rbi", "repo rate", "rate cut", "rate hike", "monetary policy", "sebi",
     "budget", "gst", "government policy", "ministry", "regulation", "circular",
@@ -64,6 +75,12 @@ _THEME_KW = [
     "theme", "megatrend", "ev", "electric vehicle", "renewable", "ai", "data centre",
     "defence", "railways", "infrastructure", "pli", "semiconductor",
 ]
+
+_POLICY_PATTERNS = compile_keywords(_POLICY_KW)
+_RIPPLE_PATTERNS = compile_keywords(_RIPPLE_KW)
+_COMPANY_PATTERNS = compile_keywords(_COMPANY_KW)
+_OPPORTUNITY_PATTERNS = compile_keywords(_OPPORTUNITY_KW)
+_THEME_PATTERNS = compile_keywords(_THEME_KW)
 
 
 def select_article_type(
@@ -102,7 +119,7 @@ def select_article_type(
 
     # ── Content type selection ────────────────────────────────────────────────
     # Policy / Macro
-    if any(kw in text for kw in _POLICY_KW):
+    if matches_any(_POLICY_PATTERNS, text):
         slug = re.sub(r"[^a-z0-9]", "-", text[:40].strip())
         return "policy_intelligence", f"policy-{slug}-{today}", 1
 
@@ -111,25 +128,25 @@ def select_article_type(
         return "ripple_intelligence", f"ripple-{event_id[:16]}-{today}", 2
 
     # Structural / commodity ripple
-    if any(kw in text for kw in _RIPPLE_KW) or is_structural:
+    if matches_any(_RIPPLE_PATTERNS, text) or is_structural:
         return "ripple_intelligence", f"ripple-{event_id[:16]}-{today}", 3
 
     # Company-specific earnings/results
-    if any(kw in text for kw in _COMPANY_KW) and companies:
+    if matches_any(_COMPANY_PATTERNS, text) and companies:
         co_name = (companies[0] if isinstance(companies[0], str) else companies[0].get("symbol", "co"))[:10]
         return "company_intelligence", f"company-{co_name}-{today}", 4
 
     # Sector-wide event
-    if len(sectors) >= 2 and not any(kw in text for kw in _COMPANY_KW):
+    if len(sectors) >= 2 and not matches_any(_COMPANY_PATTERNS, text):
         sector_slug = sectors[0].lower().replace(" ", "-")[:20] if sectors else "sector"
         return "sector_intelligence", f"sector-{sector_slug}-{today}", 4
 
     # Theme-related
-    if any(kw in text for kw in _THEME_KW):
+    if matches_any(_THEME_PATTERNS, text):
         return "theme_intelligence", f"theme-{event_id[:16]}-{today}", 5
 
     # Opportunity
-    if any(kw in text for kw in _OPPORTUNITY_KW) and urgency >= 6:
+    if matches_any(_OPPORTUNITY_PATTERNS, text) and urgency >= 6:
         return "opportunity_intelligence", f"opp-{event_id[:16]}-{today}", 5
 
     # High urgency breaking (fallback for very urgent events)

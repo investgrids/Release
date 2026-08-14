@@ -42,13 +42,20 @@ from sqlalchemy import select
 from app.db.session import AsyncSessionLocal
 from app.db.models.event import Event
 from app.db.models_legacy import NewsArticle
-from app.api.companies import _NSE_UNIVERSE
+from app.api.companies import _NSE_UNIVERSE, _fetch_prices
 from app.services.ai_search.entities import _match_companies, suggest_companies
 
 router = APIRouter()
 
 _WINDOW_DAYS = 90
 _BY_SYMBOL = {c["symbol"]: c for c in _NSE_UNIVERSE}
+
+# A single-day move at or beyond this magnitude is the honest bar for
+# "worth surfacing" — chosen because it's a real, live signal (not an
+# AI-assessed one; job_enrich_events is paused, so impact_score is null on
+# every recent event — see the Portfolio Ripples/Brief section below).
+# Below this, price noise isn't a "development."
+_MOVE_THRESHOLD_PCT = 2.0
 
 
 class PortfolioConfidenceRequest(BaseModel):
@@ -101,6 +108,87 @@ def _summary(symbol: str, name: str, event_count: int, news_count: int) -> tuple
     if event_count >= 1 or news_count >= 1:
         return "light", f"Light coverage: {event_count} event{'s' if event_count != 1 else ''}" + (f", {news_count} article{'s' if news_count != 1 else ''}" if news_count else "") + f" in the last {_WINDOW_DAYS} days — real, but not much of it."
     return "thin", f"Thin coverage: 0 events in the last {_WINDOW_DAYS} days — we're not tracking much real-time activity on {name} yet."
+
+
+def _price_message(name: str, pct: float, event_count: int) -> str:
+    direction = "up" if pct >= 0 else "down"
+    base = f"{name} shares are {direction} {abs(pct):.2f}% today."
+    if event_count:
+        return base + f" {event_count} tracked event{'s' if event_count != 1 else ''} in the last {_WINDOW_DAYS} days."
+    return base + " No tracked events behind it yet — this is a live price move only."
+
+
+async def _build_brief(results: list[dict]) -> dict:
+    """Portfolio Intelligence Brief additions: real live price movement
+    (Needs Attention / Positive Developments) and real cross-holding theme
+    exposure (Portfolio Ripples) for resolved holdings.
+
+    Deliberately built as an orchestration layer over signals that already
+    exist elsewhere (companies.py's live-price fetch, the intelligence
+    engine's theme cache) rather than a new intelligence engine — see
+    tools.py's module docstring for why the richer AI-assessed event impact
+    (Event.impact_score) isn't used: job_enrich_events is paused platform-
+    wide, so every recent event's impact_score/impact is null/"Neutral"
+    right now. Price movement is the honest substitute: real, live, and
+    unblocked for the full universe.
+    """
+    resolved = [r for r in results if r["resolved"]]
+    symbols = [r["symbol"] for r in resolved]
+
+    prices = await _fetch_prices(symbols)
+
+    needs_attention, positive = [], []
+    for r in resolved:
+        p = prices.get(r["symbol"])
+        if not p:
+            r["price"] = None
+            r["price_pct"] = None
+            continue
+        r["price"] = p["price"]
+        r["price_pct"] = p["pct"]
+        item = {
+            "symbol": r["symbol"],
+            "name": r["name"],
+            "price": p["price"],
+            "pct": p["pct"],
+            "event_count": r["event_count"],
+            "message": _price_message(r["name"], p["pct"], r["event_count"]),
+        }
+        if p["pct"] <= -_MOVE_THRESHOLD_PCT:
+            needs_attention.append(item)
+        elif p["pct"] >= _MOVE_THRESHOLD_PCT:
+            positive.append(item)
+    needs_attention.sort(key=lambda x: x["pct"])
+    positive.sort(key=lambda x: -x["pct"])
+
+    ripples = []
+    if symbols:
+        try:
+            from app.services.intelligence.engine import read_themes
+            themes = await read_themes()
+        except Exception:
+            themes = []
+        held = set(symbols)
+        by_symbol = {r["symbol"]: r["name"] for r in resolved}
+        for t in themes or []:
+            matched = [s["sym"] for s in (t.get("top_stocks") or []) if s["sym"] in held]
+            if not matched:
+                continue
+            ripples.append({
+                "theme": t.get("theme"),
+                "momentum": t.get("momentum"),
+                "score": t.get("score"),
+                "holdings": [{"symbol": s, "name": by_symbol.get(s, s)} for s in matched],
+            })
+        ripples.sort(key=lambda x: (-len(x["holdings"]), -(x["score"] or 0)))
+
+    return {
+        "needs_attention": needs_attention,
+        "positive_developments": positive,
+        "ripples": ripples,
+        "prices_available": bool(prices),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.post("/portfolio-confidence")
@@ -176,6 +264,8 @@ async def portfolio_confidence(body: PortfolioConfidenceRequest):
             "ai_search_query": f"What's the latest on {name}?" if level != "thin" else f"Why is there so little coverage on {name}?",
         })
 
+    brief = await _build_brief(results)
+
     return {
         "window_days": _WINDOW_DAYS,
         "holdings": results,
@@ -185,4 +275,5 @@ async def portfolio_confidence(body: PortfolioConfidenceRequest):
             "thin": sum(1 for r in results if r["level"] == "thin"),
             "not_tracked": sum(1 for r in results if r["level"] == "not_tracked"),
         },
+        "brief": brief,
     }

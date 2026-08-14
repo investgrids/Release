@@ -46,8 +46,8 @@ function FearGreedGauge({ value }: { value: number }) {
           <path d={arcPath(72,  36)}  stroke="#84cc16" strokeWidth="8" fill="none" strokeLinecap="round"/>
           <path d={arcPath(36,  0)}   stroke="#22c55e" strokeWidth="8" fill="none" strokeLinecap="round"/>
           {/* Needle */}
-          <line x1={CX} y1={CY} x2={needleX} y2={needleY} stroke="white" strokeWidth="2" strokeLinecap="round"/>
-          <circle cx={CX} cy={CY} r="4" fill="white"/>
+          <line x1={CX} y1={CY} x2={needleX} y2={needleY} stroke="rgb(var(--text-primary))" strokeWidth="2" strokeLinecap="round"/>
+          <circle cx={CX} cy={CY} r="4" fill="rgb(var(--text-primary))"/>
         </svg>
         <p className="text-[22px] font-black text-text-primary leading-none">{value}</p>
         <p className="text-[12px] font-semibold mt-0.5" style={{ color }}>{label}</p>

@@ -108,14 +108,31 @@ class BaseProvider(ABC):
 
     async def fetch_and_normalize(self) -> list[RawItem]:
         """Full pipeline: fetch → normalize → validate. Does NOT deduplicate."""
+        import time
         import structlog
+        import httpx
+        from app.services import source_health
         log = structlog.get_logger(__name__)
+        start = time.monotonic()
         try:
             raw_items = await self.fetch_latest()
         except Exception as exc:
+            elapsed_ms = (time.monotonic() - start) * 1000
             log.warning("provider.fetch_failed", source=self.source_name, error=str(exc))
+            # Source health (Phase 6, 2026-08-13 audit) — one call here
+            # covers NSE, BSE, RBI, PIB, SEBI generically, since they all
+            # go through this shared wrapper (RSS tracks itself per-feed
+            # instead — see rss_provider.py — because this one call site
+            # only sees RSSProvider as a single aggregate, not its 6
+            # individual feeds).
+            kind = "http" if isinstance(exc, httpx.HTTPError) else "parse"
+            source_health.record_fetch(
+                self.source_name, success=False, failure_kind=kind,
+                latency_ms=elapsed_ms, error=str(exc),
+            )
             return []
 
+        elapsed_ms = (time.monotonic() - start) * 1000
         result: list[RawItem] = []
         for raw in raw_items:
             try:
@@ -125,4 +142,7 @@ class BaseProvider(ABC):
             except Exception as exc:
                 log.debug("provider.normalize_error", source=self.source_name, error=str(exc))
         log.info("provider.fetched", source=self.source_name, count=len(result))
+        source_health.record_fetch(
+            self.source_name, success=True, event_count=len(result), latency_ms=elapsed_ms,
+        )
         return result

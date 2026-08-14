@@ -193,41 +193,71 @@ export function IntelligenceBlock({
   data,
   label = "AI Intelligence",
   compact = false,
+  // 2026-08 audit, per explicit request — the event page's dedicated
+  // "Event Intelligence" tab already carries that name in the tab bar
+  // itself, so this card's own header repeated it as a second title right
+  // below, and its click-to-collapse chevron meant primary tab content
+  // could be hidden by accident. `collapsible=false` drops both: no
+  // header title, no chevron, content always fully shown — matching how
+  // the Overview tab's own primary content is never collapsed. Defaults
+  // to `true` so every other caller (calendar, companies, news, ripple,
+  // homepage) keeps its existing compact/expandable behavior unchanged.
+  collapsible = true,
+  // Two-layer format (2026-08 audit, per explicit request) — Layer 1
+  // (Key Takeaway + Market Story) always visible; everything else
+  // (Opportunities, Risks, Company Stance, Sectors, Themes, Historical
+  // Context, Monitoring Points) tucked behind its own "Deeper Analysis"
+  // toggle, same collapsed-by-default pattern already used for Overview's
+  // "Deep Research" and the event page's legacy-fallback section. Off by
+  // default so every other caller keeps rendering one continuous body.
+  twoLayer = false,
 }: {
-  data:     IntelligenceObject;
-  label?:   string;
-  compact?: boolean;
+  data:        IntelligenceObject;
+  label?:      string;
+  compact?:    boolean;
+  collapsible?: boolean;
+  twoLayer?:   boolean;
 }) {
-  const [expanded, setExpanded] = useState(!compact);
+  const [expandedState, setExpanded] = useState(!compact);
+  const expanded = collapsible ? expandedState : true;
   const hasContent = data.market_story || data.key_takeaway;
 
   if (!hasContent) return null;
 
+  const hasLayer2Content = data.opportunities.length > 0 || data.risks.length > 0
+    || data.companies.length > 0 || data.sectors.length > 0 || data.themes.length > 0
+    || !!data.historical_context || data.monitoring_points.length > 0;
+
   return (
     <div className="rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] overflow-hidden">
-      {/* Header */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-text-primary/[0.02] transition-colors"
-      >
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/20">
-          <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-text-primary leading-none">{label}</p>
-          {data.market_story && (
-            <p className="mt-0.5 truncate text-[11px] text-text-muted">{data.market_story.slice(0, 80)}…</p>
-          )}
-        </div>
-        <ConfidenceBadge data={data.confidence as any} />
-        <div className="ml-2 text-text-muted">
-          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </div>
-      </button>
+      {/* Header — only rendered when collapsible; a non-collapsible block
+          (this event page's Event Intelligence tab) skips straight to the
+          body, since the surrounding tab already names it and there's
+          nothing to expand/collapse. */}
+      {collapsible && (
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-text-primary/[0.02] transition-colors"
+        >
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500/20">
+            <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-text-primary leading-none">{label}</p>
+            {data.market_story && (
+              <p className="mt-0.5 truncate text-[11px] text-text-muted">{data.market_story.slice(0, 80)}…</p>
+            )}
+          </div>
+          <ConfidenceBadge data={data.confidence as any} />
+          <div className="ml-2 text-text-muted">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </div>
+        </button>
+      )}
 
       {/* Expandable body */}
       {expanded && (
-        <div className="border-t border-surface-border/5 px-5 pb-5 pt-4 space-y-5">
+        <div className={`space-y-5 px-5 pb-5 pt-4 ${collapsible ? "border-t border-surface-border/5" : ""}`}>
           {/* Key Takeaway */}
           {data.key_takeaway && (
             <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] px-4 py-3">
@@ -244,97 +274,188 @@ export function IntelligenceBlock({
             </div>
           )}
 
-          {/* Opportunities */}
-          {data.opportunities.length > 0 && (
-            <div>
-              <SectionHeader icon={<TrendingUp className="h-3.5 w-3.5" />} label="Opportunities" />
-              <div className="space-y-2">
-                {data.opportunities.slice(0, 3).map((op, i) => (
-                  <OpportunityCard key={i} op={op} />
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Layer 2 inline — only when twoLayer is OFF (every existing
+              caller's unchanged behavior). When twoLayer is on, this
+              content renders exactly once, in the separate "Deeper
+              Analysis" toggle section below instead. */}
+          {!twoLayer && (
+            <>
+              {/* Opportunities */}
+              {data.opportunities.length > 0 && (
+                <div>
+                  <SectionHeader icon={<TrendingUp className="h-3.5 w-3.5" />} label="Opportunities" />
+                  <div className="space-y-2">
+                    {data.opportunities.slice(0, 3).map((op, i) => (
+                      <OpportunityCard key={i} op={op} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Risks */}
-          {data.risks.length > 0 && (
-            <div>
-              <SectionHeader icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Key Risks" />
-              <div className="space-y-2">
-                {data.risks.slice(0, 3).map((risk, i) => (
-                  <RiskCard key={i} risk={risk} />
-                ))}
-              </div>
-            </div>
-          )}
+              {/* Risks */}
+              {data.risks.length > 0 && (
+                <div>
+                  <SectionHeader icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Key Risks" />
+                  <div className="space-y-2">
+                    {data.risks.slice(0, 3).map((risk, i) => (
+                      <RiskCard key={i} risk={risk} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Companies */}
-          {data.companies.length > 0 && (
-            <div>
-              <SectionHeader icon={<TrendingUp className="h-3.5 w-3.5" />} label="Company Stance" />
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {data.companies.slice(0, 6).map((co, i) => (
-                  <CompanyPill key={i} co={co} />
-                ))}
-              </div>
-            </div>
-          )}
+              {/* Companies */}
+              {data.companies.length > 0 && (
+                <div>
+                  <SectionHeader icon={<TrendingUp className="h-3.5 w-3.5" />} label="Company Stance" />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {data.companies.slice(0, 6).map((co, i) => (
+                      <CompanyPill key={i} co={co} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Sectors */}
-          {data.sectors.length > 0 && (
-            <div>
-              <SectionHeader icon={<Eye className="h-3.5 w-3.5" />} label="Sectors" />
-              <div className="space-y-2">
-                {data.sectors.slice(0, 5).map((sec, i) => (
-                  <SectorBar key={i} sec={sec} />
-                ))}
-              </div>
-            </div>
-          )}
+              {/* Sectors */}
+              {data.sectors.length > 0 && (
+                <div>
+                  <SectionHeader icon={<Eye className="h-3.5 w-3.5" />} label="Sectors" />
+                  <div className="space-y-2">
+                    {data.sectors.slice(0, 5).map((sec, i) => (
+                      <SectorBar key={i} sec={sec} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Themes */}
-          {data.themes.length > 0 && (
-            <div>
-              <SectionHeader icon={<Sparkles className="h-3.5 w-3.5" />} label="Market Themes" />
-              <div className="flex flex-wrap gap-2">
-                {data.themes.map((t, i) => (
-                  <span
-                    key={i}
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${STRENGTH_COLOR[t.strength] || STRENGTH_COLOR.moderate}`}
-                    title={t.description}
-                  >
-                    {t.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+              {/* Themes */}
+              {data.themes.length > 0 && (
+                <div>
+                  <SectionHeader icon={<Sparkles className="h-3.5 w-3.5" />} label="Market Themes" />
+                  <div className="flex flex-wrap gap-2">
+                    {data.themes.map((t, i) => (
+                      <span
+                        key={i}
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${STRENGTH_COLOR[t.strength] || STRENGTH_COLOR.moderate}`}
+                        title={t.description}
+                      >
+                        {t.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Historical Context */}
-          {data.historical_context && (
-            <div>
-              <SectionHeader icon={<History className="h-3.5 w-3.5" />} label="Historical Context" />
-              <p className="text-[11px] text-text-muted leading-relaxed italic">{data.historical_context}</p>
-            </div>
-          )}
+              {/* Historical Context */}
+              {data.historical_context && (
+                <div>
+                  <SectionHeader icon={<History className="h-3.5 w-3.5" />} label="Historical Context" />
+                  <p className="text-[11px] text-text-muted leading-relaxed italic">{data.historical_context}</p>
+                </div>
+              )}
 
-          {/* Monitoring Points */}
-          {data.monitoring_points.length > 0 && (
-            <div>
-              <SectionHeader icon={<Eye className="h-3.5 w-3.5" />} label="What to Watch" />
-              <ul className="space-y-1">
-                {data.monitoring_points.map((pt, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[11px] text-text-secondary">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-600" />
-                    {pt}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+              {/* Monitoring Points */}
+              {data.monitoring_points.length > 0 && (
+                <div>
+                  <SectionHeader icon={<Eye className="h-3.5 w-3.5" />} label="What to Watch" />
+                  <ul className="space-y-1">
+                    {data.monitoring_points.map((pt, i) => (
+                      <li key={i} className="flex items-start gap-2 text-[11px] text-text-secondary">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-600" />
+                        {pt}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-          {/* Footer */}
-          <p className="text-[9px] text-text-muted border-t border-surface-border/4 pt-3">
+              {/* Footer */}
+              <p className="text-[9px] text-text-muted border-t border-surface-border/4 pt-3">
+                Generated {new Date(data.generated_at).toLocaleTimeString()} · AI intelligence, not financial advice
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Layer 2 — two columns, always visible (2026-08 audit, explicit
+          request: left/right, not a collapsed toggle). Left: Opportunities
+          + Key Risks — the core actionable read. Right: Company Stance,
+          Sectors, Themes, Historical Context, What to Watch — supporting
+          structured detail. Stacks to one column on narrow screens. */}
+      {twoLayer && hasLayer2Content && (
+        <div className="border-t border-surface-border/5 px-5 pb-5 pt-4">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <div className="space-y-5">
+              {data.opportunities.length > 0 && (
+                <div>
+                  <SectionHeader icon={<TrendingUp className="h-3.5 w-3.5" />} label="Opportunities" />
+                  <div className="space-y-2">
+                    {data.opportunities.slice(0, 3).map((op, i) => <OpportunityCard key={i} op={op} />)}
+                  </div>
+                </div>
+              )}
+              {data.risks.length > 0 && (
+                <div>
+                  <SectionHeader icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Key Risks" />
+                  <div className="space-y-2">
+                    {data.risks.slice(0, 3).map((risk, i) => <RiskCard key={i} risk={risk} />)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-5">
+              {data.companies.length > 0 && (
+                <div>
+                  <SectionHeader icon={<TrendingUp className="h-3.5 w-3.5" />} label="Company Stance" />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {data.companies.slice(0, 6).map((co, i) => <CompanyPill key={i} co={co} />)}
+                  </div>
+                </div>
+              )}
+              {data.sectors.length > 0 && (
+                <div>
+                  <SectionHeader icon={<Eye className="h-3.5 w-3.5" />} label="Sectors" />
+                  <div className="space-y-2">
+                    {data.sectors.slice(0, 5).map((sec, i) => <SectorBar key={i} sec={sec} />)}
+                  </div>
+                </div>
+              )}
+              {data.themes.length > 0 && (
+                <div>
+                  <SectionHeader icon={<Sparkles className="h-3.5 w-3.5" />} label="Market Themes" />
+                  <div className="flex flex-wrap gap-2">
+                    {data.themes.map((t, i) => (
+                      <span key={i} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${STRENGTH_COLOR[t.strength] || STRENGTH_COLOR.moderate}`} title={t.description}>
+                        {t.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {data.historical_context && (
+                <div>
+                  <SectionHeader icon={<History className="h-3.5 w-3.5" />} label="Historical Context" />
+                  <p className="text-[11px] text-text-muted leading-relaxed italic">{data.historical_context}</p>
+                </div>
+              )}
+              {data.monitoring_points.length > 0 && (
+                <div>
+                  <SectionHeader icon={<Eye className="h-3.5 w-3.5" />} label="What to Watch" />
+                  <ul className="space-y-1">
+                    {data.monitoring_points.map((pt, i) => (
+                      <li key={i} className="flex items-start gap-2 text-[11px] text-text-secondary">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-600" />
+                        {pt}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+          <p className="mt-5 text-[9px] text-text-muted border-t border-surface-border/4 pt-3">
             Generated {new Date(data.generated_at).toLocaleTimeString()} · AI intelligence, not financial advice
           </p>
         </div>

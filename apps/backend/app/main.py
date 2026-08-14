@@ -364,7 +364,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media, tools, coverage, daily_brief_intelligence, facts  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media, tools, coverage, daily_brief_intelligence, facts, sources, macro  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -414,6 +414,9 @@ app.include_router(stream.router,             prefix="/api/stream",             
 app.include_router(intelligence_market.router, prefix="/api/intelligence/market",  tags=["intelligence-market"])
 # Critical Event Coverage observability (funnel counts, uncovered critical events)
 app.include_router(coverage.router,            prefix="/api/coverage",            tags=["coverage"])
+# Source-level ingestion health (NSE/BSE/RSS-per-feed/RBI/PIB/SEBI)
+app.include_router(sources.router,             prefix="/api/sources",             tags=["sources"])
+app.include_router(macro.router,               prefix="/api/macro",               tags=["macro"])
 # Daily Brief aggregation — connects opening_prediction_service + market
 # overview + EventTriage tiering into one response (see module docstring)
 app.include_router(daily_brief_intelligence.router, prefix="/api/daily-brief",     tags=["daily-brief"])

@@ -10,26 +10,25 @@ import { Target, Building2, BarChart2, Sparkles, MailX, ArrowRight } from "lucid
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { NextSteps } from "@/components/NextSteps";
 import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
-import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { isRealSymbol, truncateForQuery } from "@/lib/text";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
-import { InvestmentThesisCard, OpportunityLifecycleCard, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, MultiHorizonOutlookCard } from "@/components/intelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { HistoricalMemory } from "@/components/HistoricalMemory";
 import { useIntelligence } from "@/hooks/useIntelligence";
-import { IntelligenceBlock } from "@/components/intelligence/IntelligenceBlock";
+import { IntelligenceBlock, type IntelligenceObject } from "@/components/intelligence/IntelligenceBlock";
+import { type EvidenceFact } from "@/components/article/EvidenceList";
 import { API_BASE_URL as API } from "@/lib/api";
 import "reactflow/dist/style.css";
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTip,
-  ResponsiveContainer, PieChart, Pie, Cell,
-} from "recharts";
 
 const ReactFlow  = dynamic(() => import("reactflow").then(m => m.default),     { ssr: false });
 const Background = dynamic(() => import("reactflow").then(m => m.Background),  { ssr: false });
 const Controls   = dynamic(() => import("reactflow").then(m => m.Controls),    { ssr: false });
+// Recharts split into its own lazy chunk (2026-08 performance audit) — see
+// EventSidebarCharts.tsx's own header comment for why.
+const SectorDonut         = dynamic(() => import("./EventSidebarCharts").then(m => m.SectorDonut),         { ssr: false });
+const MarketReactionChart = dynamic(() => import("./EventSidebarCharts").then(m => m.MarketReactionChart), { ssr: false });
 
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -37,7 +36,7 @@ interface Company  { symbol: string; name: string; impact_type: string; impact_s
 interface Sector   { sector: string; impact: string; impact_score: number | null }
 interface Step     { date: string; title: string; description: string; order: number }
 interface Policy   { id: number; title: string; ministry: string; announcement_date: string; summary: string; url: string }
-interface HistEvt  { id: string; title: string; event_date: string; impact_score: number | null; similarity_score: number | null; reason: string }
+interface HistEvt  { id: string; slug?: string; title: string; event_date: string; impact_score: number | null; similarity_score: number | null; reason: string }
 interface NewsItem { id: string; headline: string; source: string; published_at: string; summary: string; url: string }
 interface GNode    { id: string; label: string; type: string; metadata: Record<string, unknown> }
 interface GEdge    { source: string; target: string; relationship: string }
@@ -45,6 +44,21 @@ interface MarketIndex { name: string; ticker: string; value: string; pct_change:
 interface MarketStatus { is_open: boolean; status: string; time_ist: string; date: string }
 interface MarketData   { marketStatus: MarketStatus; marketIndices: MarketIndex[] }
 interface ChartPoint   { label: string; value: number }
+interface MacroRelease {
+  metric: string;
+  release_value: number | null;
+  previous_value: number | null;
+  expected_value: number | null;
+  surprise: number | null;
+  unit: string | null;
+  period: string | null;
+  geography: string;
+  importance: string | null;
+  affected_sectors: string[];
+  affected_companies: string[];
+  source: string | null;
+  source_url: string | null;
+}
 
 export interface EventDetail {
   event: { id: string; slug?: string; title: string; description: string; source: string; event_type: string; event_date: string; enrichment_status: string };
@@ -62,10 +76,32 @@ export interface EventDetail {
   graph: { nodes: GNode[]; edges: GEdge[] };
   marketReaction: { short_term?: string; medium_term?: string; volatility?: string; sentiment?: string };
   aiAnalysis: { bull_case?: string; bear_case?: string; base_case?: string; key_risks?: string[]; catalysts?: string[] };
+  macroRelease?: MacroRelease | null;
+}
+
+// ── Deep Intelligence (Layer 2) types — mirrors
+// app/schemas/event_deep_research.py exactly. One consolidated fetch,
+// see DeepIntelligencePanel below.
+interface DRTimelineStep { date: string | null; title: string; description: string; kind: string }
+interface DRScenario { label: "Bull" | "Base" | "Bear"; outcome: string; key_drivers: string[]; confidence: "High" | "Medium" | "Low" | null }
+interface DRHistoricalPattern { id: string; slug?: string; title: string; event_date: string | null; similarity_score: number | null; impact_score: number | null; reason: string | null }
+interface DRSecondOrderEffect { level: "immediate" | "sector" | "company" | "broader"; description: string; status: "observed" | "likely" | "potential" }
+interface DRRiskItem { risk: string; why_it_matters: string | null }
+interface DRReasoning { data_used: string[]; sources: string[]; analysis_timestamp: string | null; confidence: number | null; summary: string | null }
+interface DeepResearch {
+  event_id: string;
+  timeline: DRTimelineStep[];
+  scenarios: DRScenario[];
+  scenario_status: "shown" | "not_applicable" | "unavailable";
+  historical_patterns: DRHistoricalPattern[];
+  second_order_effects: DRSecondOrderEffect[];
+  risks: DRRiskItem[];
+  reasoning: DRReasoning;
+  generated_at: string;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const TABS = ["Overview", "Companies", "Sectors", "Timeline", "Historical", "Related News", "Market", "Graph"] as const;
+const TABS = ["Overview", "Event Intelligence", "Companies", "Sectors", "Timeline", "Historical", "Related News", "Graph"] as const;
 type Tab = typeof TABS[number];
 
 const COMPANY_PALETTE = ["bg-violet-500","bg-sky-500","bg-emerald-500","bg-amber-500","bg-rose-500"];
@@ -98,6 +134,17 @@ function hasRealScore(s: number | null | undefined): s is number {
   return s !== null && s !== undefined && s > 0;
 }
 
+// Same 0-100 -> High/Medium/Low bucket thresholds as the backend's
+// _confidence_bucket (event_deep_research_service.py) — kept in sync so
+// the qualitative label a user sees never implies a precision the
+// underlying score doesn't have.
+function confidenceTier(c: number | null | undefined): "High" | "Medium" | "Low" | null {
+  if (c === null || c === undefined) return null;
+  if (c >= 66) return "High";
+  if (c >= 33) return "Medium";
+  return "Low";
+}
+
 function impactBg(v?: string) {
   if (!v) return "bg-text-primary/[0.09] text-text-secondary border-surface-border/7";
   if (v === "positive" || v === "bullish") return "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30";
@@ -113,6 +160,52 @@ function fmt(s?: string) {
 
 function srcInitials(src: string) {
   return src.split(/[\s\-_]/g).slice(0, 2).map(w => w[0] || "").join("").toUpperCase() || "N";
+}
+
+// ── Question-in-title Q&A (Event Explorer card) ─────────────────────────────
+// A lot of ingested headlines are themselves phrased as two sentences — a
+// factual statement plus a bolted-on question ("...after weak Q1 results.
+// What are Morgan Stanley, Nomura, others saying?"). Surface that question
+// explicitly inside the card, but ONLY answer it from real, verifiably
+// on-topic data — never invent what an analyst said. Real named entities
+// (bank names, people) in a fabricated "answer" would be actively harmful,
+// not just generically dishonest, so the grounding check here is strict.
+function extractQuestion(title: string): string | null {
+  const sentences = title.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+  const q = sentences.find(s => s.endsWith("?"));
+  // A title that's ONE single question start-to-finish isn't "a question
+  // bolted onto a headline" — nothing else on the card would be
+  // duplicated, so there's no separate fact/question split worth calling
+  // out.
+  return q && sentences.length > 1 ? q : null;
+}
+
+// Capitalized multi-word sequences ("Morgan Stanley", "Jaguar Land Rover")
+// as a cheap proper-noun heuristic — good enough to gate whether the
+// question is asking about something specific and checkable, vs. generic
+// ("What happens next?", which has no named entity to verify against).
+function extractNamedEntities(text: string): string[] {
+  const matches = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) || [];
+  const STOP = new Set(["What", "Who", "Why", "How", "When", "Where", "Which", "Others", "Saying"]);
+  return Array.from(new Set(matches.filter(m => !STOP.has(m) && m.length > 2)));
+}
+
+function deriveQuestionAnswer(data: EventDetail, question: string): string | null {
+  const entities = extractNamedEntities(question);
+  const haystack = [
+    data.summary.why_it_matters, data.summary.text,
+    ...(data.relatedNews ?? []).map(n => `${n.headline} ${n.summary ?? ""}`),
+  ].join(" \n ");
+  if (!haystack.trim()) return null;
+  // Question names specific entities (banks, people, companies) — only
+  // answer if the real text actually mentions them; otherwise showing
+  // why_it_matters would imply it addresses something it doesn't.
+  if (entities.length > 0) {
+    const allMentioned = entities.every(e => haystack.toLowerCase().includes(e.toLowerCase()));
+    if (!allMentioned) return null;
+  }
+  const answer = data.summary.why_it_matters || data.summary.text;
+  return answer && answer.length > 15 ? answer : null;
 }
 
 function mapCategory(cat: string): string {
@@ -204,17 +297,311 @@ function Card({ title, action, children, className = "" }: {
   );
 }
 
-// ── Tab: Overview ─────────────────────────────────────────────────────────────
+// ── Macro Data ────────────────────────────────────────────────────────────────
+// Only rendered when the backend actually extracted a real, structured
+// figure for this event (see app/services/macro_extraction.py — most
+// events don't have one, and this card simply doesn't render then, rather
+// than showing a placeholder). Every number here is a real value already
+// resolved server-side; this component only formats and compares them.
+function formatMacroValue(value: number | null, unit: string | null): string {
+  if (value === null || value === undefined) return "—";
+  if (unit === "%") return `${value.toFixed(1)}%`;
+  if (unit === "₹ crore") return `₹${value.toLocaleString("en-IN")} cr`;
+  if (unit === "$ billion") return `$${value.toFixed(1)}bn`;
+  return `${value}${unit ? ` ${unit}` : ""}`;
+}
+
+function MacroDataCard({ macro }: { macro: MacroRelease }) {
+  const hasDelta = macro.release_value !== null && macro.previous_value !== null;
+  const delta = hasDelta ? (macro.release_value as number) - (macro.previous_value as number) : null;
+  return (
+    <Card title={`${macro.metric}${macro.period ? ` — ${macro.period}` : ""}`}>
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-text-muted">Released</p>
+          <p className="text-[22px] font-bold text-text-primary">{formatMacroValue(macro.release_value, macro.unit)}</p>
+        </div>
+        {macro.previous_value !== null && (
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-text-muted">Previous</p>
+            <p className="text-[14px] font-medium text-text-secondary">{formatMacroValue(macro.previous_value, macro.unit)}</p>
+          </div>
+        )}
+        {delta !== null && (
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${delta >= 0 ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"}`}>
+            {delta >= 0 ? "+" : ""}{delta.toFixed(2)}{macro.unit === "%" ? " pts" : ""}
+          </span>
+        )}
+      </div>
+      {macro.affected_sectors.length > 0 && (
+        <p className="mt-3 text-[12px] text-text-secondary">
+          <span className="text-text-muted">Typically sensitive: </span>
+          {macro.affected_sectors.join(", ")}
+        </p>
+      )}
+      {/* Source named as plain text, never a clickable off-site link. */}
+      {macro.source && (
+        <p className="mt-2 text-[10px] text-text-muted">Source: {macro.source}{macro.geography && macro.geography !== "India" ? ` · ${macro.geography}` : ""}</p>
+      )}
+    </Card>
+  );
+}
+
+// ── Facts vs Interpretation (Phase 14, 2026-08 audit) ───────────────────────
+// Same honest split already built for newsroom articles (EvidenceList) —
+// reused directly here rather than forked, just fed from Event's own real
+// fields instead of IntelligenceArticle's. FACT: dated/sourced things that
+// happened (event date, source, a real extracted macro figure, dated
+// timeline steps). INTERPRETATION: the enrichment pipeline's own AI read
+// of why it matters, risks, and opportunities — never presented as
+// confirmed fact.
+function buildEventFacts(data: EventDetail): { facts: EvidenceFact[]; interpretations: EvidenceFact[]; sources: string[] } {
+  const facts: EvidenceFact[] = [];
+  if (data.event.event_date) facts.push({ label: "Event date", detail: data.event.event_date });
+  if (data.event.source) facts.push({ label: "Source", detail: data.event.source });
+  const macro = data.macroRelease;
+  if (macro && macro.release_value !== null && macro.release_value !== undefined) {
+    facts.push({ label: `${macro.metric} released`, detail: `${formatMacroValue(macro.release_value, macro.unit)}${macro.period ? ` (${macro.period})` : ""}` });
+    if (macro.previous_value !== null && macro.previous_value !== undefined) {
+      facts.push({ label: "Previous value", detail: formatMacroValue(macro.previous_value, macro.unit) });
+    }
+  }
+  for (const t of data.timeline.slice(0, 4)) {
+    if (t.date) facts.push({ label: t.title, detail: t.date });
+  }
+
+  // Risk/opportunity bullets deliberately NOT itemized here — that's the
+  // Event Intelligence tab's job (Key Risks / Growth Catalysts cards, full
+  // probability-framed treatment), not a duplicate one-line summary here.
+  // "Why it matters" also deliberately absent (2026-08 redesign) — Layer 1
+  // now has its own dedicated Why It Matters card with the full text; an
+  // interpretation entry here would just repeat it inside Deep
+  // Intelligence's evidence list.
+  const interpretations: EvidenceFact[] = [];
+
+  const sources = Array.from(new Set([
+    ...(data.relatedNews || []).map(n => n.source).filter(Boolean),
+    ...(data.governmentPolicies || []).map(p => p.ministry).filter(Boolean),
+    ...(macro?.source ? [macro.source] : []),
+  ]));
+
+  return { facts, interpretations, sources };
+}
+
+// ── Layer 1: Most Affected (sectors) ────────────────────────────────────────
+// Materiality-thresholded — showing all 8-10 AI-tagged sectors at once is
+// noise, not signal (2026-08 UX redesign). Sorted by real impact_score;
+// top 3 shown open, the rest behind a real count, never a fabricated
+// "why" reason (the backend has no per-sector rationale field — omitted
+// rather than invented).
+function MostAffectedSectors({ data }: { data: EventDetail }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!data.affectedSectors.length) return null;
+  const sorted = [...data.affectedSectors].sort((a, b) => (b.impact_score ?? 0) - (a.impact_score ?? 0));
+  const TOP_N = 3;
+  const top = sorted.slice(0, TOP_N);
+  const rest = sorted.slice(TOP_N);
+  const tier = (score: number | null) => score !== null && score >= 60 ? "High" : score !== null && score >= 35 ? "Medium" : "Low";
+  const row = (s: Sector) => (
+    <div key={s.sector} className="flex items-center justify-between gap-3 py-1.5">
+      <span className="text-[13px] font-medium text-text-primary">{s.sector}</span>
+      <div className="flex items-center gap-2">
+        {s.impact_score !== null && s.impact_score !== undefined && (
+          <span className="text-[10px] font-semibold text-text-muted">{tier(s.impact_score)}</span>
+        )}
+        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold capitalize ${impactBg(s.impact)}`}>
+          {s.impact === "positive" ? "↑ Positive" : s.impact === "negative" ? "↓ Negative" : "Neutral"}
+        </span>
+      </div>
+    </div>
+  );
+  return (
+    <Card title="Most Affected" className="mb-4 break-inside-avoid">
+      <div className="divide-y divide-surface-border/5">{top.map(row)}</div>
+      {rest.length > 0 && (
+        <>
+          {expanded && <div className="divide-y divide-surface-border/5 border-t border-surface-border/5">{rest.map(row)}</div>}
+          <button onClick={() => setExpanded(e => !e)} className="mt-2 text-[11px] font-medium text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
+            {expanded ? "Show fewer sectors" : `${rest.length} other sector${rest.length > 1 ? "s" : ""} with lower/indirect impact →`}
+          </button>
+        </>
+      )}
+    </Card>
+  );
+}
+
+// ── Layer 1: Affected Companies ─────────────────────────────────────────────
+// Grouped Positive/Negative/Neutral — a group with zero members is never
+// rendered (2026-08 UX redesign: "why are we spending 150px telling the
+// user there's nothing here?"). Zero companies overall gets one honest
+// sentence, not three empty cards.
+function AffectedCompaniesSummary({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => void }) {
+  const classifiedSymbols = new Set([...data.beneficiaries, ...data.losers].map(c => c.symbol));
+  const neutral = data.companies.filter(c => !classifiedSymbols.has(c.symbol));
+  const groups = [
+    { list: data.beneficiaries, label: "Positive",  dot: "bg-emerald-400", text: "text-emerald-400" },
+    { list: data.losers,        label: "Negative",  dot: "bg-rose-400",    text: "text-rose-400"    },
+    { list: neutral,            label: "Neutral / unclear", dot: "bg-text-muted", text: "text-text-secondary" },
+  ].filter(g => g.list.length > 0);
+
+  if (data.companies.length === 0) {
+    return (
+      <Card title="Company-Level Impact" className="mb-4 break-inside-avoid">
+        <p className="text-[12px] text-text-muted">No sufficiently reliable company-level relationship has been established yet.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Affected Companies" className="mb-4 break-inside-avoid" action={<span className="text-[11px] text-text-muted">{data.companies.length} compan{data.companies.length === 1 ? "y" : "ies"} identified</span>}>
+      <div className="space-y-3">
+        {groups.map(g => (
+          <div key={g.label}>
+            <p className={`mb-1.5 text-[10px] font-bold uppercase tracking-wider ${g.text}`}>{g.label}</p>
+            <div className="space-y-1.5">
+              {g.list.slice(0, 5).map((c, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${g.dot}`}/>
+                  {isRealSymbol(c.symbol) ? (
+                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-text-primary hover:text-sky-600 dark:text-sky-300 transition truncate">{c.name || c.symbol}</Link>
+                  ) : (
+                    <span className="flex-1 min-w-0 text-[12px] font-medium text-text-primary truncate">{c.name}</span>
+                  )}
+                  <span className={`shrink-0 text-[11px] font-bold ${g.text}`}>{c.impact_score === null || c.impact_score === undefined ? "—" : Math.round(c.impact_score)}</span>
+                </div>
+              ))}
+              {g.list.length > 5 && (
+                <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">+{g.list.length - 5} more →</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ── Layer 1: Historical Precedent (compact) ─────────────────────────────────
+// Only the single closest real match, only when it has a real score — the
+// explicit "No fabricated historical statistic" guard (2026-08 redesign).
+// Full detail (reason, all matches) lives in Deep Intelligence's Historical
+// Evidence section; this is deliberately just the headline fact.
+function HistoricalPrecedentCompact({ data }: { data: EventDetail }) {
+  const top = data.historicalEvents[0];
+  const topScore = top?.impact_score;
+  return (
+    <Card title="Historical Precedent" className="mb-4 break-inside-avoid">
+      {!top || !hasRealScore(topScore) ? (
+        <p className="text-[12px] text-text-muted">No sufficiently similar historical precedent found.</p>
+      ) : (
+        <Link href={`/events/${top.slug || top.id}`} className="flex items-start gap-3 rounded-xl -m-1 p-1 hover:bg-text-primary/[0.03] transition">
+          <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-text-primary/[0.05]">
+            <span className="text-[15px] font-black text-text-primary">{Math.round(topScore)}</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-medium text-text-primary line-clamp-2">{top.title}</p>
+            <p className="mt-0.5 text-[10px] text-text-muted">
+              {top.similarity_score !== null && top.similarity_score !== undefined && top.similarity_score > 0 && `${Math.round(top.similarity_score * 100)}% similar · `}
+              Impact score {Math.round(topScore)}/100
+            </p>
+          </div>
+        </Link>
+      )}
+    </Card>
+  );
+}
+
+// ── Layer 1: What Could Change This View ────────────────────────────────────
+// Reframed from "monitoring checklist" language on purpose (2026-08
+// redesign): this product has no login/watchlist/persistent alerting, so
+// "monitor X" is a feature promise it can't keep. These are informational
+// conditions — what would change the read above — sourced from the same
+// real risk_factors the AI enrichment already produced, not a second AI
+// call and not a generic "watch the news" filler.
+function WhatCouldChangeView({ data }: { data: EventDetail }) {
+  const items = (data.summary.risk_factors ?? []).slice(0, 5);
+  if (!items.length) return null;
+  return (
+    <Card title="What Could Change This View" className="mb-4 break-inside-avoid">
+      <ul className="space-y-2">
+        {items.map((r, i) => (
+          <li key={i} className="flex items-start gap-2 text-[13px] leading-5 text-text-secondary">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400"/>{r}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+// ── Layer 1: Bottom Line ─────────────────────────────────────────────────────
+// One real, composed conclusion — not a restatement of What Happened or a
+// re-listing of every risk/opportunity already shown above. Built only
+// from fields that exist; a component is simply omitted when its source
+// field is empty rather than filled with boilerplate.
+function BottomLineCard({ data }: { data: EventDetail }) {
+  const opp = data.summary.opportunities?.[0];
+  const risk = data.summary.risk_factors?.[0];
+  const tier = confidenceTier(data.confidence);
+  if (!opp && !risk && !hasRealScore(data.impactScore)) return null;
+  return (
+    <div className="mb-4 break-inside-avoid rounded-[20px] border border-violet-500/15 bg-violet-500/[0.03] p-4">
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-violet-400">Bottom Line</p>
+      <div className="space-y-1.5 text-[13px] leading-5 text-text-secondary">
+        {opp && <p><span className="font-semibold text-emerald-400">Opportunity — </span>{opp}</p>}
+        {risk && <p><span className="font-semibold text-rose-400">Risk — </span>{risk}</p>}
+        <p><span className="font-semibold text-text-primary">Confidence — </span>{tier ?? "Unscored, pending more analysis"}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Layer 1: Evidence strip ─────────────────────────────────────────────────
+// Always-visible counts, never a collapsed "Evidence ▸" the user has to
+// click just to learn whether evidence exists (2026-08 redesign — explicit
+// product feedback: don't hide the existence of evidence). The detail
+// itself (per-source facts, AI reasoning) lives one click away in Deep
+// Intelligence's Sources & AI Transparency section.
+function EvidenceStrip({ data, onOpen }: { data: EventDetail; onOpen: () => void }) {
+  const sourceCount = new Set((data.relatedNews ?? []).map(n => n.source).filter(Boolean)).size;
+  const relatedCount = data.historicalEvents.length;
+  const companyCount = data.companies.length;
+  if (!sourceCount && !relatedCount && !companyCount) return null;
+  return (
+    <div className="mb-4 flex break-inside-avoid items-center justify-between gap-3 rounded-xl border border-surface-border/6 bg-text-primary/[0.015] px-4 py-2.5">
+      <p className="text-[11px] text-text-muted">
+        {[
+          sourceCount > 0 ? `${sourceCount} source${sourceCount > 1 ? "s" : ""}` : null,
+          relatedCount > 0 ? `${relatedCount} related event${relatedCount > 1 ? "s" : ""}` : null,
+          companyCount > 0 ? `${companyCount} company relationship${companyCount > 1 ? "s" : ""}` : null,
+        ].filter(Boolean).join(" · ")}
+      </p>
+      <button onClick={onOpen} className="shrink-0 text-[11px] font-semibold text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View evidence →</button>
+    </div>
+  );
+}
+
+// ── Tab: Overview (Layer 1 — Event Intelligence) ────────────────────────────
+// Understandable in 10-20 seconds: header/verdict live above this tab
+// already (VerdictCard); this tab covers What Happened → Why It Matters →
+// Most Affected → Affected Companies → Historical Precedent → What Could
+// Change This View → Bottom Line → Evidence strip → Deep Intelligence
+// entry point. Zero new AI calls — everything here reuses the single
+// /api/events/{id} fetch this page already makes.
 function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab: (t: Tab) => void; initialRelated?: Record<string, RelatedItem[]> | null }) {
-  const [deepOpen, setDeepOpen] = useState(false);
+  // Expanded by default (2026-08 audit, explicit request) — still exactly
+  // one consolidated fetch (DeepIntelligencePanel's own effect fires once
+  // on mount instead of on click), not a return to the old multi-call
+  // accordion.
+  const [deepOpen, setDeepOpen] = useState(true);
+  const deepRef = useRef<HTMLDivElement>(null);
   const isPending = data.event.enrichment_status !== "done";
-  const evidenceItems = (data.relatedNews ?? []).slice(0, 6).map(n => ({
-    type: "news" as const,
-    title: n.headline,
-    source: n.source ?? "News",
-    date: n.published_at ?? "",
-    relevance: 75,
-  }));
+
+  const openDeepIntelligence = useCallback(() => {
+    setDeepOpen(true);
+    requestAnimationFrame(() => deepRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, []);
+
   return (
     <div className="space-y-4">
       {isPending && (
@@ -227,260 +614,305 @@ function OverviewTab({ data, goTab, initialRelated }: { data: EventDetail; goTab
         </div>
       )}
 
-      {/* Level 1: What happened */}
-      {data.summary.text && (
-        <Card>
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
-              <svg className="h-4 w-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-400">What Happened</p>
-              <p className="text-[13px] leading-5 text-text-secondary">{data.summary.text}</p>
-              {data.summary.key_bullets?.length > 0 && (
-                <ul className="mt-3 space-y-1">
-                  {data.summary.key_bullets.slice(0, 3).map((b, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary">
-                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400"/>
-                      {b}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </Card>
-      )}
+      {/* Real structured macro figure, when the backend extracted one —
+          shown first since it's a verified fact, ahead of AI-generated
+          summary text. Full-width — a status fact, not part of either
+          column below. */}
+      {data.macroRelease && <MacroDataCard macro={data.macroRelease} />}
 
-      {/* Level 1: Who's affected — most actionable */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card title="Beneficiaries"
-          action={data.beneficiaries.length > 3
-            ? <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">View All →</button>
-            : undefined}>
-          {data.beneficiaries.length === 0 ? <Empty msg="No beneficiaries identified yet"/> : (
-            <div className="space-y-2">
-              {data.beneficiaries.slice(0, 5).map((c, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="w-4 text-[10px] text-text-muted text-right">{i + 1}</span>
-                  {isRealSymbol(c.symbol) ? (
-                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-text-primary hover:text-emerald-600 dark:text-emerald-300 transition truncate">{c.name || c.symbol}</Link>
-                  ) : (
-                    <span className="flex-1 min-w-0 text-[12px] font-medium text-text-primary truncate">{c.name}</span>
+      {/* Two-column layout (2026-08 audit, explicit request — left/right,
+          not accordions). A fixed left-group/right-group split can't stay
+          height-balanced across events (some have long AI summaries and
+          many companies, some have almost nothing), so this uses CSS
+          multi-column flow instead: the browser distributes cards across
+          the two columns by actual rendered height, keeping both sides
+          roughly equal for every event rather than a manual split that's
+          only balanced by coincidence. `break-inside-avoid` keeps each
+          card intact (never split across the column break). Stacks to one
+          column on narrow screens. */}
+      <div className="columns-1 gap-4 lg:columns-2 [column-fill:balance]">
+        {/* What Happened */}
+        {data.summary.text && (
+          <div className="mb-4 break-inside-avoid">
+            <Card>
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
+                  <svg className="h-4 w-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-400">What Happened</p>
+                  <p className="text-[13px] leading-5 text-text-secondary">{data.summary.text}</p>
+                  {data.summary.key_bullets?.length > 0 && (
+                    <ul className="mt-3 space-y-1">
+                      {data.summary.key_bullets.slice(0, 3).map((b, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary">
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400"/>
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                  <span className="shrink-0 text-[12px] font-bold text-emerald-400">{c.impact_score === null || c.impact_score === undefined ? "—" : `+${Math.round(c.impact_score)}`}</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card title="At Risk"
-          action={data.losers.length > 3
-            ? <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">View All →</button>
-            : undefined}>
-          {data.losers.length === 0 ? <Empty msg="No negatively affected companies yet"/> : (
-            <div className="space-y-2">
-              {data.losers.slice(0, 5).map((c, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="w-4 text-[10px] text-text-muted text-right">{i + 1}</span>
-                  {isRealSymbol(c.symbol) ? (
-                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-text-primary hover:text-rose-600 dark:text-rose-300 transition truncate">{c.name || c.symbol}</Link>
-                  ) : (
-                    <span className="flex-1 min-w-0 text-[12px] font-medium text-text-primary truncate">{c.name}</span>
-                  )}
-                  <span className="shrink-0 text-[12px] font-bold text-rose-400">{c.impact_score === null || c.impact_score === undefined ? "—" : Math.round(c.impact_score)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card title="Affected Sectors"
-          action={data.affectedSectors.length > 3
-            ? <button onClick={() => goTab("Sectors")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">View All →</button>
-            : undefined}>
-          {data.affectedSectors.length === 0 ? <Empty msg="No sectors identified yet"/> : (
-            <div className="space-y-2">
-              {data.affectedSectors.slice(0, 5).map((s, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="flex-1 text-[12px] text-text-secondary truncate">{s.sector}</span>
-                  <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold capitalize ${impactBg(s.impact)}`}>
-                    {s.impact === "positive" ? "Positive" : s.impact === "negative" ? "Negative" : "Neutral"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Level 2: Context — timeline + historical comparison */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card title="Timeline"
-          action={data.timeline.length > 3
-            ? <button onClick={() => goTab("Timeline")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">Full Timeline →</button>
-            : undefined}>
-          {data.timeline.length === 0 ? <Empty msg="Timeline not yet generated"/> : (
-            <div>
-              {data.timeline.slice(0, 4).map((t, i) => (
-                <div key={i} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${i === 0 ? "bg-violet-400" : "bg-slate-600"}`}/>
-                    {i < Math.min(data.timeline.length - 1, 3) && <div className="w-0.5 flex-1 bg-text-primary/[0.05] my-1 min-h-[16px]"/>}
-                  </div>
-                  <div className="pb-3">
-                    <p className="text-[10px] text-text-muted">{t.date}</p>
-                    <p className="text-[12px] font-semibold text-text-primary">{t.title}</p>
-                    {t.description && <p className="text-[11px] text-text-muted line-clamp-2">{t.description}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card title="Historical Similar Events"
-          action={data.historicalEvents.length > 2
-            ? <button onClick={() => goTab("Historical")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">View All →</button>
-            : undefined}>
-          {data.historicalEvents.length === 0 ? <Empty msg="No similar historical events found"/> : (
-            <div className="space-y-3">
-              {data.historicalEvents.slice(0, 3).map((he, i) => (
-                <Link key={i} href={`/events/${he.id}`}
-                  className="flex items-start gap-3 rounded-xl border border-surface-border/5 p-2.5 hover:border-sky-500/20 hover:bg-sky-500/[0.04] transition block">
-                  <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-xl bg-text-primary/[0.05]">
-                    <span className="text-[14px] font-black text-text-primary">{he.impact_score === null || he.impact_score === undefined ? "—" : Math.round(he.impact_score)}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-medium text-text-primary line-clamp-2">{he.title}</p>
-                    {he.similarity_score !== null && he.similarity_score !== undefined && he.similarity_score > 0 && (
-                      <div className="mt-1 flex items-center gap-1">
-                        <div className="h-1 flex-1 rounded bg-text-primary/[0.05]">
-                          <div className="h-1 rounded bg-violet-500" style={{ width: `${Math.round(he.similarity_score * 100)}%` }}/>
-                        </div>
-                        <span className="text-[9px] text-text-muted">{Math.round(he.similarity_score * 100)}% similar</span>
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Level 3: Deep Research — collapsed by default */}
-      <div className="overflow-hidden rounded-[20px] border border-surface-border/6 bg-text-primary/[0.01]">
-        <button
-          onClick={() => setDeepOpen(o => !o)}
-          className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-text-primary/[0.03]"
-        >
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-text-secondary">Deep Research</p>
-            <p className="mt-0.5 text-[11px] text-text-muted">Thesis · Scenarios · Patterns · Monitoring · Multi-horizon outlook</p>
-          </div>
-          <svg className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${deepOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
-          </svg>
-        </button>
-
-        {deepOpen && (
-          <div className="space-y-4 border-t border-surface-border/6 p-4">
-            {data.confidence !== null && data.confidence !== undefined && data.confidence > 0 && (
-              <AITransparencyPanel
-                confidence={data.confidence ?? undefined}
-                reasoning={data.summary.why_it_matters || data.summary.text || "AI-generated event analysis based on available market data and historical precedents."}
-                summary={data.summary.text}
-                evidence={evidenceItems}
-                companies={data.companies.slice(0, 6).map(c => ({ name: c.name || c.symbol, symbol: c.symbol, href: isRealSymbol(c.symbol) ? `/companies/${c.symbol}` : undefined }))}
-                limitations={data.summary.risk_factors?.length ? data.summary.risk_factors.slice(0, 3) : ["Analysis based on available public data.", "Market conditions may change rapidly.", "Historical patterns may not repeat."]}
-                whyReason={hasRealScore(data.impactScore)
-                  ? `This event is shown because it has an impact score of ${Math.round(data.impactScore)}/100 and affects ${data.affectedSectors.length} sectors.`
-                  : `This event is shown because it affects ${data.affectedSectors.length} sectors; its impact score is still being computed.`}
-                whyChain={data.affectedSectors.slice(0, 4).map(s => s.sector)}
-                compact
-                title={data.event.title}
-              />
-            )}
-            <InvestmentThesisCard
-              entityType="event"
-              entityId={data.event.id}
-              entityTitle={data.event.title}
-              entityDescription={data.event.description}
-              entitySector={data.affectedSectors?.[0]?.sector}
-              thesis={data.summary.text}
-              whyItMatters={data.summary.why_it_matters}
-              businessImpact={data.summary.immediate_impact}
-              keyDrivers={(data.summary.opportunities ?? []).slice(0, 4)}
-              riskFactors={(data.summary.risk_factors ?? []).slice(0, 3)}
-              confidence={data.confidence ?? undefined}
-              timeHorizon="Near-term (1–3 months)"
-            />
-            <OpportunityLifecycleCard
-              stage={(() => {
-                const score = data.impactScore;
-                const status = data.event.enrichment_status;
-                if (score !== null && score !== undefined) {
-                  if (score > 80) return "strong-momentum" as const;
-                  if (score > 65) return "developing" as const;
-                }
-                if (status !== "done") return "emerging" as const;
-                return "emerging" as const;
-              })()}
-              description={data.summary.text?.slice(0, 180) || "Event impact is being analysed."}
-              whyAssigned={data.summary.why_it_matters || (hasRealScore(data.impactScore)
-                ? `This event has an impact score of ${Math.round(data.impactScore)}/100 across ${data.affectedSectors?.length ?? 0} sectors.`
-                : `This event's impact is still being analysed across ${data.affectedSectors?.length ?? 0} sectors.`)}
-              historicalComparison={`Events of type "${data.event.event_type}" with similar impact scores have historically caused 2–8% sector-level price moves within 5 trading sessions.`}
-              confidence={data.confidence ?? undefined}
-              expectedEvolution={data.summary.long_term_impact || "Watch for sector re-rating and earnings guidance revisions in the 30–90 day window post-event."}
-              risks={(data.summary.risk_factors ?? []).slice(0, 3)}
-            />
-            <ScenarioAnalysis
-              entityType="event"
-              entityId={String(data.event.id)}
-              entityTitle={data.event.title}
-              entityDescription={data.event.description}
-              entitySector={data.affectedSectors?.[0]?.sector}
-            />
-            <MonitoringChecklist
-              entityType="event"
-              entityId={String(data.event.id)}
-              entityTitle={data.event.title}
-              entityDescription={data.event.description}
-              entitySector={data.affectedSectors?.[0]?.sector}
-            />
-            <PatternIntelligenceCard
-              entityType="event"
-              entityId={String(data.event.id)}
-              entityTitle={data.event.title}
-              entityDescription={data.event.description}
-              entitySector={data.affectedSectors?.[0]?.sector}
-            />
-            <MultiHorizonOutlookCard
-              fetchContext={{
-                type:       "event",
-                title:      data.event.title,
-                context:    data.summary.text,
-                sectors:    data.affectedSectors.slice(0, 4).map(s => s.sector),
-                context_id: `event:${data.event.id}`,
-              }}
-            />
-            <RelatedContent
-              entityType="event"
-              entityId={data.event.id}
-              title={data.event.title}
-              sector={data.affectedSectors?.[0]?.sector}
-              initialData={initialRelated}
-            />
+              </div>
+            </Card>
           </div>
         )}
+
+        {/* Why It Matters */}
+        {data.summary.why_it_matters && (
+          <div className="mb-4 break-inside-avoid">
+            <Card>
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-500/20">
+                  <svg className="h-4 w-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-sky-400">Why It Matters</p>
+                  <p className="text-[13px] leading-5 text-text-secondary">{data.summary.why_it_matters}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        <MostAffectedSectors data={data} />
+        <AffectedCompaniesSummary data={data} goTab={goTab} />
+        <HistoricalPrecedentCompact data={data} />
+        <WhatCouldChangeView data={data} />
+        <BottomLineCard data={data} />
+        <EvidenceStrip data={data} onOpen={openDeepIntelligence} />
+      </div>
+
+      <div ref={deepRef}>
+        <DeepIntelligencePanel data={data} initialRelated={initialRelated} open={deepOpen} onToggle={() => setDeepOpen(o => !o)} />
       </div>
 
       <AIDisclaimer />
+    </div>
+  );
+}
+
+// ── Layer 2: Deep Intelligence ───────────────────────────────────────────────
+// Single consolidated fetch (GET /api/events/{id}/deep-research) replacing
+// what used to be up to 5 independent AI-backed component calls
+// (InvestmentThesisCard, ScenarioAnalysis, MonitoringChecklist,
+// PatternIntelligenceCard, MultiHorizonOutlookCard) — one request, fired
+// once on first expand, result cached in local state for the rest of the
+// page's life (no React Query wired up anywhere in this codebase yet; this
+// matches the existing fetch-once-on-first-activation pattern used
+// elsewhere rather than introducing it just for this one panel).
+function DeepIntelligencePanel({ data, initialRelated, open, onToggle }: {
+  data: EventDetail; initialRelated?: Record<string, RelatedItem[]> | null; open: boolean; onToggle: () => void;
+}) {
+  const [dr, setDr] = useState<DeepResearch | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open || fetchedRef.current) return;
+    fetchedRef.current = true;
+    setLoading(true);
+    fetch(`${API}/api/events/${data.event.id}/deep-research`)
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((j: DeepResearch) => setDr(j))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [open, data.event.id]);
+
+  const { facts: eventFacts, sources: eventSources } = buildEventFacts(data);
+
+  return (
+    <div className="overflow-hidden rounded-[20px] border border-surface-border/6 bg-text-primary/[0.01]">
+      <button onClick={onToggle} className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-text-primary/[0.03]">
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-text-secondary">Deep Intelligence</p>
+          <p className="mt-0.5 text-[11px] text-text-muted">Historical Evidence · Scenario Analysis · Ripple Effects · Risks · Sources</p>
+        </div>
+        <svg className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div className="space-y-4 border-t border-surface-border/6 p-4">
+          {loading && (
+            <div className="flex items-center gap-3 rounded-xl border border-surface-border/8 bg-text-primary/[0.02] px-4 py-3">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-violet-400 border-t-transparent"/>
+              <span className="text-[13px] text-text-secondary">Loading deeper analysis…</span>
+            </div>
+          )}
+          {error && !loading && (
+            <p className="text-[12px] text-text-muted">Deep Intelligence couldn't be loaded right now.</p>
+          )}
+
+          {dr && !loading && (
+            // Balanced multi-column layout (2026-08 audit, explicit
+            // request — same fix as Overview: a fixed left/right group
+            // can't stay height-balanced across events, since which
+            // sections even render (Scenario Analysis, Risks &
+            // Invalidation, Historical Evidence) varies a lot per event.
+            // CSS multi-column flow distributes cards by actual rendered
+            // height instead, so both columns stay roughly equal
+            // regardless of which sections are present this time.
+            // `break-inside-avoid` keeps each card intact. Stacks to one
+            // column on narrow screens.
+            <div className="columns-1 gap-4 lg:columns-2 [column-fill:balance]">
+              {/* Historical Evidence — merges what used to be two
+                  separate concepts (Historical Comparison + Pattern
+                  Intelligence) into one, since both answered "has this
+                  happened before" with heavily overlapping,
+                  hard-to-trust-separately content. Real similarity search
+                  only; deliberately no invented "what happened next"
+                  narrative — that outcome isn't tracked anywhere real, so
+                  it's omitted rather than guessed. */}
+              {dr.historical_patterns.length > 0 && (
+                <Card title="Historical Evidence" className="mb-4 break-inside-avoid">
+                  <div className="space-y-3">
+                    {dr.historical_patterns.slice(0, 3).map((h, i) => (
+                      <Link key={i} href={`/events/${h.slug || h.id}`} className="flex items-start gap-3 rounded-xl -m-1 p-1 hover:bg-text-primary/[0.03] transition">
+                        <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-text-primary/[0.05]">
+                          <span className="text-[14px] font-black text-text-primary">{h.impact_score !== null && h.impact_score !== undefined ? Math.round(h.impact_score) : "—"}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[12px] font-medium text-text-primary line-clamp-2">{h.title}</p>
+                          <p className="mt-0.5 text-[10px] text-text-muted">
+                            {h.similarity_score !== null && h.similarity_score !== undefined && h.similarity_score > 0 && `${Math.round(h.similarity_score * 100)}% similar · `}
+                            {h.event_date ? fmt(h.event_date) : ""}
+                          </p>
+                          {h.reason && <p className="mt-1 text-[11px] text-text-secondary">{h.reason}</p>}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Scenario Analysis — conditionally rendered. Only made
+                  the AI call at all (server-side) when the event is
+                  materially high-impact AND genuinely uncertain (see
+                  event_deep_research_service._scenario_worthy); a
+                  routine low-materiality event or a well-understood
+                  high-impact one gets nothing here, not an empty card. */}
+              {dr.scenario_status === "shown" && (
+                <Card title="Scenario Analysis" className="mb-4 break-inside-avoid">
+                  <div className="space-y-3">
+                    {dr.scenarios.map(s => {
+                      const color = s.label === "Bull" ? "text-emerald-400 border-emerald-500/20" : s.label === "Bear" ? "text-rose-400 border-rose-500/20" : "text-amber-400 border-amber-500/20";
+                      return (
+                        <div key={s.label} className={`rounded-xl border bg-text-primary/[0.02] p-3 ${color.split(" ")[1]}`}>
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <p className={`text-[10px] font-bold uppercase tracking-wider ${color.split(" ")[0]}`}>{s.label} Case</p>
+                            {s.confidence && <span className="text-[9px] text-text-muted">{s.confidence} confidence</span>}
+                          </div>
+                          <p className="text-[12px] leading-5 text-text-secondary">{s.outcome}</p>
+                          {s.key_drivers.length > 0 && (
+                            <ul className="mt-2 space-y-1">
+                              {s.key_drivers.map((d, i) => (
+                                <li key={i} className="text-[10px] text-text-muted">· {d}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
+              {dr.scenario_status === "unavailable" && (
+                <p className="mb-4 break-inside-avoid text-[11px] text-text-muted">Scenario analysis temporarily unavailable for this event.</p>
+              )}
+
+              {/* Ripple Effects — read-only reuse of the Ripple Engine's
+                  own stored graph, Observed/Likely/Potential labeled.
+                  Never triggers a fresh ripple generation just from
+                  opening this panel — see
+                  event_deep_research_service._get_second_order_effects. */}
+              <Card title="Ripple Effects" className="mb-4 break-inside-avoid" action={<Link href={`/ripple/${data.event.slug || data.event.id}`} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300">Full ripple chain →</Link>}>
+                {dr.second_order_effects.length === 0 ? (
+                  <p className="text-[12px] text-text-muted">No ripple analysis generated for this event yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {dr.second_order_effects.map((e, i) => (
+                      <div key={i} className="flex items-start gap-2 text-[12px] leading-5 text-text-secondary">
+                        <span className={`mt-0.5 shrink-0 rounded-full border px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide ${
+                          e.status === "observed" ? "border-emerald-500/30 text-emerald-400" : e.status === "likely" ? "border-sky-500/30 text-sky-400" : "border-amber-500/30 text-amber-400"
+                        }`}>{e.status}</span>
+                        <span>{e.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              {/* Risks & Invalidation — the complete risk list, only
+                  shown when it has more to say than Layer 1's "What
+                  Could Change This View" already did (same source field;
+                  showing an identical short list twice would be exactly
+                  the duplication this redesign removed elsewhere). */}
+              {dr.risks.length > 3 && (
+                <Card title="Risks & Invalidation" className="mb-4 break-inside-avoid">
+                  <ul className="space-y-2">
+                    {dr.risks.map((r, i) => (
+                      <li key={i} className="flex items-start gap-2 text-[13px] leading-5 text-text-secondary">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"/>{r.risk}
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
+
+              {/* Sources & AI Transparency */}
+              <Card title="Sources & AI Transparency" className="mb-4 break-inside-avoid">
+                <div className="grid grid-cols-3 gap-3 border-b border-surface-border/6 pb-3">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">AI Confidence</p>
+                    <p className="mt-1 text-[15px] font-bold tabular-nums text-text-primary">{dr.reasoning.confidence !== null && dr.reasoning.confidence !== undefined ? `${Math.round(dr.reasoning.confidence)}%` : "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Sources</p>
+                    <p className="mt-1 text-[15px] font-bold tabular-nums text-text-primary">{eventSources.length || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Updated</p>
+                    <p className="mt-1 text-[12px] font-semibold text-text-primary">{dr.reasoning.analysis_timestamp ? fmt(dr.reasoning.analysis_timestamp) : "—"}</p>
+                  </div>
+                </div>
+                {dr.reasoning.summary && <p className="mt-3 text-[12px] leading-5 text-text-secondary">{dr.reasoning.summary}</p>}
+                {dr.reasoning.data_used.length > 0 && (
+                  <p className="mt-2 text-[11px] text-text-muted">Data used: {dr.reasoning.data_used.join(", ")}</p>
+                )}
+                {eventFacts.length > 0 && (
+                  <ul className="mt-3 space-y-1 border-t border-surface-border/6 pt-3">
+                    {eventFacts.slice(0, 6).map((f, i) => (
+                      <li key={i} className="text-[11px] leading-5 text-text-secondary">
+                        <span className="font-medium text-text-primary">{f.label}</span>{f.detail ? ` — ${f.detail}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {/* Source named as plain text, never a clickable
+                    off-site link — see feedback_no_external_links. */}
+                {eventSources.length > 0 && (
+                  <p className="mt-3 text-[11px] text-text-muted">Sources: {eventSources.join(", ")}</p>
+                )}
+              </Card>
+            </div>
+          )}
+
+          <RelatedContent
+            entityType="event"
+            entityId={data.event.id}
+            title={data.event.title}
+            sector={data.affectedSectors?.[0]?.sector}
+            initialData={initialRelated}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -647,74 +1079,149 @@ function NewsTab({ data }: { data: EventDetail }) {
   );
 }
 
-// ── Tab: Market Impact ────────────────────────────────────────────────────────
-function MarketTab({ data }: { data: EventDetail }) {
+// ── Tab: Event Intelligence ─────────────────────────────────────────────────────
+// Two-layer structure, matching OverviewTab's Level 1/Deep-Research pattern:
+// Layer 1 (always visible) is the primary investment stance — Bull/Base/
+// Bear case. Layer 2 (collapsed by default, same toggle style as Overview's
+// "Deep Research") holds the supplementary detail — market outlook tags,
+// key risks, growth catalysts.
+function EventIntelligenceTab({ data, intelligence, intelligenceLoading }: {
+  data: EventDetail;
+  intelligence: IntelligenceObject | null;
+  intelligenceLoading: boolean;
+}) {
   const ai = data.aiAnalysis;
   const mr = data.marketReaction;
+  const hasBullBearBase = Boolean(ai.bull_case || ai.base_case || ai.bear_case);
+  const hasOutlook = Object.values(mr).some(Boolean);
+  const hasRisks = (ai.key_risks?.length ?? 0) > 0;
+  const hasCatalysts = (ai.catalysts?.length ?? 0) > 0;
+  const hasLegacyContent = hasBullBearBase || hasOutlook || hasRisks || hasCatalysts;
+  const isPending = data.event.enrichment_status !== "done";
+
+  // Two intelligence sources exist for this event: the newer unified
+  // /api/intelligence/event/{id} (richer — key takeaway, market story,
+  // opportunities, risks, company stance, sectors, themes, historical
+  // context, monitoring points) and the older per-event aiAnalysis field
+  // (bull/base/bear case, key risks, catalysts). 2026-08 audit — user-
+  // reported both were rendering at once (once as a compact block above
+  // the tab bar, once as this tab's own content), repeating the same
+  // risk/opportunity content in two different shapes. Fix: this tab shows
+  // ONE of them — the richer unified source when it has real content,
+  // falling back to the legacy fields only when the unified source
+  // genuinely has nothing — never both together.
+  const hasUnifiedContent = Boolean(intelligence && (intelligence.market_story || intelligence.key_takeaway));
+
+  if (hasUnifiedContent) {
+    return <IntelligenceBlock data={intelligence!} compact={false} collapsible={false} twoLayer />;
+  }
+
+  if (intelligenceLoading && !hasLegacyContent) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-surface-border/8 bg-text-primary/[0.02] px-4 py-3">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-violet-400 border-t-transparent"/>
+        <span className="text-[13px] text-text-secondary">Loading intelligence…</span>
+      </div>
+    );
+  }
+
+  // Honest empty state (2026-08 audit — user-reported: tab looked
+  // completely blank with no explanation whenever an event's AI analysis
+  // hadn't been generated yet, which is common while enrichment is
+  // pending/queued/rate-limited). Never silently render nothing.
+  if (!hasLegacyContent) {
+    return isPending ? (
+      <div className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent"/>
+        <div>
+          <span className="text-[13px] font-semibold text-amber-600 dark:text-amber-300">AI enrichment in progress</span>
+          <span className="ml-2 text-[11px] text-amber-400/70">Bull/bear case, risks, and catalysts will populate automatically.</span>
+        </div>
+      </div>
+    ) : (
+      <Empty msg="No AI analysis was generated for this event."/>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {/* Layer 1: Bull/Base/Bear case — the core stance, always visible.
+          No probability badge — this codebase never presents a fixed,
+          unearned percentage as if it were a real computed likelihood. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
-          { label: "Bull Case", v: ai.bull_case, color: "text-emerald-400", border: "border-emerald-500/20", prob: 30 },
-          { label: "Base Case", v: ai.base_case, color: "text-amber-400",   border: "border-amber-500/20",  prob: 50 },
-          { label: "Bear Case", v: ai.bear_case, color: "text-rose-400",    border: "border-rose-500/20",   prob: 20 },
+          { label: "Bull Case", v: ai.bull_case, color: "text-emerald-400", border: "border-emerald-500/20" },
+          { label: "Base Case", v: ai.base_case, color: "text-amber-400",   border: "border-amber-500/20"  },
+          { label: "Bear Case", v: ai.bear_case, color: "text-rose-400",    border: "border-rose-500/20"   },
         ].filter(x => x.v).map(x => (
           <div key={x.label} className={`rounded-[20px] border bg-text-primary/[0.02] p-4 ${x.border}`}>
-            <div className="mb-2 flex items-center justify-between">
-              <p className={`text-[10px] font-bold uppercase tracking-wider ${x.color}`}>{x.label}</p>
-              <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${x.color} border-current/20`}>
-                {x.prob}%
-              </span>
-            </div>
+            <p className={`mb-2 text-[10px] font-bold uppercase tracking-wider ${x.color}`}>{x.label}</p>
             <p className="text-[13px] leading-5 text-text-secondary">{x.v}</p>
           </div>
         ))}
       </div>
 
-      {Object.values(mr).some(Boolean) && (
-        <Card title="Market Outlook">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { label: "Short Term",  v: mr.short_term  },
-              { label: "Medium Term", v: mr.medium_term },
-              { label: "Volatility",  v: mr.volatility  },
-              { label: "Sentiment",   v: mr.sentiment   },
-            ].map(row => (
-              <div key={row.label} className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3 text-center">
-                <p className="text-[10px] text-text-muted">{row.label}</p>
-                <span className={`mt-1.5 inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize ${impactBg(row.v)}`}>
-                  {row.v || "—"}
-                </span>
-              </div>
-            ))}
+      {/* Deeper Analysis — always expanded (2026-08 redesign, explicit
+          product feedback: deeper analysis should not be collapsible).
+          This is legacy fallback content (only reached when this event
+          has no unified /api/intelligence data, see hasUnifiedContent
+          above), so it's real analysis the user came here to read, not
+          optional extra detail worth hiding behind a click. */}
+      {(hasOutlook || hasRisks || hasCatalysts) && (
+        <div className="overflow-hidden rounded-[20px] border border-surface-border/6 bg-text-primary/[0.01]">
+          <div className="px-5 py-4">
+            <p className="text-[13px] font-semibold text-text-secondary">Deeper Analysis</p>
+            <p className="mt-0.5 text-[11px] text-text-muted">Market Outlook · Key Risks · Growth Catalysts</p>
           </div>
-        </Card>
-      )}
 
-      <div className="grid grid-cols-2 gap-3">
-        {ai.key_risks && ai.key_risks.length > 0 && (
-          <Card title="Key Risks">
-            <ul className="space-y-2">
-              {ai.key_risks.map((r, i) => (
-                <li key={i} className="flex items-start gap-2 text-[13px] text-text-secondary">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"/>{r}
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-        {ai.catalysts && ai.catalysts.length > 0 && (
-          <Card title="Growth Catalysts">
-            <ul className="space-y-2">
-              {ai.catalysts.map((c, i) => (
-                <li key={i} className="flex items-start gap-2 text-[13px] text-text-secondary">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400"/>{c}
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-      </div>
+          <div className="space-y-4 border-t border-surface-border/6 p-4">
+              {hasOutlook && (
+                <Card title="Market Outlook">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {[
+                      { label: "Short Term",  v: mr.short_term  },
+                      { label: "Medium Term", v: mr.medium_term },
+                      { label: "Volatility",  v: mr.volatility  },
+                      { label: "Sentiment",   v: mr.sentiment   },
+                    ].map(row => (
+                      <div key={row.label} className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3 text-center">
+                        <p className="text-[10px] text-text-muted">{row.label}</p>
+                        <span className={`mt-1.5 inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize ${impactBg(row.v)}`}>
+                          {row.v || "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                {hasRisks && (
+                  <Card title="Key Risks">
+                    <ul className="space-y-2">
+                      {ai.key_risks!.map((r, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[13px] text-text-secondary">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"/>{r}
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
+                {hasCatalysts && (
+                  <Card title="Growth Catalysts">
+                    <ul className="space-y-2">
+                      {ai.catalysts!.map((c, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[13px] text-text-secondary">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400"/>{c}
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
+              </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -795,14 +1302,7 @@ function RightPanel({
       {sectorData.length > 0 && (
         <Card title="Sector Distribution">
           <div className="relative h-[100px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={sectorData} cx="50%" cy="50%" innerRadius={28} outerRadius={44} paddingAngle={2} dataKey="value" strokeWidth={0}>
-                  {sectorData.map((e, i) => <Cell key={i} fill={e.color}/>)}
-                </Pie>
-                <RechartsTip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 8, fontSize: 10 }}/>
-              </PieChart>
-            </ResponsiveContainer>
+            <SectorDonut sectorData={sectorData} />
           </div>
           <div className="mt-2 space-y-1.5">
             {sectorData.map((s, i) => (
@@ -834,20 +1334,7 @@ function RightPanel({
         </div>
         <div className="h-[90px] -mx-1">
           {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-                <defs>
-                  <linearGradient id="aGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="100%" stopColor="#6366f1" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="label" hide/>
-                <YAxis domain={["auto","auto"]} hide/>
-                <RechartsTip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 6, fontSize: 10, padding: "4px 8px" }} formatter={(v: number) => [v.toLocaleString("en-IN"), ""]}/>
-                <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={1.5} fill="url(#aGrad)"/>
-              </AreaChart>
-            </ResponsiveContainer>
+            <MarketReactionChart chartData={chartData} />
           ) : (
             <div className="flex h-full items-center justify-center">
               <p className="text-[11px] text-text-muted">Fetching market data…</p>
@@ -926,6 +1413,10 @@ function VerdictCard({ data }: { data: EventDetail }) {
   const topBen = data.beneficiaries[0];
   const topRisk = data.losers[0];
 
+  // Tier label derived from the real impact score (not fabricated text) —
+  // deliberately doesn't restate why_it_matters, which now has its own
+  // dedicated Why It Matters card (2026-08 redesign — repeating it here
+  // was the same duplicate the earlier audit already removed once).
   const verdict =
     score === null || score === undefined ? "Impact assessment is still being analysed." :
     score >= 85 ? "This event is actively moving markets. Take notice." :
@@ -933,13 +1424,8 @@ function VerdictCard({ data }: { data: EventDetail }) {
     score >= 50 ? "Moderate impact. Monitor if you are exposed to the affected sectors." :
     "Low broad impact — unlikely to affect diversified portfolios significantly.";
 
-  const whyLine = data.summary.why_it_matters
-    ? data.summary.why_it_matters.split(/[.!?]/)[0]?.trim()
-    : data.summary.immediate_impact
-      ? data.summary.immediate_impact.split(/[.!?]/)[0]?.trim()
-      : null;
-
   const sc = scoreColor(score);
+  const tier = confidenceTier(data.confidence);
 
   return (
     <div className="mb-5 rounded-[20px] border border-sky-500/[0.15] bg-gradient-to-r from-surface-card to-surface-bg p-5">
@@ -948,12 +1434,10 @@ function VerdictCard({ data }: { data: EventDetail }) {
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center gap-2">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-400">AI Verdict</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-400">Investment Verdict</p>
           </div>
           <p className="text-[15px] font-semibold leading-snug text-text-primary">{verdict}</p>
-          {whyLine && (
-            <p className="mt-1.5 text-[13px] leading-5 text-text-secondary">{whyLine}.</p>
-          )}
+          {tier && <p className="mt-1.5 text-[11px] text-text-muted">Confidence: <span className="font-semibold text-text-secondary">{tier}</span></p>}
         </div>
 
         {/* Top pick + risk */}
@@ -1012,22 +1496,20 @@ function WhatNextSection({ data }: { data: EventDetail }) {
   const topRisk   = data.losers[0];
   const topSec    = data.affectedSectors[0]?.sector;
   const title     = truncateForQuery(data.event.title);
-  const benCount  = data.beneficiaries.length;
-  const riskCount = data.losers.length;
   // Same leftover-set reasoning as CompaniesTab: a company can be identified
   // without a benefit/risk classification. When that's the only company on
-  // record, the takeaway/primary action should still name it instead of
-  // claiming "0 companies" when 1 was actually found.
+  // record, the primary action should still name it instead of falling
+  // through to a generic "ask AI" suggestion.
   const classifiedSymbols = new Set([...data.beneficiaries, ...data.losers].map(c => c.symbol));
   const topNeutral = data.companies.find(c => !classifiedSymbols.has(c.symbol));
 
   return (
     <NextSteps config={{
-      takeaway: (benCount || riskCount)
-        ? `${benCount} ${benCount === 1 ? "company stands" : "companies stand"} to benefit and ${riskCount} face headwinds — the market may not have fully priced this in yet.`
-        : topNeutral
-        ? `${topNeutral.name || topNeutral.symbol} is identified as impacted, though this event's direction (benefit or risk) isn't yet classified.`
-        : `No companies have been identified for this event yet — check back once enrichment completes.`,
+      // No takeaway here (2026-08 audit — user-reported two "Key
+      // Takeaway" blocks on this page): the Event Intelligence tab above
+      // already surfaces one via IntelligenceBlock. Repeating a second,
+      // differently-derived one at the bottom of every tab was the
+      // duplicate, not this section's actual recommendations below.
       primary: topBen ? {
         label: `Research ${topBen.name || topBen.symbol}`,
         why:   `Because they're the highest-conviction beneficiary — this event directly improves their order book and revenue outlook.`,
@@ -1117,7 +1599,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
   // identical pattern for the full reasoning.
   const skippedFirstResetRef = useRef(!!initialDetail);
 
-  const { data: intelligence } = useIntelligence("event", id || undefined);
+  const { data: intelligence, loading: intelligenceLoading } = useIntelligence("event", id || undefined);
 
   useEffect(() => {
     if (!id) return;
@@ -1195,38 +1677,34 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
     Results:    "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/30",
   };
   const catPill = CATEGORY_PILL[ev.event_type] ?? "bg-slate-500/20 text-text-secondary border-surface-border/7";
+  const titleQuestion = extractQuestion(ev.title);
+  const questionAnswer = titleQuestion ? deriveQuestionAnswer(data, titleQuestion) : null;
 
   return (
     <main className="min-w-0 pb-10">
       <TrackPageVisit type="event" id={ev.id} title={ev.title} subtitle={ev.event_type} href={`/events/${ev.slug || ev.id}`} />
       <MarketContextStrip />
 
-      {/* ── Breadcrumb + actions ───────────────────────────────────────── */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-[12px] text-text-muted">
-          <Link href="/events" className="flex items-center gap-1 hover:text-text-secondary transition">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
-            </svg>
-            Events
-          </Link>
-          <span className="text-text-muted">/</span>
-          <span className="text-text-secondary truncate max-w-[320px]">{ev.title}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <ShareInsightCard
-            entityType="event"
-            entityId={ev.id}
-            title={ev.title}
-            summary={data.summary?.text}
-          />
-          <button className="flex items-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[12px] text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 transition">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-            </svg>
-            Watchlist
-          </button>
-        </div>
+      {/* ── Actions ───────────────────────────────────────────────────── */}
+      {/* No breadcrumb here (2026-08 audit — user-reported: this row
+          hand-rolled its own "Events / {title}" trail, duplicating both
+          the site-wide Breadcrumbs component (rendered once from the root
+          layout, with the real BreadcrumbList JSON-LD) and the <h1>/Quick
+          Answer directly below, which already restate the title. Only the
+          genuinely non-duplicated actions (Share, Watchlist) stay. */}
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <ShareInsightCard
+          entityType="event"
+          entityId={ev.id}
+          title={ev.title}
+          summary={data.summary?.text}
+        />
+        <button className="flex items-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[12px] text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 transition">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+          </svg>
+          Watchlist
+        </button>
       </div>
 
       {/* ── Contextual quick links ────────────────────────────────────── */}
@@ -1242,7 +1720,11 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
         <SmartCTA variant="view-ripple" href={`/ripple/${ev.slug || ev.id}`} />
       </div>
 
-      {/* ── Page title + event header ──────────────────────────────────── */}
+      {/* ── Event Explorer card ──────────────────────────────────────────── */}
+      {/* Restored per explicit request (2026-08 audit) — kept as the main
+          event-identity display; the redundant plain-text description in
+          page.tsx's server-rendered header was removed instead, so this
+          card's own description is no longer said twice on the page. */}
       <div className="mb-5">
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted">Event Explorer</p>
         <div className="rounded-[24px] border border-surface-border/8 bg-text-primary/[0.025] p-5">
@@ -1271,9 +1753,25 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
               ) : (
                 <h1 className="text-xl font-bold leading-snug text-text-primary">{ev.title}</h1>
               )}
-              {data.summary.text && (
-                <p className="mt-2 text-[13px] leading-5 text-text-secondary line-clamp-2">{data.summary.text}</p>
+              {titleQuestion && (
+                <div className="mt-3 rounded-xl border border-sky-500/15 bg-sky-500/[0.04] p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-sky-500">Question</p>
+                  <p className="mt-0.5 text-[13px] font-medium text-text-primary">{titleQuestion}</p>
+                  {questionAnswer ? (
+                    <>
+                      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">Answer</p>
+                      <p className="mt-0.5 text-[12px] leading-5 text-text-secondary">{questionAnswer}</p>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-text-muted">Not yet answered — no verified commentary or further detail has been captured for this event yet.</p>
+                  )}
+                </div>
               )}
+              {/* No description line here (2026-08 audit, per explicit
+                  request) — this exact text (truncated) was one of three
+                  near-identical renderings above the fold; the Overview
+                  tab's What Happened card just below is now the single
+                  real place for it, shown in full, not clipped. */}
               <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-text-muted">
                 {ev.event_date && <span>{fmt(ev.event_date)}</span>}
                 {ev.source && <><span>·</span><span>{ev.source}</span></>}
@@ -1303,13 +1801,6 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
 
       {/* ── Verdict card ─────────────────────────────────────────────────── */}
       {hasRealScore(data.impactScore) && <VerdictCard data={data} />}
-
-      {/* ── AI Intelligence Block — unified intelligence layer ────────────── */}
-      {intelligence && (
-        <div className="mb-5">
-          <IntelligenceBlock data={intelligence} label="Event Intelligence" compact={true} />
-        </div>
-      )}
 
       {/* ── Tab bar ───────────────────────────────────────────────────────── */}
       <div className="mb-5 flex items-center overflow-x-auto border-b border-surface-border/6 scrollbar-hide" role="tablist">
@@ -1343,7 +1834,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
           {activeTab === "Timeline"      && <TimelineTab   data={data}/>}
           {activeTab === "Historical"    && <HistoricalTab data={data}/>}
           {activeTab === "Related News"  && <NewsTab       data={data}/>}
-          {activeTab === "Market"        && <MarketTab     data={data}/>}
+          {activeTab === "Event Intelligence" && <EventIntelligenceTab data={data} intelligence={intelligence} intelligenceLoading={intelligenceLoading}/>}
           {activeTab === "Graph"         && <GraphTab      data={data}/>}
 
           <WhatNextSection data={data} />

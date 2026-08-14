@@ -62,17 +62,42 @@ class EventRepository:
         14+ days — before this fix. `updated_at` refreshes on every
         mark_status() call (Column-level onupdate, fires for Core UPDATE
         statements too), so it's a reliable 'when did this last actually
-        change' signal for the stale-processing check."""
+        change' signal for the stale-processing check.
+
+        Retry/backoff (Phase 2, 2026-08-13 audit): two further gaps fixed
+        here. First, this used to return every 'failed' row regardless of
+        how many times it had already failed or when it last failed —
+        no backoff, so a genuinely down AI provider would just get hammered
+        again next tick. Now a 'failed' row is only eligible once its
+        next_retry_at has passed (see event_pipeline.run_event_pipeline for
+        where that's computed), and once retry_count reaches
+        _MAX_ENRICHMENT_RETRIES the row graduates to 'failed_permanent' —
+        a distinct terminal status, excluded here, but still fully visible
+        via get_permanently_failed_enrichment() rather than silently
+        vanishing. Second, ordering was `created_at DESC` (newest first)
+        across every eligible row — with ingestion running continuously,
+        an older retry-eligible failure could be starved indefinitely
+        behind a steady stream of newer pending events. Ordering by
+        COALESCE(next_retry_at, created_at) ASC instead treats "when this
+        row became eligible to run" as one fair FIFO queue, whether that's
+        a pending row's creation time or a failed row's backoff expiry."""
         from datetime import datetime, timedelta, timezone
-        stale_before = datetime.now(timezone.utc) - timedelta(minutes=45)
+        from app.pipeline.event_pipeline import _MAX_ENRICHMENT_RETRIES
+        from sqlalchemy import func
+
+        now = datetime.now(timezone.utc)
+        stale_before = now - timedelta(minutes=45)
+        eligible_at = func.coalesce(Event.next_retry_at, Event.created_at)
         result = await self._db.execute(
             select(Event)
             .where(or_(
                 Event.enrichment_status == "pending",
-                Event.enrichment_status == "failed",
+                (Event.enrichment_status == "failed")
+                & (Event.retry_count < _MAX_ENRICHMENT_RETRIES)
+                & or_(Event.next_retry_at.is_(None), Event.next_retry_at <= now),
                 (Event.enrichment_status == "processing") & (Event.updated_at < stale_before),
             ))
-            .order_by(Event.created_at.desc())
+            .order_by(eligible_at.asc())
             .limit(limit)
         )
         return list(result.scalars().all())
@@ -85,6 +110,39 @@ class EventRepository:
             .limit(limit)
         )
         return list(result.scalars().all())
+
+    async def get_permanently_failed_enrichment(self, limit: int = 50) -> list[Event]:
+        """Terminal enrichment failures — retry_count exhausted, no longer
+        retried, but must stay visible in operational monitoring rather
+        than disappearing (this is the whole point of a distinct terminal
+        status instead of just leaving them at 'failed' forever)."""
+        result = await self._db.execute(
+            select(Event)
+            .where(Event.enrichment_status == "failed_permanent")
+            .order_by(Event.updated_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def mark_enrichment_failed(
+        self, event_id: str, *, retry_count: int, reason: str, next_retry_at,
+    ) -> None:
+        """Records a failed enrichment attempt with its retry state.
+        next_retry_at=None + status='failed_permanent' signals retries are
+        exhausted; otherwise status stays 'failed' and next_retry_at is the
+        computed backoff time."""
+        status = "failed_permanent" if next_retry_at is None else "failed"
+        from datetime import datetime, timezone
+        await self._db.execute(
+            update(Event).where(Event.id == event_id).values(
+                enrichment_status=status,
+                retry_count=retry_count,
+                last_attempt_at=datetime.now(timezone.utc),
+                next_retry_at=next_retry_at,
+                last_failure_reason=reason[:64],
+            )
+        )
+        await self._db.commit()
 
     async def get_similar_by_sectors(
         self, sectors: list[str], exclude_id: str, limit: int = 10

@@ -51,7 +51,7 @@ interface KeyDriver    { icon: string; title: string; explanation: string; confi
 interface Insight      { icon: string; title: string; summary: string; }
 interface Company      { symbol: string; name: string; price: string; change: string; positive: boolean; impact_type: string; impact_score: number | null; confidence: number | null; reason: string; chart: number[]; ripple_position?: string; why_it_matters?: string; }
 interface Sector       { name: string; score: number | null; confidence: number | null; outlook: string; positive: boolean; status?: string; time_horizon?: string; explanation?: string; }
-interface RelatedEvent { id: string; title: string; date: string; impact_score: number | null; confidence: number | null; category: string; }
+interface RelatedEvent { id: string; slug?: string; title: string; date: string; impact_score: number | null; confidence: number | null; category: string; }
 interface NewsItem     { id: string; headline: string; summary: string; source: string; published_at: string; impact_score: number | null; }
 interface Policy       { id: number; title: string; ministry: string; status: string; impact_score: number | null; }
 interface Timeline     { date: string; title: string; description: string; }
@@ -1275,7 +1275,7 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
             <div className="flex items-center gap-3">
               {companies.length >= 2 && (
                 <Link
-                  href={`/compare?a=${companies[0].symbol}&b=${companies[1].symbol}`}
+                  href={`/companies?tab=compare&a=${companies[0].symbol}&b=${companies[1].symbol}`}
                   className="flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold text-sky-600 dark:text-sky-300 hover:bg-sky-500/20 transition">
                   ↔ Compare {companies[0].symbol} vs {companies[1].symbol}
                 </Link>
@@ -1421,7 +1421,7 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
                           {!isLast && <div className="flex-1 h-px bg-text-primary/[0.08]"/>}
                         </div>
                         <div className="mt-2 px-1 text-center">
-                          <Link href={`/events/${ev.id}`}
+                          <Link href={`/events/${ev.slug || ev.id}`}
                             className="block text-[11px] font-medium text-text-primary hover:text-text-primary transition line-clamp-2 leading-tight text-center">
                             {ev.title.length > 35 ? ev.title.slice(0, 32) + "…" : ev.title}
                           </Link>
@@ -1717,7 +1717,7 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
               icon: <BarChart2 size={15} strokeWidth={1.7}/>,
               label: `Read ${topEv.title.length > 28 ? topEv.title.slice(0, 25) + "…" : topEv.title}`,
               sub: "Understand the event",
-              href: `/events/${topEv.id}`,
+              href: `/events/${topEv.slug || topEv.id}`,
             } : null,
             topSec ? {
               icon: <Search size={15} strokeWidth={1.7}/>,
@@ -1800,7 +1800,7 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       <AITransparencyPanel
         confidence={conf}
         reasoning={methodologySummary}
-        events={(result.related_events ?? []).slice(0, 5).map((e) => ({ title: e.title, href: `/events/${e.id}` }))}
+        events={(result.related_events ?? []).slice(0, 5).map((e) => ({ title: e.title, href: `/events/${e.slug || e.id}` }))}
         companies={companies.slice(0, 5).map((c) => ({ name: c.name, symbol: c.symbol, href: `/companies/${c.symbol}` }))}
         assumptions={confidence_data?.reasons ?? []}
         limitations={confidence_data?.caveats ?? []}

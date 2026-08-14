@@ -71,6 +71,7 @@ class GovernmentPolicyDetail(BaseModel):
 
 class HistoricalEventRef(BaseModel):
     id: str
+    slug: str = ""
     title: str
     event_date: str = ""
     impact_score: float = 0.0
@@ -121,6 +122,26 @@ class AIAnalysis(BaseModel):
     classification: Dict[str, Any] = {}
 
 
+class MacroReleaseDetail(BaseModel):
+    """Populated only when app.services.macro_extraction confidently
+    parsed a real structured figure out of this event's source text (see
+    app/db/models/macro_release.py) — absent (None on the parent field),
+    never a guessed value, for every other event."""
+    metric: str
+    release_value: Optional[float] = None
+    previous_value: Optional[float] = None
+    expected_value: Optional[float] = None
+    surprise: Optional[float] = None
+    unit: Optional[str] = None
+    period: Optional[str] = None
+    geography: str = "India"
+    importance: Optional[str] = None
+    affected_sectors: List[str] = []
+    affected_companies: List[str] = []
+    source: Optional[str] = None
+    source_url: Optional[str] = None
+
+
 class EventDetailResponse(BaseModel):
     event: EventInfo
     summary: EventSummaryDetail = Field(default_factory=EventSummaryDetail)
@@ -138,3 +159,5 @@ class EventDetailResponse(BaseModel):
     graph: GraphDetail = Field(default_factory=GraphDetail)
     marketReaction: Dict[str, Any] = Field(default_factory=dict)
     aiAnalysis: Dict[str, Any] = Field(default_factory=dict)
+    macroRelease: Optional[MacroReleaseDetail] = None
+    indexable: bool = False

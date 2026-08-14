@@ -203,7 +203,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
       <nav className="flex items-center gap-2 text-[12px] text-text-muted">
-        <Link href="/sectors" className="hover:text-text-secondary transition">Sectors</Link>
+        <Link href="/companies?tab=sectors" className="hover:text-text-secondary transition">Sectors</Link>
         <span>/</span>
         <span className="text-text-secondary">{d.name}</span>
       </nav>

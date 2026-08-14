@@ -35,7 +35,7 @@ export function EvidenceList({ sources, facts, interpretations, confidenceScore,
         <ChevronRight className="h-4 w-4 text-text-muted transition group-open:rotate-90" />
       </summary>
 
-      <div className="mt-4 grid grid-cols-2 gap-4 border-b border-surface-border/6 pb-4 sm:grid-cols-4">
+      <div className={`mt-4 grid grid-cols-2 gap-4 border-b border-surface-border/6 pb-4 ${storyVersion != null ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
         <div>
           <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">AI Confidence</p>
           <p className="mt-1 text-[16px] font-bold tabular-nums text-text-primary">{confidenceScore != null ? `${Math.round(confidenceScore * 100)}%` : "—"}</p>
@@ -48,10 +48,16 @@ export function EvidenceList({ sources, facts, interpretations, confidenceScore,
           <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Historical Data</p>
           <p className="mt-1 text-[16px] font-bold tabular-nums text-text-primary">{historicalCount} events</p>
         </div>
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Story Version</p>
-          <p className="mt-1 text-[16px] font-bold tabular-nums text-text-primary">v{storyVersion ?? 1}</p>
-        </div>
+        {/* Only rendered when the caller actually has a story-version
+            concept (newsroom articles) — events have no version history,
+            so showing a fabricated-looking "v1" for every event would be
+            misleading rather than informative. */}
+        {storyVersion != null && (
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Story Version</p>
+            <p className="mt-1 text-[16px] font-bold tabular-nums text-text-primary">v{storyVersion}</p>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">

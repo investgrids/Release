@@ -5,6 +5,13 @@ from typing import List, Optional
 class StockEvent(BaseModel):
     title: str
     date: str
+    # Phase 13 (2026-08 audit) — company page couldn't link back to its own
+    # events before this: StockEvent carried no id/slug at all, only a
+    # display title. slug is preferred when set (real human-readable
+    # events/[slug] URL); id is always present as the fallback the events
+    # detail endpoint already resolves (see EventService.get_event_detail).
+    id: str = ""
+    slug: str = ""
 
 
 class StockNews(BaseModel):

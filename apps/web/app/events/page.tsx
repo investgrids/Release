@@ -2,16 +2,17 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-} from "recharts";
+import dynamic from "next/dynamic";
 import {
   Landmark, ClipboardList, Building2, Zap, Globe, Globe2,
   BarChart2, Pin, HardHat, TrendingUp, Shield, Monitor,
 } from "lucide-react";
+
+// Recharts split into its own lazy chunk (2026-08 performance audit) — see
+// ImpactTrendChart.tsx's own header comment for why.
+const ImpactTrendChart = dynamic(() => import("./ImpactTrendChart").then(m => m.ImpactTrendChart), { ssr: false });
 import { WatchlistButton } from "@/components/WatchlistButton";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
-import { NextSteps } from "@/components/NextSteps";
 import { truncateForQuery } from "@/lib/text";
 import type { ReactNode } from "react";
 import { API_BASE_URL as API } from "@/lib/api";
@@ -644,17 +645,7 @@ export default function EventsPage() {
               ))}
             </div>
             <div className="h-[140px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trendData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="day" tick={{ fill: "rgb(var(--text-muted))", fontSize: 9 }} axisLine={false} tickLine={false}/>
-                  <YAxis tick={{ fill: "rgb(var(--text-muted))", fontSize: 9 }} axisLine={false} tickLine={false}/>
-                  <Tooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 8, fontSize: 10 }} labelStyle={{ color: "#94a3b8" }}/>
-                  <Line type="monotone" dataKey="veryHigh" stroke="#f43f5e" strokeWidth={1.5} dot={{ fill: "#f43f5e", r: 2 }} name="Very High"/>
-                  <Line type="monotone" dataKey="high"     stroke="#f59e0b" strokeWidth={1.5} dot={{ fill: "#f59e0b", r: 2 }} name="High"/>
-                  <Line type="monotone" dataKey="medium"   stroke="#6366f1" strokeWidth={1.5} dot={{ fill: "#6366f1", r: 2 }} name="Medium"/>
-                  <Line type="monotone" dataKey="low"      stroke="#22c55e" strokeWidth={1.5} dot={{ fill: "#22c55e", r: 2 }} name="Low"/>
-                </LineChart>
-              </ResponsiveContainer>
+              <ImpactTrendChart trendData={trendData} />
             </div>
           </div>
 
@@ -711,62 +702,6 @@ export default function EventsPage() {
         </aside>
       </div>
 
-      {/* Intelligent guidance — derived from top event and sectors */}
-      {events.length > 0 && (() => {
-        const topEv    = [...events].sort((a, b) => (b.impact_score ?? 0) - (a.impact_score ?? 0))[0];
-        const topSec   = topSectors[0]?.[0];
-        const q        = (s: string) => encodeURIComponent(s);
-        const topComp  = topEv?.companies?.[0];
-        const compSym  = typeof topComp === "object" && topComp !== null ? (topComp as { symbol: string }).symbol : null;
-        const compName = typeof topComp === "object" && topComp !== null ? (topComp as { name: string }).name : typeof topComp === "string" ? topComp : null;
-        const shortTitle = topEv.title.length > 80 ? topEv.title.slice(0, 77) + "…" : topEv.title;
-        return (
-          <NextSteps config={{
-            takeaway: `"${shortTitle}" has the highest market impact score today — this is where sector momentum is being shaped.`,
-            primary: compSym && compName ? {
-              label: `Research ${compName}`,
-              why:   `Because they're the most directly exposed company — this event fundamentally changes their near-term outlook.`,
-              href:  `/companies/${compSym}`,
-            } : {
-              label: `Ask AI: Which companies are most at risk?`,
-              why:   `Because understanding the specific winners and losers is the first step to an actionable investment thesis.`,
-              href:  `/ai-search?q=${q(`Which companies are most affected by "${shortTitle}" and what should investors do?`)}`,
-            },
-            groups: [
-              {
-                label: "Understand More",
-                actions: [
-                  {
-                    label: "Ask AI: How long will this impact last?",
-                    why:   "Because impact duration determines whether this is a short-term trade or a long-term investment thesis.",
-                    href:  `/ai-search?q=${q(`How long will the market impact of "${shortTitle}" last and what should investors do?`)}`,
-                  },
-                  {
-                    label: "Open the full event analysis",
-                    why:   "Because the detail view shows beneficiaries, at-risk companies, historical parallels, and monitoring signals.",
-                    href:  `/events/${topEv.slug || topEv.id}`,
-                  },
-                ],
-              },
-              {
-                label: "Explore Further",
-                actions: [
-                  topSec ? {
-                    label: `Trace the ${topSec} ripple chain`,
-                    why:   `Because sector-level moves create second-order effects in adjacent industries — the opportunity isn't always the obvious stock.`,
-                    href:  `/ripple`,
-                  } : {
-                    label: "Trace the full ripple chain",
-                    why:   "Because second-order effects often create better risk-adjusted opportunities than the headline company.",
-                    href:  `/ripple`,
-                  },
-                ],
-              },
-            ],
-            path: [topEv.category || "Event", topSec || "Sector", compName || "Company", "Investment Decision"].filter(Boolean) as string[],
-          }} />
-        );
-      })()}
     </main>
   );
 }

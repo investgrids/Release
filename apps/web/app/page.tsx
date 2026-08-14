@@ -827,12 +827,27 @@ function LiveIntelligenceCard({ item }: { item: any }) {
 
         {item.companies?.length > 0 && (
           <div className="pointer-events-auto mt-auto flex flex-wrap gap-1 pt-2.5">
-            {item.companies.slice(0, 5).map((c: string, i: number) => (
-              <Link key={i} href={`/companies/${c}` as any}
-                className="rounded-full border border-surface-border/10 bg-text-primary/[0.03] px-2 py-0.5 text-[10px] font-semibold text-text-secondary transition hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300">
-                {c}
-              </Link>
-            ))}
+            {item.companies.slice(0, 5).map((c: string | { symbol: string; impact?: string | null }, i: number) => {
+              // anomaly/early_theme/policy_ripple items carry a real
+              // per-company impact (EventTriage direction or a theme's
+              // live change_pct — see live_intelligence.py) when one
+              // genuinely exists; grey is the honest default otherwise,
+              // never a guessed color. Plain-string entries (older cached
+              // shape) fall back to the same grey.
+              const symbol = typeof c === "string" ? c : c.symbol;
+              const impact = typeof c === "string" ? null : c.impact;
+              const cls = impact === "positive"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 hover:border-emerald-500/50"
+                : impact === "negative"
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300 hover:border-rose-500/50"
+                : "border-surface-border/10 bg-text-primary/[0.03] text-text-secondary hover:border-violet-500/30 hover:text-violet-600 dark:hover:text-violet-300";
+              return (
+                <Link key={i} href={`/companies/${symbol}` as any}
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${cls}`}>
+                  {impact === "positive" ? "▲ " : impact === "negative" ? "▼ " : ""}{symbol}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

@@ -14,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.redis import cache_get, cache_set
 from app.db.models.event import Event
+from app.db.models.macro_release import MacroRelease
 from app.db.models_legacy import NewsArticle
+from app.services import coverage_engine
 from app.repositories.event_repository import EventRepository
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
 from app.services.event_scale import normalize_impact_score, normalize_confidence
@@ -65,6 +67,8 @@ class EventService:
             similar_links,
             policy_links,
             graph_pair,
+            macro_release,
+            indexable,
         ) = await asyncio.gather(
             self._events.get_companies(event_id),
             self._events.get_sectors(event_id),
@@ -73,6 +77,8 @@ class EventService:
             self._events.get_similar_events(event_id),
             self._events.get_policy_links(event_id),
             self._events.get_graph(event_id),
+            self._get_macro_release(event_id),
+            coverage_engine.compute_indexable(self._db, event_id),
         )
         nodes, edges = graph_pair
 
@@ -269,6 +275,7 @@ class EventService:
             "historicalEvents": [
                 {
                     "id": e.id,
+                    "slug": e.slug or "",
                     "title": e.title,
                     "event_date": _dt(e.event_date or e.published_at),
                     "impact_score": float(e.impact_score or 0),
@@ -312,12 +319,46 @@ class EventService:
                 **(ai_s.get("analysis", {})),
                 "classification": ai_s.get("classification", {}),
             },
+            "macroRelease": (
+                {
+                    "metric": macro_release.metric,
+                    "release_value": macro_release.release_value,
+                    "previous_value": macro_release.previous_value,
+                    "expected_value": macro_release.expected_value,
+                    "surprise": (
+                        round(macro_release.release_value - macro_release.expected_value, 4)
+                        if macro_release.release_value is not None and macro_release.expected_value is not None
+                        else None
+                    ),
+                    "unit": macro_release.unit,
+                    "period": macro_release.period,
+                    "geography": macro_release.geography,
+                    "importance": macro_release.importance,
+                    "affected_sectors": macro_release.affected_sectors,
+                    "affected_companies": macro_release.affected_companies,
+                    "source": macro_release.source,
+                    "source_url": macro_release.source_url,
+                }
+                if macro_release is not None
+                else None
+            ),
+            "indexable": indexable,
         }
 
         await cache_set(cache_key, result, ttl=_CACHE_TTL)
         return result
 
     # ── Private helpers ───────────────────────────────────────────────────────
+
+    async def _get_macro_release(self, event_id: str) -> Optional[MacroRelease]:
+        try:
+            result = await self._db.execute(
+                select(MacroRelease).where(MacroRelease.event_id == event_id)
+            )
+            return result.scalar_one_or_none()
+        except Exception as exc:
+            logger.warning("Failed to fetch macro release: %s", exc)
+            return None
 
     async def _fetch_news_articles(self, news_ids: list[str]) -> list[Dict]:
         if not news_ids:

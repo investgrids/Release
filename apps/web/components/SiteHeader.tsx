@@ -21,7 +21,10 @@ interface NavItem { label: string; href: string; sub?: NavSubItem[]; }
 // effect + validate against history, what's the resulting opportunity,
 // or skip straight to asking. Each hub with more than one real underlying
 // page gets a mega-menu of its former-standalone pages, now tabs of that
-// hub (routes are unchanged — see next.config.ts, nothing redirects).
+// hub. Companies' former-standalone routes (best-stocks/compare/ipo-hub/
+// sectors) now 301-redirect to their canonical /companies?tab= view (see
+// next.config.ts) — these links point straight at the canonical URL
+// rather than round-tripping through that redirect.
 const NAV_PRIMARY: NavItem[] = [
   {
     label: "Markets", href: "/market-intelligence",
@@ -31,7 +34,7 @@ const NAV_PRIMARY: NavItem[] = [
       { label: "Global Markets",    href: "/market-intelligence?tab=global-markets",    blurb: "US, Asia, Europe overnight context" },
       { label: "Economic Calendar", href: "/calendar",                                  blurb: "Upcoming events that could move markets" },
       { label: "Commodities",       href: "/commodities",                               blurb: "Gold, crude, and the rest" },
-      { label: "Sector Intelligence", href: "/sectors",                                 blurb: "Performance by sector" },
+      { label: "Sector Intelligence", href: "/companies?tab=sectors",                   blurb: "Performance by sector" },
     ],
   },
   { label: "Events", href: "/events" },
@@ -48,11 +51,11 @@ const NAV_PRIMARY: NavItem[] = [
   {
     label: "Companies", href: "/companies",
     sub: [
-      { label: "All Companies", href: "/companies",     blurb: "Search and filter the full universe" },
-      { label: "Best Stocks",   href: "/best-stocks",   blurb: "Ranked by AI Company Intelligence Score" },
-      { label: "Compare",       href: "/compare",       blurb: "Side-by-side company comparison" },
-      { label: "IPO Hub",       href: "/ipo-hub",       blurb: "Upcoming, ongoing, and listed IPOs" },
-      { label: "Sectors",       href: "/sectors",       blurb: "Browse companies by sector" },
+      { label: "All Companies", href: "/companies",                  blurb: "Search and filter the full universe" },
+      { label: "Best Stocks",   href: "/companies?tab=best-stocks",  blurb: "Ranked by AI Company Intelligence Score" },
+      { label: "Compare",       href: "/companies?tab=compare",      blurb: "Side-by-side company comparison" },
+      { label: "IPO Hub",       href: "/companies?tab=ipo",          blurb: "Upcoming, ongoing, and listed IPOs" },
+      { label: "Sectors",       href: "/companies?tab=sectors",      blurb: "Browse companies by sector" },
     ],
   },
   {

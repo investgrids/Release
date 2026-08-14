@@ -56,9 +56,31 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   // human-readable slug over the opaque id for the URL this page asserts
   // as its own identity (JSON-LD url + breadcrumb item).
   const url = `${SITE}/events/${ev?.slug || id}`;
+  // Used for JSON-LD only (2026-08 audit, per explicit request) — no
+  // visible "Quick Answer" or description paragraph up here anymore. That
+  // content was the same real text as the Overview tab's own What
+  // Happened / Why It Matters cards, just phrased slightly differently
+  // three separate times before a reader got past the page header.
+  // Search engines still get the full text via JSON-LD either way.
   const description = ev ? withPeriod(
     detail?.summary?.why_it_matters || detail?.summary?.text || ev.description || `${ev.title} — real-time market intelligence and ripple-chain impact analysis on MarketRipple.`
   ) : "";
+
+  // Phase 12 (2026-08 audit) — machine-readable "Event Facts", using
+  // schema.org's own additionalProperty/PropertyValue mechanism (the
+  // correct, non-misused way to attach extra structured facts to an
+  // existing type — not a second competing schema block). Every entry
+  // here is a real value already present in `detail`; fields with no
+  // real value (e.g. importance when no macro release or coverage
+  // priority exists) are simply omitted, never filled with a placeholder.
+  const factProperties = ev ? [
+    { "@type": "PropertyValue", name: "eventDate", value: ev.event_date || "" },
+    { "@type": "PropertyValue", name: "source", value: ev.source || "" },
+    { "@type": "PropertyValue", name: "category", value: ev.event_type || "" },
+    ...(detail?.macroRelease?.importance ? [{ "@type": "PropertyValue", name: "importance", value: detail.macroRelease.importance }] : []),
+    ...(detail?.affectedSectors?.length ? [{ "@type": "PropertyValue", name: "affectedSectors", value: detail.affectedSectors.map(s => s.sector).join(", ") }] : []),
+    ...(detail?.companies?.length ? [{ "@type": "PropertyValue", name: "affectedCompanies", value: detail.companies.map(c => c.symbol).join(", ") }] : []),
+  ].filter(p => p.value) : [];
 
   const jsonLd = ev ? {
     "@context": "https://schema.org",
@@ -76,6 +98,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         { "@type": "ListItem", position: 3, name: ev.title, item: url },
       ],
     },
+    additionalProperty: factProperties,
   } : null;
 
   return (
@@ -86,9 +109,21 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       {ev && (
         <section className="mb-4 border-b border-surface-border/6 pb-4">
           {/* The single real <h1> for this page — EventExplorerPage's own
-              header renders the same title as a <p>, not a second <h1>. */}
-          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">{ev.title}</h1>
-          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-text-secondary">{description}</p>
+              header renders the same title as a <p>, not a second <h1>.
+              Deliberately NOT verbatim-identical to that card's title
+              (2026-08 audit, user-reported: the exact same sentence
+              appearing twice read as a plain duplicate). Same fix already
+              applied on the company page (see companies/[symbol]/page.tsx)
+              — a real, visible h1 stays, but its text is a distinct
+              SEO-flavored framing of the same real event, not a repeat. */}
+          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">{ev.title} — Market Impact &amp; AI Analysis</h1>
+          {/* No Quick Answer, no description paragraph here (2026-08 audit,
+              per explicit request — three overlapping renderings of the
+              same real text before a reader reached any actual content
+              was the duplicate). The Event Explorer card below shows the
+              title once; the Overview tab's What Happened / Why It
+              Matters cards are the single real place for the descriptive
+              text. `description` above still feeds JSON-LD only. */}
         </section>
       )}
       <EventExplorerPage initialDetail={detail} initialRelated={related} />

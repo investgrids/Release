@@ -121,8 +121,10 @@ export default async function LibraryPage(
     fetchJSON<{ items: InsightCard[]; total: number }>(
       `/api/insights/?limit=${PAGE_SIZE}&offset=${offset}&sort_by=${sort}${catQS}`, { items: [], total: 0 }
     ),
-    // Trending: real view-based ranking, not a fabricated "hot" flag.
-    fetchJSON<{ items: InsightCard[] }>(`/api/insights/?sort_by=views&limit=4`, { items: [] }),
+    // Trending Today: real view-based ranking among TODAY's articles only
+    // (a dedicated endpoint — sort_by=views on the generic list ranks
+    // across all time and was surfacing weeks-old articles here).
+    fetchJSON<{ items: InsightCard[] }>(`/api/insights/trending?limit=4`, { items: [] }),
     ...SECTIONS.map(s => fetchJSON<{ items: InsightCard[] }>(`/api/insights/?category=${s.category}&limit=4`, { items: [] })),
   ]);
 

@@ -12,7 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.crud import get_events
 from app.db.session import get_db
 from app.schemas.event import CompanyImpact, EventSummary
+from app.schemas.event_deep_research import DeepResearchResponse
 from app.schemas.event_detail import EventDetailResponse
+from app.services import coverage_engine
+from app.services.event_deep_research_service import get_deep_research
 from app.services.event_service import EventService
 from app.services.event_scale import normalize_impact_score, normalize_confidence
 from app.services.event_lifecycle import compute_active_score, compute_lifecycle
@@ -22,7 +25,7 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
-def _build_summary(e, companies: list) -> EventSummary:
+def _build_summary(e, companies: list, indexable: bool = False) -> EventSummary:
     impact = normalize_impact_score(e.id, e.impact_score)
     return EventSummary(
         id=e.id,
@@ -39,7 +42,29 @@ def _build_summary(e, companies: list) -> EventSummary:
         source=e.source or "",
         active_score=compute_active_score(impact, e.published_at),
         lifecycle=compute_lifecycle(e.published_at),
+        indexable=indexable,
     )
+
+
+def _to_summary(e, indexable: bool = False) -> EventSummary:
+    companies = [
+        CompanyImpact(symbol=c.get("symbol", ""), name=c.get("name", ""), impact=c.get("impact", "Neutral"))
+        if isinstance(c, dict) else
+        CompanyImpact(symbol=c.strip(), name=c.strip(), impact="Neutral")
+        for c in (e.companies or []) if isinstance(c, dict) or (isinstance(c, str) and c.strip())
+    ]
+    return _build_summary(e, companies, indexable)
+
+
+async def _attach_indexable(db: AsyncSession, summaries: list[EventSummary]) -> list[EventSummary]:
+    """Batch-computes indexability for an already-built summary list —
+    kept as a separate pass (rather than threading a per-row lookup
+    through every sort_by branch below) so each branch's existing
+    control flow doesn't need to change."""
+    flags = await coverage_engine.compute_indexable_batch(db, [s.id for s in summaries])
+    for s in summaries:
+        s.indexable = flags.get(s.id, False)
+    return summaries
 
 
 @router.get("/", response_model=List[EventSummary])
@@ -47,9 +72,25 @@ async def list_events(
     limit: int = Query(20, ge=1, le=100),
     page_size: int = Query(None, ge=1, le=100),
     sort_by: str = Query("published_at"),
+    # Most raw NSE/BSE exchange filings (chairman resignations, share-
+    # certificate reissues, routine compliance disclosures — see
+    # events/page.tsx's "Unscored" badge) never clear the Scoring Engine's
+    # minimum-evidence bar and stay impact_score=null forever — confirmed
+    # live: ~94% of a 100-event sample. Surfacing them in the main feed is
+    # just noise with no assessed company impact. scored_only widens the
+    # DB pool and filters to impact_score is not None before truncating to
+    # the requested limit, instead of limiting-then-filtering (which would
+    # return almost nothing at limit=20 given the ~6% scored rate).
+    scored_only: bool = Query(False),
     db: AsyncSession = Depends(get_db),
 ):
     effective_limit = page_size if page_size is not None else limit
+
+    if scored_only and sort_by not in ("impact_score", "active"):
+        pool_limit = min(max(effective_limit * 15, 300), 1000)
+        rows = await get_events(db, limit=pool_limit, sort_by=sort_by)
+        result = [_to_summary(e) for e in rows if e.impact_score is not None]
+        return await _attach_indexable(db, result[:effective_limit])
 
     if sort_by == "active":
         # THE Latest Biggest Events Engine — see event_lifecycle.py's
@@ -57,22 +98,14 @@ async def list_events(
         # surface (this endpoint, the homepage hero) reads, never its own
         # independent computation.
         from app.services.event_lifecycle import get_top_active_events
-        return await get_top_active_events(db, limit=effective_limit)
+        return await _attach_indexable(db, await get_top_active_events(db, limit=effective_limit))
 
     if sort_by == "impact_score":
         # Fetch a wider pool so mixed-scale scores can be normalized and re-sorted in Python.
         # Pipeline events use 0-100 (score=60), seed events use 0-10 (score=8.7 → norm 87).
         # DB ordering on raw values would put 60 before 8.7, hiding high-quality seeds.
         pool_rows = await get_events(db, limit=200, sort_by="published_at")
-        result = []
-        for e in pool_rows:
-            companies = [
-                CompanyImpact(symbol=c.get("symbol", ""), name=c.get("name", ""), impact=c.get("impact", "Neutral"))
-                if isinstance(c, dict) else
-                CompanyImpact(symbol=c.strip(), name=c.strip(), impact="Neutral")
-                for c in (e.companies or []) if isinstance(c, dict) or (isinstance(c, str) and c.strip())
-            ]
-            result.append(_build_summary(e, companies))
+        result = [_to_summary(e) for e in pool_rows]
         # A pure impact_score sort with no recency bound let a handful of old
         # high-score events (weeks-old macro/policy items) permanently occupy
         # this list's top slots since nothing more recent ever outscored them
@@ -102,19 +135,10 @@ async def list_events(
             (recent if published is not None and published >= cutoff else older).append(r)
         recent.sort(key=_score_key, reverse=True)
         older.sort(key=_score_key, reverse=True)
-        return (recent + older)[:effective_limit]
+        return await _attach_indexable(db, (recent + older)[:effective_limit])
     else:
         rows = await get_events(db, limit=effective_limit, sort_by=sort_by)
-        result = []
-        for e in rows:
-            companies = [
-                CompanyImpact(symbol=c.get("symbol", ""), name=c.get("name", ""), impact=c.get("impact", "Neutral"))
-                if isinstance(c, dict) else
-                CompanyImpact(symbol=c.strip(), name=c.strip(), impact="Neutral")
-                for c in (e.companies or []) if isinstance(c, dict) or (isinstance(c, str) and c.strip())
-            ]
-            result.append(_build_summary(e, companies))
-        return result
+        return await _attach_indexable(db, [_to_summary(e) for e in rows])
 
 
 @router.get("/{event_id}/market-data")
@@ -169,6 +193,22 @@ async def get_event_market_chart(
 
     data = await get_ticker_chart(primary_ticker, period)
     return {"period": period, "ticker": primary_ticker, "name": primary_name, "data": data}
+
+
+@router.get("/{event_id}/deep-research", response_model=DeepResearchResponse)
+async def get_event_deep_research(
+    event_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Layer 2 (2026-08 event page redesign) — a single consolidated fetch
+    replacing what used to be up to 5 independent AI-backed component
+    calls. See event_deep_research_service for the reuse/no-fabrication
+    contract."""
+    logger.info("GET /api/events/%s/deep-research", event_id)
+    result = await get_deep_research(db, event_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Event '{event_id}' not found")
+    return result
 
 
 @router.get("/{event_id}", response_model=EventDetailResponse)

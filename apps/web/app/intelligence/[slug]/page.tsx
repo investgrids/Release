@@ -760,7 +760,7 @@ export default async function IntelligenceArticlePage({
                   const s1 = typeof list[1] === "object" ? list[1].symbol : "";
                   if (!isRealSymbol(s0) || !isRealSymbol(s1)) return null;
                   return (
-                    <Link href={`/compare?a=${s0}&b=${s1}`}
+                    <Link href={`/companies?tab=compare&a=${s0}&b=${s1}`}
                       className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-3 py-2 text-[11px] font-semibold text-sky-400 hover:bg-sky-500/10 transition">
                       ↔ Compare {s0} vs {s1}
                     </Link>

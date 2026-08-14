@@ -967,7 +967,15 @@ async def generate_ripple_graph(
         "Relationships: causes, hurts, benefits, influences, supports, risk, opportunity\n"
         "Time horizons: immediate, short_term, medium_term, long_term\n"
         "Depths: 0=event_center, 1=direct(0-7d), 2=secondary(1-4w), 3=tertiary(1-3m), 4=long-term(3-6m)\n"
-        "Generate 20-25 nodes and 25-35 edges. Focus on Indian market context and NSE-listed companies."
+        "Generate 20-25 nodes and 25-35 edges. Focus on Indian market context and NSE-listed companies.\n\n"
+        "If the triggering event originates OUTSIDE India (a US Federal Reserve/ECB/BoJ decision, China "
+        "macro data, a foreign election or conflict), you MUST model the actual India transmission "
+        "mechanism explicitly — never leave a global event as a dead-end with no India-specific chain. "
+        "For a global rate/monetary event specifically, the primary channel is USD/INR: model both sides "
+        "of the currency move — IT and pharma exporters typically benefit from rupee weakness (USD-"
+        "denominated revenue), while the oil import bill and import-heavy manufacturers are hurt by it. "
+        "Do not present a global event as uniformly positive or negative for India when the real "
+        "transmission is two-sided like this."
     )
 
     raw = await _call_with_fallback(prompt, system, max_tokens=4000, priority=priority)

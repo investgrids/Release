@@ -10,8 +10,11 @@ from datetime import date
 from email.utils import parsedate_to_datetime
 
 import httpx
+import structlog
 
 from .base import BaseProvider, RawItem
+
+log = structlog.get_logger(__name__)
 
 _FEEDS: list[tuple[str, str, float]] = [
     ("https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms", "Economic Times", 8.0),
@@ -84,16 +87,49 @@ class RSSProvider(BaseProvider):
     source_name = "RSS"
 
     async def fetch_latest(self) -> list[dict]:
+        # Each of the 6 feeds is independent — one going down shouldn't kill
+        # the batch, so failures here are per-feed try/except rather than
+        # one try around the whole loop. That used to mean a single feed
+        # silently going dark (a bad status code or a raised exception)
+        # produced literally zero signal: nothing distinguished "this feed
+        # had nothing new" from "this feed has been broken for a week."
+        # Logging each failure with the specific feed's source name fixes
+        # that without changing the graceful-degradation behavior itself.
+        # Per-feed health tracking (Phase 6, 2026-08-13 audit) — the shared
+        # BaseProvider.fetch_and_normalize() wrapper only sees RSSProvider
+        # as a single aggregate ("RSS"), since it calls fetch_latest() once
+        # for the whole provider; the 6 real feeds inside it need their own
+        # entries, tracked directly here instead.
+        import time
+        from app.services import source_health
+
         results: list[dict] = []
         async with httpx.AsyncClient(headers=_HEADERS, timeout=10, follow_redirects=True) as c:
             for url, source, score in _FEEDS:
+                feed_id = f"RSS/{source}"
+                start = time.monotonic()
                 try:
                     r = await c.get(url)
+                    elapsed_ms = (time.monotonic() - start) * 1000
                     if r.status_code != 200:
+                        log.warning("rss_provider.feed_failed", source=source, status_code=r.status_code)
+                        source_health.record_fetch(
+                            feed_id, success=False, failure_kind="http", latency_ms=elapsed_ms,
+                            error=f"HTTP {r.status_code}",
+                        )
                         continue
                     items = _parse_rss_xml(r.content, source, score)
                     results.extend(items)
-                except Exception:
+                    source_health.record_fetch(
+                        feed_id, success=True, event_count=len(items), latency_ms=elapsed_ms,
+                    )
+                except Exception as exc:
+                    elapsed_ms = (time.monotonic() - start) * 1000
+                    log.warning("rss_provider.feed_failed", source=source, error=str(exc))
+                    kind = "http" if isinstance(exc, httpx.HTTPError) else "parse"
+                    source_health.record_fetch(
+                        feed_id, success=False, failure_kind=kind, latency_ms=elapsed_ms, error=str(exc),
+                    )
                     continue
         return results
 

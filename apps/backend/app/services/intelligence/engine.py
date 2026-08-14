@@ -217,13 +217,15 @@ _CRITICAL_KEYWORDS = ("rbi", "repo rate", "monetary policy", "budget", "war", "f
 _HIGH_KEYWORDS_STRONG = ("acquisition", "merger", "block deal", "bulk deal", "sebi")
 _HIGH_KEYWORDS_WEAK = ("earnings", "results", "government")
 
-_CRITICAL_PATTERNS = [re.compile(r"\b" + re.escape(k) + r"\b") for k in _CRITICAL_KEYWORDS]
-_HIGH_STRONG_PATTERNS = [re.compile(r"\b" + re.escape(k) + r"\b") for k in _HIGH_KEYWORDS_STRONG]
-_HIGH_WEAK_PATTERNS = [re.compile(r"\b" + re.escape(k) + r"\b") for k in _HIGH_KEYWORDS_WEAK]
+# Re-audit (2026-08-13): extracted compile/match into app.services.
+# keyword_matching so content_planner.py's article-type keyword lists
+# (same class of bug, unfixed there) share one mechanism instead of each
+# classifier maintaining its own regex-compilation copy.
+from app.services.keyword_matching import compile_keywords, matches_any as _matches_any
 
-
-def _matches_any(patterns: list[re.Pattern], text: str) -> bool:
-    return any(p.search(text) for p in patterns)
+_CRITICAL_PATTERNS = compile_keywords(_CRITICAL_KEYWORDS)
+_HIGH_STRONG_PATTERNS = compile_keywords(_HIGH_KEYWORDS_STRONG)
+_HIGH_WEAK_PATTERNS = compile_keywords(_HIGH_KEYWORDS_WEAK)
 
 
 def _is_routine_filing(text: str) -> bool:

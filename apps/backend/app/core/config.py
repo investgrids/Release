@@ -124,6 +124,19 @@ class Settings(BaseSettings):
     deepseek_model: str = "deepseek-chat"
     openai_api_key: str = ""
 
+    # ── Outbound email (transactional notifications, e.g. feedback delivery) ──
+    # Set on Railway to enable. Unset locally disables it — email_service.py
+    # logs a warning and no-ops rather than failing the request that
+    # triggered it (matches admin_api_key's "unset = feature off" posture).
+    # Provider-agnostic SMTP (not a specific SaaS API) so it works with
+    # whatever inbox already receives support@marketripple.in.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "MarketRipple <noreply@marketripple.in>"
+    feedback_notify_email: str = "support@marketripple.in"
+
     # ── Finnhub ───────────────────────────────────────────────────────────────
     finnhub_api_key: str = ""
 

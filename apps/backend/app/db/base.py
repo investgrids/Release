@@ -22,3 +22,4 @@ import app.db.models.feedback        # noqa: F401 E402  — registers feedback_s
 import app.db.models.event_coverage  # noqa: F401 E402  — registers event_coverage table
 import app.db.models.fact  # noqa: F401 E402  — registers facts table
 import app.db.models.generated_media # noqa: F401 E402  — registers generated_media table
+import app.db.models.macro_release   # noqa: F401 E402  — registers macro_releases table

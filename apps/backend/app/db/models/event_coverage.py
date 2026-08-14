@@ -38,4 +38,11 @@ class EventCoverage(Base):
     daily_brief_covered = Column(Boolean, nullable=False, default=False)
     coverage_status = Column(String(32), nullable=False, default="DETECTED", index=True)
     # DETECTED | PUBLISHED | COVERED_BY_EXISTING_ARTICLE | FAILED
+    # Audit finding (2026-08-12): FAILED was declared here from the start
+    # but no code path ever wrote it — article_generator returning None and
+    # quality_validator rejecting an article both left the row at DETECTED
+    # forever, indistinguishable from "never attempted." failure_reason is
+    # new alongside actually writing FAILED (coverage_engine.mark_failed),
+    # so a failed row says *why* instead of just that it failed.
+    failure_reason = Column(String(256), nullable=True)
     last_checked_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)

@@ -99,27 +99,49 @@ async def get_high_urgency_triage(
     hours: int = 3,
 ) -> list[dict[str, Any]]:
     """
-    Fetch recent high-urgency triage events from the DB, restricted to the
-    Intelligence Priority Queue's Critical/High tiers — the publishing engine
-    should only auto-generate articles from homepage-grade signal, matching
-    the same filter applied to the MIE state's top_events (see
-    app.services.intelligence.engine.compute_intelligence_state).
+    Fetch recent Critical/High-tier triage events for AIPE to consider.
+
+    Audit fix (2026-08-12): this used to filter candidates in SQL via
+    `EventTriage.urgency >= min_urgency` and order/cap by raw urgency
+    BEFORE compute_priority's keyword floor ever ran — so a genuinely
+    Critical event (headline containing "war", "rbi", "budget", etc., per
+    engine.py's _CRITICAL_KEYWORDS) with a low AI-assigned raw urgency
+    could be excluded from AIPE's candidate pool entirely, only ever
+    surfacing after the fact via coverage_engine's separate gap-detection
+    query — a different code path than the one that actually generates
+    articles. Confirmed live: a real triaged event (urgency=1, keyword-
+    floor priority=Critical) was excluded by the old `urgency >= 6` WHERE
+    clause.
+
+    Now: fetch a broad, recency-ordered candidate pool (no raw-urgency
+    filter), compute the real priority tier for every candidate in Python
+    (cheap — no I/O, same compute_priority the homepage's live pulse and
+    coverage_engine already use), keep only Critical/High, and sort/limit
+    by the computed priority_score — not raw urgency — so a keyword-
+    elevated event is considered on equal footing with a high-raw-urgency
+    one. min_urgency is unused now that tier membership (which already
+    incorporates urgency/importance as its base score) is the real gate;
+    kept as a parameter for call-site compatibility.
     """
     from app.db.models.intelligence import EventTriage
     from app.services.intelligence.engine import compute_priority
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    # Candidate pool: recency-ordered, no raw-urgency filter — the filter
+    # that matters (Critical/High tier) is computed below in Python, after
+    # the keyword floor has had a chance to run. 300 is a generous cap on
+    # a 3-hour window given real observed volume (roughly 1,000+ triage
+    # rows/day across all tiers) without loading an unbounded result set.
     result = await db.execute(
         select(EventTriage)
         .where(EventTriage.triaged_at >= cutoff)
-        .where(EventTriage.urgency >= min_urgency)
-        .order_by(EventTriage.urgency.desc(), EventTriage.triaged_at.desc())
-        .limit(20)
+        .order_by(EventTriage.triaged_at.desc())
+        .limit(300)
     )
     rows = result.scalars().all()
     events = []
     for r in rows:
-        _, priority_tier = compute_priority(r.urgency, r.importance, None, r.headline)
+        priority_score, priority_tier = compute_priority(r.urgency, r.importance, None, r.headline)
         if priority_tier not in ("Critical", "High"):
             continue
         events.append({
@@ -139,8 +161,13 @@ async def get_high_urgency_triage(
             "themes":       r.themes or [],
             "triaged_at":   r.triaged_at.isoformat() if r.triaged_at else None,
             "priority_tier": priority_tier,
+            "priority_score": priority_score,
         })
-    return events
+    # Sort by the real computed priority (keyword-floor-aware), not raw
+    # urgency — a keyword-elevated Critical event now ranks correctly
+    # against a high-raw-urgency-but-non-critical one.
+    events.sort(key=lambda e: e["priority_score"], reverse=True)
+    return events[:30]
 
 
 async def has_mie_changed(db: AsyncSession, current_hash: str) -> bool:

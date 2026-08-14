@@ -28,3 +28,8 @@ class EventSummary(BaseModel):
     # above is never altered by these.
     active_score: Optional[float] = None
     lifecycle: str = "Historical"
+    # Phase 15 — sitemap/search eligibility (see coverage_engine.
+    # compute_indexable_batch). False is the safe default absent real
+    # evidence of importance, so this defaults False here too rather than
+    # True — a caller that forgets to set it explicitly fails closed.
+    indexable: bool = False

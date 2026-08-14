@@ -24,6 +24,13 @@ export async function generateMetadata({
       if (event.slug) url = `${SITE}/events/${event.slug}`;
       const title = event.title ?? "Market Event";
       const desc  = (data.summary?.text ?? event.description ?? "").slice(0, 160) || "Market event analysis on MarketRipple.";
+      // Phase 15 (2026-08 audit) — indexability threshold: routine/
+      // low-value events (the bulk of raw NSE/BSE filings) stay noindex,
+      // follow so links through them still pass PageRank without adding
+      // SEO-spam volume to the index. data.indexable defaults false on
+      // the backend when there's no real evidence of importance, so an
+      // unrecognised/missing value here also stays noindex, not indexed.
+      const indexable = data.indexable === true;
       return {
         title,
         description: desc,
@@ -35,6 +42,7 @@ export async function generateMetadata({
         },
         twitter: { card: "summary_large_image", title, description: desc, images: ["/opengraph-image"] },
         alternates: { canonical: url },
+        robots: { index: indexable, follow: true },
       };
     }
   } catch {}

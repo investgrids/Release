@@ -22,19 +22,23 @@ import {
   TrendingDown, Landmark, Briefcase, HardHat, Leaf, Shield, Bot,
   FileText, Mic, FileStack, Bell, Share2, Copy, Clock,
 } from "lucide-react";
-import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis,
-} from "recharts";
-
 const RFlow  = dynamic(() => import("reactflow").then(m => m.default),    { ssr: false });
 const RFBg   = dynamic(() => import("reactflow").then(m => m.Background), { ssr: false });
 const RFCtrl = dynamic(() => import("reactflow").then(m => m.Controls),   { ssr: false });
 
+// Recharts split into its own lazy chunk (2026-08 performance audit) — see
+// CompanyCharts.tsx's own header comment for why.
+const PriceAreaChart              = dynamic(() => import("./CompanyCharts").then(m => m.PriceAreaChart),              { ssr: false });
+const DnaRadarChart               = dynamic(() => import("./CompanyCharts").then(m => m.DnaRadarChart),               { ssr: false });
+const Sparkline                   = dynamic(() => import("./CompanyCharts").then(m => m.Sparkline),                   { ssr: false });
+const GovBreakdownDonut           = dynamic(() => import("./CompanyCharts").then(m => m.GovBreakdownDonut),           { ssr: false });
+const SentimentTrendChart         = dynamic(() => import("./CompanyCharts").then(m => m.SentimentTrendChart),         { ssr: false });
+const ShareholdingDonut           = dynamic(() => import("./CompanyCharts").then(m => m.ShareholdingDonut),           { ssr: false });
+const HistoricalPerformanceBarChart = dynamic(() => import("./CompanyCharts").then(m => m.HistoricalPerformanceBarChart), { ssr: false });
+
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface StockEvent   { title: string; date: string }
+interface StockEvent   { title: string; date: string; id?: string; slug?: string }
 interface GovBreak     { label: string; pct: number; color: string }
 export interface StockDetail  {
   symbol: string; name: string; price: string; prev_close: string;
@@ -318,7 +322,7 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
               }`}>
               {watchlisted ? <><Check className="h-3.5 w-3.5" />Watchlisted</> : "+ Add to Watchlist"}
             </button>
-            <Link href={`/compare?a=${symbol}`}
+            <Link href={`/companies?tab=compare&a=${symbol}`}
               className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-[12px] font-medium text-text-secondary hover:border-sky-500/30 hover:text-sky-600 dark:text-sky-300 transition">
               ↔ Compare
             </Link>
@@ -358,21 +362,7 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-surface-border/20 border-t-sky-400"/>
           </div>
         ) : chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor={chartColor} stopOpacity={0.25}/>
-                  <stop offset="100%" stopColor={chartColor} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="label" tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false}/>
-              <YAxis domain={["auto","auto"]} tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => `₹${v}`} width={60}/>
-              <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 10, fontSize: 11 }}
-                formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Price"]}/>
-              <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2} fill="url(#cg)" dot={false}/>
-            </AreaChart>
-          </ResponsiveContainer>
+          <PriceAreaChart chartData={chartData} chartColor={chartColor} />
         ) : (
           <div className="flex h-full items-center justify-center">
             <p className="text-sm text-text-muted">No chart data for this period</p>
@@ -519,13 +509,7 @@ function StockDNA({ stock }: { stock: StockDetail }) {
       {/* Radar mini */}
       <div className="mt-5 flex items-center gap-6">
         <div className="w-48 shrink-0">
-          <ResponsiveContainer width="100%" height={180}>
-            <RadarChart data={entries.map(([k, v]) => ({ subject: k.split(" ")[0], value: v }))}>
-              <PolarGrid stroke="rgb(var(--text-primary) / 0.08)"/>
-              <PolarAngleAxis dataKey="subject" tick={{ fill: "rgb(var(--text-muted))", fontSize: 9 }}/>
-              <Radar dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2}/>
-            </RadarChart>
-          </ResponsiveContainer>
+          <DnaRadarChart entries={entries as [string, number][]} />
         </div>
         <div className="flex-1 space-y-2">
           {entries.map(([k, v]) => (
@@ -569,11 +553,10 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
             <p className="mt-1 text-[10px] text-text-muted">{k.label}</p>
             {/* Sparkline */}
             <div className="mt-2 h-8">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={(k.label === "Revenue" ? stock.quarterly_revenue : stock.quarterly_net_income).slice(-6)}>
-                  <Line type="monotone" dataKey="value" stroke={k.color.replace("text-","").includes("sky") ? "#38bdf8" : "#22c55e"} strokeWidth={1.5} dot={false}/>
-                </LineChart>
-              </ResponsiveContainer>
+              <Sparkline
+                data={(k.label === "Revenue" ? stock.quarterly_revenue : stock.quarterly_net_income).slice(-6)}
+                stroke={k.color.replace("text-","").includes("sky") ? "#38bdf8" : "#22c55e"}
+              />
             </div>
           </motion.div>
         ))}
@@ -661,18 +644,28 @@ function EventTimeline({ stock, symbol }: { stock: StockDetail; symbol: string }
       <Link href="/events" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All Events →</Link>
     }>
       <div className="mt-4 space-y-3">
-        {events.map((e, i) => (
-          <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="flex items-start gap-4 rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-4 hover:border-sky-400/20 hover:bg-sky-400/[0.02] transition">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15">
-              <Clock className="h-5 w-5 text-sky-400"/>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-text-muted mb-1">{e.date}</p>
-              <p className="text-[13px] font-semibold text-text-primary line-clamp-1">{e.title}</p>
-            </div>
-          </motion.div>
-        ))}
+        {events.map((e, i) => {
+          const href = e.slug || e.id ? `/events/${e.slug || e.id}` : null;
+          const body = (
+            <>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15">
+                <Clock className="h-5 w-5 text-sky-400"/>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-text-muted mb-1">{e.date}</p>
+                <p className="text-[13px] font-semibold text-text-primary line-clamp-1">{e.title}</p>
+              </div>
+            </>
+          );
+          const className = "flex items-start gap-4 rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-4 hover:border-sky-400/20 hover:bg-sky-400/[0.02] transition";
+          return href ? (
+            <Link key={i} href={href} className={className}>{body}</Link>
+          ) : (
+            <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} className={className}>
+              {body}
+            </motion.div>
+          );
+        })}
       </div>
     </SectionCard>
   );
@@ -697,17 +690,11 @@ function GovernmentExposureSection({ stock }: { stock: StockDetail }) {
             </div>
           </div>
           <div className="h-[140px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={stock.gov_breakdown.length ? stock.gov_breakdown : [{ label: "Govt", pct: stock.gov_score }, { label: "Other", pct: 100 - stock.gov_score }]}
-                  cx="50%" cy="50%" innerRadius={38} outerRadius={58} paddingAngle={2} dataKey="pct" strokeWidth={0}>
-                  {(stock.gov_breakdown.length ? stock.gov_breakdown : []).map((b, i) => (
-                    <Cell key={i} fill={b.color || DONUT_C[i % DONUT_C.length]}/>
-                  ))}
-                </Pie>
-                <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 8, fontSize: 10 }} formatter={(v: number, n: any, p: any) => [p.payload.label, `${v}%`]}/>
-              </PieChart>
-            </ResponsiveContainer>
+            <GovBreakdownDonut
+              pieData={stock.gov_breakdown.length ? stock.gov_breakdown : [{ label: "Govt", pct: stock.gov_score }, { label: "Other", pct: 100 - stock.gov_score }]}
+              govBreakdown={stock.gov_breakdown}
+              colors={DONUT_C}
+            />
           </div>
           <div className="space-y-1.5">
             {stock.gov_breakdown.map((b, i) => (
@@ -910,20 +897,7 @@ function AISentiment({ stock }: { stock: StockDetail }) {
         <div>
           <p className="mb-2 text-[11px] text-text-muted">Bullish % Weekly Trend</p>
           <div className="h-28">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trend}>
-                <defs>
-                  <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3}/>
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="w" tick={{ fill: "rgb(var(--text-muted))", fontSize: 9 }} tickLine={false} axisLine={false}/>
-                <YAxis domain={[0, 100]} hide/>
-                <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 8, fontSize: 10 }} formatter={(v: number) => [`${v}%`, "Bullish"]}/>
-                <Area type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={1.5} fill="url(#sg)"/>
-              </AreaChart>
-            </ResponsiveContainer>
+            <SentimentTrendChart trend={trend} />
           </div>
         </div>
       </div>
@@ -1047,14 +1021,7 @@ function Shareholding({ stock }: { stock: StockDetail }) {
     <SectionCard title="Shareholding Pattern">
       <div className="mt-4 grid grid-cols-2 gap-5">
         <div className="h-[180px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={2} dataKey="value" strokeWidth={0}>
-                {data.map((d, i) => <Cell key={i} fill={d.color}/>)}
-              </Pie>
-              <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 8, fontSize: 10 }}/>
-            </PieChart>
-          </ResponsiveContainer>
+          <ShareholdingDonut data={data} />
         </div>
         <div className="space-y-3">
           {data.map(d => (
@@ -1103,7 +1070,7 @@ function PeerComparison({ stock }: { stock: StockDetail }) {
 
   return (
     <SectionCard title="Peer Comparison" action={
-      <Link href="/compare" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All Peers →</Link>
+      <Link href="/companies?tab=compare" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All Peers →</Link>
     }>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-[12px]">
@@ -1207,15 +1174,7 @@ function HistoricalPerformance({ stock }: { stock: StockDetail }) {
         ))}
       </div>
       <div className="h-[180px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 4, right: 4, bottom: 4, left: 0 }}>
-            <XAxis dataKey="year" tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false}/>
-            <YAxis tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}K`} width={40}/>
-            <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 10, fontSize: 11 }} formatter={(v: number) => [`₹${v.toLocaleString()} Cr`, activeMetric === "revenue" ? "Revenue" : "Net Profit"]}/>
-            <Bar dataKey={activeMetric === "revenue" ? "revenue" : "net_income"} radius={[6, 6, 0, 0]}
-              fill={activeMetric === "revenue" ? "#38bdf8" : "#22c55e"} fillOpacity={0.8}/>
-          </BarChart>
-        </ResponsiveContainer>
+        <HistoricalPerformanceBarChart data={data} activeMetric={activeMetric} />
       </div>
     </SectionCard>
   );
@@ -1563,15 +1522,22 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
         <div className={`${CARD} p-5`}>
           <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Event Alerts</h3>
           <div className="space-y-2">
-            {stock.events.slice(0, 3).map((e, i) => (
-              <div key={i} className="flex items-start gap-2 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-2.5">
-                <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400"/>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-text-primary line-clamp-2">{e.title}</p>
-                  <p className="text-[9px] text-text-muted mt-0.5">{e.date}</p>
-                </div>
-              </div>
-            ))}
+            {stock.events.slice(0, 3).map((e, i) => {
+              const href = e.slug || e.id ? `/events/${e.slug || e.id}` : null;
+              const inner = (
+                <>
+                  <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400"/>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium text-text-primary line-clamp-2">{e.title}</p>
+                    <p className="text-[9px] text-text-muted mt-0.5">{e.date}</p>
+                  </div>
+                </>
+              );
+              const cls = "flex items-start gap-2 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-2.5";
+              return href
+                ? <Link key={i} href={href} className={`${cls} hover:border-sky-400/20 transition`}>{inner}</Link>
+                : <div key={i} className={cls}>{inner}</div>;
+            })}
           </div>
         </div>
       )}

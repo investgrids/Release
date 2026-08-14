@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use, useRef } from "react";
 import type { ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { fixMojibake, truncateForQuery } from "@/lib/text";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { RelatedContent } from "@/components/RelatedContent";
@@ -10,10 +11,11 @@ import { OpportunityRippleGraph } from "@/components/OpportunityRippleGraph";
 import Link from "next/link";
 import { Lightbulb, Building2, AlertTriangle, Ban, Check, Zap, CalendarClock, History, Gauge } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import {
-  Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
-  PieChart, Pie, Cell,
-} from "recharts";
+
+// Recharts split into its own lazy chunk (2026-08 performance audit) — see
+// OpportunityCharts.tsx's own header comment for why.
+const ScoreHistoryChart      = dynamic(() => import("./OpportunityCharts").then(m => m.ScoreHistoryChart),      { ssr: false });
+const SectorDistributionDonut = dynamic(() => import("./OpportunityCharts").then(m => m.SectorDistributionDonut), { ssr: false });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface MetricSchema { revenue_potential: string; expected_cagr: string; eps_growth: string; investment_cycle: string; market_size: string; }
@@ -310,20 +312,7 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
               </div>
               <div className="h-[200px]">
                 {historySliced.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={historySliced} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%"   stopColor="#22c55e" stopOpacity={0.35}/>
-                          <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="month" tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} axisLine={false} tickLine={false}/>
-                      <YAxis domain={[0, 100]} tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} axisLine={false} tickLine={false}/>
-                      <Tooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 10, fontSize: 11 }} itemStyle={{ color: "#22c55e" }} labelStyle={{ color: "#94a3b8" }}/>
-                      <Area type="monotone" dataKey="value" stroke="#22c55e" fill="url(#scoreGrad)" strokeWidth={2} dot={{ fill: "#22c55e", r: 3 }}/>
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <ScoreHistoryChart historySliced={historySliced} />
                 ) : (
                   <div className="flex h-full items-center justify-center text-[12px] text-text-muted">No score history available yet.</div>
                 )}
@@ -403,17 +392,7 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
             {d.sector_distribution.length > 0 && (
               <SectionCard title="Sectors Impacted">
                 <div className="h-[180px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={d.sector_distribution.map(s => ({ name: s.sector, value: s.percentage, color: s.color }))}
-                        cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value" paddingAngle={2}>
-                        {d.sector_distribution.map((s, i) => (
-                          <Cell key={i} fill={s.color}/>
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 10, fontSize: 11 }} formatter={(v: any) => [`${v}%`]}/>
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <SectorDistributionDonut sectorDistribution={d.sector_distribution} />
                 </div>
                 <div className="mt-2 space-y-1.5">
                   {d.sector_distribution.map(s => (

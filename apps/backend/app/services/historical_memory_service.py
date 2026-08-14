@@ -1321,3 +1321,386 @@ def format_for_ai_prompt(similar_events: list[dict], max_events: int = 5) -> str
         )
 
     return "\n".join(lines)
+
+
+def _best_return(entry: dict) -> float:
+    for k in ("return_1w", "return_1m", "return_1d"):
+        v = entry.get(k)
+        if v is not None:
+            return float(v)
+    return 0.0
+
+
+def compute_category_pattern(rows: list, current_id: str) -> dict:
+    """Cross-event pattern statistics for every stored row sharing the
+    current event's category — including the current row itself.
+
+    Every field here is a direct aggregation over real stored rows (no
+    LLM claims, no invented consistency numbers). With n=1 (a singleton
+    category) the aggregate degenerates gracefully to that one event's
+    own numbers rather than a fabricated "pattern" — callers should read
+    `occurrences` before presenting anything as a repeating pattern.
+    """
+    n = len(rows)
+    ordered = sorted(rows, key=lambda r: r.event_date or datetime.min.replace(tzinfo=timezone.utc))
+
+    timeline = [
+        {
+            "id": r.id,
+            "event_title": r.event_title,
+            "event_date": r.event_date.strftime("%b %d, %Y") if r.event_date else None,
+            "sentiment": r.sentiment,
+            "nifty_1m": r.nifty_1m,
+            "nifty_1w": r.nifty_1w,
+            "opportunity_score": r.opportunity_score,
+            "is_current": r.id == current_id,
+        }
+        for r in ordered
+    ]
+
+    def _avg(vals: list[float]) -> float | None:
+        vals = [v for v in vals if v is not None]
+        return round(sum(vals) / len(vals), 2) if vals else None
+
+    nifty_1m_vals = [r.nifty_1m for r in rows if r.nifty_1m is not None]
+    bull_count = sum(1 for v in nifty_1m_vals if v > 0)
+    bear_count = sum(1 for v in nifty_1m_vals if v <= 0)
+
+    # ── Company consistency: aggregate winners/losers across every event
+    # in the category, so "historical winners" reflects the whole pattern
+    # rather than just this one occurrence.
+    companies: dict[str, dict] = {}
+    for r in rows:
+        for w in (r.historical_winners or []):
+            sym = w.get("symbol")
+            if not sym:
+                continue
+            c = companies.setdefault(sym, {"symbol": sym, "name": w.get("name") or sym, "wins": 0, "losses": 0, "total_return": 0.0, "reasons": []})
+            c["wins"] += 1
+            c["total_return"] += _best_return(w)
+            if w.get("reason"):
+                c["reasons"].append(w["reason"])
+        for l in (r.historical_losers or []):
+            sym = l.get("symbol")
+            if not sym:
+                continue
+            c = companies.setdefault(sym, {"symbol": sym, "name": l.get("name") or sym, "wins": 0, "losses": 0, "total_return": 0.0, "reasons": []})
+            c["losses"] += 1
+            c["total_return"] += _best_return(l)
+            if l.get("reason"):
+                c["reasons"].append(l["reason"])
+
+    for c in companies.values():
+        c["appearances"] = c["wins"] + c["losses"]
+        c["avg_return"] = round(c["total_return"] / c["appearances"], 1) if c["appearances"] else 0.0
+        c["win_rate"] = round(100 * c["wins"] / c["appearances"], 0) if c["appearances"] else 0.0
+        c["reason"] = c["reasons"][0] if c["reasons"] else None
+        del c["reasons"], c["total_return"]
+
+    top_winners = sorted(
+        (c for c in companies.values() if c["wins"] > 0),
+        key=lambda c: (c["win_rate"], c["appearances"]), reverse=True,
+    )[:5]
+    top_losers = sorted(
+        (c for c in companies.values() if c["losses"] > 0),
+        key=lambda c: (100 - c["win_rate"], c["appearances"]), reverse=True,
+    )[:5]
+    total_winner_appearances = sum(c["wins"] for c in companies.values())
+    total_loser_appearances = sum(c["losses"] for c in companies.values())
+
+    # ── Sector consistency across the category ─────────────────────────────
+    sectors: dict[str, dict] = {}
+    for r in rows:
+        for sec, chg in (r.sector_reactions or {}).items():
+            s = sectors.setdefault(sec, {"sector": sec, "occurrences": 0, "positive": 0, "total": 0.0})
+            s["occurrences"] += 1
+            s["total"] += chg
+            if chg > 0:
+                s["positive"] += 1
+    for s in sectors.values():
+        s["avg_reaction"] = round(s["total"] / s["occurrences"], 2) if s["occurrences"] else 0.0
+        s["positive_rate"] = round(100 * s["positive"] / s["occurrences"], 0) if s["occurrences"] else 0.0
+        del s["total"]
+
+    best_sectors = sorted(sectors.values(), key=lambda s: s["avg_reaction"], reverse=True)[:5]
+    worst_sectors = sorted(sectors.values(), key=lambda s: s["avg_reaction"])[:5]
+
+    # Full-set averages (every tracked company/sector, not just the top-5
+    # slices above) — used as the Company/Sector Consistency inputs to the
+    # Pattern Snapshot score.
+    company_consistency_avg = _avg([c["win_rate"] for c in companies.values()])
+    sector_consistency_avg = _avg([s["positive_rate"] for s in sectors.values()])
+
+    # ── "What changed every time" — real consistency of context fields ─────
+    def _mode_consistency(attr: str) -> dict | None:
+        vals = [getattr(r, attr) for r in rows if getattr(r, attr, None)]
+        if not vals:
+            return None
+        from collections import Counter
+        mode, count = Counter(vals).most_common(1)[0]
+        return {"value": mode, "occurrences": count, "of": len(vals), "pct": round(100 * count / len(vals), 0)}
+
+    consistency = {
+        "interest_rate_trend": _mode_consistency("interest_rate_trend"),
+        "crude_trend": _mode_consistency("crude_trend"),
+        "market_regime": _mode_consistency("market_regime"),
+        "nifty_direction": (
+            {"value": "up" if bull_count >= bear_count else "down",
+             "occurrences": max(bull_count, bear_count), "of": len(nifty_1m_vals),
+             "pct": round(100 * max(bull_count, bear_count) / len(nifty_1m_vals), 0)}
+            if nifty_1m_vals else None
+        ),
+    }
+
+    # ── Ideal holding window: which real return window (1d/3d/1w/1m) has
+    # the strongest average AND most consistently positive outcome.
+    windows = [
+        ("1 Day", [r.nifty_1d for r in rows if r.nifty_1d is not None]),
+        ("3 Days", [r.nifty_3d for r in rows if r.nifty_3d is not None]),
+        ("1 Week", [r.nifty_1w for r in rows if r.nifty_1w is not None]),
+        ("1 Month", [r.nifty_1m for r in rows if r.nifty_1m is not None]),
+    ]
+    holding_period = None
+    best_score = None
+    for label, vals in windows:
+        if not vals:
+            continue
+        avg = sum(vals) / len(vals)
+        pos_rate = sum(1 for v in vals if v > 0) / len(vals)
+        score = avg * pos_rate
+        if best_score is None or score > best_score:
+            best_score = score
+            holding_period = {"label": label, "avg_return": round(avg, 2), "positive_rate": round(pos_rate * 100, 0)}
+
+    # ── Historical Confidence — a transparent, disclosed weighted blend of
+    # three real, independently-meaningful inputs: how many times this
+    # pattern has actually occurred (sample size), how consistently it
+    # resolved the same direction (consistency), and how reliable the
+    # underlying stored data is (data quality, the row's own confidence
+    # field). Not a single opaque number — the breakdown ships with it.
+    win_rate_pct = round(100 * bull_count / len(nifty_1m_vals), 0) if nifty_1m_vals else None
+    avg_confidence = _avg([r.confidence for r in rows])
+    sample_size_score = min(100, n * 20)
+    consistency_score = win_rate_pct if win_rate_pct is not None else 50
+    data_quality_score = avg_confidence if avg_confidence is not None else 50
+    historical_confidence = {
+        "score": round(0.35 * sample_size_score + 0.35 * consistency_score + 0.30 * data_quality_score),
+        "breakdown": [
+            {"label": "Sample Size", "weight": 35, "score": round(sample_size_score)},
+            {"label": "Consistency", "weight": 35, "score": round(consistency_score)},
+            {"label": "Data Quality", "weight": 30, "score": round(data_quality_score)},
+        ],
+    }
+
+    return {
+        "category_occurrences": n,
+        "date_range": {
+            "earliest": ordered[0].event_date.strftime("%b %Y") if ordered and ordered[0].event_date else None,
+            "latest": ordered[-1].event_date.strftime("%b %Y") if ordered and ordered[-1].event_date else None,
+        },
+        "timeline": timeline,
+        "avg_nifty_1m": _avg(nifty_1m_vals),
+        "bull_count": bull_count,
+        "bear_count": bear_count,
+        "win_rate_pct": round(100 * bull_count / len(nifty_1m_vals), 0) if nifty_1m_vals else None,
+        "avg_confidence": _avg([r.confidence for r in rows]),
+        "avg_opportunity_score": _avg([r.opportunity_score for r in rows]),
+        "avg_risk_score": _avg([r.risk_score for r in rows]),
+        "top_winners": top_winners,
+        "top_losers": top_losers,
+        "total_winner_appearances": total_winner_appearances,
+        "total_loser_appearances": total_loser_appearances,
+        "best_sectors": best_sectors,
+        "worst_sectors": worst_sectors,
+        "consistency": consistency,
+        "holding_period": holding_period,
+        "historical_confidence": historical_confidence,
+        "company_consistency_avg": company_consistency_avg,
+        "sector_consistency_avg": sector_consistency_avg,
+    }
+
+
+_DATA_CONFIDENCE_ANCHORS = [(1, 10), (2, 20), (3, 35), (5, 55), (8, 75), (10, 90), (15, 100)]
+
+
+def _data_confidence_from_occurrences(n: int) -> float:
+    """Piecewise-linear interpolation over the disclosed occurrence→
+    confidence anchor table (1→10%, 2→20%, 3→35%, 5→55%, 8→75%, 10→90%,
+    15+→100%) — real, deterministic, no fabricated in-between values."""
+    if n <= 0:
+        return 0.0
+    if n >= _DATA_CONFIDENCE_ANCHORS[-1][0]:
+        return float(_DATA_CONFIDENCE_ANCHORS[-1][1])
+    for i in range(len(_DATA_CONFIDENCE_ANCHORS) - 1):
+        n0, v0 = _DATA_CONFIDENCE_ANCHORS[i]
+        n1, v1 = _DATA_CONFIDENCE_ANCHORS[i + 1]
+        if n0 <= n <= n1:
+            frac = (n - n0) / (n1 - n0) if n1 != n0 else 0
+            return round(v0 + frac * (v1 - v0), 1)
+    return float(_DATA_CONFIDENCE_ANCHORS[0][1])
+
+
+def _market_impact_score(avg_nifty_1m: float | None) -> float:
+    """Normalizes the category's average Nifty reaction into the disclosed
+    4-bucket scale (Strong positive=100 / Medium=70 / Weak=40 / Negative=0).
+    Uses the real stored 1-month window — the schema has no 3-month field,
+    so that isn't fabricated to fill out a 1W+1M+3M blend."""
+    if avg_nifty_1m is None:
+        return 50.0
+    if avg_nifty_1m >= 5:
+        return 100.0
+    if avg_nifty_1m >= 2:
+        return 70.0
+    if avg_nifty_1m > 0:
+        return 40.0
+    return 0.0
+
+
+def compute_avg_similarity(current_row, category_rows: list) -> float:
+    """Average real similarity (same structured engine as /api/historical/
+    similar) between `current_row` and every other row sharing its
+    category — shared by both compute_pattern_snapshot and
+    compute_historical_score so it's only computed once per event."""
+    others = [r for r in category_rows if r.id != current_row.id]
+    if not others:
+        return 50.0  # no other occurrence to compare against
+    query = {
+        "category": current_row.category, "sectors": current_row.sectors or [],
+        "sentiment": current_row.sentiment, "market_regime": current_row.market_regime,
+        "interest_rate_trend": current_row.interest_rate_trend, "crude_trend": current_row.crude_trend,
+    }
+    return round(sum(compute_similarity(query, r) for r in others) / len(others), 1)
+
+
+def _reliability_badge(score: float) -> dict:
+    if score >= 90:
+        return {"label": "Very Reliable", "emoji": "🟢", "tone": "positive"}
+    if score >= 75:
+        return {"label": "Reliable", "emoji": "🟢", "tone": "positive"}
+    if score >= 60:
+        return {"label": "Moderately Reliable", "emoji": "🟡", "tone": "neutral"}
+    return {"label": "Weak Pattern", "emoji": "🔴", "tone": "negative"}
+
+
+def compute_pattern_snapshot(current_row, category_rows: list, category_pattern: dict) -> dict:
+    """The disclosed 6-factor Pattern Snapshot score:
+
+        Historical Similarity   30%   avg similarity vs every other event
+                                       in this category (same engine used
+                                       by /api/historical/similar)
+        Historical Success Rate 20%   win_rate_pct (category_pattern)
+        Average Market Impact   15%   normalized avg_nifty_1m
+        Company Consistency     15%   avg win-rate across tracked companies
+        Sector Consistency      10%   avg positive-rate across tracked sectors
+        Data Confidence         10%   occurrence-count anchor table
+
+    All inputs are real, already-stored fields or a deterministic function
+    of them — no LLM call, no per-request market-data fetch (kept fast
+    enough to run on every detail-page load).
+    """
+    similarity = compute_avg_similarity(current_row, category_rows)
+    success_rate = category_pattern["win_rate_pct"] if category_pattern["win_rate_pct"] is not None else 50.0
+    market_impact = _market_impact_score(category_pattern["avg_nifty_1m"])
+    company_consistency = category_pattern["company_consistency_avg"] if category_pattern["company_consistency_avg"] is not None else 50.0
+    sector_consistency = category_pattern["sector_consistency_avg"] if category_pattern["sector_consistency_avg"] is not None else 50.0
+
+    n = category_pattern["category_occurrences"]
+    data_confidence = _data_confidence_from_occurrences(n)
+    # Reduce confidence for genuinely missing real data on THIS event —
+    # not the whole category — since a thin single row shouldn't borrow
+    # the category's data-richness.
+    if current_row.nifty_1m is None:
+        data_confidence *= 0.85
+    if not (current_row.historical_winners or current_row.historical_losers):
+        data_confidence *= 0.85
+    if not current_row.sector_reactions:
+        data_confidence *= 0.85
+    data_confidence = round(data_confidence, 1)
+
+    score = round(
+        similarity * 0.30 + success_rate * 0.20 + market_impact * 0.15 +
+        company_consistency * 0.15 + sector_consistency * 0.10 + data_confidence * 0.10
+    )
+
+    return {
+        "score": score,
+        "reliability": _reliability_badge(score),
+        "breakdown": [
+            {"label": "Historical Similarity", "weight": 30, "score": round(similarity)},
+            {"label": "Success Rate", "weight": 20, "score": round(success_rate)},
+            {"label": "Market Impact", "weight": 15, "score": round(market_impact)},
+            {"label": "Company Consistency", "weight": 15, "score": round(company_consistency)},
+            {"label": "Sector Consistency", "weight": 10, "score": round(sector_consistency)},
+            {"label": "Data Confidence", "weight": 10, "score": round(data_confidence)},
+        ],
+    }
+
+
+_SCORE_BANDS = [
+    (95, 5.0, "Exceptional"), (90, 4.5, "Excellent"), (80, 4.0, "Strong"),
+    (70, 3.5, "Good"), (60, 3.0, "Moderate"), (50, 2.5, "Weak"), (0, 2.0, "Poor"),
+]
+
+
+def _band_stars(score: float) -> tuple[float, str]:
+    """Banded (not linear /20) star conversion, per the disclosed rating
+    table — avoids tiny score changes flipping the displayed star count."""
+    for floor, stars, label in _SCORE_BANDS:
+        if score >= floor:
+            return stars, label
+    return 2.0, "Poor"
+
+
+def compute_historical_score(current_row, category_rows: list, category_pattern: dict, similarity: float) -> dict:
+    """The disclosed 5-factor Historical Score behind each event's star
+    rating — mathematically derived from the same real category-aggregate
+    fields as the Pattern Snapshot, not a random/cosmetic rating:
+
+        Success Rate            30%   win_rate_pct
+        Risk-Adjusted Return     25%   avg_nifty_1m scaled by avg_risk_score
+        Pattern Consistency      20%   blend of company/sector/win-rate consistency
+        Current Similarity       15%   avg similarity vs other category events
+        Data Confidence          10%   occurrence-count anchor table
+
+    `similarity` is passed in (already computed once by the caller, shared
+    with compute_pattern_snapshot) to avoid a second O(category size) pass.
+    """
+    success_rate = category_pattern["win_rate_pct"] if category_pattern["win_rate_pct"] is not None else 50.0
+
+    avg_nifty_1m = category_pattern["avg_nifty_1m"]
+    avg_risk = category_pattern["avg_risk_score"]
+    if avg_nifty_1m is None:
+        risk_adjusted_return = 50.0
+    else:
+        divisor = max(1.0, (avg_risk or 40.0) / 25.0)
+        risk_adjusted_return = _market_impact_score(avg_nifty_1m / divisor)
+
+    cc = category_pattern["company_consistency_avg"]
+    sc = category_pattern["sector_consistency_avg"]
+    consistency_parts = [v for v in (cc, sc, category_pattern["win_rate_pct"]) if v is not None]
+    pattern_consistency = round(sum(consistency_parts) / len(consistency_parts), 1) if consistency_parts else 50.0
+
+    n = category_pattern["category_occurrences"]
+    data_confidence = _data_confidence_from_occurrences(n)
+    if current_row.nifty_1m is None:
+        data_confidence *= 0.85
+    data_confidence = round(data_confidence, 1)
+
+    score = round(
+        success_rate * 0.30 + risk_adjusted_return * 0.25 + pattern_consistency * 0.20 +
+        similarity * 0.15 + data_confidence * 0.10
+    )
+    stars, band_label = _band_stars(score)
+
+    return {
+        "score": score,
+        "stars": stars,
+        "band": band_label,
+        "breakdown": [
+            {"label": "Success Rate", "weight": 30, "score": round(success_rate)},
+            {"label": "Risk-Adjusted Return", "weight": 25, "score": round(risk_adjusted_return)},
+            {"label": "Pattern Consistency", "weight": 20, "score": round(pattern_consistency)},
+            {"label": "Current Similarity", "weight": 15, "score": round(similarity)},
+            {"label": "Data Confidence", "weight": 10, "score": round(data_confidence)},
+        ],
+    }

@@ -45,6 +45,7 @@ from app.services.coverage_engine import (
     is_must_cover as coverage_is_must_cover,
     mark_covered_by_existing as coverage_mark_covered_by_existing,
     mark_published as coverage_mark_published,
+    mark_failed as coverage_mark_failed,
 )
 from app.services.aipe.market_story_engine import (
     fetch_historical_context,
@@ -763,6 +764,16 @@ async def run_aipe_cycle() -> None:
                         today_story_ids.add(story_id)
                         await coverage_mark_published(
                             db, event_id=triage_event.get("event_id"), article_id=article.id
+                        )
+                    else:
+                        # Coverage was attempted and didn't succeed — record
+                        # WHY, not just leave the row at DETECTED forever
+                        # (indistinguishable from "not attempted yet," per
+                        # the audit finding that FAILED was declared in the
+                        # schema but never actually written by anything).
+                        reason = "generation_failed" if article is None else "validation_failed"
+                        await coverage_mark_failed(
+                            db, event_id=triage_event.get("event_id"), reason=reason,
                         )
 
                         # ── Fan out: spin off per-company / sector-rollup /

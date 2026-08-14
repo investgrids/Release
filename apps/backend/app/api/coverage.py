@@ -4,8 +4,11 @@ EventCoverage registry (see app/services/coverage_engine.py). Answers the
 two questions the audit found the pipeline couldn't answer before: what
 important events did we detect, and which of them did we fail to cover.
 
-GET /api/coverage/funnel          -> publishing funnel counts (Part 25)
-GET /api/coverage/critical-gaps   -> Critical/High events still uncovered
+GET /api/coverage/funnel             -> publishing funnel counts (Part 25)
+GET /api/coverage/critical-gaps      -> Critical/High events still uncovered
+GET /api/coverage/publishing-summary -> articles-vs-events-covered split (Phase 12)
+GET /api/coverage/enrichment-health  -> pending/retrying/failed enrichment counts
+GET /api/coverage/publishing-latency -> real event-to-publish elapsed time
 """
 from __future__ import annotations
 
@@ -22,6 +25,21 @@ router = APIRouter()
 @router.get("/funnel")
 async def get_funnel(hours: int = Query(24, le=168), db: AsyncSession = Depends(get_db)):
     return await coverage_engine.funnel_counts(db, hours=hours)
+
+
+@router.get("/publishing-summary")
+async def get_publishing_summary(hours: int = Query(24, le=168), db: AsyncSession = Depends(get_db)):
+    return await coverage_engine.coverage_vs_publishing_summary(db, hours=hours)
+
+
+@router.get("/enrichment-health")
+async def get_enrichment_health(hours: int = Query(24, le=168), db: AsyncSession = Depends(get_db)):
+    return await coverage_engine.enrichment_health(db, hours=hours)
+
+
+@router.get("/publishing-latency")
+async def get_publishing_latency(hours: int = Query(24, le=168), db: AsyncSession = Depends(get_db)):
+    return await coverage_engine.publishing_latency(db, hours=hours)
 
 
 @router.get("/critical-gaps")

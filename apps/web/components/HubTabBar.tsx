@@ -16,12 +16,16 @@ export interface HubTab {
 }
 
 export function HubTabBar({
-  hub, tabs, active, onChange,
+  hub, tabs, active, onChange, pending = false,
 }: {
   hub: string;
   tabs: HubTab[];
   active: string;
   onChange: (id: string) => void;
+  // True once switching tabs has been slow enough to be worth showing
+  // (see hooks/useDelayedPending — callers pass the delayed value, not a
+  // raw useTransition isPending, so this never flickers on fast switches).
+  pending?: boolean;
 }) {
   return (
     <div
@@ -46,7 +50,9 @@ export function HubTabBar({
                 : "text-text-secondary hover:bg-text-primary/[0.04] hover:text-text-primary"
             }`}
           >
-            {tab.icon}
+            {isActive && pending
+              ? <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-[1.5px] border-white/40 border-t-white" />
+              : tab.icon}
             {tab.label}
           </button>
         );

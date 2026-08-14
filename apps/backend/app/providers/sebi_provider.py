@@ -20,14 +20,16 @@ class SEBIProvider(BaseProvider):
     source_name = "SEBI"
 
     async def fetch_latest(self) -> list[dict]:
-        try:
-            async with httpx.AsyncClient(headers=_HEADERS, timeout=12, follow_redirects=True) as c:
-                r = await c.get(_URL)
-                r.raise_for_status()
-            return _parse_xml(r.text)
-        except Exception:
-            # SEBI RSS is often unreliable; return empty gracefully
-            return []
+        # SEBI's RSS is often unreliable, but swallowing the exception here
+        # (as this used to) meant it never reached BaseProvider.fetch_and_
+        # normalize()'s own try/except, which is what actually logs
+        # "provider.fetch_failed" with the source name and error — SEBI's
+        # outages were invisible even though every other provider's aren't.
+        # Letting it propagate restores that shared logging for free.
+        async with httpx.AsyncClient(headers=_HEADERS, timeout=12, follow_redirects=True) as c:
+            r = await c.get(_URL)
+            r.raise_for_status()
+        return _parse_xml(r.text)
 
     async def fetch_by_date(self, target: date) -> list[dict]:
         items = await self.fetch_latest()

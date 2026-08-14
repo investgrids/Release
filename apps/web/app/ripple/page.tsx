@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { API_BASE_URL as API } from "@/lib/api";
 import { RippleHubClient } from "./_components/RippleHubClient";
 import { RippleChainTab } from "./_components/RippleChainTab";
-import { HistoricalWinnersTab } from "./_components/HistoricalWinnersTab";
-import { HistoricalLosersTab } from "./_components/HistoricalLosersTab";
 import { InvestmentThesisTab } from "./_components/InvestmentThesisTab";
-import HistoricalHubPage from "@/app/historical/page";
 
 export const metadata: Metadata = {
   title: "Ripple Intelligence — Market Dependency Graph",
@@ -13,7 +10,9 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-const VALID_TABS = new Set(["chain", "historical", "winners", "losers", "thesis"]);
+// historical/winners/losers removed (2026-08 audit, per explicit request)
+// — same content already shown in full on the dedicated /historical page.
+const VALID_TABS = new Set(["chain", "thesis"]);
 
 async function getRealCounts() {
   const [rippleRes, historicalRes] = await Promise.all([
@@ -43,11 +42,8 @@ export default async function RippleHubPage({
 
   let content: React.ReactNode;
   switch (tab) {
-    case "historical": content = <HistoricalHubPage />; break;
-    case "winners":     content = <HistoricalWinnersTab />; break;
-    case "losers":      content = <HistoricalLosersTab />; break;
-    case "thesis":      content = <InvestmentThesisTab />; break;
-    default:            content = <RippleChainTab />;
+    case "thesis": content = <InvestmentThesisTab />; break;
+    default:       content = <RippleChainTab />;
   }
 
   return (

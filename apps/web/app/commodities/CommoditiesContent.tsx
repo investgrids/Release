@@ -2,10 +2,16 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { AreaChart, Area, ResponsiveContainer } from "recharts";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Coins, Layers, Zap, Gem, Droplets, Flame, Gauge, Globe, Shield, TrendingUp, Package, Bot, BarChart2 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+
+// Recharts split into its own lazy chunk (2026-08 performance audit) —
+// reuses the same extracted component as the (near-duplicate) /markets
+// page rather than creating a second copy. See MarketsSparkline.tsx's own
+// header comment for the full rationale.
+const SparkLine = dynamic(() => import("../markets/MarketsSparkline").then(m => m.SparkLine), { ssr: false });
 
 interface ChartPoint { label: string; value: number }
 interface Commodity {
@@ -27,10 +33,6 @@ interface CommodityData {
   updated: string;
 }
 
-const COLORS: Record<string, string> = {
-  gold: "#fbbf24", silver: "#94a3b8", copper: "#f97316", platinum: "#38bdf8",
-  brent: "#60a5fa", wti: "#93c5fd", natgas: "#818cf8", petrol: "#34d399",
-};
 const ICONS: Record<string, ReactNode> = {
   gold:     <Coins className="h-5 w-5 text-amber-400" />,
   silver:   <Layers className="h-5 w-5 text-text-secondary" />,
@@ -63,27 +65,6 @@ const INSIGHT_ICONS: ReactNode[] = [
   <TrendingUp className="h-4 w-4 text-text-secondary" />,
   <Package className="h-4 w-4 text-text-secondary" />,
 ];
-
-function SparkLine({ data, id }: { data: ChartPoint[]; id: string }) {
-  const color = COLORS[id] ?? "#818cf8";
-  if (!data.length) return <div className="mt-3 min-h-[48px] flex-1 rounded-lg bg-text-primary/[0.02]" />;
-  return (
-    <div className="mt-3 min-h-[48px] flex-1">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id={`g-${id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor={color} stopOpacity={0.3} />
-              <stop offset="95%" stopColor={color} stopOpacity={0}   />
-            </linearGradient>
-          </defs>
-          <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5}
-            fill={`url(#g-${id})`} dot={false} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
 function CommodityCard({ c }: { c: Commodity }) {
   return (

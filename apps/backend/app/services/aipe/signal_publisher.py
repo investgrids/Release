@@ -73,7 +73,12 @@ def slug_for_item(item: dict) -> str:
     if t == "policy_ripple":
         return f"policy-{_slugify(item.get('headline') or 'ripple')}"
     if t == "early_theme":
-        return f"theme-{_slugify(item.get('headline') or 'theme')}"
+        # Keyed off the stable theme name, not the headline — the headline
+        # now embeds a real opportunity score that can drift slightly
+        # between detections (see live_intelligence.py's _detect_early_theme
+        # comment); slugging off it would mint a new page per drift
+        # instead of upserting the same real-world theme's one durable page.
+        return f"theme-{_slugify(item.get('theme') or item.get('headline') or 'theme')}"
     if t == "historical_match":
         return f"historical-{_slugify(item.get('headline') or 'pattern')}"
     return f"signal-{_slugify(item.get('headline') or uuid.uuid4().hex[:8])}"
@@ -89,6 +94,22 @@ _TYPE_LABEL = {
 
 def _headline_for_item(item: dict) -> str:
     return item.get("headline") or "Live Intelligence Signal"
+
+
+# anomaly/early_theme headlines (see live_intelligence.py) are now
+# already complete SEO titles in their own right (entity + event +
+# real date/score) — appending "- {label}" to them would just repeat
+# words already in the headline ("...Emerging Theme...Emerging Theme").
+# policy_ripple/historical_match headlines are still short/bare (a real
+# event title or causal-chain seed with no type context of its own), so
+# they still benefit from the suffix.
+_SEO_TITLE_APPENDS_LABEL = {"policy_ripple", "historical_match"}
+
+
+def _seo_title_for_item(item: dict, headline: str, label: str) -> str:
+    if item.get("type") in _SEO_TITLE_APPENDS_LABEL:
+        return f"{headline} - {label}"
+    return headline
 
 
 def _summary_for_item(item: dict) -> str:
@@ -107,9 +128,21 @@ def _summary_for_item(item: dict) -> str:
 
 
 def _companies_for_item(item: dict) -> list[dict]:
+    # anomaly/early_theme/policy_ripple now carry a real per-company impact
+    # (EventTriage.direction or ThemeState.top_stocks' change_pct — see
+    # live_intelligence.py) as {"symbol": ..., "impact": ...} dicts; a bare
+    # string is still accepted for backward compatibility with any cached
+    # item shaped the old way. "neutral" is only used as the fallback when
+    # the item itself gives no real signal, never invented on top of one.
     out = []
-    for sym in (item.get("companies") or []):
-        out.append({"name": sym, "symbol": sym, "impact": "neutral", "reason": _TYPE_LABEL.get(item.get("type"), "Live signal")})
+    for c in (item.get("companies") or []):
+        if isinstance(c, dict):
+            sym, impact = c.get("symbol"), c.get("impact") or "neutral"
+        else:
+            sym, impact = c, "neutral"
+        if not sym:
+            continue
+        out.append({"name": sym, "symbol": sym, "impact": impact, "reason": _TYPE_LABEL.get(item.get("type"), "Live signal")})
     if item.get("type") == "historical_match":
         for sym in (item.get("winners") or []):
             out.append({"name": sym, "symbol": sym, "impact": "positive", "reason": "Historical winner"})
@@ -183,7 +216,7 @@ async def publish_signal(db: AsyncSession, item: dict) -> dict:
         existing.key_takeaway = summary
         existing.companies_affected = companies_affected
         existing.sectors_affected = sectors_affected
-        existing.seo_title = f"{headline} - {label}"
+        existing.seo_title = _seo_title_for_item(item, headline, label)
         existing.meta_description = _truncate_at_word(summary, 160)
         existing.canonical_url = canonical_url
         existing.json_ld = json_ld
@@ -203,7 +236,7 @@ async def publish_signal(db: AsyncSession, item: dict) -> dict:
             headline=headline, executive_summary=summary, key_takeaway=summary,
             companies_affected=companies_affected, sectors_affected=sectors_affected,
             sources=["MarketRipple Live Intelligence Engine"],
-            seo_title=f"{headline} - {label}", meta_description=_truncate_at_word(summary, 160),
+            seo_title=_seo_title_for_item(item, headline, label), meta_description=_truncate_at_word(summary, 160),
             canonical_url=canonical_url, json_ld=json_ld, market_context=market_context,
             published_at=now, last_updated=now,
         ))

@@ -52,6 +52,32 @@ _MAGNITUDE_WEIGHT = {"low": 1, "medium": 2, "high": 3}
 _MIN_EVENT_URGENCY = 5
 
 
+# Company impact coloring (2026-08 audit) — every card type below attaches
+# a real impact direction to each company chip when one genuinely exists
+# (EventTriage.direction for anomaly, ThemeState.top_stocks' real
+# change_pct for early_theme), never a guessed one. "neutral"/None is the
+# honest default when no real signal is available (policy_ripple) — the
+# frontend renders that as grey, exactly as it should.
+def _direction_to_impact(direction: str | None) -> str | None:
+    if direction == "up":
+        return "positive"
+    if direction == "down":
+        return "negative"
+    if direction == "sideways":
+        return "neutral"
+    return None
+
+
+def _change_pct_to_impact(change_pct: float | None) -> str | None:
+    if change_pct is None:
+        return None
+    if change_pct > 0:
+        return "positive"
+    if change_pct < 0:
+        return "negative"
+    return "neutral"
+
+
 async def _detect_anomaly(db: AsyncSession) -> dict | None:
     """Real sector event-clustering: N>=3 distinct real companies whose own
     sector genuinely matches, with real, recently-triaged, meaningfully-
@@ -84,7 +110,7 @@ async def _detect_anomaly(db: AsyncSession) -> dict | None:
             key = sector.strip()
             if not key:
                 continue
-            bucket = by_sector.setdefault(key, {"tickers": set(), "headlines": [], "latest": None})
+            bucket = by_sector.setdefault(key, {"tickers": set(), "directions": {}, "headlines": [], "latest": None})
             key_words = set(key.lower().split())
             matched_this_event = False
             for t in (r.tickers or []):
@@ -99,6 +125,14 @@ async def _detect_anomaly(db: AsyncSession) -> dict | None:
                 sym_words = set(symbol_sector[sym].lower().split())
                 if _words_overlap(key_words, sym_words):
                     bucket["tickers"].add(sym)
+                    # A ticker can match multiple events in the window —
+                    # the most recently triaged one's real direction wins,
+                    # same "latest signal" precedence the cluster's own
+                    # detection timestamp already uses below.
+                    if r.direction:
+                        prev = bucket["directions"].get(sym)
+                        if prev is None or (r.triaged_at and (prev[1] is None or r.triaged_at >= prev[1])):
+                            bucket["directions"][sym] = (r.direction, r.triaged_at)
                     matched_this_event = True
             if matched_this_event:
                 bucket["headlines"].append(r.one_liner or r.headline)
@@ -117,11 +151,24 @@ async def _detect_anomaly(db: AsyncSession) -> dict | None:
     except Exception:
         similarity = None
 
+    # SEO/AEO/GEO title fix (2026-08 audit — user-reported live_signal
+    # headlines were bare fragments with no date/context, e.g. just the
+    # sector name). Event + entity + date, matching this codebase's own
+    # title convention elsewhere (AIPE's "India CPI July 2026: ..." style)
+    # — every value here (count, sector, date) is real, nothing invented.
+    detection_date = (bucket["latest"] or datetime.now(timezone.utc)).strftime("%B %d, %Y")
+    headline = f"{sector} Sector: {len(bucket['tickers'])} Stocks Show Simultaneous Activity — {detection_date}"
+
+    companies = [
+        {"symbol": sym, "impact": _direction_to_impact(bucket["directions"].get(sym, (None, None))[0])}
+        for sym in sorted(bucket["tickers"])[:6]
+    ]
+
     return {
         "type": "anomaly",
-        "headline": f"{len(bucket['tickers'])} {sector} companies showing simultaneous activity",
+        "headline": headline,
         "why_it_matters": bucket["headlines"][0] if bucket["headlines"] else None,
-        "companies": sorted(bucket["tickers"])[:6],
+        "companies": companies,
         "similarity": similarity,
         "sector": sector,
         "detected_at": bucket["latest"].isoformat() if bucket["latest"] else None,
@@ -174,7 +221,11 @@ async def _detect_policy_ripple(db: AsyncSession) -> dict | None:
             # specific AI Search response). Real companies for the last
             # sector the chain actually reached, pulled the same way
             # ripple_graph.py's own _competitors_for does.
-            companies = _companies_for_chain(chain)
+            # No real per-company impact direction exists for this type —
+            # _build_ripple_chain only reaches sector-level nodes, not a
+            # company-level benefits/hurts classification — so impact
+            # stays honestly None (renders grey) rather than guessed.
+            companies = [{"symbol": s, "impact": None} for s in _companies_for_chain(chain)]
             return {
                 "type": "policy_ripple",
                 "headline": seed,
@@ -215,13 +266,36 @@ async def _detect_early_theme(db: AsyncSession, exclude: str | None = None) -> d
                   or any(theme.theme.lower() in (s or "").lower() for s in (o.sectors or []))), None)
     opportunity_score = round(match.opportunity_score) if match else round(theme.score)
 
+    # theme.top_stocks already carries each stock's real live change_pct
+    # (see homepage_intelligence.py's theme-scoring job, which writes it) —
+    # previously discarded here, keeping only the symbol. Real signal, not
+    # invented: a plain string entry (no dict/change_pct) gets impact=None,
+    # never a guessed direction.
     top_stocks = [
-        (s.get("sym") if isinstance(s, dict) else str(s)) for s in (theme.top_stocks or [])
+        {"symbol": s.get("sym"), "impact": _change_pct_to_impact(s.get("change_pct"))}
+        if isinstance(s, dict) else {"symbol": str(s), "impact": None}
+        for s in (theme.top_stocks or [])
     ][:5]
+
+    # SEO/AEO/GEO title fix (2026-08 audit) — the raw theme name alone
+    # ("Defence", "Real Estate") was the entire headline, with no verb,
+    # no context, nothing for an answer engine to extract. opportunity_score
+    # here is always real (either a matched Opportunity row's own score, or
+    # theme.score as the documented fallback above) — never invented for
+    # the headline.
+    headline = f"{theme.theme}: Emerging Investment Theme — Opportunity Score {opportunity_score}/100"
 
     return {
         "type": "early_theme",
-        "headline": theme.theme,
+        "headline": headline,
+        # Stable identifier separate from the headline — signal_publisher.
+        # py's slug_for_item() must key off this, not the headline text,
+        # or the score embedded in the new richer headline (which can
+        # drift slightly between detections) would silently mint a new
+        # slug for the same real-world theme every re-detection, breaking
+        # the "one durable page per topic" upsert this signal type is
+        # designed around (see that module's docstring).
+        "theme": theme.theme,
         "opportunity_score": opportunity_score,
         "companies": top_stocks,
         "opportunity_id": match.id if match else None,

@@ -487,8 +487,8 @@ async def market_overview():
     # unchanging regardless of actual market conditions (this is the
     # response After Market's Advances/Declines cards ultimately read via
     # initialData, so the frontend "—" users saw traced back to this).
-    sample_pos = len(movers.get("gainers", []))
-    sample_neg = len(movers.get("losers",  []))
+    sample_pos = movers.get("advancing_count", len(movers.get("gainers", [])))
+    sample_neg = movers.get("declining_count", len(movers.get("losers", [])))
     sample_total = max(sample_pos + sample_neg, 1)
     est_advances = round(sample_pos / sample_total * 1200)
     est_declines = round(sample_neg / sample_total * 1200)
@@ -627,8 +627,8 @@ async def market_premarket():
 
     # Real market breadth derived from movers sample
     all_rows = movers.get("gainers", []) + movers.get("losers", []) + movers.get("active", [])
-    sample_pos = len(movers.get("gainers", []))
-    sample_neg = len(movers.get("losers",  []))
+    sample_pos = movers.get("advancing_count", len(movers.get("gainers", [])))
+    sample_neg = movers.get("declining_count", len(movers.get("losers", [])))
     sample_total = max(sample_pos + sample_neg, 1)
     est_advances = round(sample_pos / sample_total * 1200)
     est_declines = round(sample_neg / sample_total * 1200)
@@ -683,8 +683,8 @@ async def market_live():
     # /overview below). high52w/low52w/volume_cr have no real source
     # available here, so they're now honestly None rather than static
     # fake numbers alongside a real advances/declines figure.
-    sample_pos = len(movers.get("gainers", []))
-    sample_neg = len(movers.get("losers",  []))
+    sample_pos = movers.get("advancing_count", len(movers.get("gainers", [])))
+    sample_neg = movers.get("declining_count", len(movers.get("losers", [])))
     sample_total = max(sample_pos + sample_neg, 1)
     est_advances = round(sample_pos / sample_total * 1200)
     est_declines = round(sample_neg / sample_total * 1200)
@@ -715,8 +715,8 @@ async def market_after_market():
     # already used by the premarket endpoint. Previously this response had
     # no breadth field at all, so the frontend's Advances/Declines cards
     # always rendered "—" regardless of real market conditions.
-    sample_pos = len(movers.get("gainers", []))
-    sample_neg = len(movers.get("losers",  []))
+    sample_pos = movers.get("advancing_count", len(movers.get("gainers", [])))
+    sample_neg = movers.get("declining_count", len(movers.get("losers", [])))
     sample_total = max(sample_pos + sample_neg, 1)
     est_advances = round(sample_pos / sample_total * 1200)
     est_declines = round(sample_neg / sample_total * 1200)

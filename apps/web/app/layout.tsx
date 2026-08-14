@@ -10,6 +10,7 @@ import { NavLoadingProvider } from "@/components/NavLoadingProvider";
 import { AlertProvider }      from "@/components/AlertProvider";
 import { MarketIntelligenceProvider } from "@/components/MarketIntelligenceProvider";
 import { BreakingNewsAlert }  from "@/components/BreakingNewsAlert";
+import { ReturningUserFeedbackModal } from "@/components/feedback/ReturningUserFeedbackModal";
 import { Breadcrumbs, BreadcrumbOverrideProvider } from "@/components/Breadcrumbs";
 import { PageContainer } from "@/components/PageContainer";
 import { cn } from "@/lib/utils";
@@ -175,6 +176,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </BreadcrumbOverrideProvider>
               </main>
               <BreakingNewsAlert />
+              <ReturningUserFeedbackModal />
             </NavLoadingProvider>
           </MarketIntelligenceProvider>
         </AlertProvider>

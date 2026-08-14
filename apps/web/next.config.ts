@@ -22,8 +22,31 @@ const nextConfig: NextConfig = {
       { source: "/radar/:path*",       destination: "/opportunity-radar/:path*",permanent: true },
       // /policies merged into /calendar as "Recent Policy Events" section
       { source: "/policies",           destination: "/calendar",               permanent: true },
+      // /markets was a pre-existing, unlinked duplicate of the commodities
+      // page — its richer UI (sparkline charts, AI insights panel, key
+      // drivers) has now been merged into /commodities as the one real
+      // page, so this becomes a genuine duplicate-content redirect rather
+      // than an orphaned dead end.
+      { source: "/markets",            destination: "/commodities",            permanent: true },
       // Admin redirect
       { source: "/admin/insights",     destination: "/admin/operations",        permanent: true },
+
+      // Companies hub consolidation (2026-08) — /best-stocks, /compare,
+      // /ipo-hub, /sectors were standalone routes whose real content is
+      // ALSO rendered, unchanged, as tabs inside /companies (see
+      // app/companies/page.tsx's switch statement — it imports and renders
+      // these same page components directly, so nothing here is a
+      // reimplementation). Two live URLs serving identical content was the
+      // problem, not the reused components: bare /companies is the one
+      // real canonical destination for this whole product concept now.
+      // Query strings (e.g. /compare?a=TCS&b=INFY) are preserved
+      // automatically — Next.js appends incoming params not present on the
+      // destination. Same proven pattern as /markets → /commodities above,
+      // where the redirected-from page.tsx also still exists on disk.
+      { source: "/best-stocks",        destination: "/companies?tab=best-stocks", permanent: true },
+      { source: "/compare",            destination: "/companies?tab=compare",     permanent: true },
+      { source: "/ipo-hub",            destination: "/companies?tab=ipo",         permanent: true },
+      { source: "/sectors",            destination: "/companies?tab=sectors",     permanent: true },
 
       // AI Newsroom consolidation — /insights, /daily-brief, /themes, and
       // /stories were separate pages/products that either duplicated AIPE

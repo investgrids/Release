@@ -14,8 +14,10 @@ from __future__ import annotations
 import asyncio
 import structlog
 import re
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.event import Event
@@ -26,6 +28,71 @@ from app.services import feature_extraction, scoring_engine, intelligence_orches
 from app.services.historical_memory_service import find_similar_events
 
 logger = structlog.get_logger(__name__)
+
+# DeepSeekProvider.classify_event's exact fallback (deepseek_provider.py) —
+# returned verbatim whenever the AI call fails after retries are exhausted,
+# indistinguishable from a real response to any caller that doesn't know to
+# check for it. Confirmed live during this fix's own testing: under
+# sustained 429s, every one of the pipeline's 7 AI-call stages falls back
+# silently, and the event still reaches mark_status(eid, "done") with
+# impact_score=None — permanently, since get_pending_enrichment only
+# retries 'pending'/'failed' rows, never 'done' ones. This exact dict
+# (including confidence=0.7 precisely) is what a real AI response would
+# essentially never produce by coincidence, so checking for it right after
+# the first AI call is a cheap, reliable "is the provider actually
+# responding right now" probe — fails fast (skips the other 6 calls) rather
+# than burning through the rest of an already-exhausted quota.
+_CLASSIFY_FALLBACK = {"category": "macro", "confidence": 0.7, "subcategory": "general"}
+
+
+class _AIUnavailable(Exception):
+    """Raised when the classify-stage health probe detects the AI provider
+    is returning its fallback rather than a real response — caught by this
+    module's own except block below, which marks the event 'failed' (so
+    get_pending_enrichment retries it) instead of 'done'."""
+
+
+# The 2026-08-09 emergency pause (ingest_tasks.py's _BATCH=0) traced back to
+# this pipeline firing 7 sequential AI-call rounds for a single event with
+# zero delay between them — _AI_DELAY in ingest_tasks.py only paces between
+# different events, not between the stages within one event's own pipeline.
+# Under free-tier rate limits, that's enough on its own to exhaust a
+# provider's per-minute quota processing just ONE event, regardless of
+# batch size. This is the "real pacing" the pause was waiting on.
+_STAGE_DELAY = 1.5  # seconds between AI-calling stages within one event
+
+# ── Retry/backoff policy (Phase 2, 2026-08-13 audit) ─────────────────────────
+# Minimum fields/logic needed to distinguish "never attempted" from "failed
+# once" from "failed repeatedly" from "permanently failed" — get_pending_
+# enrichment previously treated every 'failed' row identically regardless of
+# history, re-trying it every single tick with no backoff, and with no cap
+# a genuinely broken event (bad data causing a real, deterministic pipeline
+# bug, not a transient provider outage) would retry forever.
+_MAX_ENRICHMENT_RETRIES = 5
+_BACKOFF_BASE_MINUTES = 5     # 5, 10, 20, 40, 80 minutes across 5 retries
+_BACKOFF_CAP_MINUTES = 240    # never wait more than 4 hours between attempts
+
+
+def _compute_backoff(retry_count: int) -> datetime:
+    minutes = min(_BACKOFF_BASE_MINUTES * (2 ** max(retry_count - 1, 0)), _BACKOFF_CAP_MINUTES)
+    return datetime.now(timezone.utc) + timedelta(minutes=minutes)
+
+
+def _classify_failure_reason(exc: Exception) -> str:
+    """Machine-readable category, not a free-text exception message — kept
+    short and matched to the same vocabulary used elsewhere in the pipeline
+    (coverage_engine's failure_reason categories) rather than inventing a
+    third, drifting set of failure-reason strings."""
+    if isinstance(exc, _AIUnavailable):
+        return "provider_unavailable"
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code if exc.response is not None else None
+        if status == 429:
+            return "rate_limited"
+        return "provider_unavailable"
+    if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
+        return "provider_unavailable"
+    return "pipeline_exception"
 
 
 async def _make_unique_slug(repo: "EventRepository", title: str, exclude_id: str) -> str:
@@ -72,13 +139,17 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         # Stage 2 — Classify
         logger.debug("[Pipeline:%s] classify", eid)
         classification = await ai.classify_event(full_text)
+        if classification == _CLASSIFY_FALLBACK:
+            raise _AIUnavailable("classify_event returned its fallback — AI provider unavailable")
         event_type = str(classification.get("category", "macro"))
 
         # Stage 3 — Summarize
+        await asyncio.sleep(_STAGE_DELAY)
         logger.debug("[Pipeline:%s] summarize", eid)
         ai_summary = await ai.summarize_event(title, full_text, source)
 
         # Stage 4 — Extract companies (run concurrently with stage 5)
+        await asyncio.sleep(_STAGE_DELAY)
         logger.debug("[Pipeline:%s] extract companies + sectors", eid)
         companies_raw, sectors_raw = await asyncio.gather(
             ai.extract_companies(title, full_text),
@@ -89,6 +160,7 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         # and per-entity impact_type/reason text — used for narrative, NOT for the
         # published impact_score/confidence numbers anymore; those come from the
         # Scoring Engine at stage 5b so they're never an LLM's self-rated guess).
+        await asyncio.sleep(_STAGE_DELAY)
         logger.debug("[Pipeline:%s] impact analysis", eid)
         impact = await ai.generate_impact_analysis(title, full_text, companies_raw, sectors_raw)
 
@@ -114,10 +186,12 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         )
 
         # Stage 6 — Timeline
+        await asyncio.sleep(_STAGE_DELAY)
         logger.debug("[Pipeline:%s] timeline", eid)
         timeline_raw = await ai.generate_timeline(title, full_text, event_type)
 
         # Stage 7 — Similar events (DB lookup → AI ranking)
+        await asyncio.sleep(_STAGE_DELAY)
         logger.debug("[Pipeline:%s] similar events", eid)
         candidates = await repo.get_similar_by_sectors(sector_names, exclude_id=eid)
         candidate_dicts = [
@@ -127,6 +201,7 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         similar_raw = await ai.find_similar_events(title, sector_names, candidate_dicts)
 
         # Stage 8 — Network graph
+        await asyncio.sleep(_STAGE_DELAY)
         logger.debug("[Pipeline:%s] graph", eid)
         graph_raw = await ai.generate_graph(title, companies_raw, sectors_raw)
 
@@ -277,7 +352,19 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         logger.error("[Pipeline] Failed for event %s: %s", eid, exc, exc_info=True)
         try:
             await db.rollback()
-            await repo.mark_status(eid, "failed")
+            new_retry_count = (event.retry_count or 0) + 1
+            reason = _classify_failure_reason(exc)
+            if new_retry_count >= _MAX_ENRICHMENT_RETRIES:
+                next_retry_at = None  # signals mark_enrichment_failed to use the terminal status
+                logger.error(
+                    "[Pipeline] Event %s exhausted %d retries (last reason: %s) — marking failed_permanent",
+                    eid, _MAX_ENRICHMENT_RETRIES, reason,
+                )
+            else:
+                next_retry_at = _compute_backoff(new_retry_count)
+            await repo.mark_enrichment_failed(
+                eid, retry_count=new_retry_count, reason=reason, next_retry_at=next_retry_at,
+            )
         except Exception as inner:
             logger.error("[Pipeline] Could not mark failure for %s: %s", eid, inner)
         return False

@@ -24,6 +24,7 @@ def _words(query: str) -> list[str]:
 def _event_row_to_dict(e: Event) -> dict:
     return {
         "id": e.id,
+        "slug": e.slug or "",
         "title": e.title,
         "summary": (e.summary or "")[:300],
         "category": e.category or "Market",

@@ -62,6 +62,18 @@ class Event(Base):
     # Pipeline state
     enrichment_status = Column(String(32), nullable=False, default="pending")
 
+    # Retry/backoff (Phase 2, 2026-08-13 audit) — get_pending_enrichment
+    # previously couldn't distinguish "never attempted" from "failed once"
+    # from "failed repeatedly," and ordered purely by created_at, so a
+    # steady stream of new pending events could starve an older retryable
+    # failure indefinitely. Minimum fields needed for exponential backoff
+    # + fair ordering; see event_repository.get_pending_enrichment and
+    # event_pipeline.run_event_pipeline.
+    retry_count = Column(Integer, nullable=False, default=0)
+    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    next_retry_at = Column(DateTime(timezone=True), nullable=True)
+    last_failure_reason = Column(String(64), nullable=True)
+
 
 # ── Related tables ────────────────────────────────────────────────────────────
 

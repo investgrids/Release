@@ -60,15 +60,31 @@ _HARD_YES_PATTERNS = [
     r"\bunion budget\b",
     r"\binterim budget\b",
     r"\bfederal reserve\b|\bus fed\b|\bfomc\b",
-    r"\bfii.*(buy|sell|net).*[₹\d].*cr",   # FII flows with amounts
-    r"\bdii.*(buy|sell|net).*[₹\d].*cr",
+    # FII/DII flows are NOT in this list — see _fii_dii_exceeds_threshold
+    # below. They used to be two presence-only patterns here (matched as
+    # soon as "fii"/"dii" + buy/sell/net + any digit + "cr" all appeared,
+    # regardless of amount), which meant _FII_THRESHOLD_CR was a declared,
+    # documented ₹1000 Cr business rule that literally nothing checked —
+    # confirmed via re-audit grep: zero comparison sites anywhere in the
+    # codebase. Moved to its own function so the threshold is real.
     r"\boil\b.*(rise|fall|jump|crash|surge|drop).*[3-9]\d*%",  # big oil moves
     r"\bcircuit breaker\b|\bmarket halt\b",
     r"\bf&o ban\b|\bfo ban\b",
     r"\bdefault\b.*\b(credit|bond|payment)\b",
     r"\binsolvency\b",
-    r"\bmerger|acquisition\b.*\b[₹\d].*cr",  # large M&A
-    r"\bipо listing\b.*(?:premium|above|below).*%",
+    # Re-audit (2026-08-13) fixes two bugs in this pattern:
+    #  1. Missing grouping — `\bmerger|acquisition\b...` parses as
+    #     `(\bmerger)|(acquisition\b...)`, so "merger" alone matched
+    #     unconditionally (no amount required, and no TRAILING \b either —
+    #     "mergers"/"mergerXYZ" would also match), while "acquisition"
+    #     alone required the full `...cr` amount suffix. Wrapped both
+    #     alternatives in one group with a boundary on each end.
+    r"\b(merger|acquisition)\b.*\b[₹\d].*cr",  # large M&A
+    # 2. "ipо listing" used a Cyrillic о (U+043E), not ASCII "o" — a
+    #    copy-paste artifact that made this pattern silently never match
+    #    the real string "ipo listing" it was written to catch. Confirmed
+    #    via direct byte inspection during the re-audit.
+    r"\bipo listing\b.*(?:premium|above|below).*%",
     r"\bgst\b.*\b(rate|revision|change)\b",
     r"\bcpi\b|\bwpi\b|\binflation\b.*data",
     r"\bgdp\b.*\b(data|growth|estimate)\b",
@@ -94,8 +110,33 @@ def _is_hard_no(text: str) -> bool:
     return any(re.search(p, text) for p in _HARD_NO_PATTERNS)
 
 
+# Captures the rupee-crore amount next to an "fii"/"dii" mention (e.g. "FII
+# sold ₹3,200 Cr" / "DII net buying at 1500 crore") so it can be compared
+# against _FII_THRESHOLD_CR — not just checked for presence. .{0,60}? keeps
+# the match from spanning past the flow figure that actually belongs to
+# this fii/dii mention if the headline goes on to name a second, unrelated
+# amount later in the sentence.
+_FII_DII_AMOUNT_PATTERN = re.compile(
+    r"\b(?:fii|dii)\b.{0,60}?[₹]?\s*([\d,]+(?:\.\d+)?)\s*(?:cr\b|crore\b)"
+)
+
+
+def _fii_dii_exceeds_threshold(text: str) -> bool:
+    """True only when a real FII/DII flow amount is present AND meets the
+    configured ₹1000 Cr threshold — not merely mentioned. text is already
+    lowercased by _text() before reaching here."""
+    m = _FII_DII_AMOUNT_PATTERN.search(text)
+    if not m:
+        return False
+    try:
+        amount = float(m.group(1).replace(",", ""))
+    except ValueError:
+        return False
+    return amount >= _FII_THRESHOLD_CR
+
+
 def _is_hard_yes(text: str) -> bool:
-    return any(re.search(p, text) for p in _HARD_YES_PATTERNS)
+    return any(re.search(p, text) for p in _HARD_YES_PATTERNS) or _fii_dii_exceeds_threshold(text)
 
 
 def should_generate_intelligence(
@@ -124,6 +165,30 @@ def should_generate_intelligence(
         importance = int(event.get("importance") or 0)
         market_impact = (event.get("market_impact") or "").lower()
         is_structural = bool(event.get("is_structural"))
+
+        # Audit fix (2026-08-12): the urgency<_MIN_URGENCY gate below used
+        # to be unconditional, so a keyword-floor-elevated Critical/High
+        # event (app.services.intelligence.engine.compute_priority's
+        # _CRITICAL_KEYWORDS/_HIGH_KEYWORDS_STRONG, e.g. "war", "rbi",
+        # "budget") with a low AI-assigned raw urgency was rejected here
+        # before ever reaching filter_triage_batch's own Critical/High
+        # rescue downstream — that rescue can't save an event that never
+        # made it into the "passed" list in the first place. Confirmed
+        # live: a real triaged event (urgency=1, headline containing
+        # "war") computed to Critical via the keyword floor but would have
+        # been silently rejected right here. _HARD_YES_PATTERNS above is a
+        # second, independently-maintained "always important" keyword
+        # list that had already drifted from engine.py's (no "war" match
+        # among its patterns) — reusing compute_priority (the codebase's
+        # own documented single source of truth for these tiers) instead
+        # of patching yet another parallel keyword list closes that gap
+        # for good, not just for this one example.
+        from app.services.intelligence.engine import compute_priority
+        from app.services.coverage_engine import is_must_cover
+        headline = event.get("headline") or event.get("title") or ""
+        _, priority_tier = compute_priority(urgency, importance, None, headline)
+        if is_must_cover(priority_tier):
+            return True, f"{priority_tier}-tier event (Intelligence Priority Queue)"
 
         if urgency < _MIN_URGENCY:
             return False, f"Urgency too low ({urgency} < {_MIN_URGENCY})"

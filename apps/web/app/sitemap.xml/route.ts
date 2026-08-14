@@ -82,9 +82,11 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     // (historical_memory_service.py, 52 events) previously powering only a
     // sidebar widget with no indexable URL of its own.
     { url: `${base}/historical`,                 lastModified: now, changeFrequency: "weekly", priority: 0.75 },
-    // Best Stocks hub — real, opportunity-scored rankings by sector (pure
-    // presentation layer over the existing Opportunity Radar data).
-    { url: `${base}/best-stocks`,                lastModified: now, changeFrequency: "daily",  priority: 0.8 },
+    // Best Stocks (real, opportunity-scored rankings by sector) is now
+    // reached at /companies?tab=best-stocks — the bare /companies entry
+    // above (priority 0.9) is the one indexable URL for this whole hub,
+    // same "don't list a redirecting URL" reasoning as /newsroom above.
+    // /best-stocks itself 301-redirects to that canonical view.
     // Commodities — real live metals/energy prices (commodities.py), fixed
     // 8-item set (4 metals + 4 energy) defined in the backend itself, so
     // listed directly rather than fetched.
@@ -136,7 +138,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   // submitting these URLs in the sitemap only produced Search Console
   // "Page with redirect" warnings for pages that never had real content.
   const [events, ripple, radar, companiesPage1, news, insights, sectors, research, historical] = await Promise.all([
-    safeJson<Array<{ id: string; slug?: string; date?: string }>>(`${API}/api/events/?limit=100`, []),
+    safeJson<Array<{ id: string; slug?: string; date?: string; indexable?: boolean }>>(`${API}/api/events/?limit=100`, []),
     // Ripple pages exist for the same "featured" high-impact events the
     // Ripple hub itself surfaces — not blindly mirroring every event route,
     // since not every event has a ripple analysis worth indexing.
@@ -165,7 +167,13 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   };
 
   const eventRoutes: SitemapEntry[] = (Array.isArray(events) ? events : [])
-    .filter(e => hasCleanSlug(e.slug))
+    // Phase 15 (2026-08 audit) — indexability threshold: only events with
+    // real evidence of importance (Critical/High triage priority, or a
+    // genuine extracted macro data release) are sitemap-eligible. Absence
+    // of the field (an older cached response, or the flag defaulting
+    // false) is treated as NOT indexable — the safe default, not `!==
+    // false` which would wrongly include a genuinely-false flag.
+    .filter(e => hasCleanSlug(e.slug) && e.indexable === true)
     .map(e => ({
       url: `${base}/events/${e.slug}`,
       lastModified: e.date ?? now,

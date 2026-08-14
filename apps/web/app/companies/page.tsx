@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-const VALID_TABS = new Set(["overview", "all-companies", "best-stocks", "sectors", "compare", "ipo-hub"]);
+const VALID_TABS = new Set(["overview", "all-companies", "best-stocks", "sectors", "compare", "ipo"]);
 
 export default async function CompaniesHubPage({
   searchParams,
@@ -80,7 +80,7 @@ export default async function CompaniesHubPage({
     case "best-stocks":   content = <BestStocksHubPage />; break;
     case "sectors":       content = <SectorsPage />; break;
     case "compare":       content = <ComparePage />; break;
-    case "ipo-hub":       content = <IPOHubPage />; break;
+    case "ipo":           content = <IPOHubPage />; break;
     default:              content = <OverviewTab />;
   }
 

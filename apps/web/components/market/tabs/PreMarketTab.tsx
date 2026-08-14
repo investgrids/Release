@@ -732,7 +732,12 @@ function GlobalSnapshot({ signals }: { signals: any }) {
 
 // ── TODAY'S EVENTS ─────────────────────────────────────────────────────────────
 function EventsTimeline({ events }: { events: { today: any[]; tomorrow: any[]; mie_signals: any[] } }) {
-  const has = events.today.length + events.tomorrow.length + events.mie_signals.length > 0;
+  // "Today's Events" shows only today's events (2026-08 audit — user-
+  // reported a "Tomorrow" sub-section here was confusing/wrong for a
+  // widget titled "Today's Events"). events.tomorrow is deliberately not
+  // rendered in this component; it's left in the prop shape only because
+  // the page's separate top-event banner still uses it as a fallback.
+  const has = events.today.length + events.mie_signals.length > 0;
   if (!has) return null;
   return (
     <Section icon={ListChecks} title="Today's Events">
@@ -754,19 +759,6 @@ function EventsTimeline({ events }: { events: { today: any[]; tomorrow: any[]; m
               {events.today.map((e: any) => (
                 <div key={e.title} className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-2.5">
                   <p className="text-[13px] font-semibold text-text-primary">{e.title}</p>
-                  {e.description && <p className="mt-0.5 text-[11px] text-text-muted">{e.description}</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {events.tomorrow.length > 0 && (
-          <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">Tomorrow</p>
-            <div className="space-y-2">
-              {events.tomorrow.map((e: any) => (
-                <div key={e.title} className="rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-4 py-2.5">
-                  <p className="text-[13px] font-semibold text-text-secondary">{e.title}</p>
                   {e.description && <p className="mt-0.5 text-[11px] text-text-muted">{e.description}</p>}
                 </div>
               ))}

@@ -141,10 +141,67 @@ async def _ai_triage(headline: str, summary: str) -> dict:
         return fallback
 
 
+async def _bridge_to_event_if_material(db, triage: TriagedEvent, priority_tier: str) -> None:
+    """Creates a real Event row for a Critical/High-tier triaged item that
+    doesn't have one yet. RSS-sourced items never get an Event row at
+    ingestion — see ingest_tasks.py's "RSS items do NOT become Events (too
+    generic)" — which was the right call for the ~generic majority, but it
+    also meant genuinely important RSS-sourced signal was structurally
+    invisible to the whole Event-based side of the product: /events, the
+    ripple graph, company/sector pages, AI search retrieval, and the
+    10-stage AI enrichment pipeline all read Event, never EventTriage.
+    EventTriage.event_id and EventCoverage.event_id already use the same
+    id as Event.id (triage.raw.id) — so creating the Event row under that
+    same id is all that's needed to link them; no new foreign key or id
+    scheme required. Scoped to Critical/High only, not every triaged item,
+    so this doesn't reintroduce the noise "RSS items do NOT become Events"
+    was avoiding, or add load to job_enrich_events beyond the real
+    Critical/High volume it should have been covering all along."""
+    from sqlalchemy import insert
+    from app.db.models.event import Event
+
+    existing = await db.get(Event, triage.raw.id)
+    if existing:
+        return
+    now = datetime.now(timezone.utc)
+    # Core insert(), not the ORM Event(...) constructor — found during this
+    # audit's own test run: Event.impact_score is `Column(Float,
+    # nullable=True, default=0.0)`, and SQLAlchemy's ORM applies a column's
+    # Python-side `default=` whenever the attribute's value is None at
+    # flush time, WHETHER that None was explicit or just never set — so
+    # `Event(impact_score=None, ...)` silently persisted 0.0, not NULL,
+    # directly contradicting this function's own intent (never fabricate a
+    # placeholder score) despite the code visibly saying `impact_score=
+    # None`. Confirmed both ways directly: the ORM constructor stores 0.0;
+    # a Core insert().values(impact_score=None) stores a real NULL. Same
+    # latent risk likely exists in ingest_tasks.py's _create_events for
+    # any NSE/BSE item whose RawItem.impact_score is falsy — flagged
+    # separately, not fixed here (out of scope for the bridge specifically).
+    await db.execute(insert(Event).values(
+        id=triage.raw.id,
+        title=triage.raw.headline,
+        summary=triage.raw.summary,
+        description=triage.raw.summary,
+        source=triage.raw.origin or triage.raw.source,
+        event_type=triage.raw.source,  # "news" | "policy" | "price" | "synthetic" — same categories _create_events already uses, not a new invented one
+        companies=triage.tickers or [],
+        sectors=triage.sectors or [],
+        impact_score=None,  # real NULL now — job_enrich_events' Scoring Engine computes the real evidence-based score once this row is picked up
+        confidence=0.0,
+        published_at=now,
+        created_at=now,
+        updated_at=now,
+        enrichment_status="pending",
+    ))
+    await db.commit()
+    log.info("triage.bridged_to_event", event_id=triage.raw.id, priority_tier=priority_tier, source=triage.raw.source)
+
+
 async def _store_triage(triage: TriagedEvent) -> None:
     from app.db.session import AsyncSessionLocal
     from app.db.models.intelligence import EventTriage
     from app.services import coverage_engine
+    from app.services.intelligence.engine import compute_priority
 
     triage_id = str(uuid4())[:16]
     try:
@@ -181,6 +238,12 @@ async def _store_triage(triage: TriagedEvent) -> None:
                 importance=triage.importance, sectors=triage.sectors,
                 companies=triage.tickers,
             )
+
+            _, priority_tier = compute_priority(
+                triage.urgency, triage.importance, None, triage.raw.headline,
+            )
+            if priority_tier in ("Critical", "High"):
+                await _bridge_to_event_if_material(db, triage, priority_tier)
     except Exception as exc:
         log.error("triage.store_failed", error=str(exc))
 

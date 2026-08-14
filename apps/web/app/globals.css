@@ -297,3 +297,88 @@ select {
 .theme-dark-only { display: none; }
 :root[data-theme="dark"] .theme-dark-only { display: block; }
 :root[data-theme="dark"] .theme-light-only { display: none; }
+
+/* shadcn/ui token bridge — remapped onto this site's own design tokens
+   (defined above) instead of shadcn's stock neutral oklch() palette, so
+   shadcn components (Button, etc.) inherit MarketRipple's real branding
+   and theme toggle instead of looking like a generic gray shadcn app.
+   Deliberately DROPPED shadcn's own generated `* { border-border }` /
+   `body { bg-background text-foreground }` / `html { font-sans }` rules —
+   those are global element-selector resets that would have fought the
+   site's own already-correct `body`/`html` rules above (established
+   before shadcn was ever added here). shadcn's components reference these
+   variables directly via their own utility classes, so the bridge below
+   is sufficient without a global reset. Selector is the site's real
+   dark-mode trigger (:root[data-theme="dark"]) — shadcn's default `.dark`
+   class is never applied anywhere in this app (see tailwind.config.ts's
+   darkMode: ["selector", '[data-theme="dark"]']), so left as `.dark` it
+   would have silently never activated. */
+@layer base {
+  :root {
+    --background: rgb(var(--surface-bg));
+    --foreground: rgb(var(--text-primary));
+    --card: rgb(var(--surface-card));
+    --card-foreground: rgb(var(--text-primary));
+    --popover: rgb(var(--surface-card));
+    --popover-foreground: rgb(var(--text-primary));
+    --primary: rgb(var(--accent-violet));
+    --primary-foreground: rgb(255 255 255);
+    --secondary: rgb(var(--surface-header));
+    --secondary-foreground: rgb(var(--text-primary));
+    --muted: rgb(var(--surface-header));
+    --muted-foreground: rgb(var(--text-muted));
+    --accent: rgb(var(--accent-sky));
+    --accent-foreground: rgb(255 255 255);
+    --destructive: rgb(var(--accent-rose));
+    --border: rgb(var(--surface-border) / 0.1);
+    --input: rgb(var(--surface-border) / 0.14);
+    --ring: rgb(var(--accent-violet) / 0.4);
+    --chart-1: rgb(var(--accent-violet));
+    --chart-2: rgb(var(--accent-sky));
+    --chart-3: rgb(var(--accent-emerald));
+    --chart-4: rgb(var(--accent-rose));
+    --chart-5: rgb(var(--text-muted));
+    --radius: 0.75rem;
+    --sidebar: rgb(var(--surface-header));
+    --sidebar-foreground: rgb(var(--text-primary));
+    --sidebar-primary: rgb(var(--accent-violet));
+    --sidebar-primary-foreground: rgb(255 255 255);
+    --sidebar-accent: rgb(var(--surface-card));
+    --sidebar-accent-foreground: rgb(var(--text-primary));
+    --sidebar-border: rgb(var(--surface-border) / 0.1);
+    --sidebar-ring: rgb(var(--accent-violet) / 0.4);
+  }
+  :root[data-theme="dark"] {
+    --background: rgb(var(--surface-bg));
+    --foreground: rgb(var(--text-primary));
+    --card: rgb(var(--surface-card));
+    --card-foreground: rgb(var(--text-primary));
+    --popover: rgb(var(--surface-card));
+    --popover-foreground: rgb(var(--text-primary));
+    --primary: rgb(var(--accent-violet));
+    --primary-foreground: rgb(255 255 255);
+    --secondary: rgb(var(--surface-header));
+    --secondary-foreground: rgb(var(--text-primary));
+    --muted: rgb(var(--surface-header));
+    --muted-foreground: rgb(var(--text-muted));
+    --accent: rgb(var(--accent-sky));
+    --accent-foreground: rgb(255 255 255);
+    --destructive: rgb(var(--accent-rose));
+    --border: rgb(var(--surface-border) / 0.1);
+    --input: rgb(var(--surface-border) / 0.16);
+    --ring: rgb(var(--accent-violet) / 0.5);
+    --chart-1: rgb(var(--accent-violet));
+    --chart-2: rgb(var(--accent-sky));
+    --chart-3: rgb(var(--accent-emerald));
+    --chart-4: rgb(var(--accent-rose));
+    --chart-5: rgb(var(--text-muted));
+    --sidebar: rgb(var(--surface-header));
+    --sidebar-foreground: rgb(var(--text-primary));
+    --sidebar-primary: rgb(var(--accent-violet));
+    --sidebar-primary-foreground: rgb(255 255 255);
+    --sidebar-accent: rgb(var(--surface-card));
+    --sidebar-accent-foreground: rgb(var(--text-primary));
+    --sidebar-border: rgb(var(--surface-border) / 0.1);
+    --sidebar-ring: rgb(var(--accent-violet) / 0.5);
+  }
+}

@@ -81,7 +81,7 @@ export default async function BestStocksSectorPage({ params }: { params: Promise
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
 
       <nav className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
-        <Link href="/best-stocks" className="flex items-center gap-1 hover:text-text-secondary transition">
+        <Link href="/companies?tab=best-stocks" className="flex items-center gap-1 hover:text-text-secondary transition">
           <ArrowLeft className="h-3 w-3" /> Best Stocks
         </Link>
       </nav>
@@ -142,7 +142,7 @@ export default async function BestStocksSectorPage({ params }: { params: Promise
       </section>
 
       <div className="mt-10 flex items-center justify-between border-t border-surface-border/6 pt-5">
-        <Link href="/best-stocks" className="text-[12px] font-semibold text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">← All Sectors</Link>
+        <Link href="/companies?tab=best-stocks" className="text-[12px] font-semibold text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">← All Sectors</Link>
         <Link href="/opportunity-radar" className="text-[12px] font-semibold text-text-muted hover:text-text-secondary transition">Full Opportunity Radar →</Link>
       </div>
     </main>

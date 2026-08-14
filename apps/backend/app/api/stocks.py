@@ -11,6 +11,30 @@ from app.services import finnhub
 
 router = APIRouter()
 
+
+def _related_events_for_symbol(all_events: list, symbol: str, limit: int = 4) -> list[StockEvent]:
+    """Phase 13 (2026-08 audit) — extracted so the company<->event id/slug
+    wiring is independently testable without the rest of get_stock's live
+    yfinance/Finnhub calls. Matching logic unchanged from before the
+    extraction."""
+    sym_upper = symbol.upper()
+
+    def _matches(e) -> bool:
+        for c in (e.companies or []):
+            if isinstance(c, dict) and c.get("symbol", "") == sym_upper:
+                return True
+            if isinstance(c, str) and c.strip().upper() == sym_upper:
+                return True
+        return False
+
+    return [
+        StockEvent(
+            title=e.title, date=str(e.published_at.date()) if e.published_at else "",
+            id=e.id, slug=e.slug or "",
+        )
+        for e in all_events if _matches(e)
+    ][:limit]
+
 _PEERS_MAP: dict = {
     "IT Services":             ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM"],
     "Software—Application":    ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM"],
@@ -176,18 +200,7 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
 
     # ── Related events from DB ───────────────────────────────────────────────
     all_events = await get_events(db)
-    def _matches(e) -> bool:
-        for c in (e.companies or []):
-            if isinstance(c, dict) and c.get("symbol", "") == sym_upper:
-                return True
-            if isinstance(c, str) and c.strip().upper() == sym_upper:
-                return True
-        return False
-
-    related_events = [
-        StockEvent(title=e.title, date=str(e.published_at.date()) if e.published_at else "")
-        for e in all_events if _matches(e)
-    ][:4]
+    related_events = _related_events_for_symbol(all_events, sym_upper, limit=4)
 
     yf = yf_data or {}
 

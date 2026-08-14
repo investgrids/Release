@@ -238,7 +238,11 @@ function MarketHealthCard({ story, health, data }: { story: MarketStory | null; 
   const ex = cx + r * Math.cos(toRad(180 + angle));
   const ey = cy + r * Math.sin(toRad(180 + angle));
   const large = angle > 180 ? 1 : 0;
-  const niftyChg = parseFloat(data?.indices?.[0]?.change?.replace(/[^0-9.-]/g, "") ?? "0");
+  // indices[0].change is a combined display string ("+407.60 (+1.67%)") —
+  // the old regex-strip of that string concatenated the absolute change and
+  // the percentage into one mangled number (rendered as "+407.60%"). The
+  // API already returns a clean numeric `pct` field right next to it.
+  const niftyChg = data?.indices?.[0]?.pct ?? 0;
   const niftyPos = data?.indices?.[0]?.positive !== false;
   const b = data?.breadth;
 
@@ -246,11 +250,14 @@ function MarketHealthCard({ story, health, data }: { story: MarketStory | null; 
     <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.15em] text-text-muted">Market Health</p>
       <div className="flex justify-center">
-        <svg width="148" height="80" viewBox="0 0 148 80">
+        {/* height/viewBox taller than the arc itself (cy=68) so the
+            label text at cy+17=85 has room instead of being clipped at
+            the old height=80 boundary. */}
+        <svg width="148" height="92" viewBox="0 0 148 92">
           <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="rgb(var(--text-primary) / 0.05)" strokeWidth="9" strokeLinecap="round" />
           {health > 0 && <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`} fill="none" stroke={scoreColor} strokeWidth="9" strokeLinecap="round" />}
-          <text x={cx} y={cy + 2} textAnchor="middle" fill="white" fontSize="22" fontWeight="900">{health}</text>
-          <text x={cx} y={cy + 17} textAnchor="middle" fill="#475569" fontSize="9">{label}</text>
+          <text x={cx} y={cy + 2} textAnchor="middle" fill="rgb(var(--text-primary))" fontSize="22" fontWeight="900">{health}</text>
+          <text x={cx} y={cy + 17} textAnchor="middle" fill="rgb(var(--text-muted))" fontSize="9">{label}</text>
         </svg>
       </div>
       <div className="mt-1 space-y-1.5">
@@ -546,7 +553,7 @@ function RippleEffectsCard({ ripple, loading, eventId }: { ripple: any; loading:
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
-      <CardHeader title="Ripple Effects" sub="AI Ripple Map" href={eventId ? `/ripple/${eventId}` as any : undefined} linkLabel="Full Map" />
+      <CardHeader title="Ripple Effects" sub="AI Ripple Map" href={eventId ? `/ripple/${ripple?.event_slug || eventId}` as any : undefined} linkLabel="Full Map" />
       {loading ? (
         <div className="flex-1 space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-9 animate-pulse rounded-lg bg-text-primary/[0.03]" />)}</div>
       ) : !source ? (
@@ -663,8 +670,8 @@ function MarketSentimentCard({ value }: { value: number | null }) {
       <svg width="104" height="58" viewBox="0 0 104 58">
         <path d="M 8 52 A 44 44 0 0 1 96 52" fill="none" stroke="rgb(var(--text-primary) / 0.06)" strokeWidth="7" strokeLinecap="round" />
         <path d="M 8 52 A 44 44 0 0 1 96 52" fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" strokeDasharray={`${(v / 100) * 138} 200`} />
-        <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="white" strokeWidth="2" strokeLinecap="round" />
-        <circle cx={CX} cy={CY} r="3" fill="white" />
+        <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="rgb(var(--text-primary))" strokeWidth="2" strokeLinecap="round" />
+        <circle cx={CX} cy={CY} r="3" fill="rgb(var(--text-primary))" />
       </svg>
       <p className="text-[22px] font-black leading-none text-text-primary">{v}</p>
       <p className="mt-0.5 text-[11px] font-semibold" style={{ color }}>{label}</p>

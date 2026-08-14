@@ -33,8 +33,8 @@ export function MarketSentimentGauge({ score, bias, label }: { score: number; bi
         <path d={arcPath(108, 72)}  stroke="#f59e0b" strokeWidth="8" fill="none" strokeLinecap="round" />
         <path d={arcPath(72, 36)}   stroke="#84cc16" strokeWidth="8" fill="none" strokeLinecap="round" />
         <path d={arcPath(36, 0)}    stroke="#22c55e" strokeWidth="8" fill="none" strokeLinecap="round" />
-        <line x1={CX} y1={CY} x2={needleX} y2={needleY} stroke="white" strokeWidth="2" strokeLinecap="round" />
-        <circle cx={CX} cy={CY} r="4" fill="white" />
+        <line x1={CX} y1={CY} x2={needleX} y2={needleY} stroke="rgb(var(--text-primary))" strokeWidth="2" strokeLinecap="round" />
+        <circle cx={CX} cy={CY} r="4" fill="rgb(var(--text-primary))" />
       </svg>
       <p className="text-[26px] font-black leading-none text-text-primary">{Math.round(clamped)}<span className="text-[13px] font-semibold text-text-muted">/100</span></p>
       <p className="mt-1 text-[13px] font-bold" style={{ color }}>{bias}</p>
