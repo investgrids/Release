@@ -66,6 +66,17 @@ class FeedbackIn(BaseModel):
         return v.strip()[:128] if v else None
 
 
+def _build_contact_email_body(body: FeedbackIn) -> str:
+    lines = [
+        f"Category: {body.category}",
+        f"From: {body.name or '(no name given)'} <{body.email}>",
+    ]
+    if body.page_url:
+        lines.append(f"Page: {body.page_url}")
+    lines += ["", "Message:", body.message]
+    return "\n".join(lines)
+
+
 @router.post("/")
 @limiter.limit("5/minute")
 async def submit_feedback(request: Request, body: FeedbackIn, db: AsyncSession = Depends(get_db)):
@@ -84,7 +95,18 @@ async def submit_feedback(request: Request, body: FeedbackIn, db: AsyncSession =
         log.error("feedback.submit_failed", error=str(exc))
         raise HTTPException(status_code=500, detail="Could not save your message. Please try again.")
 
-    log.info("feedback.submitted", category=body.category, id=submission.id)
+    # Same best-effort posture as the returning-user popup below: the DB
+    # row is the durable record, email is a notification on top of it that
+    # never fails the request (see email_service.py's docstring). This
+    # endpoint never had a notification wired up at all before now — a
+    # contact-form submission with no one ever notified isn't a working
+    # contact form, just a write-only log.
+    sent = await send_email(
+        to=settings.feedback_notify_email,
+        subject=f"Market Ripple — Contact Form ({body.category})",
+        body=_build_contact_email_body(body),
+    )
+    log.info("feedback.submitted", category=body.category, id=submission.id, emailed=sent)
     return {"ok": True, "id": submission.id}
 
 
