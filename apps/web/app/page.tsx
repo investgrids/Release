@@ -10,7 +10,9 @@ import { HomepageRefresher } from "@/components/homepage/HomepageRefresher";
 import { IndependenceDayBanner } from "@/components/homepage/IndependenceDayBanner";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
 import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
+import { WeekendHomePage } from "@/components/weekend/WeekendHomePage";
 import { API_BASE_URL as API } from "@/lib/api";
+import { isWeekendSession } from "@/lib/weekendSession";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { cleanText, truncateForQuery } from "@/lib/text";
 
@@ -1355,8 +1357,28 @@ async function LatestIntelligenceRow() {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROOT PAGE
+//
+// Weekend switch (brief §3/§4): a single branch here, not `if weekend`
+// scattered through the sections below — the existing weekday homepage
+// (WeekdayHomePage) is completely untouched, just wrapped. Reuses the
+// SAME `/api/market/session` call TickerStrip/MarketSnapshotCard already
+// make (cache()-deduped, so this adds zero extra requests on a weekday;
+// on a weekend it's the only session call made, since the rest of this
+// file's weekday components never render). `session === "weekend"` is
+// this endpoint's own existing real value — not a new session detector
+// (MarketSessionGate.tsx's client-side getSession() is dead code, not
+// used here; see final report for why /api/market/session was chosen
+// over /api/mie/state's equivalent field).
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getSession();
+  if (isWeekendSession(session as any)) {
+    return <WeekendHomePage />;
+  }
+  return <WeekdayHomePage />;
+}
+
+function WeekdayHomePage() {
   return (
     <div className="space-y-5 py-6 pb-12">
 
