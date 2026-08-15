@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.session import get_db
 from app.services import homepage_intelligence as hi
+from app.services.intelligence.engine import session_label_for
 
 router = APIRouter()
 log = structlog.get_logger(__name__)
@@ -21,10 +22,20 @@ log = structlog.get_logger(__name__)
 
 @router.get("/intelligence")
 async def homepage_intelligence(db: AsyncSession = Depends(get_db)):
-    """Returns {"available": False} when there's no morning_intelligence
-    article yet today (first-ever run, or before the 06:00 IST job has
-    fired) — the frontend just falls back to its existing AI Market Brief
-    card alone. Never a 404."""
+    """Returns {"available": False} when there is genuinely no
+    morning_intelligence article at all yet (first-ever run, or before the
+    06:00 IST job has fired) — the frontend falls back to its existing AI
+    Market Brief card alone. Never a 404.
+
+    This previously claimed (in this docstring only — not in the code
+    itself) to return {"available": False} when there's no article "yet
+    today", but the query below has always been a plain "most recent row",
+    with no date filter — so over a weekend it silently kept returning
+    Friday's article as if it were today's. Weekend Intelligence Phase 0:
+    the article itself is still returned (Friday's read is real, useful
+    data, not something to hide) — is_current/session_date/session_label
+    now let the caller tell the difference instead of assuming "today".
+    """
     article = (await db.execute(
         select(IntelligenceArticle)
         .where(IntelligenceArticle.article_type == "morning_intelligence")
@@ -33,6 +44,10 @@ async def homepage_intelligence(db: AsyncSession = Depends(get_db)):
     )).scalars().first()
     if not article:
         return {"available": False}
+
+    session_info = session_label_for(
+        article.published_at.isoformat() if article.published_at else None
+    )
 
     try:
         await hi.record_snapshot_if_missing(db, article)
@@ -61,6 +76,8 @@ async def homepage_intelligence(db: AsyncSession = Depends(get_db)):
     return {
         "available": True,
         "article_id": article.id,
+        "published_at": article.published_at.isoformat() if article.published_at else None,
+        **session_info,
         "yesterday_changes": yesterday_changes,
         "ai_prediction": ai_prediction,
         "event": event_intel,

@@ -32,17 +32,33 @@ function MiniChart({ chart, positive }: { chart?: { value: number }[]; positive:
 }
 
 // ── Countdown timer to 9:15 AM IST ────────────────────────────────────────────
+// Weekend Intelligence Phase 0: this previously had no day-of-week check at
+// all, so on a Saturday it would still render "Opens in Xh Ym" as if the
+// market were opening later that same day — the actual next open is
+// Monday. Also fixes the adjacent, same-root-cause bug where an
+// after-close weekday countdown always said "(tomorrow)" even on a Friday
+// evening, when the real next open is Monday.
 function useCountdown() {
   const [label, setLabel] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [isWeekend, setIsWeekend] = useState(false);
 
   useEffect(() => {
     function compute() {
       const now = new Date();
       const ist = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+      const dow = ist.getDay(); // 0=Sunday … 6=Saturday
       const totalMin = ist.getHours() * 60 + ist.getMinutes();
       const openMin = 9 * 60 + 15;
       const closeMin = 15 * 60 + 30;
+
+      if (dow === 0 || dow === 6) {
+        setIsOpen(false);
+        setIsWeekend(true);
+        setLabel("Market closed for the weekend — opens Monday 9:15 AM IST");
+        return;
+      }
+      setIsWeekend(false);
 
       if (totalMin >= openMin && totalMin <= closeMin) {
         setIsOpen(true);
@@ -54,7 +70,8 @@ function useCountdown() {
         const nextOpen = openMin + 24 * 60 - totalMin;
         const h = Math.floor(nextOpen / 60);
         const m = nextOpen % 60;
-        setLabel(`Opens in ${h}h ${m}m (tomorrow)`);
+        const nextDay = dow === 5 ? "Monday" : "tomorrow";
+        setLabel(`Opens in ${h}h ${m}m (${nextDay})`);
         return;
       }
       const diff = (openMin - totalMin) * 60 - ist.getSeconds();
@@ -69,7 +86,7 @@ function useCountdown() {
     return () => clearInterval(id);
   }, []);
 
-  return { label, isOpen };
+  return { label, isOpen, isWeekend };
 }
 
 // ── Gift Nifty / Nifty Futures hero card ──────────────────────────────────────

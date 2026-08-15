@@ -52,6 +52,39 @@ def _cache_ttl() -> int:
     return 300 if s == "live" else 1800
 
 
+# Weekend Intelligence Phase 0 (see audit doc) — the root cause of the
+# "Friday shown as Today" bug wasn't wrong session detection, it was that
+# every "latest row" reader (this one, and homepage_intelligence.py's) had
+# no notion of *which trading day* the data it found actually belongs to.
+# This never hides or deletes stale data — Friday's close is real, useful
+# input — it just tells the caller honestly whether "now" and "the data's
+# own day" are the same IST calendar date, and what to call it when they
+# aren't (so the UI can say "Friday's Close" instead of "Today").
+def session_label_for(generated_at_iso: str | None) -> dict:
+    if not generated_at_iso:
+        return {"is_current": False, "session_date": None, "session_label": None}
+    try:
+        dt = datetime.fromisoformat(generated_at_iso.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return {"is_current": False, "session_date": None, "session_label": None}
+
+    dt_ist  = dt.astimezone(_IST)
+    now_ist = datetime.now(_IST)
+    is_current = dt_ist.date() == now_ist.date()
+    if is_current:
+        return {"is_current": True, "session_date": dt_ist.date().isoformat(), "session_label": "Today"}
+    return {
+        "is_current":   False,
+        "session_date": dt_ist.date().isoformat(),
+        # The actual weekday the data is from, not a hardcoded "Friday" —
+        # this stays correct whether it's one day stale over a weekend or
+        # older still (a multi-day outage, a market holiday, etc.).
+        "session_label": f"{dt_ist.strftime('%A')}'s Close",
+    }
+
+
 # ── Intelligence readers ───────────────────────────────────────────────────────
 
 async def read_story() -> Optional[dict]:
@@ -60,10 +93,19 @@ async def read_story() -> Optional[dict]:
     truth for `market:story:latest` — other modules (intelligence_market.py's
     /story route, aipe/market_story_engine.py's get_mie_context()) call this
     instead of independently reading and re-parsing the same Redis key.
+
+    Always attaches is_current/session_date/session_label (see
+    session_label_for) — computed fresh on every read against the current
+    time, not baked in at generation/cache-write time, so a Friday story
+    correctly flips from "current" to "Friday's Close" the moment Saturday
+    starts, with no cache invalidation needed for that alone.
     """
     raw = await cache_get("market:story:latest")
     if raw:
-        return raw if isinstance(raw, dict) else None
+        story = raw if isinstance(raw, dict) else None
+        if story:
+            story = {**story, **session_label_for(story.get("generated_at"))}
+        return story
 
     try:
         from app.db.session import AsyncSessionLocal
@@ -74,6 +116,7 @@ async def read_story() -> Optional[dict]:
                 select(MarketStory).order_by(MarketStory.generated_at.desc()).limit(1)
             )).scalars().first()
             if row:
+                generated_at_iso = row.generated_at.isoformat() if row.generated_at else None
                 return {
                     "text":           row.story,
                     "mood":           row.mood,
@@ -85,7 +128,8 @@ async def read_story() -> Optional[dict]:
                     "investor_watch": row.investor_watch,
                     "confidence":     row.confidence,
                     "sector_rotation": row.sector_rotation,
-                    "generated_at":   row.generated_at.isoformat() if row.generated_at else None,
+                    "generated_at":   generated_at_iso,
+                    **session_label_for(generated_at_iso),
                 }
     except Exception as e:
         log.warning("mie.story_read_error", error=str(e))

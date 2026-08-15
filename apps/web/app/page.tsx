@@ -511,35 +511,61 @@ async function HomepageIntelligenceHero() {
   // isn't backed by a real negative sector.
   const highestRiskDisplay = highestRisk ?? "No major verified market risk detected today";
 
-  // "Updated 17h ago" reads as stale for a page titled "Today's Market
-  // Outlook" even when the underlying content genuinely hasn't changed —
-  // shows the real IST time when the brief is from today, falls back to
-  // the honest relative age only when it's from an earlier day.
-  const heroFreshnessLabel = (() => {
-    if (!brief.published_at) return null;
-    const d = new Date(brief.published_at);
+  // Weekend Intelligence Phase 0 (see audit doc): whether the morning brief
+  // is actually from today's IST calendar date, and — when it isn't — what
+  // to honestly call the day it's from ("Friday's Close" over a weekend,
+  // same idea as engine.py's session_label_for on the backend). This never
+  // hides brief/mieStory content; Friday's read is real, useful data. It
+  // only changes whether the UI is allowed to call it "Today's".
+  const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const briefSession = (() => {
+    if (!brief.published_at) return { isCurrent: true, weekday: null as string | null };
     const nowIst = new Date(Date.now() + 5.5 * 3600_000);
-    const dIst = new Date(d.getTime() + 5.5 * 3600_000);
+    const dIst = new Date(new Date(brief.published_at).getTime() + 5.5 * 3600_000);
     const sameDay = nowIst.getUTCFullYear() === dIst.getUTCFullYear()
       && nowIst.getUTCMonth() === dIst.getUTCMonth()
       && nowIst.getUTCDate() === dIst.getUTCDate();
-    if (sameDay) {
+    return { isCurrent: sameDay, weekday: WEEKDAY_NAMES[dIst.getUTCDay()] };
+  })();
+  // mieStory now carries its own is_current/session_label from
+  // engine.py::read_story() — the top verdict badge should defer to that
+  // when it disagrees with the brief (MIE refreshes every 5 min and is the
+  // more current of the two signals), falling back to the brief's own
+  // staleness when MIE has no story yet.
+  const heroIsCurrent = mieStory?.is_current ?? briefSession.isCurrent;
+  const heroDayLabel = !heroIsCurrent ? (mieStory?.session_label?.replace(/'s Close$/, "") ?? briefSession.weekday) : null;
+
+  // "Updated 17h ago" reads as stale for a page titled "Today's Market
+  // Outlook" even when the underlying content genuinely hasn't changed —
+  // shows the real IST time when the brief is from today, falls back to
+  // an honest "{Weekday}'s Close" label (not a vague relative age) when
+  // it's from an earlier trading session.
+  const heroFreshnessLabel = (() => {
+    if (!brief.published_at) return null;
+    if (briefSession.isCurrent) {
+      const dIst = new Date(new Date(brief.published_at).getTime() + 5.5 * 3600_000);
       const h = dIst.getUTCHours(), h12 = h % 12 === 0 ? 12 : h % 12, m = dIst.getUTCMinutes().toString().padStart(2, "0");
       return `Updated today at ${h12}:${m} ${h >= 12 ? "PM" : "AM"} IST`;
     }
-    return `Updated ${timeAgo(brief.published_at)}`;
+    return `${briefSession.weekday}'s Close — ${timeAgo(brief.published_at)}`;
   })();
 
   // Today's Summary — a template composed entirely from real fields
   // already derived above (outlook, focusSector/macroTheme, the same
   // honest risk fallback, ai_prediction) — not a new LLM call, not
   // invented. Each clause is only included when its underlying field is
-  // real; capped at 50 words per the explicit ask.
+  // real; capped at 50 words per the explicit ask. "today" only appears
+  // when the underlying data actually is from today — otherwise it names
+  // the real day the data reflects, same principle as the heading above.
   const todaysSummary = (() => {
-    const parts: string[] = [`Markets look ${outlook.label.toLowerCase()} today${marketConfPct != null ? ` with ${marketConfPct}% confidence` : ""}.`];
-    if (focusSector) parts.push(`${focusSector} stands out as the biggest opportunity.`);
-    else if (macroTheme) parts.push(`${macroTheme} is the dominant macro theme today.`);
-    parts.push(highestRisk ? `Watch ${highestRisk} as the key risk area.` : `No major verified risk stands out today.`);
+    const parts: string[] = heroIsCurrent
+      ? [`Markets look ${outlook.label.toLowerCase()} today${marketConfPct != null ? ` with ${marketConfPct}% confidence` : ""}.`]
+      : [`As of ${heroDayLabel}'s close, markets looked ${outlook.label.toLowerCase()}${marketConfPct != null ? ` with ${marketConfPct}% confidence` : ""}.`];
+    if (focusSector) parts.push(heroIsCurrent ? `${focusSector} stands out as the biggest opportunity.` : `${focusSector} stood out as the biggest opportunity.`);
+    else if (macroTheme) parts.push(heroIsCurrent ? `${macroTheme} is the dominant macro theme today.` : `${macroTheme} was the dominant macro theme.`);
+    parts.push(highestRisk
+      ? `Watch ${highestRisk} as the key risk area.`
+      : (heroIsCurrent ? `No major verified risk stands out today.` : `No major verified risk stood out.`));
     if (ex.ai_prediction) parts.push(ex.ai_prediction);
     const words = parts.join(" ").split(/\s+/);
     return words.length > 50 ? words.slice(0, 50).join(" ") + "…" : words.join(" ");
@@ -552,7 +578,9 @@ async function HomepageIntelligenceHero() {
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-400">
             <Sparkles className="h-3.5 w-3.5" /> {greeting()}
           </p>
-          <h1 className="mt-1 text-[22px] font-black leading-tight text-text-primary md:text-[26px]">Today&apos;s Market Outlook</h1>
+          <h1 className="mt-1 text-[22px] font-black leading-tight text-text-primary md:text-[26px]">
+            {heroIsCurrent ? "Today's Market Outlook" : `${heroDayLabel}'s Market Outlook`}
+          </h1>
           {/* Status strip — real counts only, no "N min ago" copy of what's
               already in the footer timestamp; this is the "feels alive" row. */}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-text-muted">
