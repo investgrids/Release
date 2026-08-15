@@ -63,15 +63,37 @@ class WeekendIntelligenceSnapshot(Base):
     #    purpose, per this task's explicit scope: "no aggregation yet") ───────
     overall_bias = Column(String(32), nullable=True)
     production_confidence = Column(Float, nullable=True)
+    # Phase 1B addition: the one small JSON field the design doc's §17
+    # ("confidence must be explainable") and the Phase 1B brief's §28
+    # ("prefer one compact structured field") asked for — raw component
+    # scores, their weights, and weighted contributions (see
+    # confidence.py::ConfidenceBreakdown.as_dict()), so
+    # production_confidence is never a black-box number.
+    confidence_components = Column(JSON, nullable=True)
 
     # ── Reference fields — IDs/compact refs, not copied content (§6) ─────────
     top_sector_refs = Column(JSON, nullable=False, default=list)          # [{sector, score}]
     top_company_refs = Column(JSON, nullable=False, default=list)         # [{symbol, evidence_item_refs:[...]}]
     opportunity_refs = Column(JSON, nullable=False, default=list)         # [opportunity_id, ...]
-    risk_refs = Column(JSON, nullable=False, default=list)                # [{description, evidence_item_refs:[...]}]
+    # Phase 1B refinement (pre-commit): risk_refs now holds ONLY real
+    # market-relevant risks (contradicting sector/company evidence) —
+    # process/data-quality caveats (missing baseline, source
+    # concentration, weak historical support, thin evidence) moved to
+    # confidence_warning_refs below, a separate new column, so a reader
+    # never has to guess which kind of entry they're looking at (see
+    # risk_synthesis.py's module docstring for the full rationale).
+    risk_refs = Column(JSON, nullable=False, default=list)                # [{description, risk_type, severity, evidence_refs:[...]}] — MARKET risks only
+    confidence_warning_refs = Column(JSON, nullable=False, default=list)  # [{description, risk_type, severity, ...}] — synthesis-process caveats, not market risks
     historical_analogue_refs = Column(JSON, nullable=False, default=list)  # [historical_market_event_id, ...]
 
-    changes_since_prior = Column(JSON, nullable=False, default=list)      # the §5 delta, evidence-level
+    changes_since_prior = Column(JSON, nullable=False, default=list)      # the §5 delta vs the PRIOR SNAPSHOT VERSION, evidence-level
+    # Phase 1B refinement: "new since market close" — the subset of this
+    # checkpoint's evidence clusters that are independently meaningful
+    # (materiality.is_meaningful_development), independent of whether any
+    # prior snapshot version exists. A different, smaller, more useful
+    # number than changes_since_prior, which is trivially "everything is
+    # new" on a first-ever checkpoint (see changes.py's module docstring).
+    new_since_close_refs = Column(JSON, nullable=False, default=list)
     evidence_refs = Column(JSON, nullable=False, default=list)            # [{"source_type":..., "source_id":...}, ...]
 
     # FK-shaped reference to the trading-session close baseline (§2) this

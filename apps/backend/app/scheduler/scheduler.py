@@ -277,6 +277,35 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         misfire_grace_time=120,
     )
 
+    # ── Weekend Intelligence checkpoints — Sat/Sun 09:00 & 18:00 IST ─────────
+    # Phase 1B (see WEEKEND_INTELLIGENCE_PHASE1_ARCHITECTURE.md §17/§27's
+    # "Option C — scheduled checkpoints + dirty flag" recommendation). The
+    # first day_of_week-restricted CronTrigger in this scheduler — every
+    # other job here runs unrestricted 7 days a week; this is the one
+    # genuinely new pattern this phase introduces, not a general scheduler
+    # change. Same function backs both jobs (checkpoint label is computed
+    # from the real current time inside run_weekend_checkpoint_cycle, not
+    # hardcoded per job) — expensive synthesis only actually runs when the
+    # checkpoint's own material-change gate says something changed (see
+    # checkpoints.py); most firings are expected to be cheap no-ops.
+    from app.services.weekend_intelligence.checkpoints import run_weekend_checkpoint_cycle
+    scheduler.add_job(
+        run_weekend_checkpoint_cycle,
+        CronTrigger(hour=9, minute=0, day_of_week="sat,sun", timezone=_IST),
+        id="weekend_intelligence_checkpoint_morning",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
+    )
+    scheduler.add_job(
+        run_weekend_checkpoint_cycle,
+        CronTrigger(hour=18, minute=0, day_of_week="sat,sun", timezone=_IST),
+        id="weekend_intelligence_checkpoint_evening",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
+    )
+
     log.info("scheduler.jobs_registered", count=len(scheduler.get_jobs()))
 
 

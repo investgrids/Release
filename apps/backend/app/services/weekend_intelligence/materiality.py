@@ -28,6 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.services.weekend_intelligence.evidence import EvidenceItem
+from app.services.weekend_intelligence.dedup import EvidenceCluster
 
 # New-evidence-count threshold when no single item alone is material —
 # e.g. a quiet weekend with a dozen routine announcements might still be
@@ -147,3 +148,37 @@ def detect_material_change(
         new_sector_count=len(new_sectors),
         reasons=reasons,
     )
+
+
+def is_meaningful_development(cluster: EvidenceCluster) -> bool:
+    """Cluster-level version of the same per-item criteria used above
+    (Critical/High event, any policy item, high-impact announcement, a
+    meaningful-confidence opportunity) — reused, not a second threshold
+    set invented for this purpose. Evaluated per CLUSTER rather than per
+    raw evidence row deliberately: "new since market close" should count
+    real distinct developments, not how many separate sources happened
+    to cover the same one (dedup.py's whole job) — 5 outlets reporting
+    one RBI decision is 1 meaningful development, not 5."""
+    for m in cluster.members:
+        if m.source_type == "event" and m.impact_strength in ("Critical", "High"):
+            return True
+        if m.source_type == "policy":
+            return True
+        if m.source_type == "announcement" and m.impact_strength == "high":
+            return True
+        if m.source_type == "opportunity" and (m.confidence or 0) >= MEANINGFUL_OPPORTUNITY_CONFIDENCE:
+            return True
+    return False
+
+
+def select_new_since_close(clusters: list[EvidenceCluster]) -> list[EvidenceCluster]:
+    """"New since market close" (brief refinement, distinct from
+    changes.py's "changed since prior CHECKPOINT VERSION" concept — see
+    changes.py's module docstring): the subset of this checkpoint's
+    evidence clusters that are independently meaningful on their own
+    terms, regardless of whether any prior WeekendIntelligenceSnapshot
+    version exists for this target_trading_date. On a first-ever
+    checkpoint this is still a small, honest number (unlike
+    changes_since_prior, which trivially reports "everything is new"
+    when there is no prior version to diff against)."""
+    return [c for c in clusters if is_meaningful_development(c)]

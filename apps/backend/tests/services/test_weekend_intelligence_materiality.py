@@ -6,10 +6,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.services.weekend_intelligence.evidence import DETERMINISTIC, EvidenceItem
+from app.services.weekend_intelligence.dedup import EvidenceCluster
+from app.services.weekend_intelligence.evidence import DETERMINISTIC, HEURISTIC, EvidenceItem
 from app.services.weekend_intelligence.materiality import (
     MEANINGFUL_OPPORTUNITY_CONFIDENCE,
     detect_material_change,
+    is_meaningful_development,
+    select_new_since_close,
 )
 
 _NOW = datetime(2026, 8, 15, 9, 0, tzinfo=timezone.utc)
@@ -117,3 +120,65 @@ def test_new_company_and_sector_counts():
     result = detect_material_change([item], previously_seen_companies={"TCS"}, evidence_count_threshold=10)
     assert result.new_company_count == 1  # only INFY is new
     assert result.new_sector_count == 1   # IT is new
+
+
+# ── Cluster-level "new since market close" ─────────────────────────────────
+# Phase 1B refinement: reuses the exact same per-item criteria above, at
+# cluster granularity — a distinct concept from changes.py's "changed vs
+# prior snapshot version" (see changes.py's module docstring).
+
+def _cluster(*members: EvidenceItem) -> EvidenceCluster:
+    return EvidenceCluster(members=list(members))
+
+
+def test_critical_event_cluster_is_meaningful():
+    assert is_meaningful_development(_cluster(_event("e1", "Critical"))) is True
+
+
+def test_low_tier_event_cluster_is_not_meaningful():
+    assert is_meaningful_development(_cluster(_event("e1", "Low"))) is False
+
+
+def test_policy_cluster_is_always_meaningful():
+    item = EvidenceItem(source_type="policy", source_id="p1", observed_at=_NOW, title="RBI notice")
+    assert is_meaningful_development(_cluster(item)) is True
+
+
+def test_high_impact_announcement_cluster_is_meaningful():
+    item = EvidenceItem(source_type="announcement", source_id="a1", observed_at=_NOW,
+                         title="Board decision", impact_strength="high")
+    assert is_meaningful_development(_cluster(item)) is True
+
+
+def test_meaningful_opportunity_cluster_is_meaningful():
+    item = EvidenceItem(source_type="opportunity", source_id="o1", observed_at=_NOW,
+                         title="Strong opportunity", confidence=MEANINGFUL_OPPORTUNITY_CONFIDENCE)
+    assert is_meaningful_development(_cluster(item)) is True
+
+
+def test_routine_news_only_cluster_is_not_meaningful():
+    item = EvidenceItem(source_type="news", source_id="n1", observed_at=_NOW, title="Routine market wrap",
+                         score_kind=HEURISTIC)
+    assert is_meaningful_development(_cluster(item)) is False
+
+
+def test_select_new_since_close_counts_clusters_not_raw_evidence():
+    """5 outlets covering the same Critical event should count as ONE
+    meaningful development, not 5 — this is why select_new_since_close
+    operates on already-deduplicated clusters, and why the count it
+    produces is meant to be much smaller than a raw evidence_count."""
+    critical = _event("e1", "Critical")
+    routine_news = [
+        EvidenceItem(source_type="news", source_id=f"n{i}", observed_at=_NOW, title=f"wrap {i}", score_kind=HEURISTIC)
+        for i in range(5)
+    ]
+    clusters = [_cluster(critical)] + [_cluster(n) for n in routine_news]
+    selected = select_new_since_close(clusters)
+    assert len(selected) == 1
+    assert selected[0].members[0].source_id == "e1"
+
+
+def test_select_new_since_close_empty_when_nothing_meaningful():
+    routine = [_cluster(EvidenceItem(source_type="news", source_id="n1", observed_at=_NOW, title="wrap",
+                                      score_kind=HEURISTIC))]
+    assert select_new_since_close(routine) == []

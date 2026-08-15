@@ -51,6 +51,13 @@ class EvidenceItem:
     quality: float | None = None
     score_kind: str = UNKNOWN
     reason: str | None = None
+    # Real Event.category value when the source row carries one (only
+    # Event has this field among the 6 source tables — GovernmentPolicy/
+    # CompanyAnnouncement/NewsArticle/AICompanySignal/Opportunity have no
+    # comparable column). Used by historical_integration.py to populate
+    # find_similar_events()'s "category" query dimension with real data
+    # instead of leaving it unset — never guessed from title/keywords.
+    category: str | None = None
 
 
 def _utc(dt: datetime | None) -> datetime | None:
@@ -96,6 +103,7 @@ def normalize_event(row: Event, *, priority_tier: str | None = None) -> Evidence
         confidence=row.confidence,
         score_kind=DETERMINISTIC,
         reason="scoring_engine.score_event_impact (feature-based, no score is ever invented)",
+        category=row.category,
     )
 
 
@@ -203,12 +211,22 @@ def normalize_company_signal(row: AICompanySignal) -> EvidenceItem:
     """
     score_kind = LLM_SELF_RATED if row.source_type == "article" else HEURISTIC
     direction = "positive" if row.signed_magnitude > 0 else ("negative" if row.signed_magnitude < 0 else "neutral")
+    # Phase 1B local-DB verification found real rows where the upstream
+    # AI extraction (company_score_engine.py) couldn't resolve a company
+    # and stored the literal string "N/A" rather than a real symbol (23
+    # such rows in the local dev DB at review time). "N/A" is not a
+    # resolvable company — treating it as one would create a fake "N/A"
+    # entry in company_synthesis's output. This is the one place Phase 1B
+    # filters it; the underlying AICompanySignal row and its real content
+    # (reason, sector, direction) are still used, just not attributed to
+    # a company that doesn't exist.
+    symbol = row.symbol if row.symbol and row.symbol.strip().upper() != "N/A" else None
     return EvidenceItem(
         source_type="company_signal",
         source_id=f"{row.source_type}:{row.source_id}",
         observed_at=_utc(row.signal_at),
-        title=row.reason or f"{row.symbol} signal ({row.source_type})",
-        companies=[row.symbol] if row.symbol else [],
+        title=row.reason or f"{symbol or 'unresolved company'} signal ({row.source_type})",
+        companies=[symbol] if symbol else [],
         sectors=[row.sector] if row.sector else [],
         direction=direction,
         confidence=row.confidence,

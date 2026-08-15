@@ -53,6 +53,24 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("market_snapshots", "pcr",            "FLOAT"),
     ("market_snapshots", "max_pain",       "FLOAT"),
     ("market_snapshots", "top_movers",     "JSON DEFAULT '[]'"),
+    # Weekend Intelligence Phase 1B — weekend_intelligence_snapshots was
+    # itself created fresh in Phase 1A's commit (so create_all() already
+    # made it correctly for anyone deploying from scratch), but this repo's
+    # own local dev DB — and any environment that already picked up the
+    # 1A commit — has that table WITHOUT this column, so it needs the same
+    # runtime-patch treatment as any other already-deployed table.
+    ("weekend_intelligence_snapshots", "confidence_components", "JSON"),
+    # Phase 1B refinement (pre-commit, same phase as confidence_components
+    # above — added for the same "table already existed before this
+    # column did" reason): risk_refs was narrowed to market-relevant
+    # risks only; confidence_warning_refs is the new home for
+    # process/data-quality caveats that used to be mixed into risk_refs
+    # (see risk_synthesis.py's module docstring).
+    ("weekend_intelligence_snapshots", "confidence_warning_refs", "JSON DEFAULT '[]'"),
+    # "New since market close" — see the model's own column comment and
+    # changes.py's module docstring for why this is a distinct concept
+    # from changes_since_prior.
+    ("weekend_intelligence_snapshots", "new_since_close_refs", "JSON DEFAULT '[]'"),
 ]
 
 
