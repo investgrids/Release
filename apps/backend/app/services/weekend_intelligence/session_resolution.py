@@ -63,3 +63,65 @@ def resolve_weekend_session(reference: date | None = None) -> tuple[str, str]:
     """
     today = reference or datetime.now(_IST).date()
     return last_trading_date(today).isoformat(), next_trading_date(today).isoformat()
+
+
+# Phase 1C fix — byte-for-byte mirror of engine.py::_market_session()'s
+# own weekday/9:15/15:30 thresholds. Needed only because that function
+# takes no `now` parameter (other existing callers depend on its
+# real-time-only behavior, so it is not touched here — see module
+# docstring's "no new session implementation" rule, applied by NOT
+# duplicating engine.py's real-time codepath, only its classification
+# logic for an explicitly-supplied instant). resolve_opening_prediction_session
+# below always calls the REAL _market_session() on the production (no-arg)
+# path — this mirror only classifies a caller-supplied `now_ist`, e.g.
+# from a test.
+_PRE_MARKET_CUTOFF_MIN = 9 * 60 + 15
+_MARKET_CLOSE_MIN = 15 * 60 + 30
+
+
+def _classify_session(now_ist: datetime) -> str:
+    if now_ist.weekday() >= 5:
+        return "weekend"
+    mins = now_ist.hour * 60 + now_ist.minute
+    if mins < _PRE_MARKET_CUTOFF_MIN:
+        return "pre_market"
+    if mins <= _MARKET_CLOSE_MIN:
+        return "live"
+    return "post_market"
+
+
+def resolve_opening_prediction_session(now_ist: datetime | None = None) -> str:
+    """
+    The canonical "which trading session is Opening Intelligence
+    currently predicting" resolver (Phase 1C fix — replaces the ad hoc
+    reuse of opening_prediction_service._ist_tomorrow(), which always
+    means literal calendar-tomorrow and therefore resolves to Tuesday
+    on an actual Monday morning, never matching Weekend Intelligence's
+    real Monday target — the bug this function exists to fix).
+
+    V1 semantics (holiday-unaware — same documented gap as
+    resolve_weekend_session above, not solved here):
+      Saturday / Sunday                    -> next Monday
+      weekday, before or during market hours (pre_market / live)
+                                            -> that same day
+      weekday, after market close (post_market)
+                                            -> the next weekday session
+
+    Returns a YYYY-MM-DD string. `now_ist` is None on the real
+    production path (the only path that matters for correctness) and is
+    classified via the REAL engine.py::_market_session() — true reuse,
+    not a parallel implementation. Tests pass an explicit `now_ist` to
+    get a deterministic instant; that path uses _classify_session's
+    mirror of the same thresholds (see its docstring for why a mirror
+    was necessary here rather than a shared parameterized function).
+    """
+    if now_ist is None:
+        from app.services.intelligence.engine import _market_session
+        now_ist = datetime.now(_IST)
+        session = _market_session()
+    else:
+        session = _classify_session(now_ist)
+
+    if session in ("weekend", "post_market"):
+        return next_trading_date(now_ist.date()).isoformat()
+    return now_ist.date().isoformat()

@@ -850,12 +850,50 @@ async def market_opportunities(limit: int = Query(6, le=20)):
 
 @router.get("/opening-prediction")
 async def market_opening_prediction():
-    """Tomorrow's Nifty opening prediction — 5-layer AI analysis with 30-min cache."""
+    """Tomorrow's Nifty opening prediction — 5-layer AI analysis with 30-min
+    cache. Phase 1C: also loads Weekend Intelligence context for the
+    session this prediction targets (tomorrow, IST) when a valid one
+    exists — additive only, see opening_prediction_service's module
+    docstring. This is the ONE call site wired to weekend context in
+    Phase 1C (daily_brief_intelligence.py and fact_registry.py's calls
+    to build_opening_prediction are deliberately left unchanged — see
+    final report §D for why)."""
     from app.db.session import AsyncSessionLocal
     from app.services.opening_prediction_service import build_opening_prediction
+    from app.services.weekend_intelligence.context import get_weekend_context_for_session
+    from app.services.weekend_intelligence.session_resolution import resolve_opening_prediction_session
     try:
         async with AsyncSessionLocal() as db:
-            return await build_opening_prediction(db)
+            weekend_context = None
+            try:
+                # Phase 1C fix: the session Weekend Intelligence context
+                # is looked up for is NOT the same thing as
+                # opening_prediction_service's own "tomorrow" event-layer
+                # bucketing (_ist_tomorrow, still used internally by
+                # _gather_events — untouched) — resolve_opening_prediction_session
+                # answers "which trading session is being predicted right
+                # now" (Sat/Sun -> Monday; a weekday before close -> that
+                # day; after close -> the next weekday), which is what
+                # actually needs to match snapshot.target_trading_date.
+                prediction_session = resolve_opening_prediction_session()
+                weekend_context = await get_weekend_context_for_session(db, prediction_session)
+            except Exception as wexc:
+                import structlog
+                structlog.get_logger(__name__).warning("opening_prediction.weekend_context_load_error", error=str(wexc))
+
+            result = await build_opening_prediction(db, weekend_context)
+
+            if weekend_context is not None and weekend_context.status != "insufficient_evidence":
+                try:
+                    from app.services.weekend_intelligence.prediction_recording import (
+                        record_weekend_intelligence_predictions,
+                    )
+                    await record_weekend_intelligence_predictions(weekend_context)
+                except Exception as rexc:
+                    import structlog
+                    structlog.get_logger(__name__).warning("opening_prediction.weekend_recording_error", error=str(rexc))
+
+            return result
     except Exception as exc:
         import structlog
         structlog.get_logger(__name__).warning("opening_prediction.endpoint_error", error=str(exc))
