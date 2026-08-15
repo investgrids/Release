@@ -466,3 +466,18 @@ async def health_check():
         "redis":    "connected" if redis_ok else "unavailable",
         "database": settings.database_url.split("://")[0],
     }
+
+
+# Railway terminates TLS at its edge and proxies to this container over
+# plain HTTP, so Starlette's own request.url.scheme (and therefore any
+# routerless-slash 307 redirect Location it builds, e.g. /api/news ->
+# /api/news/) defaults to "http". A browser on https://www.marketripple.in
+# refuses to follow an http:// redirect as mixed content, so the fetch just
+# fails silently — this is what made /news (GET /api/news, no trailing
+# slash) render empty. Wrapping the whole ASGI app in ProxyHeadersMiddleware
+# makes it trust Railway's X-Forwarded-Proto and rebuild the scheme as
+# "https", so those redirects — and anything else scheme-derived (OpenAPI
+# server URLs, absolute redirects elsewhere) — come out correct too.
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
+
+app = ProxyHeadersMiddleware(app, trusted_hosts="*")
