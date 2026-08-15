@@ -42,6 +42,17 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("events", "last_attempt_at",          "DATETIME"),
     ("events", "next_retry_at",            "DATETIME"),
     ("events", "last_failure_reason",      "VARCHAR(64)"),
+    # Weekend Intelligence Phase 1A — MarketSnapshot revived as the
+    # trading-session close baseline (see
+    # WEEKEND_INTELLIGENCE_PHASE1_ARCHITECTURE.md §2/§27.J). The table
+    # itself already existed (create_all made it long ago) but nothing
+    # ever wrote to it, so these are genuinely new columns on an
+    # already-deployed table, not a fresh-DB concern.
+    ("market_snapshots", "snapshot_type",  "VARCHAR(16) NOT NULL DEFAULT 'periodic'"),
+    ("market_snapshots", "trading_date",   "VARCHAR(10)"),
+    ("market_snapshots", "pcr",            "FLOAT"),
+    ("market_snapshots", "max_pain",       "FLOAT"),
+    ("market_snapshots", "top_movers",     "JSON DEFAULT '[]'"),
 ]
 
 
@@ -59,6 +70,21 @@ async def apply_schema_patches(conn: AsyncConnection) -> None:
             # that case with the column already in the model) — don't crash
             # startup over a patch that either doesn't apply yet or already landed.
             log.warning("schema_patch.skipped", table=table, column=column, error=str(exc)[:200])
+
+    # DB-level idempotency guard for the trading-session close snapshot
+    # (design doc §5: "prefer DB-level protection if practical, don't
+    # depend only on process memory because restarts can occur"). Only
+    # meaningful once the columns above exist, so it runs after the column
+    # patches, and is itself a no-op on re-run via IF NOT EXISTS. Scoped to
+    # snapshot_type='close' only — a future periodic-snapshot cadence would
+    # need its own, different uniqueness key, not this one.
+    try:
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_market_snapshots_close_per_day "
+            "ON market_snapshots (trading_date) WHERE snapshot_type = 'close'"
+        ))
+    except Exception as exc:
+        log.warning("schema_patch.index_skipped", index="ux_market_snapshots_close_per_day", error=str(exc)[:200])
 
 
 _EVENT_CHILD_TABLE_DDL: dict[str, str] = {

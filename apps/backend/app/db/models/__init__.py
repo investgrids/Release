@@ -29,6 +29,8 @@ from app.db.models.ai_search_feedback import AISearchFeedback
 from app.db.models.ai_search_followup_click import AISearchFollowupClick
 from app.db.models.ai_search_verdict_snapshot import AISearchVerdictSnapshot
 from app.db.models.homepage_snapshot import HomepageDailySnapshot
+from app.db.models.company_signal import AICompanySignal
+from app.db.models.weekend_intelligence import WeekendIntelligenceSnapshot
 
 __all__ = [
     "Opportunity",
@@ -61,4 +63,6 @@ __all__ = [
     "AISearchFollowupClick",
     "AISearchVerdictSnapshot",
     "HomepageDailySnapshot",
+    "AICompanySignal",
+    "WeekendIntelligenceSnapshot",
 ]

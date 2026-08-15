@@ -24,3 +24,7 @@ import app.db.models.fact  # noqa: F401 E402  — registers facts table
 import app.db.models.generated_media # noqa: F401 E402  — registers generated_media table
 import app.db.models.macro_release   # noqa: F401 E402  — registers macro_releases table
 import app.db.models.returning_user_feedback  # noqa: F401 E402  — registers returning_user_feedback table
+import app.db.models.company_signal  # noqa: F401 E402  — registers ai_company_signals table (previously only
+                                       # registered as a side effect of app.api.company_scores' import chain
+                                       # running before create_all(); see WEEKEND_INTELLIGENCE_PHASE1_ARCHITECTURE.md §27.J)
+import app.db.models.weekend_intelligence  # noqa: F401 E402  — registers weekend_intelligence_snapshots table
