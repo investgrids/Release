@@ -7,6 +7,7 @@ import {
   Sparkles, TrendingUp, Radar, GitBranch, Rocket, History,
 } from "lucide-react";
 import { HomepageRefresher } from "@/components/homepage/HomepageRefresher";
+import { IndependenceDayBanner } from "@/components/homepage/IndependenceDayBanner";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
 import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
 import { API_BASE_URL as API } from "@/lib/api";
@@ -1330,6 +1331,9 @@ async function LatestIntelligenceRow() {
 export default function HomePage() {
   return (
     <div className="space-y-5 py-6 pb-12">
+
+      {/* Independence Day banner — scoped to 2026-08-15, see component. */}
+      <IndependenceDayBanner />
 
       {/* Ticker strip */}
       <Suspense fallback={<Sk h={80} />}>

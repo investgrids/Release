@@ -192,28 +192,12 @@ export function CommoditiesContent({ headingLevel = "h1" }: { headingLevel?: "h1
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <main className="min-w-0 space-y-5 pb-10">
-        <div className="h-16 animate-pulse rounded-2xl border border-surface-border/6 bg-text-primary/[0.02]" />
-        {[1, 2].map(i => <div key={i} className="h-64 animate-pulse rounded-[24px] border border-surface-border/6 bg-text-primary/[0.02]" />)}
-      </main>
-    );
-  }
-
-  if (!data) {
-    return (
-      <main className="flex min-w-0 flex-col items-center justify-center gap-3 py-24 text-center">
-        <p className="text-sm text-text-muted">Commodity data isn&apos;t available right now.</p>
-      </main>
-    );
-  }
-
-  const { metals, energy, insights } = data;
-
   return (
     <main className="min-w-0 space-y-5 pb-10">
-      {/* Page header */}
+      {/* Page header — rendered unconditionally, independent of the client-side
+          price fetch below. Previously this whole component returned early on
+          loading/no-data with no heading at all, so the server-rendered HTML
+          (what crawlers see) had zero H1s until the fetch resolved client-side. */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">Market Data</p>
@@ -225,69 +209,81 @@ export function CommoditiesContent({ headingLevel = "h1" }: { headingLevel?: "h1
             </span>
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 rounded-[16px] border border-violet-500/20 bg-violet-500/[0.06] px-4 py-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/20 text-violet-600 dark:text-violet-300 shrink-0">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-[10px] font-semibold text-violet-600 dark:text-violet-300 uppercase tracking-widest">AI Daily Insight</p>
-              <p className="mt-0.5 max-w-xs text-xs text-text-secondary leading-relaxed line-clamp-2">
-                {insights.degraded ? "Not available right now." : insights.daily_summary}
-              </p>
+        {data && (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 rounded-[16px] border border-violet-500/20 bg-violet-500/[0.06] px-4 py-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/20 text-violet-600 dark:text-violet-300 shrink-0">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-[10px] font-semibold text-violet-600 dark:text-violet-300 uppercase tracking-widest">AI Daily Insight</p>
+                <p className="mt-0.5 max-w-xs text-xs text-text-secondary leading-relaxed line-clamp-2">
+                  {data.insights.degraded ? "Not available right now." : data.insights.daily_summary}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Commodities section */}
-      <CommoditySection
-        title="Commodities"
-        icon={<Globe className="h-5 w-5" />}
-        subtitle="Global Commodity Prices"
-        viewHref="/commodities"
-        viewLabel="View All Commodities"
-        commodities={metals}
-        insights={insights.metals}
-        drivers={insights.key_drivers_metals}
-        degraded={insights.degraded}
-      />
-
-      {/* Energy section */}
-      <CommoditySection
-        title="Petrol & Crude Oil"
-        icon={<Flame className="h-5 w-5" />}
-        subtitle="Energy Prices"
-        viewHref="/commodities"
-        viewLabel="View Energy Markets"
-        commodities={energy}
-        insights={insights.energy}
-        drivers={insights.key_drivers_energy}
-        degraded={insights.degraded}
-      />
-
-      {/* AI Daily Market Summary footer */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[20px] border border-surface-border/8 bg-text-primary/[0.02] px-5 py-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-300">
-            <Bot className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-text-primary">AI Daily Market Summary</p>
-            <p className="mt-0.5 text-xs text-text-secondary leading-relaxed line-clamp-2">
-              {insights.degraded ? "AI summary isn't available right now — prices above are still live." : insights.daily_summary}
-            </p>
-          </div>
+      {loading ? (
+        [1, 2].map(i => <div key={i} className="h-64 animate-pulse rounded-[24px] border border-surface-border/6 bg-text-primary/[0.02]" />)
+      ) : !data ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
+          <p className="text-sm text-text-muted">Commodity data isn&apos;t available right now.</p>
         </div>
-        <Link href="/ai-search"
-          className="shrink-0 rounded-[14px] bg-gradient-to-r from-violet-600 to-sky-500 px-4 py-2 text-xs font-semibold text-text-primary shadow-lg transition hover:opacity-90">
-          Ask AI Anything
-        </Link>
-      </div>
+      ) : (
+        <>
+          {/* Commodities section */}
+          <CommoditySection
+            title="Commodities"
+            icon={<Globe className="h-5 w-5" />}
+            subtitle="Global Commodity Prices"
+            viewHref="/commodities"
+            viewLabel="View All Commodities"
+            commodities={data.metals}
+            insights={data.insights.metals}
+            drivers={data.insights.key_drivers_metals}
+            degraded={data.insights.degraded}
+          />
 
-      <p className="text-center text-[11px] text-text-muted">
-        Prices via yfinance · COMEX / NYMEX / ICE futures · Delayed ~15 min
-      </p>
+          {/* Energy section */}
+          <CommoditySection
+            title="Petrol & Crude Oil"
+            icon={<Flame className="h-5 w-5" />}
+            subtitle="Energy Prices"
+            viewHref="/commodities"
+            viewLabel="View Energy Markets"
+            commodities={data.energy}
+            insights={data.insights.energy}
+            drivers={data.insights.key_drivers_energy}
+            degraded={data.insights.degraded}
+          />
+
+          {/* AI Daily Market Summary footer */}
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-[20px] border border-surface-border/8 bg-text-primary/[0.02] px-5 py-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-300">
+                <Bot className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-text-primary">AI Daily Market Summary</p>
+                <p className="mt-0.5 text-xs text-text-secondary leading-relaxed line-clamp-2">
+                  {data.insights.degraded ? "AI summary isn't available right now — prices above are still live." : data.insights.daily_summary}
+                </p>
+              </div>
+            </div>
+            <Link href="/ai-search"
+              className="shrink-0 rounded-[14px] bg-gradient-to-r from-violet-600 to-sky-500 px-4 py-2 text-xs font-semibold text-text-primary shadow-lg transition hover:opacity-90">
+              Ask AI Anything
+            </Link>
+          </div>
+
+          <p className="text-center text-[11px] text-text-muted">
+            Prices via yfinance · COMEX / NYMEX / ICE futures · Delayed ~15 min
+          </p>
+        </>
+      )}
     </main>
   );
 }
