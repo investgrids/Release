@@ -99,8 +99,6 @@ export async function WeekendHomePage() {
       <WeekendOpportunities opportunities={snapshot.opportunities} />
 
       <WeekendHistoricalContext analogues={snapshot.historical_analogues} />
-
-      <WeekendEvidenceSummary summary={snapshot.evidence_summary} />
     </div>
   );
 }
