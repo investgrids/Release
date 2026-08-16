@@ -428,14 +428,17 @@ async def _gather_signals() -> dict:
 
 
 async def _gather_events(db) -> dict:
-    from sqlalchemy import select
-    from app.db.models_legacy import CalendarEvent
-
     today_str    = _ist_today()
     tomorrow_str = _ist_tomorrow()
 
     try:
-        rows = (await db.execute(select(CalendarEvent))).scalars().all()
+        # Phase 5A.9 — migrated off the dead legacy CalendarEvent table
+        # (same reasoning as db/crud.py::get_calendar) onto the real,
+        # live-ingested EconomicCalendarEvent table. legacy_adapter
+        # returns rows shaped identically to the old ORM object, so the
+        # strptime parsing immediately below is unchanged.
+        from app.services.economic_calendar.legacy_adapter import get_legacy_shaped_calendar
+        rows = await get_legacy_shaped_calendar(db)
     except Exception:
         rows = []
 

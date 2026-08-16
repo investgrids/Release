@@ -236,7 +236,15 @@ INTENT: EARNINGS PREVIEW — User is positioning ahead of results.
 - "opportunities" must list beat scenarios with upside estimates.
 - "key_drivers" should reference the company's recent earnings reaction pattern where relevant.
 - "follow_up_questions" must address: historical move range, key metric focus, risk/reward ratio.
-- "timeline" must show: results date, pre-result window, post-result action.{budget_note}""",
+- "timeline" must describe the pre-result window and post-result action only.
+  DATE SAFETY (Phase 5A.11 — no trustworthy source of forward-looking
+  company results dates exists yet, confirmed by audit): if the
+  evidence context above states a specific, sourced upcoming results
+  date, use exactly that date. If it does not, "timeline" must say
+  "The next results date is not verified yet." — NEVER invent, infer,
+  or estimate a specific date from the company's past reporting
+  cadence. A wrong guessed date is worse than admitting it isn't
+  known.{budget_note}""",
 
         "entry_timing": f"""
 

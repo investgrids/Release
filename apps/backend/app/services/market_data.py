@@ -937,7 +937,56 @@ def _fetch_premarket() -> dict:
     return data
 
 
+async def _get_scheduled_today() -> list[dict]:
+    """Phase 5A.10 — real scheduled catalysts for today (IST calendar
+    day), from EconomicCalendarEvent (RBI/MOSPI/Fed/BLS). Async DB read,
+    kept separate from _fetch_premarket's sync/executor quote fetch and
+    merged in get_premarket_data() below. Never raises past this
+    wrapper — a calendar-read failure must not take Pre-Market's quote
+    data down with it (same optional-by-design convention Phase 2B/2E's
+    scheduled jobs already use)."""
+    try:
+        from datetime import datetime, time, timezone
+        from zoneinfo import ZoneInfo
+        from sqlalchemy import select
+        from app.db.session import AsyncSessionLocal
+        from app.db.models.economic_calendar import EconomicCalendarEvent
+        from app.services.economic_calendar.sync_orchestrator import REAL_SOURCES
+
+        ist = ZoneInfo("Asia/Kolkata")
+        now_ist = datetime.now(timezone.utc).astimezone(ist)
+        start = datetime.combine(now_ist.date(), time.min, tzinfo=ist).astimezone(timezone.utc)
+        end = datetime.combine(now_ist.date(), time.max, tzinfo=ist).astimezone(timezone.utc)
+
+        async with AsyncSessionLocal() as db:
+            rows = (await db.execute(
+                select(EconomicCalendarEvent)
+                .where(
+                    EconomicCalendarEvent.is_current.is_(True),
+                    EconomicCalendarEvent.source.in_(REAL_SOURCES),
+                    EconomicCalendarEvent.scheduled_at >= start,
+                    EconomicCalendarEvent.scheduled_at <= end,
+                )
+                .order_by(EconomicCalendarEvent.scheduled_at.asc())
+            )).scalars().all()
+
+        out = []
+        for r in rows:
+            scheduled_at = r.scheduled_at if r.scheduled_at.tzinfo else r.scheduled_at.replace(tzinfo=timezone.utc)
+            out.append({
+                "time_ist": scheduled_at.astimezone(ist).strftime("%H:%M"),
+                "title": r.title, "category": r.category, "importance": r.importance,
+            })
+        return out
+    except Exception:
+        return []
+
+
 async def get_premarket_data() -> dict:
-    """Fetch Asian, US, and commodity quotes for pre-market display (cached 15 min)."""
+    """Fetch Asian, US, and commodity quotes for pre-market display
+    (cached 15 min), plus today's real scheduled economic catalysts
+    (Phase 5A.10 — "Today's Scheduled Catalysts", real RBI/MOSPI/Fed/BLS
+    data; empty list, never a guess, when nothing real is scheduled)."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _fetch_premarket)
+    data = await loop.run_in_executor(None, _fetch_premarket)
+    return {**data, "scheduled_today": await _get_scheduled_today()}

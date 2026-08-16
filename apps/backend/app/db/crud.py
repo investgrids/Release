@@ -22,8 +22,16 @@ async def get_news(db: AsyncSession, limit: int = 20):
 
 
 async def get_calendar(db: AsyncSession):
-    result = await db.execute(select(models.CalendarEvent))
-    return result.scalars().all()
+    """Phase 5A.9 — migrated off the dead legacy calendar_events table
+    (only ever populated by a seed step explicitly skipped in
+    production). Now reads the real, live-ingested EconomicCalendarEvent
+    table (RBI/MOSPI/Fed/BLS) via legacy_adapter, which returns rows
+    shaped identically to the old CalendarEvent ORM object — every
+    existing caller of get_calendar() (app/api/calendar.py,
+    app/api/market.py, intelligence/engine.py's read_upcoming_calendar)
+    keeps working completely unchanged; they just see real data now."""
+    from app.services.economic_calendar.legacy_adapter import get_legacy_shaped_calendar
+    return await get_legacy_shaped_calendar(db)
 
 
 async def get_radar(db: AsyncSession):
