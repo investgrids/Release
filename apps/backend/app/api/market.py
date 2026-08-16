@@ -86,13 +86,6 @@ def _yf_mini(ticker: str, period: str = "1d", interval: str = "60m") -> list[dic
 
 # ── Pre-market ticker sets ────────────────────────────────────────────────────
 
-def _nifty_futures_ticker() -> str:
-    """Construct the current-month NSE Nifty futures ticker (e.g. NIFTY26JULFUT.NS)."""
-    now = datetime.now()
-    months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
-    return f"NIFTY{str(now.year)[-2:]}{months[now.month - 1]}FUT.NS"
-
-
 def _banknifty_futures_ticker() -> str:
     """Construct the current-month NSE Bank Nifty futures ticker (e.g. BANKNIFTY26JULFUT.NS)."""
     now = datetime.now()
@@ -259,30 +252,61 @@ def _fetch_pcr_data() -> dict:
     return {"available": False, "pcr": None, "max_pain": None, "label": None, "color": "slate"}
 
 
+def _gift_nifty_row() -> dict:
+    """Real GIFT Nifty (NSE IX, GIFT City) via the shared adapter
+    (app/services/gift_nifty_service.py) — Phase 5B. Replaces the old
+    domestic-futures-ticker-mislabeled-as-GIFT-Nifty approach. Status is
+    always honest: "unavailable" never gets silently backfilled with
+    spot. Both this endpoint and opening_prediction_service.py's
+    primary signal path read this same dict — they share it through
+    _fetch_enhanced_premarket's own TTL cache, so they can never
+    disagree about what GIFT Nifty is doing right now."""
+    from app.services.gift_nifty_service import get_gift_nifty_sync
+
+    spot_q  = _yf_quote("^NSEI")
+    spot_px = spot_q["price"] if spot_q else None
+    result  = get_gift_nifty_sync(spot_price=spot_px)
+
+    row: dict = {
+        "name": "GIFT Nifty", "ticker": "GIFT_NIFTY_NSEIX",
+        "status": result.status, "is_spot": False, "chart": [],
+    }
+    if spot_px:
+        row["spot_value"] = f"{spot_px:,.2f}"
+
+    if result.status == "unavailable" or result.price is None:
+        row.update({
+            "value": "—", "change": "—", "change_str": "—", "pct": "—",
+            "positive": True, "premium_pct": None,
+            "note": "GIFT Nifty unavailable" + (f" ({result.reason})" if result.reason else ""),
+        })
+        return row
+
+    sign       = "+" if (result.change or 0) >= 0 else ""
+    change_str = f"{sign}{result.change_pct:.2f}%" if result.change_pct is not None else "—"
+    row.update({
+        "value":      f"{result.price:,.2f}",
+        "price_raw":  round(result.price, 2),
+        "change":     f"{sign}{result.change:,.2f}" if result.change is not None else "—",
+        "change_str": change_str,
+        "pct":        change_str,
+        "positive":   (result.change or 0) >= 0,
+        "note":       "Real GIFT Nifty (NSE IX)" if result.status == "live" else "GIFT Nifty — data is a few hours old, treat cautiously",
+        "expiry":            result.expiry.isoformat() if result.expiry else None,
+        "source_timestamp":  result.source_timestamp.isoformat() if result.source_timestamp else None,
+        "premium_pct": None,
+    })
+    if result.premium_points is not None:
+        s = "+" if result.premium_points >= 0 else ""
+        row["premium_pct"] = f"{s}{result.premium_pct:.2f}%"
+        row["is_premium"]  = result.premium_points >= 0
+    return row
+
+
 def _fetch_enhanced_premarket() -> dict:
     """Build rich pre-market snapshot (sync, runs in executor, cached 15 min)."""
-    # 1. Nifty Futures (Gift City proxy) — try near-month contract first
-    gift_ticker = _nifty_futures_ticker()
-    gift = _quote_row_with_chart("Nifty Futures", gift_ticker)
-
-    if gift["value"] == "—":
-        gift = _quote_row("Nifty 50 (Spot)", "^NSEI")
-        gift["chart"]       = _yf_mini("^NSEI", "5d", "60m")[-12:]
-        gift["note"]        = "Spot price (futures data unavailable)"
-        gift["premium_pct"] = None
-        gift["is_spot"]     = True
-    else:
-        spot_q = _yf_quote("^NSEI")
-        if spot_q and spot_q["price"]:
-            fut_px  = gift.get("price_raw", 0)
-            spot_px = spot_q["price"]
-            prem    = ((fut_px - spot_px) / spot_px) * 100
-            s       = "+" if prem >= 0 else ""
-            gift["premium_pct"] = f"{s}{prem:.2f}%"
-            gift["is_premium"]  = prem >= 0
-            gift["spot_value"]  = f"{spot_px:,.2f}"
-        gift["note"]    = "Gift City proxy (NSE near-month futures)"
-        gift["is_spot"] = False
+    # 1. GIFT Nifty — real NSE IX data, never relabeled from spot.
+    gift = _gift_nifty_row()
 
     # 2. Bank Nifty Futures
     bnf_ticker = _banknifty_futures_ticker()
@@ -546,7 +570,8 @@ async def market_premarket():
     if gift["value"] != "—":
         direction = "positive" if gift.get("positive") else "negative"
         prem_note = f" ({gift['premium_pct']} vs spot)" if gift.get("premium_pct") else ""
-        reasons.append(f"Nifty Futures trading {direction} at {gift['value']}{prem_note}")
+        stale_note = " [stale]" if gift.get("status") == "stale" else ""
+        reasons.append(f"GIFT Nifty trading {direction} at {gift['value']}{prem_note}{stale_note}")
 
     bnf = enhanced.get("banknifty", {})
     if bnf.get("value") and bnf["value"] != "—":

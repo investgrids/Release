@@ -89,26 +89,53 @@ function useCountdown() {
   return { label, isOpen, isWeekend };
 }
 
-// ── Gift Nifty / Nifty Futures hero card ──────────────────────────────────────
+// ── GIFT Nifty hero card ───────────────────────────────────────────────────────
+// Real GIFT Nifty (NSE IX, GIFT City) via the shared gift_nifty_service
+// adapter. status is always honest — "live" | "stale" | "unavailable" —
+// and spot is shown only as a reference point, never relabeled as GIFT
+// Nifty itself when the real source is down.
 function GiftNiftyHero({ data }: { data: any }) {
   if (!data) return (
     <div className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-5 animate-pulse h-48" />
   );
+
+  const status = data.status ?? (data.value !== "—" ? "live" : "unavailable");
+
+  if (status === "unavailable") {
+    return (
+      <div className="rounded-xl border border-surface-border/10 bg-surface-card p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">GIFT Nifty</span>
+          <span className="rounded-full border border-surface-border/20 bg-text-primary/[0.05] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-text-muted">
+            Unavailable
+          </span>
+        </div>
+        <p className="text-[12px] text-text-muted">GIFT Nifty's overnight signal isn't available right now.</p>
+        {data.spot_value && (
+          <p className="mt-2 text-[11px] text-text-muted">Nifty Spot (reference only): <span className="font-bold text-text-primary">{data.spot_value}</span></p>
+        )}
+      </div>
+    );
+  }
+
   const pos = data.positive !== false;
   const tc = pos ? "text-emerald-400" : "text-rose-400";
   const bc = pos ? "border-emerald-500/20" : "border-rose-500/20";
+  const isStale = status === "stale";
   return (
     <div className={`rounded-xl border ${bc} bg-surface-card p-4`}>
 
       <div className="mb-2.5 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">Nifty Futures</span>
-            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
-              Gift City Proxy
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">GIFT Nifty</span>
+            <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+              isStale ? "border-amber-500/30 bg-amber-500/10 text-amber-400" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+            }`}>
+              {isStale ? "Stale" : "Live"}
             </span>
           </div>
-          <p className="mt-0.5 text-[10px] text-text-muted">{data.note ?? "NSE near-month contract"}</p>
+          <p className="mt-0.5 text-[10px] text-text-muted">{data.note ?? "NSE IX, GIFT City"}</p>
         </div>
         <MiniChart chart={data.chart} positive={pos} />
       </div>
@@ -125,12 +152,14 @@ function GiftNiftyHero({ data }: { data: any }) {
             <span className="text-[9px] text-text-muted">Nifty Spot</span>
             <span className="text-[11px] font-bold text-text-primary">{data.spot_value}</span>
           </div>
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="text-[9px] text-text-muted">Premium</span>
-            <span className={`text-[11px] font-bold ${data.is_premium ? "text-emerald-400" : "text-rose-400"}`}>
-              {data.premium_pct}
-            </span>
-          </div>
+          {data.premium_pct && (
+            <div className="ml-auto flex items-center gap-1.5">
+              <span className="text-[9px] text-text-muted">Premium</span>
+              <span className={`text-[11px] font-bold ${data.is_premium ? "text-emerald-400" : "text-rose-400"}`}>
+                {data.premium_pct}
+              </span>
+            </div>
+          )}
         </div>
       )}
 

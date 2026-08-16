@@ -19,7 +19,7 @@ interface PredictionData {
 }
 
 interface SignalData {
-  gift_nifty?:      { value: string; change: string; positive: boolean; premium_pct?: number; opening_range?: { low: number; high: number } };
+  gift_nifty?:      { value: string; change: string; positive: boolean; premium_pct?: number; opening_range?: { low: number; high: number }; status?: string };
   india_vix?:       { value: string; float: number; level: string };
   fii?:             { net: number | null; buying: boolean | null; available: boolean };
   brent_crude?:     { value: string; change: string; direction: string };
@@ -224,8 +224,15 @@ export default function OpeningPrediction() {
                   Signal Layer
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {signals.gift_nifty && (
-                    <SignalChip label="Gift Nifty" value={`${signals.gift_nifty.value} (${signals.gift_nifty.change})`} positive={signals.gift_nifty.positive} />
+                  {signals.gift_nifty && signals.gift_nifty.status !== "unavailable" && signals.gift_nifty.value !== "—" && (
+                    <SignalChip
+                      label={signals.gift_nifty.status === "stale" ? "GIFT Nifty · stale" : "GIFT Nifty"}
+                      value={`${signals.gift_nifty.value} (${signals.gift_nifty.change})`}
+                      positive={signals.gift_nifty.positive}
+                    />
+                  )}
+                  {signals.gift_nifty && (signals.gift_nifty.status === "unavailable" || signals.gift_nifty.value === "—") && (
+                    <SignalChip label="GIFT Nifty" value="unavailable" positive={null} />
                   )}
                   {signals.india_vix && (
                     <SignalChip label={`VIX · ${signals.india_vix.level}`} value={signals.india_vix.value} positive={null} />

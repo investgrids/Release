@@ -53,10 +53,11 @@ function buildInsights(data: any): string[] {
   const out: string[] = [];
 
   const gift = data?.gift_nifty;
-  if (gift?.value && gift.value !== "—") {
+  if (gift?.value && gift.value !== "—" && gift.status !== "unavailable") {
     const dir = gift.positive ? "positive" : "under pressure";
     const prem = gift.premium_pct ? ` (${gift.premium_pct} vs spot)` : "";
-    out.push(`Nifty Futures ${dir} at ${gift.value}${prem}`);
+    const stale = gift.status === "stale" ? " [stale]" : "";
+    out.push(`GIFT Nifty ${dir} at ${gift.value}${prem}${stale}`);
   }
 
   const vix = data?.india_vix;
@@ -106,8 +107,8 @@ export function PreMarketPanel({ data, timeIST }: { data: any | null; timeIST: s
   // 1 → Nifty Futures  2 → Bank Nifty Futures  3 → India VIX  4 → S&P 500 Futures
   const highlights: any[] = [];
 
-  if (data.gift_nifty?.value) {
-    highlights.push({ ...data.gift_nifty, name: "Nifty Futures" });
+  if (data.gift_nifty?.value && data.gift_nifty.value !== "—" && data.gift_nifty.status !== "unavailable") {
+    highlights.push({ ...data.gift_nifty, name: "GIFT Nifty" });
   } else if (data.asian?.[0]) {
     highlights.push(data.asian[0]);
   }

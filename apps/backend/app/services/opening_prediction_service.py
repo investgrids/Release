@@ -268,23 +268,33 @@ def _fetch_signals_sync() -> dict:
                  else "rising" if brent_q and brent_q["positive"]
                  else "stable")
 
-    gift_value = "—"
-    gift_pct   = "—"
-    gift_pos   = True
-    if nifty_q:
-        # Use Nifty spot as proxy when futures ticker unavailable
-        gift_value = f"{nifty_q['price']:,.0f}"
-        gift_pct   = nifty_q["pct"]
-        gift_pos   = nifty_q["positive"]
+    # Real GIFT Nifty via the shared adapter — this is the exception-
+    # fallback path (primary premarket fetch failed), but GIFT Nifty
+    # itself must still never be silently replaced by Nifty spot. Spot
+    # (nifty_q, already fetched above for the global-sentiment calc) is
+    # only used for premium math, never relabeled as GIFT Nifty itself.
+    from app.services.gift_nifty_service import get_gift_nifty_sync as _get_gift_nifty_sync
+    spot_px = nifty_q["price"] if nifty_q else None
+    _gift_result = _get_gift_nifty_sync(spot_price=spot_px)
+
+    if _gift_result.status == "unavailable" or _gift_result.price is None:
+        gift_row = {
+            "value": "—", "change": "—", "positive": True,
+            "premium_pct": None, "opening_range": {}, "status": "unavailable",
+        }
+    else:
+        gift_row = {
+            "value":    f"{_gift_result.price:,.0f}",
+            "change":   f"{'+' if (_gift_result.change_pct or 0) >= 0 else ''}{_gift_result.change_pct:.2f}%" if _gift_result.change_pct is not None else "—",
+            "positive": (_gift_result.change or 0) >= 0,
+            "premium_pct": (f"{'+' if _gift_result.premium_pct >= 0 else ''}{_gift_result.premium_pct:.2f}%"
+                            if _gift_result.premium_pct is not None else None),
+            "opening_range": {},
+            "status": _gift_result.status,
+        }
 
     return {
-        "gift_nifty": {
-            "value":    gift_value,
-            "change":   gift_pct,
-            "positive": gift_pos,
-            "premium_pct": None,
-            "opening_range": {},
-        },
+        "gift_nifty": gift_row,
         "india_vix": {
             "value":          f"{vix_float}" if vix_q else "—",
             "float":          vix_float,
@@ -387,6 +397,11 @@ async def _gather_signals() -> dict:
             "positive":     bool(gift.get("positive", True)),
             "premium_pct":  gift.get("premium_pct"),
             "opening_range": gift.get("opening_range", {}),
+            # Phase 5B: real freshness classification from the shared
+            # gift_nifty_service adapter — "live" | "stale" | "unavailable".
+            # Missing only for the exception-fallback path below, which
+            # sets its own status explicitly.
+            "status": gift.get("status", "unavailable" if gift.get("value", "—") == "—" else "live"),
         },
         "india_vix": {
             "value":          vix.get("value", "—"),
@@ -687,8 +702,16 @@ async def _run_ai(
     fii   = signals["fii"]
     glo   = signals["global_sentiment"]
 
+    gift_status = gift.get("status") or ("live" if gift.get("value", "—") != "—" else "unavailable")
+    if gift_status == "unavailable" or gift["value"] == "—":
+        gift_line = "GIFT Nifty: unavailable this session — no overnight GIFT City signal, treat as missing evidence, not neutral"
+    elif gift_status == "stale":
+        gift_line = f"GIFT Nifty: {gift['value']} ({gift['change']}) — STALE DATA (several hours old), weight this down accordingly"
+    else:
+        gift_line = f"GIFT Nifty: {gift['value']} ({gift['change']}) — {'Premium' if gift['positive'] else 'Discount'} to spot"
+
     signal_lines = [
-        f"Gift Nifty: {gift['value']} ({gift['change']}) — {'Premium' if gift['positive'] else 'Discount'} to spot",
+        gift_line,
         f"India VIX: {vix['value']} — {vix['level']} volatility, {vix['interpretation']}",
         f"Bank Nifty Futures: {bnf['value']} ({bnf['change']})",
         f"USD/INR: {usd['value']} ({'Rupee weakening' if usd.get('positive') else 'Rupee holding firm'})",
@@ -821,18 +844,44 @@ def _base_fallback_score(signals: dict) -> dict:
     gift = signals["gift_nifty"]
     vix  = signals["india_vix"]
 
-    bull      = glo["pct_positive"]
-    direction = "Positive" if bull >= 60 and gift["positive"] else "Negative" if bull < 40 else "Neutral"
-    confidence = max(50, min(78, int(bull * 0.6 + 32)))
+    # Phase 5B: GIFT Nifty's weight in the deterministic formula tracks
+    # its own freshness — a real overnight signal should count more than
+    # a stale one, and an unavailable one should count for nothing
+    # (never silently treated as if it agreed with the rest of the
+    # signal set). "live" is also the default for legacy callers that
+    # don't set status (keeps old behavior byte-for-byte in that case).
+    gift_status = gift.get("status") or ("live" if gift.get("value", "—") != "—" else "unavailable")
+    gift_usable = gift_status == "live"
+    gift_stale  = gift_status == "stale"
+
+    bull = glo["pct_positive"]
+    if gift_usable:
+        direction = "Positive" if bull >= 60 and gift["positive"] else "Negative" if bull < 40 else "Neutral"
+    else:
+        # GIFT Nifty stale/unavailable — direction rests on global
+        # sentiment alone rather than gating on a degraded/missing signal.
+        direction = "Positive" if bull >= 60 else "Negative" if bull < 40 else "Neutral"
+
+    base_confidence = int(bull * 0.6 + 32)
+    confidence_penalty = 0 if gift_usable else (6 if gift_stale else 12)
+    confidence = max(45, min(78, base_confidence - confidence_penalty))
 
     base = 25 if direction == "Positive" else -45 if direction == "Negative" else -10
+
+    if gift_status == "unavailable" or gift["value"] == "—":
+        gift_driver = "GIFT Nifty unavailable — overnight signal not available this session"
+    elif gift_stale:
+        gift_driver = f"GIFT Nifty (stale) {'positive' if gift['positive'] else 'negative'} at {gift['value']}"
+    else:
+        gift_driver = f"GIFT Nifty {'positive' if gift['positive'] else 'negative'} at {gift['value']}"
+
     return {
         "direction":  direction,
         "confidence": confidence,
         "range_low":  base,
         "range_high": base + 40,
         "primary_drivers": [
-            f"Gift Nifty {'positive' if gift['positive'] else 'negative'} at {gift['value']}",
+            gift_driver,
             f"India VIX {vix['value']} ({vix['level'].lower()} volatility)",
             f"{glo['positive_count']} of {glo['total']} global markets positive",
         ],
@@ -840,8 +889,16 @@ def _base_fallback_score(signals: dict) -> dict:
         "conflicting_signals": [],
         "reasoning":           (
             f"{glo['positive_count']} of {glo['total']} global markets are currently positive. "
-            f"Gift Nifty is {'trading positive' if gift['positive'] else 'under pressure'}, "
-            f"suggesting a {'positive' if direction == 'Positive' else 'cautious'} opening."
+            + (
+                f"GIFT Nifty is {'trading positive' if gift['positive'] else 'under pressure'}, "
+                f"suggesting a {'positive' if direction == 'Positive' else 'cautious'} opening."
+                if gift_usable else
+                "GIFT Nifty's overnight signal isn't available right now, so this estimate leans on "
+                "global markets alone and carries reduced confidence."
+                if gift_status == "unavailable" or gift["value"] == "—" else
+                "GIFT Nifty data is stale, so this estimate leans more on global markets and carries "
+                "reduced confidence."
+            )
         ),
         "historical_note":  None,
         "uncertainty_note": "Prediction based on signal formula only — AI layer unavailable.",
