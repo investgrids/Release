@@ -44,6 +44,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_warm_premarket,
         job_evaluate_predictions,
         job_quant_price_refresh,
+        job_intelligence_observation_snapshot,
         job_backup_database,
     )
     from app.services.intelligence.theme_worker import run_theme_scoring
@@ -145,6 +146,16 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_quant_price_refresh,
         CronTrigger(hour=16, minute=30, timezone=_IST),
         id="quant_price_refresh",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+    )
+
+    # ── Intelligence Observation snapshot — 5:00 PM IST (Phase 2E.1) ────────
+    scheduler.add_job(
+        job_intelligence_observation_snapshot,
+        CronTrigger(hour=17, minute=0, timezone=_IST),
+        id="intelligence_observation_snapshot",
         max_instances=1,
         coalesce=True,
         misfire_grace_time=3600,

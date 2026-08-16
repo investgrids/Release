@@ -33,6 +33,8 @@ from app.db.models.company_signal import AICompanySignal
 from app.db.models.weekend_intelligence import WeekendIntelligenceSnapshot
 from app.db.models.price_bar import PriceBar
 from app.db.models.quant_research import QuantResearchPrediction, QuantResearchEvaluation
+from app.db.models.intelligence_observation import CompanyIntelligenceObservation
+from app.db.models.intelligence_pilot import IntelligencePilotObservation, IntelligencePilotEvaluation
 
 __all__ = [
     "Opportunity",
@@ -70,4 +72,7 @@ __all__ = [
     "PriceBar",
     "QuantResearchPrediction",
     "QuantResearchEvaluation",
+    "CompanyIntelligenceObservation",
+    "IntelligencePilotObservation",
+    "IntelligencePilotEvaluation",
 ]

@@ -44,10 +44,12 @@ def test_recurring_job_count_increased_by_exactly_two():
     16:30 IST) — 21 + 2 (weekend checkpoints) + 1 (quant refresh) = 24.
     This test's own name ("increased by exactly two") describes the
     Weekend Intelligence phase's own delta and is intentionally left
-    as-is; the assertion below is the number that must stay accurate."""
+    as-is; the assertion below is the number that must stay accurate.
+    24 -> 25: Phase 2E.1 added job_intelligence_observation_snapshot
+    (5:00 PM IST, CompanyIntelligenceObservation collection)."""
     scheduler = _fresh_scheduler()
     register_jobs(scheduler)
-    assert len(scheduler.get_jobs()) == 24
+    assert len(scheduler.get_jobs()) == 25
 
 
 def test_checkpoint_jobs_are_weekend_only_and_ist():

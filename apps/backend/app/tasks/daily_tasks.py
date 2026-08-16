@@ -298,6 +298,35 @@ async def job_quant_price_refresh() -> None:
         log.error("job.quant_price_refresh.error", error=str(exc))
 
 
+# ── 5:00 PM IST — Intelligence Observation snapshot (Phase 2E.1) ────────────
+
+async def job_intelligence_observation_snapshot() -> None:
+    """
+    Phase 2E.1 — write one CompanyIntelligenceObservation row per NIFTY 50
+    symbol, using the same safe-source evidence (EventTriage,
+    AICompanySignal, CompanyAnnouncement) the Phase 2E.2 pilot reads.
+    Scheduled after job_quant_price_refresh (4:30 PM) so the day's price
+    data is already in the warehouse before this runs, though this job
+    itself only reads intelligence tables, not PriceBar. Never mutates a
+    prior observation — always inserts a fresh row — so this table can
+    never end up on the "silently overwritten" list the Phase 2E audit
+    found elsewhere. A failure here never raises past this wrapper —
+    same optional-by-design convention as quant_price_refresh.
+    """
+    import time as _time
+    t0 = _time.perf_counter()
+    log.info("job.intelligence_observation_snapshot.start")
+    try:
+        from app.db.session import AsyncSessionLocal
+        from app.services.intelligence_research.observation_builder import build_daily_observations
+        async with AsyncSessionLocal() as db:
+            stats = await build_daily_observations(db)
+        elapsed = round((_time.perf_counter() - t0) * 1000)
+        log.info("job.intelligence_observation_snapshot.done", elapsed_ms=elapsed, stored=stats["stored"])
+    except Exception as exc:
+        log.error("job.intelligence_observation_snapshot.error", error=str(exc))
+
+
 # ── Startup once — seed opportunities if table is empty ─────────────────────
 
 async def job_seed_opportunities() -> None:
