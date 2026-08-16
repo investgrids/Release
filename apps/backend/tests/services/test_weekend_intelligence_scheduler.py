@@ -38,10 +38,16 @@ def test_recurring_job_count_increased_by_exactly_two():
     log (captured live while applying this phase's schema patch) showed
     scheduler.jobs_registered count=32, i.e. the pre-existing 30 (21+9)
     plus these 2 new ones, which is the number to trust for "total jobs
-    on a real boot," not this narrower register_jobs()-only count."""
+    on a real boot," not this narrower register_jobs()-only count.
+
+    Phase 2B §4 added one more recurring job (quant_price_refresh,
+    16:30 IST) — 21 + 2 (weekend checkpoints) + 1 (quant refresh) = 24.
+    This test's own name ("increased by exactly two") describes the
+    Weekend Intelligence phase's own delta and is intentionally left
+    as-is; the assertion below is the number that must stay accurate."""
     scheduler = _fresh_scheduler()
     register_jobs(scheduler)
-    assert len(scheduler.get_jobs()) == 23
+    assert len(scheduler.get_jobs()) == 24
 
 
 def test_checkpoint_jobs_are_weekend_only_and_ist():

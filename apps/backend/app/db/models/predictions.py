@@ -48,9 +48,31 @@ class PredictionRecord(Base):
     evaluate_by      = Column(DateTime(timezone=True), nullable=True)
     completed_at     = Column(DateTime(timezone=True), nullable=True)
 
+    # Phase 2B §5/§6/§11 — Quantitative Intelligence shadow-mode fields.
+    # `experimental` is the field the Phase 2A audit flagged as the one
+    # gap that actually matters: without it, a shadow prediction that
+    # reaches status="complete" would silently blend into
+    # get_stats()/CalibrationStat's production accuracy numbers, since
+    # neither is source-scoped. Every quant/baseline/Kronos prediction
+    # MUST be written with experimental=True — see
+    # recompute_calibration()/get_stats() in prediction_service.py,
+    # both now filter on this column explicitly, not by `source` string
+    # matching (which would be one `if` away from silently regressing).
+    experimental     = Column(Boolean,     nullable=False, default=False, index=True)
+    # e.g. "baseline-random_walk-v1", "kronos-v1" — distinct from `source`
+    # (a coarse category: ai_search|triage|weekend_intelligence|quant),
+    # this identifies exactly which model+revision produced the row.
+    model_version    = Column(String(64),  nullable=True)
+    # Numeric point forecast, only when the model genuinely produces one
+    # (e.g. a regression's predicted % return) — categorical `direction`
+    # above remains the field every non-quant source still uses.
+    expected_return    = Column(Float,     nullable=True)
+    expected_volatility = Column(Float,    nullable=True)
+
     __table_args__ = (
         Index("ix_pred_source_status", "source", "status"),
         Index("ix_pred_created_level", "created_at", "confidence_level"),
+        Index("ix_pred_experimental", "experimental"),
     )
 
 

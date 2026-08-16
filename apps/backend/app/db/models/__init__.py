@@ -31,6 +31,7 @@ from app.db.models.ai_search_verdict_snapshot import AISearchVerdictSnapshot
 from app.db.models.homepage_snapshot import HomepageDailySnapshot
 from app.db.models.company_signal import AICompanySignal
 from app.db.models.weekend_intelligence import WeekendIntelligenceSnapshot
+from app.db.models.price_bar import PriceBar
 
 __all__ = [
     "Opportunity",
@@ -65,4 +66,5 @@ __all__ = [
     "HomepageDailySnapshot",
     "AICompanySignal",
     "WeekendIntelligenceSnapshot",
+    "PriceBar",
 ]

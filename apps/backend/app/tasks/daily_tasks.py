@@ -271,6 +271,33 @@ async def job_evaluate_predictions() -> None:
         log.error("job.evaluate_predictions.error", error=str(exc))
 
 
+# ── 4:30 PM IST — Quant Intelligence: incremental daily OHLCV refresh ────────
+
+async def job_quant_price_refresh() -> None:
+    """
+    Phase 2B §4/§20 — refresh the PriceBar warehouse for the NIFTY 50 V1
+    universe. Scheduled after job_evaluate_predictions (4:00 PM) so both
+    post-close jobs don't compete for yfinance calls at the same instant
+    (Phase 2A §20's own finding: this window was open before Phase 2B).
+    Optional by design (Phase 2A §29) — a failure here never raises past
+    this wrapper, and nothing else in the app reads PriceBar synchronously
+    on the request path, so a missed refresh degrades to "tomorrow's
+    baseline generation sees slightly stale history," never an outage.
+    """
+    import time as _time
+    t0 = _time.perf_counter()
+    log.info("job.quant_price_refresh.start")
+    try:
+        from app.services.quant.refresh import run_daily_refresh
+        stats = await run_daily_refresh()
+        elapsed = round((_time.perf_counter() - t0) * 1000)
+        log.info("job.quant_price_refresh.done", elapsed_ms=elapsed,
+                  succeeded=stats["succeeded"], failed=stats["failed"],
+                  bars_inserted=stats["total_bars_inserted"])
+    except Exception as exc:
+        log.error("job.quant_price_refresh.error", error=str(exc))
+
+
 # ── Startup once — seed opportunities if table is empty ─────────────────────
 
 async def job_seed_opportunities() -> None:

@@ -43,6 +43,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_seed_opportunities,
         job_warm_premarket,
         job_evaluate_predictions,
+        job_quant_price_refresh,
         job_backup_database,
     )
     from app.services.intelligence.theme_worker import run_theme_scoring
@@ -132,6 +133,18 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_evaluate_predictions,
         CronTrigger(hour=16, minute=0, timezone=_IST),
         id="evaluate_predictions",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+    )
+
+    # ── Quant Intelligence: OHLCV daily refresh — 4:30 PM IST (Phase 2B §4/§20,
+    #    after evaluate_predictions so both post-close jobs don't compete for
+    #    yfinance calls at the same instant) ─────────────────────────────────
+    scheduler.add_job(
+        job_quant_price_refresh,
+        CronTrigger(hour=16, minute=30, timezone=_IST),
+        id="quant_price_refresh",
         max_instances=1,
         coalesce=True,
         misfire_grace_time=3600,

@@ -71,6 +71,14 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     # changes.py's module docstring for why this is a distinct concept
     # from changes_since_prior.
     ("weekend_intelligence_snapshots", "new_since_close_refs", "JSON DEFAULT '[]'"),
+    # Phase 2B §5/§6 — Quantitative Intelligence shadow-mode fields on the
+    # already-deployed prediction_records table. `experimental` defaults
+    # to 0 (false) so every existing row is correctly read as
+    # production, never accidentally excluded from calibration.
+    ("prediction_records", "experimental",         "BOOLEAN NOT NULL DEFAULT 0"),
+    ("prediction_records", "model_version",        "VARCHAR(64)"),
+    ("prediction_records", "expected_return",      "FLOAT"),
+    ("prediction_records", "expected_volatility",  "FLOAT"),
 ]
 
 

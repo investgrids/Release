@@ -110,10 +110,28 @@ async def store_prediction(
     horizon_days: int = 7,
     query: str | None = None,
     headline: str | None = None,
+    experimental: bool = False,
+    model_version: str | None = None,
+    expected_return: float | None = None,
+    expected_volatility: float | None = None,
+    created_at: datetime | None = None,
 ) -> str | None:
-    """Persist a prediction. Fetches baseline prices for entities without one."""
+    """Persist a prediction. Fetches baseline prices for entities without one.
+
+    `experimental` (Phase 2B §5/§11) — MUST be True for any quant/baseline/
+    Kronos shadow prediction. It is the one flag that keeps a shadow
+    prediction out of recompute_calibration()/get_stats() (see those
+    functions below) — production_weight=0 is enforced here, not by
+    convention on `source` alone.
+
+    `created_at` is accepted (default: now) so a historical backtest can
+    write shadow predictions dated in the past — e.g. Phase 2B §8's
+    baseline shadow predictions, which must carry the real historical
+    "as of" date so evaluate_prediction()'s price-fetch window (which
+    reads created_at) brackets the correct historical dates, not today.
+    """
     pred_id = str(uuid4())
-    now     = datetime.now(timezone.utc)
+    now     = created_at or datetime.now(timezone.utc)
 
     # Enrich entities with baseline prices in parallel
     enriched: list[dict] = []
@@ -148,12 +166,18 @@ async def store_prediction(
                 confidence_factors=confidence_factors,
                 horizon_days=horizon_days,
                 status="pending",
+                created_at=now,
                 evaluate_by=now + timedelta(days=horizon_days),
+                experimental=experimental,
+                model_version=model_version,
+                expected_return=expected_return,
+                expected_volatility=expected_volatility,
             ))
             await db.commit()
         log.info("prediction.stored", id=pred_id[:8], source=source,
                  type=prediction_type, dir=direction,
-                 conf=confidence_score, horizon=horizon_days)
+                 conf=confidence_score, horizon=horizon_days,
+                 experimental=experimental, model_version=model_version)
         return pred_id
     except Exception as exc:
         log.error("prediction.store_failed", error=str(exc))
@@ -243,9 +267,18 @@ async def record_evaluation(
 
 async def recompute_calibration() -> None:
     """
-    Rebuild CalibrationStat from all completed predictions.
+    Rebuild CalibrationStat from all completed PRODUCTION predictions.
     Uses the highest-horizon evaluation for each prediction as the ground truth.
     Called after each evaluation cycle.
+
+    Phase 2B §6 — explicit `experimental == False` filter. This is the
+    exact gap the Phase 2A audit flagged: CalibrationStat has never been
+    source-scoped, so a shadow prediction reaching status="complete"
+    would otherwise blend straight into production accuracy/calibration
+    numbers. Filtering on the dedicated `experimental` column (rather
+    than excluding specific `source` strings) means a future quant
+    source can never leak into these stats just by someone forgetting to
+    add it to an exclusion list.
     """
     global _CAL_CACHE, _CAL_CACHE_AT
 
@@ -257,6 +290,7 @@ async def recompute_calibration() -> None:
                         and_(
                             PredictionRecord.confidence_level == level,
                             PredictionRecord.status == "complete",
+                            PredictionRecord.experimental.is_(False),
                         )
                     )
                 )).scalars().all()
@@ -359,20 +393,29 @@ async def get_calibration_data() -> dict[str, dict]:
 
 
 async def get_stats() -> dict:
-    """Overall accuracy statistics for the learning engine dashboard."""
+    """Overall accuracy statistics for the learning engine dashboard.
+
+    Phase 2B §6 — every query here is scoped to `experimental == False`
+    (production predictions only), same reasoning as recompute_calibration()
+    above: this is the app's own reported "how good are we" number, and a
+    shadow quant/baseline prediction must never inflate or deflate it.
+    """
     try:
         from sqlalchemy import func
         async with AsyncSessionLocal() as db:
             total    = (await db.execute(
                 select(func.count()).select_from(PredictionRecord)
+                .where(PredictionRecord.experimental.is_(False))
             )).scalar() or 0
             complete = (await db.execute(
                 select(func.count()).select_from(PredictionRecord)
-                .where(PredictionRecord.status == "complete")
+                .where(PredictionRecord.status == "complete", PredictionRecord.experimental.is_(False))
             )).scalar() or 0
 
             verdict_rows = (await db.execute(
                 select(PredictionEvaluation.verdict, func.count().label("n"))
+                .join(PredictionRecord, PredictionRecord.id == PredictionEvaluation.prediction_id)
+                .where(PredictionRecord.experimental.is_(False))
                 .group_by(PredictionEvaluation.verdict)
             )).all()
             verdicts = {r.verdict: r.n for r in verdict_rows}
