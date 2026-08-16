@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { fetchAPI } from "@/lib/api";
 import { truncateForQuery } from "@/lib/text";
-import { Landmark, BarChart2, TrendingUp, ArrowLeftRight, ClipboardList, ScrollText, CalendarDays } from "lucide-react";
+import { Landmark, BarChart2, TrendingUp, ArrowLeftRight, ClipboardList, ScrollText, CalendarDays, Globe2 } from "lucide-react";
 import { MarketContextStrip } from "@/components/MarketContextStrip";
 import { IntelligenceBlock, type IntelligenceObject } from "@/components/intelligence/IntelligenceBlock";
 import { RecentPolicyEvents } from "@/components/calendar/RecentPolicyEvents";
+import { calendarCategoryDisplayGroup } from "@/lib/economicCalendarCategory";
 
 interface CalEvent {
   id: string;
@@ -48,10 +49,16 @@ const CAT_CONFIG: Record<string, { color: string; icon: ReactNode; label: string
   FX:      { color: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300",   icon: <ArrowLeftRight className="h-3 w-3" />,  label: "Currency Data",       why: "USD/INR moves affect IT and import costs" },
   Results: { color: "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300", icon: <ClipboardList className="h-3 w-3" />, label: "Company Earnings",    why: "Quarterly profits can move individual stocks 5-15%" },
   Policy:  { color: "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300",      icon: <ScrollText className="h-3 w-3" />,      label: "Regulations",         why: "New rules can reshape entire sectors" },
+  // Phase 5A.12 — added for the real Economic Calendar categories
+  // (india_cpi/india_iip/us_cpi/us_jobs/fomc); see
+  // lib/economicCalendarCategory.ts for the category -> group mapping.
+  Macro:   { color: "border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-300",     icon: <BarChart2 className="h-3 w-3" />,       label: "Macro Data",          why: "Inflation and output prints that shape the growth/rate outlook" },
+  Global:  { color: "border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-300",     icon: <Globe2 className="h-3 w-3" />,          label: "Global Catalyst",     why: "US/global events that move Indian markets via rates and risk sentiment" },
 };
 
 function catStyle(cat: string) {
-  return CAT_CONFIG[cat] ?? { color: "border-surface-border/10 bg-text-primary/5 text-text-secondary", icon: <CalendarDays className="h-3 w-3" /> };
+  const displayGroup = calendarCategoryDisplayGroup(cat) ?? cat;
+  return CAT_CONFIG[displayGroup] ?? { color: "border-surface-border/10 bg-text-primary/5 text-text-secondary", icon: <CalendarDays className="h-3 w-3" /> };
 }
 
 function formatDate(dateStr: string) {

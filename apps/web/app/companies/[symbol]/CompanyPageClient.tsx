@@ -1332,32 +1332,18 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
 }
 
 // ── Section 21: Economic Calendar ─────────────────────────────────────────────
+// Phase 5A correctness fix: this previously rendered five identical
+// hardcoded fake dates (Q1 Results 15 Jul, RBI Policy 05 Aug, ...) on
+// EVERY company page regardless of symbol — not sourced from any real
+// data. No trustworthy source of forward-looking, per-company events
+// exists yet (Phase 5A audit §13 — company earnings dates deferred,
+// no reliable source found). Section returns null (same convention
+// every other no-real-data section in this file already follows,
+// e.g. SimilarCompanies/InsiderActivity above) rather than show
+// invented dates. Real per-company catalysts (once EconomicCalendarEvent
+// ingestion + a trustworthy earnings-date source exist) replace this.
 function EconomicCalendarSection({ stock }: { stock: StockDetail }) {
-  const events = [
-    { date: "15 Jul", title: "Q1 Results",        type: "results",  color: "bg-sky-500/20 text-sky-600 dark:text-sky-300" },
-    { date: "05 Aug", title: "RBI Policy",         type: "rbi",      color: "bg-violet-500/20 text-violet-600 dark:text-violet-300" },
-    { date: "10 Aug", title: "Dividend Ex-Date",   type: "dividend", color: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" },
-    { date: "30 Sep", title: "Budget Review",      type: "budget",   color: "bg-amber-500/20 text-amber-600 dark:text-amber-300" },
-    { date: "15 Oct", title: "Q2 Results",         type: "results",  color: "bg-sky-500/20 text-sky-600 dark:text-sky-300" },
-  ];
-  return (
-    <SectionCard title="Upcoming Catalysts">
-      <div className="mt-4 space-y-2">
-        {events.map((e, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2.5">
-            <div className={`flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl ${e.color}`}>
-              <span className="text-[9px] font-bold leading-none">{e.date.split(" ")[1]}</span>
-              <span className="text-[10px] font-black leading-none">{e.date.split(" ")[0]}</span>
-            </div>
-            <div>
-              <p className="text-[12px] font-semibold text-text-primary">{e.title}</p>
-              <p className="text-[10px] capitalize text-text-muted">{e.type}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </SectionCard>
-  );
+  return null;
 }
 
 // ── Section 22: Similar Companies ─────────────────────────────────────────────

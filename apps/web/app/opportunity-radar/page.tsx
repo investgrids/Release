@@ -6,6 +6,7 @@ import { Grid3x3, Target, Sparkles, Calendar, Rocket } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { HubHero, type HubStat } from "@/components/HubHero";
 import { HubTabBar, type HubTab } from "@/components/HubTabBar";
+import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
 
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -268,7 +269,7 @@ function UpcomingEventsTab() {
       {events.map(ev => (
         <div key={ev.id} className="rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] p-4">
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-500">{ev.category}</span>
+            <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-500">{calendarCategoryLabel(ev.category)}</span>
             <span className="text-[11px] text-text-muted">{ev.date}</span>
           </div>
           <h3 className="text-[13px] font-bold text-text-primary">{ev.title}</h3>

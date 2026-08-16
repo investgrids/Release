@@ -7,6 +7,7 @@ import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
 import { mieClient } from "@/services/intelligence/mie-client";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { API_BASE_URL as API } from "@/lib/api";
+import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
 import {
   TrendingUp, TrendingDown, Minus, ChevronRight,
   CalendarClock,
@@ -747,7 +748,7 @@ function UpcomingTodayCard({ events, loading }: { events: any[]; loading: boolea
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-[10px] font-semibold leading-snug text-text-primary">{e.title}</p>
-                  <p className="text-[9px] text-text-muted">{e.category ?? "Event"}</p>
+                  <p className="text-[9px] text-text-muted">{calendarCategoryLabel(e.category)}</p>
                 </div>
                 <span className="shrink-0 self-start text-[9px] font-semibold text-text-muted">{e.date}</span>
               </div>

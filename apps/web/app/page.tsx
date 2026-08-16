@@ -15,6 +15,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 import { isWeekendSession } from "@/lib/weekendSession";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { cleanText, truncateForQuery } from "@/lib/text";
+import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
 
 export const dynamic = "force-dynamic";
 
@@ -174,8 +175,21 @@ function MiniSparkline({ data, positive, w = 64, h = 28 }: { data: number[]; pos
 
 // Category icon for events
 function EventIcon({ title, category }: { title: string; category?: string }) {
-  const t = (title + " " + (category ?? "")).toLowerCase();
   const base = "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl";
+  // Phase 5A.12 — exact category lookup first, for the real Economic
+  // Calendar categories (rbi_mpc/india_cpi/india_iip/fomc/us_cpi/
+  // us_jobs). The text-regex fallback below misfired on these: "India
+  // CPI" matched the US-flag pattern via the substring "cpi", and
+  // "FOMC Interest Rate Decision" matched the RBI/Landmark pattern via
+  // "rate" — both silently wrong. An exact category can't misfire.
+  if (category === "rbi_mpc")
+    return <div className={`${base} bg-violet-500/20`}><Landmark className="h-4 w-4 text-violet-400"/></div>;
+  if (category === "india_cpi" || category === "india_iip")
+    return <div className={`${base} bg-teal-500/20`}><BarChart3 className="h-4 w-4 text-teal-400"/></div>;
+  if (category === "fomc" || category === "us_cpi" || category === "us_jobs")
+    return <div className={`${base} bg-sky-500/20`}><span className="text-[13px]">🇺🇸</span></div>;
+
+  const t = (title + " " + (category ?? "")).toLowerCase();
   if (/rbi|reserve bank|monetary|rate|repo/.test(t))
     return <div className={`${base} bg-violet-500/20`}><Landmark className="h-4 w-4 text-violet-400"/></div>;
   if (/us |cpi|fed |federal|dollar|nasdaq|s&p/.test(t))
@@ -1268,7 +1282,7 @@ async function WatchTomorrowCard() {
               <EventIcon title={e.title} category={e.category} />
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-bold leading-snug text-text-primary line-clamp-1">{e.title}</p>
-                <p className="mt-0.5 text-[10px] text-text-muted">{e.category ?? "Event"}</p>
+                <p className="mt-0.5 text-[10px] text-text-muted">{calendarCategoryLabel(e.category)}</p>
               </div>
               <span className="shrink-0 text-[10px] font-semibold text-text-muted">{e.date}</span>
             </div>
