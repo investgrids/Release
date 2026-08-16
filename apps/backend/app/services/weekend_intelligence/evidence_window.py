@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +38,19 @@ from app.services.weekend_intelligence.evidence import (
     normalize_opportunity,
     normalize_policy,
 )
+
+log = structlog.get_logger(__name__)
+
+# Source-type keys, matching EvidenceItem.source_type exactly — used both
+# as the failed_sources vocabulary here and as the lookup key for the
+# human-readable labels risk_synthesis.py's confidence-warning generator
+# builds from them.
+SOURCE_EVENT = "event"
+SOURCE_POLICY = "policy"
+SOURCE_ANNOUNCEMENT = "announcement"
+SOURCE_NEWS = "news"
+SOURCE_COMPANY_SIGNAL = "company_signal"
+SOURCE_OPPORTUNITY = "opportunity"
 
 
 async def _event_priority_tiers(db: AsyncSession, event_ids: list[str]) -> dict[str, str]:
@@ -62,6 +76,7 @@ async def _event_priority_tiers(db: AsyncSession, event_ids: list[str]) -> dict[
 
 async def collect_evidence_since(
     db: AsyncSession, since: datetime, until: datetime, *, limit_per_source: int = 200,
+    failed_sources: list[str] | None = None,
 ) -> list[EvidenceItem]:
     """
     Assemble normalized evidence from every Phase 1A-supported source,
@@ -74,56 +89,121 @@ async def collect_evidence_since(
     Explicitly NOT normalized here (design doc §16's exclusion list):
     Kronos, calendar placeholder rows, the dead economic-calendar
     provider, or any invented supply-chain relationship.
+
+    Per-source failure isolation (Phase 1E hardening, post-review):
+    each of the 6 sources below is independently try/except-wrapped —
+    the same pattern price_monitor.py's capture_close_snapshot() already
+    established for its own secondary sources (VIX, FII/DII, sector
+    ETFs, ...). Before this, a single failing source-table query (e.g. a
+    transient lock, a malformed row) raised out of this function
+    entirely, aborting the WHOLE checkpoint even though the other 5
+    sources read fine — real weekend evidence is inherently
+    multi-source, so one temporary source problem should not block
+    everything else from updating. `failed_sources` is populated
+    in-place (never a return-type change — every existing caller/test
+    keeps working unmodified) with the EvidenceItem source_type strings
+    (see the SOURCE_* constants above) for any source that failed;
+    build_weekend_intelligence uses this to force status=degraded and
+    surface a plain-English confidence warning naming exactly which
+    source was unavailable (risk_synthesis.py), never silently.
+
+    A caught failure isolates via a SAVEPOINT (`db.begin_nested()`), not
+    a full `db.rollback()`: a full rollback expires every ORM object
+    already loaded earlier in the SAME session (e.g. build_weekend_
+    intelligence's own `baseline` MarketSnapshot, fetched before this
+    function is even called) — a real bug caught while testing this
+    exact refinement, where accessing `baseline.sector_ranks` AFTER a
+    plain rollback crashed with SQLAlchemy's MissingGreenlet error
+    (accessing a since-expired lazy attribute outside the async
+    context). A SAVEPOINT undoes only THIS source's own statements on
+    failure, leaving the rest of the outer transaction — including
+    already-loaded objects — untouched. Supported by both SQLite
+    (aiosqlite) and Postgres, so this degrades safely on both backends
+    this codebase runs on.
     """
     items: list[EvidenceItem] = []
+    failed = failed_sources if failed_sources is not None else []
 
-    event_rows = list((await db.execute(
-        select(Event)
-        .where(Event.published_at > since, Event.published_at <= until)
-        .order_by(Event.published_at.desc())
-        .limit(limit_per_source)
-    )).scalars().all())
-    tiers = await _event_priority_tiers(db, [e.id for e in event_rows])
-    items.extend(normalize_event(e, priority_tier=tiers.get(e.id)) for e in event_rows)
+    try:
+        async with db.begin_nested():
+            event_rows = list((await db.execute(
+                select(Event)
+                .where(Event.published_at > since, Event.published_at <= until)
+                .order_by(Event.published_at.desc())
+                .limit(limit_per_source)
+            )).scalars().all())
+            tiers = await _event_priority_tiers(db, [e.id for e in event_rows])
+            items.extend(normalize_event(e, priority_tier=tiers.get(e.id)) for e in event_rows)
+    except Exception as exc:
+        log.warning("evidence_window.source_failed", source=SOURCE_EVENT, error=str(exc)[:200])
+        failed.append(SOURCE_EVENT)
 
-    policy_rows = (await db.execute(
-        select(GovernmentPolicy)
-        .where(GovernmentPolicy.created_at > since, GovernmentPolicy.created_at <= until)
-        .order_by(GovernmentPolicy.created_at.desc())
-        .limit(limit_per_source)
-    )).scalars().all()
-    items.extend(normalize_policy(p) for p in policy_rows)
+    try:
+        async with db.begin_nested():
+            policy_rows = (await db.execute(
+                select(GovernmentPolicy)
+                .where(GovernmentPolicy.created_at > since, GovernmentPolicy.created_at <= until)
+                .order_by(GovernmentPolicy.created_at.desc())
+                .limit(limit_per_source)
+            )).scalars().all()
+            items.extend(normalize_policy(p) for p in policy_rows)
+    except Exception as exc:
+        log.warning("evidence_window.source_failed", source=SOURCE_POLICY, error=str(exc)[:200])
+        failed.append(SOURCE_POLICY)
 
-    announcement_rows = (await db.execute(
-        select(CompanyAnnouncement)
-        .where(CompanyAnnouncement.ingested_at > since, CompanyAnnouncement.ingested_at <= until)
-        .order_by(CompanyAnnouncement.ingested_at.desc())
-        .limit(limit_per_source)
-    )).scalars().all()
-    items.extend(normalize_announcement(a) for a in announcement_rows)
+    try:
+        async with db.begin_nested():
+            announcement_rows = (await db.execute(
+                select(CompanyAnnouncement)
+                .where(CompanyAnnouncement.ingested_at > since, CompanyAnnouncement.ingested_at <= until)
+                .order_by(CompanyAnnouncement.ingested_at.desc())
+                .limit(limit_per_source)
+            )).scalars().all()
+            items.extend(normalize_announcement(a) for a in announcement_rows)
+    except Exception as exc:
+        log.warning("evidence_window.source_failed", source=SOURCE_ANNOUNCEMENT, error=str(exc)[:200])
+        failed.append(SOURCE_ANNOUNCEMENT)
 
-    news_rows = (await db.execute(
-        select(NewsArticle)
-        .where(NewsArticle.created_at > since, NewsArticle.created_at <= until)
-        .order_by(NewsArticle.created_at.desc())
-        .limit(limit_per_source)
-    )).scalars().all()
-    items.extend(normalize_news(n) for n in news_rows)
+    try:
+        async with db.begin_nested():
+            news_rows = (await db.execute(
+                select(NewsArticle)
+                .where(NewsArticle.created_at > since, NewsArticle.created_at <= until)
+                .order_by(NewsArticle.created_at.desc())
+                .limit(limit_per_source)
+            )).scalars().all()
+            items.extend(normalize_news(n) for n in news_rows)
+    except Exception as exc:
+        log.warning("evidence_window.source_failed", source=SOURCE_NEWS, error=str(exc)[:200])
+        failed.append(SOURCE_NEWS)
 
-    signal_rows = (await db.execute(
-        select(AICompanySignal)
-        .where(AICompanySignal.signal_at > since, AICompanySignal.signal_at <= until)
-        .order_by(AICompanySignal.signal_at.desc())
-        .limit(limit_per_source)
-    )).scalars().all()
-    items.extend(normalize_company_signal(s) for s in signal_rows)
+    try:
+        async with db.begin_nested():
+            signal_rows = (await db.execute(
+                select(AICompanySignal)
+                .where(AICompanySignal.signal_at > since, AICompanySignal.signal_at <= until)
+                .order_by(AICompanySignal.signal_at.desc())
+                .limit(limit_per_source)
+            )).scalars().all()
+            items.extend(normalize_company_signal(s) for s in signal_rows)
+    except Exception as exc:
+        log.warning("evidence_window.source_failed", source=SOURCE_COMPANY_SIGNAL, error=str(exc)[:200])
+        failed.append(SOURCE_COMPANY_SIGNAL)
 
-    opportunity_rows = (await db.execute(
-        select(Opportunity)
-        .where(Opportunity.created_at > since, Opportunity.created_at <= until)
-        .order_by(Opportunity.created_at.desc())
-        .limit(limit_per_source)
-    )).scalars().all()
-    items.extend(normalize_opportunity(o) for o in opportunity_rows)
+    try:
+        async with db.begin_nested():
+            opportunity_rows = (await db.execute(
+                select(Opportunity)
+                .where(Opportunity.created_at > since, Opportunity.created_at <= until)
+                .order_by(Opportunity.created_at.desc())
+                .limit(limit_per_source)
+            )).scalars().all()
+            items.extend(normalize_opportunity(o) for o in opportunity_rows)
+    except Exception as exc:
+        log.warning("evidence_window.source_failed", source=SOURCE_OPPORTUNITY, error=str(exc)[:200])
+        failed.append(SOURCE_OPPORTUNITY)
+
+    if failed:
+        log.warning("evidence_window.partial_collection", failed_sources=failed, collected_count=len(items))
 
     return items

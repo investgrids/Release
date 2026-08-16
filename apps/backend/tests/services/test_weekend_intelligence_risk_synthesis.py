@@ -13,6 +13,7 @@ from app.services.weekend_intelligence.risk_synthesis import (
     CONFLICTING_EVIDENCE,
     INSUFFICIENT_EVIDENCE,
     SOURCE_CONCENTRATION,
+    SOURCE_UNAVAILABLE,
     STALE_OR_MISSING_BASELINE,
     WEAK_HISTORICAL_ANALOGUE,
     _MARKET_RISK_LIMIT,
@@ -161,6 +162,45 @@ def test_insufficient_evidence_warning_not_fired_at_or_above_threshold():
         source_type_counts={"news": DEFAULT_EVIDENCE_COUNT_THRESHOLD},
     )
     assert not any(w.risk_type == INSUFFICIENT_EVIDENCE for w in warnings)
+
+
+def test_source_failure_produces_plain_english_warning():
+    """Phase 1E hardening — the owner's exact requested wording pattern:
+    a failed source produces one specific, human-readable warning
+    naming which source, not a generic error."""
+    warnings = synthesize_confidence_warnings(
+        [], baseline_available=True, historical_analogue_count=1, total_evidence_count=10,
+        source_type_counts={"news": 10}, source_failures=["announcement"],
+    )
+    match = next(w for w in warnings if w.risk_type == SOURCE_UNAVAILABLE)
+    assert match.description == "Company announcement data was unavailable during this update."
+    assert match.severity == "medium"
+
+
+def test_multiple_source_failures_each_produce_their_own_warning():
+    warnings = synthesize_confidence_warnings(
+        [], baseline_available=True, historical_analogue_count=1, total_evidence_count=10,
+        source_type_counts={"news": 10}, source_failures=["announcement", "opportunity"],
+    )
+    types = [w.risk_type for w in warnings if w.risk_type == SOURCE_UNAVAILABLE]
+    assert len(types) == 2
+
+
+def test_no_source_failures_produces_no_source_unavailable_warning():
+    warnings = synthesize_confidence_warnings(
+        [], baseline_available=True, historical_analogue_count=1, total_evidence_count=10,
+        source_type_counts={"news": 10}, source_failures=[],
+    )
+    assert not any(w.risk_type == SOURCE_UNAVAILABLE for w in warnings)
+
+
+def test_source_failures_defaults_to_none_safely():
+    """Every existing caller that doesn't pass source_failures= keeps
+    working unmodified — purely additive parameter."""
+    warnings = synthesize_confidence_warnings(
+        [], baseline_available=True, historical_analogue_count=1, total_evidence_count=10,
+    )
+    assert not any(w.risk_type == SOURCE_UNAVAILABLE for w in warnings)
 
 
 def test_confidence_warnings_contain_no_market_risk_type():

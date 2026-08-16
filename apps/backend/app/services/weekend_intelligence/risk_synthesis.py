@@ -56,6 +56,25 @@ SOURCE_CONCENTRATION = "source_concentration"
 STALE_OR_MISSING_BASELINE = "stale_or_missing_baseline"
 WEAK_HISTORICAL_ANALOGUE = "weak_historical_analogue"
 INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+# Phase 1E hardening: a source table failed to read for THIS checkpoint
+# (evidence_window.collect_evidence_since's per-source isolation) —
+# distinct from SOURCE_CONCENTRATION (which is about the MIX of evidence
+# that WAS successfully read being skewed, not about a read failure).
+SOURCE_UNAVAILABLE = "source_unavailable"
+
+# Human-readable label per EvidenceItem.source_type — used only to word
+# the SOURCE_UNAVAILABLE warning; matches evidence_window.py's SOURCE_*
+# constants exactly (not re-declared there to avoid a circular import,
+# risk_synthesis.py already sits "above" evidence_window.py in the
+# dependency graph).
+_SOURCE_LABELS = {
+    "event": "Event",
+    "policy": "Government policy",
+    "announcement": "Company announcement",
+    "news": "News",
+    "company_signal": "Company signal",
+    "opportunity": "Opportunity",
+}
 
 _SEVERITY_RANK = {"high": 3, "medium": 2, "low": 1}
 
@@ -137,6 +156,7 @@ def synthesize_confidence_warnings(
     historical_analogue_count: int,
     total_evidence_count: int,
     source_type_counts: dict[str, int] | None = None,
+    source_failures: list[str] | None = None,
 ) -> list[Risk]:
     """Everything here is about how much to trust THIS synthesis run,
     not about the market itself — a reader should be able to treat this
@@ -149,6 +169,20 @@ def synthesize_confidence_warnings(
             description="Last trading session's close snapshot is missing — synthesis is based on weekend evidence only, without a verified price/breadth baseline",
             risk_type=STALE_OR_MISSING_BASELINE,
             severity="high",
+        ))
+
+    # Phase 1E hardening: one plain-English warning per source that
+    # failed to read this checkpoint (never silent — this is the whole
+    # point of the refinement). Severity "medium", not "high": the
+    # PRIOR snapshot (if any) remains the current one and the app stays
+    # up — this is a temporary, this-run-only gap, not the kind of
+    # structural gap STALE_OR_MISSING_BASELINE represents.
+    for source in source_failures or []:
+        label = _SOURCE_LABELS.get(source, source)
+        warnings.append(Risk(
+            description=f"{label} data was unavailable during this update.",
+            risk_type=SOURCE_UNAVAILABLE,
+            severity="medium",
         ))
 
     source_type_counts = source_type_counts or {}

@@ -47,6 +47,21 @@ def test_sector_mixed_when_clusters_disagree():
     assert signals[0].confidence < 0.5  # contradiction penalty applied
 
 
+def test_sector_mixed_when_single_cluster_is_internally_mixed():
+    """Phase 1E integration-test finding — same root cause as
+    company_synthesis's equivalent fix: a sector with only ONE cluster,
+    but that cluster is itself internally contradictory, must show
+    direction="mixed", not "neutral"."""
+    clusters = [
+        _cluster(
+            _item("news", "n1", "Banking positive development this week", sectors=["Banking"], direction="positive"),
+            _item("news", "n2", "Banking negative development this week", sectors=["Banking"], direction="negative"),
+        ),
+    ]
+    signals = synthesize_sectors(clusters)
+    assert signals[0].direction == "mixed"
+
+
 def test_sector_single_cluster_confidence_is_capped():
     clusters = [_cluster(_item("news", "n1", "One mention of IT sector", sectors=["IT"], direction="positive"))]
     signals = synthesize_sectors(clusters)
@@ -92,6 +107,23 @@ def test_company_mixed_state_on_contradiction():
     signals = synthesize_companies(clusters)
     assert signals[0].state == MIXED
     assert "conflicting_evidence" in signals[0].risk_flags
+
+
+def test_company_mixed_state_when_single_cluster_is_internally_mixed():
+    """Phase 1E integration-test finding: a SINGLE cluster whose own
+    net_direction is already "mixed" (two near-duplicate-titled
+    contradictory reports Tier-2-merged together) must still produce
+    company state=MIXED — previously fell through to MONITOR since the
+    across-cluster positive/negative counts never saw it (neither
+    bucket, since "mixed" is not "positive" or "negative")."""
+    clusters = [
+        _cluster(
+            _item("news", "n1", "ICICIBANK positive development", companies=["ICICIBANK"], direction="positive"),
+            _item("news", "n2", "ICICIBANK negative development", companies=["ICICIBANK"], direction="negative"),
+        ),
+    ]
+    signals = synthesize_companies(clusters)
+    assert signals[0].state == MIXED
 
 
 def test_company_risk_watch_on_negative_only():

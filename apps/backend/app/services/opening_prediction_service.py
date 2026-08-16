@@ -456,11 +456,28 @@ async def _gather_events(db) -> dict:
 
     mie_signals: list[dict] = []
     try:
-        from app.services.intelligence.engine import get_mie_state
-        mie = await get_mie_state()
+        # Phase 1E integration-test finding: this imported a function
+        # named get_mie_state, which has never existed in engine.py (the
+        # real name is get_intelligence_state — refresh_mie_state is the
+        # cache-writer, get_intelligence_state is the cache-or-compute
+        # reader every other real caller, e.g. app/api/mie.py, actually
+        # uses). The bare `except Exception: pass` below silently
+        # swallowed the resulting ImportError on every single call since
+        # this code was written, so mie_signals has always been empty in
+        # practice — never caught because failing open (empty list) looks
+        # identical to "no breaking signals right now." Discovered only
+        # by actually calling _gather_events() end-to-end (Phase 1E's
+        # integrated double-count test), not by any prior unit test,
+        # which always exercised _weekend_prompt_lines with a hand-built
+        # events dict instead of a real one from this function.
+        from app.services.intelligence.engine import get_intelligence_state
+        mie = await get_intelligence_state()
         for ev in (mie.get("top_events") or [])[:3]:
             mie_signals.append({
-                "title":   ev.get("event", ev.get("title", "")),
+                # read_top_events()'s real key is "headline" — "event"/
+                # "title" never existed on these rows either, a second,
+                # compounding instance of the same root cause.
+                "title":   ev.get("headline", ev.get("event", ev.get("title", ""))),
                 "urgency": ev.get("urgency", 50),
                 # Phase 1C: id was already present on read_top_events()'s
                 # rows (engine.py) but not previously propagated here —

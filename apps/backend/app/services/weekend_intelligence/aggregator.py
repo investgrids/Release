@@ -172,7 +172,7 @@ def _new_since_close_refs(clusters: list[EvidenceCluster]) -> list[dict]:
     ]
 
 
-def _determine_status(evidence_count: int, baseline_available: bool) -> str:
+def _determine_status(evidence_count: int, baseline_available: bool, has_source_failure: bool = False) -> str:
     """Deterministic, per brief §27. Missing baseline always yields
     degraded regardless of evidence volume — real evidence-based
     intelligence can still be produced, it's just not verified against a
@@ -180,10 +180,18 @@ def _determine_status(evidence_count: int, baseline_available: bool) -> str:
     insufficient_evidence regardless of baseline — there is nothing to
     synthesize. Never "degraded" purely because it's a weekend/closed
     market (brief §27's explicit non-example) — that's not one of the
-    two conditions checked here at all."""
+    two conditions checked here at all.
+
+    Phase 1E hardening: `has_source_failure` (one of the 6 evidence
+    sources failed to read this checkpoint — collect_evidence_since's
+    per-source isolation) ALSO forces degraded, even when the baseline
+    IS available — a partial evidence read is its own, independent
+    data-quality gap, not something baseline_available speaks to. Never
+    downgraded to insufficient_evidence purely from a source failure —
+    the sources that DID succeed may still carry real evidence."""
     if evidence_count == 0:
         return STATUS_INSUFFICIENT_EVIDENCE
-    if not baseline_available:
+    if not baseline_available or has_source_failure:
         return STATUS_DEGRADED
     return STATUS_OK
 
@@ -198,7 +206,8 @@ async def build_weekend_intelligence(
 
     since = _evidence_window_since(baseline, last_trading_date_str)
     until = checkpoint_time if checkpoint_time.tzinfo else checkpoint_time.replace(tzinfo=timezone.utc)
-    evidence = await collect_evidence_since(db, since, until)
+    failed_sources: list[str] = []
+    evidence = await collect_evidence_since(db, since, until, failed_sources=failed_sources)
 
     clusters = await cluster_evidence(db, evidence)
 
@@ -225,6 +234,7 @@ async def build_weekend_intelligence(
         historical_analogue_count=len(historical_analogues),
         total_evidence_count=len(evidence),
         source_type_counts=source_type_counts,
+        source_failures=failed_sources,
     )
 
     # "New since market close" — see module docstring. Independent of
@@ -244,7 +254,7 @@ async def build_weekend_intelligence(
     )
 
     overall_bias = bias_mod.compute_overall_bias(sector_signals, company_signals)
-    status = _determine_status(len(evidence), baseline_available)
+    status = _determine_status(len(evidence), baseline_available, has_source_failure=bool(failed_sources))
 
     if status == STATUS_INSUFFICIENT_EVIDENCE:
         # Brief §19: an empty/near-empty weekend must not invent

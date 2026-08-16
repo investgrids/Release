@@ -20,9 +20,12 @@ from app.db.models.intelligence import EventTriage, MarketSnapshot
 from app.db.models.opportunity import Opportunity
 from app.db.models_legacy import NewsArticle
 from app.db.session import AsyncSessionLocal
+from unittest.mock import patch
+
 from app.services.weekend_intelligence.aggregator import (
-    STATUS_DEGRADED, STATUS_INSUFFICIENT_EVIDENCE, STATUS_OK, build_weekend_intelligence,
+    STATUS_DEGRADED, STATUS_INSUFFICIENT_EVIDENCE, STATUS_OK, _determine_status, build_weekend_intelligence,
 )
+from app.services.weekend_intelligence.risk_synthesis import SOURCE_UNAVAILABLE
 
 TARGET = "2099-04-06"
 LAST_TRADING = "2099-04-03"
@@ -290,3 +293,63 @@ async def test_historical_analogue_unavailable_for_ordinary_low_significance_evi
         assert result.historical_analogue_refs == []
     finally:
         await _cleanup(news_ids=[news_id], snapshot_ids=[snap_id])
+
+
+# ── Per-source failure isolation (Phase 1E hardening, post-review) ─────────
+
+def test_determine_status_forced_degraded_by_source_failure_even_with_baseline():
+    assert _determine_status(evidence_count=5, baseline_available=True, has_source_failure=True) == STATUS_DEGRADED
+
+
+def test_determine_status_ok_when_no_source_failure():
+    assert _determine_status(evidence_count=5, baseline_available=True, has_source_failure=False) == STATUS_OK
+
+
+def test_determine_status_source_failure_does_not_override_insufficient_evidence():
+    """Zero evidence still means insufficient_evidence, even with a
+    source failure flag set — there's nothing to synthesize regardless."""
+    assert _determine_status(evidence_count=0, baseline_available=True, has_source_failure=True) == STATUS_INSUFFICIENT_EVIDENCE
+
+
+@pytest.mark.asyncio
+async def test_announcement_source_failure_end_to_end_degrades_gracefully_not_aborts():
+    """The owner's exact requested scenario, through the REAL entry
+    point: News/Events/Policy/CompanySignal/Opportunity healthy,
+    Announcements fails -> the checkpoint still completes using the 5
+    healthy sources, status is forced degraded, and a specific
+    human-readable warning names the failed source."""
+    snap_id = f"pytest-agg-srcfail-close-{uuid.uuid4().hex[:8]}"
+    event_id = f"pytest-agg-srcfail-evt-{uuid.uuid4().hex[:8]}"
+    triage_id = f"pytest-agg-srcfail-triage-{uuid.uuid4().hex[:8]}"
+    ann_id = f"pytest-agg-srcfail-ann-{uuid.uuid4().hex[:8]}"
+    try:
+        async with AsyncSessionLocal() as db:
+            # Real close baseline present, so WITHOUT the injected
+            # failure this would otherwise resolve to status="ok".
+            db.add(MarketSnapshot(id=snap_id, trading_date=LAST_TRADING, snapshot_type="close", nifty_level=24500.0))
+            db.add(Event(id=event_id, title="Healthy event source", published_at=WITHIN_WINDOW,
+                         sectors=["Banking"], companies=["HDFCBANK"]))
+            db.add(EventTriage(id=triage_id, event_id=event_id, source="synthetic", headline="Healthy event source",
+                               urgency=9, importance=9))
+            db.add(CompanyAnnouncement(id=ann_id, subject="Will fail to normalize", ingested_at=WITHIN_WINDOW))
+            await db.commit()
+
+            with patch(
+                "app.services.weekend_intelligence.evidence_window.normalize_announcement",
+                side_effect=RuntimeError("simulated announcement source failure"),
+            ):
+                result = await build_weekend_intelligence(db, TARGET, CHECKPOINT)
+
+        # Did not abort — the healthy Event evidence still made it through.
+        assert result.evidence_count >= 1
+        assert any(e["source_type"] == "event" for e in result.evidence_refs)
+        assert not any(e["source_type"] == "announcement" for e in result.evidence_refs)
+
+        # Forced degraded despite a real baseline being available.
+        assert result.status == STATUS_DEGRADED
+
+        # Specific, human-readable warning naming the failed source.
+        warning = next(w for w in result.confidence_warnings if w.risk_type == SOURCE_UNAVAILABLE)
+        assert warning.description == "Company announcement data was unavailable during this update."
+    finally:
+        await _cleanup(event_ids=[event_id], triage_ids=[triage_id], announcement_ids=[ann_id], snapshot_ids=[snap_id])

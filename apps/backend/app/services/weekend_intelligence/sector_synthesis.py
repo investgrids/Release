@@ -82,7 +82,14 @@ def synthesize_sectors(
         sector = display_name[key]
         positive = sum(1 for c in sector_clusters if c.net_direction in ("positive", "bullish"))
         negative = sum(1 for c in sector_clusters if c.net_direction in ("negative", "bearish"))
-        if positive and negative:
+        # Phase 1E integration-test finding (see company_synthesis.py's
+        # identical fix for the full rationale): a cluster that is
+        # ITSELF internally contradictory (net_direction=="mixed") was
+        # previously invisible here too — counted toward neither
+        # positive nor negative, so a sector whose only cluster was
+        # internally mixed showed as "neutral" instead of "mixed".
+        has_internally_mixed_cluster = any(c.net_direction == "mixed" for c in sector_clusters)
+        if (positive and negative) or has_internally_mixed_cluster:
             direction = "mixed"
         elif positive:
             direction = "positive"

@@ -88,7 +88,19 @@ def synthesize_companies(clusters: list[EvidenceCluster]) -> list[CompanySignal]
         positive = sum(1 for c in symbol_clusters if c.net_direction in ("positive", "bullish"))
         negative = sum(1 for c in symbol_clusters if c.net_direction in ("negative", "bearish"))
         evidence_count = len(symbol_clusters)
-        has_contradiction = positive > 0 and negative > 0
+        # Phase 1E integration-test finding: contradiction can also live
+        # WITHIN a single cluster (dedup.py's own net_direction=="mixed",
+        # e.g. two near-duplicate-titled reports about the same company
+        # that Tier-2 correctly merged, one positive one negative) — a
+        # cluster in that state was previously invisible to the
+        # positive/negative counts above (mixed is neither "positive" nor
+        # "negative"), so a company whose ONLY evidence was one internally-
+        # contradictory cluster silently fell through to "monitor" instead
+        # of "mixed". confidence.py's _agreement_score already treats
+        # within-cluster and across-cluster disagreement as the same kind
+        # of contradiction (brief §12) — applied here for consistency.
+        has_internally_mixed_cluster = any(c.net_direction == "mixed" for c in symbol_clusters)
+        has_contradiction = (positive > 0 and negative > 0) or has_internally_mixed_cluster
 
         risk_flags: list[str] = []
         if has_contradiction:
