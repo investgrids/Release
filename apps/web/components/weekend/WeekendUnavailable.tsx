@@ -29,7 +29,7 @@ const COPY: Record<Kind, { title: string; body: string }> = {
 export function WeekendUnavailable({ kind }: { kind: Kind }) {
   const copy = COPY[kind];
   return (
-    <div className="mx-auto flex max-w-lg flex-col items-center gap-4 rounded-2xl border border-surface-border/7 bg-surface-card px-6 py-14 text-center">
+    <div className="mx-auto flex max-w-lg flex-col items-center gap-4 rounded-2xl border border-surface-border/7 bg-surface-card px-6 py-14 text-center shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10">
         <Clock3 className="h-6 w-6 text-violet-400" aria-hidden="true" />
       </div>

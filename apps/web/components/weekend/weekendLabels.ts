@@ -6,7 +6,7 @@
  * brief §26 (never communicate direction by color alone: every mapping
  * below pairs a color with a real symbol/word).
  */
-import type { CompanyState, RiskSeverity, SectorDirection, WeekendBias } from "@/types/weekendIntelligence";
+import type { CompanyState, RiskSeverity, SectorDirection, WeekendBias, WeekendRisk } from "@/types/weekendIntelligence";
 
 export interface DirectionStyle {
   label: string;
@@ -93,4 +93,259 @@ export function formatUpdatedAt(iso: string | null, checkpointLabel: string | nu
   } catch {
     return iso;
   }
+}
+
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "2026-08-15" -> "15 Aug 2026" — same plain Y-M-D parsing convention as
+ * weekdayNameFromISODate (no Date() timezone ambiguity), used everywhere a
+ * short absolute date is shown (hero subtitle, metadata strip). */
+export function formatDateShort(dateStr: string | null | undefined): string {
+  if (!dateStr) return "Unknown";
+  const parts = dateStr.split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return dateStr;
+  const [y, m, d] = parts;
+  if (!MONTH_ABBR[m - 1]) return dateStr;
+  return `${d} ${MONTH_ABBR[m - 1]} ${y}`;
+}
+
+/** ISO timestamp -> "3:45 PM IST", explicit Asia/Kolkata timezone (safe
+ * regardless of server runtime timezone, unlike formatDateShort's plain
+ * component parsing — this one needs a real instant-to-wall-clock
+ * conversion, which Intl's explicit timeZone option provides). */
+export function formatTimeIST(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  try {
+    return `${new Intl.DateTimeFormat("en-IN", {
+      hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
+    }).format(ms)} IST`;
+  } catch {
+    return null;
+  }
+}
+
+/** ISO timestamp -> "16 Aug 2026", in Asia/Kolkata — the datetime
+ * counterpart to formatDateShort (which only accepts a bare YYYY-MM-DD
+ * date, not a full ISO instant with a time/offset component). */
+export function formatDateFromISO(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  try {
+    return new Intl.DateTimeFormat("en-IN", {
+      day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata",
+    }).format(ms);
+  } catch {
+    return null;
+  }
+}
+
+/** "Baseline (Market Close)" metadata-strip value — last_trading_date is
+ * the real backend field naming which session's close the snapshot is
+ * anchored to; 3:30 PM IST is NSE's fixed, universal close time (not
+ * derived per-snapshot, but a real unchanging market fact, same class of
+ * constant as "Asia/Kolkata" itself). */
+export function baselineLabel(lastTradingDate: string | null | undefined): string {
+  if (!lastTradingDate) return "Unavailable";
+  return `${formatDateShort(lastTradingDate)}, 3:30 PM IST`;
+}
+
+/** "Data Window" metadata-strip value — real elapsed hours between NSE's
+ * fixed 3:30 PM IST close on last_trading_date and this snapshot's actual
+ * generated_at, both real fields. 15:30 IST = 10:00 UTC, so the close
+ * instant is constructed directly in UTC — safe duration arithmetic
+ * regardless of server runtime timezone (only display formatting needs
+ * the explicit Asia/Kolkata handling formatTimeIST uses). */
+export function dataWindowLabel(lastTradingDate: string | null | undefined, generatedAt: string | null | undefined): string {
+  if (!lastTradingDate || !generatedAt) return "Unavailable";
+  const closeUtcMs = Date.parse(`${lastTradingDate}T10:00:00Z`);
+  const generatedMs = Date.parse(generatedAt);
+  if (Number.isNaN(closeUtcMs) || Number.isNaN(generatedMs)) return "Unavailable";
+  const hours = Math.round((generatedMs - closeUtcMs) / 3_600_000);
+  if (hours <= 0) return "Unavailable";
+  return `~${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+export interface EvidenceQuality {
+  label: "Good" | "Fair" | "Limited";
+  description: string;
+  tone: "positive" | "neutral" | "muted";
+}
+
+/** Evidence Quality — not a real backend field (checked: no such field
+ * exists in WeekendIntelligenceSnapshotDTO). Rather than fabricate a
+ * verdict, this derives one deterministically from fields the backend
+ * DOES send: `status` (already the backend's own honest ok/degraded/
+ * insufficient_evidence read of this run) and `confidence_warnings`
+ * (already-synthesized, real caveats — high severity means something
+ * concrete is actually wrong, not just present). Every word in the
+ * description traces to a real count, never an invented adjective. */
+export function evidenceQualityFor(snapshot: {
+  status: string;
+  confidence_warnings: { severity: string }[];
+  evidence_summary: { total: number; by_source_type: Record<string, number> };
+}): EvidenceQuality {
+  const warningCount = snapshot.confidence_warnings.length;
+  const hasHighSeverityWarning = snapshot.confidence_warnings.some((w) => w.severity === "high");
+  const sourceTypeCount = Object.keys(snapshot.evidence_summary.by_source_type).length;
+
+  let label: EvidenceQuality["label"] = "Good";
+  if (snapshot.status === "degraded" || hasHighSeverityWarning) label = "Fair";
+  if (snapshot.evidence_summary.total === 0) label = "Limited";
+
+  const sourceText = sourceTypeCount > 0
+    ? `${sourceTypeCount} source type${sourceTypeCount === 1 ? "" : "s"}`
+    : "no sources yet";
+  const warningText = warningCount === 0
+    ? "no confidence caveats"
+    : `${warningCount} confidence caveat${warningCount === 1 ? "" : "s"}`;
+
+  return {
+    label,
+    description: `${sourceText}, ${warningText}`,
+    tone: label === "Good" ? "positive" : label === "Fair" ? "neutral" : "muted",
+  };
+}
+
+/**
+ * Plain-English confidence tier from the real production_confidence
+ * percentage — the same thresholds summaryTemplate already used inline,
+ * extracted here so the metric card and the summary sentence never
+ * silently drift onto different tier boundaries. No new number, just a
+ * word for the one already shown.
+ */
+export function confidenceTierLabel(productionConfidence: number): "High" | "Moderate" | "Low" {
+  if (productionConfidence >= 70) return "High";
+  if (productionConfidence >= 45) return "Moderate";
+  return "Low";
+}
+
+/**
+ * "Weekend Intelligence Summary" — brief §15: if the backend does not
+ * provide a summary, build one from a deterministic template over
+ * already-present structured fields ONLY, never a new client-side AI
+ * call. Every clause below reads a real field (overall_bias, the two
+ * highest-evidence top_sectors, production_confidence,
+ * baseline_available, status) — no free text is read or generated.
+ * Returns null when there isn't enough real signal to say anything
+ * (mirrors every other section's "render nothing over rendering a
+ * hollow card" convention).
+ */
+export function summaryTemplate(snapshot: {
+  overall_bias: string;
+  top_sectors: { sector: string; direction: string }[];
+  production_confidence: number;
+  baseline_available: boolean;
+  status: string;
+}): string | null {
+  if (snapshot.top_sectors.length === 0) return null;
+
+  const sentences: string[] = [`Weekend signals remain ${biasLabel(snapshot.overall_bias).toLowerCase()}.`];
+
+  const [a, b] = snapshot.top_sectors;
+  if (a && b && sectorDirectionStyle(a.direction).label !== sectorDirectionStyle(b.direction).label) {
+    sentences.push(
+      `${a.sector} shows ${sectorDirectionStyle(a.direction).label.toLowerCase()} evidence while `
+      + `${b.sector} is ${sectorDirectionStyle(b.direction).label.toLowerCase()}.`,
+    );
+  } else if (a) {
+    sentences.push(
+      `${a.sector} carries the most evidence this weekend, trending ${sectorDirectionStyle(a.direction).label.toLowerCase()}.`,
+    );
+  }
+
+  const confidenceWord = confidenceTierLabel(snapshot.production_confidence).toLowerCase();
+  const reasonSuffix = !snapshot.baseline_available
+    ? " because the last trading session's closing baseline is unavailable"
+    : snapshot.status === "degraded" ? " due to limited evidence this cycle" : "";
+  sentences.push(`Confidence is ${confidenceWord}${reasonSuffix}.`);
+
+  return sentences.join(" ");
+}
+
+const _SEVERITY_RANK: Record<string, number> = { high: 2, medium: 1, low: 0 };
+
+/**
+ * Key Risks presentation dedup (owner correction, 2026-08-15) — PURE
+ * frontend deduplication over the real market_risks array, no backend
+ * change. Every real risk_type the backend actually produces
+ * (synthesize_market_risks) is "conflicting_evidence" for BOTH
+ * sector-level ("finance: conflicting...") and company-level
+ * ("BAJFINANCE: conflicting...") entries — when a sector-level risk of
+ * a given type exists, its company-level entries of the SAME type are
+ * dropped, since the sector-level one already communicates the issue at
+ * the level a user cares about (the owner's own example: one Finance
+ * risk instead of BAJFINANCE + LICHSGFIN + HDFCBANK separately). If no
+ * sector-level risk of that type exists, the company-level ones are
+ * kept as-is — nothing is fabricated or invented, only reordered/
+ * filtered from the real array.
+ */
+export function dedupeMarketRisks(risks: WeekendRisk[]): WeekendRisk[] {
+  const sectorTypesPresent = new Set(
+    risks.filter((r) => r.related_sectors.length > 0).map((r) => r.risk_type),
+  );
+  const deduped = risks.filter((r) => {
+    const isCompanyOnly = r.related_companies.length > 0 && r.related_sectors.length === 0;
+    return !(isCompanyOnly && sectorTypesPresent.has(r.risk_type));
+  });
+  return [...deduped].sort((a, b) => _SEVERITY_RANK[b.severity] - _SEVERITY_RANK[a.severity]);
+}
+
+/**
+ * Confidence Warnings presentation simplification (owner correction,
+ * 2026-08-15) — PURE frontend transform over the real confidence_
+ * warnings array, no backend change. Maps each real, known risk_type
+ * (stale_or_missing_baseline / source_concentration /
+ * weak_historical_analogue / insufficient_evidence / source_unavailable
+ * — the complete real set synthesize_confidence_warnings produces) to
+ * plain copy with no backend terminology (clusters/source_type/
+ * synthesis) and no raw counts. Per-company source_concentration
+ * entries (e.g. "BAJFINANCE: thesis rests on a single evidence source
+ * type despite 22 clusters") are collapsed into ONE generic line rather
+ * than one per company — the owner's own example. Any risk_type this
+ * function doesn't recognize falls back to the real description
+ * verbatim rather than silently dropping it.
+ */
+export function simplifyConfidenceWarnings(warnings: WeekendRisk[]): WeekendRisk[] {
+  const out: WeekendRisk[] = [];
+  let companySourceConcentration: WeekendRisk | null = null;
+
+  for (const w of warnings) {
+    switch (w.risk_type) {
+      case "stale_or_missing_baseline":
+        out.push({ ...w, description: "Last-session closing baseline is unavailable" });
+        break;
+      case "source_concentration":
+        if (w.related_companies.length > 0) {
+          // Collapse every per-company instance into a single
+          // representative entry, keeping the highest severity seen.
+          if (!companySourceConcentration) {
+            companySourceConcentration = { ...w, description: "Some company signals rely on only one source type", related_companies: [] };
+          } else if (_SEVERITY_RANK[w.severity] > _SEVERITY_RANK[companySourceConcentration.severity]) {
+            const severity: RiskSeverity = w.severity;
+            companySourceConcentration.severity = severity;
+          }
+        } else {
+          out.push({ ...w, description: "Evidence this weekend leans heavily on one source type" });
+        }
+        break;
+      case "weak_historical_analogue":
+        out.push({ ...w, description: "No similar historical pattern was found this weekend" });
+        break;
+      case "insufficient_evidence":
+        out.push({ ...w, description: "Evidence volume is limited this cycle" });
+        break;
+      default:
+        // source_unavailable is already plain English from the backend
+        // ("Company announcement data was unavailable during this
+        // update.") — and any future/unrecognized type falls back to
+        // its real description rather than being silently dropped.
+        out.push(w);
+    }
+  }
+
+  if (companySourceConcentration) out.push(companySourceConcentration);
+  return out.sort((a, b) => _SEVERITY_RANK[b.severity] - _SEVERITY_RANK[a.severity]);
 }

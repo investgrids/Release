@@ -1,4 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import type { WeekendChangeSincePrior } from "@/types/weekendIntelligence";
+import { sectorDirectionStyle } from "./weekendLabels";
+
+const VISIBLE_LIMIT = 3;
 
 const TYPE_VERB: Record<string, string> = {
   strengthened: "strengthened",
@@ -8,43 +14,42 @@ const TYPE_VERB: Record<string, string> = {
 };
 
 /**
- * Builds clean, user-facing copy from STRUCTURED fields only — the
- * backend's free-text `reason` field is deliberately never read here.
- * It is NOT safe to show verbatim for "strengthened"/"weakened": the
- * backend's own template
- * (changes.py) embeds the raw internal per-sector confidence float
- * transition, e.g. "(0.80 -> 0.65)" — a 0-1 internal score with no
- * explained meaning to a user (not the same scale as the 0-100%
- * production_confidence shown elsewhere on this page), confirmed as a
- * real leak by real local-data verification. "new" and "state_changed"
- * reason strings only ever contain sector/company/state NAMES (verified
- * against the exact backend templates), so those remain safe to show.
- * Rather than trust that invariant to hold silently forever, every
- * change type here is built from STRUCTURED fields
- * (type/entity_id/direction/strength) — reason is not read at all — so
- * a future backend wording change can never reintroduce a raw-number
- * leak here without a corresponding frontend review.
+ * Short compact copy for the strip row, built from STRUCTURED fields
+ * only — the backend's free-text `reason` field is deliberately never
+ * read here. It is NOT safe to show verbatim for "strengthened"/
+ * "weakened": the backend's own template (changes.py) embeds the raw
+ * internal per-sector confidence float transition, e.g. "(0.80 -> 0.65)"
+ * — a 0-1 internal score with no explained meaning to a user, confirmed
+ * as a real leak by real local-data verification. Every change type here
+ * is built from structured fields (type/entity_id/direction/strength) —
+ * reason is not read at all — so a future backend wording change can
+ * never reintroduce a raw-number leak here without a corresponding
+ * frontend review.
  */
-function copyFor(c: WeekendChangeSincePrior): string {
-  const verb = TYPE_VERB[c.type] ?? c.type;
+function shortCopyFor(c: WeekendChangeSincePrior): string {
   if (c.type === "new" && c.direction) {
-    return `${verb} with a ${c.direction} signal`;
+    const style = sectorDirectionStyle(c.direction);
+    return `turned ${style.label.toLowerCase()}`;
   }
-  if (c.type === "state_changed" && c.strength) {
-    return `state changed (now ${c.strength} strength)`;
-  }
-  return `signal ${verb}`;
+  const verb = TYPE_VERB[c.type] ?? c.type;
+  return verb;
 }
 
 /**
- * "Since Our Last Update" — brief §12, a distinct, secondary concept
- * from WeekendChanges: version-to-version drift within the SAME
- * weekend (Saturday v1 -> v2, etc.), not "what's new since Friday".
- * Only rendered when there is a REAL prior version to have changed
- * from (version > 1) — on v1, changes_since_prior is trivially "every
- * top entity is new" (nothing to diff against), which is correct
- * backend behavior but not a meaningful user-facing story, so brief
- * §12 explicitly says not to show this block on v1.
+ * "Since Our Last Update" — a distinct, secondary concept from
+ * WeekendChanges: version-to-version drift within the SAME weekend
+ * (Saturday v1 -> v2, etc.), not "what's new since Friday". Only
+ * rendered when there is a REAL prior version to have changed from
+ * (version > 1) — on v1, changes_since_prior is trivially "every top
+ * entity is new" (nothing to diff against), not a meaningful user-facing
+ * story.
+ *
+ * Redesign correction (2026-08-15, owner feedback): this used to be a
+ * full-width panel listing up to 8 rows, dominating the page between
+ * the metadata strip and the primary intelligence grid. It is secondary
+ * information, not a primary dashboard band — now a compact strip
+ * capped at 3 items with a "View details" expand for the rest, entirely
+ * in-place (same bounded `changes` array, never fetches more).
  */
 export function WeekendChangesSincePrior({
   changes,
@@ -53,18 +58,35 @@ export function WeekendChangesSincePrior({
   changes: WeekendChangeSincePrior[];
   version: number;
 }) {
+  const [expanded, setExpanded] = useState(false);
   if (version <= 1 || changes.length === 0) return null;
 
+  const visible = expanded ? changes : changes.slice(0, VISIBLE_LIMIT);
+  const hasMore = changes.length > VISIBLE_LIMIT;
+
   return (
-    <section className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
-      <h2 className="mb-3 text-[13px] font-black text-text-primary">Since Our Last Update</h2>
-      <ul className="space-y-1.5">
-        {changes.slice(0, 8).map((c, i) => (
-          <li key={`${c.entity_type}-${c.entity_id}-${i}`} className="text-[12px] leading-relaxed text-text-secondary">
-            <span className="font-bold text-text-primary">{c.entity_id}</span> {copyFor(c)}
-          </li>
-        ))}
-      </ul>
+    <section className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl border border-surface-border/7 bg-surface-card px-4 py-3 text-[12px] sm:px-5">
+      <h2 className="text-[11px] font-bold uppercase tracking-wide text-text-muted">Since Our Last Update</h2>
+      {visible.map((c, i) => {
+        const style = c.direction ? sectorDirectionStyle(c.direction) : null;
+        return (
+          <span key={`${c.entity_type}-${c.entity_id}-${i}`} className="text-text-secondary">
+            <span className="font-bold text-text-primary">{c.entity_id}</span>{" "}
+            {style && <span aria-hidden="true" className={style.textClass}>{style.symbol} </span>}
+            {shortCopyFor(c)}
+          </span>
+        );
+      })}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="ml-auto shrink-0 rounded font-semibold text-violet-500 transition duration-200 hover:text-violet-400 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+        >
+          {expanded ? "Show fewer" : "View details →"}
+        </button>
+      )}
     </section>
   );
 }

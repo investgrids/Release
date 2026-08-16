@@ -14,7 +14,7 @@ export function WeekendOpportunities({ opportunities }: { opportunities: Weekend
   if (opportunities.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+    <section className="rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
       <h2 className="mb-3 text-[13px] font-black text-text-primary">Potential Opportunities</h2>
       <ul className="space-y-3">
         {opportunities.slice(0, 5).map((o) => (

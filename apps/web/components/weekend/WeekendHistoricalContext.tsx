@@ -14,7 +14,7 @@ export function WeekendHistoricalContext({ analogues }: { analogues: WeekendHist
   if (analogues.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+    <section className="rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
       <div className="mb-3 flex items-center gap-2">
         <History className="h-4 w-4 text-text-muted" aria-hidden="true" />
         <h2 className="text-[13px] font-black text-text-primary">Similar Historical Setups</h2>
