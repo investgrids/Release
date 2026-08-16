@@ -122,3 +122,87 @@ def test_existing_critical_keywords_unaffected_by_word_boundary_fix(headline):
 def test_no_substring_false_positives(headline, forbidden_keyword):
     score, tier = _compute_priority(5, 5, None, headline)
     assert tier != "Critical", f"{forbidden_keyword!r} substring false-positive still present: {headline!r} -> {score}/{tier}"
+
+
+# ── Newspaper-publication/advertisement compliance filings — 2026-08-15 ─────
+# audit. SEBI LODR Regulation 47 requires listed companies publish their
+# financial results in newspapers; the resulting "here is a copy/clipping
+# of that newspaper ad" filing is the procedural proof-of-publication step,
+# not the results release itself. Live owner E2E testing found these
+# dominating Weekend Intelligence's "What Changed Since Market Close" (45
+# of the section's items were this exact boilerplate). Urgency/importance
+# values below are the REAL EventTriage values sampled from the dev DB for
+# these exact headlines — the triage worker already scored them correctly
+# low; only the keyword floor was overriding it.
+NEWSPAPER_PUBLICATION_CASES = [
+    ("Copy of Newspaper Publication", 2, 4),
+    ("Emcure Pharmaceuticals Limited has informed the Exchange about Copy of Newspaper Publication", 1, 1),
+    ("Blue Coast Hotels Limited has informed the Exchange about copy of newspaper publication of the financial results for the quarter", 2, 4),
+    ("Jeena Sikho Lifecare Limited has informed the Exchange about Submission of Newspaper Advertisement Clipping of Extract of Unaudited Financial Results", 2, 3),
+    ("Copy of Newspaper clippings of Unaudited Financial Results for the quarter ended June 30, 2026", 2, 3),
+    ("Davangere Sugar Company Limited has informed the Exchange about newspaper publications of the Un-Audited Financial Results", 2, 3),
+    ("Newspaper Publication under Regulation 47 of SEBI (Listing Obligation and Disclosure Requirements) Regulations, 2015 for Unaudited Financial Results", 2, 3),
+]
+
+
+@pytest.mark.parametrize("headline,urgency,importance", NEWSPAPER_PUBLICATION_CASES)
+def test_newspaper_publication_filings_stay_low(headline, urgency, importance):
+    score, tier = _compute_priority(urgency, importance, None, headline)
+    assert tier == "Low", f"Routine newspaper-publication filing wrongly elevated to {tier} ({score}): {headline!r}"
+
+
+def test_regulation_47_citation_without_literal_newspaper_word_stays_low():
+    # "Pursuant to ... Regulation 47 ... please find enclosed the copies of
+    # the Newspaper Publications ..." — real DB row, "copies of" (plural)
+    # rather than "copy of", so relies on the standalone Regulation 47
+    # pattern rather than the newspaper-publication phrase pattern.
+    headline = ("Pursuant to Regulation 30 and Regulation 47 of SEBI (LODR) Regulations, 2015, "
+                "please find the enclosed copies of the Newspaper Publications in connection with "
+                "the Unaudited Financial Results")
+    score, tier = _compute_priority(2, 8, None, headline)
+    assert tier == "Low", f"Regulation 47 citation wrongly elevated to {tier} ({score})"
+
+
+def test_bare_sebi_mention_in_routine_filing_no_longer_overrides_routine_check():
+    # Before the 2026-08-15 fix, "sebi" sat in the STRONG keyword bucket,
+    # which unconditionally overrides the routine-filing check (by design,
+    # for real signals like "acquisition"/"merger"). But a bare "SEBI
+    # (LODR) Regulations" citation is boilerplate present in nearly every
+    # compliance filing, not a substantive signal — moving it to the WEAK
+    # bucket makes it respect the same routine-filing exclusion "results"/
+    # "earnings" already do.
+    headline = ("TruCap Finance Limited has informed the Exchange about copy of newspaper "
+                "publication regarding unaudited financial results pursuant to SEBI (LODR) Regulations")
+    score, tier = _compute_priority(2, 4, None, headline)
+    assert tier == "Low", f"SEBI-boilerplate-citing newspaper filing wrongly elevated to {tier} ({score})"
+
+
+# ── Positive controls — genuinely material items must remain High/Critical ──
+POSITIVE_CONTROL_CASES = [
+    ("Infosys Q1 FY27: Net profit up 12.4% YoY; revenue beats estimates", 8, 8),
+    ("Cochin Shipyard Q1 Results: Profit falls 19% YoY to Rs 151 crore, revenue up marginally", 8, 7),
+    ("Patanjali Foods Q1 Results: Gross profit rises 35% YoY to Rs 1,521 crore", 8, 7),
+    ("UPL Limited has informed the Exchange about Acquisition of Misr Hytech Seed International S.A.E., an Egyptian entity", 6, 5),
+    ("Minutes of the Federal Open Market Committee, June 16-17, 2026", 8, 9),
+    ("RBI To Shut FCNR(B) Swap Facility Earlier Than Planned As Inflows Top $52 Billion", 8, 5),
+]
+
+
+@pytest.mark.parametrize("headline,urgency,importance", POSITIVE_CONTROL_CASES)
+def test_genuinely_material_items_remain_high_or_critical(headline, urgency, importance):
+    score, tier = _compute_priority(urgency, importance, None, headline)
+    assert tier in ("High", "Critical"), f"Genuinely material item wrongly suppressed to {tier} ({score}): {headline!r}"
+
+
+@pytest.mark.parametrize("headline", [
+    "Sebi bars XYZ Ltd promoters from trading in regulatory crackdown",
+    "SEBI orders halt in trading of XYZ Ltd shares pending investigation",
+    "Sebi proposes overhaul of settlement rules to cut amounts, speed enforcement",
+])
+def test_genuine_sebi_news_still_elevates_after_moving_sebi_to_weak_bucket(headline):
+    # Real news about SEBI actions is not "routine filing" text (no board
+    # meeting/AGM/newspaper-publication framing), so moving "sebi" to the
+    # weak bucket must not suppress it — the routine-filing exclusion only
+    # applies to text that also matches a routine-filing pattern.
+    score, tier = _compute_priority(5, 5, None, headline)
+    assert tier in ("High", "Critical"), f"Genuine SEBI news wrongly suppressed to {tier} ({score}): {headline!r}"

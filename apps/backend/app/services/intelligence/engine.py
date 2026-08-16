@@ -249,17 +249,30 @@ _read_top_events = read_top_events
 #      can no longer match inside "Turbine", "results" can't match inside
 #      some longer token, etc.
 #   2. The floor is split into two tiers. Strong/specific keywords
-#      (acquisition, merger, RBI, budget, war, Fed) still elevate a routine-
+#      (acquisition, merger, block deal, bulk deal) still elevate a routine-
 #      flagged notice — "board meeting to consider an acquisition" is real,
 #      distinct information regardless of the routine framing around it.
-#      Weak/generic keywords (results, earnings, government) — the exact
-#      ones the audit found firing on ordinary boilerplate — only elevate
-#      when the text does NOT also match a routine-filing pattern. Reuses
-#      intelligence_filter._is_hard_no's existing pattern list rather than
-#      a second one, per the audit's own recommendation.
+#      Weak/generic keywords (results, earnings, government, sebi) — terms
+#      that show up constantly in ordinary boilerplate as well as real news
+#      — only elevate when the text does NOT also match a routine-filing
+#      pattern. Reuses intelligence_filter._is_hard_no's existing pattern
+#      list rather than a second one, per the audit's own recommendation.
+#
+#   3. Re-audit (2026-08-15): "sebi" started in the strong bucket, which
+#      meant it overrode the routine-filing check entirely. Nearly every
+#      NSE compliance filing cites "SEBI (LODR) Regulations" as its legal
+#      basis regardless of subject — Regulation 30 disclosures, trading-
+#      window closures, board-meeting intimations, newspaper-publication
+#      notices — so bare "sebi" was forcing routine filings to High
+#      wholesale (37 of 40 sampled "sebi"-mentioning events were routine
+#      boilerplate, not real SEBI news). Moved to the weak bucket so it
+#      respects the same routine-filing exclusion "results"/"earnings"
+#      already do; genuine SEBI actions still carry their own high
+#      urgency/importance from the triage worker (confirmed live: real
+#      SEBI-news headlines score 4-8 urgency on their own merits).
 _CRITICAL_KEYWORDS = ("rbi", "repo rate", "monetary policy", "budget", "war", "fed", "federal reserve")
-_HIGH_KEYWORDS_STRONG = ("acquisition", "merger", "block deal", "bulk deal", "sebi")
-_HIGH_KEYWORDS_WEAK = ("earnings", "results", "government")
+_HIGH_KEYWORDS_STRONG = ("acquisition", "merger", "block deal", "bulk deal")
+_HIGH_KEYWORDS_WEAK = ("earnings", "results", "government", "sebi")
 
 # Re-audit (2026-08-13): extracted compile/match into app.services.
 # keyword_matching so content_planner.py's article-type keyword lists

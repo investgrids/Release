@@ -49,6 +49,20 @@ _HARD_NO_PATTERNS = [
     # was still reaching the priority engine's weak-keyword floor via
     # "results" alone.
     r"to consider and approve.*(financial results|unaudited results)",
+    # SEBI LODR Regulation 47 mandates listed companies publish their
+    # financial results in newspapers; the resulting "here is a copy/
+    # clipping of that newspaper ad" filing is the procedural proof-of-
+    # publication step, not the results announcement itself (that's a
+    # separate Event). Confirmed live (2026-08-15 audit): the underlying
+    # urgency/importance triage correctly scored these low (1-4), but
+    # the "results" weak-keyword floor (_HIGH_KEYWORDS_WEAK in engine.py)
+    # still forced them to High tier because this boilerplate wasn't
+    # recognized as routine — 30 real DB rows sampled, every one a
+    # "Copy of Newspaper Publication"/"Newspaper Advertisement Clipping"
+    # notice, none an actual results release.
+    r"newspaper (publication|advertisement|clipping)",
+    r"copy of.*newspaper",
+    r"\bregulation 47\b",
 ]
 
 # ── Hard YES — macro/structural events that always get intelligence ───────────

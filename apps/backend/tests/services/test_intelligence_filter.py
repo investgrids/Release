@@ -20,6 +20,7 @@ from __future__ import annotations
 import pytest
 
 from app.services.aipe.intelligence_filter import (
+    _is_hard_no,
     _is_hard_yes,
     _fii_dii_exceeds_threshold,
     should_generate_intelligence,
@@ -114,3 +115,42 @@ def test_rbi_rate_decision_still_hard_yes():
 
 def test_routine_agm_still_not_hard_yes():
     assert not _is_hard_yes("notice of annual general meeting to be held on august 31, 2026")
+
+
+# ── 2026-08-15 audit: newspaper-publication/advertisement compliance ────────
+# filings recognized as routine. SEBI LODR Regulation 47 requires listed
+# companies publish financial results in newspapers; the "here is a copy of
+# that newspaper ad" filing is a procedural compliance step, distinct from
+# the results release itself. Found live: 20 of 45 items in Weekend
+# Intelligence's "What Changed Since Market Close" were this exact
+# boilerplate, reaching High tier via engine.py's "results" keyword floor
+# because _is_hard_no didn't recognize the pattern as routine.
+@pytest.mark.parametrize("text", [
+    "copy of newspaper publication",
+    "emcure pharmaceuticals limited has informed the exchange about copy of newspaper publication",
+    "submission of newspaper advertisement clipping of extract of unaudited financial results",
+    "copy of newspaper clippings of unaudited financial results for the quarter ended june 30, 2026",
+    "newspaper publication under regulation 47 of sebi (listing obligation and disclosure requirements) regulations, 2015",
+    "pursuant to regulation 47 of the sebi (lodr) regulations, 2015, please find enclosed herewith copies of the newspaper advertisements",
+])
+def test_newspaper_publication_filings_are_hard_no(text):
+    assert _is_hard_no(text), f"Routine newspaper-publication filing not recognized as hard-no: {text!r}"
+
+
+def test_regulation_47_bare_citation_is_hard_no():
+    # Real DB row: truncated to "copies of" (plural) so the newspaper-
+    # phrase patterns don't match, exercising the standalone Regulation 47
+    # pattern instead.
+    text = ("sir/madam, pursuant to regulation 47 of the sebi (listing obligations and disclosure "
+            "requirements) regulations, 2015, as amended, please find enclosed herewith copies of the")
+    assert _is_hard_no(text)
+
+
+def test_actual_earnings_results_headline_not_hard_no():
+    # Sanity check the fix is narrow — a genuine results release (not a
+    # newspaper-publication procedural notice) must not be caught.
+    assert not _is_hard_no("company xyz profit jumps 45%, results beat estimates significantly")
+
+
+def test_actual_acquisition_headline_not_hard_no():
+    assert not _is_hard_no("company xyz announces acquisition of abc ltd for $500m")
