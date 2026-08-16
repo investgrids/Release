@@ -45,6 +45,8 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_evaluate_predictions,
         job_quant_price_refresh,
         job_intelligence_observation_snapshot,
+        job_economic_calendar_full_sync,
+        job_economic_calendar_imminent_recheck,
         job_backup_database,
     )
     from app.services.intelligence.theme_worker import run_theme_scoring
@@ -159,6 +161,33 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         max_instances=1,
         coalesce=True,
         misfire_grace_time=3600,
+    )
+
+    # ── Economic Calendar full sync — 3:00 AM IST (Phase 5A.7) — a quiet
+    #    hour clear of market open (9:15 AM IST) and the 16:30/17:00 IST
+    #    quant/observation jobs; this is a pure external-fetch job with no
+    #    market-data dependency, so it has no reason to share that window ──
+    scheduler.add_job(
+        job_economic_calendar_full_sync,
+        CronTrigger(hour=3, minute=0, timezone=_IST),
+        id="economic_calendar_full_sync",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+    )
+
+    # ── Economic Calendar imminent recheck — every 6 hours IST (Phase 5A.7)
+    #    — owner: "do not repeatedly poll every source all day." Offset from
+    #    the full sync and other fixed jobs; only does real work (a network
+    #    fetch) when something is actually scheduled within ~24h — see
+    #    run_imminent_recheck's own single-DB-query short-circuit ──────────
+    scheduler.add_job(
+        job_economic_calendar_imminent_recheck,
+        CronTrigger(hour="2,8,14,20", minute=30, timezone=_IST),
+        id="economic_calendar_imminent_recheck",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
     )
 
     # ── Database backup — 2:00 AM IST (off-peak) ─────────────────────────────

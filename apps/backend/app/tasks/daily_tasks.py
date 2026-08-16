@@ -327,6 +327,63 @@ async def job_intelligence_observation_snapshot() -> None:
         log.error("job.intelligence_observation_snapshot.error", error=str(exc))
 
 
+# ── 3:00 AM IST — Economic Calendar full sync (Phase 5A.7) ──────────────────
+
+async def job_economic_calendar_full_sync() -> None:
+    """
+    Phase 5A.7 — daily full sync of every real (Tier 1) economic
+    calendar source: RBI MPC, MOSPI CPI/IIP, Fed FOMC, BLS CPI, BLS
+    jobs. Scheduled at a quiet hour, clear of both market-open (9:15 AM
+    IST) and the existing 16:30/17:00 IST quant/observation jobs — this
+    is a pure external-fetch job, not a market-data-dependent one, so
+    there's no reason to compete with those for the same window.
+    Delegates entirely to sync_orchestrator.run_full_sync(), which
+    isolates each source's failure from the others (one source down
+    never blocks the rest) and logs a loud, distinct warning if EVERY
+    source returns zero rows on the same run — a much stronger signal
+    of a shared parsing/site-change problem than a routine per-source
+    miss. No frontend/API writes, no LLM calls happen here — this job
+    only reaches EconomicCalendarEvent via the existing sync engine.
+    """
+    import time as _time
+    t0 = _time.perf_counter()
+    log.info("job.economic_calendar_full_sync.start")
+    try:
+        from app.services.economic_calendar.sync_orchestrator import run_full_sync
+        summary = await run_full_sync()
+        elapsed = round((_time.perf_counter() - t0) * 1000)
+        log.info("job.economic_calendar_full_sync.done", elapsed_ms=elapsed,
+                  total_fetched=summary["total_fetched"],
+                  results=[{"source": r["source"], "ok": r.get("ok"), "fetched": r.get("fetched", 0)} for r in summary["results"]])
+    except Exception as exc:
+        log.error("job.economic_calendar_full_sync.error", error=str(exc))
+
+
+# ── Every 6 hours IST — Economic Calendar imminent recheck (Phase 5A.7) ─────
+
+async def job_economic_calendar_imminent_recheck() -> None:
+    """
+    Phase 5A.7 — owner's explicit instruction: "do not repeatedly poll
+    every source all day." Runs 4x/day, but only actually re-fetches a
+    source when it has a real, already-stored, is_current row scheduled
+    within the next ~24 hours — otherwise it's a single cheap DB query
+    and no network calls at all. Catches a same-day postponement or
+    cancellation of an imminent release without polling sources that
+    have nothing coming up soon.
+    """
+    import time as _time
+    t0 = _time.perf_counter()
+    log.info("job.economic_calendar_imminent_recheck.start")
+    try:
+        from app.services.economic_calendar.sync_orchestrator import run_imminent_recheck
+        summary = await run_imminent_recheck()
+        elapsed = round((_time.perf_counter() - t0) * 1000)
+        log.info("job.economic_calendar_imminent_recheck.done", elapsed_ms=elapsed,
+                  checked_sources=summary.get("checked_sources", []))
+    except Exception as exc:
+        log.error("job.economic_calendar_imminent_recheck.error", error=str(exc))
+
+
 # ── Startup once — seed opportunities if table is empty ─────────────────────
 
 async def job_seed_opportunities() -> None:
