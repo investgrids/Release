@@ -191,11 +191,21 @@ def _parse_evidence_date(value) -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _bundle_to_evidence_items(bundle: EvidenceBundle) -> list[EvidenceItem]:
-    """Converts this bundle's events/news/announcements dicts (3 different
-    shapes — see retrieval.py and company_announcements_service.py) into
-    the shared EvidenceItem type so cluster_evidence() (5E.3) can group
-    them. Company/sector fields aren't resolved per-item here (events do
+def _build_evidence_items(
+    events: list[dict], news: list[dict], announcements: list[dict] | None = None,
+) -> list[EvidenceItem]:
+    """Converts events/news/announcements dicts (3 different shapes — see
+    retrieval.py and company_announcements_service.py) into the shared
+    EvidenceItem type so cluster_evidence() (5E.3) can group them. Plain
+    list params (not an EvidenceBundle) so this is reusable by ANY
+    caller with these 3 shapes — V3's EvidenceBundle (via
+    compute_evidence_clusters below) and V2's ai_search_service.py
+    (Phase 5F.1: V2 had the exact same duplicate-inflation bug in its
+    own confidence calculation, independently of V3, since it never
+    goes through EvidenceBundle at all) both call the same function
+    here rather than each maintaining their own conversion.
+
+    Company/sector fields aren't resolved per-item here (events do
     carry `companies`, news/announcements don't reliably) — dedup.py's
     own design already treats company-less items as compatible with each
     other on title+time alone, which is exactly right for "an RSS outlet
@@ -208,19 +218,19 @@ def _bundle_to_evidence_items(bundle: EvidenceBundle) -> list[EvidenceItem]:
     # cluster spans an Event and an Announcement/News duplicate, exactly
     # as it already does for Weekend Intelligence.
     items: list[EvidenceItem] = []
-    for e in bundle.events:
+    for e in events:
         items.append(EvidenceItem(
             source_type="event", source_id=str(e.get("id", "")),
             observed_at=_parse_evidence_date(e.get("date")),
             title=e.get("title", "") or "", score_kind=DETERMINISTIC,
         ))
-    for n in bundle.news:
+    for n in news:
         items.append(EvidenceItem(
             source_type="news", source_id=str(n.get("id", "")),
             observed_at=_parse_evidence_date(n.get("published_at")),
             title=n.get("headline", "") or "", score_kind=HEURISTIC,
         ))
-    for a in bundle.announcements:
+    for a in (announcements or []):
         items.append(EvidenceItem(
             source_type="announcement", source_id=str(a.get("id", "")),
             observed_at=_parse_evidence_date(a.get("announcement_date")),
@@ -229,31 +239,46 @@ def _bundle_to_evidence_items(bundle: EvidenceBundle) -> list[EvidenceItem]:
     return items
 
 
-async def _apply_clustering(db: AsyncSession, bundle: EvidenceBundle) -> None:
-    """Populates development_count and the prompt-dedup set. Failure-
-    isolated: clustering is a real refinement, not a hard dependency — if
-    it errors for any reason, development_count simply falls back to the
-    old raw-row source_count (never worse than pre-5E.5 behavior) rather
-    than breaking the whole evidence-collection call."""
+async def compute_evidence_clusters(
+    db: AsyncSession, events: list[dict], news: list[dict], announcements: list[dict] | None = None,
+) -> tuple[int, list, set[tuple[str, str]]]:
+    """The one shared clustering entry point — returns
+    (development_count, clusters, redundant_for_prompt). Used by both
+    _apply_clustering (V3's EvidenceBundle) and ai_search_service.py
+    (V2) so there is exactly one place this logic lives, not two
+    independently-maintained copies. Failure-isolated: clustering is a
+    real refinement, not a hard dependency — on any error this returns
+    (raw_row_count, [], empty_set), i.e. exactly pre-clustering
+    behavior, never a crash."""
+    items = _build_evidence_items(events, news, announcements)
+    if not items:
+        return 0, [], set()
     try:
-        items = _bundle_to_evidence_items(bundle)
-        if not items:
-            return
         clusters = await cluster_evidence(db, items)
-        bundle._evidence_clusters = clusters
-        bundle.development_count = len(clusters)
-        redundant: set[tuple[str, str]] = set()
-        for cluster in clusters:
-            if len(cluster.members) <= 1:
-                continue
-            rep = cluster.representative
-            for m in cluster.members:
-                if (m.source_type, m.source_id) != (rep.source_type, rep.source_id):
-                    redundant.add((m.source_type, m.source_id))
-        bundle._redundant_for_prompt = redundant
     except Exception as exc:
         log.warning("ai_search.evidence_clustering_failed", error=str(exc)[:200])
-        bundle.development_count = bundle.source_count
+        return len(events) + len(news) + len(announcements or []), [], set()
+
+    redundant: set[tuple[str, str]] = set()
+    for cluster in clusters:
+        if len(cluster.members) <= 1:
+            continue
+        rep = cluster.representative
+        for m in cluster.members:
+            if (m.source_type, m.source_id) != (rep.source_type, rep.source_id):
+                redundant.add((m.source_type, m.source_id))
+    return len(clusters), clusters, redundant
+
+
+async def _apply_clustering(db: AsyncSession, bundle: EvidenceBundle) -> None:
+    """Populates development_count and the prompt-dedup set on the V3
+    EvidenceBundle. See compute_evidence_clusters for the shared logic."""
+    development_count, clusters, redundant = await compute_evidence_clusters(
+        db, bundle.events, bundle.news, bundle.announcements,
+    )
+    bundle.development_count = development_count
+    bundle._evidence_clusters = clusters
+    bundle._redundant_for_prompt = redundant
 
 
 async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSession) -> EvidenceBundle:

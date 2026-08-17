@@ -1135,6 +1135,19 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     if isinstance(news,     Exception): news     = []
     if isinstance(policies, Exception): policies = []
 
+    # Phase 5F.1: real independent-development count, not raw row count.
+    # V2 (this file) had the exact same duplicate-inflation bug 5E fixed
+    # in V3's EvidenceBundle — an Event row and a NewsArticle row
+    # covering the identical NSE filing counted as 2 independent sources
+    # here, inflating confidence, the "limited data coverage" caveat
+    # threshold, and the thin_evidence telemetry flag all at once (they
+    # all separately computed len(events)+len(news) before this fix).
+    # Computed once, used everywhere below instead of 3 separate raw
+    # counts. Failure-isolated — see compute_evidence_clusters's own
+    # docstring for the fallback behavior.
+    from app.services.ai_search.evidence import compute_evidence_clusters
+    _development_count, _, _ = await compute_evidence_clusters(db, events, news)
+
     # Optional: fetch valuation data for valuation-focused queries
     extra_context_lines: list[str] = []
     _valuation_map: dict = {}  # captured for the Decision Engine's real P/E comparison
@@ -1464,7 +1477,8 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
             if similar else 0.0
         )
         _pre_factors = ConfidenceFactors(
-            source_count=len(events) + len(news),
+            source_count=_development_count,
+            corroborating_source_count=len(events) + len(news),
             historical_count=len(similar),
             historical_accuracy=_hist_acc,
             macro_aligned=_macro_ok,
@@ -1973,7 +1987,7 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
         events, similar, extra_context_lines, mie_state, ripple_chain, companies_enriched,
         news=news, policies=policies,
     )
-    confidence_caveats = _confidence_caveats(_conf_result, events, similar, len(news) + len(events))
+    confidence_caveats = _confidence_caveats(_conf_result, events, similar, _development_count)
 
     # Surfaced to the frontend so a failed LLM synthesis renders as an honest
     # "couldn't complete analysis" state instead of a confident-looking report
@@ -2149,7 +2163,7 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     # threshold _confidence_caveats already uses — no new detection logic.
     log.info(
         "ai_search.done", query=query[:50], cos=len(companies_enriched), events=len(events), intent=intent,
-        entities=entities, thin_evidence=(len(events) + len(news) < 3),
+        entities=entities, thin_evidence=(_development_count < 3),
     )
     return result
 
