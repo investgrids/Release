@@ -354,6 +354,60 @@ _FUZZY_EXCLUDED_WORDS = {
     "latest", "continue", "infrastructure",
 }
 
+# Step 3D — query-framing vocabulary. Confirmed live: "What is the
+# INVESTMENT outlook for Asian Paints?" fuzzy-matched the 1-gram
+# "investment" (and the 2-gram "investment outlook") against TATAINVEST's
+# own stripped core "tata investment" (from "Tata Investment Corporation
+# Ltd") at ratio 0.83 -- injecting a completely unrelated financial holding
+# company into a paints-company query, which the LLM then rationalized
+# with plausible-sounding but fabricated reasoning. Same underlying failure
+# class as _GENERIC_SUFFIX_WORDS/_FUZZY_EXCLUDED_WORDS (an ordinary word
+# that happens to be a substantial fraction of some real company's short
+# core), but these are QUERY-FRAMING words -- "how the user asked the
+# question" -- not company-name or corporate-suffix vocabulary, so they get
+# their own small, explicitly-justified set rather than being folded into
+# either existing one. Reuses _word_ngrams' existing "all words in this
+# n-gram are generic -> skip the whole gram" mechanism (see below), which
+# already gives exactly the right behavior for the acceptance cases: a gram
+# that ALSO contains a real distinctive word ("Tata Investment Corporation"
+# -- "tata" isn't generic) still survives and can fuzzy-match normally.
+# Seeded from this one confirmed case plus its immediate query-phrasing
+# variants, not a preemptive dictionary — same curation model as
+# _FUZZY_EXCLUDED_WORDS above.
+_QUERY_FRAMING_WORDS = {
+    "investment", "investments", "invest", "should", "outlook",
+    "stock", "stocks", "share", "shares",
+}
+
+# Plain English function words — "the", "is", "for", etc. Only relevant to
+# the gate check below, never to _strip_generic's core computation: a
+# company's own name never legitimately contains one of these as its
+# distinguishing word, but a QUERY frequently does ("What is THE INVESTMENT
+# outlook..."), and without recognizing them as non-distinctive here, a gram
+# like "the investment" survives the all-generic check (neither word alone
+# is in _GENERIC_SUFFIX_WORDS or _QUERY_FRAMING_WORDS -- "the" is in
+# neither) and still reaches the corpus with "investment" un-stripped,
+# scoring against TATAINVEST's "tata investment" core almost as high as the
+# bare word "investment" would have on its own. Confirmed this was the
+# actual remaining gap: adding "investment" to _QUERY_FRAMING_WORDS alone
+# did not fix "What is the investment outlook for Asian Paints?" until this
+# was added too.
+_STOPWORDS_FOR_GATE = {
+    "the", "a", "an", "is", "are", "was", "were", "of", "for", "in", "on",
+    "at", "to", "and", "or", "what", "how", "why", "when", "who", "this",
+    "that", "with",
+}
+
+# Combined set used ONLY by _word_ngrams' gate check below (whether to try
+# an n-gram at all) -- deliberately NOT used by _strip_generic, which must
+# stay scoped to corporate-suffix words alone: broadening it to include
+# _QUERY_FRAMING_WORDS/_STOPWORDS_FOR_GATE would also strip "investment"
+# from TATAINVEST's OWN name when computing its corpus core (collapsing it
+# to the bare word "tata", which Case C's owner-count check would then
+# correctly-but-unhelpfully exclude as non-distinctive on ITS OWN account,
+# breaking the "Tata Investment Corporation outlook" acceptance case).
+_GATE_GENERIC_WORDS = _GENERIC_SUFFIX_WORDS | _QUERY_FRAMING_WORDS | _STOPWORDS_FOR_GATE
+
 
 def _word_ngrams(text: str, max_len: int = 3) -> list[str]:
     """1-to-max_len contiguous word n-grams, longest-first (so a full 2-word
@@ -367,14 +421,19 @@ def _word_ngrams(text: str, max_len: int = 3) -> list[str]:
     since neither word is company-identifying on its own — the same failure
     mode _GENERIC_SUFFIX_WORDS already exists to prevent, just not yet
     generalized past n=1. A gram is only skipped when EVERY word in it is
-    generic — "Jio Financial" (n=2, only "financial" generic) still passes."""
+    generic — "Jio Financial" (n=2, only "financial" generic) still passes.
+    Step 3D — _GATE_GENERIC_WORDS (query-framing vocabulary + plain English
+    function words) joins the same all-generic check, for the identical
+    reason: "the investment outlook" (every word either a stopword or
+    query-framing) is skipped, but "Tata Investment Corporation" (contains
+    "tata", neither) still passes through and can fuzzy-match normally."""
     words = _WORD_RE.findall(text)
     words = [w for w in words if len(w) >= 3]
     grams: list[str] = []
     for n in range(max_len, 0, -1):
         for i in range(len(words) - n + 1):
             gram_words = words[i:i + n]
-            if all(w.lower() in _GENERIC_SUFFIX_WORDS for w in gram_words):
+            if all(w.lower() in _GATE_GENERIC_WORDS for w in gram_words):
                 continue
             grams.append(" ".join(gram_words))
     return grams

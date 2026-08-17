@@ -1,14 +1,15 @@
 """
-6G Cutover Gate, Step 3C — Entity Resolution & Cache Integrity hardening.
+6G Cutover Gate, Step 3C/3D — Entity Resolution & Cache Integrity hardening.
 
-Five independent root causes, all in the shared resolver/cache layer both
-V2 and V3 depend on, found live during the Step 3 browser rehearsal:
+Independent root causes, all in the shared resolver/cache layer both V2
+and V3 depend on, found live during the Step 3 browser rehearsal:
 
   A. Ambiguity suppression      -- session_context.check_ambiguous_group
   B. Overlapping exact aliases  -- entities._match_companies
-  C. Fuzzy corpus hygiene       -- entities._corpus
+  C. Fuzzy corpus hygiene       -- entities._corpus / _fuzzy_candidates
   D. Semantic cache identity    -- cache.semantic_key
   E. Unsupported-entity residual stripping -- entities._looks_like_unrecognized_company
+  F. Query-framing fuzzy hygiene (Step 3D) -- entities._word_ngrams' gate
 
 Each case gets its own test class: the originally-observed failing query
 (now fixed) plus a negative control proving the fix didn't overcorrect.
@@ -147,13 +148,11 @@ class TestCaseE_UnsupportedEntityResidualStripping:
         caught -- Case E must not weaken the unsupported-entity detector
         itself, only fix the false positive on already-resolved companies.
 
-        Phrased without the word "investment" deliberately: that word
-        alone fuzzy-matches TATAINVEST's core ("tata investment", from
-        "Tata Investment Corporation Ltd") at ratio 0.83 via the *query's
-        own generic boilerplate* ("What IS THE INVESTMENT outlook") --
-        a real, separate, pre-existing bug (query-side generic-phrase
-        collision, not any of cases A-E) found while writing this test,
-        out of scope for this slice and tracked separately."""
+        Originally phrased without the word "investment" specifically to
+        dodge the TATAINVEST query-framing collision found while writing
+        this test (see TestCaseF below, Step 3D) -- kept phrased this way
+        even after that fix landed, since this test's own job is narrowly
+        about Case E, not re-proving Case F."""
         query = "What is the outlook for Zylotronix Micro Industries Ltd?"
         entities = entities_mod.extract_entities(query)
         assert not entities["companies"]
@@ -167,3 +166,49 @@ class TestCaseE_UnsupportedEntityResidualStripping:
         entities = entities_mod.extract_entities(query)
         assert "HAL" in entities["companies"]
         assert entities_mod.looks_like_unrecognized_company(query, entities) is True
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Case F (Step 3D) -- query-framing fuzzy hygiene
+# ─────────────────────────────────────────────────────────────────────────
+class TestCaseF_QueryFramingFuzzyHygiene:
+    """Confirmed live: "What is the investment outlook for Asian Paints?"
+    injected TATAINVEST (Tata Investment Corporation, a financial holding
+    company) into a paints-company query -- the query's own generic
+    phrasing ("the investment outlook") fuzzy-matched TATAINVEST's core
+    ("tata investment") at ratio 0.83. Worse than a stray extra tag: the
+    LLM went on to rationalize TATAINVEST's presence with fabricated-
+    sounding reasoning, a real reasoning-corruption risk, not just noise."""
+
+    def test_investment_outlook_phrasing_does_not_inject_tatainvest(self):
+        query = "What is the investment outlook for Asian Paints?"
+        entities = entities_mod.extract_entities(query)
+        assert entities["companies"] == ["ASIANPAINT"]
+
+    def test_investment_outlook_for_tcs_does_not_inject_tatainvest(self):
+        entities = entities_mod.extract_entities("investment outlook for TCS")
+        assert entities["companies"] == ["TCS"]
+
+    def test_should_i_invest_phrasing_does_not_inject_tatainvest(self):
+        entities = entities_mod.extract_entities("Should I invest in HDFC Bank?")
+        assert entities["companies"] == ["HDFCBANK"]
+
+    def test_explicit_tata_investment_corporation_still_resolves(self):
+        """Negative control: the real company must still resolve when
+        actually named -- Case F must not blanket-disable TATAINVEST."""
+        entities = entities_mod.extract_entities("Tata Investment Corporation outlook")
+        assert "TATAINVEST" in entities["companies"]
+
+    def test_misspelled_tata_investment_still_fuzzy_resolves(self):
+        """Negative control: a genuine misspelling of the real company,
+        with its own distinctive "Tata" token present, must still fuzzy-
+        match -- proving a distinctive token still rescues a gram that
+        also contains query-framing words."""
+        entities = entities_mod.extract_entities("What is the outlook for Tata Invstment Corporation?")
+        assert "TATAINVEST" in entities["companies"]
+
+    def test_no_regression_to_case_c_india_fix(self):
+        """Negative control: Case F's new stopword/query-framing gate must
+        not interact badly with Case C's fix."""
+        entities = entities_mod.extract_entities("What is the latest update on Colgate-Palmolive India?")
+        assert entities["companies"] == ["COLPAL"]
