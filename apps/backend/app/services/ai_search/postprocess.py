@@ -83,12 +83,21 @@ def _freshness_score(evidence) -> float:
     return round(100 - (newest - 60) / (10080 - 60) * 80, 1)
 
 
-def compute_confidence_breakdown(evidence, parsed: dict, mie_state: dict | None = None) -> dict:
+async def compute_confidence_breakdown(evidence, parsed: dict, mie_state: dict | None = None) -> dict:
     """The 6-part breakdown: evidence_quality / market_confirmation /
     historical_similarity / data_freshness / reasoning_confidence /
     final_confidence. final_confidence is V2's own calculate_confidence()
     total_score verbatim — the other 5 are a readable view over the same
-    engine's internal signals (see module docstring)."""
+    engine's internal signals (see module docstring).
+
+    Also applies historical calibration to `result` before extracting
+    final_confidence/level/reasons below — V3 previously never did this
+    (confirmed live: the primary user-facing pipeline was silently
+    outside the prediction->outcome->calibration feedback loop V2
+    participates in on every search). Shared with V2 via
+    prediction_recording.py's apply_calibration() — same thresholds,
+    same >=10-verified-predictions guard, not a new algorithm."""
+    from app.services.ai_search.prediction_recording import apply_calibration, get_search_calibration
     from app.services.confidence_service import ConfidenceFactors, calculate_confidence
 
     mie_state = mie_state or {}
@@ -126,6 +135,8 @@ def compute_confidence_breakdown(evidence, parsed: dict, mie_state: dict | None 
         volatility_regime=vix_regime,
     )
     result = calculate_confidence(factors)
+    cal_data = await get_search_calibration()
+    apply_calibration(result, cal_data)
     bd = result.breakdown
 
     # Normalize each raw point-scale to a 0-100 % of its own max (see

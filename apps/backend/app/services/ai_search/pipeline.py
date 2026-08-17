@@ -459,7 +459,7 @@ async def _assemble_response(
     graph = {"nodes": graph.get("nodes", []), "edges": graph.get("edges", [])}
 
     evidence_score = postprocess.compute_evidence_score(evidence)
-    confidence_breakdown = postprocess.compute_confidence_breakdown(evidence, ai, evidence.mie_state)
+    confidence_breakdown = await postprocess.compute_confidence_breakdown(evidence, ai, evidence.mie_state)
     response_id = str(uuid.uuid4())
 
     # P5 Stage 3, item 3 — real opportunity_score, reusing V2's own sourcing
@@ -639,5 +639,19 @@ async def _assemble_response(
         response["follow_up_groups"] = followups_mod.generate(response, specialist_kind, query, evidence.to_context_text())
     else:
         response["follow_up_groups"] = []
+
+    # Asynchronously persist predictions for the learning engine (non-blocking).
+    # Shared with V2 — see prediction_recording.py's module docstring for why
+    # this was missing from V3 (the primary user-facing pipeline) until now.
+    from app.services.ai_search.prediction_recording import store_search_predictions
+    asyncio.create_task(
+        store_search_predictions(
+            result=response,
+            confidence_score=confidence_breakdown["final_confidence"],
+            confidence_level=confidence_breakdown["level"],
+            confidence_breakdown=confidence_breakdown,
+        ),
+        name="prediction-store-v3",
+    )
 
     return response

@@ -1667,7 +1667,7 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     # company_sensitivity never had real data to work with).
     if _pre_factors is not None:
         try:
-            from app.services.confidence_service import calculate_confidence as _calc_conf, _THRESHOLDS
+            from app.services.confidence_service import calculate_confidence as _calc_conf
             _thesis = ai.get("sentiment") or "neutral"
             if _thesis == "bullish":
                 _pre_factors.market_confirming = sum(
@@ -1684,20 +1684,11 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
             _pre_factors.ai_certainty = min(10, max(1, int(ai.get("confidence_self_rating") or 5)))
             _conf_result = _calc_conf(_pre_factors)
 
-            # Apply historical calibration (only when ≥ 10 verified predictions for this level)
-            if _cal_data:
-                _lvl_cal = _cal_data.get(_conf_result.level, {})
-                _cal_f   = float(_lvl_cal.get("calibration_factor", 1.0))
-                _cal_n   = int(_lvl_cal.get("total", 0))
-                if _cal_n >= 10 and 0.4 <= _cal_f <= 1.8:
-                    _new_score = min(100.0, max(0.0, round(_conf_result.total_score * _cal_f, 1)))
-                    _new_level = next(lbl for thr, lbl in _THRESHOLDS if _new_score >= thr)
-                    _acc_pct   = round(_lvl_cal.get("accuracy_rate", 0.5) * 100)
-                    _conf_result.total_score = _new_score
-                    _conf_result.level       = _new_level
-                    _conf_result.reasons.append(
-                        f"Calibrated from {_cal_n} verified predictions ({_acc_pct}% historical accuracy)"
-                    )
+            # Apply historical calibration (only when ≥ 10 verified predictions
+            # for this level) — shared with V3, see prediction_recording.py's
+            # module docstring for why this moved out of being V2-only.
+            from app.services.ai_search.prediction_recording import apply_calibration
+            apply_calibration(_conf_result, _cal_data)
         except Exception:
             pass
 
@@ -2160,9 +2151,16 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
         # fabricated report.
         _CACHE[ck] = (time.time(), result)  # store with current timestamp; TTL applied on read
 
-    # Asynchronously persist predictions for the learning engine (non-blocking)
+    # Asynchronously persist predictions for the learning engine (non-blocking).
+    # Shared with V3 — see prediction_recording.py's module docstring.
+    from app.services.ai_search.prediction_recording import store_search_predictions
     asyncio.create_task(
-        _store_search_predictions(result, _conf_result),
+        store_search_predictions(
+            result=result,
+            confidence_score=float((_conf_result.total_score if _conf_result else None) or 60),
+            confidence_level=(_conf_result.level if _conf_result else None) or "Medium",
+            confidence_breakdown=dict(_conf_result.breakdown) if _conf_result else {},
+        ),
         name="prediction-store",
     )
 
@@ -2178,88 +2176,3 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     return result
 
 
-def _map_horizon(horizon_str: str) -> int:
-    """Map investment_verdict.horizon text to calendar days."""
-    h = (horizon_str or "").lower()
-    if "intraday" in h or ("1" in h and "day" in h):    return 1
-    if "week" in h or "3" in h and "day" in h:          return 3
-    if "1 month" in h or "short" in h and "term" in h:  return 7
-    return 30  # default: 30-day horizon for longer-term predictions
-
-
-async def _store_search_predictions(result: dict, conf_result: Any) -> None:
-    """Extract and persist predictions from an AI search result."""
-    try:
-        from app.services.prediction_service import store_prediction
-
-        query    = result.get("query", "")
-        verdict  = result.get("investment_verdict") or {}
-        answer   = result.get("answer") or {}
-        companies_list = result.get("companies") or []
-
-        direction = (verdict.get("direction") or answer.get("sentiment") or "sideways").lower()
-        if direction == "bullish":  direction = "up"
-        if direction == "bearish":  direction = "down"
-        if direction not in ("up", "down"): direction = "sideways"
-
-        horizon   = _map_horizon(verdict.get("horizon", ""))
-        conf_score = float((conf_result.total_score if conf_result else None) or verdict.get("confidence", 60) or 60)
-        conf_level = (conf_result.level if conf_result else None) or "Medium"
-        conf_break = dict(conf_result.breakdown) if conf_result else {}
-
-        # 1) Overall market direction prediction (top company as primary entity)
-        top_cos = [c for c in companies_list[:2] if c.get("symbol")]
-        if top_cos or verdict.get("direction"):
-            entities = [
-                {
-                    "type":   "company",
-                    "symbol": c.get("symbol", ""),
-                    "name":   c.get("name", ""),
-                    "ticker": c.get("symbol", ""),
-                }
-                for c in top_cos[:2]
-            ]
-            pred_text = (
-                f"{direction.upper()} on {', '.join(c.get('symbol','') for c in top_cos) or 'market'} "
-                f"— {answer.get('immediate_impact', '')[:120]}"
-            )
-            await store_prediction(
-                source="ai_search",
-                prediction_text=pred_text,
-                direction=direction,
-                prediction_type="overall",
-                target_entities=entities,
-                confidence_score=conf_score,
-                confidence_level=conf_level,
-                confidence_factors=conf_break,
-                horizon_days=horizon,
-                query=query[:400],
-            )
-
-        # 2) Individual company predictions (beneficiary = up, at_risk = down)
-        for company in companies_list[:3]:
-            sym = company.get("symbol", "").strip()
-            if not sym:
-                continue
-            impact = (company.get("impact_type") or "neutral").lower()
-            co_dir = "up" if impact == "beneficiary" else "down" if impact == "at_risk" else "sideways"
-            co_conf = min(100, max(0, float(company.get("confidence", conf_score) or conf_score)))
-            await store_prediction(
-                source="ai_search",
-                prediction_text=f"{co_dir.upper()} on {sym}: {company.get('reason', '')[:120]}",
-                direction=co_dir,
-                prediction_type="company",
-                target_entities=[{
-                    "type":   "company",
-                    "symbol": sym,
-                    "name":   company.get("name", sym),
-                    "ticker": sym,
-                }],
-                confidence_score=co_conf,
-                confidence_level=conf_level,
-                confidence_factors=conf_break,
-                horizon_days=horizon,
-                query=query[:400],
-            )
-    except Exception as exc:
-        log.debug("prediction.store_search_fail", error=str(exc)[:80])
