@@ -12,37 +12,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.limiter import limiter
 from app.db.session import get_db
+from app.services.ai_search import instrumentation as ai_search_stats
 from app.services.ai_search_service import run_ai_search
 
 router = APIRouter()
 log = structlog.get_logger(__name__)
 
 # ── Usage tracking (Ops Dashboard "AI Search" engine card) ────────────────────
-# Deliberately separate from ai_service._AI_USAGE, which is the platform-wide
-# LLM call counter shared by article generation, thesis/checklist AI, etc. —
-# "Total Searches Today" means requests to *this* endpoint, not every AI call.
-_SEARCH_STATS: dict = {
-    "total": 0, "cache_hits": 0, "errors": 0, "timeouts": 0,
-    "latency_ms_total": 0.0,
-    "last_query_at": None, "last_success_at": None, "last_error_at": None, "last_error": None,
-}
-
-
+# 6G Cutover Gate: counters live in app.services.ai_search.instrumentation, a
+# shared module V2 (below), /search/v3, and /search/stream all report into —
+# NOT reset here, NOT reimplemented here. "Total Searches Today" means
+# requests to any of these 3 routes, not every platform-wide AI call (that's
+# ai_service._AI_USAGE, a separate counter). get_search_stats() is kept here,
+# under its original import path, purely so app/api/publishing.py's existing
+# `from app.api.ai_search import get_search_stats` needs no change.
 def get_search_stats() -> dict:
-    from datetime import datetime, timezone
-    resolved = _SEARCH_STATS["total"] - _SEARCH_STATS["cache_hits"]
-    return {
-        "total_today":     int(_SEARCH_STATS["total"]),
-        "cache_hits":      int(_SEARCH_STATS["cache_hits"]),
-        "errors":          int(_SEARCH_STATS["errors"]),
-        "timeouts":        int(_SEARCH_STATS["timeouts"]),
-        "avg_response_ms": round(_SEARCH_STATS["latency_ms_total"] / resolved, 0) if resolved > 0 else 0.0,
-        "success_rate":    round((resolved - _SEARCH_STATS["errors"]) / resolved * 100, 1) if resolved > 0 else None,
-        "last_query_at":   _SEARCH_STATS["last_query_at"],
-        "last_success_at": _SEARCH_STATS["last_success_at"],
-        "last_error_at":   _SEARCH_STATS["last_error_at"],
-        "last_error":      _SEARCH_STATS["last_error"],
-    }
+    return ai_search_stats.get_stats()
 
 
 # ── Redis cache helper ────────────────────────────────────────────────────────
@@ -88,14 +73,11 @@ async def ai_search(
     body: SearchRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    from datetime import datetime, timezone
-
     query = body.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
-    _SEARCH_STATS["total"] += 1
-    _SEARCH_STATS["last_query_at"] = datetime.now(timezone.utc).isoformat()
+    ai_search_stats.record_query()
 
     # P2: entity/session-context-aware key (same resolution run_ai_search
     # does internally) — a query-text-only key here would let two sessions
@@ -111,16 +93,14 @@ async def ai_search(
     ip_hit = _cget(resolved_key)
     if ip_hit:
         log.info("ai_search.inprocess_hit", query=query[:50])
-        _SEARCH_STATS["cache_hits"] += 1
-        _SEARCH_STATS["last_success_at"] = _SEARCH_STATS["last_query_at"]
+        ai_search_stats.record_cache_hit()
         return SearchResponse(query=query, cached=True, result=ip_hit)
 
     # Redis cache check (fallback for multi-instance deployments)
     redis_cached = await _redis_get(cache_key)
     if redis_cached:
         log.info("ai_search.redis_hit", query=query[:50])
-        _SEARCH_STATS["cache_hits"] += 1
-        _SEARCH_STATS["last_success_at"] = _SEARCH_STATS["last_query_at"]
+        ai_search_stats.record_cache_hit()
         return SearchResponse(query=query, cached=True, result=redis_cached)
 
     # Run pipeline
@@ -129,14 +109,9 @@ async def ai_search(
     try:
         result = await run_ai_search(query, db, session_context=body.session_context)
     except Exception as exc:
-        _SEARCH_STATS["errors"] += 1
-        _SEARCH_STATS["last_error_at"] = datetime.now(timezone.utc).isoformat()
-        _SEARCH_STATS["last_error"] = str(exc)[:200]
-        if "timeout" in str(exc).lower() or isinstance(exc, TimeoutError):
-            _SEARCH_STATS["timeouts"] += 1
+        ai_search_stats.record_error(exc)
         raise
-    _SEARCH_STATS["latency_ms_total"] += (time.monotonic() - _t0) * 1000
-    _SEARCH_STATS["last_success_at"] = datetime.now(timezone.utc).isoformat()
+    ai_search_stats.record_success((time.monotonic() - _t0) * 1000)
 
     # Store in Redis (30 min) — best-effort, non-blocking. Skip caching a
     # degraded (LLM-synthesis-failed) result so a retry shortly after can
@@ -167,28 +142,34 @@ async def ai_search_v3(
     body: SearchRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Phase 1 intelligence-pipeline endpoint — coexists with `/search`
-    (V2, untouched) for the duration of Phase 1 development. Not used by
-    the frontend yet; exists so the benchmark runner (`--pipeline v3`) can
-    compare this pipeline against the frozen V2 golden-200 baseline before
-    any production cutover decision is made (see the V3 Phase 1 plan)."""
-    from datetime import datetime, timezone
-
+    """Non-streaming V3 pipeline endpoint — coexists with `/search` (V2).
+    Frontend usage is gated by `NEXT_PUBLIC_AI_SEARCH_V3` (Vercel prod is
+    currently unset, so `/search/stream` below, not this route, is what a
+    flag flip would actually send browsers to); also used directly by the
+    benchmark runner (`--pipeline v3`) and by background callers
+    (comparison_publisher, page_intelligence_service) that call
+    `run_ai_search_v3` in-process rather than through this HTTP route."""
     from app.services.ai_search.pipeline import run_ai_search_v3
 
     query = body.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
+    ai_search_stats.record_query()
     log.info("ai_search_v3.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
     try:
         result, was_cached = await run_ai_search_v3(query, db, body.session_context)
     except Exception as exc:
         log.warning("ai_search_v3.error", exc=str(exc)[:200])
+        ai_search_stats.record_error(exc)
         raise
     latency_ms = round((time.monotonic() - _t0) * 1000, 1)
     log.info("ai_search_v3.done", latency_s=round(latency_ms / 1000, 1), query=query[:50], cached=was_cached)
+    if was_cached:
+        ai_search_stats.record_cache_hit()
+    else:
+        ai_search_stats.record_success(latency_ms)
 
     # last_provider is a shared, best-effort global (app.services.ai_service
     # ._AI_USAGE) — accurate for the common single-request-in-flight case,
@@ -244,6 +225,7 @@ async def ai_search_stream(
             parsed_session_context = None
 
     async def _event_stream():
+        ai_search_stats.record_query()
         _t0 = time.monotonic()
         stages_seen: set[str] = set()
         try:
@@ -255,19 +237,25 @@ async def ai_search_stream(
                     # Same "reasoning" stage absent == cache hit signal used
                     # by run_ai_search_v3 for the non-streaming route.
                     was_cached = "reasoning" not in stages_seen
+                    latency_ms = round((time.monotonic() - _t0) * 1000, 1)
+                    if was_cached:
+                        ai_search_stats.record_cache_hit()
+                    else:
+                        ai_search_stats.record_success(latency_ms)
                     from app.services.ai_service import _AI_USAGE
                     provider = None if was_cached else _AI_USAGE.get("last_provider")
                     envelope = {
                         "result": payload,
                         "cached": was_cached,
                         "response_id": payload.get("response_id"),
-                        "latency_ms": round((time.monotonic() - _t0) * 1000, 1),
+                        "latency_ms": latency_ms,
                         "provider": provider,
                     }
                     yield f"event: answer\ndata: {_json.dumps(envelope)}\n\n"
             yield "event: done\ndata: {}\n\n"
         except Exception as exc:  # noqa: BLE001 — must reach the client as an SSE error event, not a bare 500
             log.warning("ai_search_v3.stream_error", exc=str(exc)[:200], query=query[:50])
+            ai_search_stats.record_error(exc)
             yield f"event: error\ndata: {_json.dumps({'detail': str(exc)[:200]})}\n\n"
 
     return StreamingResponse(
