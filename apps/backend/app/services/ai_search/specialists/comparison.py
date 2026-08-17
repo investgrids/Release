@@ -72,8 +72,9 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     a_label = entity_label(holding, holding_is_commodity, holding_is_sector)
     b_label = entity_label(target, target_is_commodity, target_is_sector)
 
-    evs = "\n".join(f"- {e['title']}" for e in evidence.events[:4]) or "None"
-    nws = "\n".join(f"- {a['headline']}" for a in evidence.news[:4]) or "None"
+    # Phase 5E.5: deduped views — see specialists/company.py's comment.
+    evs = "\n".join(f"- {e['title']}" for e in evidence.deduped_events()[:4]) or "None"
+    nws = "\n".join(f"- {a['headline']}" for a in evidence.deduped_news()[:4]) or "None"
     extra_context = evidence.to_context_text()
     ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
 

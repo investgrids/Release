@@ -15,11 +15,19 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_search import cache as cache_mod
+from app.services.evidence_clustering.dedup import cluster_evidence
+from app.services.evidence_clustering.evidence import (
+    DETERMINISTIC,
+    HEURISTIC,
+    LLM_SELF_RATED,
+    EvidenceItem,
+)
 # P5 Stage 1 (2026-08-06): all relocated from ai_search_service.py to ai_search/
 # — zero behavior change, only which file owns the definition.
 from app.services.ai_search.enrichment import _fetch_valuation_sync, _fetch_vix_sync
@@ -67,9 +75,64 @@ class EvidenceBundle:
     # for prompt injection (mirrors V2's extra_context string exactly).
     context_lines: list[str] = field(default_factory=list)
 
+    # Phase 5E.5: real developments, not raw row count. Populated by
+    # collect() via the shared evidence_clustering primitive (5E.3) —
+    # the same clustering already fixing Opportunity Radar's scoring
+    # (5E.4). Confirmed live by Phase 5E's audit: the same NSE filing
+    # can independently surface as an Event row (ingest_tasks.py) AND a
+    # NewsArticle row (RSS coverage of the same filing) AND a
+    # CompanyAnnouncement row (company_announcements_service.py) — three
+    # rows, one real development. source_count (below) is UNCHANGED and
+    # still counts raw rows (kept for corroboration/diversity display);
+    # development_count is the new number confidence weighting should
+    # use instead — see postprocess.py.
+    development_count: int = 0
+    _evidence_clusters: list = field(default_factory=list, repr=False)
+    # (source_type, source_id) pairs that are a NON-representative member
+    # of a multi-source cluster — i.e. redundant for PROMPT TEXT purposes
+    # only. Citations/source attribution (to_source_ids()) are never
+    # filtered by this; only deduped_events()/deduped_news()/
+    # deduped_announcements() (used to build prompt context) are.
+    _redundant_for_prompt: set = field(default_factory=set, repr=False)
+
     @property
     def source_count(self) -> int:
+        """Raw row count across events+news+policies — UNCHANGED by
+        Phase 5E.5. This is corroboration/diversity signal, not
+        independence signal; see development_count for the latter."""
         return len(self.events) + len(self.news) + len(self.policies)
+
+    @property
+    def corroborating_source_count(self) -> int:
+        """Raw row count across events+news+announcements — the EXACT
+        universe development_count clusters over (see
+        _bundle_to_evidence_items). Deliberately a different set than
+        source_count (which includes policies, not announcements) —
+        comparing development_count against the OLD source_count was
+        comparing two different item universes and could show
+        development_count > source_count even with zero real
+        duplication, purely because announcements aren't in
+        source_count. This property always satisfies
+        development_count <= corroborating_source_count (clustering can
+        only merge, never invent rows) — use this one, not source_count,
+        wherever "corroborated by N sources" needs to be checked against
+        development_count."""
+        return len(self.events) + len(self.news) + len(self.announcements)
+
+    def _is_redundant(self, source_type: str, source_id) -> bool:
+        return (source_type, str(source_id)) in self._redundant_for_prompt
+
+    def deduped_events(self) -> list[dict]:
+        """evidence.events with non-representative cluster members
+        removed — for prompt text only (DB Events: section). Citations
+        should keep reading evidence.events directly."""
+        return [e for e in self.events if not self._is_redundant("event", e.get("id"))]
+
+    def deduped_news(self) -> list[dict]:
+        return [n for n in self.news if not self._is_redundant("news", n.get("id"))]
+
+    def deduped_announcements(self) -> list[dict]:
+        return [a for a in self.announcements if not self._is_redundant("announcement", a.get("id"))]
 
     def to_context_text(self) -> str:
         return "\n\n".join(self.context_lines)
@@ -91,6 +154,106 @@ class EvidenceBundle:
             "company_filings": bool(self.announcements or self.results_announcements),
             "live_market_events": bool(self.events or self.news),
         }
+
+
+def _parse_evidence_date(value) -> datetime:
+    """Best-effort parse across the 3 different date shapes events/news/
+    announcements actually carry in this bundle (see retrieval.py's
+    _event_row_to_dict — "%b %d, %Y" formatted; NewsArticle.published_at
+    — an unpredictable STRING column; CompanyAnnouncement.announcement_date
+    — ISO, since get_recent_announcements() serializes via .isoformat()).
+    Falls back to now() rather than raising — same convention already
+    established in evidence_clustering/evidence.py's own normalize_news()
+    for this exact class of unreliable timestamp."""
+    if value and isinstance(value, str):
+        for fmt in ("%b %d, %Y", None):  # None -> try fromisoformat
+            try:
+                parsed = (
+                    datetime.strptime(value, fmt)
+                    if fmt else
+                    datetime.fromisoformat(value.replace("Z", "+00:00"))
+                )
+                # This codebase's own documented SQLite footgun: a
+                # DateTime(timezone=True) column round-trips as naive on
+                # SELECT even though the stored value is real UTC (see
+                # sync_engine.py's _aware() for the same fix elsewhere) —
+                # announcement_date's .isoformat() serialization can
+                # therefore produce an offset-less string. Without this,
+                # a naive-vs-aware subtraction in dedup.py's time-
+                # proximity check raises TypeError, caught by
+                # _apply_clustering's try/except and silently degrading
+                # every single call to "no clustering happened" — a real
+                # failure mode confirmed live during this fix's own
+                # verification, not a hypothetical.
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+    return datetime.now(timezone.utc)
+
+
+def _bundle_to_evidence_items(bundle: EvidenceBundle) -> list[EvidenceItem]:
+    """Converts this bundle's events/news/announcements dicts (3 different
+    shapes — see retrieval.py and company_announcements_service.py) into
+    the shared EvidenceItem type so cluster_evidence() (5E.3) can group
+    them. Company/sector fields aren't resolved per-item here (events do
+    carry `companies`, news/announcements don't reliably) — dedup.py's
+    own design already treats company-less items as compatible with each
+    other on title+time alone, which is exactly right for "an RSS outlet
+    covering an NSE filing with no company tag on the news row"."""
+    # score_kind matches evidence_clustering/evidence.py's own real
+    # normalizers for these same source types (Event -> DETERMINISTIC,
+    # CompanyAnnouncement -> LLM_SELF_RATED, NewsArticle -> HEURISTIC) —
+    # so EvidenceCluster.representative's "prefer the deterministic
+    # member" rule picks the Event's wording for prompt display when a
+    # cluster spans an Event and an Announcement/News duplicate, exactly
+    # as it already does for Weekend Intelligence.
+    items: list[EvidenceItem] = []
+    for e in bundle.events:
+        items.append(EvidenceItem(
+            source_type="event", source_id=str(e.get("id", "")),
+            observed_at=_parse_evidence_date(e.get("date")),
+            title=e.get("title", "") or "", score_kind=DETERMINISTIC,
+        ))
+    for n in bundle.news:
+        items.append(EvidenceItem(
+            source_type="news", source_id=str(n.get("id", "")),
+            observed_at=_parse_evidence_date(n.get("published_at")),
+            title=n.get("headline", "") or "", score_kind=HEURISTIC,
+        ))
+    for a in bundle.announcements:
+        items.append(EvidenceItem(
+            source_type="announcement", source_id=str(a.get("id", "")),
+            observed_at=_parse_evidence_date(a.get("announcement_date")),
+            title=a.get("subject", "") or "", score_kind=LLM_SELF_RATED,
+        ))
+    return items
+
+
+async def _apply_clustering(db: AsyncSession, bundle: EvidenceBundle) -> None:
+    """Populates development_count and the prompt-dedup set. Failure-
+    isolated: clustering is a real refinement, not a hard dependency — if
+    it errors for any reason, development_count simply falls back to the
+    old raw-row source_count (never worse than pre-5E.5 behavior) rather
+    than breaking the whole evidence-collection call."""
+    try:
+        items = _bundle_to_evidence_items(bundle)
+        if not items:
+            return
+        clusters = await cluster_evidence(db, items)
+        bundle._evidence_clusters = clusters
+        bundle.development_count = len(clusters)
+        redundant: set[tuple[str, str]] = set()
+        for cluster in clusters:
+            if len(cluster.members) <= 1:
+                continue
+            rep = cluster.representative
+            for m in cluster.members:
+                if (m.source_type, m.source_id) != (rep.source_type, rep.source_id):
+                    redundant.add((m.source_type, m.source_id))
+        bundle._redundant_for_prompt = redundant
+    except Exception as exc:
+        log.warning("ai_search.evidence_clustering_failed", error=str(exc)[:200])
+        bundle.development_count = bundle.source_count
 
 
 async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSession) -> EvidenceBundle:
@@ -370,4 +533,5 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
         except Exception:
             pass
 
+    await _apply_clustering(db, bundle)
     return bundle

@@ -12,7 +12,15 @@ from dataclasses import dataclass, field
 
 @dataclass
 class ConfidenceFactors:
-    source_count:        int   = 0      # number of distinct news/event sources
+    # Phase 5E.5: this is now genuinely "distinct sources" in the sense
+    # the name always claimed — the count of independent DEVELOPMENTS
+    # (via the shared evidence-clustering primitive), not raw evidence
+    # rows. 5 outlets reporting one real filing used to inflate this to
+    # 5; it's 1 now. corroborating_source_count (below) is the raw row
+    # count, kept separately so a real "1 development, 5 sources" signal
+    # isn't lost, just no longer conflated with independence.
+    source_count:            int = 0
+    corroborating_source_count: int = 0  # raw source rows behind source_count's developments (>= source_count)
     historical_count:    int   = 0      # similar past events found
     historical_accuracy: float = 0.0   # avg accuracy of those events (0.0–1.0)
     market_confirming:   int   = 0      # sectors/indices already moving in expected direction
@@ -58,11 +66,21 @@ def calculate_confidence(f: ConfidenceFactors) -> ConfidenceResult:
     breakdown: dict[str, float] = {}
     reasons:   list[str]        = []
 
-    # 1 — Source count (0–15)
+    # 1 — Source count (0–15), scored on independent developments
     _sc      = min(f.source_count, 5)
     src_pts  = [0, 3, 6, 9, 12, 15][_sc]
     breakdown["sources"] = src_pts
-    if f.source_count >= 4:
+    # Phase 5E.5: name real corroboration explicitly when it exists,
+    # rather than presenting N duplicate-covered rows as N independent
+    # reasons ("2 independent developments, corroborated by 4 sources"
+    # instead of "4 trusted sources" when 2 of those 4 are the same
+    # underlying filing).
+    if f.corroborating_source_count > f.source_count and f.source_count >= 1:
+        reasons.append(
+            f"{f.source_count} independent development{'s' if f.source_count != 1 else ''}, "
+            f"corroborated by {f.corroborating_source_count} sources"
+        )
+    elif f.source_count >= 4:
         reasons.append(f"{f.source_count} trusted sources")
     elif f.source_count >= 2:
         reasons.append(f"{f.source_count} news & event sources")

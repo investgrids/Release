@@ -16,6 +16,7 @@ import hashlib
 import json
 import structlog
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -25,6 +26,8 @@ from app.core.config import settings
 from app.db.models.opportunity import Opportunity
 from app.pipeline.classifier import classify_text, classify_with_ai
 from app.repositories.opportunity_repository import OpportunityRepository
+from app.services.evidence_clustering.dedup import cluster_evidence
+from app.services.evidence_clustering.evidence import HEURISTIC, EvidenceItem
 
 logger = structlog.get_logger(__name__)
 
@@ -80,12 +83,68 @@ def _slug(title: str, suffix: str = "") -> str:
     return base[:180]
 
 
-def _score_opportunity(events: list[dict], companies: list[str], sectors: list[str]) -> float:
+def _score_opportunity(unique_development_count: int, companies: list[str], sectors: list[str]) -> float:
+    """Phase 5E.4: scores on unique DEVELOPMENTS, not raw article rows.
+
+    Before this fix, the +len(events)*3 term counted every NewsArticle
+    row in the sector group — so 5 outlets covering the identical real
+    story (a single company's results, say) inflated the score exactly
+    as if 5 independent catalysts existed. Confirmed live by Phase 5E's
+    audit: this term is the single largest bonus lever in the formula
+    (capped +20 of ~39 possible bonus points), directly reachable by
+    ordinary multi-outlet RSS coverage of one story.
+
+    unique_development_count is the number of EvidenceClusters
+    _cluster_event_dicts() produces via the shared evidence-clustering
+    primitive (5E.3) — the same real "N sources, 1 development" logic
+    Weekend Intelligence already relies on. Deliberately NOT adding a
+    separate corroboration bonus here yet (owner's explicit call:
+    "small bounded quality bonus later, if justified" — not this pass).
+    Scores can legitimately drop from what they were before; that's
+    correct when the prior score was inflated by duplicate coverage,
+    not a regression."""
     base = 60.0
-    base += min(20, len(events) * 3)
+    base += min(20, unique_development_count * 3)
     base += min(10, len(companies) * 1.5)
     base += min(10, len(sectors) * 2)
     return round(min(99, base), 1)
+
+
+def _parse_event_date(published_at: Any) -> datetime:
+    """Best-effort ISO parse, falling back to now() — same convention
+    already established in evidence_clustering/evidence.py's
+    normalize_news() for this exact STRING published_at column."""
+    if published_at:
+        try:
+            return datetime.fromisoformat(str(published_at).replace("Z", "+00:00"))
+        except ValueError:
+            pass
+    return datetime.now(timezone.utc)
+
+
+async def _cluster_event_dicts(db: AsyncSession, event_texts: list[dict]) -> list:
+    """Groups event_texts (the raw NewsArticle-derived dicts this
+    pipeline scored 1-for-1 before Phase 5E.4) into EvidenceClusters via
+    the shared evidence-clustering primitive — title-overlap +
+    time-proximity, the same heuristic Weekend Intelligence already
+    proved catches "N outlets, one real story" without an LLM. Per-event
+    companies aren't resolved at this point in the pipeline (that
+    happens once, in aggregate, via classify_with_ai above) — leaving
+    EvidenceItem.companies empty means clustering relies on title+time
+    alone, which dedup.py's own design already treats as valid (see its
+    docstring: two company-less items are compatible with each other on
+    title+time, exactly the "RBI decision covered by 3 outlets, none
+    tagging a company" case)."""
+    items = [
+        EvidenceItem(
+            source_type="news", source_id=str(ev.get("id", "")),
+            observed_at=_parse_event_date(ev.get("published_at")),
+            title=ev.get("title", "") or "", summary=ev.get("summary"),
+            score_kind=HEURISTIC,
+        )
+        for ev in event_texts
+    ]
+    return await cluster_evidence(db, items)
 
 
 def _build_heuristic_summary(title: str, sectors: list[str], companies: list[str]) -> dict:
@@ -254,7 +313,8 @@ Return:
     if "horizon" not in locals():
         horizon = "3 – 5 Years"
 
-    score = _score_opportunity(event_texts, companies, sectors)
+    clusters = await _cluster_event_dicts(db, event_texts)
+    score = _score_opportunity(len(clusters), companies, sectors)
     confidence = min(0.95, score / 110)
     # Include a short hash of event IDs so different event groups with the same
     # AI-generated title don't collide on slug (common when heuristic kicks in).

@@ -22,17 +22,30 @@ from datetime import datetime, timezone
 
 def compute_evidence_score(evidence) -> dict:
     """1-5 star rating + a checklist of what actually backs the answer —
-    both derived from the real EvidenceBundle, never LLM-guessed."""
+    both derived from the real EvidenceBundle, never LLM-guessed.
+
+    Phase 5E.5: the breadth bonus is computed from development_count
+    (independent developments, via the shared evidence-clustering
+    primitive — 5E.3), not raw evidence.source_count. Before this fix,
+    5 outlets reporting the identical NSE filing inflated this bonus
+    exactly as if 5 independent stories existed — the same class of bug
+    already fixed for Opportunity Radar (5E.4). source_count is still
+    returned in the response dict below, unchanged, as real
+    corroboration/diversity information — just no longer what decides
+    the star rating."""
     checklist = evidence.evidence_checklist()
     backed = sum(1 for v in checklist.values() if v)
     total_categories = len(checklist)
-    # Source count also factors in — a checklist category can be "true" from
-    # a single thin source; genuine breadth (more sources) should count too.
-    source_bonus = min(evidence.source_count, 10) / 10  # 0-1
+    source_bonus = min(evidence.development_count, 10) / 10  # 0-1
     coverage = backed / total_categories if total_categories else 0
     combined = (coverage * 0.7) + (source_bonus * 0.3)
     stars = max(1, min(5, round(combined * 5)))
-    return {"stars": stars, "checklist": checklist, "source_count": evidence.source_count}
+    return {
+        "stars": stars, "checklist": checklist,
+        "source_count": evidence.source_count,
+        "development_count": evidence.development_count,
+        "corroborating_source_count": evidence.corroborating_source_count,
+    }
 
 
 def _freshness_score(evidence) -> float:
@@ -95,8 +108,15 @@ def compute_confidence_breakdown(evidence, parsed: dict, mie_state: dict | None 
     vix = float(evidence.vix_level or 0)
     vix_regime = "very_high" if vix > 25 else "high" if vix > 18 else "low" if 0 < vix < 12 else "normal"
 
+    # Phase 5E.5: development_count (independent developments), not raw
+    # row count — see EvidenceBundle.development_count's docstring and
+    # compute_evidence_score above for the full rationale. This is the
+    # number ConfidenceFactors.source_count's own docstring already
+    # claimed to represent ("number of distinct news/event sources") —
+    # this fix makes that claim true rather than changing what it means.
     factors = ConfidenceFactors(
-        source_count=evidence.source_count,
+        source_count=evidence.development_count,
+        corroborating_source_count=evidence.corroborating_source_count,
         historical_count=len(evidence.similar_historical),
         historical_accuracy=hist_accuracy,
         macro_aligned=macro_aligned,

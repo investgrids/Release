@@ -42,8 +42,13 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     from app.services.ai_search.regexes import _OUTLOOK_LABELS
     from app.api.companies import _NSE_UNIVERSE
 
-    evs = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in evidence.events[:5]) or "None"
-    nws = "\n".join(f"- {a['headline']}" for a in evidence.news[:5]) or "None"
+    # Phase 5E.5: deduped views — the same real development must not
+    # appear once as a DB Event and again as a News item just because
+    # both tables independently recorded it (see EvidenceBundle.
+    # deduped_events/deduped_news's docstring). Citations still read
+    # evidence.events/evidence.news directly, unaffected.
+    evs = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in evidence.deduped_events()[:5]) or "None"
+    nws = "\n".join(f"- {a['headline']}" for a in evidence.deduped_news()[:5]) or "None"
     pols = "\n".join(f"- {p['title']} [{p['ministry']}]" for p in evidence.policies[:3]) or "None"
     extra_context = evidence.to_context_text()
 

@@ -53,7 +53,8 @@ def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str
     sector_rows = evidence.sector_rows
     target_sector = _identify_sector(query, sector_rows)
     sector_lines = "\n".join(f"- {s['name']}: {s['value']} (1-day change, real live data)" for s in sector_rows[:12]) or "None available"
-    evs = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in evidence.events[:6]) or "None"
+    # Phase 5E.5: deduped view — see specialists/company.py's comment.
+    evs = "\n".join(f"- [{e['category']}] {e['title']} (score:{e['impact_score']:.0f})" for e in evidence.deduped_events()[:6]) or "None"
     pols = "\n".join(f"- {p['title']} [{p['ministry']}]" for p in evidence.policies[:4]) or "None"
     extra_context = evidence.to_context_text()
 
