@@ -91,6 +91,31 @@ class NSEProvider(BaseProvider):
         params = {"from_date": target.isoformat(), "to_date": target.isoformat()}
         return await self._get(_URL, params)
 
+    async def fetch_announcements_only(self) -> list[RawItem]:
+        """Phase 5E.2: the base corporate-announcements sub-feed only
+        (no board meetings/corporate actions), fetched and normalized
+        through this SAME class — used by company_announcements_service.py
+        so it shares this one fetch+normalize path instead of independently
+        re-scraping the identical NSE endpoint on its own schedule.
+
+        Root cause this fixes: before this, two unrelated code paths both
+        polled `_URL` and each hashed the same real filing into a
+        DIFFERENT id namespace (`nse-<hash>` here vs `ann_<hash>_nse` in
+        company_announcements_service.py) — so the same NSE announcement
+        became an Event/NewsArticle row AND an unrelated-looking
+        CompanyAnnouncement row, confirmed live in the dev DB (9 of 20
+        CompanyAnnouncement rows had a same-day Event/NewsArticle
+        duplicate). Consumers sharing this method's RawItem.id can now
+        derive a correlated CompanyAnnouncement id deterministically,
+        closing that specific duplicate class without any fuzzy matching."""
+        raw = await self._get(_URL)
+        out: list[RawItem] = []
+        for r in raw:
+            item = self._normalize_announcement(r)
+            if item and self.validate(item):
+                out.append(item)
+        return out
+
     def normalize(self, raw: dict) -> RawItem | None:
         kind = raw.get("_kind")
         if kind == "board_meeting":
@@ -116,6 +141,11 @@ class NSEProvider(BaseProvider):
             companies=[raw["symbol"]] if raw.get("symbol") else [],
             impact_score=7.5,
             event_type="corporate",
+            # Carried through so company_announcements_service.py (Phase
+            # 5E.2) doesn't need its own independent NSE fetch just to get
+            # a human-readable company name — one normalize path, two
+            # consumers.
+            extra={"company_name": raw.get("comp") or raw.get("companyName") or ""},
         )
 
     def _normalize_board_meeting(self, raw: dict) -> RawItem | None:

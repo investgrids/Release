@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import delete, select
@@ -27,6 +27,7 @@ from sqlalchemy import delete, select
 import app.services.company_announcements_service as cas
 from app.db.models.company_announcements import CompanyAnnouncement
 from app.db.session import AsyncSessionLocal
+from app.providers.base import RawItem
 from app.services import source_health
 
 
@@ -63,7 +64,7 @@ def _fake_bse_item(scrip_cd: str) -> dict:
 async def test_nse_success_bse_failure_still_persists_nse():
     prefix = f"TESTNSE{uuid.uuid4().hex[:6].upper()}"
     _reset_module_state()
-    with patch.object(cas, "_fetch_nse_announcements", return_value=[_fake_nse_item(prefix)]), \
+    with patch.object(cas, "_fetch_nse_announcements", AsyncMock(return_value=[_fake_nse_item(prefix)])), \
          patch.object(cas, "_fetch_bse_announcements", return_value=[]):
         saved = await cas.ingest_announcements()
     assert saved == 1
@@ -80,7 +81,7 @@ async def test_nse_success_bse_failure_still_persists_nse():
 async def test_nse_failure_bse_success_still_persists_bse():
     prefix = f"TESTBSE{uuid.uuid4().hex[:6].upper()}"
     _reset_module_state()
-    with patch.object(cas, "_fetch_nse_announcements", return_value=[]), \
+    with patch.object(cas, "_fetch_nse_announcements", AsyncMock(return_value=[])), \
          patch.object(cas, "_fetch_bse_announcements", return_value=[_fake_bse_item(prefix)]):
         saved = await cas.ingest_announcements()
     assert saved == 1
@@ -96,10 +97,63 @@ async def test_nse_failure_bse_success_still_persists_bse():
 @pytest.mark.asyncio
 async def test_both_fail_returns_zero_no_crash():
     _reset_module_state()
-    with patch.object(cas, "_fetch_nse_announcements", return_value=[]), \
+    with patch.object(cas, "_fetch_nse_announcements", AsyncMock(return_value=[])), \
          patch.object(cas, "_fetch_bse_announcements", return_value=[]):
         saved = await cas.ingest_announcements()  # must not raise
     assert saved == 0
+
+
+# ── Phase 5E.2: NSE ingestion is unified through NSEProvider ────────────────
+
+@pytest.mark.asyncio
+async def test_nse_announcement_id_is_correlated_with_shared_source_record_id():
+    """The core 5E.2 deliverable: when an NSE item carries a
+    source_record_id (i.e. it came through the shared NSEProvider fetch,
+    the same path Event/NewsArticle use), the resulting CompanyAnnouncement
+    id must be DERIVED from that same identity — not an independent
+    content hash — so a matching Event/NewsArticle row is deterministically
+    correlatable, closing the duplicate class found live in the dev DB
+    (9 of 20 CompanyAnnouncement rows had an unrelated-looking
+    Event/NewsArticle duplicate for the literal same filing)."""
+    prefix = f"TESTCORR{uuid.uuid4().hex[:6].upper()}"
+    shared_id = f"nse-{uuid.uuid4().hex[:10]}"
+    item = _fake_nse_item(prefix)
+    item["source_record_id"] = shared_id
+    _reset_module_state()
+
+    with patch.object(cas, "_fetch_nse_announcements", AsyncMock(return_value=[item])), \
+         patch.object(cas, "_fetch_bse_announcements", return_value=[]):
+        saved = await cas.ingest_announcements()
+    assert saved == 1
+
+    async with AsyncSessionLocal() as db:
+        row = await db.get(CompanyAnnouncement, f"ann_{shared_id}")
+    assert row is not None
+    assert row.symbol == prefix
+
+    await _cleanup(prefix)
+
+
+@pytest.mark.asyncio
+async def test_fetch_nse_announcements_routes_through_shared_nse_provider():
+    """_fetch_nse_announcements must no longer independently re-scrape
+    NSE — it should call NSEProvider.fetch_announcements_only() (the
+    same fetch+normalize path ingest_tasks.py's Event/NewsArticle
+    pipeline uses) and carry RawItem.id through as source_record_id."""
+    fake_raw_item = RawItem(
+        id="nse-abc123", headline="Test Headline", summary="Test summary",
+        source="NSE", published_at="2026-08-17", companies=["TESTSYM"],
+        impact_score=7.5, event_type="corporate", extra={"company_name": "Test Ltd"},
+    )
+    with patch("app.providers.nse_provider.NSEProvider.fetch_announcements_only",
+               AsyncMock(return_value=[fake_raw_item])):
+        results = await cas._fetch_nse_announcements()
+
+    assert len(results) == 1
+    assert results[0]["symbol"] == "TESTSYM"
+    assert results[0]["source_record_id"] == "nse-abc123"
+    assert results[0]["company_name"] == "Test Ltd"
+    assert results[0]["subject"] == "Test Headline"
 
 
 # ── The exact original bug: BSE's malformed-JSON crash must not touch NSE ──
@@ -125,18 +179,16 @@ def test_bse_malformed_json_response_does_not_crash_the_fetcher():
     assert health["latest_error"] is not None
 
 
-def test_nse_fetch_success_records_healthy_source_status():
-    class _FakeSession:
-        def get(self, *a, **kw):
-            class _R:
-                ok = True
-                status_code = 200
-                def json(self):
-                    return [_fake_nse_item("TESTHEALTH")]
-            return _R()
-
-    with patch("requests.Session", return_value=_FakeSession()):
-        result = cas._fetch_nse_announcements()
+@pytest.mark.asyncio
+async def test_nse_fetch_success_records_healthy_source_status():
+    fake_raw_item = RawItem(
+        id="nse-health1", headline="Healthy fetch test", summary="",
+        source="NSE", published_at="2026-08-17", companies=["TESTHEALTH"],
+        impact_score=7.5, event_type="corporate", extra={},
+    )
+    with patch("app.providers.nse_provider.NSEProvider.fetch_announcements_only",
+               AsyncMock(return_value=[fake_raw_item])):
+        result = await cas._fetch_nse_announcements()
     assert len(result) == 1
 
     health = source_health.get_source_health("NSE")

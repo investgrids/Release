@@ -49,50 +49,45 @@ def _hash(symbol: str, subject: str, date_str: str) -> str:
 
 # ── NSE corporate announcements ────────────────────────────────────────────────
 
-def _fetch_nse_announcements(limit: int = 50) -> list[dict]:
-    """Fetch recent corporate announcements from NSE India. Never raises —
-    any failure is caught, recorded to source_health, and reported as an
-    empty list, same contract _fetch_bse_announcements makes. Each
-    function's failure is independent: a caller doing
-    `_fetch_nse_announcements() + _fetch_bse_announcements()` never has
-    one source's outage take down the other's already-fetched data."""
+async def _fetch_nse_announcements(limit: int = 50) -> list[dict]:
+    """Fetch recent corporate announcements from NSE India.
+
+    Phase 5E.2: this used to independently re-scrape NSE's own API with
+    its own requests session — a second, unaware-of-the-first fetch of
+    the exact same endpoint app/providers/nse_provider.py's NSEProvider
+    already polls for the Event/NewsArticle pipeline. Two scrapers of
+    one feed meant the same real filing got hashed into two unrelated
+    ID namespaces (`nse-<hash>` for Event/NewsArticle vs `ann_<hash>_nse`
+    here) — confirmed live in the dev DB: 9 of 20 CompanyAnnouncement
+    rows had a same-day Event/NewsArticle duplicate for the literal same
+    filing, invisible to any exact-ID dedup check because the IDs never
+    matched by construction.
+
+    Fixed by routing through NSEProvider.fetch_announcements_only() —
+    the SAME fetch+normalize path — and carrying its RawItem.id through
+    as `source_record_id`, so ingest_announcements() can derive a
+    correlated CompanyAnnouncement id instead of an independent hash.
+    Still never raises — any failure is caught here, recorded to
+    source_health, and reported as an empty list, same contract
+    _fetch_bse_announcements makes; one source's outage never takes the
+    other's already-fetched data down with it."""
     start = time.monotonic()
     try:
-        import requests
-        ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
-        session = requests.Session()
-        session.get("https://www.nseindia.com/", headers={"User-Agent": ua}, timeout=6)
-        r = session.get(
-            "https://www.nseindia.com/api/corporate-announcements?index=equities",
-            headers={
-                "User-Agent": ua,
-                "Accept": "application/json, text/plain, */*",
-                "Referer": "https://www.nseindia.com/companies-listing/corporate-filings-announcements",
-            },
-            timeout=10,
-        )
-        if not r.ok:
-            source_health.record_fetch(
-                "NSE", success=False, failure_kind="http",
-                latency_ms=(time.monotonic() - start) * 1000, error=f"http {r.status_code}",
-            )
-            return []
-        data = r.json()
-        items = data if isinstance(data, list) else data.get("data", [])
+        from app.providers.nse_provider import NSEProvider
+        raw_items = await NSEProvider().fetch_announcements_only()
         results = []
-        for item in items[:limit]:
-            subject = item.get("subject", "") or item.get("desc", "") or ""
-            if not subject:
-                continue
+        for raw_item in raw_items[:limit]:
+            symbol = (raw_item.companies[0] if raw_item.companies else "").strip().upper()
             results.append({
-                "symbol":       (item.get("symbol", "") or "").strip().upper(),
-                "company_name": item.get("comp", "") or item.get("companyName", ""),
-                "source":       "NSE",
-                "category":     item.get("attchmntText", "") or item.get("type", ""),
-                "subject":      subject[:500],
-                "description":  item.get("body", "")[:1000] if item.get("body") else None,
-                "date_str":     item.get("exchdisstime", "") or item.get("an_dt", ""),
-                "attachment_url": item.get("attchmntFile", "") or None,
+                "symbol":            symbol,
+                "company_name":      raw_item.extra.get("company_name", ""),
+                "source":            "NSE",
+                "category":          "",
+                "subject":           raw_item.headline[:500],
+                "description":       raw_item.summary[:1000] if raw_item.summary else None,
+                "date_str":          f"{raw_item.published_at} 00:00:00" if raw_item.published_at else "",
+                "attachment_url":    None,
+                "source_record_id":  raw_item.id,  # e.g. "nse-<an_no>" -- shared with Event/NewsArticle
             })
         source_health.record_fetch(
             "NSE", success=True, event_count=len(results), latency_ms=(time.monotonic() - start) * 1000,
@@ -221,7 +216,9 @@ async def ingest_announcements() -> int:
         from app.db.models.company_announcements import CompanyAnnouncement
         import uuid
 
-        raw = _fetch_nse_announcements() + _fetch_bse_announcements()
+        nse_items = await _fetch_nse_announcements()
+        bse_items = _fetch_bse_announcements()
+        raw = nse_items + bse_items
         if not raw:
             return 0
 
@@ -248,7 +245,18 @@ async def ingest_announcements() -> int:
 
                 score, sentiment, is_high = _score_announcement(item["subject"], item.get("category", ""))
 
-                ann_id = f"ann_{h}_{item['source'].lower()}"
+                # Phase 5E.2: when this item came through the shared
+                # NSEProvider fetch, source_record_id IS the same id
+                # Event/NewsArticle use for the identical filing (e.g.
+                # "nse-<an_no>") — deriving ann_id from it (rather than an
+                # independent content hash) makes this row's identity
+                # deterministically correlated with its Event/NewsArticle
+                # counterpart, closing that duplicate class exactly rather
+                # than relying on fuzzy matching. BSE (not yet unified —
+                # still broken/deferred, see bse_provider.py) keeps the
+                # old hash-based scheme.
+                source_record_id = item.get("source_record_id")
+                ann_id = f"ann_{source_record_id}" if source_record_id else f"ann_{h}_{item['source'].lower()}"
                 existing = await db.get(CompanyAnnouncement, ann_id)
                 if existing:
                     _seen.add(h)
