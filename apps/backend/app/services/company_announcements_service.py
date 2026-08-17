@@ -4,16 +4,38 @@ Fetches corporate announcements from NSE and BSE, stores them in the DB,
 and optionally AI-enriches high-impact ones.
 
 Schedule: every 30 minutes during market hours, every 2 hours otherwise.
+
+Phase 5D fix (2026-08-17): this module used to import stdlib `logging`
+and call it with structlog-style keyword arguments (`log.warning("...",
+error=str(e))`). Stdlib `Logger.warning()` doesn't accept arbitrary
+kwargs — that call raised `TypeError` INSIDE the except block itself,
+uncaught, every time BSE's fetch failed (which it always does — BSE's
+API sits behind a JS-execution-required Akamai bot wall, see
+app/providers/bse_provider.py). Since `raw = _fetch_nse_announcements()
++ _fetch_bse_announcements()` evaluates both before concatenating, that
+crash discarded NSE's already-successfully-fetched data too, every
+single run. Confirmed against the real dev DB before this fix: the
+company_announcements table had zero rows, ever — not "missing BSE
+data", a completely dead pipeline, silently starving every real
+consumer (AI Search's get_recent_announcements(), Weekend
+Intelligence's evidence sources, the daily intelligence-observation-
+snapshot job) of NSE data that was fetching successfully the entire
+time. Fixed by switching to structlog (matching the rest of this
+codebase) and making each source's failure genuinely independent — see
+_fetch_nse_safe/_fetch_bse_safe below.
 """
 from __future__ import annotations
 
 import hashlib
-import logging
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-log = logging.getLogger(__name__)
+import structlog
+
+from app.services import source_health
+
+log = structlog.get_logger(__name__)
 
 # ── Simple in-memory dedup cache (symbol+date+subject hash) ───────────────────
 _seen: set[str] = set()
@@ -28,7 +50,13 @@ def _hash(symbol: str, subject: str, date_str: str) -> str:
 # ── NSE corporate announcements ────────────────────────────────────────────────
 
 def _fetch_nse_announcements(limit: int = 50) -> list[dict]:
-    """Fetch recent corporate announcements from NSE India."""
+    """Fetch recent corporate announcements from NSE India. Never raises —
+    any failure is caught, recorded to source_health, and reported as an
+    empty list, same contract _fetch_bse_announcements makes. Each
+    function's failure is independent: a caller doing
+    `_fetch_nse_announcements() + _fetch_bse_announcements()` never has
+    one source's outage take down the other's already-fetched data."""
+    start = time.monotonic()
     try:
         import requests
         ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
@@ -44,6 +72,10 @@ def _fetch_nse_announcements(limit: int = 50) -> list[dict]:
             timeout=10,
         )
         if not r.ok:
+            source_health.record_fetch(
+                "NSE", success=False, failure_kind="http",
+                latency_ms=(time.monotonic() - start) * 1000, error=f"http {r.status_code}",
+            )
             return []
         data = r.json()
         items = data if isinstance(data, list) else data.get("data", [])
@@ -62,14 +94,30 @@ def _fetch_nse_announcements(limit: int = 50) -> list[dict]:
                 "date_str":     item.get("exchdisstime", "") or item.get("an_dt", ""),
                 "attachment_url": item.get("attchmntFile", "") or None,
             })
+        source_health.record_fetch(
+            "NSE", success=True, event_count=len(results), latency_ms=(time.monotonic() - start) * 1000,
+        )
         return results
     except Exception as e:
-        log.warning("nse_announcements_fetch_failed", error=str(e))
+        log.warning("nse_announcements_fetch_failed", error=str(e)[:200])
+        source_health.record_fetch(
+            "NSE", success=False, failure_kind="parse",
+            latency_ms=(time.monotonic() - start) * 1000, error=str(e)[:500],
+        )
         return []
 
 
 def _fetch_bse_announcements(limit: int = 50) -> list[dict]:
-    """Fetch recent corporate announcements from BSE India."""
+    """Fetch recent corporate announcements from BSE India. Currently
+    always fails: BSE's announcement API sits behind an Akamai bot wall
+    confirmed (2026-08-17) to require real JavaScript execution — a
+    Chrome-TLS-fingerprint-impersonating client (curl_cffi) plus a real
+    cookie warm-up still gets redirected to BSE's error page, and no
+    cookies are set by the warm-up itself. Status: DEFERRED_BOT_PROTECTED
+    (see app/providers/bse_provider.py's module docstring for the full
+    investigation) — not fixed here; this function's contract is simply
+    to fail safely and never take NSE's data down with it."""
+    start = time.monotonic()
     try:
         import requests
         ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
@@ -79,8 +127,18 @@ def _fetch_bse_announcements(limit: int = 50) -> list[dict]:
             timeout=10,
         )
         if not r.ok:
+            source_health.record_fetch(
+                "BSE", success=False, failure_kind="http",
+                latency_ms=(time.monotonic() - start) * 1000, error=f"http {r.status_code}",
+            )
             return []
         data = r.json()
+        if not isinstance(data, dict):
+            source_health.record_fetch(
+                "BSE", success=False, failure_kind="parse",
+                latency_ms=(time.monotonic() - start) * 1000, error="response was not a JSON object (bot-wall page)",
+            )
+            return []
         items = data.get("Table", [])
         results = []
         for item in items[:limit]:
@@ -97,9 +155,16 @@ def _fetch_bse_announcements(limit: int = 50) -> list[dict]:
                 "date_str":     item.get("NEWS_DT", "") or item.get("DissemDT", ""),
                 "attachment_url": None,
             })
+        source_health.record_fetch(
+            "BSE", success=True, event_count=len(results), latency_ms=(time.monotonic() - start) * 1000,
+        )
         return results
     except Exception as e:
-        log.warning("bse_announcements_fetch_failed", error=str(e))
+        log.warning("bse_announcements_fetch_failed", error=str(e)[:200])
+        source_health.record_fetch(
+            "BSE", success=False, failure_kind="parse",
+            latency_ms=(time.monotonic() - start) * 1000, error=str(e)[:500],
+        )
         return []
 
 
