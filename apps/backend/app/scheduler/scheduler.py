@@ -48,6 +48,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_economic_calendar_full_sync,
         job_economic_calendar_imminent_recheck,
         job_macro_rates_sync,
+        job_development_memory_sync,
         job_backup_database,
     )
     from app.services.intelligence.theme_worker import run_theme_scoring
@@ -203,6 +204,18 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         max_instances=1,
         coalesce=True,
         misfire_grace_time=1800,
+    )
+
+    # ── Development Memory sync — every 30 min (Phase 6A). Deliberately
+    #    frequent relative to its own 2h lookback window (sync.py) so
+    #    overlap is large and a missed run is harmless ───────────────────────
+    scheduler.add_job(
+        job_development_memory_sync,
+        IntervalTrigger(minutes=30),
+        id="development_memory_sync",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=900,
     )
 
     # ── Database backup — 2:00 AM IST (off-peak) ─────────────────────────────

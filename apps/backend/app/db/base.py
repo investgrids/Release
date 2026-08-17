@@ -28,3 +28,4 @@ import app.db.models.company_signal  # noqa: F401 E402  — registers ai_company
                                        # registered as a side effect of app.api.company_scores' import chain
                                        # running before create_all(); see WEEKEND_INTELLIGENCE_PHASE1_ARCHITECTURE.md §27.J)
 import app.db.models.weekend_intelligence  # noqa: F401 E402  — registers weekend_intelligence_snapshots table
+import app.db.models.development     # noqa: F401 E402  — registers developments/development_evidence tables (Phase 6A)

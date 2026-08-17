@@ -52,10 +52,15 @@ def test_recurring_job_count_increased_by_exactly_two():
     27 -> 28: Phase 5F.3 added job_macro_rates_sync (every 6h IST,
     3/9/15/21:15) — Phase 5C's macro_rates package had no scheduled job
     at all before this, relying entirely on reactive traffic to keep
-    its 6h-TTL cache warm."""
+    its 6h-TTL cache warm.
+    28 -> 29: Phase 6A added job_development_memory_sync (every 30 min) —
+    feeds the new Development/DevelopmentEvidence persistent-identity
+    layer; runs independently of the 3 existing request-time
+    evidence-clustering call sites since Developments need to form every
+    day, not just when a request happens to touch that evidence."""
     scheduler = _fresh_scheduler()
     register_jobs(scheduler)
-    assert len(scheduler.get_jobs()) == 28
+    assert len(scheduler.get_jobs()) == 29
 
 
 def test_checkpoint_jobs_are_weekend_only_and_ist():

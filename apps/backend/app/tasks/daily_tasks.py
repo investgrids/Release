@@ -420,6 +420,34 @@ async def job_macro_rates_sync() -> None:
         log.error("job.macro_rates_sync.error", error=str(exc))
 
 
+async def job_development_memory_sync() -> None:
+    """
+    Phase 6A — feeds app/services/development_memory/identity.py's
+    matching lifecycle, giving evidence_clustering's EvidenceCluster a
+    persistent identity for the first time. Runs independently of the 3
+    existing request-time clustering call sites (Opportunity Radar, AI
+    Search, Weekend Intelligence) — those need low-latency counts, not
+    write-path risk, and Weekend Intelligence itself only runs Sat/Sun
+    while Developments need to form every day. Scheduled every 30 minutes;
+    sync_development_memory's own 2h lookback window deliberately overlaps
+    runs — reprocessing the same evidence is a safe no-op (see
+    identity.py's "existing" tier), so a missed/late run never leaves a
+    real gap. A failure here never raises past this wrapper, same
+    optional-by-design convention as every other job in this file.
+    """
+    t0 = time.perf_counter()
+    log.info("job.development_memory_sync.start")
+    try:
+        from app.db.session import AsyncSessionLocal
+        from app.services.development_memory.sync import sync_development_memory
+        async with AsyncSessionLocal() as db:
+            stats = await sync_development_memory(db)
+        elapsed = round((time.perf_counter() - t0) * 1000)
+        log.info("job.development_memory_sync.done", elapsed_ms=elapsed, **stats)
+    except Exception as exc:
+        log.error("job.development_memory_sync.error", error=str(exc))
+
+
 # ── Startup once — seed opportunities if table is empty ─────────────────────
 
 async def job_seed_opportunities() -> None:
