@@ -79,6 +79,10 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("prediction_records", "model_version",        "VARCHAR(64)"),
     ("prediction_records", "expected_return",      "FLOAT"),
     ("prediction_records", "expected_volatility",  "FLOAT"),
+    # Phase 6B — added after 6A's initial create_all() already made the
+    # developments table without it; feeds development->theme graph edges
+    # (app/services/development_memory/graph_link.py).
+    ("developments", "themes", "JSON DEFAULT '[]'"),
 ]
 
 

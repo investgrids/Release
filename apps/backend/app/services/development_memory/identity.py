@@ -258,6 +258,11 @@ async def _attach_evidence(db: AsyncSession, dev: Development, item: EvidenceIte
 
     dev.last_observed_at = max(_aware(dev.last_observed_at), item.observed_at)
     dev.evidence_count = (dev.evidence_count or 0) + 1
+    if item.companies and not dev.primary_company:
+        dev.primary_company = item.companies[0]
+    dev.companies = list({*(dev.companies or []), *item.companies})
+    dev.sectors = list({*(dev.sectors or []), *item.sectors})
+    dev.themes = list({*(dev.themes or []), *item.themes})
     dev.current_direction = _net_direction(all_directions) or dev.current_direction
     if item.impact_strength:
         dev.current_impact_tier = item.impact_strength
@@ -295,6 +300,7 @@ async def resolve_development(db: AsyncSession, item: EvidenceItem) -> Resolutio
         primary_company=item.companies[0] if item.companies else None,
         companies=list(item.companies),
         sectors=list(item.sectors),
+        themes=list(item.themes),
         category=item.category,
         first_observed_at=item.observed_at,
         last_observed_at=item.observed_at,

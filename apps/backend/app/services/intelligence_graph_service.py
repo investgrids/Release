@@ -25,8 +25,15 @@ log = structlog.get_logger(__name__)
 _CACHE_KEY = "mig:full:v1"
 _CACHE_TTL = 300
 
-NODE_TYPES = {"company", "sector", "theme", "event", "policy", "commodity", "country", "index", "currency"}
-EDGE_TYPES = {"benefits", "hurts", "supplies", "depends_on", "competes_with", "influences", "triggered_by"}
+NODE_TYPES = {"company", "sector", "theme", "event", "policy", "commodity", "country", "index", "currency", "development"}
+# "represented_by" — Phase 6B, app/services/development_memory/graph_link.py's
+# one-time backfill link from a legacy event:{id} node to the Development
+# that now contains that same event as evidence. Deliberately NOT "influences"
+# or "triggered_by" — those describe causal/directional relationships between
+# two distinct things; this is identity/coreference (the two nodes represent
+# the SAME underlying happening), which nothing else in this vocabulary
+# expresses. Used only for that one link — not a general-purpose edge type.
+EDGE_TYPES = {"benefits", "hurts", "supplies", "depends_on", "competes_with", "influences", "triggered_by", "represented_by"}
 
 # How an edge type propagates the direction signal through the graph
 # "same"    → rise/fall follows through (oil rises → airline costs rise → airlines hurt)
@@ -40,6 +47,7 @@ EDGE_POLARITY: dict[str, str] = {
     "competes_with": "inverse",
     "influences":    "neutral",
     "triggered_by":  "neutral",
+    "represented_by": "neutral",
 }
 
 

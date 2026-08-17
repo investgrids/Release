@@ -63,6 +63,7 @@ class Development(Base):
     primary_company         = Column(String(32), nullable=True, index=True)
     companies                = Column(JSON, nullable=False, default=list)
     sectors                  = Column(JSON, nullable=False, default=list)
+    themes                    = Column(JSON, nullable=False, default=list)  # Phase 6B — feeds development->theme graph edges
     category                  = Column(String(32), nullable=True)  # from seed item's category
 
     first_observed_at        = Column(DateTime(timezone=True), nullable=False, index=True)

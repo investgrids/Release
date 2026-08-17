@@ -21,6 +21,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.development import Development
+from app.services.development_memory.graph_link import link_development_to_graph
 from app.services.development_memory.identity import resolve_development, sweep_close_stale
 from app.services.weekend_intelligence.evidence_window import collect_evidence_since
 
@@ -37,6 +39,7 @@ async def sync_development_memory(db: AsyncSession) -> dict:
     merged = 0
     already_attached = 0
     tier_counts: dict[str, int] = {}
+    touched_development_ids: set[str] = set()
     for item in evidence:
         result = await resolve_development(db, item)
         tier_counts[result.tier] = tier_counts.get(result.tier, 0) + 1
@@ -46,6 +49,36 @@ async def sync_development_memory(db: AsyncSession) -> dict:
             already_attached += 1
         else:
             merged += 1
+        if result.tier != "existing":
+            touched_development_ids.add(result.development.id)
+
+    await db.commit()
+
+    # Phase 6B — graph linking runs as a distinct pass after evidence
+    # resolution, not inline per-item: is_graph_worthy() depends on the
+    # Development's final evidence_count for this run, which isn't settled
+    # until all of this run's evidence has been merged in.
+    graph_linked = 0
+    for dev_id in touched_development_ids:
+        dev = await db.get(Development, dev_id)
+        if dev is None:
+            await db.commit()  # DO NOT REMOVE — see the comment below; applies here too
+            continue
+        node_id = await link_development_to_graph(db, dev)
+        if node_id:
+            dev.ig_node_id = node_id
+            graph_linked += 1
+        # DO NOT REMOVE, DO NOT batch this outside the loop — commit
+        # per-Development, not once at the end. link_development_to_graph()
+        # opens/commits its own AsyncSessionLocal() per upsert_node()/
+        # upsert_edge() call (see its module docstring); on SQLite, a
+        # writer can't get its exclusive lock while `db` here still holds
+        # an open transaction. Closing this iteration's transaction out
+        # now, before the next iteration's db.get()/upserts, is what
+        # actually avoids "database is locked" — confirmed live against
+        # 86 real Developments. Moving this commit back outside the loop
+        # (e.g. "to reduce commits") reintroduces the bug.
+        await db.commit()
 
     closed = await sweep_close_stale(db)
     await db.commit()
@@ -56,6 +89,7 @@ async def sync_development_memory(db: AsyncSession) -> dict:
         "evidence_merged": merged,
         "evidence_already_attached": already_attached,
         "developments_closed": closed,
+        "developments_graph_linked": graph_linked,
         "failed_sources": failed_sources,
         "tier_counts": tier_counts,
     }
