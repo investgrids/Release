@@ -276,21 +276,26 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
         intent_data["is_comparison"] = True
         intent_data["holding"], intent_data["target"] = holding, target
 
-    # P5 Stage 2, item 3: resolve_comparison always collapses to exactly 2
-    # entities (holding/target) with zero signal when more were actually
-    # resolved — a real 3-company query silently drops the third, worse
-    # than V2's pre-P3 behavior (which at least now has multi_entity_partial).
-    # Matches V2's exact detection formula. The comparison specialist still
-    # only compares 2 (no rewrite of its prompt-building this pass), but the
-    # dropped entities are no longer silent — degraded_reason carries the
-    # honest signal through to the response, matching V2's own "compare 2,
-    # signal the rest" compromise rather than a from-scratch parallel-
-    # summary rebuild.
+    # P5 Stage 2, item 3 / Phase 6G Slice 1: resolve_comparison always
+    # collapses to exactly 2 entities (holding/target) with zero signal
+    # when more were actually resolved. Matches V2's exact detection
+    # formula. Phase 6G Slice 1 gave the comparison specialist a real
+    # parallel-analysis path (entity_analyses[]) for 3+ entities — see
+    # specialists/comparison.py's _build_multi_compare_prompt — but that
+    # path itself caps at 3 entities (a deliberate V3 limit, not V2
+    # parity: even after fixing the prompt's schema shape, a 3-entity
+    # request with V3's full nested schema was still truncating before
+    # completing on some fallback models — see that function's own
+    # docstring). So "dropped" here means genuinely beyond the 3-entity
+    # cap, not "beyond 2" the way it did before this port — a 3-company
+    # query now has ZERO drops; a 4+-company query still honestly
+    # discloses whichever ones didn't make the cap, in company_matches
+    # order (the same order _build_multi_compare_prompt itself uses).
     is_multi_compare = len(entities.get("companies") or []) >= 3
     dropped_companies: list[str] = []
     if is_multi_compare and is_cmp:
         matches = entities.get("company_matches") or []
-        kept = {holding, target}
+        kept = {m["name"] for m in matches[:3]}
         dropped_companies = [m["name"] for m in matches if m["name"] not in kept]
 
     # Layer 2 — semantic cache: same resolved companies/intent shape as a
@@ -335,6 +340,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     response = await _assemble_response(
         query, validated, evidence, specialist_kind, was_degraded, validation_report,
         db, entities, dropped_companies=dropped_companies,
+        intent_data=intent_data, is_multi_compare=is_multi_compare,
     )
     _checkpoint("assembly_ms", _t_stage)
     response["timing"] = {**stage_ms, "total_ms": round((time.monotonic() - _t0) * 1000, 1)}
@@ -393,6 +399,8 @@ async def _assemble_response(
     query: str, ai: dict, evidence, specialist_kind: str, was_degraded: bool, validation_report,
     db: AsyncSession, entities: dict,
     dropped_companies: list[str] | None = None,
+    intent_data: dict | None = None,
+    is_multi_compare: bool = False,
 ) -> dict:
     """Builds the final response dict — a strict superset of V2's shape
     (see schema.py) plus Phase 1's new fields. Reuses V2's own enrichment/
@@ -615,7 +623,81 @@ async def _assemble_response(
             "omissions": validation_report.omissions,
             "contradiction_flagged": validation_report.contradiction_flagged,
         },
+        # Phase 6G Slice 1 — present on _degraded_shell but previously
+        # missing from this, the successful path; no consumer anywhere in
+        # the backend reads any of these 3, so this is schema-shape
+        # consistency, not a behavior change.
+        "market_impact_horizons": {},
+        "what_to_monitor": [],
+        "ai_reasoning_methods": [],
     }
+
+    intent_data = intent_data or {}
+
+    # Phase 6G Slice 1 — list_picks real-screener override, ported verbatim
+    # from V2 (ai_search_service.py). Real, non-LLM: pulls sector/theme-
+    # matched opportunities from the Opportunity Engine, cross-referenced
+    # against the real NSE universe, and overrides the AI's own invented
+    # top_picks when the screener found anything real — the AI's list is
+    # only kept as a fallback when nothing real matched. Runs after the
+    # response dict above is fully built so it can override in place,
+    # exactly mirroring V2's own after-generation override, not a
+    # different route or a second LLM call.
+    if intent_data.get("intent") == "list_picks":
+        try:
+            from app.services.ai_recommendation_engine import compute_recommendations
+            from app.services.ai_search.retrieval import _words
+
+            _pick_stopwords = {
+                "give", "me", "the", "top", "best", "and", "for", "which", "what",
+                "are", "should", "recommend", "picks", "pick", "stock", "stocks",
+                "companies", "shares", "invest", "buy", "list", "some", "with",
+            }
+            _pick_terms = (entities.get("sectors") or []) + [
+                w for w in _words(query) if w not in _pick_stopwords and len(w) >= 4
+            ]
+            _engine_picks = await compute_recommendations(db, _pick_terms, intent_data.get("pick_count") or 3)
+            response["investment_verdict"]["verdict_basis"] = "real_screener" if _engine_picks else "ai_only_no_real_match"
+            response["investment_verdict"]["engine_recommendations"] = _engine_picks
+            if _engine_picks:
+                response["investment_verdict"]["top_picks"] = [c["symbol"] for c in _engine_picks]
+        except Exception as exc:
+            log.warning("ai_search_v3.list_picks_screener_fail", exc=str(exc)[:120])
+
+    # Phase 6G Slice 1 — pairwise Decision Engine, ported verbatim from V2.
+    # Real, non-LLM: two independent Investment Verdict Engine reads (same
+    # market-wide direction/confidence/VIX, each entity's own real
+    # Opportunity Engine score) plus a real P/E comparison when both
+    # sides' valuation was fetched. Reuses evidence.valuation/vix_level,
+    # already collected earlier in this same request — no new data fetch.
+    # Excluded for is_multi_compare, matching V2's exact boundary: this is
+    # a genuine two-entity pairwise computation, not attempted for 3+.
+    if (
+        specialist_kind == "comparison" and not is_multi_compare
+        and isinstance(response.get("decision_intelligence"), dict)
+    ):
+        try:
+            from app.services.decision_engine import compute_decision
+            from app.services.opportunity_service import OpportunityService
+
+            _matches = entities.get("company_matches") or []
+            _name_to_symbol = {m.get("name"): m.get("symbol") for m in _matches if m.get("name") and m.get("symbol")}
+            _sym_a = _name_to_symbol.get(intent_data.get("holding") or "")
+            _sym_b = _name_to_symbol.get(intent_data.get("target") or "")
+            if _sym_a and _sym_b:
+                async def _opp_for(sym: str) -> float | None:
+                    hits = await OpportunityService(db).list_by_sector_or_theme([sym], limit=1)
+                    return hits[0]["opportunity_score"] if hits else None
+                _opp_a, _opp_b = await asyncio.gather(_opp_for(_sym_a), _opp_for(_sym_b))
+                response["decision_intelligence"]["engine_recommendation"] = compute_decision(
+                    entity_a_symbol=_sym_a, entity_b_symbol=_sym_b,
+                    direction=(evidence.mie_state or {}).get("signals", {}).get("direction", "sideways"),
+                    confidence_score=confidence_breakdown["final_confidence"], vix_level=evidence.vix_level,
+                    opportunity_score_a=_opp_a, opportunity_score_b=_opp_b,
+                    valuation_a=evidence.valuation.get(_sym_a), valuation_b=evidence.valuation.get(_sym_b),
+                )
+        except Exception as exc:
+            log.warning("ai_search_v3.decision_engine_fail", exc=str(exc)[:120])
 
     if not was_degraded:
         # Real evidence + resolved companies behind this answer, cached

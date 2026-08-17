@@ -37,11 +37,127 @@ SPECIALIST_SYSTEM = (
 MAX_TOKENS = 7000
 
 
+def _build_multi_compare_prompt(query: str, evidence, entities: dict) -> str:
+    """Phase 6G Slice 1 — 3+ named companies ("Compare TCS, Infosys, and
+    Wipro") get parallel per-entity analyses (decision_intelligence.
+    entity_analyses[]) instead of the pairwise holding_analysis/
+    target_analysis/comparison[]/tradeoff{}/decision_framework{} shape
+    build_prompt() below produces for exactly 2 entities — explicitly
+    NOT a genuine N-way dimension comparison, same minimum-bar scope
+    V2's original _build_multi_compare_prompt (ai_search_service.py)
+    had. Before this port, V3 only disclosed which companies got
+    dropped (degraded_reason="multi_entity_partial") rather than
+    actually analyzing all of them — see pipeline.py's is_multi_compare
+    handling.
+
+    Uses V3's actual nested schema groups (schema.py) throughout —
+    investment/decision/evidence/companies/sectors/timeline/risks — NOT
+    V2's old flat template. A first version of this port copied V2's
+    flat JSON shape verbatim and it does not conform to this pipeline's
+    parse_specialist_json/flatten_nested contract (missing the nested
+    groups schema.py's REQUIRED_KEYS/flatten_nested expect) — confirmed
+    live: real parse failures and companies silently dropped.
+
+    EXTRAS_GROUP is deliberately OMITTED (not just deprioritized in
+    text) and entities capped at 3 (not the other blocks' usual 6) —
+    also confirmed live: even after fixing the schema shape, a genuine
+    3-entity request with the full standard schema plus 3x company/
+    entity_analysis objects still truncated mid-JSON before MAX_TOKENS.
+    Cutting the lowest-priority group from the schema itself guarantees
+    the token savings that just telling the model "extras is lowest
+    priority" (PRIORITY_INSTRUCTIONS, still true for the groups that
+    remain) didn't reliably achieve on its own. Only the
+    decision_intelligence content differs from build_prompt()'s pairwise
+    case; everything else matches it exactly."""
+    from app.services.ai_search.regexes import _OUTLOOK_LABELS
+    from app.services.ai_search.schema import (
+        EVIDENCE_GROUP,
+        RISKS_GROUP,
+        TIMELINE_GROUP,
+        render_decision_group,
+        render_investment_group,
+    )
+
+    symbols = entities.get("companies") or []
+    matches = entities.get("company_matches") or []
+    names = [m.get("name") for m in matches if m.get("name")] or symbols
+    display_names = (names if names else symbols)[:3]  # capped tighter than other blocks' usual 6 -- see token-budget note above
+    entity_list = ", ".join(display_names)
+
+    evs = "\n".join(f"- {e['title']}" for e in evidence.deduped_events()[:4]) or "None"
+    nws = "\n".join(f"- {a['headline']}" for a in evidence.deduped_news()[:4]) or "None"
+    extra_context = evidence.to_context_text()
+    ctx_block = f"\nCONTEXT:\n{extra_context}\n" if extra_context else ""
+
+    analysis_rows = ",\n".join(
+        f'''      {{"entity": "{name}", "symbol": "", "sector": "", "thesis": "",
+        "strengths": ["", ""], "risks": ["", ""], "catalysts": [""],
+        "near_term_outlook": "neutral", "confidence": 65}}'''
+        for name in display_names
+    )
+    companies_rows = ",\n".join(
+        f'    {{"symbol": "", "name": "{name}", "impact_type": "neutral", "impact_score": 65, "confidence": 60, "reason": ""}}'
+        for name in display_names
+    )
+
+    investment_group = render_investment_group()
+    decision_group = render_decision_group(is_comparison=False)  # no single winner to explain-why-not against
+
+    return f"""You are a senior Indian market analyst. The user asked to compare {len(display_names)} companies: {entity_list}.
+{ctx_block}
+QUERY: "{query}"
+COMPANIES TO ANALYZE (all {len(display_names)}, not just one or two): {entity_list}
+MARKET NEWS: {nws}
+RELATED EVENTS: {evs}
+
+INSTRUCTIONS:
+- This is a MULTI-ENTITY comparison ({len(display_names)} companies), not a two-way one. Provide a parallel
+  analysis of EACH company in "decision_intelligence.entity_analyses" — do not silently drop any of
+  them or only discuss two.
+- Do NOT invent pairwise head-to-head framing (no "X beats Y") — a genuine dimension-by-dimension
+  comparison across {len(display_names)} entities isn't what this response computes; parallel individual
+  analyses are.
+
+{PRIORITY_INSTRUCTIONS}
+Return ONLY this JSON (no fences, no extra keys):
+{{
+{investment_group}
+{decision_group}
+{EVIDENCE_GROUP}
+  "companies": [
+{companies_rows}
+  ],
+  "sectors": [
+    {{"name": "Most Relevant Sector", "score": 65, "confidence": 60, "outlook": "Moderate", "positive": true, "explanation": "1 sentence"}}
+  ],
+{TIMELINE_GROUP}
+{RISKS_GROUP}
+  "decision_intelligence": {{
+    "intent": "compare_multi", "context_complete": true, "missing_context": [],
+    "decision_summary": "1-2 sentences: what distinguishes each company from the others on the metric that matters most for this query",
+    "entity_analyses": [
+{analysis_rows}
+    ]
+  }}
+}}
+
+CRITICAL RULES:
+{research_framing_rules(_OUTLOOK_LABELS)}
+- Use the real NSE ticker for each company's "symbol" field, in both "companies" and
+  "decision_intelligence.entity_analyses"."""
+
+
 def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str:
     from app.services.ai_search.regexes import (
         _COMMODITY_TICKERS,
         _OUTLOOK_LABELS,
     )
+
+    # Phase 6G Slice 1 — 3+ resolved companies get the parallel-analysis
+    # prompt above, matching V2's exact detection formula
+    # (len(entities["companies"]) >= 3, checked before anything else).
+    if len(entities.get("companies") or []) >= 3:
+        return _build_multi_compare_prompt(query, evidence, entities)
 
     holding = intent_data.get("holding") or "Asset A"
     target = intent_data.get("target") or "Asset B"
