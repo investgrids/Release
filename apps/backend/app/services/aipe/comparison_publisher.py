@@ -2,16 +2,26 @@
 Comparison research pages (SEO Phase 2, §2.2) — permanent, indexable
 /research/{slug} pages generated from a real AI Search comparison run.
 
-Deliberately reuses ai_search_service.run_ai_search (V2, live in
-production today) rather than waiting on the V3 pipeline — but with a
-real quality gate this module adds: V2's own documented failure rate
-(~47% synthesis-incomplete on comparison-shaped queries, per the V3
-planning benchmark) means a naive "generate once, publish unconditionally"
-approach would regularly publish hollow pages. generate_comparison()
-retries a bounded number of times and ONLY returns a result when the
-answer is genuinely complete (real decision_intelligence, not the
-templated "didn't complete" fallback) — callers must treat None as "skip
-this pair," never force-publish a degraded run.
+Phase 6G Slice 2 — migrated from ai_search_service.run_ai_search (V2) to
+ai_search.pipeline.run_ai_search_v3. Caller migration ONLY: this module's
+own downstream logic (compose_what_happened/compose_why_it_matters/
+_build_companies_affected/compose_key_takeaway, all below) is untouched
+— V3's comparison specialist produces the exact same decision_intelligence
+shape this module already consumed (holding_analysis/target_analysis/
+comparison[]/tradeoff/decision_framework), confirmed a strict superset
+(V3 adds winner/best_investor_type/engine_recommendation on top, removes
+nothing). If publish quality changes after this, it's attributable to
+the pipeline switch alone, not a simultaneous rewrite.
+
+The quality gate this module adds on top of whichever pipeline it calls
+remains exactly as important either way: V2's own documented failure
+rate (~47% synthesis-incomplete on comparison-shaped queries, per the
+original V3 planning benchmark) means a naive "generate once, publish
+unconditionally" approach would regularly publish hollow pages.
+generate_comparison() retries a bounded number of times and ONLY returns
+a result when the answer is genuinely complete (real decision_intelligence,
+not the templated "didn't complete" fallback) — callers must treat None
+as "skip this pair," never force-publish a degraded run.
 """
 from __future__ import annotations
 
@@ -150,10 +160,10 @@ def compose_key_takeaway(di: dict, decision_summary: str) -> str:
 
 
 async def _try_generate(query: str, db: AsyncSession) -> dict | None:
-    from app.services.ai_search_service import run_ai_search
+    from app.services.ai_search.pipeline import run_ai_search_v3
 
     try:
-        result = await run_ai_search(query, db)
+        result, _was_cached = await run_ai_search_v3(query, db)
     except Exception:
         return None
     if not result or result.get("synthesis_incomplete"):
