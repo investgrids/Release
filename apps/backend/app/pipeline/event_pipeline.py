@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.event import Event
 from app.repositories.event_repository import EventRepository
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
-from app.services.provider_factory import get_ai_provider
+from app.services.fallback_chain_provider import get_resilient_ai_provider
 from app.services import feature_extraction, scoring_engine, intelligence_orchestrator
 from app.services.historical_memory_service import find_similar_events
 
@@ -32,16 +32,29 @@ logger = structlog.get_logger(__name__)
 # DeepSeekProvider.classify_event's exact fallback (deepseek_provider.py) —
 # returned verbatim whenever the AI call fails after retries are exhausted,
 # indistinguishable from a real response to any caller that doesn't know to
-# check for it. Confirmed live during this fix's own testing: under
-# sustained 429s, every one of the pipeline's 7 AI-call stages falls back
-# silently, and the event still reaches mark_status(eid, "done") with
-# impact_score=None — permanently, since get_pending_enrichment only
-# retries 'pending'/'failed' rows, never 'done' ones. This exact dict
-# (including confidence=0.7 precisely) is what a real AI response would
-# essentially never produce by coincidence, so checking for it right after
-# the first AI call is a cheap, reliable "is the provider actually
-# responding right now" probe — fails fast (skips the other 6 calls) rather
-# than burning through the rest of an already-exhausted quota.
+# check for it. Confirmed live originally: under sustained 429s, every one
+# of the pipeline's 7 AI-call stages falls back silently, and the event
+# still reaches mark_status(eid, "done") with impact_score=None —
+# permanently, since get_pending_enrichment only retries 'pending'/'failed'
+# rows, never 'done' ones. This exact dict (including confidence=0.7
+# precisely) is what a real AI response would essentially never produce by
+# coincidence, so checking for it right after the first AI call is a cheap,
+# reliable "is the provider actually responding right now" probe — fails
+# fast (skips the other 6 calls) rather than burning through the rest of an
+# already-exhausted quota.
+#
+# Phase 5F.2a: this whole check used to fire constantly — `ai` came from
+# get_ai_provider() (provider_factory.py), a SINGLE provider (OpenRouter,
+# per current settings.ai_provider) with no fallback of its own. Confirmed
+# live: OpenRouter alone returning HTTP 429 meant 100% of recent enrichment
+# attempts hit this exact path (1,583 events stuck "failed",
+# provider_unavailable). `ai` now comes from get_resilient_ai_provider()
+# (fallback_chain_provider.py) — the same multi-provider cascade
+# (Groq/Cerebras/Mistral/Gemini/OpenRouter/Cloudflare) every other AI
+# feature in this codebase already uses — so this probe should now only
+# fire when EVERY tier of that cascade is down at once, not whenever one
+# single account is rate-limited. The probe itself, and everything
+# downstream of it (_AIUnavailable, retry/backoff), is unchanged.
 _CLASSIFY_FALLBACK = {"category": "macro", "confidence": 0.7, "subcategory": "general"}
 
 
@@ -128,7 +141,7 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
 
     repo = EventRepository(db)
     policy_repo = GovernmentPolicyRepository(db)
-    ai = get_ai_provider()
+    ai = get_resilient_ai_provider()
 
     logger.info("[Pipeline] Starting event %s | %s", eid, title[:80])
 
