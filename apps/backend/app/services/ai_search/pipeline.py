@@ -594,7 +594,21 @@ async def _assemble_response(
             "level": confidence_breakdown["level"],
             "score": confidence_breakdown["final_confidence"],
             "reasons": confidence_breakdown["reasons"],
-            "breakdown": {},
+            # Phase 6G Slice 3 — was hardcoded {} regardless of the real
+            # breakdown already computed just above (postprocess.py's own
+            # 5-part normalized view over confidence_service's raw
+            # per-factor points). Found auditing page_intelligence_service's
+            # V3 migration: this caller forwards confidence_data untouched,
+            # so an empty breakdown was a real, silent content loss versus
+            # V2's populated one — not specific to that one caller, fixed
+            # here so every V3 consumer benefits.
+            "breakdown": {
+                "evidence_quality": confidence_breakdown["evidence_quality"],
+                "market_confirmation": confidence_breakdown["market_confirmation"],
+                "historical_similarity": confidence_breakdown["historical_similarity"],
+                "data_freshness": confidence_breakdown["data_freshness"],
+                "reasoning_confidence": confidence_breakdown["reasoning_confidence"],
+            },
             # P5 Stage 2, item 3: honest signal when a 3+-entity comparison
             # got collapsed to the 2 actually compared — never silent.
             # P5 Stage 4: same treatment when the companies array itself

@@ -602,7 +602,14 @@ async def get_news_intelligence(news_id: str) -> dict:
 
 
 async def get_search_intelligence(query: str) -> dict:
-    """Intelligence for a free-text search query — wraps the AI search pipeline."""
+    """Intelligence for a free-text search query — wraps the AI search pipeline.
+
+    Phase 6G Slice 3 — migrated from ai_search_service.run_ai_search (V2)
+    to ai_search.pipeline.run_ai_search_v3. Caller migration only: every
+    field read below (answer.*, companies[], sectors[], confidence_data)
+    has confirmed V3 parity (same enrichment code, same specialist schema
+    literals, same shared calibration path) — the wrapper logic itself is
+    unchanged."""
     q = query.strip()
     ck, ttl = _ck("search", q[:80]), _CONTEXT_TTL["search"]
     if (cached := _cget(ck, ttl)):
@@ -610,10 +617,10 @@ async def get_search_intelligence(query: str) -> dict:
 
     try:
         from app.db.session import AsyncSessionLocal
-        from app.services.ai_search_service import run_ai_search
+        from app.services.ai_search.pipeline import run_ai_search_v3
 
         async with AsyncSessionLocal() as db:
-            raw = await run_ai_search(q, db)
+            raw, _was_cached = await run_ai_search_v3(q, db)
 
         answer = raw.get("answer", {})
         conf_d = raw.get("confidence_data", {})
