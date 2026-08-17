@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.development import Development
 from app.services.development_memory.graph_link import link_development_to_graph
 from app.services.development_memory.identity import resolve_development, sweep_close_stale
+from app.services.development_memory.prediction_recording import record_development_prediction
 from app.services.weekend_intelligence.evidence_window import collect_evidence_since
 
 LOOKBACK = timedelta(hours=2)  # > the 30-60min schedule interval in scheduler.py — deliberate overlap, see module docstring
@@ -59,6 +60,7 @@ async def sync_development_memory(db: AsyncSession) -> dict:
     # Development's final evidence_count for this run, which isn't settled
     # until all of this run's evidence has been merged in.
     graph_linked = 0
+    predictions_recorded = 0
     for dev_id in touched_development_ids:
         dev = await db.get(Development, dev_id)
         if dev is None:
@@ -68,16 +70,26 @@ async def sync_development_memory(db: AsyncSession) -> dict:
         if node_id:
             dev.ig_node_id = node_id
             graph_linked += 1
+        # Phase 6C V1 — shadow-mode predictions, same loop iteration so
+        # `dev` doesn't need a second fetch. record_development_prediction()
+        # is its own idempotent no-op on repeat calls (query-based dedup),
+        # so calling it every sync run for every touched Development is
+        # safe and matches this loop's existing per-iteration shape.
+        prediction_id = await record_development_prediction(db, dev)
+        if prediction_id:
+            predictions_recorded += 1
         # DO NOT REMOVE, DO NOT batch this outside the loop — commit
         # per-Development, not once at the end. link_development_to_graph()
-        # opens/commits its own AsyncSessionLocal() per upsert_node()/
-        # upsert_edge() call (see its module docstring); on SQLite, a
-        # writer can't get its exclusive lock while `db` here still holds
-        # an open transaction. Closing this iteration's transaction out
-        # now, before the next iteration's db.get()/upserts, is what
-        # actually avoids "database is locked" — confirmed live against
-        # 86 real Developments. Moving this commit back outside the loop
-        # (e.g. "to reduce commits") reintroduces the bug.
+        # and record_development_prediction() each open/commit their own
+        # AsyncSessionLocal() per upsert_node()/upsert_edge()/
+        # store_prediction() call (see graph_link.py's module docstring);
+        # on SQLite, a writer can't get its exclusive lock while `db` here
+        # still holds an open transaction. Closing this iteration's
+        # transaction out now, before the next iteration's db.get()/
+        # upserts, is what actually avoids "database is locked" —
+        # confirmed live against 86 real Developments. Moving this commit
+        # back outside the loop (e.g. "to reduce commits") reintroduces
+        # the bug.
         await db.commit()
 
     closed = await sweep_close_stale(db)
@@ -90,6 +102,7 @@ async def sync_development_memory(db: AsyncSession) -> dict:
         "evidence_already_attached": already_attached,
         "developments_closed": closed,
         "developments_graph_linked": graph_linked,
+        "predictions_recorded": predictions_recorded,
         "failed_sources": failed_sources,
         "tier_counts": tier_counts,
     }
