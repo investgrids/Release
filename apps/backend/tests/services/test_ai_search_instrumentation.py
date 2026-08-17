@@ -1,16 +1,19 @@
 """6G Cutover Gate, Step 1 — shared AI Search instrumentation.
 
 Proves two things:
-1. The relocation is behavior-preserving for V2: `/api/ai/search` (and the
+1. The relocation is behavior-preserving: `/api/ai/search` (and the
    `get_search_stats()` shape app/api/publishing.py::ops_overview depends on)
    tick exactly as before the counters moved out of app/api/ai_search.py.
-2. The actual fix: `/api/ai/search/v3` and `/api/ai/search/stream` now
-   report into the *same* counters V2 does, which they never did before this
-   change — the Ops Dashboard's "AI Search" card no longer goes blind to
-   traffic serving from either V3 route.
+   Updated for the later compatibility-wrapper slice, which changed what
+   `/api/ai/search` calls internally (run_ai_search_v3, not V2's own
+   run_ai_search) without changing this instrumentation contract at all —
+   these tests now mock the new call site.
+2. The actual fix: `/api/ai/search/v3` and `/api/ai/search/stream` report
+   into the *same* counters `/api/ai/search` does — the Ops Dashboard's
+   "AI Search" card doesn't go blind to traffic from any of the 3 routes.
 
-No live LLM calls -- run_ai_search / run_ai_search_v3 / _run_v3_steps are
-mocked; only the instrumentation contract is under test.
+No live LLM calls -- run_ai_search_v3 / _run_v3_steps are mocked; only the
+instrumentation contract is under test.
 """
 from __future__ import annotations
 
@@ -31,12 +34,6 @@ def _reset_stats():
     ai_search_stats._reset_for_tests()
     yield
     ai_search_stats._reset_for_tests()
-
-
-def _v2_result(**overrides) -> dict:
-    base = {"answer": {"summary": "ok"}, "synthesis_incomplete": False}
-    base.update(overrides)
-    return base
 
 
 def _v3_result() -> dict:
@@ -83,9 +80,14 @@ def test_timeout_detection_matches_original_v2_logic():
 # ── V2 route: behavior-preservation contract ────────────────────────────────
 
 def test_v2_route_still_ticks_query_and_success():
+    """6G Cutover Gate compatibility-wrapper slice: /api/ai/search now
+    delegates to run_ai_search_v3 internally (V2's own generation logic is
+    no longer called here) -- the instrumentation contract this test
+    guards is the route's, not any particular pipeline's, so it's updated
+    to mock the new call site rather than deleted."""
     with patch(
-        "app.api.ai_search.run_ai_search",
-        new=AsyncMock(return_value=_v2_result()),
+        "app.services.ai_search.pipeline.run_ai_search_v3",
+        new=AsyncMock(return_value=(_v3_result(), False)),
     ):
         resp = client.post("/api/ai/search", json={"query": "TCS outlook next quarter"})
     assert resp.status_code == 200
@@ -97,7 +99,7 @@ def test_v2_route_still_ticks_query_and_success():
 
 def test_v2_route_still_ticks_error():
     with patch(
-        "app.api.ai_search.run_ai_search",
+        "app.services.ai_search.pipeline.run_ai_search_v3",
         new=AsyncMock(side_effect=RuntimeError("boom")),
     ):
         resp = client.post("/api/ai/search", json={"query": "TCS outlook next quarter"})
@@ -105,6 +107,17 @@ def test_v2_route_still_ticks_error():
     stats = ai_search_stats.get_stats()
     assert stats["total_today"] == 1
     assert stats["errors"] == 1
+
+
+def test_v2_route_ticks_cache_hit():
+    with patch(
+        "app.services.ai_search.pipeline.run_ai_search_v3",
+        new=AsyncMock(return_value=(_v3_result(), True)),
+    ):
+        resp = client.post("/api/ai/search", json={"query": "TCS outlook next quarter"})
+    assert resp.status_code == 200
+    stats = ai_search_stats.get_stats()
+    assert stats["cache_hits"] == 1
 
 
 def test_get_search_stats_import_path_unchanged():

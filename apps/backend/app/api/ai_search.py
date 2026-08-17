@@ -1,7 +1,6 @@
 """AI Search API — POST /api/ai/search"""
 from __future__ import annotations
 
-import json
 import time
 
 import structlog
@@ -13,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.limiter import limiter
 from app.db.session import get_db
 from app.services.ai_search import instrumentation as ai_search_stats
-from app.services.ai_search_service import run_ai_search
 
 router = APIRouter()
 log = structlog.get_logger(__name__)
@@ -28,23 +26,6 @@ log = structlog.get_logger(__name__)
 # `from app.api.ai_search import get_search_stats` needs no change.
 def get_search_stats() -> dict:
     return ai_search_stats.get_stats()
-
-
-# ── Redis cache helper ────────────────────────────────────────────────────────
-async def _redis_get(key: str):
-    try:
-        from app.cache import get as cache_get
-        return await cache_get(key)
-    except Exception:
-        return None
-
-
-async def _redis_set(key: str, value: dict, ttl: int = 1800) -> None:
-    try:
-        from app.cache import set as cache_set
-        await cache_set(key, value, ttl)
-    except Exception:
-        pass
 
 
 # ── Request / Response schemas ────────────────────────────────────────────────
@@ -66,6 +47,24 @@ class SearchResponse(BaseModel):
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
+# 6G Cutover Gate — compatibility adapter. V2's own generation logic
+# (app.services.ai_search_service.run_ai_search) is no longer called here:
+# every real V2-only capability was ported to V3 (Slice 1), both known
+# non-route callers were migrated (Slices 2-3), and the final V2-dependency
+# audit found nothing else depending on V2's own implementation specifically
+# — only this route's external CONTRACT ({query, cached, result}) needs to
+# keep working unchanged for whatever still calls this exact path. Delegates
+# to the canonical run_ai_search_v3 core and reshapes only the envelope,
+# not the result body: `result` is typed as a plain dict here (not a strict
+# sub-model), so V3's richer response shape (schema_version, response_id,
+# decision_intelligence.entity_analyses, etc.) passes through unchanged —
+# the same frontend rendering path already needs to handle both shapes
+# today (used identically whether NEXT_PUBLIC_AI_SEARCH_V3 is on or off).
+# V2's own external pre-checks (in-process + Redis cache, keyed via
+# resolve_cache_key) are retired too: run_ai_search_v3 already does its own
+# Layer 1 (exact) + Layer 2 (semantic) caching internally and returns
+# was_cached — keeping V2's pre-checks alongside would just be a second,
+# redundant cache layer with its own separate key scheme.
 @router.post("/search", response_model=SearchResponse)
 @limiter.limit("10/minute")
 async def ai_search(
@@ -73,53 +72,27 @@ async def ai_search(
     body: SearchRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    from app.services.ai_search.pipeline import run_ai_search_v3
+
     query = body.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
     ai_search_stats.record_query()
-
-    # P2: entity/session-context-aware key (same resolution run_ai_search
-    # does internally) — a query-text-only key here would let two sessions
-    # asking identical literal text but resolving to different prior
-    # companies collide on the same cached answer, bypassing run_ai_search's
-    # own cache-key fix entirely since a hit here returns before
-    # run_ai_search (and its entity resolution) ever runs.
-    from app.services.ai_search_service import _cget, resolve_cache_key
-    resolved_key = resolve_cache_key(query, body.session_context)
-    cache_key = f"ai_search:{resolved_key}"
-
-    # In-process cache (fast path — no Redis round-trip)
-    ip_hit = _cget(resolved_key)
-    if ip_hit:
-        log.info("ai_search.inprocess_hit", query=query[:50])
-        ai_search_stats.record_cache_hit()
-        return SearchResponse(query=query, cached=True, result=ip_hit)
-
-    # Redis cache check (fallback for multi-instance deployments)
-    redis_cached = await _redis_get(cache_key)
-    if redis_cached:
-        log.info("ai_search.redis_hit", query=query[:50])
-        ai_search_stats.record_cache_hit()
-        return SearchResponse(query=query, cached=True, result=redis_cached)
-
-    # Run pipeline
     log.info("ai_search.request", query=query[:50], ip=request.client.host if request.client else "unknown")
     _t0 = time.monotonic()
     try:
-        result = await run_ai_search(query, db, session_context=body.session_context)
+        result, was_cached = await run_ai_search_v3(query, db, body.session_context)
     except Exception as exc:
         ai_search_stats.record_error(exc)
         raise
-    ai_search_stats.record_success((time.monotonic() - _t0) * 1000)
+    latency_ms = (time.monotonic() - _t0) * 1000
+    if was_cached:
+        ai_search_stats.record_cache_hit()
+    else:
+        ai_search_stats.record_success(latency_ms)
 
-    # Store in Redis (30 min) — best-effort, non-blocking. Skip caching a
-    # degraded (LLM-synthesis-failed) result so a retry shortly after can
-    # get a real answer instead of the same fallback for 30 more minutes.
-    if not result.get("synthesis_incomplete"):
-        await _redis_set(cache_key, result, ttl=1800)
-
-    return SearchResponse(query=query, cached=False, result=result)
+    return SearchResponse(query=query, cached=was_cached, result=result)
 
 
 class SearchResponseV3(BaseModel):
@@ -142,13 +115,15 @@ async def ai_search_v3(
     body: SearchRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Non-streaming V3 pipeline endpoint — coexists with `/search` (V2).
-    Frontend usage is gated by `NEXT_PUBLIC_AI_SEARCH_V3` (Vercel prod is
-    currently unset, so `/search/stream` below, not this route, is what a
-    flag flip would actually send browsers to); also used directly by the
-    benchmark runner (`--pipeline v3`) and by background callers
-    (comparison_publisher, page_intelligence_service) that call
-    `run_ai_search_v3` in-process rather than through this HTTP route."""
+    """Non-streaming V3 pipeline endpoint — canonical JSON adapter. `/search`
+    above is now a thin compatibility wrapper over this same core (6G
+    Cutover Gate), not a separate V2 implementation. Frontend usage is
+    gated by `NEXT_PUBLIC_AI_SEARCH_V3` (Vercel prod is currently unset, so
+    `/search/stream` below, not this route, is what a flag flip would
+    actually send browsers to); also used directly by the benchmark runner
+    (`--pipeline v3`) and by background callers (comparison_publisher,
+    page_intelligence_service) that call `run_ai_search_v3` in-process
+    rather than through this HTTP route."""
     from app.services.ai_search.pipeline import run_ai_search_v3
 
     query = body.query.strip()
