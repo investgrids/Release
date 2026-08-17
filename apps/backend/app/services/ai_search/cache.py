@@ -136,12 +136,22 @@ def semantic_key(intent_data: dict, entities: dict) -> str | None:
     intent_data's holding/target — those are raw display-name strings
     (`resolve_comparison` returns `ordered[0]["name"]`, not a symbol), so
     two comparisons naming the same pair with different casing/spacing
-    would otherwise miss each other. Symbols are already canonical."""
+    would otherwise miss each other. Symbols are already canonical.
+
+    Step 3C, Case D — the comparison branch used to truncate to
+    `companies[:2]` regardless of how many were actually resolved, so a
+    2-company query ("TCS vs Infosys") and a 3-company query ("Compare
+    TCS, Infosys, and Wipro") produced the IDENTICAL key `v3:sem:cmp:INFY:
+    TCS` and collided — confirmed live, a 3-way query silently got served
+    a 2-way cached answer. Fixed by encoding the FULL sorted company list:
+    cache reuse now requires the complete resolved entity set to match,
+    not just an overlapping prefix, while two queries that genuinely
+    resolve to the same N companies (any phrasing) still correctly share
+    one cache entry."""
     companies = sorted({c.upper() for c in (entities.get("companies") or [])})
 
     if intent_data.get("is_comparison") and len(companies) >= 2:
-        pair = companies[:2]
-        return f"v3:sem:cmp:{pair[0]}:{pair[1]}"
+        return f"v3:sem:cmp:{':'.join(companies)}"
 
     if companies:
         bucket = _INTENT_BUCKETS.get(intent_data.get("intent", "general"), intent_data.get("intent", "general"))

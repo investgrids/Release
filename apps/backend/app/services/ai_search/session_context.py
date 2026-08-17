@@ -89,12 +89,37 @@ def check_ambiguous_group(query: str, entities: dict) -> dict | None:
     left "tata" vs "tata" with nothing left to distinguish them. So this
     checks the RAW QUERY TEXT for one of each candidate's own distinguishing
     words (e.g. "Motors", "Steel", "Consultancy") — only that counts as a
-    real disambiguation, not whatever the fuzzy pass happened to pick."""
+    real disambiguation, not whatever the fuzzy pass happened to pick.
+
+    Step 3C, Case A — a DIFFERENT, narrower trust of entities["companies"]
+    than the one this docstring just warned against: if some already-
+    resolved company's own name legitimately contains the trigger word
+    (checked by symbol, not by group membership — the resolved company
+    need not itself be a member of the ambiguous group being evaluated),
+    the ambiguity is already settled. Confirmed live: "HDFC Bank" exact-
+    matches to HDFCBANK (a real, specific, unambiguous resolution) via
+    entities.py's own word-boundary alias matching, but "bank" is ALSO the
+    grouping prefix for Bank of Baroda/India/Maharashtra (an unrelated
+    family), so this check used to fire anyway and ask "which bank did you
+    mean?" about a query that had already named one exactly."""
     words = {w.lower() for w in re.findall(r"[A-Za-z]+", query) if len(w) >= 3}
     groups = _ambiguous_groups()
+
+    resolved_symbols = set(entities.get("companies") or [])
+    resolved_name_words: set[str] = set()
+    if resolved_symbols:
+        from app.api.companies import _NSE_UNIVERSE
+        for co in _NSE_UNIVERSE:
+            if co["symbol"] in resolved_symbols:
+                resolved_name_words.update(
+                    w.lower() for w in re.sub(r"[.,()&]", " ", co["name"]).split()
+                )
+
     for word in words:
         candidates = groups.get(word)
         if not candidates:
+            continue
+        if word in resolved_name_words:
             continue
         distinguishing_present = any(
             any(w.lower() in words for w in re.sub(r"[.,()&]", " ", c["name"]).split()[1:] if w.lower() not in _GENERIC_STOP and len(w) >= 3)

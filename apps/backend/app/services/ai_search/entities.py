@@ -89,23 +89,63 @@ def _match_companies(q: str) -> list[str]:
     inside "sw-ITC-h", "REC" matched inside "REC-ent", "LIC" matched inside
     "po-LIC-y". Every one of those produced a spurious extra company in the
     response with no real connection to the query.
+
+    Step 3C, Case B — span-based cross-company suppression. Word-boundary
+    matching alone still let a shorter alias belonging to one company match
+    INSIDE a longer alias already claimed by a different company: "Tech
+    Mahindra" (TECHM's own alias) also contains M&M's alias "mahindra" as a
+    valid word-boundary substring, so both used to resolve independently —
+    found live, confirmed a real ~200-company alias-table collision, not a
+    one-off. Fix: find every company's best (longest) matching span first,
+    then keep spans longest-first, dropping any shorter span that's fully
+    CONTAINED within an already-claimed span. A shorter alias on a
+    genuinely separate, non-overlapping occurrence of the same word still
+    resolves independently (e.g. "Mahindra Group and Tech Mahindra" keeps
+    both M&M and TECHM) — only same-text containment is suppressed.
     """
     from app.api.companies import _NSE_UNIVERSE
-    matched: list[str] = []
+    # (span_start, span_end, symbol) — one best span per company.
+    candidates: list[tuple[int, int, str]] = []
     for co in _NSE_UNIVERSE:
         aliases = (co.get("aliases") or []) + [co["name"].lower(), co["symbol"].lower()]
+        best: tuple[int, int] | None = None
         for a in aliases:
             if len(a) < 3:
                 continue
-            idx = q.find(a)
-            if idx == -1:
-                continue
-            before_ok = idx == 0 or not q[idx - 1].isalnum()
-            after_idx = idx + len(a)
-            after_ok = after_idx == len(q) or not q[after_idx].isalnum()
-            if before_ok and after_ok:
-                matched.append(co["symbol"])
-                break
+            start = 0
+            while True:
+                idx = q.find(a, start)
+                if idx == -1:
+                    break
+                before_ok = idx == 0 or not q[idx - 1].isalnum()
+                end = idx + len(a)
+                after_ok = end == len(q) or not q[end].isalnum()
+                if before_ok and after_ok and (best is None or (end - idx) > (best[1] - best[0])):
+                    best = (idx, end)
+                start = idx + 1
+        if best is not None:
+            candidates.append((best[0], best[1], co["symbol"]))
+
+    # Suppression decided on a longest-span-first pass, but the RETURNED
+    # order still follows _NSE_UNIVERSE order (unchanged from before this
+    # fix) -- callers downstream (e.g. the 3-way compare's matches[:3] cap)
+    # rely on that ordering; only which symbols survive should change here,
+    # not the order they come back in.
+    claimed: list[tuple[int, int]] = []
+    suppressed: set[str] = set()
+    for start, end, sym in sorted(candidates, key=lambda c: c[1] - c[0], reverse=True):
+        if any(start >= cs and end <= ce for cs, ce in claimed):
+            suppressed.add(sym)
+            continue
+        claimed.append((start, end))
+
+    matched: list[str] = []
+    seen: set[str] = set()
+    for _start, _end, sym in candidates:
+        if sym in suppressed or sym in seen:
+            continue
+        matched.append(sym)
+        seen.add(sym)
     return matched
 
 
@@ -131,10 +171,34 @@ def _looks_like_unrecognized_company(query: str, entities: dict) -> bool:
         for co in _NSE_UNIVERSE:
             if co["symbol"] not in matched_set:
                 continue
-            for alias in (co.get("aliases") or []) + [co["name"], co["symbol"]]:
-                if len(alias) < 3:
-                    continue
-                residual = re.sub(re.escape(alias), " ", residual, flags=re.IGNORECASE)
+            # Step 3C, Case E — longest-first, same strategy extract_entities()
+            # already uses for the identical reason (see its own comment):
+            # stripping a short alias before a longer one fragments it,
+            # leaving a bare remainder ("ceutical" from "Sun Pharmaceutical"
+            # once "sun pharma" strips first). Each alias pattern also
+            # optionally consumes one generic corporate-suffix word
+            # (Ltd/Industries/Corp/...) DIRECTLY ADJACENT to that specific
+            # occurrence — confirmed live: RELIANCE's alias list is only
+            # ["reliance", "ril"], never "Reliance Industries", so plain
+            # alias stripping left a bare "Industries" behind that then
+            # matched _COMPANY_SUFFIX_RE and false-flagged an already-
+            # resolved company as unrecognized. Deliberately positional, not
+            # a blanket strip of every occurrence of that suffix word
+            # anywhere in the query — an EARLIER version of this fix that
+            # added the company's own name-words as global strip candidates
+            # regressed the documented "Compare Apple India Defence Ltd vs
+            # HAL" mixed case: HAL's own name also ends in "Ltd", so a
+            # global strip erased "Ltd" from the UNRELATED fake company's
+            # text too, hiding its suffix signal. Adjacency keeps each
+            # consumption scoped to the actual matched occurrence.
+            _SUFFIX_ALT = "|".join(re.escape(w) for w in _GENERIC_SUFFIX_WORDS)
+            strip_candidates = sorted(
+                {a for a in (co.get("aliases") or []) + [co["name"], co["symbol"]] if len(a) >= 3},
+                key=len, reverse=True,
+            )
+            for alias in strip_candidates:
+                pattern = re.escape(alias) + rf"(\s+(?:{_SUFFIX_ALT})\b)?"
+                residual = re.sub(pattern, " ", residual, flags=re.IGNORECASE)
         # Mixed case: only the high-confidence suffix signal counts on the
         # residual — leftover connector words ("Compare", "vs") after
         # stripping real names could spuriously look bare-capitalized.
@@ -174,6 +238,44 @@ def _universe() -> list[dict]:
 # entry) pair with no reuse of either side's precomputed index.
 _CORPUS_CACHE: dict[int, list[tuple[str, str, dict]]] = {}
 
+# Same id()-keyed caching pattern as _CORPUS_CACHE, same reason — Case C's
+# owner-count check (both the corpus-side filter in _corpus() and the
+# query-side filter in _fuzzy_candidates()) would otherwise re-scan the
+# whole universe on every single call, and _fuzzy_candidates is called once
+# per n-gram per query.
+_NAME_WORD_OWNERS_CACHE: dict[int, dict[str, int]] = {}
+
+
+# Step 3C, Case C — a single-word core shared by this many or more DISTINCT
+# companies carries no real per-company identifying signal on its own (see
+# _corpus()'s own comment for the confirmed live case). Deterministic and
+# self-maintaining: computed from the real universe every time, not a
+# hand-curated word list that goes stale as the universe grows.
+_NON_DISTINCTIVE_MIN_OWNERS = 3
+
+
+def _name_word_owner_counts() -> dict[str, int]:
+    """How many DISTINCT companies have each word anywhere in their full
+    name — not just as some other company's own collapsed single-word
+    core (that undercounts badly: "india" is the collapsed core for only
+    3M India itself, since most other companies naming India retain other
+    distinguishing words too — but "india" still appears as a plain word
+    in 75 different companies' names, which is the real signal that it's
+    a common qualifier, not a per-company identifier)."""
+    universe = _universe()
+    key = id(universe)
+    cached = _NAME_WORD_OWNERS_CACHE.get(key)
+    if cached is not None:
+        return cached
+    _NAME_WORD_OWNERS_CACHE.clear()
+    counts: dict[str, set[str]] = {}
+    for co in universe:
+        for w in {w.lower() for w in _WORD_RE.findall(co["name"]) if len(w) >= 3}:
+            counts.setdefault(w, set()).add(co["symbol"])
+    result = {w: len(syms) for w, syms in counts.items()}
+    _NAME_WORD_OWNERS_CACHE[key] = result
+    return result
+
 
 def _corpus() -> list[tuple[str, str, dict]]:
     """(searchable_text, stripped_core_text, company_row) triples — name,
@@ -181,19 +283,35 @@ def _corpus() -> list[tuple[str, str, dict]]:
     hit resolves to the real canonical symbol regardless of which alias it
     matched against. The stripped-core form is precomputed once here rather
     than recomputed on every fuzzy comparison (it used to be recomputed once
-    per (token, entry) pair — the same text stripped identically every time)."""
+    per (token, entry) pair — the same text stripped identically every time).
+
+    Step 3C, Case C — excludes non-distinctive single-word cores. Confirmed
+    live: "3M India Ltd"'s own core collapses to the bare word "india" --
+    _WORD_RE requires a letter to start a token, so the digit-led "3M" is
+    silently dropped entirely, and "Ltd" is stripped as a generic suffix --
+    leaving a core indistinguishable from the literal word "india", which
+    then matches ratio 1.0 against ANY query naming India as a plain
+    country qualifier (e.g. "Colgate-Palmolive India"). Fixed by rejecting
+    any single-word core (no space) that also appears as a plain word in
+    3+ OTHER distinct companies' full names anywhere in the universe --
+    "india" clears that bar by a wide margin (75 companies); a real
+    per-company identifier ("infosys", "reliance") never does."""
     universe = _universe()
     key = id(universe)
     cached = _CORPUS_CACHE.get(key)
     if cached is not None:
         return cached
     _CORPUS_CACHE.clear()
+
+    owner_counts = _name_word_owner_counts()
     pairs: list[tuple[str, str, dict]] = []
     for co in universe:
         texts = {co["name"].lower(), co["symbol"].lower(), *[a.lower() for a in (co.get("aliases") or [])]}
         for t in texts:
             core = _strip_generic(t)
             if len(core) < 3:
+                continue
+            if " " not in core and owner_counts.get(core, 0) >= _NON_DISTINCTIVE_MIN_OWNERS:
                 continue
             pairs.append((t, core, co))
     _CORPUS_CACHE[key] = pairs
@@ -284,6 +402,17 @@ def _fuzzy_candidates(token: str, cutoff: float, limit: int = 3) -> list[tuple[d
         return []
     token_core = _strip_generic(token)
     if len(token_core) < 3:
+        return []
+    # Step 3C, Case C, symmetric half — corpus-side exclusion of a
+    # non-distinctive single word (see _corpus()'s comment) isn't enough on
+    # its own: a compact no-space alias like "3mindia" is STILL close
+    # enough (ratio 0.83, above cutoff) to the excluded word "india" that
+    # keeping the alias itself in the corpus doesn't help. The query token
+    # is the actual point of failure -- "India", named as a plain country
+    # qualifier, should never become a fuzzy search key at all, regardless
+    # of what happens to be sitting in the corpus. Same owner-count signal,
+    # applied to the query side instead of just the corpus side.
+    if " " not in token_core and _name_word_owner_counts().get(token_core, 0) >= _NON_DISTINCTIVE_MIN_OWNERS:
         return []
     corpus = _corpus()
     # Same reuse pattern stdlib's own difflib.get_close_matches uses: one
