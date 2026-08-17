@@ -32,19 +32,22 @@ the real implementation; this docstring exists partly to stop that
 mischaracterization from recurring.
 
 That point-score shape matters for why a real weekend can legitimately
-score 0 analogues even with hundreds of evidence items: `_build_query`
-below only ever populates 2 of the 6 dimensions (sectors, sentiment —
-worth at most 25+15=40 of the 100 points before this refinement; now
-also `category` when real Event.category data exists, since that field
-does exist on the Event model but was not being read here). The other
-3 dimensions (market_regime, interest_rate_trend, crude_trend) have no
-corresponding data anywhere in Phase 1B's evidence layer at all — no
-VIX/rate/regime feed is wired into any of the 6 source normalizers —
-so 15+8+7=30 points are structurally unavailable, not merely unused.
-Populating them with a guess would be exactly the kind of fabrication
-brief §20 and this module's own sibling files (risk_synthesis.py,
-sector_synthesis.py) explicitly refuse to do elsewhere, so they stay
-absent rather than invented.
+score fewer than the maximum analogue points even with hundreds of
+evidence items: `_build_query` below populates sectors, sentiment,
+category (when real Event.category data exists), and — as of Phase 5C
+— interest_rate_trend, sourced from app/services/macro_rates (RBI repo
+rate + 10Y G-Sec via RBI's own Weekly Statistical Supplement; see
+_real_interest_rate_trend()'s docstring). That's 30+15+(up to 30 more
+via category)+8 = up to 83 of the 100 points now real when a rate
+signal is available. Two dimensions remain genuinely unavailable:
+market_regime (15pts) and crude_trend (7pts) — no VIX/regime feed is
+wired into any of the 6 source normalizers, and no crude-price feed
+flows through this evidence layer either. Populating those two with a
+guess would be exactly the kind of fabrication brief §20 and this
+module's own sibling files (risk_synthesis.py, sector_synthesis.py)
+explicitly refuse to do elsewhere, so they stay absent rather than
+invented — same discipline that made interest_rate_trend worth fixing
+with real data instead of a shortcut.
 """
 from __future__ import annotations
 
@@ -89,7 +92,26 @@ def _canonicalize_sectors(sectors: list[str], known_sectors: set[str]) -> list[s
     return seen
 
 
-def _build_query(significant: list[EvidenceCluster], known_sectors: set[str]) -> dict:
+async def _real_interest_rate_trend() -> str | None:
+    """Phase 5C: real India rate-trend (RBI repo rate + 10Y G-Sec via
+    RBI's own Weekly Statistical Supplement) — see
+    app/services/macro_rates/trend.py for the derivation. This is the
+    first of this module's own three structurally-unavailable
+    dimensions (see module docstring) to get a real source; market_regime
+    and crude_trend still have none. Failure-isolated: any error here
+    just leaves the dimension unset, same as before this fix — never a
+    guessed value."""
+    try:
+        from app.services.macro_rates.service import get_macro_rate_state
+        state = await get_macro_rate_state()
+        return state.interest_rate_trend
+    except Exception:
+        return None
+
+
+def _build_query(
+    significant: list[EvidenceCluster], known_sectors: set[str], interest_rate_trend: str | None = None,
+) -> dict:
     sectors: list[str] = []
     for c in significant:
         for s in c.sectors:
@@ -118,6 +140,11 @@ def _build_query(significant: list[EvidenceCluster], known_sectors: set[str]) ->
     if categories:
         query["category"] = Counter(categories).most_common(1)[0][0]
 
+    # Phase 5C: real data or omitted — never a guessed default. See
+    # _real_interest_rate_trend()'s docstring for the source.
+    if interest_rate_trend:
+        query["interest_rate_trend"] = interest_rate_trend
+
     return query
 
 
@@ -138,8 +165,9 @@ async def find_historical_analogues(clusters: list[EvidenceCluster]) -> list[dic
 
     seed_rows = await get_verified_historical_events(order_by_date_desc=False, limit=None)
     known_sectors = {s for row in seed_rows for s in (row.sectors or [])}
+    interest_rate_trend = await _real_interest_rate_trend()
 
-    query = _build_query(significant, known_sectors)
+    query = _build_query(significant, known_sectors, interest_rate_trend)
     if not query["sectors"] and query["sentiment"] == "neutral" and "category" not in query:
         return []  # nothing meaningful to match against
 

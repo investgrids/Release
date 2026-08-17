@@ -537,12 +537,29 @@ async def _gather_historical(signals: dict, events: dict) -> dict:
         if c == "global":
             category = "Global Market Shock"; break
 
+    # Phase 5C: real India rate-trend (RBI repo rate + 10Y G-Sec, RBI's
+    # own Weekly Statistical Supplement), replacing what was a hardcoded
+    # "stable" since this dimension was built — see
+    # app/services/macro_rates/trend.py for the full derivation. Failure-
+    # isolated: if the macro-rate fetch/cache errors, this dimension is
+    # simply omitted (find_similar_events already treats a missing key
+    # as "no data for this dimension"), never silently reverts to a
+    # guessed value.
+    interest_rate_trend = None
+    try:
+        from app.services.macro_rates.service import get_macro_rate_state
+        macro_state = await get_macro_rate_state()
+        interest_rate_trend = macro_state.interest_rate_trend
+    except Exception as exc:
+        log.warning("opening_prediction.macro_rate_state_error", error=str(exc)[:200])
+
     query: dict = {
         "sentiment":          sentiment,
         "market_regime":      market_regime,
         "crude_trend":        crude_dir,
-        "interest_rate_trend": "stable",
     }
+    if interest_rate_trend:
+        query["interest_rate_trend"] = interest_rate_trend
     if category:
         query["category"] = category
 
