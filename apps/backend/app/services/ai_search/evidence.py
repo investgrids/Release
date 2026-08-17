@@ -542,6 +542,16 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
                     f"{a.get('subject', '')} ({a.get('category', '')}, {a.get('announcement_date', '')})" for a in ann[:5]
                 )
                 bundle.context_lines.append(f"Recent real filed announcements for {sym}: {ann_txt}")
+
+            # Phase 6F — Development Memory. Shared builder with V2 (see
+            # app/services/development_memory/ai_search_context.py's own
+            # docstring for why this is one function, not a separate
+            # implementation per pipeline). None (no graph-worthy
+            # Development on record for this symbol) adds nothing.
+            from app.services.development_memory.ai_search_context import build_development_context
+            dev_block = await build_development_context(db, sym)
+            if dev_block:
+                bundle.context_lines.append(dev_block)
         except Exception:
             pass
 

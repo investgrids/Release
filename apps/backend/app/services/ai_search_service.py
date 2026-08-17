@@ -1422,6 +1422,16 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
                 )
                 block2 = f"Recent real filed announcements for {sym}: {ann_txt}"
                 extra_context = (extra_context + "\n\n" + block2) if extra_context else block2
+
+            # Phase 6F — Development Memory. Shared builder with V3 (see
+            # app/services/development_memory/ai_search_context.py's own
+            # docstring for why this is one function, not a separate
+            # implementation per pipeline). None (no graph-worthy
+            # Development on record for this symbol) adds nothing.
+            from app.services.development_memory.ai_search_context import build_development_context
+            dev_block = await build_development_context(db, sym)
+            if dev_block:
+                extra_context = (extra_context + "\n\n" + dev_block) if extra_context else dev_block
         except Exception:
             pass
 
