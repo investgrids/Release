@@ -60,6 +60,20 @@ def test_normalize_event_no_tier_when_not_supplied():
     assert item.impact_strength is None
 
 
+def test_normalize_event_carries_direction_when_supplied():
+    """Phase 6E-x: direction is caller-supplied (mapped from
+    EventTriage.sentiment upstream), same pattern as priority_tier."""
+    row = Event(id="evt-5", title="Directional event", published_at=_T2)
+    item = normalize_event(row, direction="positive")
+    assert item.direction == "positive"
+
+
+def test_normalize_event_no_direction_when_not_supplied():
+    row = Event(id="evt-6", title="Untriaged event", published_at=_T2)
+    item = normalize_event(row)
+    assert item.direction is None
+
+
 def test_normalize_policy_uses_created_at_and_has_no_score():
     row = GovernmentPolicy(id=1, external_id="ext-1", title="RBI notice", created_at=_T1)
     item = normalize_policy(row)

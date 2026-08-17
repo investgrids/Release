@@ -73,7 +73,7 @@ def _utc(dt: datetime | None) -> datetime | None:
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 
-def normalize_event(row: Event, *, priority_tier: str | None = None) -> EvidenceItem:
+def normalize_event(row: Event, *, priority_tier: str | None = None, direction: str | None = None) -> EvidenceItem:
     """
     Timestamp precedence (design doc §18's rule: real source timestamp,
     then published, then ingested — never silently ingestion-as-occurrence):
@@ -86,13 +86,16 @@ def normalize_event(row: Event, *, priority_tier: str | None = None) -> Evidence
     a real, deterministic, feature-based scorer (its own explicit rule:
     "no score is ever invented") — hence DETERMINISTIC, not a guess.
 
-    `priority_tier` (Critical/High/Medium/Low) is optional here on purpose
-    — computing it requires a join to EventTriage for urgency/importance,
-    which the caller (the evidence-window assembler) does once per batch
-    rather than this per-row normalizer doing N+1 queries. Reuses
-    engine.py's own `compute_priority` (the public alias the module
-    itself says other code should call instead of re-implementing the
-    cutoffs) — never a new Critical/High threshold invented here.
+    `priority_tier` (Critical/High/Medium/Low) and `direction`
+    (positive/negative/neutral, already mapped from EventTriage.sentiment's
+    bullish/bearish/neutral vocabulary) are both optional here on purpose
+    — computing either requires a join to EventTriage, which the caller
+    (the evidence-window assembler) does once per batch rather than this
+    per-row normalizer doing N+1 queries. `direction` is Phase 6E-x: found
+    live that 0/103 real event-sourced Development evidence rows carried a
+    direction before this, purely because nothing read EventTriage.sentiment
+    — a real, already-populated AI-triage field, not a new classification
+    invented here.
     """
     observed_at = _utc(row.event_date) or _utc(row.published_at)
     return EvidenceItem(
@@ -103,6 +106,7 @@ def normalize_event(row: Event, *, priority_tier: str | None = None) -> Evidence
         summary=row.summary or row.description,
         companies=list(row.companies or []),
         sectors=list(row.sectors or []),
+        direction=direction,
         impact_strength=priority_tier,
         confidence=row.confidence,
         score_kind=DETERMINISTIC,

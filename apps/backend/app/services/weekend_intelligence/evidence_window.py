@@ -53,25 +53,35 @@ SOURCE_COMPANY_SIGNAL = "company_signal"
 SOURCE_OPPORTUNITY = "opportunity"
 
 
-async def _event_priority_tiers(db: AsyncSession, event_ids: list[str]) -> dict[str, str]:
-    """Priority tier (Critical/High/Medium/Low) per event_id, via a single
-    batched EventTriage query — not one query per event. Reuses
-    engine.py's own compute_priority (the module's own stated public alias
-    for this exact purpose) rather than a new threshold. An event with no
-    EventTriage row yet (enrichment still pending) simply has no tier
+# EventTriage.sentiment's own vocabulary -> EvidenceItem.direction's.
+# Phase 6E-x: found live that 0/103 real event-sourced Development evidence
+# rows carried a direction, purely because nothing read this already-real,
+# already-populated field — not a new classification, just a straight
+# vocabulary rename of an existing AI-triage output.
+_SENTIMENT_TO_DIRECTION = {"bullish": "positive", "bearish": "negative", "neutral": "neutral"}
+
+
+async def _event_triage_context(db: AsyncSession, event_ids: list[str]) -> dict[str, tuple[str, str | None]]:
+    """(priority_tier, direction) per event_id, via a single batched
+    EventTriage query — not one query per event, not two queries for two
+    fields off the same row. Priority tier reuses engine.py's own
+    compute_priority (the module's own stated public alias for this exact
+    purpose) rather than a new threshold; direction reuses
+    EventTriage.sentiment via _SENTIMENT_TO_DIRECTION above. An event with
+    no EventTriage row yet (enrichment still pending) simply has neither
     here, not a fabricated one."""
     if not event_ids:
         return {}
     rows = (await db.execute(
         select(EventTriage.event_id, EventTriage.urgency, EventTriage.importance,
-               EventTriage.headline)
+               EventTriage.headline, EventTriage.sentiment)
         .where(EventTriage.event_id.in_(event_ids))
     )).all()
-    tiers: dict[str, str] = {}
-    for event_id, urgency, importance, headline in rows:
+    context: dict[str, tuple[str, str | None]] = {}
+    for event_id, urgency, importance, headline, sentiment in rows:
         _, tier = compute_priority(urgency, importance, None, headline)
-        tiers[event_id] = tier
-    return tiers
+        context[event_id] = (tier, _SENTIMENT_TO_DIRECTION.get(sentiment))
+    return context
 
 
 async def collect_evidence_since(
@@ -132,8 +142,10 @@ async def collect_evidence_since(
                 .order_by(Event.published_at.desc())
                 .limit(limit_per_source)
             )).scalars().all())
-            tiers = await _event_priority_tiers(db, [e.id for e in event_rows])
-            items.extend(normalize_event(e, priority_tier=tiers.get(e.id)) for e in event_rows)
+            triage_context = await _event_triage_context(db, [e.id for e in event_rows])
+            for e in event_rows:
+                tier, direction = triage_context.get(e.id, (None, None))
+                items.append(normalize_event(e, priority_tier=tier, direction=direction))
     except Exception as exc:
         log.warning("evidence_window.source_failed", source=SOURCE_EVENT, error=str(exc)[:200])
         failed.append(SOURCE_EVENT)

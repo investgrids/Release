@@ -113,6 +113,58 @@ async def test_event_priority_tier_joined_from_event_triage():
             await db.commit()
 
 
+@pytest.mark.asyncio
+async def test_event_direction_joined_from_event_triage_sentiment():
+    """Phase 6E-x: EventTriage.sentiment (bullish/bearish/neutral) maps
+    into EvidenceItem.direction (positive/negative/neutral) via the same
+    single batched join _event_priority_tiers already did for tier --
+    not a second query, not a new classification."""
+    from app.db.models.intelligence import EventTriage
+
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(hours=1)
+    event_id = f"pytest-wi-directional-{uuid.uuid4().hex[:8]}"
+    triage_id = f"pytest-wi-directional-triage-{uuid.uuid4().hex[:8]}"
+    await _cleanup(event_id)
+    try:
+        async with AsyncSessionLocal() as db:
+            db.add(Event(id=event_id, title="RBI cuts rates", published_at=now))
+            db.add(EventTriage(
+                id=triage_id, event_id=event_id, source="policy",
+                headline="RBI cuts rates", urgency=8, importance=8, sentiment="bullish",
+            ))
+            await db.commit()
+
+            items = await collect_evidence_since(db, since, now + timedelta(minutes=1))
+            match = next(i for i in items if i.source_type == "event" and i.source_id == event_id)
+            assert match.direction == "positive"
+    finally:
+        await _cleanup(event_id)
+        async with AsyncSessionLocal() as db:
+            await db.execute(delete(EventTriage).where(EventTriage.id == triage_id))
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_event_with_no_triage_row_has_no_direction():
+    """An event with no EventTriage row yet (enrichment still pending)
+    must get direction=None, never a fabricated default."""
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(hours=1)
+    event_id = f"pytest-wi-untriaged-{uuid.uuid4().hex[:8]}"
+    await _cleanup(event_id)
+    try:
+        async with AsyncSessionLocal() as db:
+            db.add(Event(id=event_id, title="Untriaged event", published_at=now))
+            await db.commit()
+
+            items = await collect_evidence_since(db, since, now + timedelta(minutes=1))
+            match = next(i for i in items if i.source_type == "event" and i.source_id == event_id)
+            assert match.direction is None
+    finally:
+        await _cleanup(event_id)
+
+
 # ── Per-source failure isolation (Phase 1E hardening, post-review) ─────────
 
 @pytest.mark.asyncio
