@@ -48,10 +48,14 @@ def test_recurring_job_count_increased_by_exactly_two():
     24 -> 25: Phase 2E.1 added job_intelligence_observation_snapshot
     (5:00 PM IST, CompanyIntelligenceObservation collection).
     25 -> 27: Phase 5A.7 added job_economic_calendar_full_sync (3:00 AM
-    IST) and job_economic_calendar_imminent_recheck (every 6h IST)."""
+    IST) and job_economic_calendar_imminent_recheck (every 6h IST).
+    27 -> 28: Phase 5F.3 added job_macro_rates_sync (every 6h IST,
+    3/9/15/21:15) — Phase 5C's macro_rates package had no scheduled job
+    at all before this, relying entirely on reactive traffic to keep
+    its 6h-TTL cache warm."""
     scheduler = _fresh_scheduler()
     register_jobs(scheduler)
-    assert len(scheduler.get_jobs()) == 27
+    assert len(scheduler.get_jobs()) == 28
 
 
 def test_checkpoint_jobs_are_weekend_only_and_ist():

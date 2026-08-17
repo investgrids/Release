@@ -90,8 +90,26 @@ def _parse(xml_text: str) -> FedFundsObservation:
 
 
 async def get_fed_funds_rate() -> FedFundsObservation:
+    """Phase 5F.3: records to source_health — see us_treasury_source.py's
+    get_us_treasury_state docstring for why this matters (this whole
+    package had zero source_health calls before this fix)."""
+    import time as _time
+    from app.services import source_health
+    start = _time.monotonic()
     loop = asyncio.get_event_loop()
     text = await loop.run_in_executor(None, _fetch_sync)
     if text is None:
+        source_health.record_fetch(
+            "Fed H.15", success=False, failure_kind="http",
+            latency_ms=(_time.monotonic() - start) * 1000, error="source_fetch_failed",
+        )
         return FedFundsObservation(status="unavailable", reason="source_fetch_failed")
-    return _parse(text)
+    result = _parse(text)
+    latency_ms = (_time.monotonic() - start) * 1000
+    if result.status == "live":
+        source_health.record_fetch("Fed H.15", success=True, event_count=1, latency_ms=latency_ms)
+    else:
+        source_health.record_fetch(
+            "Fed H.15", success=False, failure_kind="parse", latency_ms=latency_ms, error=result.reason,
+        )
+    return result

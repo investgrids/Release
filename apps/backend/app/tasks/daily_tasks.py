@@ -384,6 +384,42 @@ async def job_economic_calendar_imminent_recheck() -> None:
         log.error("job.economic_calendar_imminent_recheck.error", error=str(exc))
 
 
+# ── Every 6 hours IST — Macro Rate Intelligence sync (Phase 5F.3) ───────────
+
+async def job_macro_rates_sync() -> None:
+    """
+    Phase 5F.3 — Phase 5C's macro_rates package (US Treasury, Fed H.15,
+    RBI WSS) had no scheduled job at all: get_macro_rate_state() was
+    only ever called reactively, from opening_prediction_service.py's
+    on-demand requests and weekend_intelligence's Sat/Sun-only
+    checkpoint cycle. On an ordinary weekday with no request triggering
+    that path within its own 6h TTL, the cache could go stale with zero
+    visibility — confirmed by audit as a real, currently-invisible gap,
+    the same class already found and fixed for BSE (Phase 5D) and event
+    enrichment (Phase 5F.2a). This job keeps the cache genuinely warm on
+    a fixed schedule and gives source_health a real signal for these 3
+    sources (also added this phase — see source_health.py's
+    KNOWN_SOURCES) instead of depending entirely on traffic patterns.
+    Scheduled every 6h to exactly match get_macro_rate_state's own TTL,
+    offset from the economic-calendar imminent-recheck slots so they
+    don't compete for the same window.
+    """
+    import time as _time
+    t0 = _time.perf_counter()
+    log.info("job.macro_rates_sync.start")
+    try:
+        from app.services.macro_rates.service import get_macro_rate_state
+        state = await get_macro_rate_state(force_refresh=True)
+        elapsed = round((_time.perf_counter() - t0) * 1000)
+        log.info(
+            "job.macro_rates_sync.done", elapsed_ms=elapsed,
+            india_data_status=state.india_data_status, us_data_status=state.us_data_status,
+            interest_rate_trend=state.interest_rate_trend,
+        )
+    except Exception as exc:
+        log.error("job.macro_rates_sync.error", error=str(exc))
+
+
 # ── Startup once — seed opportunities if table is empty ─────────────────────
 
 async def job_seed_opportunities() -> None:

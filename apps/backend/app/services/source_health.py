@@ -40,6 +40,10 @@ KNOWN_SOURCES = [
     "RSS/Economic Times", "RSS/Moneycontrol", "RSS/NDTV Profit",
     "RSS/Business Standard", "RSS/Livemint", "RSS/Google News India",
     "RBI", "PIB", "SEBI", "Fed",
+    # Phase 5F.3 — macro_rates (Phase 5C) had zero source_health calls
+    # until this fix, exactly the same invisible-failure class BSE was
+    # before Phase 5D found it.
+    "US Treasury", "Fed H.15", "RBI WSS",
 ]
 
 

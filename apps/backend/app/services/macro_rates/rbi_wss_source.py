@@ -229,7 +229,19 @@ def _recent_fridays(now: date, count: int) -> list[date]:
 async def get_rbi_wss_state(as_of: date | None = None) -> RbiWssState:
     """Walks backward through recent Fridays (WSS's own publication day)
     until one has a real, parseable issue — bounded, never infinite,
-    never guesses a value when nothing is found within the window."""
+    never guesses a value when nothing is found within the window.
+
+    Phase 5F.3: records to source_health — see us_treasury_source.py's
+    get_us_treasury_state docstring for why this matters (this whole
+    package had zero source_health calls before this fix). Recorded
+    once per call, for the FINAL outcome of the whole backward walk —
+    not once per candidate Friday, since a normal "this week's issue
+    isn't published yet, found last week's instead" walk is expected,
+    routine behavior, not a string of failures worth alarming on
+    individually."""
+    import time as _time
+    from app.services import source_health
+    start = _time.monotonic()
     loop = asyncio.get_event_loop()
     today = as_of or datetime.now().date()
 
@@ -254,9 +266,16 @@ async def get_rbi_wss_state(as_of: date | None = None) -> RbiWssState:
         source_url = f"{_VIEW_URL}?Id={ratios_id}"
         result = _parse_ratios_page(view_html, source_url, candidate_date)
         if result.status == "live":
+            source_health.record_fetch(
+                "RBI WSS", success=True, event_count=1, latency_ms=(_time.monotonic() - start) * 1000,
+            )
             return result
         # A found-but-unparseable page is a real signal worth logging,
         # but the walk continues rather than giving up on the whole window.
         log.warning("rbi_wss.issue_found_but_unparseable", date=candidate_date.isoformat(), reason=result.reason)
 
+    source_health.record_fetch(
+        "RBI WSS", success=False, failure_kind="parse",
+        latency_ms=(_time.monotonic() - start) * 1000, error="no_publishable_issue_in_window",
+    )
     return RbiWssState(status="unavailable", reason="no_publishable_issue_in_window")

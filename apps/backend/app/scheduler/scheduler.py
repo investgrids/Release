@@ -47,6 +47,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_intelligence_observation_snapshot,
         job_economic_calendar_full_sync,
         job_economic_calendar_imminent_recheck,
+        job_macro_rates_sync,
         job_backup_database,
     )
     from app.services.intelligence.theme_worker import run_theme_scoring
@@ -185,6 +186,20 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_economic_calendar_imminent_recheck,
         CronTrigger(hour="2,8,14,20", minute=30, timezone=_IST),
         id="economic_calendar_imminent_recheck",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
+    )
+
+    # ── Macro Rate Intelligence sync — every 6h IST (Phase 5F.3) — offset
+    #    15 min from both the economic-calendar full sync (3:00) and its
+    #    imminent recheck (2,8,14,20:30) so they never compete for the
+    #    same window; matches get_macro_rate_state's own 6h TTL exactly
+    #    so the cache never has a chance to go stale between runs ──────────
+    scheduler.add_job(
+        job_macro_rates_sync,
+        CronTrigger(hour="3,9,15,21", minute=15, timezone=_IST),
+        id="macro_rates_sync",
         max_instances=1,
         coalesce=True,
         misfire_grace_time=1800,

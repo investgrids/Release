@@ -145,12 +145,25 @@ async def get_us_treasury_state() -> UsTreasuryState:
     prior year too — the only way to get a real 4-week lookback in early
     January) and derives current level, 4-week change, and curve state.
     Never fabricates a trend from a partial/short series — returns None
-    for that field instead."""
+    for that field instead.
+
+    Phase 5F.3: records to source_health (previously this whole package
+    had zero calls — confirmed by audit, meaning a Treasury/Fed/WSS
+    outage would be exactly as invisible as BSE's was before Phase 5D
+    found it — the same silent-failure class this codebase has already
+    hit twice this session)."""
+    import time as _time
+    from app.services import source_health
+    start = _time.monotonic()
     loop = asyncio.get_event_loop()
     now = datetime.now(timezone.utc)
 
     text = await loop.run_in_executor(None, _fetch_year_sync, now.year)
     if text is None:
+        source_health.record_fetch(
+            "US Treasury", success=False, failure_kind="http",
+            latency_ms=(_time.monotonic() - start) * 1000, error="source_fetch_failed",
+        )
         return UsTreasuryState(status="unavailable", reason="source_fetch_failed")
 
     rows = _parse_entries(text)
@@ -161,6 +174,10 @@ async def get_us_treasury_state() -> UsTreasuryState:
             rows = prior_rows + rows
 
     if not rows:
+        source_health.record_fetch(
+            "US Treasury", success=False, failure_kind="parse",
+            latency_ms=(_time.monotonic() - start) * 1000, error="no_data_rows_parsed",
+        )
         return UsTreasuryState(status="unavailable", reason="no_data_rows_parsed")
 
     latest_date, y2, y10 = rows[-1]
@@ -174,6 +191,9 @@ async def get_us_treasury_state() -> UsTreasuryState:
         if y10 is not None and past_y10 is not None:
             y10_change = round((y10 - past_y10) * 100, 1)
 
+    source_health.record_fetch(
+        "US Treasury", success=True, event_count=len(rows), latency_ms=(_time.monotonic() - start) * 1000,
+    )
     return UsTreasuryState(
         status="live",
         latest_date=latest_date,
