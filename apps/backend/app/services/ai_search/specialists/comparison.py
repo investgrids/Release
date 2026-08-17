@@ -21,7 +21,12 @@ from app.services.ai_search.schema import (
     render_decision_group,
     render_investment_group,
 )
-from app.services.ai_search.specialists.base import PRIORITY_INSTRUCTIONS, parse_specialist_json, research_framing_rules
+from app.services.ai_search.specialists.base import (
+    PRIORITY_INSTRUCTIONS,
+    degraded_response,
+    parse_specialist_json,
+    research_framing_rules,
+)
 
 SPECIALIST_SYSTEM = (
     "You are a senior Indian market analyst specializing in comparative equity "
@@ -145,6 +150,190 @@ CRITICAL RULES:
 {research_framing_rules(_OUTLOOK_LABELS)}
 - Use the real NSE ticker for each company's "symbol" field, in both "companies" and
   "decision_intelligence.entity_analyses"."""
+
+
+# Step 2B (6G Cutover Gate) — multi-compare degraded-provider resilience.
+#
+# Confirmed live during the V2/V3 parity harness: the full multi-compare
+# schema above (investment/decision/evidence/companies/sectors/timeline/
+# risks/entity_analyses) reproducibly truncates mid-JSON on the weakest
+# fallback model this session's providers keep cascading down to under heavy
+# load -- not a routing or entity-resolution bug (ai_search_v3.routed always
+# showed all 3 entities correctly resolved and routed), a token-budget
+# problem specific to this, the heaviest of the 3 specialists' schemas.
+#
+# Fix is exactly the shape V2's own generic degraded-fallback pattern uses
+# (base.py's degraded_response), scoped to this one specialist rather than
+# touched in the shared parser: one bounded retry with a deliberately tiny,
+# purpose-built schema when the full schema fails to parse, and if THAT also
+# fails, an honest degraded response that still names every company that was
+# asked about. What it must never do: silently answer as if only 2 (or 0)
+# companies were named when the user asked about 3.
+MULTI_COMPARE_COMPACT_MAX_TOKENS = 2200  # ~3 short entity blocks + 4 fields -- deliberately far below the 7000 the full schema gets
+
+
+def _build_multi_compare_compact_prompt(query: str, display_names: list[str]) -> str:
+    """The fallback schema for when the full multi-compare schema has
+    already failed to parse once. Keeps the essential capability contract
+    (all N symbols, one concise view per company, a comparative conclusion,
+    key tradeoffs, confidence) and drops everything else that could plausibly
+    be the reason the previous attempt truncated: no timeline, no risk/
+    opportunity matrices, no extras, no duplicated summary fields, no
+    per-entity sector/catalysts/near_term_outlook."""
+    entity_list = ", ".join(display_names)
+    rows = ",\n".join(
+        f'    "{name}": {{"view": "", "strengths": ["", ""], "risks": ["", ""]}}'
+        for name in display_names
+    )
+    return f"""Compare these {len(display_names)} companies for an investor: {entity_list}.
+QUERY: "{query}"
+
+Return ONLY this compact JSON (no fences, no extra keys, no additional fields):
+{{
+  "entity_analyses": {{
+{rows}
+  }},
+  "comparison_summary": "1-2 sentences: what distinguishes each company on the metric that matters most",
+  "best_for": "which of {entity_list} looks strongest right now, and one reason why",
+  "key_tradeoffs": ["", ""],
+  "confidence": 55
+}}
+
+RULES:
+- Analyze all {len(display_names)} companies -- never drop one, even briefly.
+- This is a RESEARCH platform, not advisory -- never say Buy/Sell/Hold/Accumulate/Reduce.
+- Keep every string SHORT -- one sentence per field, not a paragraph."""
+
+
+def _parse_compact_json(raw: str) -> dict | None:
+    """Same fence-stripping/regex-salvage pattern as base.py's
+    parse_specialist_json, kept separate rather than reused because the
+    compact schema's success condition (needs "entity_analyses") is
+    specific to this fallback, not the general specialist contract."""
+    import json
+    import re
+
+    if not raw:
+        return None
+    try:
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = re.sub(r"^```(?:json)?\s*", "", clean)
+            clean = re.sub(r"\s*```$", "", clean).strip()
+        return json.loads(clean)
+    except Exception:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group())
+            except Exception:
+                return None
+    return None
+
+
+def _compact_to_flat(query: str, compact: dict, display: list[dict]) -> dict:
+    """Maps the compact schema's answer into the same flat internal shape
+    every other specialist path produces (base.py's degraded_response is the
+    known-good complete shell every downstream consumer -- validate_and_repair,
+    _assemble_response -- already handles), overriding only the fields this
+    thinner schema actually has real content for. A real, non-degraded answer
+    -- the compact retry succeeding is a genuine (if shorter) synthesis, not
+    a failure."""
+    flat = degraded_response(query)
+    entity_analyses_in = compact.get("entity_analyses") or {}
+    confidence = compact.get("confidence")
+    confidence = int(confidence) if isinstance(confidence, (int, float)) else 55
+
+    summary = compact.get("comparison_summary") or flat["summary"]
+    best_for = compact.get("best_for") or ""
+    flat["degraded"] = False
+    flat["summary"] = summary
+    flat["bottom_line"] = f"{summary} {best_for}".strip()
+    flat["confidence"] = confidence
+    flat["risks"] = [r for r in (compact.get("key_tradeoffs") or []) if r] or flat["risks"]
+
+    flat["companies"] = [
+        {
+            "symbol": m.get("symbol", ""), "name": m.get("name", ""),
+            "impact_type": "neutral", "impact_score": confidence, "confidence": confidence,
+            "reason": (entity_analyses_in.get(m.get("name", ""), {}) or {}).get("view", ""),
+        }
+        for m in display
+    ]
+    flat["decision_intelligence"] = {
+        "intent": "compare_multi", "context_complete": True, "missing_context": [],
+        "decision_summary": summary,
+        "entity_analyses": [
+            {
+                "entity": m.get("name", ""), "symbol": m.get("symbol", ""), "sector": "",
+                "thesis": (entity_analyses_in.get(m.get("name", ""), {}) or {}).get("view", ""),
+                "strengths": (entity_analyses_in.get(m.get("name", ""), {}) or {}).get("strengths") or [],
+                "risks": (entity_analyses_in.get(m.get("name", ""), {}) or {}).get("risks") or [],
+                "catalysts": [], "near_term_outlook": "neutral", "confidence": confidence,
+            }
+            for m in display
+        ],
+    }
+    return flat
+
+
+def _multi_compare_entity_preserving_degraded(query: str, display: list[dict]) -> dict:
+    """The last resort, when both the full schema AND the compact retry
+    failed to parse. Still not the generic degraded_response() shell as-is
+    (that returns companies: [], silently losing every entity) -- this
+    variant honestly says synthesis didn't complete, while still naming and
+    structurally preserving every company the user actually asked about, so
+    a 3-company question can never silently read back as a 2-company (or
+    0-company) answer."""
+    names = [m.get("name", "") for m in display if m.get("name")]
+    entity_list = ", ".join(names) if names else "the companies you asked about"
+    flat = degraded_response(query)
+    flat["summary"] = (
+        f"You asked to compare {entity_list} ({len(display)} companies), but a full comparative "
+        "analysis didn't complete under current conditions. Real per-company data is available "
+        "below; try again shortly for the full comparison."
+    )
+    flat["bottom_line"] = flat["summary"]
+    flat["_degraded_reason"] = "multi_compare_capacity"
+    flat["companies"] = [
+        {
+            "symbol": m.get("symbol", ""), "name": m.get("name", ""),
+            "impact_type": "neutral", "impact_score": None, "confidence": None,
+            "reason": "Comparative analysis did not complete for this company under current conditions.",
+        }
+        for m in display
+    ]
+    flat["decision_intelligence"] = {
+        "intent": "compare_multi", "context_complete": False,
+        "missing_context": ["Full comparative analysis did not complete"],
+        "decision_summary": flat["summary"],
+        "entity_analyses": [
+            {
+                "entity": m.get("name", ""), "symbol": m.get("symbol", ""), "sector": "",
+                "thesis": "Analysis unavailable -- synthesis did not complete under current provider conditions.",
+                "strengths": [], "risks": [], "catalysts": [], "near_term_outlook": "neutral", "confidence": None,
+            }
+            for m in display
+        ],
+    }
+    return flat
+
+
+async def _run_multi_compare_compact_retry(query: str, entities: dict) -> tuple[dict, bool]:
+    from app.services.ai_service import _call_with_fallback
+
+    matches = entities.get("company_matches") or []
+    symbols = entities.get("companies") or []
+    display = matches[:3] if matches else [{"symbol": s, "name": s} for s in symbols[:3]]
+    display_names = [m.get("name") or m.get("symbol", "") for m in display]
+
+    prompt = _build_multi_compare_compact_prompt(query, display_names)
+    raw = await _call_with_fallback(prompt, SPECIALIST_SYSTEM, max_tokens=MULTI_COMPARE_COMPACT_MAX_TOKENS, priority="interactive")
+    compact = _parse_compact_json(raw)
+
+    if compact and compact.get("entity_analyses"):
+        return _compact_to_flat(query, compact, display), False
+    return _multi_compare_entity_preserving_degraded(query, display), True
 
 
 def build_prompt(query: str, evidence, intent_data: dict, entities: dict) -> str:
@@ -287,15 +476,17 @@ JSON to fill and return:
 
 
 async def run(query: str, evidence, intent_data: dict, entities: dict) -> tuple[dict, bool]:
-    """Single _call_with_fallback call. Returns (parsed_json, was_degraded)."""
+    """Single _call_with_fallback call for the normal (pairwise or
+    multi-compare) path, plus one bounded compact-schema retry for the
+    multi-compare case specifically -- see the Step 2B block above build_prompt()."""
     from app.services.ai_service import _call_with_fallback
 
+    is_multi = len(entities.get("companies") or []) >= 3
     prompt = build_prompt(query, evidence, intent_data, entities)
     raw = await _call_with_fallback(prompt, SPECIALIST_SYSTEM, max_tokens=MAX_TOKENS, priority="interactive")
     parsed, degraded = parse_specialist_json(raw, query)
-    if not degraded:
-        # decision_intelligence is comparison.py-specific and already passed
-        # through unchanged by flatten_nested (schema.py) when present at
-        # the nested top level — nothing further needed here.
-        pass
+
+    if degraded and is_multi:
+        parsed, degraded = await _run_multi_compare_compact_retry(query, entities)
+
     return parsed, degraded
