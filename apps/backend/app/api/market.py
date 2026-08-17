@@ -944,6 +944,19 @@ async def market_opening_prediction():
 
 @router.get("/insights")
 async def market_insights():
+    """Phase 5F.4: this used to also return `summary` (a fully static
+    hardcoded string — "Markets showing bullish momentum..." — the
+    exact same output regardless of real market conditions),
+    `key_themes` (a fixed 4-item list, never real), and `risks`
+    (likewise fixed) — the same class of correctness issue as the fake
+    company catalysts fixed in Phase 5A.2. Confirmed via a full grep of
+    every real frontend consumer (market-intelligence/page.tsx,
+    MarketIntelligenceSidebar.tsx) that none of the three were ever
+    actually rendered — dead, fabricated output with no reader. Removed
+    rather than replaced with a real derivation nobody would see;
+    `confidence`/`fear_greed`/`sentiment` are the only fields any
+    consumer reads, and all three are genuinely derived from
+    get_top_movers()'s real data, kept as-is."""
     movers = await get_top_movers()
     g = len(movers.get("gainers", []))
     conf = min(95, 55 + g * 8)
@@ -951,7 +964,4 @@ async def market_insights():
         "confidence": conf,
         "fear_greed": min(90, max(20, conf + 8)),
         "sentiment":  "Bullish" if conf >= 65 else "Neutral" if conf >= 45 else "Bearish",
-        "summary": "Markets showing bullish momentum with institutional buying. Key support at Nifty 24,500.",
-        "key_themes": ["Infrastructure Push", "Banking Strength", "FII Inflows", "IT Sector Pressure"],
-        "risks": ["Global rate uncertainty", "Crude oil volatility", "INR depreciation"],
     }
