@@ -25,6 +25,25 @@ export interface HoldingAnalysis {
   entity_type?: "company" | "sector" | "commodity";
 }
 
+// entity_analyses[] -- V3's 3+-company parallel-analysis shape (Phase 6G
+// Slice 1 + Step 2B). Distinct from HoldingAnalysis/the holding-target
+// pairwise shape above: no "side" (holding/target), and confidence can be
+// null specifically for Step 2B's entity-preserving degraded fallback (both
+// the full schema and the compact retry failed) -- every other path always
+// sets a real number, so null is the reliable per-entity "this one didn't
+// complete" signal, not a separate flag threaded down from the response.
+export interface EntityAnalysis {
+  entity: string;
+  symbol: string;
+  sector: string;
+  thesis: string;
+  strengths: string[];
+  risks: string[];
+  catalysts: string[];
+  near_term_outlook: "positive" | "cautious" | "neutral" | "negative";
+  confidence: number | null;
+}
+
 export interface ComparisonRow {
   dimension: string;
   holding: string;
@@ -58,6 +77,7 @@ export interface DecisionIntelligence {
   decision_summary: string;
   holding_analysis?: HoldingAnalysis;
   target_analysis?: HoldingAnalysis;
+  entity_analyses?: EntityAnalysis[];
   comparison?: ComparisonRow[];
   tradeoff?: TradeoffData;
   decision_framework?: DecisionFramework;
@@ -338,6 +358,116 @@ function CompanyAnalysisCard({
 
           {/* Company page link — only for equity entities with a known symbol */}
           {!isNonEquity && analysis.symbol && (
+            <Link href={`/companies/${analysis.symbol}`}
+              className="inline-flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
+              View full analysis for {analysis.symbol}
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Entity analysis card (3+-way compare) ────────────────────────────────────
+// Compact, deliberately shorter than CompanyAnalysisCard above (no
+// holding/target framing, no catalysts column when the schema path that
+// produced it never populates catalysts) -- renders exactly the structured
+// entity_analyses[] fields V3 returns, nothing synthesized on the frontend.
+const ENTITY_CARD_PALETTE = [
+  { border: "border-l-sky-500",    accentBd: "border-sky-500/20",    accentBg: "bg-sky-500/[0.04]",    label: "text-sky-400" },
+  { border: "border-l-violet-500", accentBd: "border-violet-500/20", accentBg: "bg-violet-500/[0.04]", label: "text-violet-400" },
+  { border: "border-l-teal-500",   accentBd: "border-teal-500/20",   accentBg: "bg-teal-500/[0.04]",   label: "text-teal-400" },
+  { border: "border-l-amber-500",  accentBd: "border-amber-500/20",  accentBg: "bg-amber-500/[0.04]",  label: "text-amber-400" },
+];
+
+function EntityAnalysisCard({ analysis, index }: { analysis: EntityAnalysis; index: number }) {
+  const [open, setOpen] = useState(true);
+  // Step 2B's entity-preserving degraded fallback is the only path that
+  // sets confidence to null per entity -- every other path (full schema,
+  // compact retry) always has a real number. A reliable per-card signal,
+  // not a flag threaded down from the top-level response.
+  const degraded = analysis.confidence == null;
+  const outlookCfg = OUTLOOK_CONFIG[analysis.near_term_outlook] ?? OUTLOOK_CONFIG.neutral;
+  const OutlookIcon = outlookCfg.icon;
+  const c = ENTITY_CARD_PALETTE[index % ENTITY_CARD_PALETTE.length];
+  const hasCatalysts = analysis.catalysts?.length > 0;
+
+  return (
+    <div className={`rounded-[20px] border border-l-4 ${c.accentBd} ${c.border} ${c.accentBg} overflow-hidden`}>
+      <button onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${c.accentBd} ${c.accentBg}`}>
+            <Building2 className={`h-4 w-4 ${c.label}`} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[15px] font-bold text-text-primary leading-tight">{analysis.entity}</p>
+            {analysis.sector && <p className="text-[11px] text-text-muted truncate">{analysis.sector}</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="text-right">
+            <div className={`flex items-center gap-1 justify-end ${outlookCfg.color} mb-1`}>
+              <OutlookIcon className="h-3 w-3" />
+              <span className="text-[11px] font-semibold">{outlookCfg.label}</span>
+            </div>
+            <p className="text-[9px] text-text-muted">Near-term outlook</p>
+          </div>
+          {!degraded && <ScoreRing score={analysis.confidence as number} size={44} />}
+          {open ? <ChevronUp className="h-4 w-4 text-text-muted shrink-0" /> : <ChevronDown className="h-4 w-4 text-text-muted shrink-0" />}
+        </div>
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 space-y-4 border-t border-surface-border/5 pt-4">
+          {degraded ? (
+            <div className="flex items-start gap-2 rounded-[14px] border border-amber-500/20 bg-amber-500/[0.05] px-4 py-3">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+              <p className="text-[12px] leading-[1.5] text-amber-600 dark:text-amber-300">{analysis.thesis}</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-[13px] leading-6 text-text-primary">{analysis.thesis}</p>
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${hasCatalysts ? "md:grid-cols-3" : ""} gap-3`}>
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-emerald-500 mb-2">Strengths</p>
+                  <ul className="space-y-1.5">
+                    {analysis.strengths?.slice(0, 3).map((s, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.45]">
+                        <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />{s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {hasCatalysts && (
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-sky-500 mb-2">Catalysts</p>
+                    <ul className="space-y-1.5">
+                      {analysis.catalysts.slice(0, 3).map((cst, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.45]">
+                          <Zap className="mt-0.5 h-3 w-3 shrink-0 text-sky-400" />{cst}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.10em] text-rose-500 mb-2">Risks</p>
+                  <ul className="space-y-1.5">
+                    {analysis.risks?.slice(0, 3).map((r, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-[1.45]">
+                        <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />{r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </>
+          )}
+
+          {analysis.symbol && (
             <Link href={`/companies/${analysis.symbol}`}
               className="inline-flex items-center gap-1.5 text-[11px] text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">
               View full analysis for {analysis.symbol}
@@ -638,6 +768,7 @@ export function DecisionIntelligencePanel({ di, query, onRefine }: DecisionIntel
     detected_risk,
     holding_analysis,
     target_analysis,
+    entity_analyses,
     comparison,
     tradeoff,
     decision_framework,
@@ -651,29 +782,23 @@ export function DecisionIntelligencePanel({ di, query, onRefine }: DecisionIntel
       {/* Decision summary banner */}
       <DecisionSummaryBanner di={di} />
 
-      {/* Follow-up context when incomplete */}
-      {(!context_complete || (missing_context?.length > 0)) && (
-        <FollowUpContextPanel
-          missing={missing_context ?? []}
-          query={query}
-          onRefine={onRefine}
-          detectedHorizon={detected_horizon}
-          detectedRisk={detected_risk}
-        />
-      )}
+      {/* Refine panel -- exactly one render. Targeted to the specific gaps
+          when context_complete=false or missing_context is non-empty (a real
+          data state even when context_complete=true: "enough to answer, but
+          some optional refinements are still listed"); otherwise the full
+          "enhance" set with nothing specifically missing. These two used to
+          be independent conditions that could both be true simultaneously
+          (context_complete=true AND missing_context non-empty), rendering
+          this panel twice -- now a single either/or. */}
+      <FollowUpContextPanel
+        missing={missing_context?.length ? missing_context : []}
+        query={query}
+        onRefine={onRefine}
+        detectedHorizon={detected_horizon}
+        detectedRisk={detected_risk}
+      />
 
-      {/* Always show follow-up context as "enhance" option */}
-      {context_complete && (
-        <FollowUpContextPanel
-          missing={[]}
-          query={query}
-          onRefine={onRefine}
-          detectedHorizon={detected_horizon}
-          detectedRisk={detected_risk}
-        />
-      )}
-
-      {/* Company Analysis — two cards */}
+      {/* Company Analysis — two cards (pairwise holding/target shape) */}
       {(holding_analysis || target_analysis) && (
         <div className="space-y-3">
           <p className="text-[15px] font-semibold text-text-primary">Individual Analysis</p>
@@ -684,6 +809,21 @@ export function DecisionIntelligencePanel({ di, query, onRefine }: DecisionIntel
             {target_analysis && (
               <CompanyAnalysisCard analysis={target_analysis} side="target" />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Company Analysis — N cards (3+-way compare shape, Phase 6G Slice 1 +
+          Step 2B). Mutually exclusive with holding_analysis/target_analysis
+          above -- the backend only ever populates one shape or the other for
+          a given response, so this never renders alongside/duplicates it. */}
+      {entity_analyses && entity_analyses.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[15px] font-semibold text-text-primary">Individual Analysis</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {entity_analyses.map((ea, i) => (
+              <EntityAnalysisCard key={ea.symbol || ea.entity || i} analysis={ea} index={i} />
+            ))}
           </div>
         </div>
       )}
