@@ -131,10 +131,10 @@ async def test_scenario_c_weekend_mixed_low_confidence_zero_or_small_adjustment(
     async def seed(db):
         e1 = await make_event(db, title="Positive Banking development", when=ist(SATURDAY, 9, 0),
                                sectors=["Banking"], companies=["HDFCBANK"])
-        await make_event_triage(db, e1.id, urgency=6, importance=6, headline=e1.title)
+        await make_event_triage(db, e1.id, urgency=6, importance=6, headline=e1.title, sentiment="bullish")
         e2 = await make_event(db, title="Negative Banking development", when=ist(SATURDAY, 9, 10),
                                sectors=["Banking"], companies=["ICICIBANK"])
-        await make_event_triage(db, e2.id, urgency=6, importance=6, headline=e2.title)
+        await make_event_triage(db, e2.id, urgency=6, importance=6, headline=e2.title, sentiment="bearish")
     await _build_sunday_snapshot(isolated_db, frozen_time, bias_evidence=seed)
 
     frozen_time(ist(MONDAY, 8, 30))

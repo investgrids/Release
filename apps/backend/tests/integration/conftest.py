@@ -192,11 +192,11 @@ async def make_event(
     return row
 
 
-async def make_event_triage(db, event_id: str, *, urgency=8, importance=8, headline=None):
+async def make_event_triage(db, event_id: str, *, urgency=8, importance=8, headline=None, sentiment="bullish"):
     from app.db.models.intelligence import EventTriage
     row = EventTriage(
         id=_next_id("triage"), event_id=event_id, source="synthetic", headline=headline or event_id,
-        urgency=urgency, importance=importance, confidence=80, sentiment="bullish",
+        urgency=urgency, importance=importance, confidence=80, sentiment=sentiment,
     )
     db.add(row)
     await db.flush()
