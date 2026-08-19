@@ -12,7 +12,13 @@ import { API_BASE_URL as API } from "@/lib/api";
 // 200-ing on the id form forever. A 301 (not Next.js's own redirect()/
 // permanentRedirect(), which issue 307/308) is what search engines
 // specifically consolidate ranking signal on.
-const ID_PATTERN = /^(nse-|bse-)/i;
+//
+// All 7 raw-id source prefixes (2026-08 SEO audit) — this used to be just
+// nse-/bse-, which left fed-/pib-/rbi-/rss-/sebi- ids 200-ing directly with
+// their own noindex instead of 301-ing to their real slug (confirmed live:
+// /events/fed-b6a5befa779d served 200+noindex despite a real slug existing
+// for it). See app/providers/*.py for where each prefix is generated.
+const ID_PATTERN = /^(nse-|bse-|fed-|pib-|rbi-|rss-|sebi-)/i;
 
 type Kind = "events" | "ripple" | "intel-event";
 

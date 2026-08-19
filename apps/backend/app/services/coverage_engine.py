@@ -15,6 +15,7 @@ EventCoverage row and updates it as the event moves through AIPE.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 import uuid
@@ -23,7 +24,7 @@ import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.event import Event
+from app.db.models.event import Event, EventCompany
 from app.db.models.event_coverage import EventCoverage
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.macro_release import MacroRelease
@@ -57,6 +58,71 @@ _EVENT_TRIGGER_TYPE = "high_urgency_triage"
 # time rather than genuinely triggered by it.
 _SCHEDULED_DIGEST_TYPES = ("morning_intelligence", "market_wrap")
 
+# SEO indexability rule v2 (2026-08 audit) — see event_service.py's
+# assembly of `summary.why_it_matters`/`aiAnalysis.bull_case` from
+# `Event.ai_summary`. Verified live against the 71 event pages Search
+# Console had crawled as noindex: 25 matched a substantive category below
+# by title, but ALL 25 (and every other checked event, including
+# currently-indexable ones sourced from raw corporate filings) still
+# carried these exact two strings verbatim in `ai_summary` — the AI
+# enrichment pipeline's own hardcoded fallback text when real analysis
+# wasn't produced, not real per-event content. Indexing on category alone
+# would have shipped 25 pages of "X Limited has informed the Exchange
+# about Acquisition" wrapped in a template restating that same sentence —
+# exactly the thin/unhelpful content Google's indexing guidance warns
+# against, regardless of how important the underlying filing sounds.
+_GENERIC_FALLBACK_WHY = "This event may have market implications."
+_GENERIC_FALLBACK_BULL = "Positive fundamentals could drive upside."
+
+# Title-text category signal — the exchange's own filing-category label
+# (NSE's `desc`/`subject`, e.g. "Financial Results") is never persisted to
+# a structured column (see nse_provider.py's _normalize_announcement: it's
+# used only as a headline fallback), so the title itself is the only
+# reliable signal for "what kind of filing is this." This is a *candidate*
+# signal only — see _has_genuine_content_quality below, which every event
+# must also pass regardless of category or triage tier.
+_SUBSTANTIVE_CATEGORY_RE = re.compile(
+    r"(financial results?|\bacquisition\b|\bdisposal\b|\bdivestment\b|"
+    r"\bdividend\b|\bbuy[\s-]?back\b|\border win\b|"
+    r"\bcapacity (addition|expansion)\b|"
+    r"\b(fund[\s-]?raising|preferential issue|rights issue|\bqip\b|fccbs?)\b|"
+    r"\bcredit rating\b|\b(litigation|dispute|regulatory action|penalty)\b|"
+    r"\b(merger|demerger|amalgamation|scheme of arrangement)\b|"
+    r"\b(default|fraud|closure of operations)\b|"
+    r"\b(product|business) launch\b)",
+    re.IGNORECASE,
+)
+
+
+def _matches_substantive_category(title: str | None) -> bool:
+    return bool(title) and bool(_SUBSTANTIVE_CATEGORY_RE.search(title))
+
+
+def _has_genuine_content_quality(
+    *, title: str | None, description: str | None, ai_summary: dict | None,
+    impact_score: float | None, confidence: float | None, any_company_has_reason: bool,
+    company_count: int,
+) -> bool:
+    """The content-quality floor every indexable event must clear,
+    regardless of triage tier or category — 'important' and 'actually
+    analyzed' are different questions (see module docstring above)."""
+    ai_summary = ai_summary or {}
+    never_expanded = (description or "") == (title or "")
+    why = (ai_summary.get("why_it_matters") or "").strip()
+    bull = ((ai_summary.get("analysis") or {}).get("bull_case") or "").strip()
+    never_scored = impact_score is None and confidence is None
+    # An event with zero linked companies (e.g. a pure macro/economy story)
+    # isn't penalized for lacking a company reason it was never going to
+    # have; one WITH companies but no real per-company reasoning is thin.
+    company_reasoning_ok = company_count == 0 or any_company_has_reason
+    return (
+        not never_expanded
+        and why != _GENERIC_FALLBACK_WHY
+        and bull != _GENERIC_FALLBACK_BULL
+        and not never_scored
+        and company_reasoning_ok
+    )
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
@@ -74,23 +140,35 @@ def is_must_cover(priority_tier: str) -> bool:
 
 
 async def compute_indexable_batch(db: AsyncSession, event_ids: list[str]) -> dict[str, bool]:
-    """Phase 15 (2026-08 audit) — indexability threshold: only events with
-    real evidence of importance are sitemap/search-eligible, everything
-    else stays noindex to avoid SEO bloat from routine/low-value events
-    (the ~94%-unscored NSE/BSE compliance-filing volume events.py's own
-    scored_only comment already documents).
+    """Phase 15 (2026-08 audit), revised v2 in the same month after a
+    Search Console coverage export showed real dividend/acquisition/
+    financial-results pages sitting noindex purely because they weren't
+    Critical/High triage — an urgency signal for the trading feed, not a
+    page-quality signal. v1's rule (kept here as the 'significance' input
+    below) conflated the two.
 
-    An event is indexable when EITHER is true:
-      - it has a real extracted MacroRelease (a genuine economic data
-        print is always worth indexing, regardless of triage priority —
-        macro releases don't go through the same triage/urgency scoring
-        as news events), OR
-      - its EventCoverage priority tier is Critical or High (reuses the
-        existing Intelligence Priority Queue tiers, not a new score).
+    An event is indexable when ALL of:
+      - it has a real, clean slug (no canonical URL, no indexing — the
+        routing layer's own definition of 'this page has a real address'), AND
+      - it clears the content-quality floor (_has_genuine_content_quality)
+        — real per-event analysis, not the AI pipeline's hardcoded
+        fallback text reflecting the filing's own title back at it, AND
+      - it's significant OR a substantive filing category:
+          - has a real extracted MacroRelease, OR
+          - its EventCoverage priority tier is Critical or High, OR
+          - its title matches a substantive category
+            (_matches_substantive_category) — financial results,
+            acquisitions, dividends, credit ratings, etc.
 
-    No EventCoverage row at all (never triaged, or triage hasn't run yet)
-    defaults to NOT indexable — the safe default when there's no positive
-    evidence of importance, consistent with 'don't index everything.'
+    Deliberately NOT 'Critical/High is automatically indexable' — a
+    Critical/High event that hasn't actually been analyzed yet (still
+    carrying the generic fallback text) is exactly as thin as a routine
+    filing with the same problem; the quality floor applies to every path,
+    not just the category one.
+
+    No EventCoverage row at all (never triaged) is simply absent from
+    priority_by_id below, not an error — it just can't satisfy the
+    Critical/High branch and falls through to the macro/category checks.
     Returns a dict so callers building a list of summaries can look up
     each event's flag in O(1) rather than one query per event."""
     if not event_ids:
@@ -108,10 +186,42 @@ async def compute_indexable_batch(db: AsyncSession, event_ids: list[str]) -> dic
     )).all()
     has_macro = {row[0] for row in macro_rows}
 
-    return {
-        eid: (eid in has_macro) or is_must_cover(priority_by_id.get(eid, ""))
-        for eid in event_ids
-    }
+    event_rows = (await db.execute(
+        select(
+            Event.id, Event.slug, Event.title, Event.description,
+            Event.ai_summary, Event.impact_score, Event.confidence,
+        ).where(Event.id.in_(event_ids))
+    )).all()
+
+    company_rows = (await db.execute(
+        select(EventCompany.event_id, EventCompany.reason)
+        .where(EventCompany.event_id.in_(event_ids))
+    )).all()
+    company_count_by_id: dict[str, int] = {}
+    any_reason_by_id: dict[str, bool] = {}
+    for eid, reason in company_rows:
+        company_count_by_id[eid] = company_count_by_id.get(eid, 0) + 1
+        if reason and reason.strip():
+            any_reason_by_id[eid] = True
+
+    result: dict[str, bool] = {eid: False for eid in event_ids}
+    for eid, slug, title, description, ai_summary, impact_score, confidence in event_rows:
+        if not slug:
+            continue
+        significant_or_substantive = (
+            eid in has_macro
+            or is_must_cover(priority_by_id.get(eid, ""))
+            or _matches_substantive_category(title)
+        )
+        if not significant_or_substantive:
+            continue
+        result[eid] = _has_genuine_content_quality(
+            title=title, description=description, ai_summary=ai_summary,
+            impact_score=impact_score, confidence=confidence,
+            any_company_has_reason=any_reason_by_id.get(eid, False),
+            company_count=company_count_by_id.get(eid, 0),
+        )
+    return result
 
 
 async def compute_indexable(db: AsyncSession, event_id: str) -> bool:
