@@ -173,12 +173,19 @@ export function MarketClient({
               </div>
             )}
 
-            {/* Right: KPI mini cards */}
+            {/* Right: KPI mini cards. "AI Confidence" / "Fear & Greed" (shared
+                header correctness pass, 2026-08) used to read
+                /api/market/insights' confidence=55+gainers*8 and
+                fear_greed=confidence+8 -- formula constants derived from a
+                movers-list length, not real sentiment indices, presented
+                with the same visual authority as the real fields below.
+                Removed rather than replaced with another formula or a new
+                fetch: this header renders on every tab, and the one real
+                directional confidence that exists (Opening Prediction's)
+                is a Pre-Market-specific concept, not meaningful here. */}
             <div className="shrink-0 grid grid-cols-3 gap-1.5">
               {[
                 { label: "Market Status", value: sessLabel, color: sess === "open" ? "text-emerald-400" : sess === "weekend" ? "text-violet-400" : "text-amber-400", small: true },
-                { label: "AI Confidence", value: initialInsights?.confidence != null ? `${initialInsights.confidence}%` : "—", color: "text-violet-400" },
-                { label: "Fear & Greed",  value: String(initialInsights?.fear_greed ?? 72),   color: "text-amber-400"  },
                 { label: "Events Today",  value: String(initialEvents?.length ?? 0),          color: "text-sky-400"    },
                 { label: "Opportunities", value: String(initialOpportunities?.length ?? 0),   color: "text-emerald-400"},
               ].map(k => (
@@ -235,8 +242,14 @@ export function MarketClient({
       {/* ── RIGHT SIDEBAR ──────────────────────────────────────────────── */}
       {/* Hidden on Live Market: that tab now carries its own Market Sentiment /
           AI Confidence / Upcoming Today widgets (sourced from real endpoints)
-          in its own grid, so this sidebar would only duplicate them. */}
-      {!["live-market", "commodities", "calendar", "sector-intelligence"].includes(activeTab) && (
+          in its own grid, so this sidebar would only duplicate them. Hidden
+          on Pre-Market too (2026-08 Pre-Market rebuild, Part B9) — its
+          rebuilt Hero/SignalBreakdown already carry the one canonical
+          confidence number and Companies In Focus already covers movers
+          with real reasons, so this sidebar's Top Movers panel and its
+          fake Confidence/Fear&Greed formula (/api/market/insights) would
+          only duplicate and contradict them. */}
+      {!["live-market", "commodities", "calendar", "sector-intelligence", "pre-market"].includes(activeTab) && (
         <aside className="hidden xl:flex xl:flex-col gap-0 min-w-0 sticky top-[88px] self-start max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-hide pb-16">
           <MarketIntelligenceSidebar
             insights={initialInsights}

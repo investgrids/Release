@@ -4,9 +4,9 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Droplets, BarChart2, Banknote, ArrowRightLeft,
-  TrendingUp, TrendingDown, Minus, Globe, Sunrise, Target,
-  Compass, ListChecks, History, Newspaper, Sparkles,
-  ChevronRight, Gauge,
+  TrendingUp, TrendingDown, Minus, Sunrise, Target,
+  Compass, History, Newspaper, Sparkles,
+  ChevronRight, ChevronDown, Activity, Building2, Moon, Circle, Globe2,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 
@@ -32,33 +32,28 @@ function MiniChart({ chart, positive }: { chart?: { value: number }[]; positive:
 }
 
 // ── Countdown timer to 9:15 AM IST ────────────────────────────────────────────
-// Weekend Intelligence Phase 0: this previously had no day-of-week check at
-// all, so on a Saturday it would still render "Opens in Xh Ym" as if the
-// market were opening later that same day — the actual next open is
-// Monday. Also fixes the adjacent, same-root-cause bug where an
-// after-close weekday countdown always said "(tomorrow)" even on a Friday
-// evening, when the real next open is Monday.
 function useCountdown() {
   const [label, setLabel] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [isWeekend, setIsWeekend] = useState(false);
+  const [greeting, setGreeting] = useState("Good Morning");
 
   useEffect(() => {
     function compute() {
       const now = new Date();
       const ist = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-      const dow = ist.getDay(); // 0=Sunday … 6=Saturday
-      const totalMin = ist.getHours() * 60 + ist.getMinutes();
+      const dow = ist.getDay();
+      const hour = ist.getHours();
+      const totalMin = hour * 60 + ist.getMinutes();
       const openMin = 9 * 60 + 15;
       const closeMin = 15 * 60 + 30;
 
+      setGreeting(hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening");
+
       if (dow === 0 || dow === 6) {
         setIsOpen(false);
-        setIsWeekend(true);
-        setLabel("Market closed for the weekend — opens Monday 9:15 AM IST");
+        setLabel("Market closed for the weekend. Opens Monday 9:15 AM IST");
         return;
       }
-      setIsWeekend(false);
 
       if (totalMin >= openMin && totalMin <= closeMin) {
         setIsOpen(true);
@@ -86,21 +81,15 @@ function useCountdown() {
     return () => clearInterval(id);
   }, []);
 
-  return { label, isOpen, isWeekend };
+  return { label, isOpen, greeting };
 }
 
 // ── GIFT Nifty hero card ───────────────────────────────────────────────────────
-// Real GIFT Nifty (NSE IX, GIFT City) via the shared gift_nifty_service
-// adapter. status is always honest — "live" | "stale" | "unavailable" —
-// and spot is shown only as a reference point, never relabeled as GIFT
-// Nifty itself when the real source is down.
 function GiftNiftyHero({ data }: { data: any }) {
   if (!data) return (
     <div className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-5 animate-pulse h-48" />
   );
-
   const status = data.status ?? (data.value !== "—" ? "live" : "unavailable");
-
   if (status === "unavailable") {
     return (
       <div className="rounded-xl border border-surface-border/10 bg-surface-card p-4">
@@ -117,14 +106,12 @@ function GiftNiftyHero({ data }: { data: any }) {
       </div>
     );
   }
-
   const pos = data.positive !== false;
   const tc = pos ? "text-emerald-400" : "text-rose-400";
   const bc = pos ? "border-emerald-500/20" : "border-rose-500/20";
   const isStale = status === "stale";
   return (
     <div className={`rounded-xl border ${bc} bg-surface-card p-4`}>
-
       <div className="mb-2.5 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -139,13 +126,11 @@ function GiftNiftyHero({ data }: { data: any }) {
         </div>
         <MiniChart chart={data.chart} positive={pos} />
       </div>
-
       <div className="flex items-baseline gap-2.5 mb-1">
         <p className="text-[26px] font-black tracking-tight text-text-primary leading-none tabular-nums">{data.value}</p>
         <p className={`text-[14px] font-bold tabular-nums ${tc}`}>{data.pct}</p>
       </div>
       <p className={`text-[11px] font-semibold ${tc}`}>{data.change}</p>
-
       {data.spot_value && (
         <div className="mt-3 flex items-center gap-3 rounded-[12px] border border-surface-border/7 bg-text-primary/[0.04] px-3 py-2">
           <div className="flex items-center gap-1.5">
@@ -162,7 +147,6 @@ function GiftNiftyHero({ data }: { data: any }) {
           )}
         </div>
       )}
-
       {data.opening_range && (
         <div className="mt-2 flex items-center gap-2 rounded-[10px] border border-sky-500/15 bg-sky-500/[0.06] px-3 py-1.5">
           <span className="text-[9px] text-text-muted">Expected open</span>
@@ -184,7 +168,6 @@ function BankNiftyCard({ data }: { data: any }) {
   const pos = data.positive !== false;
   const tc = pos ? "text-emerald-400" : "text-rose-400";
   const bc = pos ? "border-emerald-500/15" : "border-rose-500/15";
-
   return (
     <div className={`relative overflow-hidden rounded-xl border ${bc} bg-surface-card p-4`}>
       <div className="mb-2.5 flex items-start justify-between">
@@ -196,13 +179,11 @@ function BankNiftyCard({ data }: { data: any }) {
         </div>
         <MiniChart chart={data.chart} positive={pos} />
       </div>
-
       <div className="flex items-baseline gap-2.5 mb-1">
         <p className="text-[22px] font-black tracking-tight text-text-primary leading-none">{data.value}</p>
         <p className={`text-[13px] font-bold ${tc}`}>{data.pct}</p>
       </div>
       <p className={`text-[11px] font-semibold ${tc}`}>{data.change}</p>
-
       {data.spot_value && (
         <div className="mt-3 flex items-center gap-3 rounded-[10px] border border-surface-border/7 bg-text-primary/[0.04] px-3 py-2">
           <div className="flex items-center gap-1.5">
@@ -228,7 +209,6 @@ function IndiaVIXCard({ data }: { data: any }) {
   );
   const pos = data.positive !== false;
   const c = data.color ?? "slate";
-
   const BADGE: Record<string, string> = {
     emerald: "bg-emerald-500/10 border-emerald-500/25 text-emerald-400",
     amber:   "bg-amber-500/10  border-amber-500/25  text-amber-400",
@@ -240,23 +220,19 @@ function IndiaVIXCard({ data }: { data: any }) {
     emerald: "text-emerald-400", amber: "text-amber-400",
     orange: "text-orange-400",   rose: "text-rose-400", slate: "text-text-secondary",
   };
-
   return (
     <div className="relative overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-4">
       <div className="mb-2.5 flex items-center justify-between">
         <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">India VIX</span>
         <MiniChart chart={data.chart} positive={!pos} />
       </div>
-
       <div className="mb-2 flex items-baseline gap-2">
         <p className="text-[22px] font-black tracking-tight text-text-primary leading-none">{data.value}</p>
         <p className={`text-[11px] font-bold ${pos ? "text-rose-400" : "text-emerald-400"}`}>{data.pct}</p>
       </div>
-
       <span className={`mb-2 inline-block rounded-full border px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${BADGE[c]}`}>
         {data.level_label ?? "—"}
       </span>
-
       <p className={`text-[11px] leading-4 ${TEXT[c]}`}>{data.interpretation ?? "Fear gauge for Indian markets"}</p>
     </div>
   );
@@ -265,7 +241,6 @@ function IndiaVIXCard({ data }: { data: any }) {
 // ── FII / DII card ────────────────────────────────────────────────────────────
 function FIIDIICard({ data }: { data: any }) {
   if (!data) return null;
-
   if (!data.available) {
     return (
       <div className="rounded-[20px] border border-surface-border/6 bg-text-primary/[0.02] px-5 py-3 flex items-center gap-3">
@@ -273,19 +248,16 @@ function FIIDIICard({ data }: { data: any }) {
       </div>
     );
   }
-
   const fii = data.fii_net ?? 0;
   const dii = data.dii_net ?? 0;
   const fiiPos = fii >= 0;
   const diiPos = dii >= 0;
-
   function fmt(v: number) {
     const abs = Math.abs(v);
     const sign = v >= 0 ? "+" : "−";
     if (abs >= 10000) return `${sign}₹${(abs / 100).toFixed(0)}Cr`;
     return `${sign}₹${abs.toLocaleString("en-IN", { maximumFractionDigits: 0 })}Cr`;
   }
-
   return (
     <div className="rounded-[20px] border border-surface-border/7 bg-surface-card px-5 py-4">
       <div className="flex items-center justify-between mb-3">
@@ -296,21 +268,15 @@ function FIIDIICard({ data }: { data: any }) {
           </span>
         </div>
       </div>
-
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
           <p className="text-[9px] font-semibold uppercase tracking-wider text-text-muted">FII / FPI</p>
-          <p className={`text-[17px] font-black leading-none ${fiiPos ? "text-emerald-400" : "text-rose-400"}`}>
-            {fmt(fii)}
-          </p>
+          <p className={`text-[17px] font-black leading-none ${fiiPos ? "text-emerald-400" : "text-rose-400"}`}>{fmt(fii)}</p>
           <p className="text-[10px] text-text-muted">{fiiPos ? "Net Buying" : "Net Selling"}</p>
         </div>
-
         <div className="flex flex-col gap-1 border-l border-surface-border/6 pl-4">
           <p className="text-[9px] font-semibold uppercase tracking-wider text-text-muted">DII</p>
-          <p className={`text-[17px] font-black leading-none ${diiPos ? "text-emerald-400" : "text-rose-400"}`}>
-            {fmt(dii)}
-          </p>
+          <p className={`text-[17px] font-black leading-none ${diiPos ? "text-emerald-400" : "text-rose-400"}`}>{fmt(dii)}</p>
           <p className="text-[10px] text-text-muted">{diiPos ? "Net Buying" : "Net Selling"}</p>
         </div>
       </div>
@@ -339,7 +305,6 @@ const MARKET_FLAGS: Record<string, string> = {
   "Nikkei 225": "JP", "Hang Seng": "HK", "Shanghai": "CN", "KOSPI": "KR",
   "FTSE 100":   "GB", "DAX": "DE",       "CAC 40":   "FR",
 };
-
 function MarketRow({ item }: { item: any }) {
   const pos = item.positive !== false;
   const flag = item.flag ?? MARKET_FLAGS[item.name] ?? "GLB";
@@ -430,7 +395,7 @@ function CommodityCard({ item }: { item: any }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   NEW — investor-briefing sections
+   Section wrapper + shared style maps
    ═══════════════════════════════════════════════════════════════════════════ */
 
 function Section({ icon: Icon, title, sub, children }: { icon: typeof Target; title: string; sub?: string; children: React.ReactNode }) {
@@ -446,28 +411,57 @@ function Section({ icon: Icon, title, sub, children }: { icon: typeof Target; ti
   );
 }
 
-const DIR_STYLE: Record<string, { label: string; color: string; bg: string; icon: typeof TrendingUp }> = {
-  Positive: { label: "Likely Positive Opening", color: "text-emerald-400", bg: "from-emerald-500/15 border-emerald-500/25", icon: TrendingUp },
-  Negative: { label: "Likely Negative Opening", color: "text-rose-400",    bg: "from-rose-500/15 border-rose-500/25",       icon: TrendingDown },
-  Neutral:  { label: "Flat / Neutral Opening",  color: "text-amber-400",  bg: "from-amber-500/15 border-amber-500/25",     icon: Minus },
+const DIR_STYLE: Record<string, { label: string; color: string; icon: typeof TrendingUp }> = {
+  Positive: { label: "Likely Positive Opening", color: "text-emerald-400", icon: TrendingUp },
+  Negative: { label: "Likely Negative Opening", color: "text-rose-400",    icon: TrendingDown },
+  Neutral:  { label: "Flat / Neutral Opening",  color: "text-amber-400",  icon: Minus },
 };
 
-// ── HERO ────────────────────────────────────────────────────────────────────
-function Hero({ pred, topTheme, bottomTheme, topEvent, generatedAt }: {
-  pred: any; topTheme: any; bottomTheme: any; topEvent: { title: string; category: string } | null; generatedAt: string | null;
+const SESSION_LABEL: Record<string, string> = {
+  pre_market:   "Pre-Market",
+  pre_open:     "Pre-Open",
+  open:         "Market Open",
+  after_market: "After Market",
+  weekend:      "Weekend",
+};
+
+const SIGNAL_DIR_STYLE: Record<string, { color: string; icon: typeof TrendingUp }> = {
+  positive:   { color: "text-emerald-400", icon: TrendingUp },
+  negative:   { color: "text-rose-400",    icon: TrendingDown },
+  neutral:    { color: "text-amber-400",   icon: Minus },
+  contextual: { color: "text-text-secondary", icon: Circle },
+};
+
+const MOMENTUM_META: Record<string, { color: string; icon: typeof TrendingUp }> = {
+  rising:  { color: "text-emerald-400", icon: TrendingUp },
+  falling: { color: "text-rose-400",    icon: TrendingDown },
+  stable:  { color: "text-amber-400",   icon: Minus },
+};
+
+const FOCUS_DIR_STYLE: Record<string, { label: string; color: string }> = {
+  positive: { label: "Positive", color: "text-emerald-400" },
+  negative: { label: "Negative", color: "text-rose-400" },
+  neutral:  { label: "Mixed",    color: "text-amber-400" },
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HERO — the one dominant briefing surface (reasoning folded in directly,
+   no separate "Morning Intelligence Brief" section below it)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function Hero({ pred, generatedAt, greeting, dateLabel, dataCoverage }: {
+  pred: any; generatedAt: string | null; greeting: string; dateLabel: string;
+  dataCoverage: { available: number; total: number } | null;
 }) {
   const dir = DIR_STYLE[pred?.direction ?? "Neutral"];
   const DirIcon = dir.icon;
-  const now = new Date();
-  const dateLabel = now.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
   const timeLabel = generatedAt ? new Date(generatedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : null;
 
   return (
-    <div className={`rounded-2xl border bg-gradient-to-br ${dir.bg} to-transparent p-6 sm:p-8`}>
+    <div className="rounded-2xl border border-surface-border/10 bg-surface-card p-6 sm:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Sunrise className="h-4 w-4 text-amber-400" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-text-secondary">Good Morning</span>
+          <span className="text-[11px] font-bold uppercase tracking-widest text-text-secondary">{greeting}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-text-muted">{dateLabel}</span>
@@ -475,212 +469,163 @@ function Hero({ pred, topTheme, bottomTheme, topEvent, generatedAt }: {
         </div>
       </div>
 
-      <h1 className="mt-3 text-[24px] font-black text-text-primary sm:text-[30px]">Market Opening Intelligence</h1>
+      <div className="mt-4 flex items-center gap-3">
+        <DirIcon className={`h-8 w-8 shrink-0 ${dir.color}`} />
+        <h1 className={`text-[24px] font-black leading-tight sm:text-[28px] ${dir.color}`}>{dir.label}</h1>
+      </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-6">
-        <div className="flex items-center gap-3">
-          <DirIcon className={`h-9 w-9 ${dir.color}`} />
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">AI Opening Verdict</p>
-            <p className={`text-[22px] font-black ${dir.color}`}>{dir.label}</p>
-          </div>
-        </div>
-        {pred?.confidence != null && (
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Confidence</p>
-            <p className="text-[22px] font-black text-text-primary">{pred.confidence}%</p>
-          </div>
-        )}
+      <div className="mt-4 flex flex-wrap items-end gap-x-8 gap-y-3">
         {pred?.range_low != null && (
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Expected Range</p>
-            <p className="text-[16px] font-bold text-text-primary">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">NIFTY Expected Range</p>
+            <p className="text-[22px] font-black text-text-primary tabular-nums">
               {pred.range_low >= 0 ? "+" : ""}{pred.range_low} to {pred.range_high >= 0 ? "+" : ""}{pred.range_high} pts
             </p>
           </div>
         )}
-        <div className="ml-auto flex items-center gap-1.5 rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[11px] font-semibold text-text-secondary">
-          <Gauge className="h-3.5 w-3.5" /> Read Time: 30 Seconds
-        </div>
+        {pred?.confidence != null && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Confidence</p>
+            <p className="text-[22px] font-black text-text-primary tabular-nums">{pred.confidence}%</p>
+          </div>
+        )}
+        {dataCoverage && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Data Coverage</p>
+            <p className="text-[14px] font-bold text-text-secondary tabular-nums">{dataCoverage.available}/{dataCoverage.total} signals</p>
+          </div>
+        )}
       </div>
 
-      {pred?.ai_generated === false && pred?.uncertainty_note && (
-        <p className="mt-4 text-[11px] italic text-text-muted">{pred.uncertainty_note}</p>
+      {pred?.reasoning && (
+        <p className="mt-4 max-w-2xl text-[13px] leading-6 text-text-secondary">{pred.reasoning}</p>
       )}
+      {pred?.ai_generated === false && pred?.uncertainty_note && (
+        <p className="mt-2 text-[11px] italic text-text-muted">{pred.uncertainty_note}</p>
+      )}
+      {pred?.strategy_note && (
+        <p className="mt-3 text-[11px] leading-5 text-text-muted">
+          <span className="font-semibold text-text-secondary">Approach: </span>{pred.strategy_note}
+        </p>
+      )}
+    </div>
+  );
+}
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {topTheme && (
-          <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.05] p-3.5">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Today's Biggest Opportunity</p>
-            <p className="mt-1 text-[15px] font-bold text-emerald-400">{topTheme.theme}</p>
-          </div>
-        )}
-        {bottomTheme && (
-          <div className="rounded-xl border border-rose-500/15 bg-rose-500/[0.05] p-3.5">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Today's Biggest Risk</p>
-            <p className="mt-1 text-[15px] font-bold text-rose-400">{bottomTheme.theme}</p>
-          </div>
-        )}
-        {topEvent && (
-          <div className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] p-3.5">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Most Important Event</p>
-            <p className="mt-1 text-[15px] font-bold text-text-primary">{topEvent.title}</p>
-          </div>
-        )}
+/* ═══════════════════════════════════════════════════════════════════════════
+   RIGHT RAIL (desktop) — "Driving The View" + "Global Markets", compact rows
+   ═══════════════════════════════════════════════════════════════════════════ */
+function SignalRail({ rows }: { rows: any[] }) {
+  if (!rows?.length) return null;
+  return (
+    <div className="rounded-xl border border-surface-border/8 bg-surface-card p-4">
+      <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">Driving The View</p>
+      <div className="divide-y divide-surface-border/6">
+        {rows.map((r, i) => {
+          const st = SIGNAL_DIR_STYLE[r.direction] ?? SIGNAL_DIR_STYLE.neutral;
+          const RIcon = st.icon;
+          return (
+            <div key={i} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+              <span className="text-[11px] font-semibold text-text-secondary truncate">{r.label}</span>
+              <span className={`flex shrink-0 items-center gap-1 text-[12px] font-bold tabular-nums ${st.color}`}>
+                {r.value}
+                <RIcon className="h-3 w-3" />
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-// ── MORNING INTELLIGENCE BRIEF ───────────────────────────────────────────────
-function outlookLabel(direction: string, confidence: number): string {
-  if (direction === "Positive") return confidence >= 70 ? "Bullish" : "Moderately Bullish";
-  if (direction === "Negative") return confidence >= 70 ? "Bearish" : "Moderately Bearish";
-  return "Neutral";
-}
-function MorningBrief({ pred }: { pred: any }) {
-  if (!pred?.reasoning) return null;
-  const outlook = outlookLabel(pred.direction, pred.confidence ?? 50);
-  const paragraphs = pred.reasoning.split(/(?<=[.!?])\s+(?=[A-Z])/).filter(Boolean);
+function GlobalMarketsRail({ signals }: { signals: any }) {
+  const rows = [
+    ...((signals?.us_futures ?? []).slice(0, 3)),
+    ...((signals?.asian_markets ?? []).slice(0, 2)),
+  ].filter((m: any) => m?.value && m.value !== "—");
+  if (!rows.length) return null;
   return (
-    <Section icon={Newspaper} title="Morning Intelligence Brief">
-      <div className="rounded-2xl border border-surface-border/8 bg-text-primary/[0.03] p-6">
-        <div className="space-y-3">
-          {paragraphs.map((p: string, i: number) => (
-            <p key={i} className="text-[14px] leading-7 text-text-secondary">{p}</p>
-          ))}
-        </div>
-        <div className="mt-5 flex items-center gap-2 border-t border-surface-border/6 pt-4">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Overall Outlook</span>
-          <span className={`rounded-full border px-3 py-1 text-[12px] font-bold ${
-            outlook.includes("Bullish") ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-400"
-            : outlook.includes("Bearish") ? "border-rose-500/25 bg-rose-500/10 text-rose-400"
-            : "border-amber-500/25 bg-amber-500/10 text-amber-400"
-          }`}>{outlook}</span>
-        </div>
-      </div>
-    </Section>
-  );
-}
-
-// ── WHY AI THINKS THIS ───────────────────────────────────────────────────────
-const PLACEHOLDER_RISKS = new Set(["AI reasoning unavailable — signal-only estimate", "Monitor pre-open session carefully"]);
-function WhyAIThinks({ pred }: { pred: any }) {
-  if (!pred) return null;
-  const drivers = (pred.primary_drivers ?? []).map((d: string) => ({ text: d, impact: "Bullish" as const }));
-  const realRisks = pred.ai_generated === false ? [] : (pred.risks ?? []).filter((r: string) => !PLACEHOLDER_RISKS.has(r));
-  const risks = realRisks.map((r: string) => ({ text: r, impact: "Bearish" as const }));
-  const mixed = (pred.conflicting_signals ?? []).map((s: string) => ({ text: s, impact: "Mixed" as const }));
-  const reasons = [...drivers, ...risks, ...mixed];
-  if (reasons.length === 0) return null;
-
-  const IMPACT_STYLE: Record<string, { color: string; icon: typeof TrendingUp; bg: string }> = {
-    Bullish: { color: "text-emerald-400", icon: TrendingUp, bg: "border-emerald-500/15 bg-emerald-500/[0.04]" },
-    Bearish: { color: "text-rose-400", icon: TrendingDown, bg: "border-rose-500/15 bg-rose-500/[0.04]" },
-    Mixed:   { color: "text-amber-400", icon: Minus, bg: "border-amber-500/15 bg-amber-500/[0.04]" },
-  };
-
-  return (
-    <Section icon={Sparkles} title="Why AI Thinks This">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {reasons.map((r, i) => {
-          const st = IMPACT_STYLE[r.impact];
-          const RIcon = st.icon;
+    <div className="rounded-xl border border-surface-border/8 bg-surface-card p-4">
+      <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">Global Markets</p>
+      <div className="divide-y divide-surface-border/6">
+        {rows.map((m: any, i: number) => {
+          const pos = m.positive !== false;
           return (
-            <div key={i} className={`flex items-start gap-3 rounded-xl border p-4 ${st.bg}`}>
-              <RIcon className={`mt-0.5 h-4 w-4 shrink-0 ${st.color}`} />
-              <div>
-                <span className={`text-[10px] font-bold uppercase tracking-wide ${st.color}`}>{r.impact}</span>
-                <p className="mt-0.5 text-[13px] leading-5 text-text-secondary">{r.text}</p>
-              </div>
+            <div key={i} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+              <span className="text-[11px] font-semibold text-text-secondary truncate">{m.name}</span>
+              <span className={`shrink-0 text-[12px] font-bold tabular-nums ${pos ? "text-emerald-400" : "text-rose-400"}`}>{m.pct ?? m.value}</span>
             </div>
           );
         })}
       </div>
-    </Section>
+    </div>
   );
 }
 
-// ── WHAT IS LIKELY TO HAPPEN TODAY (sector expectations) ─────────────────────
-const MOMENTUM_META: Record<string, { label: string; color: string; icon: typeof TrendingUp }> = {
-  rising:  { label: "Expected Outperform", color: "text-emerald-400", icon: TrendingUp },
-  falling: { label: "Likely Weak",         color: "text-rose-400",    icon: TrendingDown },
-  stable:  { label: "Neutral Bias",        color: "text-amber-400",   icon: Minus },
+/* ═══════════════════════════════════════════════════════════════════════════
+   DEVELOPMENTS THAT MATTER
+   ═══════════════════════════════════════════════════════════════════════════ */
+function timeAgo(iso: string | null): string {
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.round(ms / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.round(hr / 24)}d ago`;
+}
+const DEV_DIR_STYLE: Record<string, string> = {
+  positive: "text-emerald-400",
+  negative: "text-rose-400",
+  neutral:  "text-amber-400",
+  mixed:    "text-amber-400",
 };
-function SectorExpectations({ themes }: { themes: any[] }) {
-  if (themes.length === 0) return null;
-  return (
-    <Section icon={Compass} title="What Is Likely To Happen Today" sub="AI momentum score per theme — not a heatmap, an expectation.">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {themes.map(t => {
-          const m = MOMENTUM_META[t.momentum] ?? MOMENTUM_META.stable;
-          const MIcon = m.icon;
-          const why = t.top_stocks?.length
-            ? `${t.top_stocks.slice(0, 2).map((s: any) => s.sym).join(", ")} leading`
-            : null;
-          return (
-            <div key={t.theme} className="rounded-xl border border-surface-border/8 bg-text-primary/[0.03] p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-bold text-text-primary">{t.theme}</span>
-                <MIcon className={`h-4 w-4 ${m.color}`} />
-              </div>
-              <p className={`mt-1.5 text-[12px] font-bold ${m.color}`}>{m.label}</p>
-              <div className="mt-2 flex items-center gap-2">
-                <div className="h-1.5 flex-1 rounded-full bg-text-primary/[0.06] overflow-hidden">
-                  <div className={`h-full rounded-full ${m.color.replace("text-", "bg-")}`} style={{ width: `${Math.min(100, t.score)}%` }} />
-                </div>
-                <span className="text-[11px] font-bold text-text-secondary">{t.score.toFixed(0)}</span>
-              </div>
-              {why && <p className="mt-2 text-[11px] text-text-muted">{why}</p>}
-            </div>
-          );
-        })}
-      </div>
-    </Section>
-  );
-}
-
-// ── TODAY'S MARKET STRATEGY ───────────────────────────────────────────────────
-function aggressiveness(confidence: number, vix: number): string {
-  if (confidence >= 70 && vix < 15) return "Aggressive";
-  if (confidence >= 55 && vix < 20) return "Moderately Aggressive";
-  if (vix >= 22) return "Defensive";
-  return "Cautious";
-}
-function MarketStrategy({ strategy, focus, avoid, confidence, vix }: {
-  strategy: string | null; focus: any[]; avoid: any[]; confidence: number; vix: number;
+function DevelopmentsThatMatter({ developments, breaking, scheduled }: {
+  developments: any[]; breaking: any[]; scheduled: any[];
 }) {
-  if (!strategy && focus.length === 0) return null;
-  const stance = aggressiveness(confidence, vix);
+  const has = developments.length + breaking.length + scheduled.length > 0;
+  if (!has) return null;
   return (
-    <Section icon={Target} title="Today's Market Strategy">
-      <div className="rounded-2xl border border-surface-border/8 bg-text-primary/[0.03] p-6">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">AI Strategy</span>
-          <span className="rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[12px] font-bold text-violet-600 dark:text-violet-300">{stance}</span>
-        </div>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {focus.length > 0 && (
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1.5">Focus</p>
-              <div className="flex flex-wrap gap-1.5">
-                {focus.map(t => <span key={t.theme} className="rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-2.5 py-1 text-[11px] text-emerald-600 dark:text-emerald-300">{t.theme}</span>)}
+    <Section icon={Activity} title="Developments That Matter">
+      <div className="space-y-4">
+        {breaking.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {breaking.map((e: any) => (
+              <span key={e.title} className="rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-[12px] font-semibold text-amber-600 dark:text-amber-300">{e.title}</span>
+            ))}
+          </div>
+        )}
+
+        {developments.length > 0 && (
+          <div className="divide-y divide-surface-border/6">
+            {developments.map((d: any) => (
+              <div key={d.id} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[13px] font-semibold text-text-primary leading-snug">{d.title}</p>
+                  <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wide ${DEV_DIR_STYLE[d.direction] ?? DEV_DIR_STYLE.neutral}`}>
+                    {d.direction ?? "neutral"}
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-text-muted">
+                  <span>Updated {timeAgo(d.last_observed_at)}</span>
+                  <span>· {d.evidence_count} {d.evidence_count === 1 ? "source" : "sources"}</span>
+                  {d.sectors?.length > 0 && <span>· {d.sectors.slice(0, 2).join(", ")}</span>}
+                </div>
               </div>
-            </div>
-          )}
-          {avoid.length > 0 && (
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500 mb-1.5">Avoid</p>
-              <div className="flex flex-wrap gap-1.5">
-                {avoid.map(t => <span key={t.theme} className="rounded-full border border-rose-500/20 bg-rose-500/[0.06] px-2.5 py-1 text-[11px] text-rose-600 dark:text-rose-300">{t.theme}</span>)}
+            ))}
+          </div>
+        )}
+
+        {scheduled.length > 0 && (
+          <div className="divide-y divide-surface-border/6 border-t border-surface-border/6 pt-1">
+            {scheduled.map((e: any) => (
+              <div key={e.title} className="py-2.5 first:pt-2 last:pb-0">
+                <p className="text-[12px] font-semibold text-text-primary">{e.title}</p>
+                {e.description && <p className="mt-0.5 text-[10px] text-text-muted">{e.description}</p>}
               </div>
-            </div>
-          )}
-        </div>
-        {strategy && (
-          <div className="mt-4 border-t border-surface-border/6 pt-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1.5">Ideal Approach</p>
-            <p className="text-[13px] leading-6 text-text-secondary">{strategy}</p>
+            ))}
           </div>
         )}
       </div>
@@ -688,33 +633,79 @@ function MarketStrategy({ strategy, focus, avoid, confidence, vix }: {
   );
 }
 
-// ── STOCKS TO WATCH (real score, derived action label) ────────────────────────
-function stockAction(score: number, direction: string): { label: string; color: string } {
-  if (score >= 80 && direction === "up") return { label: "Accumulate", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25" };
-  if (score < 55 || direction === "down") return { label: "Avoid Today", color: "text-rose-400 bg-rose-500/10 border-rose-500/25" };
-  return { label: "Watch", color: "text-sky-400 bg-sky-500/10 border-sky-500/25" };
-}
-function StocksToWatch({ stocks }: { stocks: any[] }) {
-  if (!stocks?.length) return null;
+/* ═══════════════════════════════════════════════════════════════════════════
+   WHERE THE IMPACT MAY LAND — compact consequence chip row, full width
+   ═══════════════════════════════════════════════════════════════════════════ */
+function ImpactMayLand({ sectorSetup }: { sectorSetup: any[] }) {
+  if (!sectorSetup?.length) return null;
+  const tagged = sectorSetup.filter(s => s.impact_tag);
+  const rows = tagged.length > 0 ? tagged : sectorSetup.slice(0, 5);
   return (
-    <Section icon={Target} title="Stocks To Watch">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {stocks.slice(0, 8).map((s: any) => {
-          const action = stockAction(s.score, s.direction);
+    <Section icon={Compass} title="Where The Impact May Land">
+      <div className="flex flex-wrap items-center gap-x-7 gap-y-3">
+        {rows.map(s => {
+          const m = MOMENTUM_META[s.momentum] ?? MOMENTUM_META.stable;
+          const MIcon = m.icon;
           return (
-            <Link key={s.ticker} href={`/companies/${s.ticker}`}
-              className="flex items-center gap-3 rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-3 hover:border-violet-500/25 hover:bg-text-primary/[0.05] transition">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-text-primary/[0.07] text-[10px] font-bold text-text-secondary">
-                {s.ticker.slice(0, 3)}
+            <div key={s.sector} className="flex items-center gap-1.5">
+              <span className="text-[13px] font-bold text-text-primary">{s.sector}</span>
+              <MIcon className={`h-3.5 w-3.5 ${m.color}`} />
+              {s.impact_tag && <span className="text-[10px] text-text-muted">({s.impact_tag})</span>}
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTOR SETUP + COMPANIES IN FOCUS — compact row lists, paired 50/50
+   ═══════════════════════════════════════════════════════════════════════════ */
+function SectorSetupRows({ sectorSetup }: { sectorSetup: any[] }) {
+  if (!sectorSetup?.length) return null;
+  return (
+    <Section icon={Compass} title="Sector Setup">
+      {/* Fixed height shared with CompaniesInFocusRows so the paired 50/50
+          columns line up regardless of natural content length (sector
+          rows are single-line, company rows carry a 2-line reason) —
+          the shorter list just has empty room, the longer one scrolls
+          internally rather than stretching the row taller than its pair. */}
+      <div className="sidebar-scroll max-h-[420px] divide-y divide-surface-border/6 overflow-y-auto pr-1">
+        {sectorSetup.map(s => {
+          const m = MOMENTUM_META[s.momentum] ?? MOMENTUM_META.stable;
+          const MIcon = m.icon;
+          return (
+            <div key={s.sector} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+              <span className="text-[12px] font-semibold text-text-primary">{s.sector}</span>
+              <span className={`flex shrink-0 items-center gap-1.5 text-[11px] font-bold ${m.color}`}>
+                {s.label}
+                <MIcon className="h-3.5 w-3.5" />
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+function CompaniesInFocusRows({ companies }: { companies: any[] }) {
+  if (!companies?.length) return null;
+  const rows = companies.slice(0, 5);
+  return (
+    <Section icon={Building2} title="Companies In Focus">
+      <div className="sidebar-scroll max-h-[420px] divide-y divide-surface-border/6 overflow-y-auto pr-1">
+        {rows.map((c: any) => {
+          const st = FOCUS_DIR_STYLE[c.direction] ?? FOCUS_DIR_STYLE.neutral;
+          return (
+            <Link key={c.symbol} href={`/companies/${c.symbol}`}
+              className="-mx-1 flex items-center justify-between gap-3 rounded px-1 py-2.5 transition first:pt-0 last:pb-0 hover:bg-text-primary/[0.03]">
+              <div className="min-w-0">
+                <span className="text-[12px] font-bold text-text-primary">{c.symbol}</span>
+                <p className="truncate text-[10px] text-text-muted">{c.reason}</p>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-[13px] font-bold text-text-primary">{s.ticker}</p>
-                  <span className="text-[13px] font-black text-text-secondary">{s.score}</span>
-                </div>
-                <p className="line-clamp-1 text-[11px] text-text-muted">{s.reason}</p>
-              </div>
-              <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${action.color}`}>{action.label}</span>
+              <span className={`shrink-0 text-[10px] font-bold ${st.color}`}>{st.label}</span>
             </Link>
           );
         })}
@@ -723,100 +714,9 @@ function StocksToWatch({ stocks }: { stocks: any[] }) {
   );
 }
 
-// ── MARKET DRIVERS (ranked, real AI order) ────────────────────────────────────
-function MarketDrivers({ drivers }: { drivers: string[] }) {
-  if (!drivers?.length) return null;
-  return (
-    <Section icon={ListChecks} title="Market Drivers" sub="Ranked in the order the AI weighted them.">
-      <div className="space-y-0">
-        {drivers.map((d, i) => (
-          <div key={i} className="relative flex items-start gap-3 pb-4 last:pb-0">
-            <div className="flex flex-col items-center">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-[11px] font-black text-violet-600 dark:text-violet-300">{i + 1}</span>
-              {i < drivers.length - 1 && <span className="mt-1 h-full w-px flex-1 bg-text-primary/10" />}
-            </div>
-            <p className="pt-0.5 text-[13px] leading-5 text-text-secondary">{d}</p>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
-// ── GLOBAL SNAPSHOT (compact) ─────────────────────────────────────────────────
-function GlobalSnapshot({ signals }: { signals: any }) {
-  if (!signals) return null;
-  const usPositive = (signals.us_futures ?? []).filter((f: any) => f.positive).length;
-  const usTotal = (signals.us_futures ?? []).length;
-  const usLabel = usTotal === 0 ? null : usPositive >= usTotal * 0.66 ? "Bullish" : usPositive <= usTotal * 0.33 ? "Bearish" : "Mixed";
-  const euPositive = (signals.european_markets ?? []).filter((f: any) => f.positive).length;
-  const euTotal = (signals.european_markets ?? []).length;
-  const euLabel = euTotal === 0 ? null : euPositive >= euTotal * 0.66 ? "Bullish" : euPositive <= euTotal * 0.33 ? "Bearish" : "Neutral";
-
-  const chips: { label: string; value: string; dir?: "up" | "down" }[] = [];
-  if (usLabel) chips.push({ label: "US", value: usLabel });
-  if (euLabel) chips.push({ label: "Europe", value: euLabel });
-  if (signals.global_sentiment) chips.push({ label: "Asia + Global", value: signals.global_sentiment.label });
-  if (signals.brent_crude) chips.push({ label: "Oil", value: signals.brent_crude.value, dir: signals.brent_crude.direction === "falling" ? "down" : "up" });
-  if (signals.usd_inr) chips.push({ label: "USD/INR", value: signals.usd_inr.value, dir: signals.usd_inr.positive ? "up" : "down" });
-
-  if (chips.length === 0) return null;
-  return (
-    <Section icon={Globe} title="Global Snapshot">
-      <div className="flex flex-wrap gap-3">
-        {chips.map(c => (
-          <div key={c.label} className="flex items-center gap-2 rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-4 py-2">
-            <span className="text-[11px] font-semibold text-text-muted">{c.label}</span>
-            <span className="text-[12px] font-bold text-text-primary">{c.value}</span>
-            {c.dir && (c.dir === "up" ? <TrendingUp className="h-3 w-3 text-emerald-400" /> : <TrendingDown className="h-3 w-3 text-rose-400" />)}
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
-// ── TODAY'S EVENTS ─────────────────────────────────────────────────────────────
-function EventsTimeline({ events }: { events: { today: any[]; tomorrow: any[]; mie_signals: any[] } }) {
-  // "Today's Events" shows only today's events (2026-08 audit — user-
-  // reported a "Tomorrow" sub-section here was confusing/wrong for a
-  // widget titled "Today's Events"). events.tomorrow is deliberately not
-  // rendered in this component; it's left in the prop shape only because
-  // the page's separate top-event banner still uses it as a fallback.
-  const has = events.today.length + events.mie_signals.length > 0;
-  if (!has) return null;
-  return (
-    <Section icon={ListChecks} title="Today's Events">
-      <div className="space-y-4">
-        {events.mie_signals.length > 0 && (
-          <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-amber-500">Breaking</p>
-            <div className="flex flex-wrap gap-2">
-              {events.mie_signals.map((e: any) => (
-                <span key={e.title} className="rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-[12px] font-semibold text-amber-600 dark:text-amber-300">{e.title}</span>
-              ))}
-            </div>
-          </div>
-        )}
-        {events.today.length > 0 && (
-          <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">Today</p>
-            <div className="space-y-2">
-              {events.today.map((e: any) => (
-                <div key={e.title} className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] px-4 py-2.5">
-                  <p className="text-[13px] font-semibold text-text-primary">{e.title}</p>
-                  {e.description && <p className="mt-0.5 text-[11px] text-text-muted">{e.description}</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </Section>
-  );
-}
-
-// ── HISTORICAL SIMILAR DAYS ─────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════════════
+   HISTORICAL SIMILAR DAYS
+   ═══════════════════════════════════════════════════════════════════════════ */
 function HistoricalSimilarDays({ historical }: { historical: any }) {
   const events = (historical?.similar_events ?? []).filter((e: any) => e.nifty_1d != null || e.key_lesson);
   if (events.length === 0) return null;
@@ -855,24 +755,56 @@ function HistoricalSimilarDays({ historical }: { historical: any }) {
   );
 }
 
-// ── LATEST INTELLIGENCE ───────────────────────────────────────────────────────
-function LatestIntelligence({ items }: { items: any[] }) {
-  if (items.length === 0) return null;
+/* ═══════════════════════════════════════════════════════════════════════════
+   WEEKEND → MONDAY SETUP (conditional)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function WeekendSetup({ adjustment, watchlist }: { adjustment: any; watchlist: any }) {
+  if (!adjustment?.applied) return null;
   return (
-    <Section icon={Newspaper} title="Latest Intelligence">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((a: any) => (
-          <Link key={a.slug} href={`/newsroom/article/${a.slug}`}
-            className="group rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 transition hover:border-violet-500/25 hover:bg-text-primary/[0.05]">
-            <h3 className="text-[13px] font-bold leading-snug text-text-primary line-clamp-2 group-hover:text-violet-700 dark:text-violet-200 transition">{a.headline}</h3>
-            {(a.key_takeaway || a.executive_summary) && (
-              <p className="mt-1.5 line-clamp-2 text-[11px] leading-5 text-text-muted">{a.key_takeaway ?? a.executive_summary}</p>
+    <Section icon={Moon} title="Weekend → Monday Setup" sub="Weekend developments folded into today's opening read.">
+      <div className="rounded-2xl border border-surface-border/8 bg-text-primary/[0.03] p-6">
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Friday-Close Score</p>
+            <p className="text-[16px] font-bold text-text-primary">{adjustment.base_score >= 0 ? "+" : ""}{adjustment.base_score}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Weekend Adjustment</p>
+            <p className={`text-[16px] font-bold ${adjustment.adjustment >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              {adjustment.adjustment >= 0 ? "+" : ""}{adjustment.adjustment}
+            </p>
+          </div>
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Monday Setup</p>
+            <p className="text-[16px] font-bold text-text-primary">{adjustment.final_direction} ({adjustment.final_score >= 0 ? "+" : ""}{adjustment.final_score})</p>
+          </div>
+        </div>
+        <p className="mt-4 text-[12px] leading-5 text-text-secondary">{adjustment.reason}</p>
+        {(watchlist?.sectors?.length > 0 || watchlist?.companies?.length > 0) && (
+          <div className="mt-4 border-t border-surface-border/6 pt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {watchlist.sectors?.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">Weekend Sector Signals</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {watchlist.sectors.map((s: any) => (
+                    <span key={s.sector} className="rounded-full border border-surface-border/15 bg-text-primary/[0.04] px-2.5 py-1 text-[11px] text-text-secondary">{s.sector} ({s.direction})</span>
+                  ))}
+                </div>
+              </div>
             )}
-            <div className="mt-2.5 flex items-center gap-1.5 text-[11px] font-bold text-violet-400 group-hover:text-violet-600 dark:text-violet-300">
-              Read Intelligence <ChevronRight className="h-3 w-3" />
-            </div>
-          </Link>
-        ))}
+            {watchlist.companies?.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">Weekend Company Signals</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {watchlist.companies.map((c: any) => (
+                    <span key={c.symbol} className="rounded-full border border-surface-border/15 bg-text-primary/[0.04] px-2.5 py-1 text-[11px] text-text-secondary">{c.symbol} ({c.state})</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {watchlist?.note && <p className="mt-3 text-[10px] text-text-muted">{watchlist.note}</p>}
       </div>
     </Section>
   );
@@ -885,25 +817,29 @@ function LatestIntelligence({ items }: { items: any[] }) {
 export function PreMarketTab({ initialData }: { initialData?: any }) {
   const [data, setData] = useState<any>(initialData ?? null);
   const [prediction, setPrediction] = useState<any>(null);
-  const [themes, setThemes] = useState<any[]>([]);
   const [insights, setInsights] = useState<any[]>([]);
+  const [developments, setDevelopments] = useState<any[]>([]);
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(!initialData);
-  const { label: countdownLabel, isOpen } = useCountdown();
+  const [showRawData, setShowRawData] = useState(false);
+  const { label: countdownLabel, isOpen, greeting } = useCountdown();
 
   useEffect(() => {
     const load = async () => {
       try {
         const safe = (p: Promise<any>) => p.catch(() => null);
-        const [pmRes, opRes, thRes, inRes] = await Promise.all([
+        const [pmRes, opRes, inRes, devRes, sessRes] = await Promise.all([
           safe(fetch(`${API}/api/market/premarket`).then(r => r.ok ? r.json() : null)),
           safe(fetch(`${API}/api/market/opening-prediction`).then(r => r.ok ? r.json() : null)),
-          safe(fetch(`${API}/api/intelligence/market/themes`).then(r => r.ok ? r.json() : null)),
           safe(fetch(`${API}/api/insights/?limit=6`).then(r => r.ok ? r.json() : null)),
+          safe(fetch(`${API}/api/market/developments?limit=6`).then(r => r.ok ? r.json() : null)),
+          safe(fetch(`${API}/api/market/session`).then(r => r.ok ? r.json() : null)),
         ]);
         if (pmRes) setData(pmRes);
         if (opRes) setPrediction(opRes);
-        if (thRes?.themes) setThemes(thRes.themes);
         if (inRes?.items) setInsights(inRes.items);
+        if (devRes?.items) setDevelopments(devRes.items);
+        if (sessRes) setSession(sessRes);
       } finally {
         setLoading(false);
       }
@@ -921,21 +857,25 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
 
   const adrs: any[] = data?.adrs ?? [];
   const pred = prediction?.prediction ?? null;
-  const sortedThemes = [...themes].sort((a, b) => b.score - a.score);
-  const topTheme = sortedThemes[0] ?? null;
-  const bottomTheme = sortedThemes.length > 1 ? sortedThemes[sortedThemes.length - 1] : null;
   const events = prediction?.events ?? { today: [], tomorrow: [], mie_signals: [] };
-  const topEvent = events.mie_signals[0] ?? events.today[0] ?? events.tomorrow[0] ?? null;
-  const vixLevel = data?.india_vix?.float ?? 15;
+
+  const sessionLabel = session ? (SESSION_LABEL[session.session] ?? session.session) : null;
+  const dateLabel = session?.date ?? new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+  const MAX_SIGNALS = 5;
+  const dataCoverage = prediction?.signal_breakdown
+    ? { available: prediction.signal_breakdown.length, total: MAX_SIGNALS }
+    : null;
 
   return (
     <div className="space-y-8">
 
       {/* ── Status strip ──────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
-          Pre-Open
-        </span>
+        {sessionLabel && (
+          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
+            {sessionLabel}
+          </span>
+        )}
         {countdownLabel && (
           <div className={`flex items-center gap-1.5 rounded-full border px-3 py-0.5 text-[9px] font-bold ${
             isOpen
@@ -948,124 +888,156 @@ export function PreMarketTab({ initialData }: { initialData?: any }) {
         )}
       </div>
 
-      {/* 1. Hero */}
-      <Hero pred={pred} topTheme={topTheme} bottomTheme={bottomTheme} topEvent={topEvent} generatedAt={prediction?.generated_at ?? null} />
-
-      {/* 2. Morning Intelligence Brief */}
-      {pred && <MorningBrief pred={pred} />}
-
-      {/* 3. Why AI Thinks This */}
-      {pred && <WhyAIThinks pred={pred} />}
-
-      {/* 4. What Is Likely To Happen Today */}
-      <SectorExpectations themes={sortedThemes} />
-
-      {/* 5. Today's Market Strategy */}
-      <MarketStrategy
-        strategy={data?.ai_prediction?.opening_strategy ?? null}
-        focus={sortedThemes.slice(0, 3)}
-        avoid={sortedThemes.filter(t => t.momentum === "falling").slice(0, 2)}
-        confidence={pred?.confidence ?? 50}
-        vix={vixLevel}
-      />
-
-      {/* 6. Stocks To Watch */}
-      <StocksToWatch stocks={data?.stocks_to_watch ?? []} />
-
-      {/* 7. Market Drivers */}
-      {pred && <MarketDrivers drivers={pred.primary_drivers ?? []} />}
-
-      {/* 8. Global Snapshot */}
-      <GlobalSnapshot signals={prediction?.signals} />
-
-      {/* 9. Supporting Market Data — evidence, de-emphasized */}
-      <Section icon={BarChart2} title="Supporting Market Data" sub="The raw evidence behind the AI's read above.">
-        <div className="space-y-4 opacity-90">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <GiftNiftyHero  data={data?.gift_nifty} />
-            <BankNiftyCard  data={data?.banknifty_futures} />
-            <IndiaVIXCard   data={data?.india_vix} />
-          </div>
-
-          {data?.fii_dii && <FIIDIICard data={data.fii_dii} />}
-
-          {data?.us_futures?.length > 0 && (
-            <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
-              <div className="mb-3 flex items-center gap-2">
-                <span className="text-base">🇺🇸</span>
-                <h3 className="text-[13px] font-bold text-text-primary">US Futures</h3>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {data.us_futures.map((f: any) => <USFutureCard key={f.name} item={f} />)}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {data?.asian?.length > 0 && (
-              <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="text-base">🌏</span>
-                  <h3 className="text-[13px] font-bold text-text-primary">Asian Markets</h3>
-                </div>
-                <div className="space-y-2">
-                  {data.asian.map((m: any) => <MarketRow key={m.name} item={m} />)}
-                </div>
-              </div>
-            )}
-            {data?.european?.length > 0 && (
-              <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
-                <div className="mb-3 flex items-center gap-2">
-                  <Globe size={14} strokeWidth={1.8} className="text-text-secondary"/>
-                  <h3 className="text-[13px] font-bold text-text-primary">European Markets</h3>
-                </div>
-                <div className="space-y-2">
-                  {data.european.map((m: any) => <MarketRow key={m.name} item={m} />)}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {adrs.length > 0 && (
-            <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
-              <div className="mb-3 flex items-center gap-2">
-                <span className="text-base">🗽</span>
-                <h3 className="text-[13px] font-bold text-text-primary">Indian ADRs</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {adrs.map((a: any) => <ADRCard key={a.ticker} item={a} />)}
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
-            <h3 className="mb-4 text-[13px] font-bold text-text-primary">Currencies & Commodities</h3>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div>
-                <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-text-muted">Currency Pairs</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {(data?.currencies ?? []).map((c: any) => <CurrencyCard key={c.name} item={c} />)}
-                </div>
-              </div>
-              <div>
-                <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-text-muted">Commodities</p>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                  {(data?.commodities ?? []).map((c: any) => <CommodityCard key={c.name} item={c} />)}
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* ── TOP ZONE: 68/32 editorial split at xl+, single column below ─────
+          Explicit grid placement (col-start/row-start, not `order` alone)
+          keeps Hero + Developments in the left column and the evidence
+          rail spanning both its rows on the right at xl+; below xl the
+          items fall back to `order` for the tablet/mobile read sequence:
+          Hero → Driving The View → Developments (per explicit layout
+          direction — the rail is NOT a permanent sidebar down the page,
+          only this top zone). ── */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
+        <div className="order-1 min-w-0 xl:order-none xl:col-start-1 xl:row-start-1">
+          <Hero pred={pred} generatedAt={prediction?.generated_at ?? null} greeting={greeting}
+                dateLabel={dateLabel} dataCoverage={dataCoverage} />
         </div>
-      </Section>
 
-      {/* 10. Today's Events */}
-      <EventsTimeline events={events} />
+        <div className="order-3 min-w-0 xl:order-none xl:col-start-1 xl:row-start-2">
+          <DevelopmentsThatMatter developments={developments} breaking={events.mie_signals} scheduled={events.today} />
+        </div>
 
-      {/* 11. Historical Similar Days */}
+        <div className="order-2 space-y-5 xl:order-none xl:col-start-2 xl:row-start-1 xl:row-span-2">
+          <SignalRail rows={prediction?.signal_breakdown ?? []} />
+          <GlobalMarketsRail signals={prediction?.signals} />
+        </div>
+      </div>
+
+      {/* ── Full width: Where The Impact May Land ────────────────────────── */}
+      <ImpactMayLand sectorSetup={prediction?.sector_setup ?? []} />
+
+      {/* ── 50/50: Sector Setup | Companies In Focus ─────────────────────── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <SectorSetupRows sectorSetup={prediction?.sector_setup ?? []} />
+        <CompaniesInFocusRows companies={prediction?.companies_in_focus ?? []} />
+      </div>
+
+      {/* ── Full width: Historical Setup ─────────────────────────────────── */}
       <HistoricalSimilarDays historical={prediction?.historical} />
 
-      {/* 12. Latest Intelligence */}
-      <LatestIntelligence items={insights} />
+      {/* ── Full width: Weekend → Monday Setup (conditional) ─────────────── */}
+      <WeekendSetup adjustment={prediction?.weekend_adjustment} watchlist={prediction?.weekend_watchlist} />
+
+      {/* ── Full width: Latest Intelligence (AI-authored longer-form —
+             distinct from the deduplicated Developments feed above) ─────── */}
+      {insights.length > 0 && (
+        <Section icon={Newspaper} title="Latest Intelligence">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {insights.map((a: any) => (
+              <Link key={a.slug} href={`/newsroom/article/${a.slug}`}
+                className="group rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 transition hover:border-violet-500/25 hover:bg-text-primary/[0.05]">
+                <h3 className="text-[13px] font-bold leading-snug text-text-primary line-clamp-2 group-hover:text-violet-700 dark:text-violet-200 transition">{a.headline}</h3>
+                {(a.key_takeaway || a.executive_summary) && (
+                  <p className="mt-1.5 line-clamp-2 text-[11px] leading-5 text-text-muted">{a.key_takeaway ?? a.executive_summary}</p>
+                )}
+                <div className="mt-2.5 flex items-center gap-1.5 text-[11px] font-bold text-violet-400 group-hover:text-violet-600 dark:text-violet-300">
+                  Read Intelligence <ChevronRight className="h-3 w-3" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── Full width, collapsed by default: Raw Market Data ────────────── */}
+      <section>
+        <button
+          type="button"
+          onClick={() => setShowRawData(v => !v)}
+          className="mb-3 flex w-full items-center gap-2 text-left"
+        >
+          <BarChart2 className="h-4 w-4 text-violet-400" />
+          <h2 className="text-[13px] font-bold uppercase tracking-widest text-text-secondary">Raw Market Data</h2>
+          <ChevronDown className={`ml-auto h-4 w-4 text-text-muted transition-transform ${showRawData ? "rotate-180" : ""}`} />
+        </button>
+        {showRawData && (
+          <div className="space-y-4 opacity-90">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <GiftNiftyHero  data={data?.gift_nifty} />
+              <BankNiftyCard  data={data?.banknifty_futures} />
+              <IndiaVIXCard   data={data?.india_vix} />
+            </div>
+
+            {data?.fii_dii && <FIIDIICard data={data.fii_dii} />}
+
+            {data?.us_futures?.length > 0 && (
+              <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-base">🇺🇸</span>
+                  <h3 className="text-[13px] font-bold text-text-primary">US Futures</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {data.us_futures.map((f: any) => <USFutureCard key={f.name} item={f} />)}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {data?.asian?.length > 0 && (
+                <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-base">🌏</span>
+                    <h3 className="text-[13px] font-bold text-text-primary">Asian Markets</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {data.asian.map((m: any) => <MarketRow key={m.name} item={m} />)}
+                  </div>
+                </div>
+              )}
+              {data?.european?.length > 0 && (
+                <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Globe2 size={14} strokeWidth={1.8} className="text-text-secondary"/>
+                    <h3 className="text-[13px] font-bold text-text-primary">European Markets</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {data.european.map((m: any) => <MarketRow key={m.name} item={m} />)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {adrs.length > 0 && (
+              <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-base">🗽</span>
+                  <h3 className="text-[13px] font-bold text-text-primary">Indian ADRs</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {adrs.map((a: any) => <ADRCard key={a.ticker} item={a} />)}
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
+              <h3 className="mb-4 text-[13px] font-bold text-text-primary">Currencies & Commodities</h3>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-text-muted">Currency Pairs</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(data?.currencies ?? []).map((c: any) => <CurrencyCard key={c.name} item={c} />)}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-text-muted">Commodities</p>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                    {(data?.commodities ?? []).map((c: any) => <CommodityCard key={c.name} item={c} />)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
     </div>
   );
