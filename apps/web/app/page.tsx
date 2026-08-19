@@ -87,6 +87,11 @@ const getIndices      = cache(() => live<any[]>(`${API}/api/indices/`));
 const getLive         = cache(() => live(`${API}/api/market/live`));
 const getSession      = cache(() => live(`${API}/api/market/session`));
 const getRadar        = cache(() => revalidate(`${API}/api/radar/?page=1&page_size=4`, 120));
+// Homepage hero redesign — real per-company reasons for "Companies In
+// Focus", from Development Memory (already generic, already serving the
+// Pre-Market page the same way; zero new backend work). See
+// impact_zone_service.py::build_companies_in_focus for the shape.
+const getDevelopments = cache(() => revalidate(`${API}/api/market/developments?limit=8`, 120));
 // Recency-aware ranking (event_lifecycle.py) — used by "Latest Biggest
 // Events" below.
 const getActiveEvents = cache(() => revalidate(`${API}/api/events/?sort_by=active&page_size=5`, 120));
@@ -349,13 +354,6 @@ function deriveOutlookFromMie(pulse: string | undefined, confidence: number | nu
   return { label: "Neutral", cls: "text-text-secondary bg-slate-500/10 border-surface-border/5", dot: "bg-slate-400" };
 }
 
-// Real delta magnitude → 1-4 dot strength, same honest-derivation
-// reasoning as deriveOutlook above — never a stored rating, always a
-// transform of the same `delta` number rendered as text beside it.
-function deltaStrength(delta: number): number {
-  const n = Math.abs(delta);
-  return n >= 4 ? 4 : n >= 3 ? 3 : n >= 1 ? 2 : 1;
-}
 
 // Real event titles (NSE compliance filings, mostly) frequently carry
 // regulatory acronyms retail investors won't recognize — expands a small,
@@ -396,9 +394,26 @@ function expandAcronyms(text: string): string {
  * neutral — exists per company, never a numeric confidence), and a
  * "best time horizon" line (not a field on the morning brief).
  */
+// Session-aware hero title (2026-08 homepage redesign, Part A1) — replaces
+// a title hardcoded to "{Weekday}'s Market Outlook" whenever the brief
+// wasn't from today, which could show "Monday's Market Outlook" on a
+// Tuesday evening with no sense of WHICH kind of session this actually
+// is. Composes the real session enum (market.py::market_session(), the
+// same source the header/tabs already trust) with the real day-label
+// already derived below — never derived from brief.published_at's
+// weekday alone.
+const _SESSION_NOUN: Record<string, string> = {
+  pre_market: "Pre-Market Intelligence",
+  pre_open:   "Pre-Market Intelligence",
+  open:       "Market Intelligence",
+  after_market: "Market Wrap",
+  weekend:    "Weekend → Monday Setup",
+};
+
 async function HomepageIntelligenceHero() {
-  const [brief, extras, premarket, radar, activeForWatch, mie] = await Promise.all([
+  const [brief, extras, premarket, radar, activeForWatch, mie, session, developments] = await Promise.all([
     getMorningBrief(), getHomepageExtras(), getPremarket(), getRadar(), getActiveEventsForWatch(), getMieState(),
+    getSession(), getDevelopments(),
   ]);
   if (!brief) return null;
 
@@ -484,7 +499,39 @@ async function HomepageIntelligenceHero() {
     return true;
   }).slice(0, 4);
 
-  const changes = (ex.yesterday_changes ?? []) as { name: string; delta: number; direction: string; is_new?: boolean }[];
+  // Companies In Focus (2026-08 homepage redesign, Part A2) — real
+  // per-company reasons from Development Memory
+  // (impact_zone_service.py::build_companies_in_focus, already serving
+  // the Pre-Market page the same way), not a new scoring system. Primary
+  // source: any Development with named companies gives a real reason
+  // (its own title) plus evidence count and freshness. Fallback: the
+  // existing 3-source merge above for any remaining slots — those rows
+  // keep their real impact direction but show no invented reason text,
+  // since Development Memory doesn't have one for them (confirmed by
+  // research: many Developments are sector/macro-level with no named
+  // companies, so relying on it alone would under-fill on a quiet day).
+  const devItems = ((developments as any)?.items ?? []) as any[];
+  const devCompanyRows = devItems.flatMap(d =>
+    ((d.companies ?? []) as string[])
+      .filter(isRealCompanySymbol)
+      .map(symbol => ({
+        symbol, reason: d.title as string,
+        direction: (d.direction ?? "neutral") as "positive" | "negative" | "neutral" | "mixed",
+        evidenceCount: d.evidence_count as number | null,
+        updatedAt: d.last_observed_at as string | null,
+      }))
+  );
+  const seenFocusSymbols = new Set<string>();
+  const companiesInFocus = [
+    ...devCompanyRows,
+    ...companies.map(c => ({ symbol: c.symbol, reason: null as string | null, direction: c.impact, evidenceCount: null as number | null, updatedAt: null as string | null })),
+  ].filter(c => {
+    if (seenFocusSymbols.has(c.symbol)) return false;
+    seenFocusSymbols.add(c.symbol);
+    return true;
+  }).slice(0, 5);
+
+  const changes = (ex.yesterday_changes ?? []) as { name: string; delta: number; direction: string; is_new?: boolean; reasons?: string[] }[];
   const storyTitle = ev ? ev.title : brief.headline;
   // ev.why_it_matters is frequently empty for routine compliance-filing
   // events; the SAME api/homepage/intelligence response also carries a
@@ -513,11 +560,6 @@ async function HomepageIntelligenceHero() {
     usdInr && { label: "USD/INR", value: usdInr.positive ? "INR Weaker" : "INR Stronger", positive: !usdInr.positive },
   ].filter(Boolean) as { label: string; value: string; positive: boolean }[];
 
-  // High/Medium/Low — an honest bucketing of the real confidence score,
-  // not a second independent metric. Shown inside "Today's AI Action"
-  // alongside the same directional outlook rendered at the top.
-  const convictionStrength = marketConfPct == null ? null : marketConfPct >= 75 ? "High" : marketConfPct >= 50 ? "Medium" : "Low";
-
   const liveEventCount = ex.event?.top_events?.length ?? 0;
   const opportunityCount = (radar as any)?.total ?? 0;
 
@@ -529,10 +571,9 @@ async function HomepageIntelligenceHero() {
 
   // Weekend Intelligence Phase 0 (see audit doc): whether the morning brief
   // is actually from today's IST calendar date, and — when it isn't — what
-  // to honestly call the day it's from ("Friday's Close" over a weekend,
-  // same idea as engine.py's session_label_for on the backend). This never
-  // hides brief/mieStory content; Friday's read is real, useful data. It
-  // only changes whether the UI is allowed to call it "Today's".
+  // to honestly call the day it's from. Kept only as the fallback source
+  // when MIE has no story at all — the primary signal is now the backend
+  // freshness contract below.
   const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const briefSession = (() => {
     if (!brief.published_at) return { isCurrent: true, weekday: null as string | null };
@@ -543,28 +584,57 @@ async function HomepageIntelligenceHero() {
       && nowIst.getUTCDate() === dIst.getUTCDate();
     return { isCurrent: sameDay, weekday: WEEKDAY_NAMES[dIst.getUTCDay()] };
   })();
-  // mieStory now carries its own is_current/session_label from
-  // engine.py::read_story() — the top verdict badge should defer to that
-  // when it disagrees with the brief (MIE refreshes every 5 min and is the
-  // more current of the two signals), falling back to the brief's own
-  // staleness when MIE has no story yet.
-  const heroIsCurrent = mieStory?.is_current ?? briefSession.isCurrent;
-  const heroDayLabel = !heroIsCurrent ? (mieStory?.session_label?.replace(/'s Close$/, "") ?? briefSession.weekday) : null;
 
-  // "Updated 17h ago" reads as stale for a page titled "Today's Market
-  // Outlook" even when the underlying content genuinely hasn't changed —
-  // shows the real IST time when the brief is from today, falls back to
-  // an honest "{Weekday}'s Close" label (not a vague relative age) when
-  // it's from an earlier trading session.
-  const heroFreshnessLabel = (() => {
+  // Freshness contract (2026-08 homepage redesign, root-caused live:
+  // StoryEngineWorker itself is correct — 477 real historical rows,
+  // properly market-hours-gated — the "Monday's Market Outlook" bug was
+  // the backend process not running during Tuesday's market hours, an
+  // environment fact that can recur, in dev or production). mieStory now
+  // carries state/is_stale/story_date/story_session/age_minutes/
+  // freshness_label directly from engine.py::compute_freshness — this is
+  // the ONE place that decides fresh vs stale vs unavailable; the
+  // frontend no longer recomputes its own staleness heuristic. Falls back
+  // to the brief's own publish-timestamp check only when MIE has no story
+  // at all.
+  const freshnessState: "fresh" | "stale" | "unavailable" =
+    mieStory?.state ?? (briefSession.isCurrent ? "fresh" : "stale");
+  const storyDate = (mieStory?.story_date as string | null) ?? null;
+  const todayIstDate = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  // Distinct from freshnessState: a Monday close shown Tuesday PRE-market
+  // is "fresh" (nothing newer could exist yet) but still isn't genuinely
+  // TODAY's data — the title/summary wording need to know which.
+  const isGenuinelyToday = storyDate ? storyDate === todayIstDate : briefSession.isCurrent;
+  const heroIsCurrent = isGenuinelyToday;
+  const heroDayLabel = !isGenuinelyToday
+    ? (storyDate ? WEEKDAY_NAMES[new Date(`${storyDate}T00:00:00Z`).getUTCDay()] : briefSession.weekday)
+    : null;
+
+  const heroFreshnessLabel = mieStory?.freshness_label ?? (() => {
     if (!brief.published_at) return null;
-    if (briefSession.isCurrent) {
+    if (heroIsCurrent) {
       const dIst = new Date(new Date(brief.published_at).getTime() + 5.5 * 3600_000);
       const h = dIst.getUTCHours(), h12 = h % 12 === 0 ? 12 : h % 12, m = dIst.getUTCMinutes().toString().padStart(2, "0");
       return `Updated today at ${h12}:${m} ${h >= 12 ? "PM" : "AM"} IST`;
     }
-    return `${briefSession.weekday}'s Close — ${timeAgo(brief.published_at)}`;
+    return `${heroDayLabel ?? briefSession.weekday}'s Close — ${timeAgo(brief.published_at)}`;
   })();
+
+  const sessionEnum = (session as any)?.session as string | undefined;
+  const sessionNoun = _SESSION_NOUN[sessionEnum ?? ""] ?? "Market Intelligence";
+  // Stale/unavailable gets its own honest title ("Latest Market
+  // Intelligence") instead of a session-aware title that would otherwise
+  // read as if this WERE the intended current-session wrap — the user's
+  // explicit concern: "Monday's Market Wrap" is truthful but still looks
+  // like the intended Tuesday homepage. Fresh-but-not-today (legitimate
+  // carry-forward — before today's market open, or a weekend) keeps the
+  // day-prefixed session title, since that's expected, not degraded.
+  const heroTitle = freshnessState !== "fresh"
+    ? "Latest Market Intelligence"
+    : sessionEnum === "weekend"
+      ? _SESSION_NOUN.weekend
+      : isGenuinelyToday
+        ? `Today's ${sessionNoun}`
+        : `${heroDayLabel}'s ${sessionNoun}`;
 
   // Today's Summary — a template composed entirely from real fields
   // already derived above (outlook, focusSector/macroTheme, the same
@@ -594,11 +664,22 @@ async function HomepageIntelligenceHero() {
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-400">
             <Sparkles className="h-3.5 w-3.5" /> {greeting()}
           </p>
-          <h1 className="mt-1 text-[22px] font-black leading-tight text-text-primary md:text-[26px]">
-            {heroIsCurrent ? "Today's Market Outlook" : `${heroDayLabel}'s Market Outlook`}
-          </h1>
-          {/* Status strip — real counts only, no "N min ago" copy of what's
-              already in the footer timestamp; this is the "feels alive" row. */}
+          {/* Session-aware title (Part A1) — never hardcoded from the
+              previous trading day's weekday alone; composes the real
+              session enum with the real day-label derived above. */}
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h1 className="text-[22px] font-black leading-tight text-text-primary md:text-[26px]">
+              {heroTitle}
+            </h1>
+            {/* Freshness contract (backend-computed) — visible only in the
+                degraded state, not a permanent badge, so a normal fresh
+                session stays exactly as clean as before. */}
+            {freshnessState !== "fresh" && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-500">
+                Update delayed
+              </span>
+            )}
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-text-muted">
             {heroFreshnessLabel && <span>{heroFreshnessLabel}</span>}
             {liveEventCount > 0 && <span>· {liveEventCount} live events</span>}
@@ -619,147 +700,147 @@ async function HomepageIntelligenceHero() {
               <span className="text-[11px] font-bold tabular-nums text-text-primary">{marketConfPct}%</span>
             </div>
           )}
-          {/* Evidence behind the conviction label, not just the label
-              itself — real counts already computed above. */}
           <p className="mt-1 text-[10px] text-text-muted">{positiveSectors.length} positive · {negativeSectors.length} negative signals</p>
         </div>
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* LEFT — Decision. AI Action leads: users care more about "what
-            should I do" than "what happened" — the story/evidence moved
-            to the right column entirely. */}
+        {/* LEFT — Conclusion. "Today's AI Action" + "AI Market Call" +
+            "Why Today Matters" merged into ONE read (Part B) — those
+            three used to be separate cards all restating the same
+            focus/risk/story signal. */}
         <div className="space-y-4">
-          {(focusSector || macroTheme || highestRisk) && (
-            <div className="rounded-[18px] border border-surface-border/10 bg-gradient-to-br from-text-primary/[0.05] to-transparent p-5">
-              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-text-secondary">Today&apos;s AI Action</p>
-              <div className="grid grid-cols-2 gap-4 text-[13px]">
-                {focusSector ? (
-                  <div><span className="text-[10px] uppercase tracking-wide text-text-muted">Focus</span><p className="mt-0.5 text-[19px] font-black text-emerald-600 dark:text-emerald-300">{focusSector}</p></div>
-                ) : macroTheme ? (
-                  <div><span className="text-[10px] uppercase tracking-wide text-text-muted">Macro Theme</span><p className="mt-0.5 text-[19px] font-black text-emerald-600 dark:text-emerald-300">{macroTheme}</p></div>
-                ) : null}
-                <div><span className="text-[10px] uppercase tracking-wide text-text-muted">Avoid</span><p className="mt-0.5 text-[15px] font-black leading-snug text-rose-600 dark:text-rose-300">{highestRiskDisplay}</p></div>
-                <div className="col-span-2 flex items-center justify-between border-t border-surface-border/8 pt-3">
-                  <span className="text-[10px] uppercase tracking-wide text-text-muted">Market Conviction</span>
-                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-bold ${outlook.cls}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${outlook.dot}`} /> {convictionStrength ?? outlook.label}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {ex.ai_prediction && focusSector && (
-            <div className="rounded-[16px] border border-violet-500/15 bg-violet-500/[0.06] p-4">
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-violet-600 dark:text-violet-300">AI Market Call</p>
-              <p className="text-[16px] font-black leading-snug text-text-primary">Overweight {focusSector}</p>
-              <p className="mt-1.5 text-[12px] leading-5 text-text-secondary"><span className="text-text-muted">Driven by —</span> {ex.ai_prediction}</p>
-              {/* Today's Summary — same underlying signal as the call
-                  above (outlook / focus / risk / ai_prediction), composed
-                  into one retail-readable paragraph, capped at 50 words. */}
-              <p className="mt-2.5 border-t border-surface-border/8 pt-2.5 text-[11.5px] leading-relaxed text-text-secondary">{todaysSummary}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-[14px] border border-emerald-500/15 bg-emerald-500/[0.05] p-3.5">
-              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-400">🔥 Biggest Opportunity</p>
-              <p className="mt-1 text-[14px] font-bold text-text-primary">{secondaryOpportunity ?? "No second opportunity signal today"}</p>
-            </div>
-            <div className="rounded-[14px] border border-rose-500/15 bg-rose-500/[0.05] p-3.5">
-              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-400">⚠ Biggest Risk</p>
-              <p className="mt-1 text-[13px] font-bold leading-snug text-text-primary">{highestRiskDisplay}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT — Evidence */}
-        <div className="space-y-4">
-          <Link href={ev ? `/events/${ev.slug || ev.id}` as any : "/events"} className="block rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4 transition hover:border-violet-500/25">
-            <div className="mb-1 flex items-center justify-between">
-              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Why Today Matters</p>
+          <div className="rounded-[18px] border border-surface-border/10 bg-gradient-to-br from-text-primary/[0.05] to-transparent p-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-text-secondary">Conclusion</p>
               {ev?.lifecycle && _LIFECYCLE_BADGE[ev.lifecycle] && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase ${_LIFECYCLE_BADGE[ev.lifecycle]}`}>{ev.lifecycle}</span>
               )}
             </div>
-            <p className="text-[15px] font-semibold leading-snug text-text-primary">{expandAcronyms(cleanText(storyTitle))}</p>
-            {storySummary && (
-              <p className="mt-1.5 line-clamp-2 text-[12px] leading-5 text-text-secondary">{cleanText(storySummary)}</p>
-            )}
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-text-muted">
-              <span>Expected Market Impact</span> <Stars n={stars} />
-            </div>
-          </Link>
-
-          {drivers.length > 0 && (
-            <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
-              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Today&apos;s Drivers</p>
-              <div className="flex flex-wrap gap-1.5">
-                {drivers.map((d, i) => (
-                  <span key={i} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                    d.positive ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-600 dark:text-emerald-300" : "border-rose-500/20 bg-rose-500/[0.06] text-rose-600 dark:text-rose-300"
-                  }`}>
-                    {d.positive ? "🟢" : "🔴"} {d.label} <span className="text-text-secondary font-normal">{d.value}</span>
-                  </span>
-                ))}
+            {focusSector ? (
+              <p className="mt-2 text-[17px] font-black leading-snug text-text-primary">Overweight {focusSector}</p>
+            ) : macroTheme ? (
+              <p className="mt-2 text-[17px] font-black leading-snug text-text-primary">{macroTheme}</p>
+            ) : null}
+            <p className="mt-2 text-[12.5px] leading-relaxed text-text-secondary">{todaysSummary}</p>
+            <Link href={ev ? `/events/${ev.slug || ev.id}` as any : "/events"}
+              className="group mt-3 flex items-center justify-between gap-3 border-t border-surface-border/8 pt-3">
+              <div className="min-w-0">
+                <p className="truncate text-[12px] font-semibold leading-snug text-text-primary transition group-hover:text-violet-600 dark:group-hover:text-violet-300">
+                  {expandAcronyms(cleanText(storyTitle))}
+                </p>
+                {storySummary && <p className="mt-0.5 line-clamp-1 text-[10.5px] text-text-muted">{cleanText(storySummary)}</p>}
               </div>
-            </div>
-          )}
+              <Stars n={stars} />
+            </Link>
+          </div>
 
-          {companies.length > 0 && (
-            <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
-              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Stocks To Watch</p>
-              {/* impact is an AI event-impact call ("this catalyst helps/hurts
-                  this company"), not a live price quote — found live: it can
-                  read "positive" while the stock is actually trading down for
-                  unrelated reasons, and a bare ▲/▼ arrow reads exactly like a
-                  price-ticker direction to anyone market-literate, creating a
-                  false "the site contradicts itself" impression. Labeled
-                  "Bullish/Bearish Catalyst" instead of an arrow so it's
-                  unambiguous this is an assessment, not today's price move. */}
-              <div className="grid grid-cols-2 gap-2">
-                {companies.map((c: any, i: number) => (
-                  <Link key={i} href={`/companies/${c.symbol}` as any}
-                    title={c.impact === "positive" ? "AI-assessed positive catalyst — not today's live price" : "AI-assessed negative catalyst — not today's live price"}
-                    className={`flex flex-col justify-between rounded-[10px] border px-2.5 py-1.5 text-[11.5px] font-semibold transition hover:opacity-80 ${
-                      c.impact === "positive" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300"
-                    }`}>
-                    <span>{cleanText(c.symbol || c.name)}</span>
-                    <span className="text-[9px] font-bold uppercase tracking-wide opacity-80">{c.impact === "positive" ? "Bullish Catalyst" : "Bearish Catalyst"}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
+          {/* Since Previous Session (2026-08 homepage redesign) — moved to
+              the left column to balance the two columns' heights (the
+              right column's 3 evidence blocks ran noticeably longer than
+              this column's 2). Grouped here with Conclusion since both
+              are narrative/synthesis, not raw evidence — renamed from
+              "Since Yesterday" (semantically wrong across a weekend or
+              holiday: Monday's "previous session" is Friday, not
+              "yesterday"). The real +/-N delta still drives ranking and
+              direction internally (homepage_intelligence.py's
+              _sector_score), but is no longer the headline message — real
+              Development Memory evidence is, capped at 2-3 reasons per
+              sector, sourced deterministically (never an LLM guess). A
+              sector with no qualifying evidence says so honestly rather
+              than forcing an explanation. */}
           <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
-            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">What Changed Since Yesterday</p>
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Since Previous Session</p>
             {changes.length === 0 ? (
               <p className="text-[11px] text-text-muted">Not enough history yet — check back tomorrow.</p>
             ) : (
-              <ul className="space-y-1.5">
-                {changes.map((c, i) => (
-                  <li key={i} className="flex items-center gap-2 text-[12px] font-medium">
-                    <span className={c.direction === "up" ? "text-emerald-400" : "text-rose-400"}>{c.direction === "up" ? "↑" : "↓"}</span>
-                    <span className="text-text-primary">{c.name}</span>
-                    {c.is_new ? (
-                      <span className="text-[10px] font-normal text-text-muted">newly in focus today</span>
-                    ) : (
-                      <>
-                        <span className={c.direction === "up" ? "text-emerald-400" : "text-rose-400"}>{c.direction === "up" ? "+" : ""}{c.delta}</span>
-                        <span className="ml-auto flex gap-0.5">
-                          {Array.from({ length: 4 }).map((_, di) => (
-                            <span key={di} className={`h-1.5 w-1.5 rounded-full ${di < deltaStrength(c.delta) ? (c.direction === "up" ? "bg-emerald-400" : "bg-rose-400") : "bg-text-primary/10"}`} />
+              <div className="divide-y divide-surface-border/6">
+                {changes.map((c, i) => {
+                  const up = c.direction === "up";
+                  const label = c.is_new ? (up ? "New Opportunity" : "New Risk") : (up ? "Improving" : "Weakening");
+                  const reasons = c.reasons ?? [];
+                  return (
+                    <div key={i} className="py-2 first:pt-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12px] font-bold text-text-primary">{c.name}</span>
+                        <span className={`text-[9px] font-bold uppercase tracking-wide ${up ? "text-emerald-400" : "text-rose-400"}`}>{label}</span>
+                      </div>
+                      {reasons.length > 0 ? (
+                        <ul className="mt-1 space-y-0.5">
+                          {reasons.map((r, ri) => (
+                            <li key={ri} className="text-[10.5px] leading-4 text-text-secondary">· {r}</li>
                           ))}
-                        </span>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                        </ul>
+                      ) : (
+                        <p className="mt-1 text-[10.5px] italic text-text-muted">No single verified driver identified</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
+
+          {/* Closing strip — Opportunity + Risk as one compact row instead
+              of two separate cards. */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[14px] border border-surface-border/6 bg-text-primary/[0.02] px-4 py-3">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-400">Opportunity</span>
+              <span className="text-[12px] font-bold text-text-primary">{secondaryOpportunity ?? "No second opportunity signal today"}</span>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[9px] font-bold uppercase tracking-wide text-rose-400">Risk</span>
+              <span className="text-[12px] font-bold text-text-primary">{highestRiskDisplay}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT — Evidence: What Changed Today, Companies In Focus. */}
+        <div className="space-y-4">
+          {drivers.length > 0 && (
+            <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">What Changed Today</p>
+              <div className="divide-y divide-surface-border/6">
+                {drivers.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                    <span className="text-[11px] font-semibold text-text-secondary">{d.label}</span>
+                    <span className={`text-[12px] font-bold ${d.positive ? "text-emerald-400" : "text-rose-400"}`}>{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {companiesInFocus.length > 0 && (
+            <div className="rounded-[16px] border border-surface-border/6 bg-text-primary/[0.02] p-4">
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">Companies In Focus</p>
+              {/* Real reason + evidence count from Development Memory where
+                  available (build_companies_in_focus, same source as the
+                  Pre-Market page) — falls back to the existing real
+                  impact-only merge with no invented reason text, rather
+                  than fabricating one. */}
+              <div className="divide-y divide-surface-border/6">
+                {companiesInFocus.map((c, i) => {
+                  const dirColor = c.direction === "positive" ? "text-emerald-400" : c.direction === "negative" ? "text-rose-400" : "text-amber-400";
+                  return (
+                    <Link key={i} href={`/companies/${c.symbol}` as any}
+                      className="-mx-1 flex items-center justify-between gap-3 rounded px-1 py-2 transition first:pt-0 last:pb-0 hover:bg-text-primary/[0.03]">
+                      <div className="min-w-0">
+                        <span className="text-[12px] font-bold text-text-primary">{cleanText(c.symbol)}</span>
+                        <p className="truncate text-[10px] text-text-muted">{c.reason ? cleanText(c.reason) : "AI-assessed catalyst"}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${dirColor}`}>{c.direction}</span>
+                        {c.evidenceCount != null && (
+                          <p className="text-[9px] text-text-muted">{c.evidenceCount} {c.evidenceCount === 1 ? "source" : "sources"}</p>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -21,6 +21,7 @@ module doesn't duplicate it.
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
@@ -66,6 +67,23 @@ async def record_snapshot_if_missing(db: AsyncSession, article) -> None:
     await db.commit()
 
 
+async def _explain_change(db: AsyncSession, sector_name: str, direction: str, max_reasons: int = 3) -> list[str]:
+    """Real evidence for why a sector's score moved (2026-08 homepage
+    redesign, "Since Previous Session -> why"). Sourced from Development
+    Memory ONLY — never an LLM call, never invented. A development only
+    counts as an explanation when its own direction agrees with the
+    delta's direction: a sector "improving" should be explained by
+    positive-leaning developments, not any development merely tagged to
+    that sector (which could just as easily be a negative one). Returns
+    [] when nothing qualifies — the caller shows an honest "no verified
+    driver" state rather than a forced explanation."""
+    from app.services.development_memory.read import list_active_developments
+    wanted_direction = "positive" if direction == "up" else "negative"
+    devs = await list_active_developments(db, sectors=[sector_name], limit=8)
+    matching = [d for d in devs if d.get("direction") == wanted_direction]
+    return [d["title"] for d in matching[:max_reasons] if d.get("title")]
+
+
 async def get_yesterday_changes(db: AsyncSession, article) -> list[dict]:
     """Real day-over-day sector deltas — [] until at least 2 days of
     snapshots exist (same "never fabricate, just show nothing yet"
@@ -108,7 +126,20 @@ async def get_yesterday_changes(db: AsyncSession, article) -> list[dict]:
         elif s["score"] != 0:
             changes.append({"name": name, "delta": s["score"], "direction": "up" if s["score"] > 0 else "down", "is_new": True})
     changes.sort(key=lambda c: abs(c["delta"]), reverse=True)
-    return changes[:4]
+    top_changes = changes[:4]
+
+    # "Since Previous Session -> why" (2026-08 homepage redesign): real
+    # evidence per change, not the bare +5-style delta as the primary
+    # user-facing message. Parallelized — each is an independent
+    # Development Memory lookup, and this whole endpoint runs under a
+    # 6s client timeout (see page.tsx's getHomepageExtras).
+    reasons_lists = await asyncio.gather(
+        *[_explain_change(db, c["name"], c["direction"]) for c in top_changes]
+    )
+    for c, reasons in zip(top_changes, reasons_lists):
+        c["reasons"] = reasons
+
+    return top_changes
 
 
 def get_ai_prediction(article) -> str | None:

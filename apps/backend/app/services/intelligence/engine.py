@@ -32,8 +32,8 @@ _CONTEXT_KEY = "mie:context:{symbol}"  # per-symbol context
 
 # ── Market session helper ──────────────────────────────────────────────────────
 
-def _market_session() -> str:
-    now  = datetime.now(_IST)
+def _market_session(at: datetime | None = None) -> str:
+    now  = at or datetime.now(_IST)
     h, m = now.hour, now.minute
     mins = h * 60 + m
     dow  = now.weekday()        # 0=Monday … 6=Sunday
@@ -85,6 +85,82 @@ def session_label_for(generated_at_iso: str | None) -> dict:
     }
 
 
+# Freshness contract (2026-08 homepage redesign) — session_label_for above
+# only ever answers "is this from today's IST calendar date," which is too
+# coarse: a Monday close is legitimately the right thing to show Monday
+# evening AND Tuesday before market open (nothing newer could exist yet),
+# but becomes genuinely stale the moment Tuesday's own market-hours window
+# has started and no fresher story landed. Root-caused live: StoryEngineWorker
+# itself is correct (477 real historical rows, properly gated to market
+# hours, properly erroring rather than silently swallowing failures) — the
+# gap was the backend process not running during a session's market hours,
+# an environment fact any consumer of this data can hit again, in dev or
+# production. This function is the single place that decides "fresh enough
+# for the current session" vs "latest available but stale" vs "nothing
+# usable", so every consumer (homepage, any future one) reads the same
+# verdict instead of each re-deriving its own staleness heuristic.
+def compute_freshness(generated_at_iso: str | None) -> dict:
+    """
+    Returns {state, is_stale, story_date, story_session, age_minutes,
+    freshness_label}. state is one of:
+      "unavailable" — no usable story at all (generated_at_iso is None/invalid)
+      "fresh"       — from today, OR from a still-legitimately-latest prior
+                      session (before today's market open, or over a
+                      weekend/holiday with no trading session since)
+      "stale"       — from a prior day, AND today's own market-hours window
+                      has already started — a fresher story was expected and
+                      didn't arrive.
+    """
+    if not generated_at_iso:
+        return {
+            "state": "unavailable", "is_stale": False, "story_date": None,
+            "story_session": None, "age_minutes": None, "freshness_label": None,
+        }
+    try:
+        dt = datetime.fromisoformat(generated_at_iso.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return {
+            "state": "unavailable", "is_stale": False, "story_date": None,
+            "story_session": None, "age_minutes": None, "freshness_label": None,
+        }
+
+    dt_ist  = dt.astimezone(_IST)
+    now_ist = datetime.now(_IST)
+    story_date = dt_ist.date().isoformat()
+    age_minutes = max(0, int((now_ist - dt_ist).total_seconds() // 60))
+    story_session = _market_session(dt_ist)
+
+    if dt_ist.date() == now_ist.date():
+        h12 = dt_ist.strftime("%I:%M %p").lstrip("0")
+        return {
+            "state": "fresh", "is_stale": False, "story_date": story_date,
+            "story_session": story_session, "age_minutes": age_minutes,
+            "freshness_label": f"Today, {h12} IST",
+        }
+
+    weekday = dt_ist.strftime("%A")
+    # Today's own market-hours window (9:15 AM IST) hasn't started yet, or
+    # today is a weekend/holiday — no fresher story could exist regardless,
+    # so the last real one is still the legitimately-latest-available read,
+    # not a degraded state.
+    today_session = _market_session(now_ist)
+    window_not_yet_due = today_session in ("pre_market", "weekend")
+    if window_not_yet_due:
+        return {
+            "state": "fresh", "is_stale": False, "story_date": story_date,
+            "story_session": story_session, "age_minutes": age_minutes,
+            "freshness_label": f"{weekday} close",
+        }
+
+    return {
+        "state": "stale", "is_stale": True, "story_date": story_date,
+        "story_session": story_session, "age_minutes": age_minutes,
+        "freshness_label": f"{weekday} close · Update delayed",
+    }
+
+
 # ── Intelligence readers ───────────────────────────────────────────────────────
 
 async def read_story() -> Optional[dict]:
@@ -104,7 +180,7 @@ async def read_story() -> Optional[dict]:
     if raw:
         story = raw if isinstance(raw, dict) else None
         if story:
-            story = {**story, **session_label_for(story.get("generated_at"))}
+            story = {**story, **session_label_for(story.get("generated_at")), **compute_freshness(story.get("generated_at"))}
         return story
 
     try:
@@ -130,6 +206,7 @@ async def read_story() -> Optional[dict]:
                     "sector_rotation": row.sector_rotation,
                     "generated_at":   generated_at_iso,
                     **session_label_for(generated_at_iso),
+                    **compute_freshness(generated_at_iso),
                 }
     except Exception as e:
         log.warning("mie.story_read_error", error=str(e))
