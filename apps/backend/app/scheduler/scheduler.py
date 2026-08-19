@@ -49,7 +49,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_economic_calendar_imminent_recheck,
         job_macro_rates_sync,
         job_development_memory_sync,
-        job_backup_database,
+        job_backup_database_daily,
     )
     from app.services.intelligence.theme_worker import run_theme_scoring
     from app.services.intelligence.price_monitor import run_price_monitor_cycle
@@ -220,7 +220,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
 
     # ── Database backup — 2:00 AM IST (off-peak) ─────────────────────────────
     scheduler.add_job(
-        job_backup_database,
+        job_backup_database_daily,
         CronTrigger(hour=2, minute=0, timezone=_IST),
         id="backup_database",
         max_instances=1,
@@ -395,7 +395,7 @@ async def start_scheduler() -> AsyncIOScheduler:
     scheduler = get_scheduler()
 
     # Seed opportunities on startup if table is empty (one-time only)
-    from app.tasks.daily_tasks import job_seed_opportunities, job_backup_database
+    from app.tasks.daily_tasks import job_seed_opportunities, job_backup_database_boot
     scheduler.add_job(
         job_seed_opportunities,
         id="seed_opportunities_startup",
@@ -419,7 +419,7 @@ async def start_scheduler() -> AsyncIOScheduler:
 
     _boot_now = datetime.now(timezone.utc)
     _boot_jobs = [
-        (job_backup_database, "backup_database_startup"),
+        (job_backup_database_boot, "backup_database_startup"),
         (job_repair_evergreen_contamination, "repair_evergreen_contamination_startup"),
         (job_repair_unfilled_placeholders, "repair_unfilled_placeholders_startup"),
         (job_repair_comparison_missing_fields, "repair_comparison_missing_fields_startup"),

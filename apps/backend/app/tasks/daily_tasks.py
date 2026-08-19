@@ -470,16 +470,30 @@ async def job_seed_opportunities() -> None:
     log.info("job.seed_opportunities.done")
 
 
-# ── 2:00 AM IST — Backup the database ────────────────────────────────────────
+# ── 2:00 AM IST — Backup the database (dated, kept ~14 days) ─────────────────
 
-async def job_backup_database() -> None:
+async def job_backup_database_daily() -> None:
     """Snapshot the database to the persistent volume. Off-peak hour so the
     (brief) SQLite backup-API lock doesn't compete with live traffic."""
     import asyncio
     from app.db.backup import backup_database
 
-    log.info("job.backup_database.start")
-    result = await asyncio.to_thread(backup_database)
+    log.info("job.backup_database.start", kind="daily")
+    result = await asyncio.to_thread(backup_database, "daily")
+    log.info("job.backup_database.done", **result)
+
+
+# ── Startup — one-off restart snapshot (kept: last 3 only) ───────────────────
+
+async def job_backup_database_boot() -> None:
+    """Snapshot the database on process boot — a just-in-case safety net
+    around restarts/deploys, not a dated history, so it gets a much shorter
+    retention than the daily backup."""
+    import asyncio
+    from app.db.backup import backup_database
+
+    log.info("job.backup_database.start", kind="boot")
+    result = await asyncio.to_thread(backup_database, "boot")
     log.info("job.backup_database.done", **result)
 
 
