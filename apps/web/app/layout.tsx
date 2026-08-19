@@ -13,6 +13,7 @@ import { BreakingNewsAlert }  from "@/components/BreakingNewsAlert";
 import { ReturningUserFeedbackModal } from "@/components/feedback/ReturningUserFeedbackModal";
 import { Breadcrumbs, BreadcrumbOverrideProvider } from "@/components/Breadcrumbs";
 import { PageContainer } from "@/components/PageContainer";
+import { AnalyticsPageView } from "@/components/AnalyticsPageView";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
@@ -99,7 +100,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             off the critical rendering path instead of blocking like a raw
             <script> tag. NODE_ENV is set by the Next.js build itself
             ("development" under `next dev`, "production" for the real
-            Vercel build) — not a value anyone here configures by hand. */}
+            Vercel build) — not a value anyone here configures by hand.
+
+            send_page_view: false (2026-08 audit) — confirmed live that
+            this app's near-entirely-client-side App Router navigation
+            never fired a page_view beyond the very first page a visitor
+            landed on; gtag's own automatic page_view only fires once, at
+            initial script execution. AnalyticsPageView is now the single
+            source of every page_view (first load included), so the
+            config call's own automatic one is turned off here to avoid
+            double-counting the first page. NOTE: GA4's Data Stream ->
+            Enhanced Measurement -> "Page changes based on browser
+            history events" toggle can ALSO independently emit page_views
+            for the same navigations and must stay OFF in the GA4 admin
+            UI for this same reason — that's a property-level setting,
+            not something this codebase controls. */}
         {process.env.NODE_ENV === "production" && (
           <>
             <Script src="https://www.googletagmanager.com/gtag/js?id=G-W76EXES2KE" strategy="afterInteractive" />
@@ -108,9 +123,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', 'G-W76EXES2KE');
+                gtag('config', 'G-W76EXES2KE', { send_page_view: false });
               `}
             </Script>
+            <AnalyticsPageView />
           </>
         )}
         <script
