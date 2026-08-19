@@ -124,6 +124,21 @@ async def build_opening_prediction(db, weekend_context: "WeekendContext | None" 
     events     = await _gather_events(db)
     historical = await _gather_historical(signals, events)
 
+    # Canonicalization (2026-08 Pre-Market rebuild): a structured,
+    # deterministic read of the 5 signals the redesigned "What Is Driving
+    # The Open" UI needs (GIFT Nifty, global breadth, FII flow, VIX, US
+    # futures) -- built directly from `signals`' own already-computed
+    # positive/negative booleans, NEVER from parsing the LLM's free-text
+    # `primary_drivers` strings. This is what makes driver polarity honest:
+    # the frontend used to hardcode every primary_driver as "Bullish"
+    # regardless of content because plain strings carry no direction: this
+    # field carries direction as data, independent of whether the AI path
+    # succeeds or falls back. `primary_drivers`/`reasoning` remain as
+    # narrative prose for the Morning Brief; this is the new source of
+    # truth for structured polarity.
+    signal_breakdown = _build_signal_breakdown(signals)
+    impact_zones = await _gather_impact_zones(db)
+
     # Deterministic shadow triple — always computed, zero extra cost
     # (pure arithmetic over `signals`, no LLM/network call). This is
     # what answers "existing Monday score -> weekend contribution ->
@@ -140,6 +155,10 @@ async def build_opening_prediction(db, weekend_context: "WeekendContext | None" 
         "events":          events,
         "historical":      historical,
         "prediction":      prediction,
+        "signal_breakdown": signal_breakdown,
+        "strategy_note":   _strategy_note(prediction.get("direction", "Neutral")),
+        "sector_setup":      impact_zones["sector_setup"],
+        "companies_in_focus": impact_zones["companies_in_focus"],
         "weekend_adjustment": weekend_adjustment,
         "generated_at":    datetime.now(timezone.utc).isoformat(),
         "cache_ttl_seconds": _TTL,
@@ -553,6 +572,37 @@ async def _gather_historical(signals: dict, events: dict) -> dict:
     except Exception as exc:
         log.warning("opening_prediction.macro_rate_state_error", error=str(exc)[:200])
 
+    # Part A3 (2026-08 Pre-Market rebuild): sectors was never populated
+    # here, so compute_similarity()'s largest single factor (sector
+    # Jaccard, 25 of 100 pts) contributed ~0 on almost every call.
+    # Today's real sector-momentum read (already Redis-cached ~700s by
+    # theme_worker, same read this module already uses for MIE state via
+    # get_intelligence_state) is the closest available "which sectors are
+    # in play today" signal. Only non-stable themes are used — a theme
+    # sitting at "stable" isn't really "in play." Theme names are
+    # lightly split on "&"/"/" (e.g. "Auto & EV" -> "Auto", "EV") to
+    # recover more exact-string overlaps with historical_market_events'
+    # own sector vocabulary, which uses shorter single-word names more
+    # often than not; this is a light normalization, not a full fuzzy
+    # matcher — some real overlaps (e.g. "Metals" vs "Metal") still won't
+    # match, which is a known, accepted limitation of this pass, not a
+    # bug it's newly introducing (today's else-branch is doing nothing).
+    sectors_today: list[str] = []
+    try:
+        from app.services.intelligence.engine import read_themes
+        themes = await read_themes()
+        for t in themes:
+            if t.get("momentum") == "stable":
+                continue
+            name = t.get("theme") or ""
+            sectors_today.append(name)
+            for part in re.split(r"\s*[&/]\s*", name):
+                part = part.strip()
+                if part and part != name:
+                    sectors_today.append(part)
+    except Exception as exc:
+        log.warning("opening_prediction.sectors_today_error", error=str(exc)[:200])
+
     query: dict = {
         "sentiment":          sentiment,
         "market_regime":      market_regime,
@@ -562,6 +612,8 @@ async def _gather_historical(signals: dict, events: dict) -> dict:
         query["interest_rate_trend"] = interest_rate_trend
     if category:
         query["category"] = category
+    if sectors_today:
+        query["sectors"] = sectors_today
 
     similar = await find_similar_events(query, limit=5, min_similarity=20.0)
 
@@ -580,6 +632,33 @@ async def _gather_historical(signals: dict, events: dict) -> dict:
             if nifty_1d_vals else None
         ),
     }
+
+
+async def _gather_impact_zones(db) -> dict:
+    """Part A4 (2026-08 Pre-Market rebuild): sector_setup + companies_in_
+    focus, replacing market.py's old synthetic stocks_to_watch. Each
+    sub-fetch fails independently and open — a Development Memory or
+    theme-read outage degrades to an empty list for that piece, never an
+    exception that breaks the whole prediction."""
+    from app.services.development_memory.read import list_active_developments
+    from app.services.intelligence.engine import read_themes
+    from app.services.impact_zone_service import build_sector_setup, build_companies_in_focus
+
+    try:
+        developments = await list_active_developments(db, limit=8)
+    except Exception as exc:
+        log.warning("opening_prediction.developments_read_error", error=str(exc)[:200])
+        developments = []
+
+    try:
+        themes = await read_themes()
+    except Exception as exc:
+        log.warning("opening_prediction.themes_read_error", error=str(exc)[:200])
+        themes = []
+
+    sector_setup = await build_sector_setup(themes, developments)
+    companies_in_focus = build_companies_in_focus(developments)
+    return {"sector_setup": sector_setup, "companies_in_focus": companies_in_focus}
 
 
 def _weekend_adjusted_score(signals: dict, weekend_context: "WeekendContext | None") -> dict:
@@ -849,6 +928,83 @@ async def _run_ai(
     except (json.JSONDecodeError, TypeError, ValueError, AttributeError):
         log.warning("opening_prediction.parse_error", raw=raw[:200])
         return _fallback_prediction(signals, weekend_adjustment)
+
+
+def _build_signal_breakdown(signals: dict) -> list[dict]:
+    """Deterministic {label, value, direction, detail} rows for the 5
+    signals the redesigned Pre-Market UI's "What Is Driving The Open"
+    section shows (2026-08 Pre-Market rebuild, Part A1). direction is one
+    of "positive"|"negative"|"neutral"|"contextual" -- "contextual" for
+    signals like VIX that describe risk/volatility, not market direction
+    (a low VIX is "calm," not "bullish"; conflating the two was flagged
+    explicitly as something to fix here, not carry into the redesign).
+    A signal whose underlying data is unavailable is OMITTED, never
+    included with a fabricated/neutral direction -- matches the same
+    honesty principle as gift_nifty_service's status field."""
+    rows: list[dict] = []
+
+    gift = signals.get("gift_nifty", {})
+    gift_status = gift.get("status") or ("live" if gift.get("value", "—") != "—" else "unavailable")
+    if gift_status in ("live", "stale") and gift.get("value", "—") != "—":
+        rows.append({
+            "label":     "GIFT Nifty",
+            "value":     gift.get("change", gift.get("value")),
+            "direction": "positive" if gift.get("positive") else "negative",
+            "detail":    "Stale data — weight down accordingly" if gift_status == "stale" else "Overnight GIFT City signal",
+        })
+
+    glo = signals.get("global_sentiment") or {}
+    if glo.get("total"):
+        rows.append({
+            "label":     "Global Breadth",
+            "value":     f"{glo.get('positive_count', 0)}/{glo.get('total', 0)} positive",
+            "direction": "positive" if glo.get("label") == "Bullish" else "negative" if glo.get("label") == "Bearish" else "neutral",
+            "detail":    f"{glo.get('pct_positive', 0)}% of tracked global markets positive",
+        })
+
+    fii = signals.get("fii") or {}
+    if fii.get("available") and fii.get("net") is not None:
+        sign = "+" if fii["net"] >= 0 else ""
+        rows.append({
+            "label":     "FII Flow",
+            "value":     f"{sign}₹{fii['net']:,.0f} Cr",
+            "direction": "positive" if fii.get("buying") else "negative",
+            "detail":    "Previous session, NSE",
+        })
+
+    vix = signals.get("india_vix") or {}
+    if vix.get("value", "—") != "—":
+        rows.append({
+            "label":     "India VIX",
+            "value":     str(vix.get("value")),
+            "direction": "contextual",
+            "detail":    vix.get("interpretation") or f"{vix.get('level', 'MODERATE')} volatility — risk gauge, not a direction signal",
+        })
+
+    us_futures = signals.get("us_futures") or []
+    primary_us = next((f for f in us_futures if "S&P" in f.get("name", "")), us_futures[0] if us_futures else None)
+    if primary_us and primary_us.get("value", "—") != "—":
+        rows.append({
+            "label":     primary_us.get("name", "US Futures"),
+            "value":     primary_us.get("pct", "—"),
+            "direction": "positive" if primary_us.get("positive") else "negative",
+            "detail":    "Overnight US futures",
+        })
+
+    return rows
+
+
+def _strategy_note(direction: str) -> str:
+    """Pure function of the ONE canonical direction -- replaces market.py's
+    former second, independently-computed sentiment/bull/bear engine
+    (2026-08 Pre-Market rebuild, Part A1). Same 3 strategy texts that
+    engine used, now driven by build_opening_prediction()'s own real
+    direction instead of a second, disagreeing calculation."""
+    if direction == "Positive":
+        return "Gap-up expected. Look for dip-buying opportunities. Watch key resistance levels."
+    if direction == "Negative":
+        return "Cautious open likely. Wait for price confirmation before entering. Consider hedging."
+    return "Flat to mild open. Prefer quality large-caps over momentum. Avoid aggressive bets."
 
 
 def _base_fallback_score(signals: dict) -> dict:

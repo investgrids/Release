@@ -364,7 +364,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, premarket, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media, tools, coverage, daily_brief_intelligence, facts, sources, macro, weekend_intelligence, economic_calendar  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media, tools, coverage, daily_brief_intelligence, facts, sources, macro, weekend_intelligence, economic_calendar  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -386,7 +386,6 @@ app.include_router(ai_search_watch.router, prefix="/api/ai/search", tags=["ai-se
 app.include_router(homepage_intelligence.router, prefix="/api/homepage", tags=["homepage"])
 app.include_router(live_intelligence.router, prefix="/api/live-intelligence", tags=["live-intelligence"])
 app.include_router(company_intelligence.router, prefix="/api/company-intelligence", tags=["company-intelligence"])
-app.include_router(premarket.router,    prefix="/api/premarket",    tags=["premarket"])
 app.include_router(market.router,       prefix="/api/market",       tags=["market"])
 app.include_router(commodities.router,  prefix="/api/commodities",  tags=["commodities"])
 app.include_router(ipo.router,          prefix="/api/ipo",          tags=["ipo"])

@@ -549,106 +549,29 @@ async def market_premarket():
     us    = base.get("us",    [])
     comms = base.get("commodities", [])
 
-    # Derive sentiment from real data
+    # Real breadth (kept — used by global_sentiment_score below). The
+    # second, independently-computed sentiment/bull/bear/confidence engine
+    # that used to live here (`ai_prediction`, plus its `reasons`/`strat`
+    # derivation) is retired as of the 2026-08 Pre-Market rebuild, Part
+    # A1 — it structurally disagreed with the one canonical engine,
+    # opening_prediction_service.build_opening_prediction(). That engine's
+    # `strategy_note` (a pure function of its own real direction, see
+    # opening_prediction_service._strategy_note) is the sole replacement
+    # for this endpoint's former `ai_prediction.opening_strategy`.
     all_pos = asian + us + enhanced["us_futures"] + enhanced["european"]
     pos_count = sum(1 for m in all_pos if m.get("positive"))
     total = len(all_pos) or 1
-    bull  = max(30, min(80, int(pos_count / total * 100)))
-    bear  = max(5,  min(40, 100 - bull - 15))
-    neut  = 100 - bull - bear
-    conf  = min(92, int(pos_count / total * 65 + 48))
-    sent  = "Bullish" if bull >= 60 else "Neutral" if bull >= 45 else "Bearish"
 
     # Global sentiment score 0-100
     global_sentiment_score = min(95, max(10, int(pos_count / total * 100)))
 
-    # Build dynamic AI reasons from actual live data
-    reasons: list[str] = []
-    gift = enhanced["gift_nifty"]
-    vix  = enhanced["india_vix"]
-
-    if gift["value"] != "—":
-        direction = "positive" if gift.get("positive") else "negative"
-        prem_note = f" ({gift['premium_pct']} vs spot)" if gift.get("premium_pct") else ""
-        stale_note = " [stale]" if gift.get("status") == "stale" else ""
-        reasons.append(f"GIFT Nifty trading {direction} at {gift['value']}{prem_note}{stale_note}")
-
-    bnf = enhanced.get("banknifty", {})
-    if bnf.get("value") and bnf["value"] != "—":
-        word = "up" if bnf.get("positive") else "down"
-        reasons.append(f"Bank Nifty Futures {word} at {bnf['value']} ({bnf.get('pct', '—')})")
-
-    if vix["value"] != "—":
-        reasons.append(f"India VIX at {vix['value']} — {vix.get('interpretation', '')}")
-
-    sp = next((f for f in enhanced["us_futures"] if "S&P" in f["name"]), None)
-    if sp and sp["value"] != "—":
-        word = "rallied" if sp.get("positive") else "fell"
-        reasons.append(f"S&P 500 Futures {word} to {sp['value']} ({sp['pct']})")
-
-    nq = next((f for f in enhanced["us_futures"] if "Nasdaq" in f["name"]), None)
-    if nq and nq["value"] != "—":
-        word = "positive" if nq.get("positive") else "under pressure"
-        reasons.append(f"Nasdaq 100 Futures {word} at {nq['value']}")
-
-    usd = next((c for c in enhanced["currencies"] if "USD" in c["name"]), None)
-    if usd and usd["value"] != "—":
-        rupee = "Rupee weakening — watch import costs" if usd.get("positive") else "Rupee holding firm"
-        reasons.append(f"USD/INR at {usd['value']} — {rupee}")
-
-    crude = next((c for c in comms if "Brent" in c["name"]), None)
-    if crude and crude["value"] != "—":
-        reasons.append(f"Brent crude at {crude['value']} ({crude.get('change_str', '—')})")
-
-    if fii_dii.get("available") and fii_dii.get("fii_net") is not None:
-        fii_n = fii_dii["fii_net"]
-        s = "+" if fii_n >= 0 else ""
-        reasons.append(f"FII previous session: {s}₹{fii_n:,.0f}Cr — {'buying' if fii_n >= 0 else 'selling'}")
-
-    if not reasons:
-        reasons = ["Global markets showing mixed signals", "Monitor NSE opening session closely"]
-
-    strat = (
-        "Gap-up expected. Look for dip-buying in banking and infra. Watch Nifty resistance levels."
-        if sent == "Bullish" else
-        "Cautious open likely. Wait for price confirmation before entering. Consider hedging."
-        if sent == "Bearish" else
-        "Flat to mild open. Prefer quality large-caps over momentum. Avoid aggressive bets."
-    )
-
-    # Stocks to watch: real top movers (not hardcoded)
-    gainers = movers.get("gainers", [])[:3]
-    losers  = movers.get("losers",  [])[:2]
-    watch: list[dict] = []
-    for g in gainers:
-        try:
-            pct_v = abs(float(g.get("value", "0%").replace("+", "").replace("%", "")))
-        except Exception:
-            pct_v = 1.0
-        watch.append({
-            "ticker": g["ticker"], "name": g.get("company", g["ticker"]),
-            "reason": f"Top pre-market gainer · {g.get('value', '—')}",
-            "score":  min(95, 65 + int(pct_v * 3)), "direction": "up", "sector": "Market",
-        })
-    for l in losers:
-        try:
-            pct_v = abs(float(l.get("value", "0%").replace("-", "").replace("%", "")))
-        except Exception:
-            pct_v = 1.0
-        watch.append({
-            "ticker": l["ticker"], "name": l.get("company", l["ticker"]),
-            "reason": f"Under pressure · {l.get('value', '—')}",
-            "score":  min(80, 55 + int(pct_v * 3)), "direction": "down", "sector": "Market",
-        })
-
-    if not watch:
-        watch = [
-            {"ticker": "LT",        "name": "Larsen & Toubro",   "reason": "Infrastructure momentum", "score": 89, "direction": "up",     "sector": "Infrastructure"},
-            {"ticker": "HDFCBANK",  "name": "HDFC Bank",          "reason": "Banking sector leader",   "score": 85, "direction": "up",     "sector": "Banking"},
-            {"ticker": "RELIANCE",  "name": "Reliance Industries", "reason": "Broad market bellwether", "score": 82, "direction": "up",     "sector": "Conglomerate"},
-            {"ticker": "ICICIBANK", "name": "ICICI Bank",          "reason": "Loan growth strong",      "score": 78, "direction": "up",     "sector": "Banking"},
-            {"ticker": "POWERGRID", "name": "Power Grid Corp",     "reason": "Regulatory tailwinds",    "score": 75, "direction": "stable", "sector": "Utilities"},
-        ]
+    # The former "stocks_to_watch" here (2026-08 Pre-Market rebuild, Part
+    # A4) — a synthetic score from mere gainer/loser list membership, with
+    # a hardcoded 5-stock fallback — is retired. Its replacement,
+    # `companies_in_focus`, is intelligence-driven (derived from active
+    # Development Memory entries' real company tags, not movers) and
+    # lives on opening_prediction_service.build_opening_prediction()'s
+    # response — see app/services/impact_zone_service.py.
 
     # Real market breadth derived from movers sample
     all_rows = movers.get("gainers", []) + movers.get("losers", []) + movers.get("active", [])
@@ -679,16 +602,6 @@ async def market_premarket():
             "unchanged": est_unchanged,
             "note":      "Estimated from Nifty 500 sample",
         },
-        "ai_prediction": {
-            "sentiment":        sent,
-            "bull_pct":         bull,
-            "neutral_pct":      neut,
-            "bear_pct":         bear,
-            "confidence":       conf,
-            "reasons":          reasons[:6],
-            "opening_strategy": strat,
-        },
-        "stocks_to_watch": watch,
         # Legacy backward-compat fields
         "futures":           [enhanced["gift_nifty"]] + enhanced["us_futures"],
         "extra_commodities": comms,
@@ -940,6 +853,25 @@ async def market_opening_prediction():
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "error": str(exc),
         }
+
+
+@router.get("/developments")
+async def market_developments(
+    sectors: str | None = Query(None, description="Comma-separated sector filter"),
+    limit: int = Query(8, le=20),
+):
+    """Structured, deduplicated "what's actively developing" feed — Part
+    A2 of the 2026-08 Pre-Market rebuild. Generic (not Pre-Market-only):
+    reuses app.services.development_memory.read.list_active_developments,
+    ranked by real importance (impact tier -> confidence -> evidence
+    count -> recency), not plain recency."""
+    from app.db.session import AsyncSessionLocal
+    from app.services.development_memory.read import list_active_developments
+
+    sector_list = [s.strip() for s in sectors.split(",")] if sectors else None
+    async with AsyncSessionLocal() as db:
+        items = await list_active_developments(db, sectors=sector_list, limit=limit)
+    return {"items": items}
 
 
 @router.get("/insights")
