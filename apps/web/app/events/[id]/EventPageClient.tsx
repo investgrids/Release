@@ -1410,8 +1410,14 @@ function RightPanel({
 // ── VerdictCard ───────────────────────────────────────────────────────────────
 function VerdictCard({ data }: { data: EventDetail }) {
   const score = data.impactScore;
-  const topBen = data.beneficiaries[0];
-  const topRisk = data.losers[0];
+  // .find(isRealSymbol), not [0] (2026-08 audit — GSC 404 report):
+  // beneficiaries/losers are AI-extracted and can rank a placeholder
+  // symbol ("N/A") as the #1 entry; confirmed live via
+  // /companies/N/A showing up as a crawled 404 sourced from exactly
+  // this unguarded [0] pick (the same array IS guarded elsewhere in
+  // this file, e.g. the CompaniesTab list below).
+  const topBen = data.beneficiaries.find(c => isRealSymbol(c.symbol));
+  const topRisk = data.losers.find(c => isRealSymbol(c.symbol));
 
   // Tier label derived from the real impact score (not fabricated text) —
   // deliberately doesn't restate why_it_matters, which now has its own
@@ -1492,8 +1498,9 @@ function VerdictCard({ data }: { data: EventDetail }) {
 // ── WhatNextSection ───────────────────────────────────────────────────────────
 function WhatNextSection({ data }: { data: EventDetail }) {
   const q         = (s: string) => encodeURIComponent(s);
-  const topBen    = data.beneficiaries[0];
-  const topRisk   = data.losers[0];
+  // .find(isRealSymbol), not [0] — see VerdictCard's identical fix above.
+  const topBen    = data.beneficiaries.find(c => isRealSymbol(c.symbol));
+  const topRisk   = data.losers.find(c => isRealSymbol(c.symbol));
   const topSec    = data.affectedSectors[0]?.sector;
   const title     = truncateForQuery(data.event.title);
   // Same leftover-set reasoning as CompaniesTab: a company can be identified
@@ -1501,7 +1508,7 @@ function WhatNextSection({ data }: { data: EventDetail }) {
   // record, the primary action should still name it instead of falling
   // through to a generic "ask AI" suggestion.
   const classifiedSymbols = new Set([...data.beneficiaries, ...data.losers].map(c => c.symbol));
-  const topNeutral = data.companies.find(c => !classifiedSymbols.has(c.symbol));
+  const topNeutral = data.companies.find(c => !classifiedSymbols.has(c.symbol) && isRealSymbol(c.symbol));
 
   return (
     <NextSteps config={{

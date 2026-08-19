@@ -99,8 +99,15 @@ export function truncateAtWord(text: string, max: number): string {
 // reads as a bug. Filter these out at render time instead of hiding the
 // whole company (the name/reason are usually still real and useful).
 const PLACEHOLDER_SYMBOLS = new Set(["not provided", "n/a", "na", "unknown", "tbd", "none", ""]);
+// A real NSE/BSE ticker is a single bare token — no comma, space, or slash.
+// Added 2026-08 (GSC 404 report: /companies/INFY, TCS, WIPRO) — a joined
+// multi-symbol display string reaching this same check wherever it's
+// already used as a Link href guard.
+const INVALID_SYMBOL_CHARS = /[,\s/]/;
 export function isRealSymbol(symbol?: string | null): boolean {
-  return !!symbol && !PLACEHOLDER_SYMBOLS.has(symbol.trim().toLowerCase());
+  if (!symbol) return false;
+  const trimmed = symbol.trim();
+  return !PLACEHOLDER_SYMBOLS.has(trimmed.toLowerCase()) && !INVALID_SYMBOL_CHARS.test(trimmed);
 }
 
 // Neutralizes the raw analyst-consensus recommendation string (real data
