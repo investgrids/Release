@@ -47,7 +47,7 @@ class SEBIProvider(BaseProvider):
             source="SEBI",
             url=raw.get("url", ""),
             published_at=raw.get("published_at", ""),
-            impact_score=8.5,
+            impact_score=None,  # see RawItem's docstring -- not a real per-event score
             event_type="regulatory",
             ministry="Securities and Exchange Board of India",
         )

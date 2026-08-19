@@ -14,7 +14,24 @@ from typing import Any
 
 
 class RawItem:
-    """Canonical normalised record returned by every provider."""
+    """Canonical normalised record returned by every provider.
+
+    impact_score defaults to None ("not scored yet"), not a numeric
+    placeholder. Confirmed live: several providers previously hardcoded a
+    static per-source/per-category constant here (NSE announcements=7.5,
+    BSE filings=6.5, RBI/Fed=9.0, etc.) that the real Event Impact Pipeline
+    (app.services.scoring_engine, run via event_pipeline.run_event_pipeline)
+    never consumes as an input — it computes impact purely from event_type/
+    source/companies/sectors/similar-historical-events, fresh each time.
+    Those hardcoded constants were never real per-event scores; they were a
+    seed value shown to users for however long an event sat unenriched
+    (which for corporate-filing volume can be a large fraction of all
+    events at once, given real provider-availability constraints on the
+    enrichment pipeline) — indistinguishable from a genuine AI-calculated
+    score in the UI. None is the honest value until real enrichment
+    completes, matching event_pipeline.py's own established rule for its
+    own output: "never a fabricated placeholder number."
+    """
     __slots__ = (
         "id", "headline", "summary", "source", "url",
         "published_at", "companies", "impact_score",
@@ -30,7 +47,7 @@ class RawItem:
         url: str = "",
         published_at: str = "",
         companies: list[str] | None = None,
-        impact_score: float = 7.0,
+        impact_score: float | None = None,
         event_type: str = "news",
         ministry: str = "",
         extra: dict | None = None,

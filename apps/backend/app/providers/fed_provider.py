@@ -69,11 +69,7 @@ class FedProvider(BaseProvider):
             source="Fed",
             url=raw.get("url", ""),
             published_at=raw.get("published_at", ""),
-            # Matches RBI's own domestic-monetary-decision weight — a Fed
-            # decision is comparably significant for Indian markets via
-            # the USD/INR transmission channel (see ripple_service.py's
-            # global_monetary template).
-            impact_score=9.0,
+            impact_score=None,  # see RawItem's docstring -- not a real per-event score
             event_type="policy",
             ministry="US Federal Reserve",
         )

@@ -105,6 +105,6 @@ class BSEProvider(BaseProvider):
             source="BSE",
             published_at=str(raw.get("NEWS_DT", ""))[:10],
             companies=[raw["scrip_cd"]] if raw.get("scrip_cd") else [],
-            impact_score=6.5,
+            impact_score=None,  # see RawItem's docstring -- not a real per-event score
             event_type="corporate",
         )

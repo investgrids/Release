@@ -47,9 +47,20 @@ class Event(Base):
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
 
-    # Scores
-    impact_score = Column(Float, nullable=True, default=0.0, index=True)
-    confidence = Column(Float, nullable=True, default=0.0)
+    # Scores. No column-level `default=0.0` -- confirmed live this is a real
+    # SQLAlchemy footgun, not just an unlikely edge case: passing
+    # impact_score=None explicitly to Event() (the correct, honest value
+    # for an unenriched event -- see providers/base.py's RawItem docstring)
+    # still silently inserted a real 0.0, because the ORM's Python-side
+    # `default=` applies at INSERT time whenever a scalar value is None,
+    # unable to distinguish "explicitly None" from "never set." A "0.0
+    # impact" reads as "AI analyzed this and found zero impact," which is a
+    # materially different (and false) claim from "not analyzed yet" --
+    # exactly the confusion event_pipeline.py's own comment already warns
+    # about ("never a fabricated placeholder number"). confidence has the
+    # identical pattern and risk, fixed for the same reason.
+    impact_score = Column(Float, nullable=True, index=True)
+    confidence = Column(Float, nullable=True)
 
     # AI output
     ai_summary = Column(JSON, nullable=True)

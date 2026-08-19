@@ -97,7 +97,16 @@ async def _persist_articles(db, items: list[RawItem]) -> list[str]:
             source=item.source,
             published_at=item.published_at or "—",
             companies=item.companies,
-            impact_score=item.impact_score,
+            # NewsArticle.impact_score is NOT NULL (legacy schema, separate
+            # from Event.impact_score's own fix -- see RawItem's docstring).
+            # This table's score was already established elsewhere
+            # (evidence_clustering/evidence.py) as a known fixed per-source
+            # heuristic, not a real per-article score, and is already
+            # labeled HEURISTIC (not treated as genuine) by its one real
+            # consumer -- so a neutral mid-range constant here preserves
+            # that existing, already-correct downstream handling rather
+            # than requiring a schema migration this fix doesn't need.
+            impact_score=item.impact_score if item.impact_score is not None else 5.0,
         ))
         new_ids.append(item.id)
     if new_ids:

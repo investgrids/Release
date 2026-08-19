@@ -16,6 +16,14 @@ from .base import BaseProvider, RawItem
 
 log = structlog.get_logger(__name__)
 
+# Third element is a per-feed source-credibility weight -- kept for now
+# (feature_extraction.extract_source_quality already computes a real,
+# independent per-source-name signal for the actual scoring engine, so this
+# number isn't needed there), but no longer used as an article's
+# impact_score (see RawItem's docstring and normalize() below): a per-feed
+# constant was never a per-article score, and exposing it as one made every
+# article from the same feed look independently AI-analyzed when none of
+# them were.
 _FEEDS: list[tuple[str, str, float]] = [
     ("https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms", "Economic Times", 8.0),
     ("https://www.moneycontrol.com/rss/latestnews.xml",                      "Moneycontrol",   7.5),
@@ -152,7 +160,7 @@ class RSSProvider(BaseProvider):
             url=raw.get("url", ""),
             published_at=raw.get("published_at", ""),
             companies=[],
-            impact_score=raw.get("impact_score", 6.5),
+            impact_score=None,  # see RawItem's docstring -- the per-feed weight isn't a real per-article score
             event_type="news",
         )
 

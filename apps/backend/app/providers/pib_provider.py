@@ -73,7 +73,7 @@ class PIBProvider(BaseProvider):
             source="PIB",
             url=raw.get("url", ""),
             published_at=raw.get("published_at", ""),
-            impact_score=8.0,
+            impact_score=None,  # see RawItem's docstring -- not a real per-event score
             event_type="policy",
             ministry=ministry,
         )

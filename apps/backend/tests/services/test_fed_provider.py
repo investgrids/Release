@@ -66,7 +66,14 @@ def test_malformed_xml_returns_empty_list_not_raises():
     assert _parse_xml(b"not valid xml <<<") == []
 
 
-def test_normalize_builds_real_impact_score_and_source():
+def test_normalize_builds_source_and_leaves_impact_score_unscored():
+    """impact_score must be None at ingestion -- not a hardcoded per-source
+    placeholder (was 9.0 before this fix). The real, differentiated score
+    comes from the Event Impact Pipeline once enrichment completes; see
+    app/providers/base.py's RawItem docstring for the full rationale.
+    Confirmed live: several providers previously reused this same fixed-
+    constant pattern, which meant every Fed item looked identically
+    "9.0-important" in the UI regardless of actual content."""
     provider = FedProvider()
     raw = {
         "id": "fed-abc123", "headline": "Federal Reserve issues FOMC statement",
@@ -77,7 +84,7 @@ def test_normalize_builds_real_impact_score_and_source():
     assert item is not None
     assert item.source == "Fed"
     assert item.event_type == "policy"
-    assert item.impact_score == 9.0
+    assert item.impact_score is None
     assert item.ministry == "US Federal Reserve"
 
 

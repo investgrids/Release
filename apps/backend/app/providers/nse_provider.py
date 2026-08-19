@@ -139,7 +139,10 @@ class NSEProvider(BaseProvider):
             source="NSE",
             published_at=(raw.get("sort_date") or "")[:10],
             companies=[raw["symbol"]] if raw.get("symbol") else [],
-            impact_score=7.5,
+            # None, not a hardcoded placeholder -- see RawItem's own
+            # docstring. The real per-event score comes from the Event
+            # Impact Pipeline once enrichment completes.
+            impact_score=None,
             event_type="corporate",
             # Carried through so company_announcements_service.py (Phase
             # 5E.2) doesn't need its own independent NSE fetch just to get
@@ -177,7 +180,7 @@ class NSEProvider(BaseProvider):
             source="NSE",
             published_at=published_at,
             companies=[symbol] if symbol else [],
-            impact_score=6.5,
+            impact_score=None,  # see RawItem's docstring -- not a real per-event score
             event_type="corporate",
         )
 
@@ -216,6 +219,6 @@ class NSEProvider(BaseProvider):
             source="NSE",
             published_at=published_at,
             companies=[symbol] if symbol else [],
-            impact_score=7.0,
+            impact_score=None,  # see RawItem's docstring -- not a real per-event score
             event_type="corporate",
         )

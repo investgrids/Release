@@ -450,7 +450,15 @@ function SectorRotationCard({ sectors }: { sectors: any[] }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Companies That Matter Today — real event-linked companies, /10 scale
+// Companies That Matter Today — real event-linked companies, ranked by
+// impact_score (canonical 0-100 scale, per lib/scoring.ts -- NOT /10; a
+// previous version of this comment was wrong and the render code below
+// divided by 10 to match it, producing meaningless values like "0.8" for a
+// real score of 8). compareScoresDesc already sorts unscored (null) events
+// last, so once the backend stops seeding a placeholder impact_score at
+// ingestion (see app/providers/base.py's RawItem docstring), this card
+// naturally ranks by real, differentiated Event Impact Pipeline scores
+// instead of an arbitrary same-value placeholder shared by many events.
 // ─────────────────────────────────────────────────────────────────────────────
 function CompaniesThatMatterCard({ events, loading }: { events: any[]; loading: boolean }) {
   const sorted = [...events].sort((a, b) => compareScoresDesc(a.impact_score, b.impact_score));
@@ -486,7 +494,12 @@ function CompaniesThatMatterCard({ events, loading }: { events: any[]; loading: 
                   <p className="truncate text-[11px] font-bold text-text-primary group-hover:text-violet-700 dark:text-violet-200 transition">{r.name} <span className="text-text-muted">({r.ticker})</span></p>
                   <p className="line-clamp-2 text-[9px] leading-snug text-text-muted">{r.reason}</p>
                 </div>
-                <span className={`shrink-0 self-start text-[13px] font-black tabular-nums ${style.text}`}>{r.score != null ? (r.score / 10).toFixed(1) : "—"}</span>
+                <span
+                  className={`shrink-0 self-start text-[10px] font-black uppercase tracking-wide ${style.text}`}
+                  title={r.score != null ? `Impact ${r.score.toFixed(0)}/100` : "Not yet scored"}
+                >
+                  {style.label}
+                </span>
               </Link>
             );
           })}
