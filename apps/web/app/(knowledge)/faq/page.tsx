@@ -18,7 +18,6 @@ import { safeJsonLd } from "@/lib/text";
 // are turned into real <Link>s at render time only, via linkifyAnswer();
 // the underlying text driving both the UI and the JSON-LD is untouched.
 const PAGE_LINKS: Record<string, string> = {
-  "What's New page": "/whats-new",
   "AI & Methodology page": "/ai-methodology",
   "Legal page": "/legal",
   "Contact page": "/contact",
@@ -66,7 +65,7 @@ const SECTIONS = [
       },
       {
         q: "Is MarketRipple free to use?",
-        a: "Yes — the current version of MarketRipple is completely free to use. All core features including the Events Engine, AI Search, Market Intelligence dashboard, Opportunity Radar, Stories, Sector Heatmap, Economic Calendar, Ripple Engine, Company Intelligence pages, and the Portfolio Intelligence Brief are available at no cost. Premium plans are planned for a future release and will include custom alert builders, deeper AI research reports, and API access for professional users. The What's New page has the latest roadmap information.",
+        a: "Yes — the current version of MarketRipple is completely free to use. All core features including the Events Engine, AI Search, Market Intelligence dashboard, Opportunity Radar, Stories, Sector Heatmap, Economic Calendar, Ripple Engine, Company Intelligence pages, and the Portfolio Intelligence Brief are available at no cost. Premium plans are planned for a future release and will include custom alert builders, deeper AI research reports, and API access for professional users.",
       },
       {
         q: "Does MarketRipple require login or account creation?",
@@ -190,7 +189,7 @@ const SECTIONS = [
       },
       {
         q: "Will MarketRipple have mobile apps?",
-        a: "MarketRipple's web platform is already fully mobile-optimised and responsive, providing a near-native experience on iOS and Android browsers. All features — including the interactive Ripple graph, Opportunity Radar, AI Search, and Stories — work on mobile devices. Dedicated native apps for iOS and Android are on the development roadmap. When available, native apps will offer push notifications for breaking news alerts, offline access to saved intelligence, and biometric authentication. Check the What's New page for the latest status on mobile app development.",
+        a: "MarketRipple's web platform is already fully mobile-optimised and responsive, providing a near-native experience on iOS and Android browsers. All features — including the interactive Ripple graph, Opportunity Radar, AI Search, and Stories — work on mobile devices. Dedicated native apps for iOS and Android are on the development roadmap. When available, native apps will offer push notifications for breaking news alerts, offline access to saved intelligence, and biometric authentication.",
       },
       {
         id: "bug",

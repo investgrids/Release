@@ -39,6 +39,7 @@ import {
   LineChart,
   Microscope,
   HelpCircle,
+  Wallet,
 } from "lucide-react";
 import { safeJsonLd } from "@/lib/text";
 
@@ -224,6 +225,31 @@ const FEATURES = [
     icon: Brain,
     title: "AI Transparency System",
     description: "Every AI output shows its reasoning, evidence sources, confidence score, and limitations — so you always know how MarketRipple arrived at its analysis.",
+    href: "/ai-methodology",
+  },
+];
+
+// Section 6.5 — Recent Updates (2026-08 audit: replaces the standalone
+// /whats-new versioned release history, which nobody was keeping current).
+// Real, verified content only — the same three items previously documented
+// as v1.5's real feature/improvement set, not new or invented copy.
+const RECENT_UPDATES = [
+  {
+    icon: Wallet,
+    title: "Portfolio Intelligence Brief",
+    description: "Relaunched from Portfolio Confidence into a fuller daily briefing. Paste your holdings — no login, no broker connection, nothing stored — and get a brief covering the real events and news touching each position, market-impact price signals, and themes shared across your holdings.",
+    href: "/tools/portfolio-confidence",
+  },
+  {
+    icon: Newspaper,
+    title: "Redesigned AI Newsroom",
+    description: "A new AI Investment Verdict surfaces the takeaway up front, the Evidence section is now clearly split into Fact vs AI Interpretation, and related companies, sectors, and events are linked more usefully throughout each article.",
+    href: "/newsroom",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Fact-Grounding Validators",
+    description: "Real per-company price-move data now grounds AI-generated company impact analysis in the AI article pipeline, with automated checks catching inconsistencies before publish.",
     href: "/ai-methodology",
   },
 ];
@@ -589,6 +615,35 @@ export default function AboutPage() {
               </h3>
               <p className="mt-1.5 text-sm leading-5 text-text-muted">{f.description}</p>
             </article>
+          ))}
+        </div>
+      </section>
+
+      {/* ── 6.5 Recent Updates ── */}
+      <section id="recent-updates" className="scroll-mt-24">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">
+          Recently Shipped
+        </p>
+        <h2 className="mt-3 text-[24px] font-black text-text-primary md:text-[30px]">
+          Recent Updates
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
+          The latest real changes to MarketRipple — not a marketing promise, the actual
+          feature and quality work that shipped most recently.
+        </p>
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          {RECENT_UPDATES.map((u) => (
+            <Link
+              key={u.title}
+              href={u.href}
+              className="rounded-xl border border-surface-border/8 bg-surface-card p-5 transition hover:border-surface-border/15 hover:bg-text-primary/[0.02]"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-text-primary/[0.04] border border-surface-border/6">
+                <u.icon className="h-4 w-4 text-violet-400" aria-hidden="true" />
+              </div>
+              <h3 className="mt-3 text-sm font-bold text-text-primary">{u.title}</h3>
+              <p className="mt-1.5 text-sm leading-5 text-text-muted">{u.description}</p>
+            </Link>
           ))}
         </div>
       </section>

@@ -85,6 +85,13 @@ const nextConfig: NextConfig = {
       { source: "/newsroom/article/advanced-enzyme-technologies-acquisition-meaning-for-advanzen-investors-nse-31cb", destination: "/newsroom/article/advanzens-acquisition-meaning-for-investors-nse-31cb", permanent: true },
       { source: "/newsroom/article/jsw-energy-acquisition-impact-nse-62db",                                          destination: "/newsroom/article/jsw-energy-clean-coal-acquisition-impact-on-investors-nse-62db", permanent: true },
       { source: "/newsroom/article/paytm-block-deal-shares-jump-investors-rss-e261",                                 destination: "/newsroom/article/paytm-block-deal-impact-investors-rss-e261", permanent: true },
+
+      // /whats-new retired (2026-08 audit) — a maintained versioned release
+      // history isn't something this team is keeping current going forward;
+      // the real, still-accurate "what's recently shipped" content moved to
+      // About's own Recent Updates section instead of staying stranded on a
+      // standalone page nobody was updating.
+      { source: "/whats-new",          destination: "/about#recent-updates",    permanent: true },
     ];
   },
   async headers() {

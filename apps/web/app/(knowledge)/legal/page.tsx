@@ -234,10 +234,10 @@ export default function LegalPage() {
               Any material changes to this Privacy Policy will be announced via
               the{" "}
               <Link
-                href="/whats-new"
+                href="/about#recent-updates"
                 className="text-sky-400 underline-offset-2 hover:underline"
               >
-                What&apos;s New
+                About
               </Link>{" "}
               page with at least 14 days&apos; notice before taking effect. The
               updated policy will carry a revised &quot;Last Updated&quot; date at the top
@@ -596,10 +596,10 @@ export default function LegalPage() {
                 save preferences. Any such changes will be communicated clearly
                 via the{" "}
                 <Link
-                  href="/whats-new"
+                  href="/about#recent-updates"
                   className="text-emerald-400 underline-offset-2 hover:underline"
                 >
-                  What&apos;s New
+                  About
                 </Link>{" "}
                 page, and users will be given the ability to review and accept
                 updated cookie preferences before they take effect.

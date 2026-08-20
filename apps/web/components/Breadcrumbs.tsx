@@ -113,7 +113,6 @@ const SEGMENT_LABEL: Record<string, string> = {
   articles: "Articles",
   research: "Research",
   article: "Article",
-  "whats-new": "Release Notes",
 };
 
 function humanize(segment: string): string {

@@ -340,10 +340,10 @@ export default function ContactPage() {
                 themes — powered by MarketRipple intelligence. Details will be
                 announced via the{" "}
                 <Link
-                  href="/whats-new"
+                  href="/about#recent-updates"
                   className="font-medium text-sky-400 underline-offset-2 hover:underline"
                 >
-                  What&apos;s New
+                  About
                 </Link>{" "}
                 page when they launch.
               </p>
