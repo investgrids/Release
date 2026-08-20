@@ -46,6 +46,18 @@ def _market_session(at: datetime | None = None) -> str:
     return "post_market"
 
 
+def _prior_trading_day(d):
+    """Most recent trading day strictly before `d` — weekends collapse back
+    to the preceding Friday. Used to bound compute_freshness's pre-market
+    carve-out to genuine same-cycle staleness (yesterday's close, or
+    Friday's close on a weekend/Monday-pre-market), not an unbounded
+    "any prior date at all" — see compute_freshness for the bug this fixes."""
+    prior = d - timedelta(days=1)
+    while prior.weekday() >= 5:  # Sat=5, Sun=6
+        prior -= timedelta(days=1)
+    return prior
+
+
 def _cache_ttl() -> int:
     """Short TTL during live session, longer otherwise."""
     s = _market_session()
@@ -144,9 +156,18 @@ def compute_freshness(generated_at_iso: str | None) -> dict:
     # Today's own market-hours window (9:15 AM IST) hasn't started yet, or
     # today is a weekend/holiday — no fresher story could exist regardless,
     # so the last real one is still the legitimately-latest-available read,
-    # not a degraded state.
+    # not a degraded state. BUT only when that last story is actually from
+    # the immediately preceding trading day — otherwise this carve-out has
+    # no bound on story age at all: a Tuesday story reads as "fresh" on
+    # Thursday pre-market purely because it's currently pre-market, with a
+    # full skipped Wednesday session never flagged (confirmed live,
+    # 2026-08-20 — StoryEngineWorker stalled on Tuesday's story and this
+    # exact gap let it report is_stale=false two days later).
     today_session = _market_session(now_ist)
-    window_not_yet_due = today_session in ("pre_market", "weekend")
+    window_not_yet_due = (
+        today_session in ("pre_market", "weekend")
+        and dt_ist.date() >= _prior_trading_day(now_ist.date())
+    )
     if window_not_yet_due:
         return {
             "state": "fresh", "is_stale": False, "story_date": story_date,

@@ -136,3 +136,59 @@ def test_story_session_reflects_when_the_story_itself_was_generated(monkeypatch)
     _freeze(monkeypatch, now)
     result = compute_freshness(_iso(story_time))
     assert result["story_session"] == "live"
+
+
+def test_stale_tuesday_story_on_thursday_pre_market(monkeypatch):
+    """The exact live bug (2026-08-20): the pre-market carve-out had no
+    bound on story age at all -- a story from two days ago read as "fresh"
+    purely because right now happens to be pre-market, with a full skipped
+    Wednesday session never flagged. Confirmed live: StoryEngineWorker
+    stalled on Tuesday's story and /api/mie/state reported is_stale=false,
+    freshness_label="Tuesday close" on Thursday morning."""
+    now = datetime(2026, 8, 20, 8, 0, tzinfo=_IST)  # Thursday, before 9:15 AM open
+    story_time = datetime(2026, 8, 18, 15, 0, tzinfo=_IST)  # Tuesday close
+    _freeze(monkeypatch, now)
+    result = compute_freshness(_iso(story_time))
+    assert result["state"] == "stale"
+    assert result["is_stale"] is True
+    assert result["story_date"] == "2026-08-18"
+    assert result["freshness_label"] == "Tuesday close · Update delayed"
+
+
+def test_fresh_wednesday_story_on_thursday_pre_market(monkeypatch):
+    """Must not regress: yesterday's close, read before today's own market
+    open, is still the legitimately-latest read -- the carve-out's actual
+    intended case."""
+    now = datetime(2026, 8, 20, 8, 0, tzinfo=_IST)  # Thursday, before open
+    story_time = datetime(2026, 8, 19, 15, 0, tzinfo=_IST)  # Wednesday close
+    _freeze(monkeypatch, now)
+    result = compute_freshness(_iso(story_time))
+    assert result["state"] == "fresh"
+    assert result["is_stale"] is False
+    assert result["story_date"] == "2026-08-19"
+    assert result["freshness_label"] == "Wednesday close"
+
+
+def test_fresh_friday_story_on_monday_pre_market(monkeypatch):
+    """Weekend-adjacent boundary: Friday's close is still the correct prior
+    trading day on Monday morning before open, not stale."""
+    now = datetime(2026, 8, 17, 8, 0, tzinfo=_IST)  # Monday, before open
+    story_time = datetime(2026, 8, 14, 15, 0, tzinfo=_IST)  # Friday close
+    _freeze(monkeypatch, now)
+    result = compute_freshness(_iso(story_time))
+    assert result["state"] == "fresh"
+    assert result["is_stale"] is False
+    assert result["freshness_label"] == "Friday close"
+
+
+def test_stale_thursday_story_on_next_monday_pre_market(monkeypatch):
+    """A story from the Thursday before last is well past even the
+    weekend-adjusted prior trading day (Friday) by the following Monday
+    pre-market -- must be stale, not silently carried forward indefinitely."""
+    now = datetime(2026, 8, 17, 8, 0, tzinfo=_IST)  # Monday, before open
+    story_time = datetime(2026, 8, 13, 15, 0, tzinfo=_IST)  # prior Thursday
+    _freeze(monkeypatch, now)
+    result = compute_freshness(_iso(story_time))
+    assert result["state"] == "stale"
+    assert result["is_stale"] is True
+    assert result["freshness_label"] == "Thursday close · Update delayed"
