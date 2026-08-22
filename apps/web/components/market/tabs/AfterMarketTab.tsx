@@ -7,6 +7,7 @@ import { impactToStyle } from "@/lib/scoring";
 import { API_BASE_URL as API } from "@/lib/api";
 import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
 import { isRealCompanySymbol } from "@/lib/text";
+import { nextTradingDayLabel } from "@/components/weekend/weekendLabels";
 
 
 function StatCard({ label, value, positive, sub }: { label: string; value: string; positive?: boolean; sub?: string }) {
@@ -53,6 +54,13 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
   const [recentEvents, setEvents]   = useState<any[]>([]);
   const [openingPred, setOpeningPred] = useState<any>(null);
   const [predLoading, setPredLoading] = useState(true);
+  // "Tomorrow" only reads correctly Monday-Thursday — Friday's/the
+  // weekend's real next trading day is Monday (see nextTradingDayLabel's
+  // own docstring). Computed client-side in an effect, like useCountdown
+  // above, so the label is never baked into SSR HTML from the server's
+  // own clock.
+  const [dayLabel, setDayLabel] = useState<"Monday" | "Tomorrow">("Tomorrow");
+  useEffect(() => { setDayLabel(nextTradingDayLabel()); }, []);
 
   useEffect(() => {
     if (derived) { setLoading(false); return; }
@@ -198,7 +206,7 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
       {/* Tomorrow's Watchlist — real event-linked companies */}
       <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-[13px] font-bold text-text-primary">Tomorrow's Watchlist</h3>
+          <h3 className="text-[13px] font-bold text-text-primary">{dayLabel}'s Watchlist</h3>
           <Link href="/companies" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
         </div>
         {watchlist.length === 0 ? (
@@ -230,11 +238,11 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
         )}
       </div>
 
-      {/* Tomorrow Opening Prediction — real 5-layer signal service */}
+      {/* Tomorrow/Monday Opening Prediction — real 5-layer signal service */}
       <div className="rounded-2xl border border-sky-500/10 bg-surface-card p-5">
         <div className="mb-3 flex items-center gap-2">
           <Telescope className="h-4 w-4 text-text-secondary" />
-          <h3 className="text-[13px] font-bold text-text-primary">Tomorrow Opening Prediction</h3>
+          <h3 className="text-[13px] font-bold text-text-primary">{dayLabel} Opening Prediction</h3>
         </div>
         {predLoading ? (
           <div className="space-y-2">{[1, 2].map(i => <div key={i} className="h-6 animate-pulse rounded bg-text-primary/[0.03]" />)}</div>

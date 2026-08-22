@@ -68,6 +68,23 @@ export function severityStyle(severity: string): { label: string; textClass: str
   return SEVERITY[severity as RiskSeverity] ?? SEVERITY.medium;
 }
 
+/**
+ * "Tomorrow" is only ever the real next trading day Monday-Thursday —
+ * Friday's "tomorrow" is Saturday (not a trading day), and the weekend's
+ * "tomorrow" is Sunday/Monday itself, so both need the same explicit
+ * "Monday" framing rather than the generic word. IST-based (market days
+ * are IST, not the viewer's local timezone) — same explicit
+ * `timeZone: "Asia/Kolkata"` conversion already used by PreMarketTab's
+ * useCountdown for the identical Fri/Sat/Sun check, centralized here so
+ * every "tomorrow"-framed label (After Market's Watchlist and Opening
+ * Prediction, and any future one) reads off the same rule.
+ */
+export function nextTradingDayLabel(now: Date = new Date()): "Monday" | "Tomorrow" {
+  const ist = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const dow = ist.getDay(); // 0=Sun, 5=Fri, 6=Sat
+  return dow === 5 || dow === 6 || dow === 0 ? "Monday" : "Tomorrow";
+}
+
 /** "2026-08-17" -> "Monday" — parsed as plain date components (no Date()
  * timezone ambiguity from a bare YYYY-MM-DD string) since this is only
  * used for display, never for date arithmetic. */

@@ -8,6 +8,7 @@ import {
   dedupeMarketRisks,
   evidenceQualityFor,
   formatDateShort,
+  nextTradingDayLabel,
   sectorDirectionStyle,
   severityStyle,
   simplifyConfidenceWarnings,
@@ -96,6 +97,23 @@ describe("severityStyle", () => {
     expect(severityStyle("high").label).toBe("High");
     expect(severityStyle("medium").label).toBe("Medium");
     expect(severityStyle("low").label).toBe("Low");
+  });
+});
+
+describe("nextTradingDayLabel", () => {
+  // IST noon (UTC+5:30, no DST) for each real weekday in the same week
+  // Aug 17-23 2026 (Mon-Sun) already used elsewhere in this suite.
+  it("reads Monday-Thursday as Tomorrow", () => {
+    expect(nextTradingDayLabel(new Date("2026-08-17T06:30:00Z"))).toBe("Tomorrow"); // Mon
+    expect(nextTradingDayLabel(new Date("2026-08-18T06:30:00Z"))).toBe("Tomorrow"); // Tue
+    expect(nextTradingDayLabel(new Date("2026-08-19T06:30:00Z"))).toBe("Tomorrow"); // Wed
+    expect(nextTradingDayLabel(new Date("2026-08-20T06:30:00Z"))).toBe("Tomorrow"); // Thu
+  });
+
+  it("reads Friday and the weekend as Monday", () => {
+    expect(nextTradingDayLabel(new Date("2026-08-21T06:30:00Z"))).toBe("Monday"); // Fri
+    expect(nextTradingDayLabel(new Date("2026-08-22T06:30:00Z"))).toBe("Monday"); // Sat
+    expect(nextTradingDayLabel(new Date("2026-08-23T06:30:00Z"))).toBe("Monday"); // Sun
   });
 });
 
