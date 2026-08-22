@@ -1,5 +1,5 @@
 import { API_BASE_URL as API } from "@/lib/api";
-import type { WeekendIntelligenceResponse } from "@/types/weekendIntelligence";
+import type { WeekendHistoryResponse, WeekendIntelligenceResponse } from "@/types/weekendIntelligence";
 
 /**
  * Fetches GET /api/intelligence/weekend/current — the ONLY Weekend
@@ -28,6 +28,34 @@ export async function fetchWeekendIntelligence(
     clearTimeout(t);
     if (!r.ok) return null;
     return (await r.json()) as WeekendIntelligenceResponse;
+  } catch {
+    clearTimeout(t);
+    return null;
+  }
+}
+
+/**
+ * Fetches GET /api/intelligence/weekend/history — version metadata only
+ * (newest first, real production_confidence per checkpoint), used solely
+ * to show a real "vs previous checkpoint" confidence delta on the
+ * homepage's Confidence card. Same resilience contract as
+ * fetchWeekendIntelligence above: null on any failure, never throws —
+ * the delta is additive context, its absence must never break the page.
+ */
+export async function fetchWeekendHistory(
+  targetTradingDate: string,
+  ms = 5000,
+): Promise<WeekendHistoryResponse | null> {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), ms);
+  try {
+    const r = await fetch(`${API}/api/intelligence/weekend/history?target_trading_date=${encodeURIComponent(targetTradingDate)}`, {
+      cache: "no-store",
+      signal: ac.signal,
+    });
+    clearTimeout(t);
+    if (!r.ok) return null;
+    return (await r.json()) as WeekendHistoryResponse;
   } catch {
     clearTimeout(t);
     return null;

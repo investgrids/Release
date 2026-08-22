@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { WeekendConfidenceComponents } from "@/types/weekendIntelligence";
+import type { EvidenceQuality } from "./weekendLabels";
 
 /**
  * Confidence disclosure — brief §10: show the percentage plainly (already
@@ -24,7 +25,22 @@ function reasonsFor(components: WeekendConfidenceComponents): string[] {
   return reasons;
 }
 
-export function WeekendConfidence({ components }: { components: WeekendConfidenceComponents | null }) {
+/**
+ * evidenceQuality/sourceTypeCount/companyCount/sectorCount (2026-08-22,
+ * owner correction): folded in from the two cards this replaced ("Since
+ * Close" and "Evidence Quality") — real provenance/methodology detail
+ * that's more useful here, next to the confidence explanation it
+ * supports, than spent as two of the homepage's four scarce above-the-
+ * fold card slots. Every value here already existed elsewhere on the
+ * page; nothing new is computed.
+ */
+export function WeekendConfidence({ components, evidenceQuality, sourceTypeCount, companyCount, sectorCount }: {
+  components: WeekendConfidenceComponents | null;
+  evidenceQuality?: EvidenceQuality;
+  sourceTypeCount?: number;
+  companyCount?: number;
+  sectorCount?: number;
+}) {
   const [open, setOpen] = useState(false);
   if (!components) return null;
 
@@ -58,6 +74,18 @@ export function WeekendConfidence({ components }: { components: WeekendConfidenc
             <p className="text-[11px] leading-relaxed text-text-muted">
               This outlook is supported by strong, diverse, and internally consistent evidence.
             </p>
+          )}
+          {evidenceQuality && (
+            <div className="mt-2.5 border-t border-surface-border/10 pt-2.5">
+              <p className="text-[11px] font-bold text-text-secondary">
+                Evidence quality: <span className="font-black">{evidenceQuality.label}</span>
+              </p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-text-muted">
+                {evidenceQuality.description.charAt(0).toUpperCase() + evidenceQuality.description.slice(1)}
+                {sourceTypeCount != null && companyCount != null && sectorCount != null &&
+                  ` · ${companyCount} compan${companyCount === 1 ? "y" : "ies"} · ${sectorCount} sector${sectorCount === 1 ? "" : "s"}`}
+              </p>
+            </div>
           )}
         </div>
       )}

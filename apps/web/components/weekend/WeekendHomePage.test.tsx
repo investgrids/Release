@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { WeekendIntelligenceSnapshotDTO } from "@/types/weekendIntelligence";
 import { WeekendHomePage } from "./WeekendHomePage";
@@ -245,7 +245,11 @@ describe("WeekendHomePage — brief §41 list caps", () => {
     }));
     mockFetchOnce(baseSnapshot({ market_risks: risks }));
     render(await WeekendHomePage());
-    for (let i = 0; i < 4; i++) expect(screen.getByText(`Risk number ${i}`)).toBeInTheDocument();
+    // The highest-ranked risk (Risk number 0, all equal severity here so
+    // dedup's stable sort keeps the original first) now also appears in
+    // the primary "Biggest Risk" metric card, so it matches twice —
+    // getAllByText, not the single-match getByText, is correct here.
+    for (let i = 0; i < 4; i++) expect(screen.getAllByText(`Risk number ${i}`).length).toBeGreaterThan(0);
     expect(screen.queryByText("Risk number 4")).not.toBeInTheDocument();
   });
 
@@ -261,7 +265,9 @@ describe("WeekendHomePage — brief §41 list caps", () => {
       ],
     }));
     render(await WeekendHomePage());
-    expect(screen.getByText(/^finance:/)).toBeInTheDocument();
+    // Also now surfaced in the primary "Biggest Risk" metric card, so
+    // this real, deduped risk legitimately appears twice on the page.
+    expect(screen.getAllByText(/^finance:/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/^BAJFINANCE:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^LICHSGFIN:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^HDFCBANK:/)).not.toBeInTheDocument();
@@ -371,6 +377,10 @@ describe("WeekendHomePage — redesign (2026-08-15): metadata strip, evidence qu
       evidence_summary: { total: 600, by_source_type: { event: 200, news: 200, company_signal: 200 } },
     }));
     render(await WeekendHomePage());
+    // Evidence quality moved inside the "How confident is this?"
+    // disclosure (2026-08-22 owner correction) — collapsed by default,
+    // so open it before asserting on its content.
+    fireEvent.click(screen.getByText("How confident is this?"));
     expect(screen.getByText("Good")).toBeInTheDocument();
     expect(screen.getByText(/3 source types, no confidence caveats/i)).toBeInTheDocument();
   });
@@ -384,6 +394,7 @@ describe("WeekendHomePage — redesign (2026-08-15): metadata strip, evidence qu
       evidence_summary: { total: 600, by_source_type: { event: 600 } },
     }));
     render(await WeekendHomePage());
+    fireEvent.click(screen.getByText("How confident is this?"));
     expect(screen.getByText("Fair")).toBeInTheDocument();
     expect(screen.getByText(/1 confidence caveat/i)).toBeInTheDocument();
   });

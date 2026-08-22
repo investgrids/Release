@@ -6,7 +6,7 @@
  * brief §26 (never communicate direction by color alone: every mapping
  * below pairs a color with a real symbol/word).
  */
-import type { CompanyState, RiskSeverity, SectorDirection, WeekendBias, WeekendRisk } from "@/types/weekendIntelligence";
+import type { CompanyState, RiskSeverity, SectorDirection, WeekendBias, WeekendRisk, WeekendSectorRef } from "@/types/weekendIntelligence";
 
 export interface DirectionStyle {
   label: string;
@@ -24,6 +24,33 @@ const SECTOR_DIRECTION: Record<SectorDirection, DirectionStyle> = {
 
 export function sectorDirectionStyle(direction: string): DirectionStyle {
   return SECTOR_DIRECTION[direction as SectorDirection] ?? SECTOR_DIRECTION.neutral;
+}
+
+export interface SectorBreakdown {
+  counts: { positive: number; negative: number; neutral: number; mixed: number };
+  /** Highest-score positive-direction sector names, real backend `score`
+   * ranking only — empty when none are positive (never invented). */
+  leading: string[];
+  /** Lowest-score negative-direction sector names — empty when none are
+   * negative, which is the common/good case, not an error to paper over. */
+  lagging: string[];
+}
+
+/**
+ * Pure derivation over the real top_sectors array (no new backend field,
+ * no free-text reason — WeekendSectorRef has none, see WeekendSectors.tsx's
+ * own docstring) — used by the homepage's Overall Outlook card to answer
+ * "which sectors, specifically" without fabricating a reason string.
+ */
+export function sectorBreakdown(sectors: WeekendSectorRef[]): SectorBreakdown {
+  const counts = { positive: 0, negative: 0, neutral: 0, mixed: 0 };
+  for (const s of sectors) counts[s.direction] += 1;
+
+  const byScoreDesc = [...sectors].sort((a, b) => b.score - a.score);
+  const leading = byScoreDesc.filter((s) => s.direction === "positive").slice(0, 2).map((s) => s.sector);
+  const lagging = [...byScoreDesc].reverse().filter((s) => s.direction === "negative").slice(0, 2).map((s) => s.sector);
+
+  return { counts, leading, lagging };
 }
 
 const COMPANY_STATE: Record<CompanyState, DirectionStyle> = {

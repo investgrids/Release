@@ -1,23 +1,20 @@
-import { BadgeCheck, CalendarClock, Compass, Gauge, Newspaper } from "lucide-react";
+import { AlertTriangle, CalendarClock, Compass, Gauge, Rocket } from "lucide-react";
 import type { WeekendIntelligenceSnapshotDTO } from "@/types/weekendIntelligence";
 import {
   biasLabel,
   biasStyle,
   confidenceTierLabel,
+  dedupeMarketRisks,
   evidenceQualityFor,
   formatDateFromISO,
   formatDateShort,
   formatTimeIST,
+  sectorBreakdown,
+  severityStyle,
   weekdayNameFromISODate,
 } from "./weekendLabels";
 import { WeekendConfidence } from "./WeekendConfidence";
 import { WeekendMetricCard } from "./WeekendMetricCard";
-
-const QUALITY_TONE_CLASS: Record<string, string> = {
-  positive: "text-emerald-500",
-  neutral: "text-amber-500",
-  muted: "text-text-muted",
-};
 
 /**
  * Row 1 — hero + 4 primary metric cards (redesign brief §4/§5/§6). Hero
@@ -28,14 +25,52 @@ const QUALITY_TONE_CLASS: Record<string, string> = {
  * compact status indicator (now in WeekendMetadataStrip) plus the real
  * confidence_warnings text surfaced in its own card, not a duplicate
  * banner here.
+ *
+ * 2026-08-22 owner correction — the original 4 cards (Overall Outlook /
+ * Confidence / Since Close / Evidence Quality) spent two of the four
+ * scarce above-the-fold slots on methodology metadata rather than
+ * decision-useful content. Card shell, grid, position, and dimensions
+ * are UNCHANGED; only cards 3 and 4's CONTENT changed, to "Biggest
+ * Opportunity" and "Biggest Risk" — the two questions an investor
+ * actually asks after "what's the outlook" and "how sure are you."
+ * "Since Close" (raw signal count) and "Evidence Quality" are not
+ * deleted — both are real, useful provenance detail — they moved into
+ * the existing "How confident is this?" disclosure on card 2 (see
+ * WeekendConfidence.tsx), where they support the confidence number
+ * instead of competing with it for a whole card. Cards 1 and 2 also
+ * gained one real derived line each (sector breakdown; confidence delta
+ * vs the previous checkpoint) — every addition reads an existing real
+ * field, nothing here is estimated or invented, and every "biggest"
+ * pick degrades honestly to a plain "none" statement when the real data
+ * has nothing to show (never a fabricated pick to fill the slot).
  */
-export function WeekendPrimaryMetrics({ snapshot }: { snapshot: WeekendIntelligenceSnapshotDTO }) {
+export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCheckpointLabel }: {
+  snapshot: WeekendIntelligenceSnapshotDTO;
+  previousConfidence?: number | null;
+  previousCheckpointLabel?: string | null;
+}) {
   const nextSession = weekdayNameFromISODate(snapshot.target_trading_date);
   const bias = biasStyle(snapshot.overall_bias);
   const quality = evidenceQualityFor(snapshot);
   const closeTime = snapshot.last_trading_date ? `${formatDateShort(snapshot.last_trading_date)}, 3:30 PM IST` : null;
   const generatedTime = formatTimeIST(snapshot.generated_at);
   const generatedDate = formatDateFromISO(snapshot.generated_at);
+
+  const breakdown = sectorBreakdown(snapshot.top_sectors);
+  const sectorCountLine = (["positive", "neutral", "negative", "mixed"] as const)
+    .filter((k) => breakdown.counts[k] > 0)
+    .map((k) => `${breakdown.counts[k]} ${k}`)
+    .join(" · ");
+
+  const confidenceDelta = previousConfidence != null ? Math.round(snapshot.production_confidence - previousConfidence) : null;
+
+  const topOpportunity = snapshot.opportunities.length > 0
+    ? [...snapshot.opportunities].sort((a, b) => b.opportunity_score - a.opportunity_score)[0]
+    : null;
+
+  const topRisk = dedupeMarketRisks(snapshot.market_risks)[0] ?? null;
+  const topRiskStyle = topRisk ? severityStyle(topRisk.severity) : null;
+  const topRiskEntities = topRisk ? [...topRisk.related_sectors, ...topRisk.related_companies].slice(0, 3).join(" · ") : "";
 
   return (
     <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(330px,1.35fr)_repeat(4,minmax(190px,0.85fr))] lg:items-stretch">
@@ -80,7 +115,19 @@ export function WeekendPrimaryMetrics({ snapshot }: { snapshot: WeekendIntellige
         label="Overall Outlook"
         value={<>{biasLabel(snapshot.overall_bias).toUpperCase()} <span aria-hidden="true">{bias.symbol}</span></>}
         valueClassName={bias.textClass}
-        caption="Aggregated direction across every sector and company signal this weekend."
+        caption={
+          <>
+            <p>Aggregated direction across every sector and company signal this weekend.</p>
+            {(breakdown.leading.length > 0 || breakdown.lagging.length > 0) && (
+              <p className="mt-1.5 text-[12px] text-text-secondary">
+                {breakdown.leading.length > 0 && <>Leading: <span className="font-bold text-text-primary">{breakdown.leading.join(", ")}</span></>}
+                {breakdown.leading.length > 0 && breakdown.lagging.length > 0 && " · "}
+                {breakdown.lagging.length > 0 && <>Lagging: <span className="font-bold text-text-primary">{breakdown.lagging.join(", ")}</span></>}
+              </p>
+            )}
+            {sectorCountLine && <p className="mt-1 text-[11px] text-text-muted">{sectorCountLine} sector{breakdown.counts.positive + breakdown.counts.neutral + breakdown.counts.negative + breakdown.counts.mixed === 1 ? "" : "s"}</p>}
+          </>
+        }
       />
 
       <WeekendMetricCard
@@ -94,6 +141,12 @@ export function WeekendPrimaryMetrics({ snapshot }: { snapshot: WeekendIntellige
                 a second computed metric. */}
             <p className={`text-[12px] font-bold ${snapshot.production_confidence >= 60 ? "text-emerald-500" : snapshot.production_confidence >= 40 ? "text-amber-500" : "text-rose-500"}`}>
               {confidenceTierLabel(snapshot.production_confidence)}
+              {confidenceDelta != null && confidenceDelta !== 0 && (
+                <span className="ml-1.5 font-semibold text-text-muted">
+                  {confidenceDelta > 0 ? "↑" : "↓"} {Math.abs(confidenceDelta)} pt{Math.abs(confidenceDelta) === 1 ? "" : "s"}
+                  {previousCheckpointLabel ? ` since ${previousCheckpointLabel}` : " since last checkpoint"}
+                </span>
+              )}
             </p>
             {/* Real production_confidence rendered as a bar — a different
                 view of the same real number shown above, not a second
@@ -105,25 +158,57 @@ export function WeekendPrimaryMetrics({ snapshot }: { snapshot: WeekendIntellige
               />
             </div>
             <div className="mt-2">
-              <WeekendConfidence components={snapshot.confidence_components} />
+              <WeekendConfidence
+                components={snapshot.confidence_components}
+                evidenceQuality={quality}
+                sourceTypeCount={Object.keys(snapshot.evidence_summary.by_source_type).length}
+                companyCount={snapshot.top_companies.length}
+                sectorCount={snapshot.top_sectors.length}
+              />
             </div>
           </>
         }
       />
 
       <WeekendMetricCard
-        icon={<Newspaper className="h-4 w-4" aria-hidden="true" />}
-        label="Since Close"
-        value={snapshot.new_since_close_count}
-        caption={`Across ${snapshot.top_companies.length} compan${snapshot.top_companies.length === 1 ? "y" : "ies"}, ${snapshot.top_sectors.length} sector${snapshot.top_sectors.length === 1 ? "" : "s"}, and key events.`}
+        icon={<Rocket className="h-4 w-4" aria-hidden="true" />}
+        label="Biggest Opportunity"
+        value={topOpportunity ? <span className="text-[22px] leading-tight [text-wrap:balance]">{topOpportunity.title}</span> : "—"}
+        valueClassName={topOpportunity ? "text-text-primary line-clamp-3" : "text-text-muted"}
+        caption={
+          topOpportunity ? (
+            <>
+              {topOpportunity.sectors.length > 0 && (
+                <p className="text-[11px] text-text-muted">{topOpportunity.sectors.slice(0, 3).join(" · ")}</p>
+              )}
+              {/* Labeled the same honest way as WeekendOpportunities.tsx's
+                  own list — a count-based activity heuristic, never a
+                  success-probability claim. */}
+              <p className="mt-1.5 text-[12px] font-bold text-emerald-500">
+                {Math.round(topOpportunity.opportunity_score)} <span className="font-semibold text-text-muted">Opportunity Activity Score</span>
+              </p>
+            </>
+          ) : (
+            <p>No standout opportunity flagged this weekend.</p>
+          )
+        }
       />
 
       <WeekendMetricCard
-        icon={<BadgeCheck className="h-4 w-4" aria-hidden="true" />}
-        label="Evidence Quality"
-        value={quality.label}
-        valueClassName={QUALITY_TONE_CLASS[quality.tone]}
-        caption={quality.description.charAt(0).toUpperCase() + quality.description.slice(1)}
+        icon={<AlertTriangle className="h-4 w-4" aria-hidden="true" />}
+        label="Biggest Risk"
+        value={topRisk ? <span className="text-[20px] leading-tight [text-wrap:balance]">{topRisk.description}</span> : "—"}
+        valueClassName={topRisk ? "text-text-primary line-clamp-3" : "text-text-muted"}
+        caption={
+          topRisk && topRiskStyle ? (
+            <>
+              {topRiskEntities && <p className="text-[11px] text-text-muted">{topRiskEntities}</p>}
+              <p className={`mt-1.5 text-[12px] font-bold ${topRiskStyle.textClass}`}>{topRiskStyle.label} Severity</p>
+            </>
+          ) : (
+            <p>No dominant risk detected.</p>
+          )
+        }
       />
     </section>
   );

@@ -9,13 +9,14 @@ import {
   evidenceQualityFor,
   formatDateShort,
   nextTradingDayLabel,
+  sectorBreakdown,
   sectorDirectionStyle,
   severityStyle,
   simplifyConfidenceWarnings,
   summaryTemplate,
   weekdayNameFromISODate,
 } from "./weekendLabels";
-import type { WeekendRisk } from "@/types/weekendIntelligence";
+import type { WeekendRisk, WeekendSectorRef } from "@/types/weekendIntelligence";
 
 function risk(overrides: Partial<WeekendRisk> = {}): WeekendRisk {
   return {
@@ -97,6 +98,51 @@ describe("severityStyle", () => {
     expect(severityStyle("high").label).toBe("High");
     expect(severityStyle("medium").label).toBe("Medium");
     expect(severityStyle("low").label).toBe("Low");
+  });
+});
+
+function sector(overrides: Partial<WeekendSectorRef> = {}): WeekendSectorRef {
+  return { sector: "Banking", score: 0.5, direction: "positive", evidence_count: 3, ...overrides };
+}
+
+describe("sectorBreakdown", () => {
+  it("counts sectors by direction", () => {
+    const b = sectorBreakdown([
+      sector({ sector: "Banking", direction: "positive" }),
+      sector({ sector: "Power", direction: "positive" }),
+      sector({ sector: "Pharma", direction: "negative" }),
+      sector({ sector: "IT", direction: "neutral" }),
+    ]);
+    expect(b.counts).toEqual({ positive: 2, negative: 1, neutral: 1, mixed: 0 });
+  });
+
+  it("picks the highest-score positive sectors as leading", () => {
+    const b = sectorBreakdown([
+      sector({ sector: "Banking", direction: "positive", score: 0.9 }),
+      sector({ sector: "Power", direction: "positive", score: 0.7 }),
+      sector({ sector: "Auto", direction: "positive", score: 0.5 }),
+    ]);
+    expect(b.leading).toEqual(["Banking", "Power"]);
+  });
+
+  it("picks the lowest-score negative sectors as lagging", () => {
+    const b = sectorBreakdown([
+      sector({ sector: "Pharma", direction: "negative", score: 0.2 }),
+      sector({ sector: "Realty", direction: "negative", score: 0.1 }),
+    ]);
+    expect(b.lagging).toEqual(["Realty", "Pharma"]);
+  });
+
+  it("never invents a lagging sector when none are negative", () => {
+    const b = sectorBreakdown([sector({ direction: "positive" }), sector({ direction: "neutral" })]);
+    expect(b.lagging).toEqual([]);
+  });
+
+  it("handles an empty sector list without throwing", () => {
+    const b = sectorBreakdown([]);
+    expect(b.counts).toEqual({ positive: 0, negative: 0, neutral: 0, mixed: 0 });
+    expect(b.leading).toEqual([]);
+    expect(b.lagging).toEqual([]);
   });
 });
 

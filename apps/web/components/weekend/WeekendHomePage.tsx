@@ -1,4 +1,4 @@
-import { fetchWeekendIntelligence } from "@/lib/weekendIntelligence";
+import { fetchWeekendHistory, fetchWeekendIntelligence } from "@/lib/weekendIntelligence";
 import { WeekendUnavailable } from "./WeekendUnavailable";
 import { WeekendPrimaryMetrics } from "./WeekendPrimaryMetrics";
 import { WeekendMetadataStrip } from "./WeekendMetadataStrip";
@@ -74,9 +74,23 @@ export async function WeekendHomePage() {
     );
   }
 
+  // Real "vs previous checkpoint" confidence delta for the Confidence
+  // card — a second, cheap read of already-persisted version metadata
+  // (brief §8's own description of this endpoint), never a computed/
+  // estimated number. Additive only: any failure here must never break
+  // the page, so a null history response just omits the delta line.
+  const history = await fetchWeekendHistory(snapshot.target_trading_date);
+  const versions = history?.versions ?? [];
+  const currentIdx = versions.findIndex((v) => v.is_current);
+  const previous = currentIdx >= 0 ? versions[currentIdx + 1] : undefined;
+
   return (
     <div className="space-y-4 pb-10 pt-6">
-      <WeekendPrimaryMetrics snapshot={snapshot} />
+      <WeekendPrimaryMetrics
+        snapshot={snapshot}
+        previousConfidence={previous?.production_confidence ?? null}
+        previousCheckpointLabel={previous?.checkpoint_label ?? null}
+      />
 
       <WeekendMetadataStrip snapshot={snapshot} />
 
