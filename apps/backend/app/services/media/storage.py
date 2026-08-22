@@ -23,9 +23,17 @@ def save_image(job_id: str, content: bytes, ext: str = "jpg") -> str:
     distinct URL rather than overwriting the old file in place. That makes
     the aggressive immutable Cache-Control on the serving route safe: a URL
     never changes what it points to once issued."""
+    # Written under a .tmp name and only renamed onto the real name once
+    # fully written — rename is atomic on the same filesystem, so a
+    # disk-full or interrupted write can never leave a truncated/corrupt
+    # image at the real served path (same pattern as app/db/backup.py's
+    # atomic backup writes, same underlying volume).
     _MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     filename = f"{job_id}.{ext}"
-    (_MEDIA_DIR / filename).write_bytes(content)
+    dest = _MEDIA_DIR / filename
+    tmp = dest.with_name(dest.name + ".tmp")
+    tmp.write_bytes(content)
+    tmp.rename(dest)
     return f"/api/media/{filename}"
 
 

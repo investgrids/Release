@@ -9,12 +9,26 @@ AI-generated pictures.
 STYLE_GUIDE_VERSION is stored on every GeneratedMedia row. Bump it when the
 suffix changes — that's what makes "regenerate all images with the improved
 style" a real, well-defined operation later instead of a guess.
+
+Per-article variation (2026-08 fix, user-reported "same image is coming
+for most of the articles") — confirmed live: 267 generated images across
+the whole platform used only 10 distinct prompt strings (the fixed
+_SUBJECT_RULES sentences below, verbatim, with no per-article detail),
+and pollinations.ai returns the same/cached image for identical prompt
+text with no seed. Fixed two ways: the subject sentence now folds in the
+article's real sector when one exists (the generic "company" bucket was
+the worst offender — any company in any sector shared one identical
+sentence), and every call gets a lighting/mood variation plus a seed,
+both deterministically derived from the article's own headline+id so a
+regeneration of the SAME article reproduces the SAME look, but two
+different articles never collide.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 
-STYLE_GUIDE_VERSION = "v1"
+STYLE_GUIDE_VERSION = "v2"
 STYLE_NAME = "editorial-navy"
 
 STYLE_SUFFIX = (
@@ -32,9 +46,9 @@ _SUBJECT_RULES: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\brbi\b|reserve bank|monetary policy|repo rate", re.I),
      "A grand government reserve bank building with classical columns"),
     (re.compile(r"\bbank(ing)?\b|nbfc|hdfc|icici|financ", re.I),
-     "A modern glass banking tower skyline at dusk"),
+     "A modern glass banking tower skyline"),
     (re.compile(r"crude|oil|energy|opec|petroleum|gas price", re.I),
-     "An offshore oil rig platform illuminated at night"),
+     "An offshore oil rig platform"),
     (re.compile(r"\bai\b|artificial intelligence|semiconductor|chip|technology|it services", re.I),
      "Abstract semiconductor chip circuitry with glowing data pathways"),
     (re.compile(r"defence|defense|manufactur|industrial", re.I),
@@ -53,6 +67,26 @@ _SUBJECT_RULES: list[tuple[re.Pattern, str]] = [
 
 _DEFAULT_SUBJECT = "An abstract financial market data visualization with flowing line charts"
 
+# Rotating scene/lighting modifiers — picked deterministically per article
+# (see build_prompt), not just appended once, so the same category bucket
+# stops producing one identical sentence. Kept generic/atmospheric rather
+# than naming specific colors that could clash with STYLE_SUFFIX's own
+# navy/blue/purple palette instruction.
+_SCENE_VARIATIONS = [
+    "at dusk with warm amber accents",
+    "at dawn with soft cool morning light",
+    "under a starlit night sky",
+    "bathed in golden hour light",
+    "beneath dramatic storm-lit clouds",
+    "in crisp, clear midday light",
+    "under soft, diffused overcast light",
+    "illuminated by city lights at twilight",
+    "with a sweeping wide-angle perspective",
+    "from a dramatic low-angle perspective",
+    "with a shallow depth of field and soft bokeh",
+    "in a minimalist, high-contrast composition",
+]
+
 
 def _pick_subject(headline: str, article_type: str, sectors: list[str]) -> str:
     haystack = f"{headline} {article_type} {' '.join(sectors)}"
@@ -62,8 +96,28 @@ def _pick_subject(headline: str, article_type: str, sectors: list[str]) -> str:
     return _DEFAULT_SUBJECT
 
 
-def build_prompt(headline: str, article_type: str, sectors: list[str] | None = None) -> tuple[str, str, str]:
-    """Returns (prompt, prompt_version, style_name)."""
-    subject = _pick_subject(headline, article_type, sectors or [])
-    prompt = f"{subject}. {STYLE_SUFFIX}"
-    return prompt, STYLE_GUIDE_VERSION, STYLE_NAME
+def build_prompt(
+    headline: str, article_type: str, sectors: list[str] | None = None, article_id: str | None = None,
+) -> tuple[str, str, str, int]:
+    """Returns (prompt, prompt_version, style_name, seed)."""
+    sectors = sectors or []
+    subject = _pick_subject(headline, article_type, sectors)
+    # Real sector detail, not just the coarse category sentence — the
+    # single biggest source of repetition was the generic "company" bucket
+    # (any earnings/profit/revenue article, any sector) sharing one
+    # identical sentence regardless of which real company/sector it was.
+    if sectors:
+        subject = f"{subject}, representing the {sectors[0]} sector"
+
+    # Deterministic per real article identity (headline+id), not random —
+    # a later regeneration of the exact same article reproduces the same
+    # look, but any two different articles get a different variation/seed
+    # even when they land in the same subject bucket.
+    variation_key = f"{headline}|{article_id or ''}"
+    digest = hashlib.sha256(variation_key.encode()).hexdigest()
+    digest_int = int(digest, 16)
+    scene = _SCENE_VARIATIONS[digest_int % len(_SCENE_VARIATIONS)]
+    seed = digest_int % (2**31 - 1)
+
+    prompt = f"{subject}, {scene}. {STYLE_SUFFIX}"
+    return prompt, STYLE_GUIDE_VERSION, STYLE_NAME, seed

@@ -79,7 +79,22 @@ async def run_image_generation_cycle() -> None:
         job_ids = [j.id for j in jobs]
 
     for job_id in job_ids:
-        await _process_job(job_id)
+        try:
+            await _process_job(job_id)
+        except Exception as exc:
+            # A crash here used to abort the whole batch (the remaining
+            # job_ids in this tick were simply never processed) AND
+            # permanently strand this one job — it was already flipped to
+            # "generating" above, which the pending/failed query filter at
+            # the top of this function never re-selects, so it would sit
+            # forever with no image and no further retry attempts.
+            log.error("media.process_job_crashed", job_id=job_id, error=str(exc)[:200])
+            async with AsyncSessionLocal() as db:
+                job = (await db.execute(select(GeneratedMedia).where(GeneratedMedia.id == job_id))).scalar_one_or_none()
+                if job and job.status == "generating":
+                    job.error = f"crashed: {str(exc)[:200]}"
+                    job.status = "fallback" if job.attempts >= _MAX_ATTEMPTS else "failed"
+                    await db.commit()
 
 
 async def _process_job(job_id: str) -> None:
@@ -97,18 +112,30 @@ async def _process_job(job_id: str) -> None:
             return
 
         sectors = [s.get("name") for s in (article.sectors_affected or []) if isinstance(s, dict) and s.get("name")]
-        prompt, prompt_version, style = build_prompt(article.headline or "", article.article_type, sectors)
+        prompt, prompt_version, style, seed = build_prompt(article.headline or "", article.article_type, sectors, article.id)
         job.prompt = prompt
         job.prompt_version = prompt_version
         job.style = style
         job.provider = "pollinations"
         await db.commit()
 
-        log.info("media.generation.start", article_id=article.id, slug=article.slug, attempt=job.attempts)
-        content = await generate_image(prompt)
+        log.info("media.generation.start", article_id=article.id, slug=article.slug, attempt=job.attempts, seed=seed)
+        content = await generate_image(prompt, seed=seed)
 
         if content:
-            url = save_image(job.id, content)
+            try:
+                url = save_image(job.id, content)
+            except Exception as exc:
+                # save_image writes atomically (temp file + rename) so a
+                # disk-full/permission failure here can never leave a
+                # truncated/corrupt file at the served URL — but the
+                # exception itself still needs to mark this job retryable
+                # instead of crashing this job's processing unhandled.
+                job.error = f"save failed: {str(exc)[:200]}"
+                job.status = "fallback" if job.attempts >= _MAX_ATTEMPTS else "failed"
+                await db.commit()
+                log.warning("media.save_failed", article_id=article.id, error=str(exc)[:200])
+                return
             job.status = "generated"
             job.url = url
             job.generated_at = datetime.now(timezone.utc)
