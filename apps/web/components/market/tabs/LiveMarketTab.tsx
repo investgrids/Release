@@ -292,8 +292,20 @@ function effectFromSentiment(sentiment: string): { label: string; cls: string } 
   return { label: "Neutral", cls: "text-text-secondary" };
 }
 
-function LiveMarketDriversCard({ feed, loading }: { feed: FeedItem[]; loading: boolean }) {
-  const sorted = [...feed].sort((a, b) => b.urgency - a.urgency).slice(0, 6);
+function LiveMarketDriversCard({ feed, loading, excludeHeadlines }: { feed: FeedItem[]; loading: boolean; excludeHeadlines?: Set<string> }) {
+  // "Top Drivers" (AIMarketIntelligenceHero, above) and this card are two
+  // independently-computed "rank current events by urgency" lists — MIE's
+  // own precomputed market_drivers vs. this card's own client-side sort of
+  // the live triage feed. On a normal low-event day (or a weekend, where
+  // the whole event pool is small) both algorithms commonly converge on
+  // the exact same top 2-3 headlines, showing as a visible duplicate
+  // between two differently-styled cards on the same page (user-reported).
+  // Excluding whatever's already surfaced in Top Drivers keeps this card
+  // showing genuinely additional context instead of repeating it.
+  const deduped = excludeHeadlines?.size
+    ? feed.filter(f => !excludeHeadlines.has((f.one_liner || f.headline || "").trim().toLowerCase()))
+    : feed;
+  const sorted = [...deduped].sort((a, b) => b.urgency - a.urgency).slice(0, 6);
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
@@ -961,7 +973,11 @@ export function LiveMarketTab({ initialData }: { initialData?: any }) {
 
       {/* Row 2 — Live Market Drivers · Sector Rotation · Opportunities+Risks · Live Market Intelligence feed */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_1fr_1fr_1.1fr]">
-        <LiveMarketDriversCard feed={feed} loading={dataLoading} />
+        <LiveMarketDriversCard
+          feed={feed}
+          loading={dataLoading}
+          excludeHeadlines={new Set((mie?.market_drivers ?? []).map((d: { headline: string }) => d.headline?.trim().toLowerCase()).filter(Boolean))}
+        />
         <SectorRotationCard sectors={sectors} />
         <OpportunitiesRisksCard story={story} opps={opps} feed={feed} />
         <LiveMarketIntelligence limit={20} />
