@@ -20,6 +20,12 @@ const VISIBLE_LIMIT = 4;
  * frontend presentation logic, the real risk array is untouched.
  * "View All Risks" expands over that SAME deduped set, never
  * re-exposes the raw per-company duplicates dedup just removed.
+ *
+ * [contain:layout] below — defensive page-scroll leak fix, same class
+ * of bug as WeekendChanges.tsx (see that file's comment for the full
+ * diagnosis) — this card's default 4-item cap makes it low-risk today,
+ * but "View All Risks" can render enough rows for the same leak once a
+ * weekend produces many real risks.
  */
 export function WeekendRisks({ risks }: { risks: WeekendRisk[] }) {
   const [expanded, setExpanded] = useState(false);
@@ -30,7 +36,7 @@ export function WeekendRisks({ risks }: { risks: WeekendRisk[] }) {
   const hasMore = deduped.length > VISIBLE_LIMIT;
 
   return (
-    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden [contain:layout] rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
       <h2 className="mb-3 text-[13px] font-black text-text-primary">Key Risks For The Next Session</h2>
       <ul className="flex-1 space-y-3 overflow-y-auto">
         {visible.map((r, i) => {

@@ -18,6 +18,12 @@ const VISIBLE_LIMIT = 5;
  * key_reasons exists backend-side but isn't serialized into
  * top_sector_refs — see final report), so a richer explanation is not
  * fabricated here.
+ *
+ * [contain:layout] below — same page-scroll leak fix as WeekendChanges.tsx
+ * (see that file's comment for the full diagnosis); applied here
+ * defensively since this card shares the identical internal-scroll
+ * pattern, even though it wasn't the confirmed culprit at today's item
+ * count.
  */
 export function WeekendSectors({ sectors }: { sectors: WeekendSectorRef[] }) {
   const [expanded, setExpanded] = useState(false);
@@ -27,7 +33,7 @@ export function WeekendSectors({ sectors }: { sectors: WeekendSectorRef[] }) {
   const hasMore = sectors.length > VISIBLE_LIMIT;
 
   return (
-    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden [contain:layout] rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[13px] font-black text-text-primary">Sectors to Watch</h2>
         {hasMore && (

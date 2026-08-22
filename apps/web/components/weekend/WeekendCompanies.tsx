@@ -20,12 +20,18 @@ import { companyStateStyle } from "./weekendLabels";
  * element room regardless of viewport width, since this card's actual
  * width is set by the outer grid ratio, not the viewport breakpoint a
  * `sm:` class would key off.
+ *
+ * [contain:layout] below — same page-scroll leak fix as WeekendChanges.tsx
+ * (see that file's comment for the full diagnosis); applied here
+ * defensively since this card shares the identical internal-scroll
+ * pattern, even though it wasn't the confirmed culprit at today's item
+ * count.
  */
 export function WeekendCompanies({ companies }: { companies: WeekendCompanyRef[] }) {
   if (companies.length === 0) return null;
 
   return (
-    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden [contain:layout] rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
       <h2 className="mb-3 text-[13px] font-black text-text-primary">Companies to Watch</h2>
       <ul className="flex-1 grid grid-cols-1 gap-2 overflow-y-auto">
         {companies.map((c) => {

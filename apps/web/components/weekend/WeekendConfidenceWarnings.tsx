@@ -20,6 +20,11 @@ const VISIBLE_LIMIT = 4;
  * "single source type" warnings into one generic line — pure frontend
  * presentation, the real warnings array is untouched. Capped at 4
  * visible; "See All Warnings" expands over that same simplified set.
+ *
+ * [contain:layout] below — defensive page-scroll leak fix, same class
+ * of bug as WeekendChanges.tsx (see that file's comment for the full
+ * diagnosis) — this card's default 4-item cap makes it low-risk today,
+ * but "See All Warnings" can render enough rows for the same leak.
  */
 export function WeekendConfidenceWarnings({ warnings }: { warnings: WeekendRisk[] }) {
   const [expanded, setExpanded] = useState(false);
@@ -30,7 +35,7 @@ export function WeekendConfidenceWarnings({ warnings }: { warnings: WeekendRisk[
   const hasMore = simplified.length > VISIBLE_LIMIT;
 
   return (
-    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[230px] max-h-[250px] flex-col overflow-hidden [contain:layout] rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
       <h2 className="mb-3 text-[13px] font-black text-text-primary">What Could Make This Outlook Wrong?</h2>
       <ul className="flex-1 space-y-2 overflow-y-auto">
         {visible.map((w, i) => (

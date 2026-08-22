@@ -35,12 +35,25 @@ const SOURCE_TYPE_ICON: Record<string, typeof Newspaper> = {
  * (already ranked, never re-sorted here) — beyond the first ~5 the list
  * scrolls internally (owner correction, 2026-08-15) rather than hard-
  * truncating rows a user can never reach.
+ *
+ * 2026-08-22 fix (user-reported: "why homepage i am able to scroll
+ * after footer also") — with a real weekend's worth of items (68 rows
+ * observed live), the inner <ul>'s overflow-y-auto correctly clips and
+ * scrolls it VISUALLY within the card's 400px box, but its full,
+ * unclipped scrollHeight (~4600px for 68 rows) was still leaking into
+ * document.documentElement.scrollHeight — confirmed live via bisection
+ * (isolating this exact element dropped the homepage's real scrollable
+ * height by ~2900px) and confirmed the fix by directly toggling CSS
+ * containment in the browser before touching this file. `contain:
+ * layout` on the card gives the browser an explicit boundary — "nothing
+ * in here affects layout/scroll outside this box" — which is what
+ * `overflow: hidden` alone did not guarantee here.
  */
 export function WeekendChanges({ items, count }: { items: WeekendNewSinceCloseItem[]; count: number }) {
   if (items.length === 0) return null;
 
   return (
-    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <section className="flex min-h-[360px] max-h-[400px] flex-col overflow-hidden [contain:layout] rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[13px] font-black text-text-primary">What Changed Since Market Close</h2>
         <span className="text-[10px] font-bold text-text-muted">{count} total</span>
