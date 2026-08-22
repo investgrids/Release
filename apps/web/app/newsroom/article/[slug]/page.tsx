@@ -18,6 +18,7 @@ import { VerdictCard } from "@/components/article/VerdictCard";
 import { EvidenceList, type EvidenceFact } from "@/components/article/EvidenceList";
 import { CompanyImpactTable } from "@/components/article/CompanyImpactTable";
 import { ExploreNext } from "@/components/article/ExploreNext";
+import { deriveVerdict, type CompanyAffected, type SectorAffected } from "./deriveVerdict";
 
 // ── Article type metadata — light-first, matching Daily Brief's own
 // color-token convention (text-{c}-700 dark:text-{c}-300, border-{c}-200
@@ -43,9 +44,10 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
 const DEFAULT_TYPE_META = { label: "Market Intelligence", color: "text-text-secondary border-surface-border/20 bg-text-primary/5" };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+// CompanyAffected/SectorAffected live in ./deriveVerdict.ts (imported above)
+// — page.tsx can't export arbitrary names past Next's route type-checker,
+// and deriveVerdict needs them importable from its own test file.
 
-interface CompanyAffected { name: string; symbol: string | null; impact: "positive" | "negative" | "neutral"; reason?: string; timeframe?: string; }
-interface SectorAffected { name: string; impact?: "positive" | "negative" | "neutral"; magnitude?: "high" | "medium" | "low"; reason?: string; }
 interface Opportunity { title: string; description: string; timeframe?: string; risk?: string; }
 interface Risk { title: string; description: string; severity?: string; mitigation?: string; }
 interface RippleLink { from_entity: string; to_entity: string; mechanism: string; timeframe?: string; }
@@ -213,9 +215,6 @@ const OPPORTUNITY_DURATION_LABEL: Record<string, string> = {
   immediate: "Immediate", short: "1–4 Weeks", medium: "1–3 Months", long: "3+ Months",
 };
 const MAGNITUDE_BARS: Record<string, number> = { high: 4, medium: 2, low: 1 };
-const HORIZON_LABEL: Record<string, string> = {
-  immediate: "Today", short: "1 Week", weeks: "1 Week", medium: "1 Month", months: "1 Month", long: "Long Term",
-};
 
 // Event Evolution — derived from real timestamps, not a stored field:
 // Active = touched in the last 24h, Monitoring = within 7 days, Resolved =
@@ -230,29 +229,6 @@ function deriveEventStatus(article: { article_type: string; is_evergreen?: boole
   if (hoursSince <= 24) return { label: "Active", color: "text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10", icon: RadioTower };
   if (hoursSince <= 24 * 7) return { label: "Monitoring", color: "text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10", icon: Activity };
   return { label: "Resolved", color: "text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10", icon: GitCommit };
-}
-
-// AI Investment Verdict — derived entirely from the article's own real,
-// AI-generated company/sector impact calls. Never a fabricated buy/sell
-// rating: no numeric "score" or "Strong Buy" exists in the data model, so
-// none is invented here — the verdict is a real aggregate of real signals.
-function deriveVerdict(companies: CompanyAffected[], sectors: SectorAffected[]) {
-  const pool = [...companies, ...sectors].filter(x => x.impact);
-  const counts = { positive: 0, negative: 0, neutral: 0 };
-  pool.forEach(x => { counts[x.impact as keyof typeof counts]++; });
-  const total = pool.length;
-  let stance: "Bullish" | "Bearish" | "Neutral" | "Mixed" = "Neutral";
-  if (total > 0) {
-    if (counts.positive >= total * 0.55 && counts.positive > counts.negative) stance = "Bullish";
-    else if (counts.negative >= total * 0.55 && counts.negative > counts.positive) stance = "Bearish";
-    else if (counts.positive > 0 && counts.negative > 0) stance = "Mixed";
-  }
-  const focus = companies.find(c => c.impact === (stance === "Bearish" ? "negative" : "positive"))?.name
-    ?? sectors.find(s => s.impact === (stance === "Bearish" ? "negative" : "positive"))?.name
-    ?? null;
-  const horizons = new Set<string>();
-  companies.forEach(c => c.timeframe && horizons.add(HORIZON_LABEL[c.timeframe] ?? c.timeframe));
-  return { stance, focus, horizons: [...horizons] };
 }
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
