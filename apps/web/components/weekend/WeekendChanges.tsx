@@ -1,15 +1,6 @@
 import { Landmark, Megaphone, Newspaper, Radar, Rocket, TrendingUp } from "lucide-react";
 import type { WeekendNewSinceCloseItem } from "@/types/weekendIntelligence";
-import { sectorDirectionStyle } from "./weekendLabels";
-
-const SOURCE_TYPE_LABEL: Record<string, string> = {
-  event: "Event",
-  policy: "Policy",
-  announcement: "Announcement",
-  news: "News",
-  company_signal: "Company Signal",
-  opportunity: "Opportunity",
-};
+import { sectorDirectionStyle, sourceTypeLabel } from "./weekendLabels";
 
 // Real source-type icons, not a decorative repeat of the same glyph —
 // each one already used elsewhere in this app for the same concept
@@ -86,7 +77,7 @@ export function WeekendChanges({ items, count }: { items: WeekendNewSinceCloseIt
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-semibold leading-snug text-text-primary line-clamp-2">{item.title}</p>
                 <p className="mt-0.5 text-[11px] text-text-muted">
-                  {SOURCE_TYPE_LABEL[item.source_type] ?? item.source_type}
+                  {sourceTypeLabel(item.source_type)}
                   {affected && ` · ${affected}`}
                 </p>
               </div>

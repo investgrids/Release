@@ -9,30 +9,46 @@ import type { ReactNode } from "react";
  */
 export function WeekendMetricCard({
   icon,
+  iconClassName = "bg-surface-border/8 text-text-muted",
   label,
   value,
   valueClassName = "text-text-primary",
+  valueTextSize = "text-[38px]",
   caption,
 }: {
   icon: ReactNode;
+  /** bg + text color classes for the icon's circle — defaults to the
+   * original neutral treatment; callers pass a tinted pair (e.g.
+   * "bg-emerald-500/10 text-emerald-500") to match a card's real
+   * direction/severity, same tone convention as valueClassName below. */
+  iconClassName?: string;
   label: string;
   value: ReactNode;
   valueClassName?: string;
+  /** Smaller sizes let a real (possibly long) opportunity/risk headline
+   * wrap to 2-3 lines without overwhelming the fixed-width card — the
+   * three numeric cards keep the original large size. */
+  valueTextSize?: string;
   caption?: ReactNode;
 }) {
   return (
     // Shadow is tinted to the page's own text-primary token at low
     // opacity (not a generic flat black) so it reads correctly in both
     // themes — a considered lift instead of pure border-only flatness.
+    // h-full + the grid's items-stretch (WeekendPrimaryMetrics) is what
+    // keeps every card in the row — and the hero panel beside them — at
+    // the same height regardless of how much real content each one has;
+    // this shell must never gain a max-height/overflow cap or that
+    // equalization breaks.
     <div className="flex h-full min-h-[225px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
       <div className="flex items-center gap-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-border/8 text-text-muted">
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${iconClassName}`}>
           {icon}
         </div>
         <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted">{label}</p>
       </div>
-      <p className={`mt-3.5 text-[38px] font-black leading-none tabular-nums [text-wrap:balance] ${valueClassName}`}>{value}</p>
-      {caption && <div className="mt-2.5 text-[13px] leading-relaxed text-text-secondary">{caption}</div>}
+      <p className={`mt-3.5 ${valueTextSize} font-black leading-tight tabular-nums [text-wrap:balance] ${valueClassName}`}>{value}</p>
+      {caption && <div className="mt-2.5 flex-1 text-[13px] leading-relaxed text-text-secondary">{caption}</div>}
     </div>
   );
 }

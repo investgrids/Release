@@ -1,4 +1,5 @@
-import { AlertTriangle, CalendarClock, Compass, Gauge, Rocket } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, ArrowRight, CalendarClock, Compass, Gauge, Rocket } from "lucide-react";
 import type { WeekendIntelligenceSnapshotDTO } from "@/types/weekendIntelligence";
 import {
   biasLabel,
@@ -67,10 +68,24 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
   const topOpportunity = snapshot.opportunities.length > 0
     ? [...snapshot.opportunities].sort((a, b) => b.opportunity_score - a.opportunity_score)[0]
     : null;
+  // Headline is the real sector this opportunity is tagged with, not the
+  // development headline that generated it (owner correction: "Aditya
+  // Birla Capital to enter gold loan market" is the EVENT, "Banking" is
+  // the opportunity) — falls back to the real title only on the rare row
+  // with no sector tag at all, never a fabricated category.
+  const opportunityHeadline = topOpportunity?.sectors[0] ?? topOpportunity?.title ?? null;
 
   const topRisk = dedupeMarketRisks(snapshot.market_risks)[0] ?? null;
   const topRiskStyle = topRisk ? severityStyle(topRisk.severity) : null;
-  const topRiskEntities = topRisk ? [...topRisk.related_sectors, ...topRisk.related_companies].slice(0, 3).join(" · ") : "";
+  // Same sector-first framing as the opportunity headline; falls back to
+  // the first named company, then a plain "Market Risk" category label
+  // (never a fabricated sector/company) when the risk carries neither.
+  const riskHeadline = topRisk?.related_sectors[0] ?? topRisk?.related_companies[0] ?? (topRisk ? "Market Risk" : null);
+  const riskLinkSymbol = topRisk?.related_companies[0] ?? null;
+  const SEVERITY_RANK: Record<string, number> = { low: 1, medium: 2, high: 3 };
+  const SEVERITY_BAR_BG: Record<string, string> = { low: "bg-text-muted", medium: "bg-amber-500", high: "bg-rose-500" };
+  const riskSeverityFilled = topRisk ? SEVERITY_RANK[topRisk.severity] ?? 2 : 0;
+  const riskSeverityBarBg = topRisk ? SEVERITY_BAR_BG[topRisk.severity] ?? "bg-amber-500" : "bg-rose-500";
 
   return (
     <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(330px,1.35fr)_repeat(4,minmax(190px,0.85fr))] lg:items-stretch">
@@ -172,22 +187,44 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
 
       <WeekendMetricCard
         icon={<Rocket className="h-4 w-4" aria-hidden="true" />}
+        iconClassName="bg-emerald-500/10 text-emerald-500"
         label="Biggest Opportunity"
-        value={topOpportunity ? <span className="text-[22px] leading-tight [text-wrap:balance]">{topOpportunity.title}</span> : "—"}
-        valueClassName={topOpportunity ? "text-text-primary line-clamp-3" : "text-text-muted"}
+        value={opportunityHeadline ? <>{opportunityHeadline} <span aria-hidden="true" className="text-emerald-500">↑</span></> : "—"}
+        valueClassName={opportunityHeadline ? "text-text-primary" : "text-text-muted"}
+        // Headline is either a short sector name ("Banking") or, on the
+        // rare untagged row, a company ticker/longer title fallback —
+        // smaller than cards 1/2's fixed "STRONG POSITIVE"/"64%" size so
+        // the longer fallback case never clips within the card's width.
+        valueTextSize="text-[26px]"
         caption={
           topOpportunity ? (
-            <>
-              {topOpportunity.sectors.length > 0 && (
-                <p className="text-[11px] text-text-muted">{topOpportunity.sectors.slice(0, 3).join(" · ")}</p>
-              )}
+            <div className="flex h-full flex-col">
               {/* Labeled the same honest way as WeekendOpportunities.tsx's
                   own list — a count-based activity heuristic, never a
                   success-probability claim. */}
-              <p className="mt-1.5 text-[12px] font-bold text-emerald-500">
+              <p className="text-[12px] font-bold text-emerald-500">
                 {Math.round(topOpportunity.opportunity_score)} <span className="font-semibold text-text-muted">Opportunity Activity Score</span>
               </p>
-            </>
+              {/* Real ai_summary.matters when the row has one; falls back
+                  to the real title (never a paraphrase invented here) —
+                  see _resolve_opportunities in weekend_intelligence.py. */}
+              <p className="mt-1.5 line-clamp-2 text-[12px] leading-snug text-text-secondary">
+                {topOpportunity.reason ?? topOpportunity.title}
+              </p>
+              {(topOpportunity.companies ?? []).length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {topOpportunity.companies.map((c) => (
+                    <span key={c} className="rounded-full border border-surface-border/15 bg-surface-border/5 px-2 py-0.5 text-[10px] font-bold text-text-secondary">{c}</span>
+                  ))}
+                </div>
+              )}
+              <Link
+                href={`/opportunity-radar/${topOpportunity.id}`}
+                className="mt-auto flex items-center gap-1 pt-2 text-[11px] font-semibold text-violet-400 transition duration-200 hover:text-violet-300"
+              >
+                View opportunity <ArrowRight className="h-3 w-3" aria-hidden="true" />
+              </Link>
+            </div>
           ) : (
             <p>No standout opportunity flagged this weekend.</p>
           )
@@ -196,15 +233,42 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
 
       <WeekendMetricCard
         icon={<AlertTriangle className="h-4 w-4" aria-hidden="true" />}
+        iconClassName="bg-rose-500/10 text-rose-500"
         label="Biggest Risk"
-        value={topRisk ? <span className="text-[20px] leading-tight [text-wrap:balance]">{topRisk.description}</span> : "—"}
-        valueClassName={topRisk ? "text-text-primary line-clamp-3" : "text-text-muted"}
+        value={riskHeadline ? <>{riskHeadline} <span aria-hidden="true" className="text-rose-500">↓</span></> : "—"}
+        valueClassName={riskHeadline ? "text-text-primary" : "text-text-muted"}
+        valueTextSize="text-[26px]"
         caption={
           topRisk && topRiskStyle ? (
-            <>
-              {topRiskEntities && <p className="text-[11px] text-text-muted">{topRiskEntities}</p>}
-              <p className={`mt-1.5 text-[12px] font-bold ${topRiskStyle.textClass}`}>{topRiskStyle.label} Severity</p>
-            </>
+            <div className="flex h-full flex-col">
+              <div className="flex items-center gap-1.5">
+                <p className={`text-[12px] font-bold ${topRiskStyle.textClass}`}>{topRiskStyle.label} Severity</p>
+                {/* A real 3-tier discrete meter (low/medium/high), never a
+                    fabricated precise number — WeekendRisk has no numeric
+                    risk score, only this enum (see severityStyle). */}
+                <span className="flex items-center gap-0.5" aria-hidden="true">
+                  {[1, 2, 3].map((i) => (
+                    <span key={i} className={`h-1.5 w-3 rounded-full ${i <= riskSeverityFilled ? riskSeverityBarBg : "bg-surface-border/15"}`} />
+                  ))}
+                </span>
+              </div>
+              <p className="mt-1.5 line-clamp-2 text-[12px] leading-snug text-text-secondary">{topRisk.description}</p>
+              {topRisk.related_companies.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {topRisk.related_companies.slice(0, 3).map((c) => (
+                    <span key={c} className="rounded-full border border-surface-border/15 bg-surface-border/5 px-2 py-0.5 text-[10px] font-bold text-text-secondary">{c}</span>
+                  ))}
+                </div>
+              )}
+              {riskLinkSymbol && (
+                <Link
+                  href={`/companies/${riskLinkSymbol}`}
+                  className="mt-auto flex items-center gap-1 pt-2 text-[11px] font-semibold text-violet-400 transition duration-200 hover:text-violet-300"
+                >
+                  View {riskLinkSymbol} <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                </Link>
+              )}
+            </div>
           ) : (
             <p>No dominant risk detected.</p>
           )

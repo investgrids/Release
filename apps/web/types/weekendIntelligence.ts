@@ -91,6 +91,12 @@ export interface WeekendOpportunity {
   risk_level: string;
   opportunity_score: number;
   confidence: number;
+  /** Real ai_summary.matters text (2026-08-22) — null when the row predates
+   * AI summary generation; never backfilled client-side. */
+  reason: string | null;
+  /** Real OpportunityCompany rows, top 3 by their own real impact_score —
+   * empty when none are linked, never invented. */
+  companies: string[];
 }
 
 export interface WeekendHistoricalAnalogue {

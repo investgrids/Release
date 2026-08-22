@@ -26,6 +26,24 @@ export function sectorDirectionStyle(direction: string): DirectionStyle {
   return SECTOR_DIRECTION[direction as SectorDirection] ?? SECTOR_DIRECTION.neutral;
 }
 
+/** Real evidence_summary.by_source_type keys -> human-readable label —
+ * shared by WeekendChanges.tsx (per-row source icon) and the Confidence
+ * card's "why" breakdown, so both read off one mapping instead of two
+ * copies drifting apart. Falls back to the raw key (Title Cased) for any
+ * future source type this map doesn't know yet, never drops it silently. */
+const SOURCE_TYPE_LABEL: Record<string, string> = {
+  event: "Event",
+  policy: "Policy",
+  announcement: "Announcement",
+  news: "News",
+  company_signal: "Company Signal",
+  opportunity: "Opportunity",
+};
+
+export function sourceTypeLabel(type: string): string {
+  return SOURCE_TYPE_LABEL[type] ?? type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export interface SectorBreakdown {
   counts: { positive: number; negative: number; neutral: number; mixed: number };
   /** Highest-score positive-direction sector names, real backend `score`
