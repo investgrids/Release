@@ -169,17 +169,26 @@ async def _get_insights(metals: list[dict], energy: list[dict]) -> dict:
 
     prompt = (
         f"Global commodity prices:\nMetals:\n{m_lines}\nEnergy:\n{e_lines}\n\n"
-        "Generate AI insights for Indian investors. Return ONLY this JSON:\n"
+        "Generate AI insights for Indian investors. Keep every \"text\" field to "
+        "ONE sentence, 25 words or fewer — this is a strict length limit, not a "
+        "suggestion. Return ONLY this JSON, no other text:\n"
         '{"metals":{"impact":"High Impact",'
         '"items":[{"text":"...","impact":"Bullish"},{"text":"...","impact":"Moderately Bullish"},{"text":"...","impact":"Neutral"}]},'
         '"energy":{"impact":"Very High Impact",'
         '"items":[{"text":"...","impact":"Very Bullish"},{"text":"...","impact":"Bullish"},{"text":"...","impact":"Moderately Bullish"}]},'
         '"key_drivers_metals":[{"label":"...","level":"High"},{"label":"...","level":"Moderate"},{"label":"...","level":"Moderate"},{"label":"...","level":"Low"}],'
         '"key_drivers_energy":[{"label":"...","level":"High"},{"label":"...","level":"High"},{"label":"...","level":"Moderate"},{"label":"...","level":"Low"}],'
-        '"daily_summary":"2-sentence summary for Indian investors."}'
+        '"daily_summary":"2 short sentences for Indian investors."}'
     )
 
-    raw = await _call_with_fallback(prompt, max_tokens=700, priority="interactive")
+    # 700 -> 1100: 2026-08-22 fix — real model responses (post reasoning-
+    # strip, see _strip_reasoning) were legitimately 450-500+ tokens of
+    # valid JSON alone, and 700 left too little headroom, truncating
+    # mid-string on longer/more verbose completions (confirmed live:
+    # "Unterminated string" json.loads failures on otherwise-clean JSON).
+    # Paired with the explicit word-count instruction above so this isn't
+    # just papering over verbosity with a bigger budget.
+    raw = await _call_with_fallback(prompt, max_tokens=1100, priority="interactive")
     if raw:
         try:
             clean = raw.strip()

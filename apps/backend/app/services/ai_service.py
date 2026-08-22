@@ -3,22 +3,45 @@ AI service — multi-provider free-tier AI with automatic fallback.
 
 Provider chain (empirically-reliable-first, auto-skips exhausted providers —
 see _call_with_fallback for the 2026-07-26 reordering rationale):
-  1. Groq high-quality — gpt-oss-120b, llama-3.3-70b, 1,000 req/day each
-  2. Cerebras          — llama3.1-70b/8b, 30 RPM / 1M tokens/day (shared pool)
-  3. Groq fast         — llama-3.1-8b-instant, 14,400 req/day (high-volume workhorse)
-  4. OpenRouter large  — 550B, 405B, 120B, 70B free models (account-wide cap:
-                         50 req/day, 20 RPM without $10+ in credits on file —
-                         NOT per-model, see the P0.5 capacity writeup)
+  1. Groq high-quality — gpt-oss-120b/20b, 1,000 req/day each
+  2. Cerebras          — gpt-oss-120b, no-op until billing is set up (402)
+  3. Groq fast         — qwen3.6-27b/compound/compound-mini/gpt-oss-safeguard-20b
+  4. OpenRouter large  — 550B, 120B, 31B, 20B free models (account-wide cap:
+                         1,000 req/day once $10+ in credits is on file, tight
+                         free-tier daily cap otherwise — NOT per-model, see
+                         the P0.5 capacity writeup)
   5. Mistral           — mistral-small/open-mistral-nemo, La Plateforme free
                          "Experiment" tier: 2 RPM account-wide (verified —
-                         this is the tightest real ceiling in the whole chain)
-  6. Gemini            — GEMINI_API_KEY is currently unset in .env, so this
-                         tier is a no-op until a key is added; gemini-2.0-flash
-                         itself was also retired by Google in March 2026 —
-                         model names below updated to current free models
+                         this is the tightest real ceiling in the whole chain).
+                         2026-08-22: MISTRAL_API_KEY is currently invalid
+                         (confirmed via live probe — Mistral's own API
+                         returns 401 "Invalid API Key" on every model) — this
+                         tier is a hard no-op until the key is rotated in
+                         Mistral's La Plateforme console and updated in
+                         Railway's env vars. Not fixable from this code.
+  6. Gemini            — 2026-08-22: gemini-2.5-flash/-flash-lite were BOTH
+                         retired ("no longer available to new users" per
+                         Google's own error body) — replaced with the
+                         current live models (gemini-3.6-flash /
+                         gemini-3.5-flash-lite), confirmed via live probe.
   7. OpenRouter small  — remaining free models (same account-wide cap as #4)
   8. Cloudflare Workers AI — glm-4.7-flash, separate free account (10,000
                          neurons/day pool), added 2026-08-05
+
+  2026-08-22 live-probe audit (every tier tested directly against its own
+  provider with the real production keys, not inferred from app-level
+  errors): llama-3.3-70b-versatile and llama-3.1-8b-instant no longer exist
+  on this Groq account at all ("model_not_found" — Groq's account-level
+  model catalog no longer includes either, confirmed via GET /models);
+  poolside/laguna-m.1:free no longer exists on OpenRouter ("No endpoints
+  found"); OpenRouter's remaining free models are fine, just genuinely
+  exhausted on the account-wide free-models-per-day quota right now (429,
+  self-heals on their own daily reset — not a code bug); Gemini's key is
+  valid but both configured models were retired (see #6 above); Mistral's
+  key itself is invalid (see #5 above). This is what was silently forcing
+  every caller (commodities insights, opening-prediction's AI layer, the
+  event-classification pipeline, etc.) onto their generic canned fallback
+  text on nearly every request.
 
 Each model that returns HTTP 429 (rate-limited) is remembered in _EXHAUSTED
 and skipped on future calls for a cooldown window (_EXHAUSTED_COOLDOWN_S) —
@@ -27,6 +50,7 @@ enough that a model isn't permanently dead for the rest of the process from
 one transient 429.
 """
 import asyncio
+import re
 import time
 import httpx
 import structlog
@@ -412,22 +436,26 @@ _MISTRAL_MODELS = [
     "open-mistral-nemo",
 ]
 
-# ── Tier 2: Gemini (free tier: gemini-2.5-flash 10 RPM/250 RPD,
-# gemini-2.5-flash-lite 15 RPM/1,000 RPD)
+# ── Tier 2: Gemini
 #
 # 2026-07-22: gemini-1.5-flash confirmed 404 (deprecated on Google's side).
 # 2026-08-05: gemini-2.0-flash was ALSO retired by Google (March 2026) —
 # every call through this tier has been silently failing on a dead model
-# name on top of the missing key below. Replaced with the current free
-# 2.5 models. Separately, GEMINI_API_KEY is empty in .env right now (this
-# tier is a hard no-op, not just degraded) — and even the last time a key
-# was configured here, it reported free-tier quota limit=0 from Google, a
-# project/key eligibility issue this model list can't fix on its own.
-# Verify a fresh key actually gets nonzero quota before counting on this
-# tier for capacity.
+# name on top of the missing key below. Replaced with the (then-)current
+# free 2.5 models.
+#
+# 2026-08-22: gemini-2.5-flash and gemini-2.5-flash-lite are BOTH now
+# retired too — live probe against the real production key gets back
+# Google's own explicit error: "This model models/gemini-2.5-flash is no
+# longer available to new users. Please update your code to use
+# models/gemini-3.6-flash." (and models/gemini-3.5-flash-lite for the lite
+# variant). GEMINI_API_KEY itself is valid (confirmed via GET /v1beta/
+# openai/models) — the earlier "key is empty" note above is stale; this
+# tier was failing purely on dead model names. Replaced with the current
+# live models, each confirmed 200 via a real chat completion.
 _GEMINI_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite",
 ]
 
 # ── Tier 3: Groq HIGH-QUALITY (best Groq models, 1,000 req/day each)
@@ -435,19 +463,61 @@ _GEMINI_MODELS = [
 # 2026-07-22: qwen/qwen3-32b and the llama-4-scout slug both verified 404
 # ("model does not exist") against Groq directly — deprecated/renamed on
 # Groq's side. Removed rather than left to fail every cycle.
+#
+# 2026-08-22: llama-3.3-70b-versatile ALSO confirmed gone — live probe
+# against GET https://api.groq.com/openai/v1/models on the real production
+# key shows this account's entire catalog no longer includes any llama-*
+# chat model at all (just openai/gpt-oss-*, qwen/qwen3.6-27b, groq/compound*,
+# allam-2-7b, prompt-guard, and whisper). Removed; no direct replacement
+# exists in this account's catalog, so the tier is just the two real models.
 _GROQ_HIGH = [
     "openai/gpt-oss-120b",                       # 1,000 req/day — highest quality on Groq
-    "llama-3.3-70b-versatile",                   # 1,000 req/day — strong 70B
     "openai/gpt-oss-20b",                        # 1,000 req/day — solid mid-tier
 ]
 
 # ── Tier 4: Groq FAST (14,400 req/day — high volume workhorse when quality tiers exhaust)
+#
+# 2026-08-22: llama-3.1-8b-instant confirmed gone the same way as
+# llama-3.3-70b-versatile above (same live probe). Replaced the lost volume
+# backstop with gpt-oss-safeguard-20b (confirmed real and working via live
+# probe) — a safety-tuned reasoning variant. See _GROQ_REASONING_EFFORT
+# below for how its (and qwen3.6-27b's) reasoning overhead is tamed.
 _GROQ_FAST = [
-    "llama-3.1-8b-instant",   # 14,400 req/day — the volume backstop
-    "qwen/qwen3.6-27b",       # 1,000 req/day  — mid quality
-    "groq/compound-mini",     # 250 req/day    — Groq native
-    "groq/compound",          # 250 req/day    — Groq native larger
+    "qwen/qwen3.6-27b",           # 1,000 req/day — mid quality
+    "groq/compound-mini",         # 250 req/day   — Groq native
+    "groq/compound",              # 250 req/day   — Groq native larger
+    "openai/gpt-oss-safeguard-20b", # reasoning model — see _GROQ_REASONING_EFFORT
 ]
+
+# `reasoning_effort` handling for Groq's reasoning-tuned models — NOT one
+# universal value. Live-probed per model on 2026-08-22 (every combination
+# actually POSTed to Groq, not guessed from docs):
+#   - openai/gpt-oss-* (Harmony format): reasoning lives in a SEPARATE
+#     `reasoning` field, never leaks into `content` — but still spends
+#     hidden reasoning_tokens out of the same max_tokens budget as the
+#     visible answer, and only accepts "low"/"medium"/"high" ("none" is a
+#     400 "must be one of low, medium, or high"). Confirmed: a 1100
+#     max_tokens call to gpt-oss-safeguard-20b returned only 353 chars,
+#     truncated mid-string, with default effort; the identical call with
+#     "low" finished naturally (finish_reason="stop", reasoning_tokens=36
+#     of 1100) with a complete, valid answer.
+#   - qwen/qwen3.6-27b: the opposite problem — its reasoning is NOT
+#     separated, it's inlined directly in `content` as a literal
+#     <think>...</think> block (see _strip_reasoning above, which handles
+#     this defensively regardless), and it only accepts "none"/"default"
+#     ("low" is a 400 "must be one of none or default"). "none" suppresses
+#     the <think> block at the source — confirmed: content="OK" directly,
+#     vs. "default" reproducing the exact <think> leak.
+#   - groq/compound / groq/compound-mini: do NOT support this parameter at
+#     all — sending it in ANY value is a 400 "reasoning_effort is not
+#     supported with this model". Deliberately absent from this dict; the
+#     conditional below only sets the param for keys present here.
+_GROQ_REASONING_EFFORT: dict[str, str] = {
+    "openai/gpt-oss-120b": "low",
+    "openai/gpt-oss-20b": "low",
+    "openai/gpt-oss-safeguard-20b": "low",
+    "qwen/qwen3.6-27b": "none",
+}
 
 # ── Tier 5: Cerebras (10,000 req/day — ultra-fast inference)
 # 2026-07-26: llama3.1-70b/llama3.1-8b confirmed 404 "model does not exist"
@@ -467,11 +537,18 @@ _CEREBRAS_MODELS = [
 # 2026-07-22: same live-verification pass as Tier 1 — laguna-xs.2, the
 # llama-3.2-3b slug, dolphin-mistral, and both liquid/lfm-2.5 entries all
 # 404'd (deprecated / no endpoints). Removed.
+#
+# 2026-08-22: poolside/laguna-m.1:free ALSO confirmed dead ("No endpoints
+# found for poolside/laguna-m.1:free", live probe) — removed. The rest of
+# this tier is fine model-name-wise; every one of them was independently
+# confirmed to just be hitting OpenRouter's real account-wide
+# free-models-per-day quota (429 "Add 10 credits to unlock 1000 free model
+# requests per day") — a genuine capacity ceiling that self-heals on
+# OpenRouter's own daily reset, not a dead model to remove.
 _OR_SMALL = [
     "nvidia/nemotron-3-nano-30b-a3b:free",
     "nvidia/nemotron-nano-12b-v2-vl:free",
     "nvidia/nemotron-nano-9b-v2:free",
-    "poolside/laguna-m.1:free",
     "google/gemma-4-26b-a4b-it:free",
     "cohere/north-mini-code:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -495,6 +572,33 @@ async def _cached_async(key: str, ttl: int = 900) -> str | None:
 
 async def _store_async(key: str, value: str, ttl: int = 900) -> None:
     await cache_set(key, value, ttl)
+
+
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
+def _strip_reasoning(content: str) -> str:
+    """Some reasoning-tuned free models (confirmed live 2026-08-22 on
+    Groq's qwen/qwen3.6-27b) inline their entire chain-of-thought directly
+    in `content` as a literal <think>...</think> block instead of a
+    separate reasoning/reasoning_content field — unlike Cloudflare's
+    glm-4.7-flash (see _CLOUDFLARE_MODELS above), which already keeps them
+    apart. Every caller of _call_with_fallback expects the answer, never
+    the scratchpad — a caller doing json.loads() on '<think>\\nOkay, the
+    user wants...' fails every time, silently degrading that caller to
+    its own generic fallback text (this is what was happening to
+    commodities' AI insights even after the model-id fixes above got a
+    real model responding). A dangling, unclosed <think> (ran out of
+    max_tokens mid-thought, before any real answer was ever emitted) is
+    treated as no real answer at all, not as literal scratchpad text to
+    return — _call_with_fallback's `if result:` check then correctly
+    falls through to the next model instead of returning empty prose."""
+    if "<think>" not in content.lower():
+        return content
+    stripped = _THINK_BLOCK_RE.sub("", content).strip()
+    if "<think" in stripped.lower():
+        return ""
+    return stripped
 
 
 async def _call_provider(
@@ -542,6 +646,8 @@ async def _call_provider(
         "max_tokens": max_tokens,
         "temperature": 0.4,
     }
+    if base_url == _GROQ_URL and model in _GROQ_REASONING_EFFORT:
+        payload["reasoning_effort"] = _GROQ_REASONING_EFFORT[model]
     _PROVIDER_BY_URL = {
         _OR_URL: "openrouter", _GROQ_URL: "groq",
         _CEREBRAS_URL: "cerebras", _GEMINI_URL: "gemini",
@@ -584,7 +690,7 @@ async def _call_provider(
             usage = data.get("usage") or {}
             if usage.get("total_tokens"):
                 _AI_USAGE["tokens_total"] += usage["total_tokens"]
-            return content.strip() if content else ""
+            return _strip_reasoning(content.strip()) if content else ""
     except Exception as exc:
         log.warning("ai.exception", model=model, exc=str(exc)[:120])
         _AI_USAGE["calls_failed"] += 1
@@ -633,7 +739,7 @@ async def _call_nvidia_raw(prompt: str, system: str, max_tokens: int) -> tuple[s
             if "error" in data:
                 return "", "other"
             content = data["choices"][0]["message"]["content"]
-            content = content.strip() if content else ""
+            content = _strip_reasoning(content.strip()) if content else ""
             return (content, None) if content else ("", "other")
     except httpx.TimeoutException:
         return "", "timeout"
