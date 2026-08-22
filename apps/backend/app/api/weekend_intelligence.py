@@ -39,6 +39,7 @@ async def _resolve_opportunities(db, opportunity_refs: list[str]) -> list[dict]:
     if not opportunity_refs:
         return []
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
     from app.db.models.opportunity import Opportunity
 
     ids = []
@@ -49,14 +50,28 @@ async def _resolve_opportunities(db, opportunity_refs: list[str]) -> list[dict]:
             continue
     if not ids:
         return []
-    rows = (await db.execute(select(Opportunity).where(Opportunity.id.in_(ids)))).scalars().all()
+    rows = (await db.execute(
+        select(Opportunity).where(Opportunity.id.in_(ids)).options(selectinload(Opportunity.companies))
+    )).scalars().all()
     # A ref whose row no longer exists is simply absent from `rows` —
     # honestly omitted, not an error (brief §6).
-    return [
-        {"id": r.id, "title": r.title, "sectors": r.sectors, "risk_level": r.risk_level,
-         "opportunity_score": r.opportunity_score, "confidence": r.confidence}
-        for r in rows
-    ]
+    result = []
+    for r in rows:
+        # ai_summary.matters (2026-08-22, homepage card redesign) — a
+        # real, already-persisted, purpose-written one-sentence reason
+        # (see company_score_engine-style AI summary generation), not a
+        # truncation of `title`. Some older/seed rows may predate AI
+        # summary generation — omitted rather than fabricated when absent,
+        # the frontend falls back to `title` in that case.
+        ai_summary = r.ai_summary or {}
+        top_companies = sorted(r.companies, key=lambda c: c.impact_score, reverse=True)[:3]
+        result.append({
+            "id": r.id, "title": r.title, "sectors": r.sectors, "risk_level": r.risk_level,
+            "opportunity_score": r.opportunity_score, "confidence": r.confidence,
+            "reason": ai_summary.get("matters") or None,
+            "companies": [c.company_id for c in top_companies],
+        })
+    return result
 
 
 async def _resolve_historical_analogues(db, refs: list[str]) -> list[dict]:

@@ -135,6 +135,68 @@ async def test_missing_referenced_opportunity_omitted_not_erroring():
 
 
 @pytest.mark.asyncio
+async def test_resolved_opportunity_carries_real_reason_and_top_companies():
+    """2026-08-22 homepage card redesign — the reason must come from the
+    real, already-persisted ai_summary.matters field (never a truncation
+    of title), and companies must be the real OpportunityCompany rows,
+    capped at 3 and ranked by their own real impact_score, never
+    invented tickers."""
+    from app.db.models.opportunity import Opportunity, OpportunityCompany
+
+    async with AsyncSessionLocal() as db:
+        opp = Opportunity(
+            slug=f"test-opp-{uuid.uuid4().hex[:8]}", title="Test opportunity title",
+            sectors=["Banking"], risk_level="Medium", opportunity_score=78.0, confidence=0.8,
+            ai_summary={"matters": "Real concise reason from the backend."},
+        )
+        db.add(opp)
+        await db.flush()
+        db.add_all([
+            OpportunityCompany(opportunity_id=opp.id, company_id="LOWSCORE", impact_score=10.0),
+            OpportunityCompany(opportunity_id=opp.id, company_id="HIGHSCORE", impact_score=90.0),
+            OpportunityCompany(opportunity_id=opp.id, company_id="MIDSCORE", impact_score=50.0),
+            OpportunityCompany(opportunity_id=opp.id, company_id="FOURTH", impact_score=40.0),
+        ])
+        await db.commit()
+        opp_id = opp.id
+        try:
+            resolved = await api._resolve_opportunities(db, [str(opp_id)])
+            assert len(resolved) == 1
+            r = resolved[0]
+            assert r["reason"] == "Real concise reason from the backend."
+            assert r["companies"] == ["HIGHSCORE", "MIDSCORE", "FOURTH"]  # top 3 by impact_score, "LOWSCORE" excluded
+        finally:
+            await db.delete(opp)
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_resolved_opportunity_without_ai_summary_has_no_fabricated_reason():
+    """A row that predates AI summary generation must report reason=None,
+    never a fallback string invented here — the frontend is what decides
+    to fall back to title, this layer just tells the truth about what's
+    actually stored."""
+    from app.db.models.opportunity import Opportunity
+
+    async with AsyncSessionLocal() as db:
+        opp = Opportunity(
+            slug=f"test-opp-{uuid.uuid4().hex[:8]}", title="No AI summary yet",
+            sectors=[], risk_level="Medium", opportunity_score=50.0, confidence=0.5,
+            ai_summary=None,
+        )
+        db.add(opp)
+        await db.commit()
+        opp_id = opp.id
+        try:
+            resolved = await api._resolve_opportunities(db, [str(opp_id)])
+            assert resolved[0]["reason"] is None
+            assert resolved[0]["companies"] == []
+        finally:
+            await db.delete(opp)
+            await db.commit()
+
+
+@pytest.mark.asyncio
 async def test_company_ranking_only_contains_valid_tradable_symbols_end_to_end():
     """Structural check reusing Phase 1B's own canonical-symbol test
     fixtures — the API never re-introduces a pseudo-symbol since it only
