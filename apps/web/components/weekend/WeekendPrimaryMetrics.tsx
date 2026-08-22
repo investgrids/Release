@@ -213,8 +213,19 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
               </p>
               {(topOpportunity.companies ?? []).length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
+                  {/* Each pill colored by that company's OWN real trend
+                      (OpportunityCompany.trend) — never a uniform green
+                      borrowed from the opportunity's aggregate direction,
+                      since a company can legitimately trend against the
+                      opportunity as a whole. Same real field/fix as
+                      opportunity-radar's Impact column (see
+                      OpportunityPageClient.tsx's directionLabel). */}
                   {topOpportunity.companies.map((c) => (
-                    <span key={c} className="rounded-full border border-surface-border/15 bg-surface-border/5 px-2 py-0.5 text-[10px] font-bold text-text-secondary">{c}</span>
+                    <span key={c.symbol} className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                      c.trend === "up" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                      : c.trend === "down" ? "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300"
+                      : "border-surface-border/15 bg-surface-border/5 text-text-secondary"
+                    }`}>{c.symbol}</span>
                   ))}
                 </div>
               )}
@@ -255,8 +266,15 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
               <p className="mt-1.5 line-clamp-2 text-[12px] leading-snug text-text-secondary">{topRisk.description}</p>
               {topRisk.related_companies.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
+                  {/* Rose, not neutral gray — WeekendRisk carries no
+                      per-company trend field (unlike opportunities'
+                      companies), but every name here is explicitly
+                      "related to THIS risk" by the backend's own
+                      dedupeMarketRisks grouping, so tinting them with
+                      the risk's own real direction is honest context,
+                      not an invented per-company signal. */}
                   {topRisk.related_companies.slice(0, 3).map((c) => (
-                    <span key={c} className="rounded-full border border-surface-border/15 bg-surface-border/5 px-2 py-0.5 text-[10px] font-bold text-text-secondary">{c}</span>
+                    <span key={c} className="rounded-full border border-rose-500/25 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-300">{c}</span>
                   ))}
                 </div>
               )}

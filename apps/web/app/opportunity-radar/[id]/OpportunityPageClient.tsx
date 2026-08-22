@@ -61,10 +61,19 @@ function riskColor(r: string) {
 function trendColor(t: string) {
   return t.toLowerCase().includes("positive") ? "text-emerald-400" : "text-rose-400";
 }
-function impactColor(i: string) {
-  if (i === "Very High") return "text-rose-600 dark:text-rose-300";
-  if (i === "High")      return "text-amber-600 dark:text-amber-300";
-  return "text-text-secondary";
+// impact_label ("Very High"/"High"/"Medium") is a pure MAGNITUDE field —
+// it carries no direction meaning at all (confirmed against the backend
+// model: OpportunityCompany.impact_label). The Impact column previously
+// colored "Very High" rose/red, which reads as "bad" even though this is
+// a beneficiary table — a real magnitude-vs-direction mixup. `trend`
+// ("up"/"down"/"neutral") is the actual direction signal, already used
+// for the arrow; the Impact column now shows that same real direction as
+// a word instead of the magnitude label, so it can never contradict its
+// own column's arrow.
+function directionLabel(trend: string): { label: string; className: string } {
+  if (trend === "up")   return { label: "Positive", className: "text-emerald-600 dark:text-emerald-300" };
+  if (trend === "down") return { label: "Negative", className: "text-rose-600 dark:text-rose-300" };
+  return { label: "Neutral", className: "text-text-secondary" };
 }
 
 const CHIP_COLORS = [
@@ -348,7 +357,7 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
                             </Link>
                           </td>
                           <td className="py-2.5 text-center font-semibold text-text-primary">{c.impact_score !== null && c.impact_score !== undefined ? Math.round(c.impact_score) : "—"}</td>
-                          <td className={`py-2.5 text-center font-medium ${impactColor(c.impact_label)}`}>{c.impact_label}</td>
+                          <td className={`py-2.5 text-center font-medium ${directionLabel(c.trend).className}`}>{directionLabel(c.trend).label}</td>
                           <td className="py-2.5 text-center">
                             <span className={c.trend === "up" ? "text-emerald-400" : c.trend === "down" ? "text-rose-400" : "text-text-secondary"}>
                               {c.trend === "up" ? "↑" : c.trend === "down" ? "↓" : "–"}

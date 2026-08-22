@@ -95,8 +95,11 @@ export interface WeekendOpportunity {
    * AI summary generation; never backfilled client-side. */
   reason: string | null;
   /** Real OpportunityCompany rows, top 3 by their own real impact_score —
-   * empty when none are linked, never invented. */
-  companies: string[];
+   * empty when none are linked, never invented. Each carries its OWN real
+   * trend (never the opportunity's aggregate direction borrowed for all
+   * of them — a company can legitimately trend against the opportunity
+   * as a whole). */
+  companies: { symbol: string; trend: string }[];
 }
 
 export interface WeekendHistoricalAnalogue {
