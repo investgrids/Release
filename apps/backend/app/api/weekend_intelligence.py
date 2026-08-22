@@ -69,7 +69,13 @@ async def _resolve_opportunities(db, opportunity_refs: list[str]) -> list[dict]:
             "id": r.id, "title": r.title, "sectors": r.sectors, "risk_level": r.risk_level,
             "opportunity_score": r.opportunity_score, "confidence": r.confidence,
             "reason": ai_summary.get("matters") or None,
-            "companies": [c.company_id for c in top_companies],
+            # 2026-08-22 — each company's own real trend ("up"/"down"/
+            # "neutral", OpportunityCompany.trend), not the opportunity's
+            # aggregate direction — the same real per-company field
+            # already used to fix opportunity-radar's Impact column (that
+            # page's "Very High"/"High" impact_label mislabeled as if it
+            # were direction; trend is the real direction signal).
+            "companies": [{"symbol": c.company_id, "trend": c.trend} for c in top_companies],
         })
     return result
 

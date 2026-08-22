@@ -140,7 +140,11 @@ async def test_resolved_opportunity_carries_real_reason_and_top_companies():
     real, already-persisted ai_summary.matters field (never a truncation
     of title), and companies must be the real OpportunityCompany rows,
     capped at 3 and ranked by their own real impact_score, never
-    invented tickers."""
+    invented tickers. Each company also carries its own real `trend`
+    (up/down/neutral) — the direction signal the homepage colors its
+    pill by, never a color derived from the opportunity's own aggregate
+    direction (that would misrepresent a company whose own trend
+    actually disagrees with the opportunity as a whole)."""
     from app.db.models.opportunity import Opportunity, OpportunityCompany
 
     async with AsyncSessionLocal() as db:
@@ -152,10 +156,10 @@ async def test_resolved_opportunity_carries_real_reason_and_top_companies():
         db.add(opp)
         await db.flush()
         db.add_all([
-            OpportunityCompany(opportunity_id=opp.id, company_id="LOWSCORE", impact_score=10.0),
-            OpportunityCompany(opportunity_id=opp.id, company_id="HIGHSCORE", impact_score=90.0),
-            OpportunityCompany(opportunity_id=opp.id, company_id="MIDSCORE", impact_score=50.0),
-            OpportunityCompany(opportunity_id=opp.id, company_id="FOURTH", impact_score=40.0),
+            OpportunityCompany(opportunity_id=opp.id, company_id="LOWSCORE", impact_score=10.0, trend="up"),
+            OpportunityCompany(opportunity_id=opp.id, company_id="HIGHSCORE", impact_score=90.0, trend="up"),
+            OpportunityCompany(opportunity_id=opp.id, company_id="MIDSCORE", impact_score=50.0, trend="down"),
+            OpportunityCompany(opportunity_id=opp.id, company_id="FOURTH", impact_score=40.0, trend="neutral"),
         ])
         await db.commit()
         opp_id = opp.id
@@ -164,7 +168,13 @@ async def test_resolved_opportunity_carries_real_reason_and_top_companies():
             assert len(resolved) == 1
             r = resolved[0]
             assert r["reason"] == "Real concise reason from the backend."
-            assert r["companies"] == ["HIGHSCORE", "MIDSCORE", "FOURTH"]  # top 3 by impact_score, "LOWSCORE" excluded
+            # top 3 by impact_score, "LOWSCORE" excluded; each keeps its
+            # own real trend, not a uniform/borrowed one.
+            assert r["companies"] == [
+                {"symbol": "HIGHSCORE", "trend": "up"},
+                {"symbol": "MIDSCORE", "trend": "down"},
+                {"symbol": "FOURTH", "trend": "neutral"},
+            ]
         finally:
             await db.delete(opp)
             await db.commit()
