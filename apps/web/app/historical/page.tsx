@@ -5,7 +5,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 export const metadata: Metadata = {
   title: "Historical Market Patterns — What Happened Before & What It Means",
-  description: "Real historical market data on Union Budgets, RBI rate cycles, market corrections and global shocks — how Nifty and key sectors actually reacted, with real winners and losers.",
+  description: "Real historical market data on Union Budgets, RBI rate cycles, market corrections and global shocks — how Nifty and key sectors actually reacted.",
   openGraph: {
     type: "website",
     title: "Historical Market Patterns — MarketRipple",

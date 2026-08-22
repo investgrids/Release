@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     template: "%s | MarketRipple",
   },
   description:
-    "Understand Indian market events, ripple effects, and investment opportunities with AI-powered analysis. MarketRipple traces how events ripple through sectors, companies, and portfolios.",
+    "Understand Indian market events, ripple effects, and investment opportunities with AI-powered analysis.",
   keywords: ["Indian stock market", "market intelligence", "investment analysis", "Nifty", "BSE", "NSE", "AI finance", "ripple effect", "market events"],
   authors: [{ name: "MarketRipple" }],
   creator: "MarketRipple",

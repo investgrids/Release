@@ -6,7 +6,7 @@ import { InvestmentThesisTab } from "./_components/InvestmentThesisTab";
 
 export const metadata: Metadata = {
   title: "Ripple Intelligence — Market Dependency Graph",
-  description: "See how one event creates opportunities — trace cascading effects across sectors and companies, validate against real historical precedent, and arrive at an investment thesis.",
+  description: "See how one event creates opportunities — trace cascading effects across sectors and companies, validated against real historical precedent.",
 };
 export const dynamic = "force-dynamic";
 

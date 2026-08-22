@@ -15,7 +15,7 @@ import { TYPE_LABEL, fmtRelative, sectorName, type FeedArticle } from "./shared"
 export const metadata: Metadata = {
   title: "Market Intelligence — MarketRipple's AI Newsroom",
   description:
-    "Every market-moving event, transformed into investor-ready intelligence within minutes. MarketRipple's AI continuously monitors, analyzes, and publishes investment intelligence — 24×7.",
+    "Every market-moving event, transformed into investor-ready intelligence within minutes — monitored, analyzed, and published 24×7 by MarketRipple's AI.",
   openGraph: {
     title: "Market Intelligence — MarketRipple's AI Newsroom",
     description: "Every market-moving event, transformed into investor-ready intelligence within minutes.",

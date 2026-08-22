@@ -5,7 +5,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 export const metadata: Metadata = {
   title: "Best Stocks by Sector — Real AI Opportunity Rankings",
-  description: "Which stocks are best positioned in Defence, Banking, Energy, IT and more — ranked by MarketRipple's AI Company Intelligence Score, real signals from published analysis and Opportunity Radar, not a generic list.",
+  description: "Best-positioned stocks in Defence, Banking, Energy, IT and more — ranked by MarketRipple's AI Company Intelligence Score from real signals, not a generic list.",
   openGraph: {
     type: "website",
     title: "Best Stocks by Sector — MarketRipple",
