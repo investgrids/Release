@@ -24,11 +24,14 @@ interface InsightGroup { impact: string; items: InsightItem[] }
 interface KeyDriver { label: string; level: string }
 interface CommodityData {
   metals: Commodity[]; energy: Commodity[];
+  // Optional, matching lib/commodities.ts's CommoditiesInsights exactly —
+  // this type now also describes the server-fetched initialData prop
+  // (getCommodities()'s real return shape), not just the client refetch.
   insights: {
     degraded?: boolean;
-    metals: InsightGroup; energy: InsightGroup;
-    key_drivers_metals: KeyDriver[]; key_drivers_energy: KeyDriver[];
-    daily_summary: string;
+    metals?: InsightGroup; energy?: InsightGroup;
+    key_drivers_metals?: KeyDriver[]; key_drivers_energy?: KeyDriver[];
+    daily_summary?: string;
   };
   updated: string;
 }
@@ -179,12 +182,19 @@ function CommoditySection({
   );
 }
 
-export function CommoditiesContent({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" }) {
+interface Faq { question: string; answer: string }
+
+export function CommoditiesContent({ headingLevel = "h1", initialData, faqs }: {
+  headingLevel?: "h1" | "h2"; initialData?: CommodityData | null; faqs?: Faq[];
+}) {
   const Heading = headingLevel;
-  const [data, setData]       = useState<CommodityData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData]       = useState<CommodityData | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData);
 
   useEffect(() => {
+    // Server-rendered initialData already gives crawlers and first paint
+    // real content — this refetch is purely to keep prices live during
+    // the session (backend TTL is 2 min), not to fill an empty page.
     fetch(`${API}/api/commodities/`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setData(d); })
@@ -205,8 +215,17 @@ export function CommoditiesContent({ headingLevel = "h1" }: { headingLevel?: "h1
           <p className="mt-1 text-sm text-text-secondary">
             Real-time prices · AI-powered insights ·{" "}
             <span className="text-text-muted">
-              Updated: {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} IST
+              {/* Explicit Asia/Kolkata (not the runtime's local zone) — this
+                  renders during SSR too now that the page is server-fetched,
+                  so server and client must compute the identical string or
+                  React flags a hydration mismatch. */}
+              Updated: {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST
             </span>
+          </p>
+          <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-text-secondary">
+            Track today&apos;s gold price, silver rate, and copper and platinum futures alongside
+            Brent crude oil, WTI crude oil, natural gas, and India petrol price — each with a live
+            7-day trend chart and AI-generated market impact analysis for Indian investors.
           </p>
         </div>
         {data && (
@@ -242,8 +261,8 @@ export function CommoditiesContent({ headingLevel = "h1" }: { headingLevel?: "h1
             viewHref="/commodities"
             viewLabel="View All Commodities"
             commodities={data.metals}
-            insights={data.insights.metals}
-            drivers={data.insights.key_drivers_metals}
+            insights={data.insights.metals ?? { impact: "", items: [] }}
+            drivers={data.insights.key_drivers_metals ?? []}
             degraded={data.insights.degraded}
           />
 
@@ -255,8 +274,8 @@ export function CommoditiesContent({ headingLevel = "h1" }: { headingLevel?: "h1
             viewHref="/commodities"
             viewLabel="View Energy Markets"
             commodities={data.energy}
-            insights={data.insights.energy}
-            drivers={data.insights.key_drivers_energy}
+            insights={data.insights.energy ?? { impact: "", items: [] }}
+            drivers={data.insights.key_drivers_energy ?? []}
             degraded={data.insights.degraded}
           />
 
@@ -282,6 +301,22 @@ export function CommoditiesContent({ headingLevel = "h1" }: { headingLevel?: "h1
           <p className="text-center text-[11px] text-text-muted">
             Prices via yfinance · COMEX / NYMEX / ICE futures · Delayed ~15 min
           </p>
+
+          {faqs && faqs.length > 0 && (
+            <section className="border-t border-surface-border/6 pt-5" aria-label="Commodity prices frequently asked questions">
+              <h2 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-text-muted">Frequently Asked Questions</h2>
+              <div className="space-y-1.5">
+                {faqs.map((f, i) => (
+                  <details key={i} className="group rounded-lg border border-surface-border/6 bg-text-primary/[0.015] px-3 py-2">
+                    <summary className="cursor-pointer list-none text-[12.5px] font-medium text-text-secondary marker:content-none">
+                      {f.question}
+                    </summary>
+                    <p className="mt-1.5 text-[12px] leading-5 text-text-muted">{f.answer}</p>
+                  </details>
+                ))}
+              </div>
+            </section>
+          )}
         </>
       )}
     </main>
