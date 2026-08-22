@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import { safeJsonLd } from "@/lib/text";
 import RadarDetailPage, { type OpportunityDetail } from "./OpportunityPageClient";
@@ -64,11 +65,15 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function OpportunityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const detail = await fetchOpportunity(id);
+  // 2026-08 fix — this route never called notFound() at all: a deleted/
+  // nonexistent id rendered a near-empty page at HTTP 200. Same fix as
+  // /events/[id] and /ripple/[id].
+  if (!detail) notFound();
   const url = `${SITE}/opportunity-radar/${id}`;
-  const description = detail ? withPeriod(detail.summary || detail.ai_summary?.matters || `${detail.title} — AI-powered opportunity analysis on MarketRipple.`) : "";
-  const related = detail ? await fetchRelated(id, detail.sectors?.[0]) : null;
+  const description = withPeriod(detail.summary || detail.ai_summary?.matters || `${detail.title} — AI-powered opportunity analysis on MarketRipple.`);
+  const related = await fetchRelated(id, detail.sectors?.[0]);
 
-  const jsonLd = detail ? {
+  const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: detail.title,
@@ -83,24 +88,20 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
         { "@type": "ListItem", position: 3, name: detail.title, item: url },
       ],
     },
-  } : null;
+  };
 
   return (
     <>
-      {jsonLd && (
-        // JSON.stringify (not safeJsonLd) previously left "<" unescaped —
-        // same stored-XSS class already fixed on the article/signal/
-        // research pages.
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
-      )}
-      {detail && (
-        <section className="mb-4 border-b border-surface-border/6 pb-4">
-          {/* The single real <h1> for this page — the client component's
-              own header renders the same title as a <p>, not a second <h1>. */}
-          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">{detail.title}</h1>
-          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-text-secondary">{description}</p>
-        </section>
-      )}
+      {/* JSON.stringify (not safeJsonLd) previously left "<" unescaped —
+          same stored-XSS class already fixed on the article/signal/
+          research pages. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
+      <section className="mb-4 border-b border-surface-border/6 pb-4">
+        {/* The single real <h1> for this page — the client component's
+            own header renders the same title as a <p>, not a second <h1>. */}
+        <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">{detail.title}</h1>
+        <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-text-secondary">{description}</p>
+      </section>
       <RadarDetailPage params={params} initialDetail={detail} initialRelated={related} />
     </>
   );

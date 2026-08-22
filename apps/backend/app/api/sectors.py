@@ -32,8 +32,19 @@ _SECTOR_STOCKS: dict[str, list[str]] = {
 # Normalise incoming sector id to match our keys
 def _norm(sid: str) -> str:
     s = sid.lower().replace("-", "").replace(" ", "")
+    if s in _SECTOR_STOCKS:
+        return s
+    # 2026-08 fix — the fuzzy substring check below matched garbage input
+    # to a real sector whenever the input merely CONTAINED a short key as a
+    # substring (e.g. "it" is inside "definitely", "credit", "digital"...),
+    # so almost any typo/garbage sector slug silently resolved to the real
+    # IT sector at HTTP 200 instead of 404 — a duplicate-content generator
+    # of exactly the kind flagged in GSC. Gated to keys/input of length >=4
+    # (the exact-match check above already covers "it" itself) so the
+    # legitimate fuzzy pairs (Auto/Automotive, Infra/Infrastructure,
+    # Metal/Metals) still match.
     for key in _SECTOR_STOCKS:
-        if s in key or key in s:
+        if len(key) >= 4 and len(s) >= 4 and (s in key or key in s):
             return key
     return s
 

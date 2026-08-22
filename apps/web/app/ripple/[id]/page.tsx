@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import RipplePage, { type RippleData } from "./RipplePageClient";
 
@@ -40,19 +41,27 @@ function withPeriod(text: string) {
 export default async function RippleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const data = await fetchRipple(id);
-  const sector = data?.insights?.impacted_sectors?.[0]?.name;
-  const related = data ? await fetchRelated(id, data.event_title, sector) : null;
+  // 2026-08 fix — this route never called notFound() at all: a deleted/
+  // nonexistent id (including the "1".."6" ids middleware.ts's own
+  // comment references as a possible legacy demo case — confirmed live,
+  // no such demo-content path actually exists in RipplePageClient today)
+  // rendered a near-empty page at HTTP 200. Same fix as /events/[id]; see
+  // that route's comment for why a route-level loading.tsx also had to be
+  // removed for this to actually take effect.
+  if (!data) notFound();
+  const sector = data.insights?.impacted_sectors?.[0]?.name;
+  const related = await fetchRelated(id, data.event_title, sector);
   // SEO fix: same treatment as /events/[id] — prefer the real, human-
   // readable slug (Ripple pages represent the same Event record Events
   // does, so they share its slug) over the opaque id this URL was reached
   // with. middleware.ts issues a real 301 for old id-based links; this is
   // what makes this page assert the slug as its own canonical identity.
-  const url = `${SITE}/ripple/${data?.event_slug || id}`;
-  const description = data ? withPeriod(
+  const url = `${SITE}/ripple/${data.event_slug || id}`;
+  const description = withPeriod(
     data.insights?.summary || `${data.event_title} — ripple-chain market dependency analysis on MarketRipple.`
-  ) : "";
+  );
 
-  const jsonLd = data ? {
+  const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: data.event_title,
@@ -67,21 +76,17 @@ export default async function RippleDetailPage({ params }: { params: Promise<{ i
         { "@type": "ListItem", position: 3, name: data.event_title, item: url },
       ],
     },
-  } : null;
+  };
 
   return (
     <>
-      {jsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      )}
-      {data && (
-        <section className="mb-4 border-b border-surface-border/6 pb-4">
-          {/* The single real <h1> for this page — the client component's
-              own header renders the same title as a <p>, not a second <h1>. */}
-          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">{data.event_title}</h1>
-          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-text-secondary">{description}</p>
-        </section>
-      )}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <section className="mb-4 border-b border-surface-border/6 pb-4">
+        {/* The single real <h1> for this page — the client component's
+            own header renders the same title as a <p>, not a second <h1>. */}
+        <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">{data.event_title}</h1>
+        <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-text-secondary">{description}</p>
+      </section>
       <RipplePage initialData={data} initialRelated={related} />
     </>
   );

@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import EventExplorerPage, { type EventDetail } from "./EventPageClient";
 
@@ -51,7 +52,16 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const detail = await fetchEvent(id);
   const ev = detail?.event;
-  const related = ev ? await fetchRelated(id, ev.title, detail?.affectedSectors?.[0]?.sector) : null;
+  // 2026-08 fix — this route never called notFound() at all: a deleted/
+  // nonexistent event id rendered a near-empty page at HTTP 200 (a soft
+  // 404), same class of issue as the 16 other detail routes that already
+  // had this check. See also the site-wide loading.tsx removal in this
+  // same change — a route-level loading.tsx wraps the page in a Suspense
+  // boundary that commits the response status before an awaited
+  // notFound() can take effect, which is why this and other routes kept
+  // returning 200 even after superficially "having" the check.
+  if (!detail || !ev) notFound();
+  const related = await fetchRelated(id, ev.title, detail?.affectedSectors?.[0]?.sector);
   // Same SEO fix as layout.tsx's generateMetadata — prefer the real,
   // human-readable slug over the opaque id for the URL this page asserts
   // as its own identity (JSON-LD url + breadcrumb item).
