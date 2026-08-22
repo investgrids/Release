@@ -9,6 +9,7 @@ import {
   ChevronRight, ChevronDown, Activity, Building2, Moon, Circle, Globe2,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { sectorDirectionStyle, companyStateStyle, biasLabel } from "@/components/weekend/weekendLabels";
 
 
 // ── Real mini-chart from backend data ─────────────────────────────────────────
@@ -779,16 +780,25 @@ function WeekendSetup({ adjustment, watchlist }: { adjustment: any; watchlist: a
             <p className="text-[16px] font-bold text-text-primary">{adjustment.final_direction} ({adjustment.final_score >= 0 ? "+" : ""}{adjustment.final_score})</p>
           </div>
         </div>
-        <p className="mt-4 text-[12px] leading-5 text-text-secondary">{adjustment.reason}</p>
+        {adjustment.weekend_direction && (
+          <p className="mt-4 text-[12px] leading-5 text-text-secondary">
+            Weekend sentiment was {biasLabel(adjustment.weekend_direction).toLowerCase()} at {adjustment.weekend_confidence}% confidence, adding {adjustment.adjustment >= 0 ? "+" : ""}{adjustment.adjustment} to Monday&apos;s setup.
+          </p>
+        )}
         {(watchlist?.sectors?.length > 0 || watchlist?.companies?.length > 0) && (
           <div className="mt-4 border-t border-surface-border/6 pt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {watchlist.sectors?.length > 0 && (
               <div>
                 <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">Weekend Sector Signals</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {watchlist.sectors.map((s: any) => (
-                    <span key={s.sector} className="rounded-full border border-surface-border/15 bg-text-primary/[0.04] px-2.5 py-1 text-[11px] text-text-secondary">{s.sector} ({s.direction})</span>
-                  ))}
+                  {watchlist.sectors.map((s: any) => {
+                    const style = sectorDirectionStyle(s.direction);
+                    return (
+                      <span key={s.sector} className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${style.chipClass}`}>
+                        {s.sector} {style.symbol} {style.label}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -796,9 +806,14 @@ function WeekendSetup({ adjustment, watchlist }: { adjustment: any; watchlist: a
               <div>
                 <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">Weekend Company Signals</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {watchlist.companies.map((c: any) => (
-                    <span key={c.symbol} className="rounded-full border border-surface-border/15 bg-text-primary/[0.04] px-2.5 py-1 text-[11px] text-text-secondary">{c.symbol} ({c.state})</span>
-                  ))}
+                  {watchlist.companies.map((c: any) => {
+                    const style = companyStateStyle(c.state);
+                    return (
+                      <span key={c.symbol} className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${style.chipClass}`}>
+                        {c.symbol} {style.symbol} {style.label}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             )}
