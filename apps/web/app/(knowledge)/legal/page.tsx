@@ -543,33 +543,38 @@ export default function LegalPage() {
           />
 
           <p className="mt-4 text-[13px] leading-6 text-text-secondary">
-            MarketRipple uses cookies sparingly and only where necessary for the
-            platform to function correctly. We do not use cookies for
-            advertising, tracking, or building personal profiles.
+            MarketRipple does not set any cookies of its own — the platform
+            requires no login and stores no session state server-side. The
+            only cookies used are Google Analytics&apos; first-party analytics
+            cookies, and only once you accept them via the cookie banner
+            shown on your first visit. We do not use cookies for advertising,
+            retargeting, or tracking you across other websites.
           </p>
 
           <div className="mt-5 space-y-3">
             <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
               <h3 className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-300">
-                Essential Session Cookies Only
+                Analytics Cookies — Only With Your Consent
               </h3>
               <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
-                MarketRipple uses only essential cookies required for basic session
-                management and platform functionality. These cookies are
-                necessary for the platform to operate correctly and cannot be
-                disabled without affecting core features.
+                MarketRipple uses Google Analytics (first-party <code>_ga</code>/
+                <code>_ga_*</code> cookies) to understand aggregate usage —
+                which pages get read, how people navigate the platform — never
+                to build an individual profile of you. These cookies do not
+                load at all until you click Accept on the consent banner;
+                clicking Reject means they are never set for that visit.
               </p>
             </div>
 
             <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
               <h3 className="text-[13px] font-semibold text-text-primary">
-                No Advertising or Tracking Cookies
+                No Advertising or Retargeting Cookies
               </h3>
               <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
                 MarketRipple does not deploy third-party advertising cookies,
                 retargeting pixels, social media tracking cookies, or any other
-                cookies designed to monitor your behaviour across other websites
-                or build a personal advertising profile.
+                cookies designed to monitor your behaviour across other
+                websites or build a personal advertising profile.
               </p>
             </div>
 
@@ -578,31 +583,33 @@ export default function LegalPage() {
                 Clearing Your Cookies
               </h3>
               <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
-                You may clear cookies stored by MarketRipple at any time through
-                your browser&apos;s privacy settings. Because we only use essential
-                session cookies, clearing them will not permanently affect your
-                ability to use the platform — your next visit will simply begin
-                a new session.
+                You can withdraw consent at any time by clearing your
+                browser&apos;s cookies and local storage for this site — the
+                consent banner will reappear on your next visit. Since
+                MarketRipple has no login and no server-side session, clearing
+                cookies never affects your ability to use the platform; it
+                only resets your analytics consent choice.
               </p>
             </div>
 
             <div className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-4">
               <h3 className="text-[13px] font-semibold text-text-primary">
-                Future Cookie Use
+                Managing Your Cookie Preferences
               </h3>
               <p className="mt-1.5 text-[13px] leading-6 text-text-secondary">
-                If user account features are introduced in future, additional
-                cookies may be required to maintain authenticated sessions and
-                save preferences. Any such changes will be communicated clearly
-                via the{" "}
+                Your consent choice is remembered in your browser so the
+                banner does not reappear on every visit. If user account
+                features are introduced in future, any additional cookies
+                they require will go through this same consent mechanism —
+                communicated via the{" "}
                 <Link
                   href="/about#recent-updates"
                   className="text-emerald-400 underline-offset-2 hover:underline"
                 >
                   About
                 </Link>{" "}
-                page, and users will be given the ability to review and accept
-                updated cookie preferences before they take effect.
+                page, with your explicit acceptance required before they take
+                effect.
               </p>
             </div>
           </div>
