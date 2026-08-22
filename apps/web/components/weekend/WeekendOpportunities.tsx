@@ -28,8 +28,20 @@ export function WeekendOpportunities({ opportunities }: { opportunities: Weekend
                 <p className="mt-0.5 text-[10px] text-text-muted">{o.sectors.slice(0, 3).join(" · ")}</p>
               )}
             </div>
-            <div className="shrink-0 text-right">
-              <span className="block rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-black tabular-nums text-emerald-400">
+            {/* Fixed-width column, not auto-sized from children (2026-08
+                fix, user-reported "number background is broken") — the
+                label span was `block` with no width constraint, so its
+                own natural single-line width (~121px for "OPPORTUNITY
+                ACTIVITY SCORE" at this tracking) was setting the shared
+                parent's width, and the score badge — also `block` — then
+                stretched to fill that same 121px instead of sizing to
+                its own two-digit content, leaving the number crammed at
+                the far right of an oversized empty pill. The badge is
+                now inline-block (sizes to its own content) inside a
+                fixed-width column; the label wraps within that width
+                instead of dictating it. */}
+            <div className="w-20 shrink-0 text-right">
+              <span className="inline-block rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-black tabular-nums text-emerald-400">
                 {Math.round(o.opportunity_score)}
               </span>
               <span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-wide text-text-muted">
