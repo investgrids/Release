@@ -37,13 +37,22 @@ const HORIZON_LABEL: Record<string, string> = {
 export function CompanyImpactTable({ companies, quotes }: { companies: CompanyImpactRow[]; quotes: Record<string, Quote> }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-surface-border/7 bg-text-primary/[0.02]">
-      <div className="grid grid-cols-[1fr_auto_auto_2fr_auto] items-center gap-3 border-b border-surface-border/6 bg-text-primary/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
+      {/* Why was the sole `fr` track (2fr) with everything else `auto` — on
+          a wide viewport with a short one-line reason, that dumps 100% of
+          the row's leftover width into Why alone, stretching a short
+          sentence across most of the table and shoving Expected Horizon
+          far to the right, reading as visually disconnected from its own
+          row (user-reported). Bounded with minmax() instead of an
+          unconstrained fraction so the row sizes to its actual content —
+          Why still grows for longer reasons and wraps rather than
+          truncating, it just no longer over-claims empty space. */}
+      <div className="grid grid-cols-[minmax(0,200px)_auto_auto_minmax(0,380px)_auto] items-center gap-3 border-b border-surface-border/6 bg-text-primary/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
         <span>Company</span><span>Price</span><span>AI Impact</span><span>Why</span><span className="text-right">Expected Horizon</span>
       </div>
       {companies.map((c, i) => {
         const q = quotes[c.symbol];
         return (
-          <div key={i} className={`grid grid-cols-[1fr_auto_auto_2fr_auto] items-center gap-3 px-4 py-3 ${i < companies.length - 1 ? "border-b border-surface-border/6" : ""}`}>
+          <div key={i} className={`grid grid-cols-[minmax(0,200px)_auto_auto_minmax(0,380px)_auto] items-center gap-3 px-4 py-3 ${i < companies.length - 1 ? "border-b border-surface-border/6" : ""}`}>
             <div className="min-w-0">
               <Link href={`/companies/${c.symbol}`} className="block text-[13px] font-bold text-sky-700 dark:text-sky-300 hover:text-sky-800 dark:hover:text-sky-200 transition">{c.symbol}</Link>
               <span className="truncate text-[11px] text-text-muted">{c.name}</span>
