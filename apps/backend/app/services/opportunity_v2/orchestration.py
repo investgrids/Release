@@ -45,6 +45,7 @@ from app.services.opportunity_v2.gate import is_opportunity_evidence_worthy
 from app.services.opportunity_v2.generation import generate_narrative
 from app.services.opportunity_v2.identity import compute_thesis_identity, find_matching_open_opportunity
 from app.services.opportunity_v2.scoring import score_cluster
+from app.services.opportunity_v2.slugs import compute_opportunity_slug
 
 log = structlog.get_logger(__name__)
 
@@ -197,6 +198,21 @@ async def _process_cluster(db: AsyncSession, cluster: CoherentCluster, now: date
         db.add(opp)
 
     opp.current_score = breakdown.total
+    # Persisted exactly alongside current_score (owner correction,
+    # 2026-08-23: a GET request must never reconstruct different
+    # reasoning than the score it's displaying was actually computed
+    # from — see read_service.py, which serves these fields as-is,
+    # never a live recomputation).
+    opp.score_breakdown = {
+        "evidence_quality": breakdown.evidence_quality,
+        "development_count": breakdown.development_count,
+        "company_confirmation": breakdown.company_confirmation,
+        "sector_confirmation": breakdown.sector_confirmation,
+        "freshness": breakdown.freshness,
+        "contradiction_penalty": breakdown.contradiction_penalty,
+        "company_signals": breakdown.company_signals,
+    }
+    opp.contradictions = breakdown.contradictions
     opp.sectors = sectors
     opp.companies = companies
     opp.updated_at = now
@@ -239,6 +255,14 @@ async def _process_cluster(db: AsyncSession, cluster: CoherentCluster, now: date
         else:
             opp.narrative_status = "failed_capacity"
             # Deliberately NOT storing new_hash here — see docstring above.
+        await db.commit()
+
+    # Assigned once, on whichever pass first creates this row, from the
+    # best real title info available at that point (never regenerated
+    # afterward — see OpportunityV2.slug's own column comment).
+    if opp.slug is None:
+        slug_base = opp.current_title or opp.formation_title or identity.anchor
+        opp.slug = compute_opportunity_slug(opp.id, slug_base)
         await db.commit()
 
     return CandidateOutcome(
