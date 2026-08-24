@@ -85,6 +85,13 @@ class BaseProvider(ABC):
 
     source_name: str = "unknown"
 
+    # Phase 1B Batch 2 (owner instruction, 2026-08-23) — explicit per-
+    # provider opt-in, not a name-based check, so adding/removing a
+    # source from Raw Evidence capture is a one-line, auditable change.
+    # False by default: BSEProvider stays excluded (already known
+    # bot-blocked/unreliable — see the Phase 1A audit).
+    capture_raw_evidence: bool = False
+
     # ── Must implement ────────────────────────────────────────────────────────
 
     @abstractmethod
@@ -151,15 +158,42 @@ class BaseProvider(ABC):
 
         elapsed_ms = (time.monotonic() - start) * 1000
         result: list[RawItem] = []
+        # Phase 1B Batch 2 (owner instruction, 2026-08-23) — collected
+        # alongside the existing loop, never altering it: every raw item
+        # gets a quality verdict (good/filtered/invalid/parse_error)
+        # regardless of whether it survives normalize()/validate(), so a
+        # parse failure or filtered item is still captured for
+        # auditability rather than silently vanishing.
+        raw_evidence_entries: list[tuple[dict, str]] = []
         for raw in raw_items:
             try:
                 item = self.normalize(raw)
-                if item and self.validate(item):
-                    result.append(item)
+                if item is None:
+                    raw_evidence_entries.append((raw, "filtered"))
+                    continue
+                if not self.validate(item):
+                    raw_evidence_entries.append((raw, "invalid"))
+                    continue
+                result.append(item)
+                raw_evidence_entries.append((raw, "good"))
             except Exception as exc:
                 log.debug("provider.normalize_error", source=self.source_name, error=str(exc))
+                raw_evidence_entries.append((raw, "parse_error"))
         log.info("provider.fetched", source=self.source_name, count=len(result))
         source_health.record_fetch(
             self.source_name, success=True, event_count=len(result), latency_ms=elapsed_ms,
         )
+
+        if self.capture_raw_evidence and raw_evidence_entries:
+            try:
+                from app.db.session import AsyncSessionLocal
+                from app.services.warehouse.raw_evidence import capture_raw_evidence
+                async with AsyncSessionLocal() as db:
+                    await capture_raw_evidence(db, self.source_name, raw_evidence_entries)
+            except Exception as exc:
+                # Raw Evidence capture must never break the existing
+                # fetch/normalize/persist pipeline — this is purely
+                # additive per owner instruction.
+                log.warning("provider.raw_evidence_capture_failed", source=self.source_name, error=str(exc)[:200])
+
         return result

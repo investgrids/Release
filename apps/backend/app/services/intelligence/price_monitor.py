@@ -256,6 +256,23 @@ async def run_price_monitor_cycle() -> None:
     except Exception as exc:
         log.warning("price_monitor.close_snapshot_cycle_error", error=str(exc)[:200])
 
+    # Phase 1B Batch 1D (owner instruction, 2026-08-23) — reuses this
+    # existing 2-minute cadence rather than a new independent scheduled
+    # job, same pattern as capture_close_snapshot above. Internally gated
+    # to once per 15-minute bucket during NSE regular trading hours; a
+    # no-op call on every other tick.
+    try:
+        from app.db.session import AsyncSessionLocal
+        from app.services.warehouse.market_observations import capture_market_observations_if_due
+        async with AsyncSessionLocal() as db:
+            result = await capture_market_observations_if_due(db)
+            if not result.get("skipped"):
+                log.info("price_monitor.market_observations_captured", **{
+                    k: v for k, v in result.items() if k != "skipped"
+                })
+    except Exception as exc:
+        log.warning("price_monitor.market_observations_cycle_error", error=str(exc)[:200])
+
     bus = get_event_bus()
     loop = asyncio.get_event_loop()
 

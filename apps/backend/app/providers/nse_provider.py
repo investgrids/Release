@@ -49,6 +49,7 @@ def _clip_headline(source_text: str) -> str:
 
 class NSEProvider(BaseProvider):
     source_name = "NSE"
+    capture_raw_evidence = True   # Phase 1B Batch 2, 2026-08-23
 
     async def _get(self, url: str, params: dict | None = None) -> list[dict]:
         # Reliability hardening (2026-08-06): confirmed via a direct live test

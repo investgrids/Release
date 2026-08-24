@@ -36,6 +36,9 @@ from app.db.models.quant_research import QuantResearchPrediction, QuantResearchE
 from app.db.models.intelligence_observation import CompanyIntelligenceObservation
 from app.db.models.intelligence_pilot import IntelligencePilotObservation, IntelligencePilotEvaluation
 from app.db.models.economic_calendar import EconomicCalendarEvent
+from app.db.models.source_registry import Source
+from app.db.models.market_observation import MarketObservation
+from app.db.models.raw_evidence import RawEvidence
 
 __all__ = [
     "Opportunity",
@@ -77,4 +80,7 @@ __all__ = [
     "IntelligencePilotObservation",
     "IntelligencePilotEvaluation",
     "EconomicCalendarEvent",
+    "Source",
+    "MarketObservation",
+    "RawEvidence",
 ]

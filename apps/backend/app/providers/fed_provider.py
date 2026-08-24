@@ -46,6 +46,7 @@ def _parse_date(s: str) -> str:
 
 class FedProvider(BaseProvider):
     source_name = "Fed"
+    capture_raw_evidence = True   # Phase 1B Batch 2, 2026-08-23
 
     async def fetch_latest(self) -> list[dict]:
         async with httpx.AsyncClient(headers=_HEADERS, timeout=12, follow_redirects=True) as c:

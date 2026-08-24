@@ -93,6 +93,7 @@ def _parse_pub_date(date_str: str) -> str:
 
 class RSSProvider(BaseProvider):
     source_name = "RSS"
+    capture_raw_evidence = True   # Phase 1B Batch 2, 2026-08-23
 
     async def fetch_latest(self) -> list[dict]:
         # Each of the 6 feeds is independent — one going down shouldn't kill

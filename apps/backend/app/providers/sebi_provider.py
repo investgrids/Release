@@ -18,6 +18,7 @@ _HEADERS = {
 
 class SEBIProvider(BaseProvider):
     source_name = "SEBI"
+    capture_raw_evidence = True   # Phase 1B Batch 2, 2026-08-23
 
     async def fetch_latest(self) -> list[dict]:
         # SEBI's RSS is often unreliable, but swallowing the exception here
