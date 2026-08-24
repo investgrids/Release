@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Clock, ChevronRight } from "lucide-react";
 import { GUIDES, GUIDE_CATEGORIES } from "@/lib/guides-data";
+import { safeJsonLd } from "@/lib/text";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
@@ -18,9 +19,28 @@ export const metadata: Metadata = {
   },
 };
 
+// Built directly from GUIDES — the same real, written guides rendered on
+// the page — so this can never drift into fabricated entries.
+const GUIDES_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "Product Guides — How to Use MarketRipple",
+  url: `${SITE_URL}/learn/guides`,
+  mainEntity: {
+    "@type": "ItemList",
+    itemListElement: GUIDES.map((g, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: g.title,
+      url: `${SITE_URL}/learn/guides/${g.slug}`,
+    })),
+  },
+};
+
 export default function GuidesIndexPage() {
   return (
     <div className="space-y-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(GUIDES_JSONLD) }} />
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Knowledge Library</p>
         <h1 className="mt-3 text-[26px] font-black leading-tight text-text-primary md:text-[32px]">Product Guides</h1>
