@@ -36,6 +36,7 @@ from app.db.models.quant_research import QuantResearchPrediction, QuantResearchE
 from app.db.models.intelligence_observation import CompanyIntelligenceObservation
 from app.db.models.intelligence_pilot import IntelligencePilotObservation, IntelligencePilotEvaluation
 from app.db.models.economic_calendar import EconomicCalendarEvent
+from app.db.models.company_entity import CompanyEntity, CompanyAlias
 
 __all__ = [
     "Opportunity",
@@ -77,4 +78,6 @@ __all__ = [
     "IntelligencePilotObservation",
     "IntelligencePilotEvaluation",
     "EconomicCalendarEvent",
+    "CompanyEntity",
+    "CompanyAlias",
 ]
