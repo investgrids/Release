@@ -236,6 +236,55 @@ async def job_daily_opportunities() -> None:
     log.info("job.daily_opportunities.done", generated=generated, elapsed_ms=elapsed)
 
 
+# ── Opportunity V2 shadow/production pass — V2-B, 2026-08-24 ────────────────
+# Runs unconditionally (both before and after the settings.opportunity_
+# read_source cutover) — this is what actually accumulates the real V2 data
+# an eventual promotion decision needs, and it's the ongoing writer once
+# promoted. Scheduled here, not in run_opportunity_worker.py (that module is
+# dead code — confirmed zero callers repo-wide, a leftover parallel
+# implementation of the same job_daily_opportunities logic V1 already runs
+# through, not V2's).
+async def job_opportunity_v2_shadow_pass() -> None:
+    """One bounded run_shadow_pass() call, with the full real observability
+    PassSummary already returns — every field logged is real, nothing
+    invented to match a wishlist of metrics that don't exist."""
+    t0 = time.perf_counter()
+    log.info("job.opportunity_v2_shadow_pass.start")
+
+    from datetime import datetime, timedelta, timezone
+    from app.db.session import AsyncSessionLocal
+    from app.services.opportunity_v2.orchestration import run_shadow_pass
+
+    # Same 26h/1h-overlap bound as job_daily_opportunities above, for the
+    # same reason: an unbounded `since` scans every real open Development
+    # (900+ rows locally, 10+ minutes — confirmed live, see
+    # test_opportunity_v2_orchestration.py's own module docstring).
+    since = datetime.now(timezone.utc) - timedelta(hours=26)
+
+    try:
+        async with AsyncSessionLocal() as db:
+            summary = await run_shadow_pass(db, since=since)
+    except Exception as exc:
+        elapsed = round((time.perf_counter() - t0) * 1000)
+        log.error("job.opportunity_v2_shadow_pass.failed", error=str(exc), elapsed_ms=elapsed)
+        return
+
+    elapsed = round((time.perf_counter() - t0) * 1000)
+    log.info(
+        "job.opportunity_v2_shadow_pass.done",
+        developments_considered=summary.developments_considered,
+        developments_gate_passed=summary.developments_gate_passed,
+        clusters_formed=summary.clusters_formed,
+        opportunities_created=summary.opportunities_created,
+        opportunities_updated=summary.opportunities_updated,
+        rejected_no_identity=summary.rejected_no_identity,
+        narrative_generated=summary.narrative_generated,
+        narrative_failed=summary.narrative_failed,
+        narrative_reused=summary.narrative_reused,
+        elapsed_ms=elapsed,
+    )
+
+
 # ── Pre-market cache warmup — 8:00 AM IST ────────────────────────────────────
 
 async def job_warm_premarket() -> None:

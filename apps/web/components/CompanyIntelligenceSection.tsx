@@ -177,7 +177,13 @@ export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: 
           </p>
           <div className="flex flex-wrap gap-2">
             {data.related_opportunities!.map(o => (
-              <Link key={o.id} href={`/opportunity-radar/${o.slug}` as any}
+              // V2-B audit finding, 2026-08-24: was linking by o.slug — V1's
+              // OWN slug column (opportunity.py's `slug`), which radar.py's
+              // dual lookup never checks (a non-numeric path segment there
+              // is always treated as a V2 slug, so this 404'd for every
+              // real V1 opportunity). o.id resolves through the existing,
+              // unchanged V1 numeric branch.
+              <Link key={o.id} href={`/opportunity-radar/${o.id}` as any}
                 className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[12px] font-medium text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-500/10">
                 {o.title} <span className="text-[10px] text-emerald-400/70">{Math.round(o.opportunity_score)}</span>
               </Link>

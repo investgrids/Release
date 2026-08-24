@@ -128,7 +128,14 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   // not assumed — /api/events caps `limit` at 100, /api/companies caps
   // `page_size` at 60, both silently 422 and fall back to [] if exceeded):
   //   /api/events/  -> bare array of events, keyed by `id`
-  //   /api/radar/   -> { items: [...] }; /opportunity-radar/[id] uses the numeric `id`
+  //   /api/radar/   -> { items: [...] } — V1 items are keyed by numeric
+  //                     `id` (/opportunity-radar/[id]); post-promotion
+  //                     (V2-B, settings.opportunity_read_source="v2") the
+  //                     same endpoint returns V2 items instead — string
+  //                     uuid `id` + a separate `slug`
+  //                     (/opportunity-radar/[slug]). Never both at once —
+  //                     the backend itself is the single source of truth
+  //                     for which shape is "live" right now.
   //   /api/companies/ -> { companies: [...], total_pages }, keyed by `symbol`
   //   /api/news/    -> bare array of news items, keyed by `id`
   // Deliberately NOT fetching /api/stories/ — the Story model is confirmed
@@ -142,7 +149,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     // Ripple hub itself surfaces — not blindly mirroring every event route,
     // since not every event has a ripple analysis worth indexing.
     safeJson<Array<{ id: string; slug?: string; event_date?: string }>>(`${API}/api/ripple/featured?limit=20`, []),
-    safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
+    safeJson<{ items?: Array<{ id: number | string; slug?: string; updated_at?: string }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
     safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
     safeJson<{ items?: Array<{ slug: string; article_type?: string; canonical_url?: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
@@ -189,12 +196,19 @@ async function buildEntries(): Promise<SitemapEntry[]> {
       priority: 0.7,
     }));
 
-  const radarRoutes: SitemapEntry[] = (radar.items ?? []).map(r => ({
-    url: `${base}/opportunity-radar/${r.id}`,
-    lastModified: now,
-    changeFrequency: "weekly",
-    priority: 0.7,
-  }));
+  // V2-B, 2026-08-24 — shape-detected per item, not per a global flag this
+  // route would have to fetch separately: typeof r.id === "number" is V1
+  // (numeric primary key, real today), a string id is V2's uuid (real
+  // post-promotion) and MUST use the real slug, never the uuid itself, or
+  // the id-only V2 lookup branch (radar.py) would 404 every one of these.
+  const radarRoutes: SitemapEntry[] = (radar.items ?? [])
+    .filter(r => typeof r.id === "number" || hasCleanSlug(r.slug))
+    .map(r => ({
+      url: `${base}/opportunity-radar/${typeof r.id === "number" ? r.id : r.slug}`,
+      lastModified: r.updated_at ?? now,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    }));
 
   // Ticker symbols routinely contain "&" (M&M, M&MFIN) — this is exactly
   // the field that broke Search Console validation. buildSitemapXml()

@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.development import Development, DevelopmentEvidence
@@ -264,3 +264,51 @@ async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[Opp
         created_at=opp.created_at.isoformat(),
         updated_at=opp.updated_at.isoformat(),
     )
+
+
+# ── List — V2-B, 2026-08-24 ───────────────────────────────────────────────────
+# The list capability the sitemap (and, later, any "recent opportunities"
+# widget migrated off V1) needs. No V2 list endpoint existed before this —
+# every prior consumer of OpportunityV2 was the single-slug detail lookup
+# above. Filters on public_status="public" for the exact same reason the
+# detail lookup does: a shadow row must never become independently
+# reachable, not through a direct slug guess and not through a list either.
+
+class OpportunityV2ListItem(BaseModel):
+    id: str
+    slug: str
+    title: str
+    current_strength: Optional[float] = None
+    sectors_themes: list[str] = []
+    updated_at: str
+
+
+class PaginatedOpportunitiesV2(BaseModel):
+    items: list[OpportunityV2ListItem]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+async def list_public_opportunities_v2(db: AsyncSession, page: int = 1, page_size: int = 100) -> PaginatedOpportunitiesV2:
+    base = select(OpportunityV2).where(OpportunityV2.public_status == "public")
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
+
+    rows = (await db.execute(
+        base.order_by(OpportunityV2.updated_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+    )).scalars().all()
+
+    items = [
+        OpportunityV2ListItem(
+            id=o.id, slug=o.slug,
+            title=o.current_title or o.formation_title or o.thesis_anchor,
+            current_strength=o.current_score, sectors_themes=o.sectors or [],
+            updated_at=o.updated_at.isoformat(),
+        )
+        for o in rows
+    ]
+    pages = max(1, (total + page_size - 1) // page_size)
+    return PaginatedOpportunitiesV2(items=items, total=total, page=page, page_size=page_size, pages=pages)

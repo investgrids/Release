@@ -41,6 +41,22 @@ function sectorsOf(d: AnyOpportunityDetail): string[] {
   return isV2Detail(d) ? d.sectors_themes : (d.sectors ?? []);
 }
 
+// V2-B, 2026-08-24 — the one real signal a V1 legacy page needs to decide
+// whether to self-noindex: has the system actually been promoted to V2 as
+// canonical? Long revalidate — this is a deploy-time posture flag, not
+// something that changes moment to moment, so there's no reason to refetch
+// it on every request the way the opportunity itself is.
+async function fetchOpportunityV2Promoted(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API}/api/radar/meta`, { next: { revalidate: 3600 } });
+    if (!res.ok) return false;
+    const d = await res.json();
+    return d.opportunity_v2_promoted === true;
+  } catch {
+    return false;
+  }
+}
+
 // Backend already supports entity_type="opportunity" — this page just
 // never called it (confirmed: zero RelatedContent usage anywhere under
 // opportunity-radar), a real orphan-page gap despite the plumbing already
@@ -71,9 +87,23 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
   const title = titleOf(d);
   const desc = descriptionOf(d).slice(0, 160);
+
+  // V2-B, 2026-08-24 — "numeric and slug routes cannot both stay
+  // independently indexable" (owner instruction). Once V2 is promoted to
+  // canonical, V1 legacy pages self-noindex — real, aging content that's
+  // no longer the canonical source, not deleted and not redirected (there
+  // is no reliable 1:1 V1<->V2 thesis mapping to redirect to — see
+  // shadow_report.py's own module docstring: "necessarily a heuristic").
+  // V2 pages are never touched by this — they're the canonical surface
+  // post-promotion and keep the site's normal index:true default.
+  const robots = (!isV2Detail(d) && await fetchOpportunityV2Promoted())
+    ? { index: false, follow: true }
+    : undefined;
+
   return {
     title: `${title} — Opportunity Analysis`,
     description: desc,
+    ...(robots ? { robots } : {}),
     openGraph: { type: "article", title: `${title} — MarketRipple`, description: desc, url, siteName: "MarketRipple" },
     twitter: { card: "summary_large_image", title, description: desc },
     alternates: { canonical: url },
