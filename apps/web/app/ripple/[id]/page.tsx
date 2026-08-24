@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
+import { safeJsonLd } from "@/lib/text";
 import RipplePage, { type RippleData } from "./RipplePageClient";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
@@ -80,7 +81,7 @@ export default async function RippleDetailPage({ params }: { params: Promise<{ i
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <section className="mb-4 border-b border-surface-border/6 pb-4">
         {/* The single real <h1> for this page — the client component's
             own header renders the same title as a <p>, not a second <h1>. */}

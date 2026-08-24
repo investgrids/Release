@@ -5,7 +5,7 @@ import {
   ChevronRight, BadgeCheck, CalendarClock, HelpCircle,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import { cleanText } from "@/lib/text";
+import { cleanText, safeJsonLd } from "@/lib/text";
 import { RefreshButton } from "./RefreshButton";
 
 // ── Types (subset of the real /api/daily-brief/intelligence response) ───────
@@ -156,8 +156,8 @@ export default async function DailyBriefPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
-      {faqJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(webPageJsonLd) }} />
+      {faqJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }} />}
 
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">

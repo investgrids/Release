@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
-import { neutralRating } from "@/lib/text";
+import { neutralRating, safeJsonLd } from "@/lib/text";
 import StockPage, { type StockDetail } from "./CompanyPageClient";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
@@ -143,10 +143,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
   return (
     <>
       {jsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       )}
       {faqJsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }} />
       )}
       {stock && (
         <section className="mb-4 border-b border-surface-border/6 pb-4">
