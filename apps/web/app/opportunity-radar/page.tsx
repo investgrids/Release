@@ -353,16 +353,26 @@ export default function OpportunityRadarPage() {
       .then(d => {
         const raw = Array.isArray(d) ? d : (d?.items ?? []);
         const mapped: RadarItem[] = raw.map((o: any) => {
-          const rawScore = o.opportunity_score ?? o.score;
+          // current_strength is V2's real score field (no opportunity_score/
+          // score on a V2 list item) -- without this fallback every V2
+          // opportunity showed as unscored on this hub page.
+          const rawScore = o.opportunity_score ?? o.score ?? o.current_strength;
           const rawConf = o.confidence;
           return {
             id:           o.id,
+            // Batch E consumer migration, 2026-08-24 -- real bug caught by
+            // the promotion-readiness re-audit's live click-through: this
+            // mapping added `slug` to the RadarItem type but never actually
+            // copied o.slug through here, so the fallback below always hit
+            // the raw uuid instead. Confirmed live with Playwright before
+            // this fix (hub page "View Details" resolved to a bare uuid).
+            slug:         o.slug,
             theme:        o.title,
             score:        rawScore === null || rawScore === undefined ? null : Math.round(rawScore),
             reason:       o.summary ?? o.reason ?? "",
             confidence:   typeof rawConf === "number" ? (rawConf > 1 ? rawConf / 100 : rawConf) : null,
             beneficiaries: (o.companies ?? []).map((c: any) => typeof c === "string" ? c : c.symbol),
-            sectors:      o.sectors ?? [],
+            sectors:      o.sectors ?? o.sectors_themes ?? [],
             trend:        o.trend ?? null,
           };
         });
