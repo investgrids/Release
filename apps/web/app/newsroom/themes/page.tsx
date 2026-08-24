@@ -4,10 +4,19 @@ import { TrendingUp } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText } from "@/lib/text";
 
+// SEO P1-P2, 2026-08-24 — same duplicate-content finding the P0 fix
+// already applied to /newsroom/themes/[slug] (each card here links to
+// those exact pages), just not previously checked at the hub level: this
+// page re-lists the identical /api/radar/ data /opportunity-radar
+// already lists, self-canonicalized to itself rather than pointing at
+// the real hub. noindex,follow + canonical -> the real destination,
+// matching the Indexability Contract's DUPLICATE/PREVIEW rule.
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 export const metadata: Metadata = {
   title: "Theme Intelligence | AI Newsroom",
   description: "Real, computed opportunity scores paired with AI analysis — neither the number nor the narrative alone tells the full story.",
-  alternates: { canonical: "/newsroom/themes" },
+  robots: { index: false, follow: true },
+  alternates: { canonical: `${SITE}/opportunity-radar` },
 };
 
 interface OpportunityCard {

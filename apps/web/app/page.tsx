@@ -1305,16 +1305,25 @@ async function ThemeStrengthCard() {
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
-      <CardHeader title="Theme Strength" href="/newsroom/themes" />
+      {/* SEO P1-P2, 2026-08-24 — was /newsroom/themes, a confirmed
+          duplicate of this same /api/radar data (noindexed, canonical ->
+          /opportunity-radar). */}
+      <CardHeader title="Theme Strength" href="/opportunity-radar" />
       {themes.length === 0 ? (
         <p className="flex-1 py-6 text-center text-[12px] text-text-muted">Theme data is loading.</p>
       ) : (
         <div className="flex-1 space-y-3">
           {themes.map((t: any) => {
-            const score = t.opportunity_score ?? 0;
+            const score = t.opportunity_score ?? t.current_strength ?? 0;
             const barColor = score >= 75 ? "bg-emerald-500" : score >= 50 ? "bg-sky-500" : score >= 30 ? "bg-amber-500" : "bg-rose-500";
+            // SEO P1-P2, 2026-08-24 — was /newsroom/themes/${t.slug}, the
+            // confirmed duplicate-content surface (noindex, canonical ->
+            // the real Opportunity Radar page). Links to the real
+            // canonical destination directly instead, same shape-detected
+            // id-vs-slug pattern already used on the sitemap/radar hub.
+            const href = `/opportunity-radar/${typeof t.id === "number" ? t.id : t.slug}`;
             return (
-              <Link key={t.id} href={`/newsroom/themes/${t.slug}`} className="group block">
+              <Link key={t.id} href={href as any} className="group block">
                 <div className="mb-1 flex items-center justify-between">
                   <span className="line-clamp-1 text-[11px] font-semibold text-text-secondary group-hover:text-text-primary transition">{cleanText(t.title)}</span>
                   <span className="shrink-0 text-[11px] font-black tabular-nums text-text-primary">{Math.round(score)}</span>

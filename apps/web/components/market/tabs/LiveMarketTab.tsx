@@ -457,7 +457,12 @@ function SectorRotationCard({ sectors }: { sectors: any[] }) {
           })}
         </div>
       )}
-      <Link href="/newsroom/themes" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-surface-border/7 bg-text-primary/[0.02] py-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary transition">
+      {/* SEO P1-P2, 2026-08-24 — was pointing "Sector Heatmap" at
+          /newsroom/themes (a noindexed Opportunity Radar duplicate, not
+          sector content at all — a pre-existing anchor/destination
+          mismatch found while fixing that duplicate). /sectors is the
+          real page this label describes. */}
+      <Link href="/sectors" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-surface-border/7 bg-text-primary/[0.02] py-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary transition">
         Sector Heatmap
       </Link>
     </div>

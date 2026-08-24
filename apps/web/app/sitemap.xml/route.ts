@@ -167,7 +167,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string }> }>(`${API}/api/insights/?article_type=comparison_intelligence&limit=100`, {}),
     // Historical Memory pages — real dated events, ids are already
     // human-readable slugs (e.g. "rbi-rate-pause-2023"), not opaque UUIDs.
-    safeJson<{ events?: Array<{ id: string; nifty_1w?: number | null; opportunity_score?: number | null }> }>(`${API}/api/historical/all?limit=200`, {}),
+    safeJson<{ events?: Array<{ id: string; nifty_1w?: number | null; opportunity_score?: number | null; has_winners?: boolean }> }>(`${API}/api/historical/all?limit=200`, {}),
   ]);
 
   // Companies list is paginated server-side (60/page) — fetch the remaining
@@ -296,8 +296,12 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     priority: 0.75,
   }));
 
+  // SEO P1-P2, 2026-08-24 — now matches the detail page's own
+  // isSubstantive() gate exactly (nifty_1w || opportunity_score ||
+  // has_winners), closing the Sitemap Truth Audit's confirmed (if
+  // dormant) gate mismatch.
   const historicalRoutes: SitemapEntry[] = (historical.events ?? [])
-    .filter(e => e.nifty_1w != null || e.opportunity_score != null)
+    .filter(e => e.nifty_1w != null || e.opportunity_score != null || e.has_winners)
     .map(e => ({
       url: `${base}/historical/${e.id}`,
       lastModified: now,
