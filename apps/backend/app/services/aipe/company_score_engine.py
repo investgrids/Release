@@ -291,8 +291,17 @@ async def compute_company_score(db: AsyncSession, symbol: str) -> dict[str, Any]
     top = sorted(weighted_rows, key=lambda x: abs(x[0]), reverse=True)[:3]
 
     def _contrib(w: float, r: AICompanySignal) -> dict:
+        # SEO P1-P2, 2026-08-24 — real opportunity-sourced contributors
+        # carried no link back to the opportunity they came from, despite
+        # source_id already holding the real Opportunity.id (see
+        # extract_opportunity_signals above). Article-sourced rows are
+        # deliberately left without an href here — IntelligenceArticle's
+        # public URL is keyed by slug, not the numeric id stored in
+        # source_id, and there's no confirmed id->slug lookup at this call
+        # site; a guessed link would risk pointing at the wrong article.
+        href = f"/opportunity-radar/{r.source_id}" if r.source_type == "opportunity" else None
         return {
-            "reason": r.reason, "source_type": r.source_type,
+            "reason": r.reason, "source_type": r.source_type, "href": href,
             "signed_magnitude": r.signed_magnitude, "signal_at": r.signal_at.isoformat() if r.signal_at else None,
         }
 

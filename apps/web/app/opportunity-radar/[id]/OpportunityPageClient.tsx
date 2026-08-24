@@ -559,12 +559,17 @@ function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialRelated 
                   {
                     label: "Explore Ripple Graph",
                     why: "See how this opportunity propagates across sectors and companies.",
-                    href: "/ripple",
+                    // Scoped to the real triggering event when one exists —
+                    // /ripple/[id] renders the same Event record /events/[id]
+                    // does, just as ripple-chain analysis, so this is a real
+                    // deep link, not a guess. Falls back to the hub only when
+                    // there's no primary_event to scope to.
+                    href: d.primary_event ? `/ripple/${d.primary_event.event_id}` : "/ripple",
                   },
                   {
                     label: "View related events",
                     why: "Understand what triggered this opportunity in the first place.",
-                    href: "/events",
+                    href: d.primary_event ? `/events/${d.primary_event.event_id}` : "/events",
                   },
                 ],
               },

@@ -55,7 +55,14 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     // next.config.ts's "AI Newsroom consolidation" redirects). A sitemap
     // listing a redirecting URL is a confirmed Search Console warning
     // ("Page with redirect") and wastes crawl budget every cycle.
-    { url: `${base}/newsroom/themes`,            lastModified: now, changeFrequency: "daily",  priority: 0.85 },
+    //
+    // SEO P1-P2, 2026-08-24 — /newsroom/themes itself used to be listed
+    // here too, at the same priority. It's a confirmed duplicate of this
+    // exact page (same /api/radar/ data) and was just set to
+    // robots: { index: false, follow: true } with its canonical pointed
+    // here — submitting a noindex page in the sitemap is a real Search
+    // Console "Excluded by 'noindex' tag" warning, so it's removed rather
+    // than listed twice under two different URLs.
     { url: `${base}/opportunity-radar`,          lastModified: now, changeFrequency: "daily",  priority: 0.85 },
     { url: `${base}/ripple`,                     lastModified: now, changeFrequency: "daily",  priority: 0.8 },
     { url: `${base}/ai-search`,                  lastModified: now, changeFrequency: "daily",  priority: 0.8 },

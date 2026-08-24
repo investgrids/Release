@@ -749,7 +749,7 @@ function GovernmentExposureSection({ stock }: { stock: StockDetail }) {
 // entirely rather than showing a fabricated fallback when a company has no
 // real signals yet.
 interface CompanyScoreContributor {
-  reason: string | null; source_type: "article" | "opportunity";
+  reason: string | null; source_type: "article" | "opportunity"; href: string | null;
   signed_magnitude: number; signal_at: string | null;
 }
 interface CompanyScoreData {
@@ -792,23 +792,37 @@ function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
       </div>
       {data.top_contributors.length > 0 && (
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {data.top_contributors.map((c, i) => (
-            <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-              className="flex flex-col gap-2 rounded-2xl border border-surface-border/6 bg-gradient-to-b from-text-primary/[0.03] to-transparent p-4">
-              <div className="flex items-center justify-between">
-                <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-text-muted">
-                  {c.source_type === "opportunity" ? "Opportunity Radar" : "Published Analysis"}
-                </span>
-                <span className={`text-[11px] font-bold ${c.signed_magnitude >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                  {c.signed_magnitude >= 0 ? "+" : ""}{Math.round(c.signed_magnitude)}
-                </span>
-              </div>
-              <p className="text-[12px] leading-5 text-text-secondary">{c.reason || "—"}</p>
-              {c.signal_at && (
-                <p className="mt-auto text-[10px] text-text-muted">{new Date(c.signal_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
-              )}
-            </motion.div>
-          ))}
+          {data.top_contributors.map((c, i) => {
+            // SEO P1-P2, 2026-08-24 — real, backend-resolved link to the
+            // opportunity this signal actually came from (was label-only
+            // before; the id was always real, just never surfaced as a link).
+            const inner = (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-text-muted">
+                    {c.source_type === "opportunity" ? "Opportunity Radar" : "Published Analysis"}
+                  </span>
+                  <span className={`text-[11px] font-bold ${c.signed_magnitude >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {c.signed_magnitude >= 0 ? "+" : ""}{Math.round(c.signed_magnitude)}
+                  </span>
+                </div>
+                <p className="text-[12px] leading-5 text-text-secondary">{c.reason || "—"}</p>
+                {c.signal_at && (
+                  <p className="mt-auto text-[10px] text-text-muted">{new Date(c.signal_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                )}
+              </>
+            );
+            const className = "flex flex-col gap-2 rounded-2xl border border-surface-border/6 bg-gradient-to-b from-text-primary/[0.03] to-transparent p-4";
+            return c.href ? (
+              <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}>
+                <Link href={c.href as any} className={`${className} transition hover:border-emerald-500/25`}>{inner}</Link>
+              </motion.div>
+            ) : (
+              <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} className={className}>
+                {inner}
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </SectionCard>

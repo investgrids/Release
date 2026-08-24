@@ -156,7 +156,12 @@ async def get_related(
 
     elif entity_type == "ripple":
         result["events"]        = await _recent_events(db, 5, exclude_id=entity_id, sector=sector)
-        result["opportunities"] = await _recent_opportunities(db, 4)
+        # SEO P1-P2, 2026-08-24 — _recent_opportunities already accepts a
+        # sector filter (the "comparison" branch below already uses it);
+        # this branch just never passed it, so a ripple page's "resulting
+        # opportunities" were globally-recent instead of scoped to what
+        # this specific ripple chain actually affects.
+        result["opportunities"] = await _recent_opportunities(db, 4, sector=sector)
 
     elif entity_type == "search":
         result["events"]        = await _recent_events(db, 5)
