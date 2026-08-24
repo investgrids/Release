@@ -194,6 +194,16 @@ async def get_historical(sector: str | None, company_name: str) -> dict | None:
 
 
 async def get_related_opportunities(db: AsyncSession, symbol: str, limit: int = 3) -> list[dict]:
+    """Batch E consumer migration, 2026-08-24 — dispatches on
+    settings.opportunity_read_source. Both branches return `href`
+    pre-resolved (never a raw id/slug pair — the exact ambiguity that
+    404'd on CompanyIntelligenceSection.tsx before this)."""
+    from app.core.config import settings
+
+    if settings.opportunity_v2_promoted:
+        from app.services.opportunity_v2.read_service import list_public_opportunities_v2_for_company
+        return await list_public_opportunities_v2_for_company(db, symbol, limit)
+
     from app.db.models.opportunity import Opportunity, OpportunityCompany
 
     rows = (await db.execute(
@@ -203,7 +213,7 @@ async def get_related_opportunities(db: AsyncSession, symbol: str, limit: int = 
         .order_by(Opportunity.opportunity_score.desc())
         .limit(limit)
     )).all()
-    return [{"id": opp.id, "slug": opp.slug, "title": opp.title, "opportunity_score": opp.opportunity_score} for opp, _ in rows]
+    return [{"title": opp.title, "href": f"/opportunity-radar/{opp.id}", "score": opp.opportunity_score} for opp, _ in rows]
 
 
 def compute_confidence_breakdown(events: list[dict], historical: dict | None, gov_score: float | None, price_positive: bool | None) -> dict:

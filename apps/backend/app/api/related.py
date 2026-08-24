@@ -72,7 +72,27 @@ async def _recent_opportunities(db: AsyncSession, limit: int, sector: str = "") 
     RelatedContent's SSR conversion. This endpoint also used to surface a
     "stories" group from the confirmed-dead Story model (see the SEO/Growth
     audit's Critical Finding #3), linking to /stories/{id} — another
-    redirecting dead end — removed entirely rather than relabeled."""
+    redirecting dead end — removed entirely rather than relabeled.
+
+    Batch E consumer migration, 2026-08-24 — dispatches on
+    settings.opportunity_v2_promoted. V2 branch reads only public rows
+    (list_public_opportunities_v2, same public_status="public" gate every
+    other V2 read path has) and builds `href` from the real slug — never
+    the uuid `id`, which radar.py's dual lookup would never resolve."""
+    from app.core.config import settings
+
+    if settings.opportunity_v2_promoted:
+        from app.services.opportunity_v2.read_service import list_public_opportunities_v2
+        page = await list_public_opportunities_v2(db, page=1, page_size=max(limit * 3, 20))
+        items = []
+        for o in page.items:
+            if sector and not _sector_match(o.sectors_themes or [], sector):
+                continue
+            items.append({"id": o.id, "title": o.title, "href": f"/opportunity-radar/{o.slug}", "score": round(o.current_strength or 0)})
+            if len(items) >= limit:
+                break
+        return items
+
     from app.db.models.opportunity import Opportunity
 
     rows = await db.execute(

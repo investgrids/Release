@@ -10,7 +10,12 @@ import { ConfidenceBreakdownPanel } from "@/components/ai/ConfidenceBreakdownPan
 interface ActiveEvent { id: string; slug?: string; headline: string; urgency: number; sentiment: string; lifecycle: string; active_score: number; direct: boolean; }
 interface RipplePosition { upstream: string[]; company: string; downstream: string[]; }
 interface Historical { event_title: string; similarity: number; key_lesson: string | null; winners: string[]; losers: string[]; }
-interface RelatedOpportunity { id: number; slug: string; title: string; opportunity_score: number; }
+// Batch E consumer migration, 2026-08-24 — company_intelligence.py now
+// resolves the full href server-side (V1 numeric id or V2 slug,
+// depending on settings.opportunity_read_source) rather than exposing a
+// raw id/slug pair. Supersedes the earlier V2-B fix that switched this
+// to o.id — that was only correct for V1 mode; href is correct in both.
+interface RelatedOpportunity { title: string; href: string; score: number | null; }
 interface CompanyIntel {
   available: boolean;
   symbol?: string;
@@ -177,15 +182,9 @@ export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: 
           </p>
           <div className="flex flex-wrap gap-2">
             {data.related_opportunities!.map(o => (
-              // V2-B audit finding, 2026-08-24: was linking by o.slug — V1's
-              // OWN slug column (opportunity.py's `slug`), which radar.py's
-              // dual lookup never checks (a non-numeric path segment there
-              // is always treated as a V2 slug, so this 404'd for every
-              // real V1 opportunity). o.id resolves through the existing,
-              // unchanged V1 numeric branch.
-              <Link key={o.id} href={`/opportunity-radar/${o.id}` as any}
+              <Link key={o.href} href={o.href as any}
                 className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[12px] font-medium text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-500/10">
-                {o.title} <span className="text-[10px] text-emerald-400/70">{Math.round(o.opportunity_score)}</span>
+                {o.title} {o.score != null && <span className="text-[10px] text-emerald-400/70">{Math.round(o.score)}</span>}
               </Link>
             ))}
           </div>

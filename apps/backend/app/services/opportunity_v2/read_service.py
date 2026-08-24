@@ -312,3 +312,74 @@ async def list_public_opportunities_v2(db: AsyncSession, page: int = 1, page_siz
     ]
     pages = max(1, (total + page_size - 1) // page_size)
     return PaginatedOpportunitiesV2(items=items, total=total, page=page, page_size=page_size, pages=pages)
+
+
+# ── Sector/theme search — Batch E consumer migration, 2026-08-24 ────────────
+# V2-native equivalent of OpportunityRepository.list_by_sector_or_theme
+# (same real matching strategy: sectors is list-membership, title is a
+# length-gated substring match — ported verbatim, not reinvented, so
+# search behavior doesn't silently change shape between modes). Real
+# fields only in the returned dicts — current_strength/direction, never
+# opportunity_score/confidence/risk_level (V2 doesn't have them). Callers
+# (ai_search/pipeline.py, ai_search_service.py, ai_search/evidence.py,
+# ai_recommendation_engine.py) must read the right keys for the active
+# mode — see OpportunityService.list_by_sector_or_theme's dispatch.
+async def list_public_opportunities_v2_by_sector_or_theme(db: AsyncSession, terms: list[str], limit: int = 10) -> list[dict]:
+    if not terms:
+        return []
+    terms_lower = [t.lower() for t in terms]
+    title_terms = [t for t in terms_lower if len(t) >= 4]
+
+    candidates = (await db.execute(
+        select(OpportunityV2)
+        .where(OpportunityV2.public_status == "public")
+        .order_by(OpportunityV2.current_score.desc())
+        .limit(200)
+    )).scalars().all()
+
+    def _matches(opp: OpportunityV2) -> bool:
+        opp_sectors = [str(s).lower() for s in (opp.sectors or [])]
+        if any(t in opp_sectors for t in terms_lower):
+            return True
+        title = (opp.current_title or opp.formation_title or "").lower()
+        return any(t in title for t in title_terms)
+
+    return [
+        {
+            "id": o.id, "slug": o.slug,
+            "title": o.current_title or o.formation_title or o.thesis_anchor,
+            "summary": o.current_summary if o.narrative_status == "generated" else None,
+            "current_strength": o.current_score, "direction": o.thesis_direction,
+            "sectors": o.sectors or [],
+        }
+        for o in candidates if _matches(o)
+    ][:limit]
+
+
+# ── Company → Opportunity — Batch E consumer migration, 2026-08-24 ──────────
+# V2-native equivalent of company_intelligence.py::get_related_opportunities
+# (which joins V1's OpportunityCompany junction table). V2 has no such
+# junction table — real graph-confirmed companies live on
+# OpportunityV2.companies (JSON list, set by orchestration.py at write
+# time). SQLite has no portable JSON-containment operator (same reason
+# list_by_sector_or_theme's own V1 repository method filters in Python
+# rather than DB-side), so this filters a bounded, score-ordered public
+# candidate pool in Python too.
+async def list_public_opportunities_v2_for_company(db: AsyncSession, symbol: str, limit: int = 3) -> list[dict]:
+    symbol_upper = symbol.upper()
+    candidates = (await db.execute(
+        select(OpportunityV2)
+        .where(OpportunityV2.public_status == "public")
+        .order_by(OpportunityV2.current_score.desc())
+        .limit(200)
+    )).scalars().all()
+
+    matches = [o for o in candidates if symbol_upper in [c.upper() for c in (o.companies or [])]]
+    return [
+        {
+            "title": o.current_title or o.formation_title or o.thesis_anchor,
+            "href": f"/opportunity-radar/{o.slug}",
+            "score": o.current_score,
+        }
+        for o in matches[:limit]
+    ]

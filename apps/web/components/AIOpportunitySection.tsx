@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { Target } from "lucide-react";
 
+// Batch E consumer migration, 2026-08-24 — market.py's /api/market/opportunities
+// now resolves the full href server-side (V1 numeric id or V2 slug) and
+// reads real Opportunity/OpportunityV2 data instead of the confirmed-stale
+// legacy RadarOpportunity table it used to — that table's ids lived in a
+// third, unrelated id space and every link built from item.id 404'd or
+// resolved to the wrong opportunity via radar.py's numeric branch.
 interface OpportunityRow {
-  id: string;
+  href: string;
   score: number | null;
   theme: string;
   reason: string;
@@ -80,8 +86,8 @@ export function AIOpportunitySection({ items }: { items: OpportunityRow[] }) {
         )}
         {items.slice(0, 6).map((item, i) => (
           <Link
-            key={item.id}
-            href={`/opportunity-radar/${item.id}`}
+            key={item.href}
+            href={item.href as any}
             className="grid grid-cols-[1fr_48px_52px] items-center gap-3 rounded-2xl border border-surface-border/4 bg-text-primary/[0.02] px-3 py-2.5 hover:border-violet-500/15 hover:bg-text-primary/[0.04] transition"
           >
             <div className="min-w-0">

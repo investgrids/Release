@@ -18,7 +18,11 @@ import { AskAICta } from "@/components/AskAICta";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 interface SectorStock { symbol: string; name: string; price: string; change: string; positive: boolean }
-interface SectorOpportunity { id: number; slug: string; title: string; opportunity_score: number | null; confidence: number | null }
+// Batch E consumer migration, 2026-08-24 — sectors.py now resolves the
+// full href server-side (V1 numeric id or V2 slug, depending on
+// settings.opportunity_read_source) rather than exposing a raw id/slug
+// pair, so this page never has to guess which one is safe to link with.
+interface SectorOpportunity { title: string; href: string; score: number | null }
 interface SectorEvent { id: string; slug?: string; title: string; impact_score: number | null; date: string | null }
 interface SectorIntelligence {
   id: string; name: string;
@@ -275,11 +279,11 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
           {d.opportunities.length > 0 ? (
             <div className="space-y-2">
               {d.opportunities.map((o) => (
-                <Link key={o.id} href={`/opportunity-radar/${o.id}`}
+                <Link key={o.href} href={o.href as any}
                   className="flex items-center justify-between rounded-[14px] border border-surface-border/7 bg-text-primary/[0.02] px-4 py-3 transition hover:border-emerald-500/25">
                   <p className="text-[13px] text-text-primary line-clamp-1">{o.title}</p>
-                  {o.opportunity_score != null && (
-                    <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-300">{Math.round(o.opportunity_score)}</span>
+                  {o.score != null && (
+                    <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-300">{Math.round(o.score)}</span>
                   )}
                 </Link>
               ))}

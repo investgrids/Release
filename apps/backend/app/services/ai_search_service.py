@@ -1286,15 +1286,23 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
     # opportunities[] list from nothing.
     if _OPPORTUNITY_TRIGGER.search(query):
         try:
+            from app.core.config import settings
             from app.services.opportunity_service import OpportunityService
             terms = (entities.get("companies") or []) + _words(query)
             opps = await OpportunityService(db).list_by_sector_or_theme(terms[:6], limit=5)
             if opps:
-                block = "Verified opportunities (real, from the Opportunity Engine): " + "; ".join(
-                    f"{o['title']} (score {o['opportunity_score']}, {o['confidence']} confidence, "
-                    f"trend {o['trend']}, risk {o['risk_level']})"
-                    for o in opps
-                )
+                # Batch E consumer migration, 2026-08-24 — real V2-native
+                # fields in V2 mode (current_strength/direction, no
+                # confidence/risk_level — V2 doesn't have those concepts).
+                if settings.opportunity_v2_promoted:
+                    summary = "; ".join(f"{o['title']} (strength {o['current_strength']}, direction {o['direction']})" for o in opps)
+                else:
+                    summary = "; ".join(
+                        f"{o['title']} (score {o['opportunity_score']}, {o['confidence']} confidence, "
+                        f"trend {o['trend']}, risk {o['risk_level']})"
+                        for o in opps
+                    )
+                block = "Verified opportunities (real, from the Opportunity Engine): " + summary
                 extra_context = (extra_context + "\n\n" + block) if extra_context else block
         except Exception:
             pass
@@ -1894,10 +1902,13 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
             try:
                 _verdict_terms = (entities.get("companies") or []) + (entities.get("sectors") or [])
                 if _verdict_terms:
+                    from app.core.config import settings
                     from app.services.opportunity_service import OpportunityService
                     _opp_hits = await OpportunityService(db).list_by_sector_or_theme(_verdict_terms[:4], limit=1)
                     if _opp_hits:
-                        _opp_score_for_verdict = _opp_hits[0]["opportunity_score"]
+                        # Batch E consumer migration, 2026-08-24 — current_strength
+                        # in V2 mode (real V2 field, no opportunity_score concept).
+                        _opp_score_for_verdict = _opp_hits[0]["current_strength"] if settings.opportunity_v2_promoted else _opp_hits[0]["opportunity_score"]
             except Exception:
                 pass
             _engine_verdict = compute_investment_verdict(
@@ -1951,9 +1962,15 @@ async def run_ai_search(query: str, db: AsyncSession, session_context: dict | No
             _sym_a = next(iter(_match_companies((intent_data.get("holding") or "").lower())), None)
             _sym_b = next(iter(_match_companies((intent_data.get("target") or "").lower())), None)
             if _sym_a and _sym_b:
+                from app.core.config import settings
+
                 async def _opp_for(sym: str) -> float | None:
                     hits = await OpportunityService(db).list_by_sector_or_theme([sym], limit=1)
-                    return hits[0]["opportunity_score"] if hits else None
+                    if not hits:
+                        return None
+                    # Batch E consumer migration, 2026-08-24 — current_strength
+                    # in V2 mode (real V2 field, no opportunity_score concept).
+                    return hits[0]["current_strength"] if settings.opportunity_v2_promoted else hits[0]["opportunity_score"]
                 _opp_a, _opp_b = await asyncio.gather(_opp_for(_sym_a), _opp_for(_sym_b))
                 decision_intelligence["engine_recommendation"] = compute_decision(
                     entity_a_symbol=_sym_a, entity_b_symbol=_sym_b,

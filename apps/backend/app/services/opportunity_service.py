@@ -37,12 +37,30 @@ _LIST_CACHE_KEY = "opportunity:list:p{page}:s{size}"
 
 class OpportunityService:
     def __init__(self, db: AsyncSession) -> None:
+        self._db = db
         self._repo = OpportunityRepository(db)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     async def list_by_sector_or_theme(self, terms: list[str], limit: int = 10) -> list[dict]:
-        """Lightweight summaries for sector/theme-scoped queries — no nested-join DTO needed here."""
+        """Lightweight summaries for sector/theme-scoped queries — no nested-join DTO needed here.
+
+        Batch E consumer migration, 2026-08-24 — dispatches on
+        settings.opportunity_read_source. V1 path (default) byte-for-byte
+        unchanged. V2 path returns real V2-native dicts (current_strength/
+        direction, no opportunity_score/confidence/risk_level — V2 doesn't
+        have those), from list_public_opportunities_v2_by_sector_or_theme
+        (public_status="public" gated, same enforcement every other V2
+        read path has). Every caller of this method
+        (ai_search/pipeline.py, ai_search_service.py, ai_search/evidence.py,
+        ai_recommendation_engine.py) reads settings.opportunity_v2_promoted
+        itself to know which keys are present — never a V1-shaped fake
+        filled in here to keep them from having to branch.
+        """
+        if settings.opportunity_v2_promoted:
+            from app.services.opportunity_v2.read_service import list_public_opportunities_v2_by_sector_or_theme
+            return await list_public_opportunities_v2_by_sector_or_theme(self._db, terms, limit)
+
         opps = await self._repo.list_by_sector_or_theme(terms, limit)
         return [
             {

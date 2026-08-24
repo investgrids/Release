@@ -190,7 +190,12 @@ function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialRelated 
 
   return (
     <div className="min-w-0 pb-12">
-      <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={score !== null ? `Score ${score}` : "Unscored"} href={`/opportunity-radar/${d.slug ?? d.id}`} />
+      {/* Batch E consumer migration, 2026-08-24 -- was d.slug ?? d.id: V1's
+          OWN slug column isn't a valid lookup path (radar.py's dual lookup
+          only checks V2's slugs for a non-numeric segment) -- same bug
+          class already found and fixed on CompanyIntelligenceSection.tsx.
+          d.id resolves through the existing, unchanged V1 numeric branch. */}
+      <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={score !== null ? `Score ${score}` : "Unscored"} href={`/opportunity-radar/${d.id}`} />
       {/* Breadcrumb */}
       <div className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
         <Link href="/opportunity-radar" className="hover:text-text-secondary transition">Opportunity Radar</Link>

@@ -13,6 +13,11 @@ import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
 
 interface RadarItem {
   id: string | number;
+  // Batch E consumer migration, 2026-08-24 — /api/radar/'s list endpoint
+  // returns V2 items (uuid id + slug) once promoted; a raw item.id link
+  // would 404 in that mode (radar.py's dual lookup treats a non-numeric
+  // segment as a slug lookup, and a uuid isn't a real slug).
+  slug?: string;
   theme: string;
   score: number | null;
   reason: string;
@@ -141,7 +146,7 @@ function OpportunityCardGrid({ displayed }: { displayed: RadarItem[] }) {
               </div>
             )}
             <div className="mt-auto pt-2 border-t border-surface-border/5">
-              <Link href={`/opportunity-radar/${item.id}`} className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
+              <Link href={`/opportunity-radar/${typeof item.id === "number" ? item.id : (item.slug ?? item.id)}`} className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
                 View Details
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
               </Link>

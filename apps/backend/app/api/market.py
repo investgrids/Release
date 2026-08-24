@@ -767,19 +767,39 @@ async def market_events(limit: int = Query(10, le=30)):
 
 @router.get("/opportunities")
 async def market_opportunities(limit: int = Query(6, le=20)):
+    """Batch E consumer migration, 2026-08-24 — was reading
+    app.db.models_legacy.RadarOpportunity, a confirmed-stale table (5 seed
+    rows, already flagged as dead in related.py's own comment) whose ids
+    live in a THIRD id space unrelated to either V1's real Opportunity
+    table or V2's OpportunityV2 — every link this endpoint fed
+    (AIOpportunitySection.tsx, via OverviewTab.tsx) resolved against the
+    wrong table via radar.py's numeric branch. Real data now, `href`
+    resolved server-side (never a raw id/slug the frontend has to guess
+    how to route), same dispatch pattern every other Batch E consumer
+    uses."""
+    from app.core.config import settings
     from app.db.session import AsyncSessionLocal
-    from sqlalchemy import select
-    from app.db.models_legacy import RadarOpportunity
     try:
         async with AsyncSessionLocal() as db:
+            if settings.opportunity_v2_promoted:
+                from app.services.opportunity_v2.read_service import list_public_opportunities_v2
+                page = await list_public_opportunities_v2(db, page=1, page_size=limit)
+                return {"opportunities": [
+                    {"theme": o.title, "href": f"/opportunity-radar/{o.slug}",
+                     "score": round(o.current_strength) if o.current_strength is not None else None,
+                     "category": (o.sectors_themes or ["General"])[0]}
+                    for o in page.items
+                ]}
+
+            from sqlalchemy import select
+            from app.db.models.opportunity import Opportunity
             rows = (await db.execute(
-                select(RadarOpportunity).order_by(RadarOpportunity.score.desc()).limit(limit)
+                select(Opportunity).order_by(Opportunity.opportunity_score.desc()).limit(limit)
             )).scalars().all()
             return {"opportunities": [
-                {"id": str(r.id), "theme": r.theme,
-                 "score": r.score, "confidence": round(r.confidence or 0),
-                 "reason": r.reason or "",
-                 "beneficiaries": r.beneficiaries or []}
+                {"theme": r.title, "href": f"/opportunity-radar/{r.id}",
+                 "score": round(r.opportunity_score) if r.opportunity_score is not None else None,
+                 "category": (r.sectors or ["General"])[0]}
                 for r in rows
             ]}
     except Exception:
