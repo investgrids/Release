@@ -137,13 +137,23 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   //                     the backend itself is the single source of truth
   //                     for which shape is "live" right now.
   //   /api/companies/ -> { companies: [...], total_pages }, keyed by `symbol`
-  //   /api/news/    -> bare array of news items, keyed by `id`
   // Deliberately NOT fetching /api/stories/ — the Story model is confirmed
   // dead (seed data only, see next.config.ts's redirect comment) and
   // /stories/:slug 301-redirects to /newsroom/themes for every id, so
   // submitting these URLs in the sitemap only produced Search Console
   // "Page with redirect" warnings for pages that never had real content.
-  const [events, ripple, radar, companiesPage1, news, insights, sectors, research, historical] = await Promise.all([
+  //
+  // Deliberately NOT fetching /api/news/ (Sitemap Truth Audit, 2026-08-24) —
+  // /news/{id} is backed by an in-memory RSS cache (news_fetcher.py), not a
+  // database table. Submitting it here meant this sitemap was, on every
+  // hourly regeneration, actively asking Google to index URLs guaranteed to
+  // eventually 404 with no recovery path once they rotate out of the cache —
+  // confirmed live: a real page that earned ~20k real impressions
+  // (live-d0a558cbe3ba) had already 404'd on the backend while Vercel's ISR
+  // cache masked it. Per the Indexability Contract, ephemeral/cache-only
+  // content is never submitted. Route now sets `robots: {index:false}`
+  // (see app/news/[id]/layout.tsx) as the durable backstop.
+  const [events, ripple, radar, companiesPage1, insights, sectors, research, historical] = await Promise.all([
     safeJson<Array<{ id: string; slug?: string; date?: string; indexable?: boolean }>>(`${API}/api/events/?limit=100`, []),
     // Ripple pages exist for the same "featured" high-impact events the
     // Ripple hub itself surfaces — not blindly mirroring every event route,
@@ -151,7 +161,6 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     safeJson<Array<{ id: string; slug?: string; event_date?: string }>>(`${API}/api/ripple/featured?limit=20`, []),
     safeJson<{ items?: Array<{ id: number | string; slug?: string; updated_at?: string }> }>(`${API}/api/radar/?page_size=100`, {}),
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
-    safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
     safeJson<{ items?: Array<{ slug: string; article_type?: string; canonical_url?: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
     safeJson<Array<{ id: string }>>(`${API}/api/sectors/`, []),
     // SEO Phase 2, §2.2 — comparison research pages.
@@ -218,13 +227,6 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     lastModified: now,
     changeFrequency: "daily",
     priority: 0.7,
-  }));
-
-  const newsRoutes: SitemapEntry[] = (Array.isArray(news) ? news : []).map(n => ({
-    url: `${base}/news/${n.id}`,
-    lastModified: now,
-    changeFrequency: "monthly",
-    priority: 0.55,
   }));
 
   // Real destination, not /insights/{slug} — that path also 301-redirects
@@ -315,7 +317,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     priority: 0.8,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...rippleRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  return [...staticRoutes, ...eventRoutes, ...rippleRoutes, ...radarRoutes, ...companyRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }
 
 export async function GET() {

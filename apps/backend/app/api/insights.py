@@ -227,6 +227,18 @@ def _list_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> dict
         # detail page, to merge siblings into one row instead of showing
         # near-duplicate rows per company.
         "parent_event_group_id": a.parent_event_group_id,
+        # Sitemap Truth Audit, 2026-08-24 — this was previously only added in
+        # _detail_row, so every list consumer (the regular sitemap AND
+        # news-sitemap.xml, both calling GET /api/insights/) always saw
+        # canonical_url as undefined, silently defeating sitemap.xml's own
+        # "prefer the real canonical_url over guessing from article_type"
+        # logic for every article, every time. Confirmed live: every
+        # live_signal article was submitted at /newsroom/article/{slug} while
+        # its own <link rel="canonical"> correctly said
+        # /intelligence/signal/{slug} — a real, silent, self-contradicting
+        # signal to Google since the day that "fix" shipped. Moved here so
+        # both list and detail (which builds on this) return the real value.
+        "canonical_url":      a.canonical_url,
     }
 
 
@@ -268,7 +280,7 @@ def _detail_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> di
         "story_version":       a.story_version,
         "update_history":      a.update_history,
         "created_at":          a.created_at.replace(tzinfo=timezone.utc).isoformat() if a.created_at else None,
-        "canonical_url":       a.canonical_url,
+        # canonical_url moved to _list_row (2026-08-24) — already in `base`.
         "json_ld":             a.json_ld,
         # Generic structured-data slot — comparison_intelligence articles
         # (SEO Phase 2, §2.2 research pages) stash the full decision

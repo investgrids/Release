@@ -10,6 +10,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const url = `${SITE}/news/${id}`;
+  // Sitemap Truth Audit, 2026-08-24 — /news/{id} is backed by an in-memory
+  // RSS cache (app/services/news_fetcher.py), not a database table. Once an
+  // item ages out of the rolling fetch window (or the backend process
+  // restarts), the id is gone permanently with no recovery path — a real
+  // page that ranked and earned real impressions (live-d0a558cbe3ba, ~20k)
+  // was found already 404ing on the backend while still served stale by
+  // Vercel's ISR cache. Per the Indexability Contract's EPHEMERAL/CACHE-ONLY
+  // rule: noindex until this content type has durable persistence.
+  const noindex: Metadata["robots"] = { index: false, follow: true };
   try {
     const res = await fetch(`${API}/api/news/${id}`, { next: { revalidate: 3600 } });
     if (res.ok) {
@@ -19,6 +28,7 @@ export async function generateMetadata({
       return {
         title,
         description: desc,
+        robots: noindex,
         openGraph: {
           type: "article", title, description: desc, url,
           siteName: "MarketRipple",
@@ -32,6 +42,7 @@ export async function generateMetadata({
   return {
     title: "Market News",
     description: "Real-time Indian market news and financial intelligence from MarketRipple.",
+    robots: noindex,
     alternates: { canonical: url },
   };
 }
