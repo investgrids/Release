@@ -249,14 +249,6 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
     author: { "@type": "Organization", name: "MarketRipple AI Intelligence Engine" },
     publisher: { "@type": "Organization", name: "MarketRipple" },
     mainEntityOfPage: url,
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: siteOrigin },
-        { "@type": "ListItem", position: 2, name: "Live Intelligence", item: `${siteOrigin}/#live-intelligence` },
-        { "@type": "ListItem", position: 3, name: a.headline, item: url },
-      ],
-    },
   };
   if (a.faqs && a.faqs.length > 0) {
     jsonLd.mainEntity = a.faqs.slice(0, 5).map(f => ({

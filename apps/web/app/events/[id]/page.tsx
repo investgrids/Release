@@ -101,14 +101,6 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     datePublished: ev.event_date,
     url,
     publisher: { "@type": "Organization", name: "MarketRipple" },
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Events", item: `${SITE}/events` },
-        { "@type": "ListItem", position: 3, name: ev.title, item: url },
-      ],
-    },
     additionalProperty: factProperties,
   } : null;
 

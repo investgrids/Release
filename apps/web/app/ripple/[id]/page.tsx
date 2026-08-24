@@ -69,14 +69,6 @@ export default async function RippleDetailPage({ params }: { params: Promise<{ i
     description,
     url,
     publisher: { "@type": "Organization", name: "MarketRipple" },
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Ripple Engine", item: `${SITE}/ripple` },
-        { "@type": "ListItem", position: 3, name: data.event_title, item: url },
-      ],
-    },
   };
 
   return (

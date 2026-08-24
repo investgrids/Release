@@ -65,14 +65,6 @@ export default async function BestStocksSectorPage({ params }: { params: Promise
     author: { "@type": "Organization", name: "MarketRipple AI Intelligence Engine" },
     publisher: { "@type": "Organization", name: "MarketRipple" },
     mainEntityOfPage: url,
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Best Stocks", item: `${SITE}/best-stocks` },
-        { "@type": "ListItem", position: 3, name: `Best ${sector} Stocks`, item: url },
-      ],
-    },
     mainEntity: faqs.map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
   };
 

@@ -185,14 +185,6 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
     "@type": "CollectionPage",
     name: `${d.name} Sector — MarketRipple`,
     url,
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Sectors", item: `${SITE}/sectors` },
-        { "@type": "ListItem", position: 3, name: `${d.name} Sector`, item: url },
-      ],
-    },
     mainEntity: {
       "@type": "ItemList",
       itemListElement: rankedStocks.map((s, i) => ({

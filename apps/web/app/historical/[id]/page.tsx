@@ -128,14 +128,6 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
     author: { "@type": "Organization", name: "MarketRipple AI Intelligence Engine" },
     publisher: { "@type": "Organization", name: "MarketRipple" },
     mainEntityOfPage: url,
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Historical Patterns", item: `${SITE}/historical` },
-        { "@type": "ListItem", position: 3, name: d.event_title, item: url },
-      ],
-    },
     ...(faqs.length ? {
       mainEntity: faqs.map(f => ({
         "@type": "Question", name: f.q,

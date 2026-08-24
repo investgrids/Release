@@ -129,14 +129,6 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
     description,
     url,
     publisher: { "@type": "Organization", name: "MarketRipple" },
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Opportunity Radar", item: `${SITE}/opportunity-radar` },
-        { "@type": "ListItem", position: 3, name: title, item: url },
-      ],
-    },
   };
 
   return (
