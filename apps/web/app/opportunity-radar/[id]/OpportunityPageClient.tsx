@@ -11,44 +11,22 @@ import { OpportunityRippleGraph } from "@/components/OpportunityRippleGraph";
 import Link from "next/link";
 import { Lightbulb, Building2, AlertTriangle, Ban, Check, Zap, CalendarClock, History, Gauge } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import {
+  isV2Detail,
+  type OpportunityDetail, type AnyOpportunityDetail, type OpportunityV2Detail,
+  type ThesisDirection,
+} from "./types";
 
 // Recharts split into its own lazy chunk (2026-08 performance audit) — see
 // OpportunityCharts.tsx's own header comment for why.
 const ScoreHistoryChart      = dynamic(() => import("./OpportunityCharts").then(m => m.ScoreHistoryChart),      { ssr: false });
 const SectorDistributionDonut = dynamic(() => import("./OpportunityCharts").then(m => m.SectorDistributionDonut), { ssr: false });
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface MetricSchema { revenue_potential: string; expected_cagr: string; eps_growth: string; investment_cycle: string; market_size: string; }
-interface TimelineStep  { order: number; phase: string; date_label: string; title: string; description: string; status: string; }
-interface EventSchema   { event_id: string; title: string; event_date: string; tag: string; description: string; importance: number; }
-interface CompanySchema { symbol: string; company_name: string; impact_score: number | null; impact_label: string; trend: string; confidence: number | null; reason: string; }
-interface NewsSchema    { news_id: string; headline: string; source: string; published_at: string; url: string; }
-interface SectorDist   { sector: string; percentage: number; color: string; }
-interface GraphNode    { node_id: string; label: string; node_type: string; metadata: Record<string, any>; }
-interface GraphEdge    { source: string; target: string; relationship: string; }
-interface AISummary    { matters: string; benefits: string; risks: string[]; invalidate: string; why_bullets: string[]; }
-
-export interface OpportunityDetail {
-  id: number; slug: string; title: string; summary: string;
-  opportunity_score: number | null; confidence: number | null;
-  trend: string; risk_level: string; time_horizon: string;
-  sectors: string[];
-  ai_summary: AISummary | null;
-  metrics: MetricSchema | null;
-  timeline: TimelineStep[];
-  events: EventSchema[];
-  companies: CompanySchema[];
-  news: NewsSchema[];
-  sector_distribution: SectorDist[];
-  graph_nodes: GraphNode[];
-  graph_edges: GraphEdge[];
-  // Opportunity Radar 2.0 — Event -> Ripple -> ... -> Investment Verdict
-  // chain (see opportunity_intelligence.py's module docstring).
-  primary_event: EventSchema | null;
-  investment_verdict: { label: string; tone: string; reasoning: string } | null;
-  historical_similarity: { event_title: string; similarity: number; key_lesson: string | null; winners: string[]; losers: string[] } | null;
-  catalysts: { label: string; category: string; date: string; days_until: number }[];
-}
+// Re-export types only (erased at compile time, safe from any module) —
+// isV2Detail is deliberately NOT re-exported here; page.tsx (a Server
+// Component) must import it from ./types directly, never through this
+// "use client" module (see types.ts's own header comment for why).
+export type { OpportunityDetail, AnyOpportunityDetail, OpportunityV2Detail };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -127,12 +105,17 @@ function SkeletonBlock({ h = "h-4", w = "w-full" }: { h?: string; w?: string }) 
 // (page.tsx), which fetches the same /api/radar/{id} endpoint server-side
 // purely so crawlers and the first paint see real content instead of a
 // loading skeleton.
-export default function RadarDetailPage({ params, initialDetail, initialRelated }: { params: Promise<{ id: string }>; initialDetail?: OpportunityDetail | null; initialRelated?: Record<string, any> | null }) {
+// Version-aware dispatcher (V2-A contract alignment, 2026-08-24): fetches
+// once, then renders through the legacy V1 renderer or the real-fields-only
+// V2 renderer based on the actual response shape — never a compatibility
+// mapper that reshapes one into the other. V1 numeric ids always get the
+// legacy renderer (radar.py's dual lookup never returns the V2 shape for a
+// numeric id), byte-for-byte unchanged from before this split.
+export default function RadarDetailPage({ params, initialDetail, initialRelated }: { params: Promise<{ id: string }>; initialDetail?: AnyOpportunityDetail | null; initialRelated?: Record<string, any> | null }) {
   const { id } = use(params);
-  const [detail, setDetail] = useState<OpportunityDetail | null>(initialDetail ?? null);
+  const [detail, setDetail] = useState<AnyOpportunityDetail | null>(initialDetail ?? null);
   const [loading, setLoading] = useState(!initialDetail);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState("All");
   // Guards the very first effect run only — see CompanyPageClient.tsx's
   // identical pattern for the full reasoning.
   const skippedFirstResetRef = useRef(!!initialDetail);
@@ -180,6 +163,18 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
     </div>
   );
 
+  return isV2Detail(detail)
+    ? <V2OpportunityDetail detail={detail} id={id} hasInitialDetail={!!initialDetail} initialRelated={initialRelated} />
+    : <LegacyOpportunityDetail detail={detail} id={id} hasInitialDetail={!!initialDetail} initialRelated={initialRelated} />;
+}
+
+// ── V1 legacy renderer — unchanged from before the split, just extracted
+// into its own component and no longer responsible for fetching. ──────────
+function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
+  detail: OpportunityDetail; id: string; hasInitialDetail: boolean; initialRelated?: Record<string, any> | null;
+}) {
+  const [period, setPeriod] = useState("All");
+  const initialDetail = hasInitialDetail;
   const d = detail;
   const score = d.opportunity_score !== null && d.opportunity_score !== undefined ? Math.round(d.opportunity_score) : null;
   const confidence = d.confidence !== null && d.confidence !== undefined ? Math.round(d.confidence * 100) : null;
@@ -641,6 +636,284 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
         entityType="opportunity"
         entityId={id}
         sector={d.sectors?.[0]}
+        initialData={initialRelated}
+        className="mt-6"
+      />
+    </div>
+  );
+}
+
+// ── V2 renderer — real fields only, no invented equivalents for concepts
+// V1 had (confidence/risk_level/time_horizon/timeline/metrics/investment
+// verdict/historical similarity/catalysts all deliberately absent). Every
+// value below traces directly to OpportunityV2DetailResponse. ─────────────
+
+function directionMeta(dir: ThesisDirection | null) {
+  if (dir === "positive") return { label: "Positive", className: "text-emerald-600 dark:text-emerald-300", ring: "border-emerald-500/30 bg-emerald-500/10" };
+  if (dir === "negative") return { label: "Negative", className: "text-rose-600 dark:text-rose-300", ring: "border-rose-500/30 bg-rose-500/10" };
+  if (dir === "mixed")    return { label: "Mixed",    className: "text-amber-600 dark:text-amber-300", ring: "border-amber-500/30 bg-amber-500/10" };
+  return { label: "Neutral", className: "text-text-secondary", ring: "border-surface-border/15 bg-text-primary/[0.05]" };
+}
+
+function narrativeStatusLabel(status: string) {
+  if (status === "pending")         return "Narrative generation pending";
+  if (status === "failed_capacity") return "Narrative could not be generated (capacity limit) — evidence below is still real";
+  return null; // "generated" needs no banner
+}
+
+function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
+  detail: OpportunityV2Detail; id: string; hasInitialDetail: boolean; initialRelated?: Record<string, any> | null;
+}) {
+  const d = detail;
+  const strength = d.current_strength !== null && d.current_strength !== undefined ? Math.round(d.current_strength) : null;
+  const dir = directionMeta(d.direction);
+  const narrativeBanner = narrativeStatusLabel(d.narrative_status);
+  const rippleNodes = d.ripple.nodes.map(n => ({ node_id: n.id, label: n.label, node_type: n.node_type }));
+  const rippleEdges = d.ripple.edges.map(e => ({ source: e.source, target: e.target, relationship: e.edge_type }));
+  const topCompanies = d.companies_connected.slice(0, 2);
+
+  return (
+    <div className="min-w-0 pb-12">
+      <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={strength !== null ? `Strength ${strength}` : "Unscored"} href={`/opportunity-radar/${d.slug ?? d.id}`} />
+      {/* Breadcrumb */}
+      <div className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
+        <Link href="/opportunity-radar" className="hover:text-text-secondary transition">Opportunity Radar</Link>
+        <span>›</span>
+        <span className="text-text-secondary">{d.title}</span>
+      </div>
+
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_280px]">
+        {/* ── MAIN ─────────────────────────────────────────────────────── */}
+        <div className="space-y-5">
+
+          {/* Hero */}
+          <SectionCard>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="shrink-0 text-center">
+                  {strength !== null ? (
+                    <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/10 border border-emerald-500/30">
+                      <span className="text-3xl font-black text-emerald-400">{strength}</span>
+                      <span className="text-[9px] text-text-muted">/100</span>
+                    </div>
+                  ) : (
+                    <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full border border-surface-border/10 bg-text-primary/[0.07]">
+                      <span className="text-[11px] font-medium text-text-muted">N/A</span>
+                    </div>
+                  )}
+                  <p className={`mt-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${dir.ring} ${dir.className}`}>{dir.label} Thesis</p>
+                </div>
+                <div className="min-w-0">
+                  {hasInitialDetail ? (
+                    <p className="text-2xl font-bold text-text-primary">{d.title}</p>
+                  ) : (
+                    <h1 className="text-2xl font-bold text-text-primary">{d.title}</h1>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {d.sectors_themes.map((s, i) => (
+                      <span key={s} className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${CHIP_COLORS[i % CHIP_COLORS.length]}`}>{s}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <StatCard label="Opportunity Strength" value={strength !== null ? `${strength}` : "—"} sub={strength !== null ? "/ 100" : "Unscored"} valueClass="text-sky-400"/>
+              <StatCard label="Evidence Count"        value={String(d.evidence_count)}/>
+              <StatCard label="Direction"             value={dir.label} valueClass={dir.className}/>
+            </div>
+            {narrativeBanner && (
+              <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">{narrativeBanner}</p>
+            )}
+          </SectionCard>
+
+          {/* Ripple — union of every linked Development's real 1-hop graph
+              neighborhood (read_service.py's _build_ripple), rooted on the
+              real thesis anchor when it's part of that union. Empty for a
+              raw_company:/raw_dev: opportunity with no graph-linked
+              Developments — correct, not a manufactured star. */}
+          {rippleNodes.length > 0 && (
+            <OpportunityRippleGraph nodes={rippleNodes} edges={rippleEdges} centerId={d.ripple.anchor ?? undefined} />
+          )}
+
+          {/* Why this exists */}
+          <SectionCard title="Why this opportunity exists">
+            {d.why_this_exists ? (
+              <p className="text-[13px] leading-6 text-text-secondary">{d.why_this_exists}</p>
+            ) : (
+              <p className="text-[12px] text-text-muted">
+                {d.narrative_status === "failed_capacity"
+                  ? "A written explanation could not be generated (capacity limit) — see the real evidence and companies below."
+                  : "A written explanation hasn't been generated yet — see the real evidence and companies below."}
+              </p>
+            )}
+          </SectionCard>
+
+          {/* What changed — only when formation and current actually differ */}
+          {d.what_changed && (
+            <SectionCard title="What Changed Since Formation">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-text-muted mb-1">At Formation</p>
+                  <p className="text-[13px] font-semibold text-text-primary">{d.what_changed.formation_title ?? "—"}</p>
+                  {d.what_changed.formation_score !== null && (
+                    <p className="mt-1 text-[12px] text-text-muted">Strength {Math.round(d.what_changed.formation_score)}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-text-muted mb-1">Now</p>
+                  <p className="text-[13px] font-semibold text-text-primary">{d.what_changed.current_title ?? "—"}</p>
+                  {d.what_changed.current_score !== null && (
+                    <p className="mt-1 text-[12px] text-text-muted">Strength {Math.round(d.what_changed.current_score)}</p>
+                  )}
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Companies Connected — real graph-confirmed companies, each
+              enriched from the persisted score_breakdown at write time
+              (never a live recompute — see read_service.py). */}
+          {d.companies_connected.length > 0 && (
+            <SectionCard title="Companies Connected">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="border-b border-surface-border/5 text-[10px] uppercase tracking-wider text-text-muted">
+                    <th className="pb-2 text-left">Company</th>
+                    <th className="pb-2 text-center">Real Score</th>
+                    <th className="pb-2 text-center">Real Direction</th>
+                    <th className="pb-2 text-center">Confirms / Contradicts</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border/5">
+                  {d.companies_connected.map((c, i) => {
+                    const cd = directionMeta(c.real_direction);
+                    return (
+                      <tr key={c.symbol} className="hover:bg-text-primary/[0.02] transition">
+                        <td className="py-2.5">
+                          <Link href={`/companies/${c.symbol}`} className="flex items-center gap-2 hover:text-sky-400 transition">
+                            <div className={`flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-bold ${CHIP_COLORS[i % CHIP_COLORS.length]}`}>
+                              {(c.company_name || c.symbol).slice(0, 2).toUpperCase()}
+                            </div>
+                            <span className="text-text-primary">{c.company_name || c.symbol}</span>
+                          </Link>
+                        </td>
+                        <td className="py-2.5 text-center font-semibold text-text-primary">{c.real_score !== null && c.real_score !== undefined ? Math.round(c.real_score) : "—"}</td>
+                        <td className={`py-2.5 text-center font-medium ${cd.className}`}>{cd.label}</td>
+                        <td className="py-2.5 text-center">
+                          {c.confirms_thesis && <span className="text-emerald-400">Confirms</span>}
+                          {c.contradicts_thesis && <span className="text-rose-400">Contradicts</span>}
+                          {!c.confirms_thesis && !c.contradicts_thesis && <span className="text-text-muted">—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </SectionCard>
+          )}
+
+          {/* Supporting Evidence — real linked Development rows, never
+              fabricated. No /developments/[id] page exists yet, so these
+              are informational cards, not dead links. */}
+          {d.supporting_evidence.length > 0 && (
+            <SectionCard title="Supporting Evidence">
+              <div className="space-y-3">
+                {d.supporting_evidence.map(ev => (
+                  <div key={ev.development_id} className="rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[12px] font-medium text-text-primary">{ev.canonical_title}</p>
+                      {ev.current_impact_tier && (
+                        <span className="shrink-0 rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[9px] text-text-secondary">{ev.current_impact_tier}</span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-text-muted">
+                      <span>{ev.evidence_count} source{ev.evidence_count === 1 ? "" : "s"}</span>
+                      {ev.current_confidence !== null && <span>{Math.round(ev.current_confidence * 100)}% confidence</span>}
+                      {ev.first_observed_at && <span>Since {ev.first_observed_at.slice(0, 10)}</span>}
+                    </div>
+                    {ev.source_types.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {ev.source_types.map(t => (
+                          <span key={t} className="rounded-full bg-text-primary/[0.04] px-2 py-0.5 text-[9px] text-text-secondary">{t}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Contradictions & Risks — real, from the persisted score
+              breakdown (scoring.py's ScoreBreakdown.contradictions),
+              never invented. */}
+          {d.contradictions_risks.length > 0 && (
+            <SectionCard title="Contradictions & Risks">
+              <ul className="space-y-1.5">
+                {d.contradictions_risks.map((r, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"/>
+                    {r}
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+
+          <NextSteps config={{
+            takeaway: `${d.title} has strength ${strength ?? "—"}/100 across ${d.sectors_themes.join(", ") || "the affected sectors"}, with ${d.companies_connected.length} companies graph-confirmed.`,
+            primary: {
+              label: `Ask AI about ${d.title}`,
+              why: "Get a full investment analysis grounded in the real linked evidence.",
+              href: `/ai-search?q=${encodeURIComponent(`Tell me about this opportunity: ${truncateForQuery(d.title)}. Which companies are connected and what evidence supports it?`)}`,
+            },
+            groups: [
+              ...(topCompanies.length >= 2 ? [{
+                label: "Compare",
+                actions: [{
+                  label: `Compare ${topCompanies[0].symbol} vs ${topCompanies[1].symbol}`,
+                  why: "See the two leading connected companies side by side.",
+                  href: `/compare?a=${topCompanies[0].symbol}&b=${topCompanies[1].symbol}`,
+                }],
+              }] : []),
+              {
+                label: "Continue Research",
+                actions: [
+                  ...(topCompanies[0] ? [{
+                    label: `Open ${topCompanies[0].symbol} company page`,
+                    why: "See the full research terminal for a top connected company.",
+                    href: `/companies/${topCompanies[0].symbol}`,
+                  }] : []),
+                  {
+                    label: "Explore Ripple Graph",
+                    why: "See how this opportunity propagates across sectors and companies.",
+                    href: "/ripple",
+                  },
+                ],
+              },
+            ],
+            path: [d.sectors_themes[0] ?? "Sector", d.title, "Opportunity", "Investment Decision"],
+          }} />
+        </div>
+
+        {/* ── RIGHT SIDEBAR ────────────────────────────────────────────── */}
+        <aside className="space-y-4 lg:sticky lg:top-[84px]">
+          <SectionCard title="Status">
+            <div className="space-y-2 text-[12px]">
+              <div className="flex justify-between"><span className="text-text-muted">Candidate status</span><span className="text-text-primary">{d.candidate_status}</span></div>
+              <div className="flex justify-between"><span className="text-text-muted">Narrative status</span><span className="text-text-primary">{d.narrative_status}</span></div>
+              <div className="flex justify-between"><span className="text-text-muted">Created</span><span className="text-text-primary">{d.created_at.slice(0, 10)}</span></div>
+              <div className="flex justify-between"><span className="text-text-muted">Updated</span><span className="text-text-primary">{d.updated_at.slice(0, 10)}</span></div>
+            </div>
+          </SectionCard>
+        </aside>
+      </div>
+
+      <RelatedContent
+        entityType="opportunity"
+        entityId={id}
+        sector={d.sectors_themes[0]}
         initialData={initialRelated}
         className="mt-6"
       />

@@ -88,6 +88,7 @@ class WhatChangedSchema(BaseModel):
 class OpportunityV2DetailResponse(BaseModel):
     id: str
     slug: str
+    title: str                                    # real fallback chain, see get_opportunity_v2_detail
     thesis_anchor: str
     direction: str
     current_strength: Optional[float] = None     # current_score — real, bounded, NEVER relabeled "confidence"
@@ -231,9 +232,21 @@ async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[Opp
 
     why_this_exists = opp.current_summary if opp.narrative_status == "generated" else None
 
+    # V2-A contract alignment, 2026-08-24 — the response had no top-level
+    # display title at all (only formation_title/current_title inside
+    # what_changed, which is only present once the title has actually
+    # changed). The frontend page needs a real title to render regardless
+    # of narrative_status. Reuses the exact real fallback chain the model
+    # itself already documents (opportunity_v2.py's own column comment) and
+    # orchestration.py already uses for slug_base — never a fabricated
+    # string, and identical to what this opportunity would already fall
+    # back to elsewhere in the codebase.
+    title = opp.current_title or opp.formation_title or opp.thesis_anchor
+
     return OpportunityV2DetailResponse(
         id=opp.id,
         slug=opp.slug,
+        title=title,
         thesis_anchor=opp.thesis_anchor,
         direction=opp.thesis_direction,
         current_strength=opp.current_score,
