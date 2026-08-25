@@ -167,7 +167,21 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     // since not every event has a ripple analysis worth indexing.
     safeJson<Array<{ id: string; slug?: string; event_date?: string }>>(`${API}/api/ripple/featured?limit=20`, []),
     safeJson<{ items?: Array<{ id: number | string; slug?: string; updated_at?: string }> }>(`${API}/api/radar/?page_size=100`, {}),
-    safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
+    // Final re-audit fix (2026-08-25) — this route only needs symbol/name
+    // for URL generation, never live price. `live` defaults true on
+    // /api/companies/, and _fetch_prices() does a real yfinance batch
+    // call per page inside its own ThreadPoolExecutor(max_workers=1);
+    // firing that concurrently across every page (see extraCompanyPages
+    // below) triggered real Yahoo Finance throttling, most pages missing
+    // the route's 8s abort timeout and silently falling back to `{}`.
+    // Reproduced deterministically: with live=true, 11/13 concurrent page
+    // fetches timed out (only 180 of 824 real companies collected,
+    // matching the live sitemap's own observed truncation exactly); with
+    // live=false, all 13 succeed in ~1s and all 824 are collected. The
+    // Tier A qualification pipeline itself was never the problem — see
+    // artifacts/company_redesign_final_reaudit.md §5/§12 and its
+    // follow-up reconciliation.
+    safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1&live=false`, {}),
     safeJson<{ items?: Array<{ slug: string; article_type?: string; canonical_url?: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
     safeJson<Array<{ id: string }>>(`${API}/api/sectors/`, []),
     // SEO Phase 2, §2.2 — comparison research pages.
@@ -181,7 +195,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   // pages in parallel rather than truncating to just the first 60 of 200+.
   const extraCompanyPages = await Promise.all(
     Array.from({ length: Math.max(0, (companiesPage1.total_pages ?? 1) - 1) }, (_, i) =>
-      safeJson<{ companies?: Array<{ symbol: string }> }>(`${API}/api/companies/?page_size=60&page=${i + 2}`, {})
+      safeJson<{ companies?: Array<{ symbol: string }> }>(`${API}/api/companies/?page_size=60&page=${i + 2}&live=false`, {})
     )
   );
   const companies = {

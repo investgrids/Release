@@ -1971,7 +1971,15 @@ function StockPageInner({ params, initialStock, initialRelated }: PageProps & { 
                 })()}
                 description={`Analyst consensus: ${neutralRating(stock.recommendation)} · PE: ${stock.pe ?? "N/A"}`}
                 whyAssigned={`${stock.buy_count ?? 0} of ${stock.analyst_count ?? 0} analysts rate this stock positively. ${stock.pe ? `Current PE of ${stock.pe} reflects ` + (parseFloat(stock.pe) > 30 ? "premium valuation" : "reasonable valuation") + "." : ""}`}
-                historicalComparison={`Companies with similar positive-rating ratios in the ${stock.sector ?? "sector"} have historically delivered above-market returns over 12–18 months.`}
+                // Final re-audit fix — removed historicalComparison: a
+                // hardcoded template sentence asserting a specific
+                // historical outperformance pattern ("...have historically
+                // delivered above-market returns over 12-18 months") with
+                // zero real backtest data anywhere in this codebase to
+                // support it. No real replacement exists, so the section
+                // is simply omitted (the prop is optional) rather than
+                // replaced with another generic claim. See
+                // artifacts/company_redesign_final_reaudit.md §1/§12.
                 confidence={stock.analyst_count ? Math.round(Math.min(90, 50 + (stock.buy_count ?? 0) / Math.max(stock.analyst_count, 1) * 40)) : 55}
                 expectedEvolution={`If earnings trajectory holds, the opportunity is expected to ${stock.buy_count != null && stock.analyst_count && stock.buy_count / Math.max(stock.analyst_count, 1) > 0.6 ? "strengthen toward peak momentum" : "consolidate before the next catalyst"}.`}
                 risks={[

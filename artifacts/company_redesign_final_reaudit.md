@@ -221,16 +221,76 @@ No backlog padding — every item above was independently verified live during t
 
 ## 12. FINAL VERDICT
 
-**COMPANY REDESIGN — BLOCKED**
+**COMPANY REDESIGN — READY TO CLOSE**
 
-Exact closure blockers (all independently verified live during this audit, all real, none speculative):
+*(Original verdict at first pass was BLOCKED on 3 items. All three have since been fixed and closure-verified — see the addendum below. This section reflects the final outcome.)*
 
-1. **`PatternIntelligenceCard` presents undisclosed generic-template content as personalized company analysis.** The backend's own `degraded: true` flag (with its own source comment: *"generic template, not real analysis — caller must not present this as personalized"*) is never read or surfaced by the frontend component. Live-verified for RELIANCE: specific fabricated-looking numbers (68% similarity score, 75% success rate) shown with zero disclosure.
+### Non-blocking follow-ups (explicitly not required before closure)
 
-2. **`OpportunityLifecycleCard`'s "Historical Comparison" text is a hardcoded, unsupported historical-performance claim** ("have historically delivered above-market returns over 12–18 months") shown for every company under an authoritative section label, with no real backtest data anywhere in the codebase to support it, and no disclosure.
+Everything in Section 10 items 4-11: `ScenarioAnalysis`'s real `/api/scenario` fetch still blocked by a static prop (P1), the two-different-AI-scores labeling issue (P1), the mislabeled "AI Generated" badge on real yfinance text (P2), missing structured Company→Event/Opportunity/Ripple relationship markup (P2), real V1 duplicate-titled opportunities (DATA — V2's identity engine is the real fix, gated behind the Warehouse/promotion process), and the global accessibility debt in `SiteHeader`/`IntelligenceBlock.tsx` (GLOBAL). None of these block closure; none were touched by the addendum's fixes.
 
-3. **The sitemap excludes the large majority of real, qualified companies — including RELIANCE, the primary profile used throughout this entire redesign effort's own testing.** Root cause not conclusively established (possibly a local-dev-only concurrency artifact); needs verification against real production infrastructure before this can be closed either as "not a real bug" or as a confirmed fix target.
+**No further Company redesign work is required before moving to the next product phase.**
 
-These three are the only items blocking closure. Every other finding in Section 10 (items 4-11) is real but does not block closure — they are follow-up work (P1/P2/GLOBAL/DATA), not closure blockers.
+---
 
-Once items 1-3 are resolved (or item 3 is confirmed to be a local-environment-only artifact with no real production impact), this redesign is otherwise ready: the tab architecture, real data contracts, empty-state discipline, Ripple evidence-only design, and performance profile all independently passed this audit with no structural issues found. No reopening of C1-C5 or the information architecture is warranted by anything found here.
+## ADDENDUM — Blocker resolution (2026-08-25, same day)
+
+Per owner direction: fix blockers #1-2 immediately (real Phase-0-class integrity defects that escaped Phase 0); investigate #3 with a deterministic reconciliation before touching any code, then fix only if the reconciliation proved a real defect.
+
+### Blockers #1-2 — fixed
+
+**`PatternIntelligenceCard`** (`components/intelligence/PatternIntelligence.tsx`): implemented the owner's exact rule — `degraded === true` responses are now never stored into the component's `fetched` state, so they can never render. A degraded response is treated identically to "no real analysis," falling into the same pre-existing honest empty state ("No historical patterns identified"). No disclaimer was added to the fabricated numbers — per instruction, disclosure does not make template output useful Company intelligence, so the fix is non-display, not a label.
+
+**`OpportunityLifecycleCard`** (`CompanyPageClient.tsx`'s call site): the `historicalComparison` prop (the hardcoded "...have historically delivered above-market returns over 12–18 months" sentence) was removed outright, not replaced with another generic statement. The prop is optional on the shared component, so the "Historical Comparison" section simply no longer renders on the Company page.
+
+Live-verified on RELIANCE (immediately, real `degraded: true` response still confirmed from the backend) and again on GOLDENTOBC and TMPV during closure verification below: in all three cases, `PatternIntelligenceCard` shows the honest empty state instead of fabricated numbers, and `OpportunityLifecycleCard` renders with no "Historical Comparison" section at all.
+
+### Blocker #3 — deterministic reconciliation, then fixed
+
+Reconciliation performed exactly as requested, with fresh real counts (not the stale "461" reference from the original C5 report — the real Company Master has grown since then via this session's own live re-import):
+
+```
+Company Master (real CompanyEntity rows)         2,557
+C5 Tier A (fresh, real classify_all_entities())    530
+Static _NSE_UNIVERSE (hand-curated legacy list)    512
+Extended Tier A (qualifies, not in static list)    312
+Expected /api/companies/ total (static+extended)   824
+```
+
+```
+RELIANCE:
+Master              yes (real CompanyEntity, in static _NSE_UNIVERSE)
+Tier                A (18 real graph relationships, 76 real AICompanySignal, 2 real V2 opportunities)
+Directory/API       yes — confirmed present on /api/companies/?page=11 (real, direct check)
+Sitemap candidate   yes — companyRoutes has no filter beyond what /api/companies/ returns
+Final sitemap       NO (before fix) — root cause below
+Reason excluded     NOT a Tier/Master/API defect. app/sitemap.xml/route.ts fires 13 concurrent
+                     requests (Promise.all) for /api/companies/ pages 2-14. list_companies
+                     defaults live=true, and each request's _fetch_prices() makes a real
+                     yfinance batch call inside its own ThreadPoolExecutor(max_workers=1).
+                     13 such calls firing concurrently caused real Yahoo Finance throttling;
+                     most pages exceeded the route's own 8s abort timeout and silently fell
+                     back to {} (no companies from that page) — this is exactly the sitemap's
+                     own safeJson() fallback behavior working as designed, just triggered by
+                     an avoidable real bottleneck.
+```
+
+**The gate itself (Tier A qualification, Company Master, the API's merge/sort/paginate logic) was proven correct at every stage before the failure point.** The defect was isolated to one specific consumer's use of an endpoint option it never needed.
+
+**Reproduced deterministically** (not inferred): restarted the backend for a cold cache, then replicated the sitemap route's exact fetch pattern (page 1 sequential, pages 2-14 concurrent, real 8s AbortController) directly against it.
+- With `live=true` (the route's behavior before the fix): 11 of 13 concurrent page requests timed out at 8.0s. Companies collected: **180 of 824** — matching the real live sitemap's own observed count (178-180) almost exactly.
+- With `live=false`: all 13 requests succeeded in ~1.1s total. Companies collected: **824 of 824** — the full expected set, exactly.
+
+**Fix applied**: `app/sitemap.xml/route.ts` now requests `/api/companies/?...&live=false` for both the first page and all subsequent concurrent pages. The sitemap only needs `symbol`/`name` for URL generation — it never used the live price data `live=true` was fetching. `list_companies`'s own default (`live=true`) is unchanged for its real caller (the company directory UI, which does want live prices) — this fix is scoped to the one caller that never needed the option.
+
+**Live-verified after the fix**: the real `/sitemap.xml` now contains exactly **824** `/companies/*` URLs (matching the expected count precisely). RELIANCE, TCS, GARFIBRES, and TMPV all confirmed present. GOLDENTOBC and TELCO confirmed absent — both correctly: GOLDENTOBC is real Tier B (indexable via `robots`, per Section 5, but Tier B was never part of the sitemap's own static+TierA-extended eligibility criteria — a pre-existing, legitimate scoping choice this fix didn't touch); TELCO is a historical alias — only its canonical symbol TMPV appears, with zero duplicate/stale-alias entries. The TELCO→TMPV 308 redirect was re-confirmed unaffected by this fix.
+
+### Targeted closure verification (RELIANCE + one sparse + one alias company, as instructed)
+
+| Check | RELIANCE | GOLDENTOBC (sparse) | TMPV (alias, requested as TELCO) |
+|---|---|---|---|
+| PatternIntelligenceCard shows fabricated content | No | No | No |
+| OpportunityLifecycleCard shows "Historical Comparison" | No | No | No |
+| Sitemap / indexability behavior | Present, Tier A, indexable | Absent from sitemap (correct — Tier B), indexable via robots | Present as TMPV only; TELCO redirects 308, never indexed separately |
+
+All checks pass. No new Company re-audit is needed — this table is the closure verification the owner asked for in place of one.
