@@ -892,6 +892,26 @@ async def list_sectors():
     return {"sectors": _ALL_SECTORS}
 
 
+@router.get("/{symbol}/tier")
+async def get_company_tier(symbol: str, db: AsyncSession = Depends(get_db)):
+    """Company redesign Batch 0 — real, single-symbol C5 tier lookup for
+    `generateMetadata` to make a real indexability decision from (Tier A
+    -> index; else -> noindex,follow), rather than defaulting every
+    Company page to indexable regardless of substance. Deliberately a
+    separate, cheap endpoint rather than a field on /api/stocks/{symbol} —
+    tier is an identity/coverage concern, not stock data, and this stays
+    reusable without coupling to that endpoint's own live-price fetch."""
+    from app.services.company_identity.tiers import classify_one
+
+    result = await classify_one(db, symbol)
+    if result is None:
+        return {"resolved": False, "tier": None, "indexable": False}
+    return {
+        "resolved": True, "symbol": result.symbol, "tier": result.tier.value,
+        "indexable": result.indexable, "reasons": result.reasons,
+    }
+
+
 @router.get("/search")
 async def search_companies(
     q: str = Query("", description="Search term"),

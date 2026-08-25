@@ -148,8 +148,20 @@ async def get_related(
                 break
         if not company_events:
             company_events = await _recent_events(db, 4, sector=sector)
-        result["events"]        = company_events
-        result["opportunities"] = await _recent_opportunities(db, 4)
+        result["events"] = company_events
+
+        # Company redesign Batch 0, 2026-08-25 — this used to call the
+        # generic, un-scoped _recent_opportunities(db, 4) (missing even the
+        # sector= filter every other branch here passes), while
+        # CompanyIntelligenceSection elsewhere on the same Company page
+        # already used the real, symbol-scoped canonical contract
+        # (services.company_intelligence.get_related_opportunities, which
+        # itself dispatches V1/V2 and always returns a pre-resolved href) —
+        # two different, silently-disagreeing answers to "which
+        # opportunities relate to this company" on one page. Now the same
+        # single source of truth for both.
+        from app.services.company_intelligence import get_related_opportunities
+        result["opportunities"] = await get_related_opportunities(db, entity_id, limit=4)
 
     elif entity_type == "opportunity":
         result["events"]        = await _recent_events(db, 5, sector=sector)

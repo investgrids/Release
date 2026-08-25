@@ -20,7 +20,7 @@ from app.db.models.company_signal import AICompanySignal
 from app.db.models.opportunity_v2 import OpportunityV2
 from app.db.session import AsyncSessionLocal
 from app.services.company_identity.tiers import (
-    classify_all_entities, summarize, alias_redirect_summary, CoverageTier,
+    classify_all_entities, summarize, alias_redirect_summary, classify_one, CoverageTier,
 )
 
 
@@ -227,4 +227,93 @@ async def test_alias_redirect_summary_counts_and_conflicts():
         async with AsyncSessionLocal() as db:
             await db.execute(delete(CompanyAlias).where(CompanyAlias.entity_id.in_([e1.entity_id, e2.entity_id])))
             await db.execute(delete(CompanyEntity).where(CompanyEntity.entity_id.in_([e1.entity_id, e2.entity_id])))
+            await db.commit()
+
+
+# ── classify_one: the real, single-symbol path generateMetadata calls ──────
+
+@pytest.mark.asyncio
+async def test_classify_one_returns_none_for_unresolved_symbol():
+    async with AsyncSessionLocal() as db:
+        result = await classify_one(db, "TOTALLYFAKESYMBOL999")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_classify_one_finds_tier_a_via_graph_edges():
+    tag = _tag()
+    async with AsyncSessionLocal() as db:
+        entity = await _make_entity(db, tag, "ONE")
+    node, other1, other2 = f"company:{entity.symbol.lower()}", f"sector:a-{tag}", f"sector:b-{tag}"
+    try:
+        async with AsyncSessionLocal() as db:
+            db.add_all([
+                IGNode(id=node, node_type="company", label=entity.symbol, ticker=entity.symbol),
+                IGNode(id=other1, node_type="sector", label="A"),
+                IGNode(id=other2, node_type="sector", label="B"),
+            ])
+            await db.flush()
+            db.add_all([
+                IGEdge(id=f"e1-{tag}", source_id=node, target_id=other1, edge_type="benefits", weight=0.5, confidence=0.5),
+                IGEdge(id=f"e2-{tag}", source_id=node, target_id=other2, edge_type="hurts", weight=0.5, confidence=0.5),
+            ])
+            await db.commit()
+
+        async with AsyncSessionLocal() as db:
+            result = await classify_one(db, entity.symbol)
+        assert result is not None
+        assert result.tier == CoverageTier.A_INTELLIGENCE_RICH
+        assert result.graph_edge_count == 2
+        assert result.indexable is True
+    finally:
+        async with AsyncSessionLocal() as db:
+            await db.execute(delete(IGEdge).where(IGEdge.id.in_([f"e1-{tag}", f"e2-{tag}"])))
+            await db.execute(delete(IGNode).where(IGNode.id.in_([node, other1, other2])))
+            await db.execute(delete(CompanyAlias).where(CompanyAlias.entity_id == entity.entity_id))
+            await db.execute(delete(CompanyEntity).where(CompanyEntity.entity_id == entity.entity_id))
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_classify_one_resolves_historical_symbol_to_the_current_entity():
+    """Real, sourced C2 rename chain (TELCO->TATAMOTORS->TMPV) already
+    exercised in test_company_identity.py -- confirms classify_one honors
+    the same Company Master resolution the /companies/[symbol] redirect
+    and generateMetadata both depend on."""
+    from tests.services.test_company_identity import EQ_CSV, SYMBOLCHANGE_CSV, _clean_fixture_rows
+    from app.services.company_identity.importer import run_full_import
+
+    async with AsyncSessionLocal() as db:
+        await _clean_fixture_rows(db)
+        await run_full_import(db, EQ_CSV, SYMBOLCHANGE_CSV)
+        await db.commit()
+    try:
+        async with AsyncSessionLocal() as db:
+            old = await classify_one(db, "TATAMOTORS")
+            current = await classify_one(db, "TMPV")
+        assert old is not None and current is not None
+        assert old.symbol == current.symbol == "TMPV"
+        assert old.entity_id == current.entity_id
+    finally:
+        async with AsyncSessionLocal() as db:
+            await _clean_fixture_rows(db)
+
+
+@pytest.mark.asyncio
+async def test_classify_one_tier_c_when_no_evidence_and_no_live_data(monkeypatch):
+    tag = _tag()
+    async with AsyncSessionLocal() as db:
+        entity = await _make_entity(db, tag, "DRK")
+    try:
+        monkeypatch.setattr("app.api.companies._fetch_prices_sync", lambda symbols: {})
+        async with AsyncSessionLocal() as db:
+            result = await classify_one(db, entity.symbol)
+        assert result is not None
+        assert result.tier == CoverageTier.C_IDENTITY_ONLY
+        assert result.indexable is False
+        assert result.public_page is False
+    finally:
+        async with AsyncSessionLocal() as db:
+            await db.execute(delete(CompanyAlias).where(CompanyAlias.entity_id == entity.entity_id))
+            await db.execute(delete(CompanyEntity).where(CompanyEntity.entity_id == entity.entity_id))
             await db.commit()

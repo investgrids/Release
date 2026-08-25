@@ -46,6 +46,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.company_entity import CompanyEntity, CompanyAlias
 from app.db.models.company_signal import AICompanySignal
+from app.db.models.intelligence_graph import IGNode, IGEdge
 from app.db.models.opportunity_v2 import OpportunityV2
 from app.services.company_identity.coverage import _entity_graph_edge_counts
 
@@ -197,6 +198,78 @@ def summarize(results: list[TierResult]) -> dict[str, Any]:
         "sitemap_count": sum(1 for r in results if r.sitemap),
         "internal_only_count": sum(1 for r in results if not r.public_page),
     }
+
+
+async def classify_one(db: AsyncSession, symbol: str) -> TierResult | None:
+    """Real, single-symbol classification for a per-page SEO decision
+    (Company redesign Batch 0) — unlike classify_all_entities(), a live
+    price check for ONE symbol is cheap enough to include directly (the
+    cost problem C5 flagged was ~1,800 symbols in one request, not one).
+    Returns None only when the symbol doesn't resolve to a real
+    CompanyEntity at all (never guessed, never fabricated)."""
+    from app.services.company_identity.qualification import resolve_entity_by_any_symbol
+
+    entity = await resolve_entity_by_any_symbol(db, symbol)
+    if entity is None:
+        return None
+
+    own_symbols = {entity.symbol.upper()}
+    alias_rows = (await db.execute(
+        select(CompanyAlias.alias_value).where(CompanyAlias.entity_id == entity.entity_id)
+    )).scalars().all()
+    own_symbols |= {v.upper() for v in alias_rows}
+
+    from app.services.company_identity.classifier import normalize_identifier
+    nodes = (await db.execute(select(IGNode).where(IGNode.node_type == "company"))).scalars().all()
+    node_ids = [
+        n.id for n in nodes
+        if normalize_identifier(n.ticker or n.id.split(":", 1)[-1]) in own_symbols
+    ]
+
+    ge = 0
+    if node_ids:
+        out_c = (await db.execute(select(func.count()).select_from(IGEdge).where(IGEdge.source_id.in_(node_ids)))).scalar_one()
+        in_c = (await db.execute(select(func.count()).select_from(IGEdge).where(IGEdge.target_id.in_(node_ids)))).scalar_one()
+        ge = out_c + in_c
+
+    ai = (await db.execute(select(func.count()).select_from(AICompanySignal).where(AICompanySignal.symbol == entity.symbol))).scalar_one()
+
+    v2_rows = (await db.execute(select(OpportunityV2.companies))).scalars().all()
+    v2 = sum(1 for companies in v2_rows if entity.symbol.upper() in {str(c).upper() for c in (companies or [])})
+
+    reasons = []
+    if ge >= _MIN_MEANINGFUL_GRAPH_EDGES:
+        reasons.append(f"{ge} real graph relationships")
+    if ai >= 1:
+        reasons.append(f"{ai} real AICompanySignal(s)")
+    if v2 >= 1:
+        reasons.append(f"connected to {v2} real V2 Opportunity(ies)")
+
+    if reasons:
+        return TierResult(
+            entity_id=entity.entity_id, symbol=entity.symbol, company_name=entity.company_name,
+            tier=CoverageTier.A_INTELLIGENCE_RICH, graph_edge_count=ge, ai_signal_count=ai,
+            v2_opportunity_count=v2, has_live_market_data=None,
+            public_page=True, indexable=True, sitemap=True, reasons=reasons,
+        )
+
+    has_live = bool(_batch_has_live_price([entity.symbol]).get(entity.symbol))
+    if has_live:
+        return TierResult(
+            entity_id=entity.entity_id, symbol=entity.symbol, company_name=entity.company_name,
+            tier=CoverageTier.B_DATA_RICH, graph_edge_count=ge, ai_signal_count=ai,
+            v2_opportunity_count=v2, has_live_market_data=True,
+            public_page=True, indexable=True, sitemap=True,
+            reasons=["real, live-retrievable market data, no MarketRipple-specific intelligence yet"],
+        )
+
+    return TierResult(
+        entity_id=entity.entity_id, symbol=entity.symbol, company_name=entity.company_name,
+        tier=CoverageTier.C_IDENTITY_ONLY, graph_edge_count=ge, ai_signal_count=ai,
+        v2_opportunity_count=v2, has_live_market_data=False,
+        public_page=False, indexable=False, sitemap=False,
+        reasons=["no real graph/AI-signal/V2-opportunity evidence, no live market data found"],
+    )
 
 
 async def alias_redirect_summary(db: AsyncSession) -> dict[str, Any]:

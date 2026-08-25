@@ -15,24 +15,21 @@ import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { scoreToColor, impactToStyle } from "@/lib/scoring";
 import { neutralRating } from "@/lib/text";
-import "reactflow/dist/style.css";
 import {
   Star, Check, Sparkles, TrendingUp, IndianRupee, Target, Zap,
-  BarChart2, ClipboardList, CheckCircle2, Rocket,
-  TrendingDown, Landmark, Briefcase, HardHat, Leaf, Shield, Bot,
-  FileText, Mic, FileStack, Bell, Share2, Copy, Clock,
+  BarChart2, TrendingDown, Landmark, Briefcase, Clock,
 } from "lucide-react";
-const RFlow  = dynamic(() => import("reactflow").then(m => m.default),    { ssr: false });
-const RFBg   = dynamic(() => import("reactflow").then(m => m.Background), { ssr: false });
-const RFCtrl = dynamic(() => import("reactflow").then(m => m.Controls),   { ssr: false });
 
 // Recharts split into its own lazy chunk (2026-08 performance audit) — see
 // CompanyCharts.tsx's own header comment for why.
+// Company redesign Batch 0 (2026-08-25) — removed the reactflow imports/CSS
+// and GovBreakdownDonut/SentimentTrendChart chart imports along with the
+// fabricated NetworkGraph/GovernmentExposureSection donut/AISentiment
+// weekly-trend sections that were their only callers. See
+// artifacts/company_redesign_audit_spec.md §C.
 const PriceAreaChart              = dynamic(() => import("./CompanyCharts").then(m => m.PriceAreaChart),              { ssr: false });
 const DnaRadarChart               = dynamic(() => import("./CompanyCharts").then(m => m.DnaRadarChart),               { ssr: false });
 const Sparkline                   = dynamic(() => import("./CompanyCharts").then(m => m.Sparkline),                   { ssr: false });
-const GovBreakdownDonut           = dynamic(() => import("./CompanyCharts").then(m => m.GovBreakdownDonut),           { ssr: false });
-const SentimentTrendChart         = dynamic(() => import("./CompanyCharts").then(m => m.SentimentTrendChart),         { ssr: false });
 const ShareholdingDonut           = dynamic(() => import("./CompanyCharts").then(m => m.ShareholdingDonut),           { ssr: false });
 const HistoricalPerformanceBarChart = dynamic(() => import("./CompanyCharts").then(m => m.HistoricalPerformanceBarChart), { ssr: false });
 
@@ -67,7 +64,6 @@ interface PageProps { params: Promise<{ symbol: string }> }
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const CARD = "rounded-[28px] border border-surface-border/10 bg-text-primary/[0.04] shadow-[0_20px_60px_rgba(0,0,0,.35)] transition-all duration-300 hover:border-sky-400/20";
 const PERIODS = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y", "Max"];
-const DONUT_C = ["#6366f1", "#38bdf8", "#22c55e", "#f59e0b", "#f43f5e"];
 
 const ANALYST_ICONS: React.ReactNode[] = [
   <BarChart2 className="h-3 w-3" />,
@@ -97,17 +93,6 @@ function metricColor(label: string, value: string) {
   return "text-text-primary";
 }
 
-function deriveSegments(sector: string, symbol: string) {
-  const base: Record<string, { name: string; pct: number; growth: string; margin: string }[]> = {
-    Defence:   [{ name: "Aircraft Manufacturing", pct: 45, growth: "+18%", margin: "22%" }, { name: "Maintenance & Overhaul", pct: 30, growth: "+12%", margin: "18%" }, { name: "Aero Engines", pct: 15, growth: "+25%", margin: "28%" }, { name: "Exports", pct: 10, growth: "+32%", margin: "15%" }],
-    Banking:   [{ name: "Retail Banking", pct: 42, growth: "+14%", margin: "35%" }, { name: "Corporate Banking", pct: 28, growth: "+8%", margin: "28%" }, { name: "Treasury", pct: 18, growth: "+5%", margin: "40%" }, { name: "Insurance & Wealth", pct: 12, growth: "+20%", margin: "22%" }],
-    IT:        [{ name: "Digital Services", pct: 38, growth: "+22%", margin: "28%" }, { name: "Consulting", pct: 28, growth: "+15%", margin: "24%" }, { name: "Cloud & Infra", pct: 22, growth: "+30%", margin: "32%" }, { name: "BPO", pct: 12, growth: "+8%", margin: "18%" }],
-    Energy:    [{ name: "Refining", pct: 40, growth: "+10%", margin: "8%" }, { name: "Retail", pct: 30, growth: "+15%", margin: "12%" }, { name: "E&P", pct: 20, growth: "+5%", margin: "30%" }, { name: "Renewable", pct: 10, growth: "+45%", margin: "20%" }],
-    Pharma:    [{ name: "Formulations", pct: 50, growth: "+16%", margin: "32%" }, { name: "API", pct: 25, growth: "+10%", margin: "22%" }, { name: "Biologics", pct: 15, growth: "+28%", margin: "38%" }, { name: "Consumer Health", pct: 10, growth: "+20%", margin: "18%" }],
-  };
-  return base[sector] ?? [{ name: "Core Business", pct: 60, growth: "+12%", margin: "20%" }, { name: "Adjacent", pct: 25, growth: "+8%", margin: "15%" }, { name: "New Ventures", pct: 15, growth: "+25%", margin: "10%" }];
-}
-
 // Real, live shareholding split from yfinance (`held_institutions` /
 // `held_insiders`, already fetched in market_data.py from
 // info.heldPercentInstitutions / heldPercentInsiders). Only two of the
@@ -130,37 +115,6 @@ function deriveShareholding(stock: StockDetail) {
     { name: "Institutions (FII+DII)", value: Math.round(institutions * 10) / 10, color: "#38bdf8" },
     { name: "Public & Others",        value: other,                              color: "#f59e0b" },
   ].filter(d => d.value > 0);
-}
-
-function deriveGeography(sector: string) {
-  if (sector === "IT")      return [{ r: "India", v: 15 }, { r: "North America", v: 55 }, { r: "Europe", v: 20 }, { r: "Rest of World", v: 10 }];
-  if (sector === "Pharma")  return [{ r: "India", v: 35 }, { r: "North America", v: 42 }, { r: "Europe", v: 14 }, { r: "Emerging Markets", v: 9 }];
-  if (sector === "Defence") return [{ r: "India (Defence)", v: 82 }, { r: "Export Orders", v: 14 }, { r: "MRO Services", v: 4 }];
-  return [{ r: "India", v: 72 }, { r: "Asia Pacific", v: 15 }, { r: "Middle East", v: 8 }, { r: "Others", v: 5 }];
-}
-
-function deriveNetworkNodes(s: StockDetail) {
-  const sym = s.symbol;
-  const nodes = [
-    { id: "company", data: { label: sym },  position: { x: 300, y: 200 }, style: { background: "#6366f1", color: "#fff", border: "none", borderRadius: 12, fontWeight: "bold", padding: "8px 14px" } },
-    { id: "gov",     data: { label: "Government" }, position: { x: 100, y: 80  }, style: { background: "#22c55e30", color: "#22c55e", border: "1px solid #22c55e40", borderRadius: 10, padding: "6px 10px", fontSize: 11 } },
-    { id: "policy",  data: { label: "Policy" },     position: { x: 500, y: 80  }, style: { background: "#38bdf830", color: "#38bdf8", border: "1px solid #38bdf840", borderRadius: 10, padding: "6px 10px", fontSize: 11 } },
-    { id: "sup1",    data: { label: "Suppliers" },  position: { x: 80,  y: 320 }, style: { background: "#f59e0b20", color: "#f59e0b", border: "1px solid #f59e0b30", borderRadius: 10, padding: "6px 10px", fontSize: 11 } },
-    { id: "cust",    data: { label: "Customers" },  position: { x: 520, y: 320 }, style: { background: "#22c55e20", color: "#22c55e", border: "1px solid #22c55e30", borderRadius: 10, padding: "6px 10px", fontSize: 11 } },
-    ...s.peers.slice(0, 2).map((p, i) => ({
-      id: `peer${i}`, data: { label: p },
-      position: { x: 160 + i * 280, y: 360 },
-      style: { background: "#f43f5e20", color: "#f43f5e", border: "1px solid #f43f5e30", borderRadius: 10, padding: "6px 10px", fontSize: 11 },
-    })),
-  ];
-  const edges = [
-    { id: "e1", source: "gov",    target: "company", style: { stroke: "#22c55e50" }, label: "Policy" },
-    { id: "e2", source: "policy", target: "company", style: { stroke: "#38bdf850" }, label: "Budget" },
-    { id: "e3", source: "company",target: "cust",    style: { stroke: "#6366f150" }, label: "Revenue" },
-    { id: "e4", source: "sup1",   target: "company", style: { stroke: "#f59e0b50" }, label: "Supply" },
-    ...s.peers.slice(0, 2).map((_, i) => ({ id: `ep${i}`, source: "company", target: `peer${i}`, style: { stroke: "#f43f5e40" }, label: "Competes" })),
-  ];
-  return { nodes, edges };
 }
 
 // ── Micro components ──────────────────────────────────────────────────────────
@@ -400,19 +354,17 @@ function AISummary({ stock }: { stock: StockDetail }) {
     stock.dividend_yield && stock.dividend_yield !== "—" && `Consistent dividend payer (${stock.dividend_yield})`,
     n2(stock.debt_to_equity) < 0.5 && "Low leverage — strong balance sheet",
   ].filter(Boolean).slice(0, 4);
+  // Company redesign Batch 0 (2026-08-25) — removed the always-on
+  // "Execution risk on order delivery timelines" line (shown for every
+  // company regardless of sector/data) and the entire "Growth Drivers"
+  // list (100% static text, not derived from any real field except a
+  // sector-name interpolation) — see artifacts/company_redesign_audit_spec.md §C.
   const risks = [
     n2(stock.pe) > 45 && "Premium valuation — priced for perfection",
     n2(stock.debt_to_equity) > 1 && "High debt-to-equity ratio",
     stock.dna_scores["News Sensitivity"] > 70 && "High sensitivity to macro news",
-    "Execution risk on order delivery timelines",
     stock.gov_score >= 75 && "Concentrated revenue dependency on govt. contracts",
   ].filter(Boolean).slice(0, 4);
-  const drivers = [
-    "Strong order book pipeline driving multi-year revenue visibility",
-    `${stock.sector} sector benefiting from structural policy tailwinds`,
-    "Management has track record of consistent execution",
-    "Margin expansion expected on operating leverage kicking in",
-  ];
   return (
     <SectionCard>
       <div className="flex items-start gap-4">
@@ -453,16 +405,6 @@ function AISummary({ stock }: { stock: StockDetail }) {
                     </ul>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-sky-400">Growth Drivers</p>
-                  <ul className="grid grid-cols-2 gap-1.5">
-                    {drivers.map((d, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary">
-                        <span className="mt-0.5 text-sky-400 shrink-0">→</span>{d}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -470,9 +412,6 @@ function AISummary({ stock }: { stock: StockDetail }) {
             <button onClick={() => setExpanded(!expanded)}
               className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-[12px] font-medium text-sky-400 hover:bg-text-primary/[0.06] transition">
               {expanded ? "Collapse ↑" : "Read Full Analysis →"}
-            </button>
-            <button className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-2 text-[12px] font-medium text-violet-600 dark:text-violet-300 hover:bg-violet-500/15 transition">
-              Ask AI about {stock.name.split(" ")[0]} →
             </button>
           </div>
         </div>
@@ -539,9 +478,7 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
     { label: "EPS",       value: n2(stock.eps),  suffix: "",    color: "text-teal-400",   icon: <BarChart2 className="h-4 w-4" /> },
   ];
   return (
-    <SectionCard title="Financial Highlights" action={
-      <button className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View Financials →</button>
-    }>
+    <SectionCard title="Financial Highlights">
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
         {kpis.map((k, i) => (
           <motion.div key={k.label} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
@@ -608,21 +545,26 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
 }
 
 // ── Section 6: Key Ratios ─────────────────────────────────────────────────────
+// Company redesign Batch 0 (2026-08-25) — removed the "vs Industry Avg"
+// action label: no industry-average value was ever fetched or rendered
+// anywhere in this section (a dead third array column existed but was
+// never read by the JSX below) — the label was purely aspirational text
+// with zero backing data. See artifacts/company_redesign_audit_spec.md §C.
 function KeyRatios({ stock }: { stock: StockDetail }) {
   const rows = [
-    ["PE Ratio (TTM)",  stock.pe,            stock.pe],
-    ["Forward PE",      stock.forward_pe,    "—"],
-    ["PB Ratio",        stock.pb,            "—"],
-    ["ROE",             stock.roe,           "—"],
-    ["ROCE",            stock.roce,          "—"],
-    ["EPS (TTM)",       stock.eps ? `₹${stock.eps}` : "—", "—"],
-    ["Beta",            stock.beta,          "—"],
-    ["D/E Ratio",       stock.debt_to_equity,"—"],
-    ["Dividend Yield",  stock.dividend_yield,"—"],
-    ["Current Ratio",   stock.current_ratio, "—"],
+    ["PE Ratio (TTM)",  stock.pe],
+    ["Forward PE",      stock.forward_pe],
+    ["PB Ratio",        stock.pb],
+    ["ROE",             stock.roe],
+    ["ROCE",            stock.roce],
+    ["EPS (TTM)",       stock.eps ? `₹${stock.eps}` : "—"],
+    ["Beta",            stock.beta],
+    ["D/E Ratio",       stock.debt_to_equity],
+    ["Dividend Yield",  stock.dividend_yield],
+    ["Current Ratio",   stock.current_ratio],
   ];
   return (
-    <SectionCard title="Key Ratios" action={<span className="text-[10px] text-text-muted">vs Industry Avg</span>}>
+    <SectionCard title="Key Ratios">
       <div className="mt-3 grid grid-cols-2 gap-x-8 divide-x divide-surface-border/4">
         <div>{rows.slice(0, 5).map(([l, v]) => <KvRow key={l} label={l} value={v} colored/>)}</div>
         <div className="pl-8">{rows.slice(5).map(([l, v]) => <KvRow key={l} label={l} value={v} colored/>)}</div>
@@ -666,73 +608,6 @@ function EventTimeline({ stock, symbol }: { stock: StockDetail; symbol: string }
             </motion.div>
           );
         })}
-      </div>
-    </SectionCard>
-  );
-}
-
-// ── Section 8: Government Exposure ───────────────────────────────────────────
-function GovernmentExposureSection({ stock }: { stock: StockDetail }) {
-  const govLevelColor = stock.gov_level === "High" ? "text-emerald-600 dark:text-emerald-300" : stock.gov_level === "Medium" ? "text-amber-600 dark:text-amber-300" : "text-text-secondary";
-  if (!stock.gov_score) return null;
-  return (
-    <SectionCard title="Government Exposure" action={
-      <span className={`text-[14px] font-bold ${govLevelColor}`}>{stock.gov_level || "—"}</span>
-    }>
-      <div className="mt-4 grid grid-cols-2 gap-5">
-        {/* Left: donut + score */}
-        <div>
-          <div className="mb-3 flex items-center gap-3">
-            <span className="text-[40px] font-black text-text-primary leading-none">{stock.gov_score}</span>
-            <div>
-              <p className="text-[10px] text-text-muted">out of 100</p>
-              <span className={`text-[13px] font-bold ${govLevelColor}`}>{stock.gov_level}</span>
-            </div>
-          </div>
-          <div className="h-[140px]">
-            <GovBreakdownDonut
-              pieData={stock.gov_breakdown.length ? stock.gov_breakdown : [{ label: "Govt", pct: stock.gov_score }, { label: "Other", pct: 100 - stock.gov_score }]}
-              govBreakdown={stock.gov_breakdown}
-              colors={DONUT_C}
-            />
-          </div>
-          <div className="space-y-1.5">
-            {stock.gov_breakdown.map((b, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full shrink-0" style={{ background: b.color || DONUT_C[i % DONUT_C.length] }}/>
-                  <span className="text-[11px] text-text-secondary">{b.label}</span>
-                </div>
-                <span className="text-[11px] font-bold text-text-primary">{b.pct}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Right: key areas + schemes */}
-        <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted">Key Support Areas</p>
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {stock.gov_support_areas.map(a => (
-              <span key={a} className="rounded-full border border-sky-500/20 bg-sky-500/8 px-2 py-0.5 text-[10px] text-sky-600 dark:text-sky-300">{a}</span>
-            ))}
-          </div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted">Policy Impact Cards</p>
-          <div className="space-y-2">
-            {[
-              { policy: `${stock.sector} Scheme`,         impact: `+₹${Math.round(n2(stock.market_cap) * 0.05)}Cr opportunity`, score: 78 },
-              { policy: "PLI Scheme",                      impact: "Revenue uplift in FY26",                                      score: 65 },
-              { policy: "Budget Allocation",               impact: `${stock.sector} capex boost`,                                  score: 72 },
-            ].map((p, i) => (
-              <div key={i} className="flex items-center justify-between rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2">
-                <div>
-                  <p className="text-[12px] font-medium text-text-primary">{p.policy}</p>
-                  <p className="text-[10px] text-text-muted">{p.impact}</p>
-                </div>
-                <span className="text-[12px] font-black text-emerald-400">{p.score}</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </SectionCard>
   );
@@ -872,151 +747,50 @@ function NewsImpact({ stock, relatedNews }: { stock: StockDetail; relatedNews: a
 }
 
 // ── Section 11: AI Sentiment ──────────────────────────────────────────────────
+// Company redesign Batch 0 (2026-08-25) — was called "AI Sentiment
+// Analysis" and showed a "Bullish % Weekly Trend" chart where 4 of its 6
+// points were hardcoded literals (55/58/62/60) identical for every
+// company, and bullPct/bearPct silently fell back to hardcoded 62%/15%
+// for a company with no real analyst data — presented with the same
+// styling as fully real sections, no disclosure. Now: real donut only
+// (Finnhub buy/hold/sell counts), honest empty state when no analyst
+// coverage exists, and relabeled to make clear this is third-party
+// analyst consensus, not a MarketRipple-generated sentiment score. See
+// artifacts/company_redesign_audit_spec.md §C.
 function AISentiment({ stock }: { stock: StockDetail }) {
-  const bullPct = stock.buy_count
-    ? Math.round((stock.buy_count / (stock.buy_count + stock.hold_count + stock.sell_count || 1)) * 100)
-    : 62;
-  const bearPct = stock.sell_count
-    ? Math.round((stock.sell_count / (stock.buy_count + stock.hold_count + stock.sell_count || 1)) * 100)
-    : 15;
+  const total = stock.buy_count + stock.hold_count + stock.sell_count;
+  if (!total) {
+    return (
+      <SectionCard title="Analyst Consensus">
+        <p className="mt-4 text-[12px] text-text-muted">No analyst coverage data available for this stock.</p>
+      </SectionCard>
+    );
+  }
+  const bullPct = Math.round((stock.buy_count / total) * 100);
+  const bearPct = Math.round((stock.sell_count / total) * 100);
   const neutPct = 100 - bullPct - bearPct;
-  const trend = [{ w: "5W ago", v: 55 }, { w: "4W ago", v: 58 }, { w: "3W ago", v: 62 }, { w: "2W ago", v: 60 }, { w: "1W ago", v: bullPct }, { w: "Now", v: bullPct }];
 
   return (
-    <SectionCard title="AI Sentiment Analysis">
-      <div className="mt-4 grid grid-cols-2 gap-5">
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="relative h-24 w-24">
-              <svg className="h-24 w-24" style={{ transform: "rotate(-90deg)" }} viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="32" stroke="rgb(var(--text-primary) / 0.08)" strokeWidth={8} fill="none"/>
-                <circle cx="40" cy="40" r="32" stroke="#22c55e" strokeWidth={8} fill="none"
-                  strokeLinecap="round" strokeDasharray={`${(bullPct / 100) * 2 * Math.PI * 32} ${2 * Math.PI * 32}`}/>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[18px] font-black text-emerald-400">{bullPct}%</span>
-                <span className="text-[8px] text-text-muted">Bullish</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-emerald-400">Bullish</span><span className="text-text-primary font-bold">{bullPct}%</span></div><div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${bullPct}%` }}/></div></div>
-              <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-amber-400">Neutral</span><span className="text-text-primary font-bold">{neutPct}%</span></div><div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden"><div className="h-full rounded-full bg-amber-500" style={{ width: `${neutPct}%` }}/></div></div>
-              <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-rose-400">Bearish</span><span className="text-text-primary font-bold">{bearPct}%</span></div><div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden"><div className="h-full rounded-full bg-rose-500" style={{ width: `${bearPct}%` }}/></div></div>
-            </div>
-          </div>
-          {stock.analyst_count > 0 && (
-            <p className="text-[11px] text-text-muted">Based on {stock.analyst_count} analyst ratings</p>
-          )}
-        </div>
-        <div>
-          <p className="mb-2 text-[11px] text-text-muted">Bullish % Weekly Trend</p>
-          <div className="h-28">
-            <SentimentTrendChart trend={trend} />
+    <SectionCard title="Analyst Consensus">
+      <div className="mt-4 flex items-center gap-3">
+        <div className="relative h-24 w-24">
+          <svg className="h-24 w-24" style={{ transform: "rotate(-90deg)" }} viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="32" stroke="rgb(var(--text-primary) / 0.08)" strokeWidth={8} fill="none"/>
+            <circle cx="40" cy="40" r="32" stroke="#22c55e" strokeWidth={8} fill="none"
+              strokeLinecap="round" strokeDasharray={`${(bullPct / 100) * 2 * Math.PI * 32} ${2 * Math.PI * 32}`}/>
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[18px] font-black text-emerald-400">{bullPct}%</span>
+            <span className="text-[8px] text-text-muted">Bullish</span>
           </div>
         </div>
+        <div className="space-y-2">
+          <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-emerald-400">Bullish</span><span className="text-text-primary font-bold">{bullPct}%</span></div><div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${bullPct}%` }}/></div></div>
+          <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-amber-400">Neutral</span><span className="text-text-primary font-bold">{neutPct}%</span></div><div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden"><div className="h-full rounded-full bg-amber-500" style={{ width: `${neutPct}%` }}/></div></div>
+          <div><div className="flex justify-between text-[11px] mb-0.5"><span className="text-rose-400">Bearish</span><span className="text-text-primary font-bold">{bearPct}%</span></div><div className="h-1.5 rounded-full bg-text-primary/[0.06] overflow-hidden"><div className="h-full rounded-full bg-rose-500" style={{ width: `${bearPct}%` }}/></div></div>
+        </div>
       </div>
-    </SectionCard>
-  );
-}
-
-// ── Section 12: Network Graph ─────────────────────────────────────────────────
-function NetworkGraph({ stock }: { stock: StockDetail }) {
-  const { nodes, edges } = useMemo(() => deriveNetworkNodes(stock), [stock.symbol]);
-  return (
-    <SectionCard title="Business Network Graph" action={<span className="text-[10px] text-text-muted">Zoom / Pan / Click</span>}>
-      <div className="mt-4 h-[380px] w-full overflow-hidden rounded-2xl border border-surface-border/6">
-        <RFlow nodes={nodes} edges={edges} fitView>
-          <RFBg color="rgb(var(--surface-border))" gap={20}/>
-          <RFCtrl style={{ background: "rgb(var(--text-primary) / 0.05)", border: "1px solid rgb(var(--text-primary) / 0.08)", borderRadius: 8 }}/>
-        </RFlow>
-      </div>
-    </SectionCard>
-  );
-}
-
-// ── Section 13: Business Segments ─────────────────────────────────────────────
-function BusinessSegments({ stock }: { stock: StockDetail }) {
-  const segments = useMemo(() => deriveSegments(stock.sector, stock.symbol), [stock.sector]);
-  return (
-    <SectionCard title="Business Segments">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
-          Indicative · Sector Averages
-        </span>
-        <span className="text-[10px] text-text-muted">Based on sector benchmarks, not company-reported data</span>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {segments.map((s, i) => (
-          <motion.div key={s.name} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="rounded-2xl border border-surface-border/6 bg-surface-card p-4 hover:-translate-y-0.5 transition-all">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="h-2 w-2 rounded-full" style={{ background: DONUT_C[i % DONUT_C.length] }}/>
-              <span className="text-[22px] font-black text-text-primary">{s.pct}%</span>
-            </div>
-            <p className="text-[12px] font-semibold text-text-primary line-clamp-2">{s.name}</p>
-            <div className="mt-2 space-y-0.5">
-              <p className="text-[10px] text-emerald-400">Growth: {s.growth}</p>
-              <p className="text-[10px] text-sky-400">Margin: {s.margin}</p>
-            </div>
-            <div className="mt-2 h-1 rounded-full bg-text-primary/[0.06]">
-              <div className="h-full rounded-full transition-all" style={{ width: `${s.pct}%`, background: DONUT_C[i % DONUT_C.length] }}/>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </SectionCard>
-  );
-}
-
-// ── Section 14: Revenue Geography ─────────────────────────────────────────────
-function RevenueGeography({ stock }: { stock: StockDetail }) {
-  const geo = useMemo(() => deriveGeography(stock.sector), [stock.sector]);
-  return (
-    <SectionCard title="Revenue Geography">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
-          Indicative · Sector Averages
-        </span>
-        <span className="text-[10px] text-text-muted">Based on sector benchmarks, not company-reported data</span>
-      </div>
-      <div className="mt-4 space-y-3">
-        {geo.map((g, i) => (
-          <div key={g.r}>
-            <div className="mb-1 flex justify-between text-[12px]">
-              <span className="text-text-secondary">{g.r}</span>
-              <span className="font-bold text-text-primary">{g.v}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-text-primary/[0.06]">
-              <motion.div className="h-full rounded-full" style={{ background: DONUT_C[i % DONUT_C.length] }}
-                initial={{ width: 0 }} whileInView={{ width: `${g.v}%` }} transition={{ duration: 0.7, delay: i * 0.1 }} viewport={{ once: true }}/>
-            </div>
-          </div>
-        ))}
-      </div>
-    </SectionCard>
-  );
-}
-
-// ── Section 15: Order Book ─────────────────────────────────────────────────────
-function OrderBook({ stock }: { stock: StockDetail }) {
-  const mc = n2(stock.market_cap);
-  const orders: { label: string; value: string; icon: React.ReactNode; color: string }[] = [
-    { label: "Total Order Book",  value: `₹${(mc * 2.8).toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr`, icon: <ClipboardList className="h-5 w-5" />, color: "text-sky-400" },
-    { label: "Orders Pending",    value: `₹${(mc * 1.9).toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr`, icon: <Clock className="h-5 w-5" />,        color: "text-amber-400" },
-    { label: "Completed FY24",    value: `₹${(mc * 0.9).toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr`, icon: <CheckCircle2 className="h-5 w-5" />, color: "text-emerald-400" },
-    { label: "Execution Rate",    value: "68%",                                                                        icon: <Zap className="h-5 w-5" />,          color: "text-violet-400" },
-  ];
-  return (
-    <SectionCard title="Order Book">
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        {orders.map((o, i) => (
-          <div key={o.label} className="rounded-2xl border border-surface-border/6 bg-surface-card p-4">
-            <div className="mb-2 text-text-secondary">{o.icon}</div>
-            <p className={`text-[18px] font-black leading-none ${o.color}`}>{o.value}</p>
-            <p className="mt-1 text-[11px] text-text-muted">{o.label}</p>
-          </div>
-        ))}
-      </div>
+      <p className="mt-3 text-[11px] text-text-muted">Based on {stock.analyst_count} analyst rating{stock.analyst_count === 1 ? "" : "s"} — third-party analyst consensus, not a MarketRipple-generated score.</p>
     </SectionCard>
   );
 }
@@ -1074,11 +848,15 @@ function PeerComparison({ stock }: { stock: StockDetail }) {
     }).finally(() => setLoading(false));
   }, [stock.symbol]);
 
+  // Company redesign Batch 0 (2026-08-25) — removed the "Revenue Growth"
+  // column: self always showed a hardcoded "+12%", every peer always
+  // showed "—" (never fetched/computed) — real for zero of the rows it
+  // appeared on. See artifacts/company_redesign_audit_spec.md §C.
   const rows = [
-    { symbol: stock.symbol, name: stock.name, price: `₹${stock.price}`, pe: stock.pe, roe: stock.roe, growth: "+12%", isSelf: true },
+    { symbol: stock.symbol, name: stock.name, price: `₹${stock.price}`, pe: stock.pe, roe: stock.roe, isSelf: true },
     ...stock.peers.slice(0, 5).map(p => {
       const d = peerData[p];
-      return { symbol: p, name: d?.name || p, price: d ? `₹${d.price}` : "—", pe: d?.pe || "—", roe: d?.roe || "—", growth: "—", isSelf: false };
+      return { symbol: p, name: d?.name || p, price: d ? `₹${d.price}` : "—", pe: d?.pe || "—", roe: d?.roe || "—", isSelf: false };
     }),
   ];
 
@@ -1090,7 +868,7 @@ function PeerComparison({ stock }: { stock: StockDetail }) {
         <table className="w-full text-[12px]">
           <thead>
             <tr className="border-b border-surface-border/6">
-              {["Company", "Price", "PE (TTM)", "ROE (%)", "Revenue Growth", ""].map(h => (
+              {["Company", "Price", "PE (TTM)", "ROE (%)", ""].map(h => (
                 <th key={h} className="pb-3 text-left text-[10px] text-text-muted font-medium first:text-left text-right last:text-right">{h}</th>
               ))}
             </tr>
@@ -1113,7 +891,6 @@ function PeerComparison({ stock }: { stock: StockDetail }) {
                 <td className="py-3 text-right font-semibold text-text-primary">{loading && !r.isSelf ? <div className="ml-auto h-3 w-12 animate-pulse rounded bg-text-primary/[0.06]"/> : r.price}</td>
                 <td className="py-3 text-right font-semibold text-text-primary">{r.pe || "—"}</td>
                 <td className="py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{r.roe || "—"}</td>
-                <td className="py-3 text-right text-emerald-400">{r.growth}</td>
                 <td className="py-3 text-right">
                   {!r.isSelf && <Link href={`/companies/${r.symbol}`} className="text-[10px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View →</Link>}
                 </td>
@@ -1189,64 +966,6 @@ function HistoricalPerformance({ stock }: { stock: StockDetail }) {
       </div>
       <div className="h-[180px]">
         <HistoricalPerformanceBarChart data={data} activeMetric={activeMetric} />
-      </div>
-    </SectionCard>
-  );
-}
-
-// ── Section 19: AI Forecast ───────────────────────────────────────────────────
-function AIForecast({ stock }: { stock: StockDetail }) {
-  const isPos = stock.pct_change >= 0;
-  return (
-    <SectionCard noPad>
-      <div className="p-6 bg-gradient-to-br from-violet-500/10 via-transparent to-sky-500/5 rounded-[28px]">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
-            </div>
-            <h2 className="text-[15px] font-bold text-text-primary">AI Forecast</h2>
-          </div>
-          <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-300">Premium</span>
-        </div>
-        <div className="grid grid-cols-3 gap-4 mb-5">
-          {[
-            { label: "Next Quarter", outlook: "Positive", icon: <TrendingUp className="h-6 w-6 text-emerald-400" />, conf: 78 },
-            { label: "Next Year",    outlook: "Bullish",  icon: <Rocket className="h-6 w-6 text-violet-400" />,      conf: 72 },
-            { label: "3 Year View",  outlook: "Strong",   icon: <Star className="h-6 w-6 text-amber-400" />,         conf: 68 },
-          ].map(f => (
-            <div key={f.label} className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-4 text-center">
-              <div className="mb-1 flex justify-center">{f.icon}</div>
-              <p className="text-[13px] font-bold text-emerald-600 dark:text-emerald-300">{f.outlook}</p>
-              <p className="text-[10px] text-text-muted mt-0.5">{f.label}</p>
-              <div className="mt-2 h-1 rounded-full bg-text-primary/[0.06]">
-                <div className="h-full rounded-full bg-violet-500" style={{ width: `${f.conf}%` }}/>
-              </div>
-              <p className="text-[9px] text-text-muted mt-0.5">{f.conf}% confidence</p>
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-sky-400">Catalysts</p>
-            {["Order book expansion","Government policy support","Margin improvement","Sector tailwinds"].map((c, i) => (
-              <p key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary mb-1"><span className="text-emerald-400 mt-0.5">+</span>{c}</p>
-            ))}
-          </div>
-          <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-rose-400">Risks</p>
-            {["Execution delays","Input cost pressures","Regulatory changes","Global macro headwinds"].map((r, i) => (
-              <p key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary mb-1"><span className="text-rose-400 mt-0.5">-</span>{r}</p>
-            ))}
-          </div>
-        </div>
-        <div className="mt-4 flex items-center justify-between rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] px-5 py-4">
-          <div>
-            <p className="text-[11px] text-text-muted">AI Investment Rating</p>
-            <p className="text-[22px] font-black text-text-primary mt-0.5">{isPos ? "Positive" : "Neutral"}</p>
-          </div>
-          <div className="text-[52px] font-black text-violet-400">{Math.round((n2(stock.roe) + stock.gov_score) / 2)}</div>
-        </div>
       </div>
     </SectionCard>
   );
@@ -1345,136 +1064,25 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
   );
 }
 
-// ── Section 21: Economic Calendar ─────────────────────────────────────────────
-// Phase 5A correctness fix: this previously rendered five identical
-// hardcoded fake dates (Q1 Results 15 Jul, RBI Policy 05 Aug, ...) on
-// EVERY company page regardless of symbol — not sourced from any real
-// data. No trustworthy source of forward-looking, per-company events
-// exists yet (Phase 5A audit §13 — company earnings dates deferred,
-// no reliable source found). Section returns null (same convention
-// every other no-real-data section in this file already follows,
-// e.g. SimilarCompanies/InsiderActivity above) rather than show
-// invented dates. Real per-company catalysts (once EconomicCalendarEvent
-// ingestion + a trustworthy earnings-date source exist) replace this.
-function EconomicCalendarSection({ stock }: { stock: StockDetail }) {
-  return null;
-}
-
-// ── Section 22: Similar Companies ─────────────────────────────────────────────
-function SimilarCompanies({ stock }: { stock: StockDetail }) {
-  if (!stock.peers.length) return null;
-  const similarities = [92, 88, 84, 79, 74];
-  const reasons = [
-    "Same sector + government exposure",
-    "Similar order book pattern",
-    "Comparable revenue mix",
-    "Overlapping customer base",
-    "Similar capex cycle",
-  ];
-  return (
-    <SectionCard title="Similar Companies">
-      <div className="mt-4 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-        {stock.peers.slice(0, 5).map((p, i) => (
-          <Link key={p} href={`/companies/${p}`}
-            className="group flex min-w-[160px] flex-col gap-2 rounded-2xl border border-surface-border/6 bg-surface-card p-4 hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 to-violet-500/10 text-[11px] font-bold text-text-secondary">
-                {p.slice(0, 2)}
-              </div>
-              <div className="min-w-0">
-                <p className="text-[12px] font-bold text-text-primary group-hover:text-sky-600 dark:text-sky-300 transition truncate">{p}</p>
-                <p className="text-[10px] text-emerald-400">{similarities[i] || 78}% similar</p>
-              </div>
-            </div>
-            <p className="text-[10px] text-text-muted leading-snug">{reasons[i] || "Sector peer"}</p>
-            <p className="mt-auto text-[10px] text-sky-400">Compare →</p>
-          </Link>
-        ))}
-      </div>
-    </SectionCard>
-  );
-}
-
-// ── Section 23: Documents ──────────────────────────────────────────────────────
-function Documents({ stock }: { stock: StockDetail }) {
-  const docs: { title: string; type: string; icon: React.ReactNode; size: string }[] = [
-    { title: "Annual Report FY24",         type: "PDF",  icon: <FileText className="h-5 w-5 text-text-secondary" />,  size: "4.2 MB" },
-    { title: "Q4 Investor Presentation",   type: "PDF",  icon: <BarChart2 className="h-5 w-5 text-text-secondary" />, size: "2.1 MB" },
-    { title: "Concall Transcript Q4",      type: "PDF",  icon: <Mic className="h-5 w-5 text-text-secondary" />,       size: "890 KB" },
-    { title: "Exchange Filing (NSE)",      type: "PDF",  icon: <Landmark className="h-5 w-5 text-text-secondary" />,  size: "1.3 MB" },
-    { title: "Sustainability Report 2024", type: "PDF",  icon: <Leaf className="h-5 w-5 text-text-secondary" />,      size: "3.8 MB" },
-    { title: "Quarterly Results Q4 FY24",  type: "XLSX", icon: <FileStack className="h-5 w-5 text-text-secondary" />, size: "540 KB" },
-  ];
-  return (
-    <SectionCard title="Documents & Reports">
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        {docs.map((d, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border border-surface-border/5 bg-text-primary/[0.02] p-3 hover:border-sky-400/10 hover:bg-text-primary/[0.03] transition cursor-pointer">
-            <span className="shrink-0 text-text-secondary">{d.icon}</span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium text-text-primary truncate">{d.title}</p>
-              <p className="text-[10px] text-text-muted">{d.type} · {d.size}</p>
-            </div>
-            <button className="shrink-0 text-[10px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">↓</button>
-          </div>
-        ))}
-      </div>
-    </SectionCard>
-  );
-}
-
-// ── Section 24: Ask AI ─────────────────────────────────────────────────────────
-function AskAI({ stock }: { stock: StockDetail }) {
-  const [q, setQ] = useState("");
-  const suggestions = [
-    `Why is ${stock.symbol} rising?`,
-    "Key government policies affecting this stock",
-    "What are the main risks?",
-    "Compare with peers",
-    "Future opportunities",
-    "Historical events impact",
-  ];
-  return (
-    <SectionCard>
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
-          <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
-        </div>
-        <h2 className="text-[15px] font-bold text-text-primary">Ask AI About {stock.name.split(" ")[0]}</h2>
-      </div>
-      <div className="flex items-center gap-3 rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-3 focus-within:border-violet-500/30 transition">
-        <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 text-text-muted"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
-        <input value={q} onChange={e => setQ(e.target.value)}
-          placeholder={`Ask anything about ${stock.symbol}...`}
-          className="flex-1 bg-transparent text-[13px] text-text-primary outline-none placeholder:text-text-muted"/>
-        {q && <button className="shrink-0 rounded-xl bg-violet-500/20 px-3 py-1.5 text-[12px] text-violet-600 dark:text-violet-300 hover:bg-violet-500/30 transition">Ask →</button>}
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {suggestions.map((s, i) => (
-          <button key={i} onClick={() => setQ(s)}
-            className="rounded-full border border-surface-border/6 bg-text-primary/[0.02] px-3 py-1 text-[11px] text-text-secondary hover:border-violet-500/30 hover:text-violet-600 dark:text-violet-300 transition">
-            {s}
-          </button>
-        ))}
-      </div>
-    </SectionCard>
-  );
-}
-
 // ── Section 25: Right Sticky Intelligence Panel ────────────────────────────────
+// Company redesign Batch 0 (2026-08-25) — removed the hardcoded
+// "Face Value: ₹1.00" row (real NSE face values vary widely across
+// companies — ₹1/₹2/₹5/₹10 — this was simply wrong for most of them) and
+// the dead "View More" button. Removed Top Risks/Top Opportunities
+// entirely (fabricated text + hardcoded severities/scores, identical
+// structure for every company) rather than carry them into the redesign
+// — their real replacement (company_score_engine.py's real weighted
+// negative/positive contributors) is Batch 2 work, not a Batch 0 patch.
+// Removed Quick Actions (4 dead buttons) and Export (3 dead buttons,
+// duplicating the real, working ShareInsightCard already rendered
+// elsewhere on this page) entirely. See
+// artifacts/company_redesign_audit_spec.md §C.
 function IntelligencePanel({ stock }: { stock: StockDetail }) {
-  const isPos = stock.pct_change >= 0;
   const ai_score = stock.dna_scores
     ? Math.round(Object.values(stock.dna_scores).reduce((a, b) => a + b, 0) / Math.max(Object.values(stock.dna_scores).length, 1))
     : 72;
   const col = scoreColor(ai_score);
   const rec_label = neutralRating(stock.recommendation);
-  const recommendations: { label: string; icon: React.ReactNode }[] = [
-    { label: "Add to Watchlist",     icon: <Star className="h-4 w-4" /> },
-    { label: "Set Price Alert",      icon: <Bell className="h-4 w-4" /> },
-    { label: "Compare with Peers",   icon: <BarChart2 className="h-4 w-4" /> },
-    { label: "Download Report",      icon: <FileText className="h-4 w-4" /> },
-  ];
   return (
     <div className="space-y-5">
 
@@ -1489,11 +1097,9 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
           <KvRow label="ROE"               value={stock.roe}          colored/>
           <KvRow label="ROCE"              value={stock.roce}         colored/>
           <KvRow label="Dividend Yield"    value={stock.dividend_yield}/>
-          <KvRow label="Face Value"        value="₹1.00"/>
           <KvRow label="52W High"          value={`₹${stock.week52_high}`}/>
           <KvRow label="52W Low"           value={`₹${stock.week52_low}`}/>
         </div>
-        <button className="mt-3 w-full text-center text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View More →</button>
       </div>
 
       {/* AI Rating */}
@@ -1541,81 +1147,6 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
           </div>
         </div>
       )}
-
-      {/* Top Risks */}
-      <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Top Risks</h3>
-        <div className="space-y-2">
-          {[
-            { text: "Execution & delivery risk", sev: 72 },
-            { text: n2(stock.pe) > 40 ? "Premium valuation risk" : "Market volatility", sev: 58 },
-            { text: "Regulatory / policy changes", sev: 45 },
-          ].map((r, i) => (
-            <div key={i} className="rounded-xl border border-rose-500/10 bg-rose-500/[0.04] p-2.5">
-              <div className="flex justify-between mb-1">
-                <p className="text-[11px] text-text-secondary">{r.text}</p>
-                <span className="text-[10px] font-bold text-rose-400">{r.sev}</span>
-              </div>
-              <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
-                <div className="h-full rounded-full bg-rose-500" style={{ width: `${r.sev}%` }}/>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Top Opportunities */}
-      <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Top Opportunities</h3>
-        <div className="space-y-2">
-          {[
-            { text: `${stock.sector} sector expansion`, sc: 88 },
-            { text: "Export order growth", sc: 74 },
-            { text: "Margin improvement FY26", sc: 68 },
-          ].map((o, i) => (
-            <div key={i} className="rounded-xl border border-emerald-500/10 bg-emerald-500/[0.04] p-2.5">
-              <div className="flex justify-between mb-1">
-                <p className="text-[11px] text-text-secondary">{o.text}</p>
-                <span className="text-[10px] font-bold text-emerald-400">{o.sc}</span>
-              </div>
-              <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${o.sc}%` }}/>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Quick Actions</h3>
-        <div className="space-y-1.5">
-          {recommendations.map(a => (
-            <button key={a.label} className="flex w-full items-center justify-between rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2.5 hover:border-sky-400/20 hover:bg-text-primary/[0.04] transition">
-              <div className="flex items-center gap-2">
-                <span className="text-text-secondary">{a.icon}</span>
-                <span className="text-[12px] text-text-secondary">{a.label}</span>
-              </div>
-              <svg className="h-3.5 w-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-              </svg>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Export */}
-      <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Export</h3>
-        <div className="grid grid-cols-3 gap-2">
-          {([{ l: "PDF", i: <FileText className="h-4 w-4 text-text-secondary" /> }, { l: "Share", i: <Share2 className="h-4 w-4 text-text-secondary" /> }, { l: "Copy", i: <Copy className="h-4 w-4 text-text-secondary" /> }] as { l: string; i: React.ReactNode }[]).map(e => (
-            <button key={e.l} className="flex flex-col items-center gap-1 rounded-xl border border-surface-border/6 bg-text-primary/[0.02] py-2.5 hover:border-sky-400/20 hover:bg-text-primary/[0.04] transition">
-              <span className="text-text-secondary">{e.i}</span>
-              <span className="text-[10px] text-text-secondary">{e.l}</span>
-            </button>
-          ))}
-        </div>
-      </div>
 
     </div>
   );
@@ -1965,40 +1496,48 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
               <KeyRatios stock={stock}/>
             </>}
 
-            {/* Wave 2 — mid-page: events, gov, opportunity, news, sentiment */}
+            {/* Wave 2 — mid-page: events, opportunity, news, sentiment.
+                Company redesign Batch 0 — removed GovernmentExposureSection:
+                gov_score/level are a real heuristic from real yfinance
+                inputs, but the breakdown donut/pills/"Policy Impact Cards"
+                were categorically fabricated (every "High" exposure company
+                got the identical 42/28/16/14 split; the cards were formula-
+                derived with hardcoded scores) with zero disclosure. See
+                artifacts/company_redesign_audit_spec.md §C/§D. */}
             {renderGroup >= 2 ? <>
               <EventTimeline stock={stock} symbol={symbol}/>
-              <GovernmentExposureSection stock={stock}/>
               <OpportunityRadarSection stock={stock}/>
               <NewsImpact stock={stock} relatedNews={relatedNews}/>
               <AISentiment stock={stock}/>
             </> : renderGroup >= 1 && <>
-              <SectionSkel h={260}/>
               <SectionSkel h={260}/>
               <SectionSkel h={220}/>
               <SectionSkel h={280}/>
               <SectionSkel h={200}/>
             </>}
 
-            {/* Wave 3 — deep sections: network, segments, geography, order, shareholding,
-                         peers, historical, forecast, stories, calendar, similar, docs, ask AI */}
+            {/* Wave 3 — deep sections: shareholding, peers, historical performance.
+                Company redesign Batch 0 (2026-08-25) — removed NetworkGraph
+                (100% fabricated supply-chain graph; real replacement is
+                /api/ripple/company/{ticker}, wired in Batch 3),
+                BusinessSegments/RevenueGeography (sector-template data, not
+                company data), OrderBook (100% fabricated, no disclosure),
+                AIForecast (100% fabricated outlook/rating), EconomicCalendarSection
+                (was already a dead `return null` stub), SimilarCompanies
+                (fake similarity %, no real similarity engine exists),
+                Documents (100% fake filings with non-functional download
+                buttons), AskAI (fully dead submit button, duplicates the
+                real, working Ask AI link in CompanyHero). See
+                artifacts/company_redesign_audit_spec.md §C for the full
+                per-section rationale. */}
             {renderGroup >= 3 ? <>
-              <NetworkGraph stock={stock}/>
-              <BusinessSegments stock={stock}/>
-              <RevenueGeography stock={stock}/>
-              <OrderBook stock={stock}/>
               <Shareholding stock={stock}/>
               <PeerComparison stock={stock}/>
               <CompareWithSection stock={stock}/>
               <HistoricalPerformance stock={stock}/>
-              <AIForecast stock={stock}/>
               <RelatedStories stock={stock}/>
-              <EconomicCalendarSection stock={stock}/>
-              <SimilarCompanies stock={stock}/>
-              <Documents stock={stock}/>
-              <AskAI stock={stock}/>
             </> : renderGroup >= 1 && <>
-              {[440, 220, 180, 200, 220, 320, 220, 300, 200, 220, 220, 240, 160].map((h, i) => (
+              {[220, 320, 220, 300, 240].map((h, i) => (
                 <SectionSkel key={i} h={h}/>
               ))}
             </>}

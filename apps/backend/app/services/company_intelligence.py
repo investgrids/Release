@@ -213,7 +213,7 @@ async def get_related_opportunities(db: AsyncSession, symbol: str, limit: int = 
         .order_by(Opportunity.opportunity_score.desc())
         .limit(limit)
     )).all()
-    return [{"title": opp.title, "href": f"/opportunity-radar/{opp.id}", "score": opp.opportunity_score} for opp, _ in rows]
+    return [{"id": str(opp.id), "title": opp.title, "href": f"/opportunity-radar/{opp.id}", "score": opp.opportunity_score} for opp, _ in rows]
 
 
 def compute_confidence_breakdown(events: list[dict], historical: dict | None, gov_score: float | None, price_positive: bool | None) -> dict:

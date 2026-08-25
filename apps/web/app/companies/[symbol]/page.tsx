@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import { neutralRating, safeJsonLd } from "@/lib/text";
@@ -107,6 +108,60 @@ function buildFaqs(stock: StockDetail, upper: string): { question: string; answe
 function withPeriod(text: string) {
   const t = text.trim();
   return /[.!?]$/.test(t) ? t : `${t}.`;
+}
+
+// Company redesign Batch 0 — real, single-symbol C5 tier lookup so the
+// robots directive reflects actual substance (Tier A -> index; anything
+// else -> noindex,follow, matching the Indexability Contract's "durable
+// but thin -> NOINDEX,FOLLOW" rule) instead of every Company page
+// defaulting to indexable regardless of whether MarketRipple has real
+// intelligence about it. Fails closed (noindex) on any error — an
+// indexability decision should never silently default to "index" when
+// the real signal couldn't be checked.
+async function fetchIndexable(symbol: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API}/api/companies/${symbol}/tier`, { next: { revalidate: 3600 } });
+    if (!res.ok) return false;
+    const d = await res.json();
+    return d.indexable === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ symbol: string }> }): Promise<Metadata> {
+  const { symbol } = await params;
+  const upper = symbol.toUpperCase();
+  const { data: stock, symbolNotFound } = await fetchStock(upper);
+  if (symbolNotFound || !stock) {
+    return { title: "Company Not Found — MarketRipple" };
+  }
+
+  // C5's canonical-symbol behavior must feed metadata too, not just the
+  // page-level redirect — a request under a historical/renamed symbol
+  // (TATAMOTORS) gets metadata for the real current one (TMPV), same as
+  // the body content and the eventual 308 both already do.
+  const canonicalSymbol = stock.canonical_symbol || upper;
+  const url = `${SITE}/companies/${canonicalSymbol}`;
+  const title = `${stock.name} (${canonicalSymbol}) Share Price & AI Investment Analysis`;
+  const description = withPeriod(
+    stock.description
+      ? stock.description.slice(0, 140)
+      : `${stock.name} (${canonicalSymbol}) trades on the NSE${stock.sector && stock.sector !== "N/A" ? ` in the ${stock.sector} sector` : ""}`
+  );
+
+  const indexable = await fetchIndexable(canonicalSymbol);
+
+  return {
+    title, description,
+    alternates: { canonical: url },
+    robots: indexable ? undefined : { index: false, follow: true },
+    openGraph: {
+      type: "website", title, description, url, siteName: "MarketRipple",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: ["/opengraph-image"] },
+  };
 }
 
 export default async function CompanyPage({ params }: { params: Promise<{ symbol: string }> }) {

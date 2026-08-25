@@ -377,6 +377,7 @@ async def list_public_opportunities_v2_for_company(db: AsyncSession, symbol: str
     matches = [o for o in candidates if symbol_upper in [c.upper() for c in (o.companies or [])]]
     return [
         {
+            "id": o.id,
             "title": o.current_title or o.formation_title or o.thesis_anchor,
             "href": f"/opportunity-radar/{o.slug}",
             "score": o.current_score,
