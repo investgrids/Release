@@ -1,8 +1,9 @@
 "use client";
 
-import { use, useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { use, useEffect, useState, useCallback, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { InvestmentThesis, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, OpportunityLifecycleCard, IntelligenceBlock } from "@/components/intelligence";
@@ -1232,6 +1233,65 @@ function PageSkeleton() {
   );
 }
 
+// ── Tab navigation shell (Batch 1) ─────────────────────────────────────────────
+// Google-Finance-style interaction philosophy (fast, URL-addressable
+// switching between research questions), not a visual clone. Selecting a
+// tab replaces the research body below the persistent CompanyHero — it
+// never just scrolls to an anchor further down the same long page.
+const COMPANY_TABS = [
+  { id: "overview",      label: "Overview" },
+  { id: "intelligence",  label: "Intelligence" },
+  { id: "financials",    label: "Financials" },
+  { id: "events",        label: "Events" },
+  { id: "opportunities", label: "Opportunities" },
+  { id: "ripple",        label: "Ripple" },
+  { id: "peers",         label: "Peers" },
+] as const;
+type CompanyTab = typeof COMPANY_TABS[number]["id"];
+
+function CompanyTabNav({ active, onChange }: { active: CompanyTab; onChange: (t: CompanyTab) => void }) {
+  return (
+    <nav
+      aria-label="Company sections"
+      className="sticky top-[64px] z-30 -mx-1 mb-6 flex gap-1 overflow-x-auto border-b border-surface-border/10 bg-surface-base/90 px-1 backdrop-blur scrollbar-hide lg:top-[88px]"
+    >
+      {COMPANY_TABS.map(t => (
+        <button
+          key={t.id}
+          onClick={() => onChange(t.id)}
+          aria-current={active === t.id ? "page" : undefined}
+          className={`shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-[13px] font-semibold transition-colors ${
+            active === t.id
+              ? "border-sky-400 text-text-primary"
+              : "border-transparent text-text-muted hover:text-text-secondary"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+// Ripple tab, Batch 1 — the real wire-up (a lazily-loaded
+// /api/ripple/company/{ticker} graph) is Batch 4's job. This is an honest
+// placeholder, not a fabricated preview: it says plainly that the real
+// view isn't built here yet and links to the one real Ripple experience
+// that exists today, rather than inventing relationship data to fill the
+// tab.
+function RipplePlaceholder({ stock }: { stock: StockDetail }) {
+  return (
+    <SectionCard title="Company Ripple">
+      <p className="text-sm leading-relaxed text-text-secondary">
+        A real, {stock.name}-specific relationship graph is being built for
+        this tab. In the meantime, explore how {stock.sector || "this sector"}{" "}
+        moves ripple through the market on the main{" "}
+        <Link href="/ripple" className="text-sky-500 hover:underline dark:text-sky-300">Ripple</Link> page.
+      </p>
+    </SectionCard>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 // initialStock (optional) comes from the server-rendered wrapper (page.tsx),
 // which fetches the same /api/stocks/{symbol} endpoint server-side purely so
@@ -1239,8 +1299,32 @@ function PageSkeleton() {
 // skeleton — see page.tsx's own docstring. Purely a perceived-perf/SEO
 // seed: this component still fetches its own fresh copy (plus news, which
 // the server wrapper deliberately doesn't fetch) exactly as before.
-export default function StockPage({ params, initialStock, initialRelated }: PageProps & { initialStock?: StockDetail | null; initialRelated?: Record<string, RelatedItem[]> | null }) {
+//
+// Company redesign Batch 1 (2026-08-25) — replaced the old single-scroll,
+// 3-wave-reveal page with a persistent CompanyHero + a real
+// Overview/Intelligence/Financials/Events/Opportunities/Ripple/Peers tab
+// strip (see CompanyTabNav above). The active tab is driven by a `?tab=`
+// URL param via next/navigation, not local-only state, so a tab is
+// shareable, survives a reload, and back/forward moves between tabs the
+// same way it would between pages — see StockPage's Suspense wrapper below
+// (useSearchParams requires one). Every section that used to be in the
+// 3-wave stack is preserved and reachable, just regrouped by the research
+// question it answers rather than stacked in one long scroll — see
+// artifacts/company_redesign_audit_spec.md and the Batch 1 completion note
+// for the full per-tab mapping and rationale.
+function StockPageInner({ params, initialStock, initialRelated }: PageProps & { initialStock?: StockDetail | null; initialRelated?: Record<string, RelatedItem[]> | null }) {
   const { symbol } = use(params);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const activeTab: CompanyTab = COMPANY_TABS.some(t => t.id === requestedTab)
+    ? (requestedTab as CompanyTab)
+    : "overview";
+  const setTab = useCallback((t: CompanyTab) => {
+    router.push(t === "overview" ? pathname : `${pathname}?tab=${t}`, { scroll: false });
+  }, [router, pathname]);
+
   const [stock,        setStock]        = useState<StockDetail | null>(initialStock ?? null);
   const [chartData,    setChartData]    = useState<any[]>([]);
   const [loadingInfo,  setLoadingInfo]  = useState(!initialStock);
@@ -1248,11 +1332,8 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
   const [period,       setPeriod]       = useState("1Y");
   const [watchlisted,  setWatchlisted]  = useState(false);
   const [relatedNews,  setRelatedNews]  = useState<any[]>([]);
-  const [intelOpen,    setIntelOpen]    = useState(false);
 
   const { data: intelligence } = useIntelligence("company", symbol?.toUpperCase());
-  // Progressive section rendering: 0=nothing, 1=above-fold, 2=mid, 3=all
-  const [renderGroup,  setRenderGroup]  = useState(initialStock ? 1 : 0);
   // Guards the very first effect run only — when the server already handed
   // us real data, don't flash back to the loading/empty state while this
   // effect's own (fresher) fetch is in flight; every subsequent symbol
@@ -1264,7 +1345,6 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
       skippedFirstResetRef.current = false;
     } else {
       setLoadingInfo(true);
-      setRenderGroup(0);
     }
     // Kick off stock data + chart + news in parallel
     Promise.all([
@@ -1275,15 +1355,6 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
       setRelatedNews(Array.isArray(news) ? news : []);
     }).finally(() => setLoadingInfo(false));
   }, [symbol]);
-
-  // Progressive render: once stock data arrives, reveal sections in 3 waves
-  useEffect(() => {
-    if (!stock) return;
-    setRenderGroup(1);                                    // above-fold immediately
-    const t1 = setTimeout(() => setRenderGroup(2), 120); // mid-page after 120ms
-    const t2 = setTimeout(() => setRenderGroup(3), 350); // deep sections after 350ms
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [stock]);
 
   const fetchChart = useCallback((p: string) => {
     setLoadingChart(true);
@@ -1318,137 +1389,32 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
       {/* Top loader while chart is still fetching */}
       <TopLoader active={loadingChart}/>
 
+      {/* ── Persistent header — stays fixed across every tab ─────────── */}
+      <CompanyHero stock={stock} symbol={symbol} watchlisted={watchlisted} setWatchlisted={setWatchlisted} serverRenderedH1={!!initialStock}/>
+
+      <CompanyTabNav active={activeTab} onChange={setTab}/>
+
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        key={activeTab}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}>
+        transition={{ duration: 0.25, ease: "easeOut" }}>
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_320px]">
 
-          {/* ── LEFT: sections rendered in 3 progressive waves ─────── */}
+          {/* ── LEFT: the active tab's research body ────────────────── */}
           <div className="min-w-0 space-y-6">
 
-            {/* Wave 1 — above fold: hero, chart, AI summary, DNA, financials, ratios */}
-            {renderGroup >= 1 && <>
-              <CompanyHero stock={stock} symbol={symbol} watchlisted={watchlisted} setWatchlisted={setWatchlisted} serverRenderedH1={!!initialStock}/>
+            {activeTab === "overview" && <>
               <CompanyIntelligenceSection symbol={symbol} govScore={stock.gov_score} pricePositive={stock.pct_change >= 0}/>
               <PriceChart symbol={symbol} chartData={chartData} loadingChart={loadingChart}
                 period={period} setPeriod={p => { setPeriod(p); fetchChart(p); }} stock={stock}/>
               <AISummary stock={stock}/>
-
-              {/* ── Investment Intelligence — collapsed by default ──────────── */}
-              <div className="overflow-hidden rounded-[20px] border border-surface-border/6 bg-text-primary/[0.01]">
-                <button
-                  onClick={() => setIntelOpen(o => !o)}
-                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-text-primary/[0.03]"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-bold text-text-primary">Investment Intelligence</p>
-                    <p className="mt-0.5 text-[11px] text-text-muted">Thesis · Scenarios · Opportunity stage · Monitoring · Patterns</p>
-                  </div>
-                  <svg className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${intelOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
-                  </svg>
-                </button>
-
-                {intelOpen && (
-                  <div className="space-y-4 border-t border-surface-border/6 p-4">
-                    {intelligence && (
-                      <IntelligenceBlock data={intelligence} label={`${stock.name} Intelligence`} compact={false} />
-                    )}
-                    <InvestmentThesis
-                      entityType="company"
-                      entityId={stock.symbol}
-                      entityTitle={stock.name}
-                      entityDescription={stock.description}
-                      entitySector={stock.sector}
-                      thesis={stock.description ? stock.description.slice(0, 280) : `${stock.name} operates in the ${stock.sector} with analyst consensus reading ${neutralRating(stock.recommendation).toLowerCase()}.`}
-                      confidence={stock.buy_count != null && stock.analyst_count
-                        ? Math.round((stock.buy_count / Math.max(stock.analyst_count, 1)) * 100)
-                        : 60
-                      }
-                      timeHorizon={
-                        ["buy", "strong buy"].includes((stock.recommendation || "").toLowerCase()) ? "12–18 months" : "6–12 months"
-                      }
-                      assumptions={[
-                        `Sector tailwinds in ${stock.sector || "the sector"} continue`,
-                        "Management executes on guidance",
-                        "No material adverse regulatory changes",
-                      ]}
-                      riskFactors={[
-                        parseFloat(stock.beta || "0") > 1.2 ? "High beta — elevated market correlation risk" : "Market volatility risk",
-                        parseFloat(stock.debt_to_equity || "0") > 1 ? "Elevated leverage may constrain growth" : "Execution risk on growth plan",
-                      ]}
-                    />
-
-                    <ScenarioAnalysis
-                      entityType="company"
-                      entityId={stock.symbol}
-                      entityTitle={stock.name}
-                      entityDescription={stock.description}
-                      entitySector={stock.sector}
-                      bull={{ probability: 30, description: "Strong earnings growth and sector re-rating drive outperformance.", target: stock.target_high || undefined }}
-                      base={{ probability: 50, description: "Company delivers in line with consensus estimates.", target: stock.target_mean || undefined }}
-                      bear={{ probability: 20, description: "Earnings miss or macro headwinds compress valuation multiples.", target: stock.target_low || undefined }}
-                    />
-
-                    <OpportunityLifecycleCard
-                      stage={(() => {
-                        const buyPct = stock.buy_count != null && stock.analyst_count
-                          ? stock.buy_count / Math.max(stock.analyst_count, 1)
-                          : 0.5;
-                        const pe = parseFloat(stock.pe || "0");
-                        if (buyPct > 0.7) return "strong-momentum" as const;
-                        if (buyPct > 0.5) return "developing" as const;
-                        if (pe > 40) return "mature" as const;
-                        return "emerging" as const;
-                      })()}
-                      description={`Analyst consensus: ${neutralRating(stock.recommendation)} · PE: ${stock.pe ?? "N/A"}`}
-                      whyAssigned={`${stock.buy_count ?? 0} of ${stock.analyst_count ?? 0} analysts rate this stock positively. ${stock.pe ? `Current PE of ${stock.pe} reflects ` + (parseFloat(stock.pe) > 30 ? "premium valuation" : "reasonable valuation") + "." : ""}`}
-                      historicalComparison={`Companies with similar positive-rating ratios in the ${stock.sector ?? "sector"} have historically delivered above-market returns over 12–18 months.`}
-                      confidence={stock.analyst_count ? Math.round(Math.min(90, 50 + (stock.buy_count ?? 0) / Math.max(stock.analyst_count, 1) * 40)) : 55}
-                      expectedEvolution={`If earnings trajectory holds, the opportunity is expected to ${stock.buy_count != null && stock.analyst_count && stock.buy_count / Math.max(stock.analyst_count, 1) > 0.6 ? "strengthen toward peak momentum" : "consolidate before the next catalyst"}.`}
-                      risks={[
-                        `Valuation re-rating risk if PE exceeds ${stock.pe ? Math.round(parseFloat(stock.pe) * 1.3) : 40}x`,
-                        "Sector rotation out of growth into defensive positions",
-                        "Earnings miss relative to elevated analyst expectations",
-                      ]}
-                    />
-
-                    <MonitoringChecklist
-                      entityType="company"
-                      entityId={stock.symbol}
-                      entityTitle={stock.name}
-                      entityDescription={stock.description}
-                      entitySector={stock.sector}
-                    />
-                    <PatternIntelligenceCard
-                      entityType="company"
-                      entityId={stock.symbol}
-                      entityTitle={stock.name}
-                      entityDescription={stock.description}
-                      entitySector={stock.sector}
-                    />
-
-                    <RelatedContent
-                      entityType="company"
-                      entityId={stock.symbol}
-                      title={stock.name}
-                      sector={stock.sector}
-                      initialData={initialRelated}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Share */}
               <ShareInsightCard
                 entityType="company"
                 entityId={stock.symbol}
                 title={`${stock.name} (${stock.symbol})`}
                 summary={stock.description?.slice(0, 120)}
               />
-
-              {/* Intelligent guidance — derived from company data */}
               <NextSteps config={{
                 takeaway: `${stock.name} analyst consensus reads ${neutralRating(stock.recommendation)} with a P/E of ${stock.pe ?? "N/A"}x — understand the valuation context before sizing a position.`,
                 primary: {
@@ -1490,72 +1456,167 @@ export default function StockPage({ params, initialStock, initialRelated }: Page
                 ],
                 path: [stock.sector ?? "Sector", stock.name, "Valuation", "Investment Thesis"],
               }} />
-
-              <StockDNA stock={stock}/>
-              <FinancialHighlights stock={stock}/>
-              <KeyRatios stock={stock}/>
+              <RelatedStories stock={stock}/>
             </>}
 
-            {/* Wave 2 — mid-page: events, opportunity, news, sentiment.
-                Company redesign Batch 0 — removed GovernmentExposureSection:
+            {activeTab === "intelligence" && <>
+              <StockDNA stock={stock}/>
+              <AISentiment stock={stock}/>
+              {intelligence && (
+                <IntelligenceBlock data={intelligence} label={`${stock.name} Intelligence`} compact={false} />
+              )}
+              <InvestmentThesis
+                entityType="company"
+                entityId={stock.symbol}
+                entityTitle={stock.name}
+                entityDescription={stock.description}
+                entitySector={stock.sector}
+                thesis={stock.description ? stock.description.slice(0, 280) : `${stock.name} operates in the ${stock.sector} with analyst consensus reading ${neutralRating(stock.recommendation).toLowerCase()}.`}
+                confidence={stock.buy_count != null && stock.analyst_count
+                  ? Math.round((stock.buy_count / Math.max(stock.analyst_count, 1)) * 100)
+                  : 60
+                }
+                timeHorizon={
+                  ["buy", "strong buy"].includes((stock.recommendation || "").toLowerCase()) ? "12–18 months" : "6–12 months"
+                }
+                assumptions={[
+                  `Sector tailwinds in ${stock.sector || "the sector"} continue`,
+                  "Management executes on guidance",
+                  "No material adverse regulatory changes",
+                ]}
+                riskFactors={[
+                  parseFloat(stock.beta || "0") > 1.2 ? "High beta — elevated market correlation risk" : "Market volatility risk",
+                  parseFloat(stock.debt_to_equity || "0") > 1 ? "Elevated leverage may constrain growth" : "Execution risk on growth plan",
+                ]}
+              />
+
+              <ScenarioAnalysis
+                entityType="company"
+                entityId={stock.symbol}
+                entityTitle={stock.name}
+                entityDescription={stock.description}
+                entitySector={stock.sector}
+                bull={{ probability: 30, description: "Strong earnings growth and sector re-rating drive outperformance.", target: stock.target_high || undefined }}
+                base={{ probability: 50, description: "Company delivers in line with consensus estimates.", target: stock.target_mean || undefined }}
+                bear={{ probability: 20, description: "Earnings miss or macro headwinds compress valuation multiples.", target: stock.target_low || undefined }}
+              />
+
+              <OpportunityLifecycleCard
+                stage={(() => {
+                  const buyPct = stock.buy_count != null && stock.analyst_count
+                    ? stock.buy_count / Math.max(stock.analyst_count, 1)
+                    : 0.5;
+                  const pe = parseFloat(stock.pe || "0");
+                  if (buyPct > 0.7) return "strong-momentum" as const;
+                  if (buyPct > 0.5) return "developing" as const;
+                  if (pe > 40) return "mature" as const;
+                  return "emerging" as const;
+                })()}
+                description={`Analyst consensus: ${neutralRating(stock.recommendation)} · PE: ${stock.pe ?? "N/A"}`}
+                whyAssigned={`${stock.buy_count ?? 0} of ${stock.analyst_count ?? 0} analysts rate this stock positively. ${stock.pe ? `Current PE of ${stock.pe} reflects ` + (parseFloat(stock.pe) > 30 ? "premium valuation" : "reasonable valuation") + "." : ""}`}
+                historicalComparison={`Companies with similar positive-rating ratios in the ${stock.sector ?? "sector"} have historically delivered above-market returns over 12–18 months.`}
+                confidence={stock.analyst_count ? Math.round(Math.min(90, 50 + (stock.buy_count ?? 0) / Math.max(stock.analyst_count, 1) * 40)) : 55}
+                expectedEvolution={`If earnings trajectory holds, the opportunity is expected to ${stock.buy_count != null && stock.analyst_count && stock.buy_count / Math.max(stock.analyst_count, 1) > 0.6 ? "strengthen toward peak momentum" : "consolidate before the next catalyst"}.`}
+                risks={[
+                  `Valuation re-rating risk if PE exceeds ${stock.pe ? Math.round(parseFloat(stock.pe) * 1.3) : 40}x`,
+                  "Sector rotation out of growth into defensive positions",
+                  "Earnings miss relative to elevated analyst expectations",
+                ]}
+              />
+
+              <MonitoringChecklist
+                entityType="company"
+                entityId={stock.symbol}
+                entityTitle={stock.name}
+                entityDescription={stock.description}
+                entitySector={stock.sector}
+              />
+              <PatternIntelligenceCard
+                entityType="company"
+                entityId={stock.symbol}
+                entityTitle={stock.name}
+                entityDescription={stock.description}
+                entitySector={stock.sector}
+              />
+
+              <RelatedContent
+                entityType="company"
+                entityId={stock.symbol}
+                title={stock.name}
+                sector={stock.sector}
+                initialData={initialRelated}
+              />
+            </>}
+
+            {/* Company redesign Batch 0 — removed GovernmentExposureSection:
                 gov_score/level are a real heuristic from real yfinance
                 inputs, but the breakdown donut/pills/"Policy Impact Cards"
                 were categorically fabricated (every "High" exposure company
                 got the identical 42/28/16/14 split; the cards were formula-
                 derived with hardcoded scores) with zero disclosure. See
                 artifacts/company_redesign_audit_spec.md §C/§D. */}
-            {renderGroup >= 2 ? <>
-              <EventTimeline stock={stock} symbol={symbol}/>
-              <OpportunityRadarSection stock={stock}/>
-              <NewsImpact stock={stock} relatedNews={relatedNews}/>
-              <AISentiment stock={stock}/>
-            </> : renderGroup >= 1 && <>
-              <SectionSkel h={260}/>
-              <SectionSkel h={220}/>
-              <SectionSkel h={280}/>
-              <SectionSkel h={200}/>
+            {activeTab === "financials" && <>
+              <FinancialHighlights stock={stock}/>
+              <KeyRatios stock={stock}/>
+              <Shareholding stock={stock}/>
+              <HistoricalPerformance stock={stock}/>
             </>}
 
-            {/* Wave 3 — deep sections: shareholding, peers, historical performance.
-                Company redesign Batch 0 (2026-08-25) — removed NetworkGraph
-                (100% fabricated supply-chain graph; real replacement is
-                /api/ripple/company/{ticker}, wired in Batch 3),
-                BusinessSegments/RevenueGeography (sector-template data, not
-                company data), OrderBook (100% fabricated, no disclosure),
-                AIForecast (100% fabricated outlook/rating), EconomicCalendarSection
-                (was already a dead `return null` stub), SimilarCompanies
-                (fake similarity %, no real similarity engine exists),
-                Documents (100% fake filings with non-functional download
-                buttons), AskAI (fully dead submit button, duplicates the
-                real, working Ask AI link in CompanyHero). See
-                artifacts/company_redesign_audit_spec.md §C for the full
-                per-section rationale. */}
-            {renderGroup >= 3 ? <>
-              <Shareholding stock={stock}/>
+            {/* Live-verified real gap (Batch 1): EventTimeline/NewsImpact
+                both already return null on empty data — correct, no
+                fabricated filler — but with Events as its own dedicated
+                tab (rather than one of many stacked sections) that used to
+                leave the tab visually blank with no explanation. An honest
+                one-line empty state is a shell-correctness fix, not new
+                content design (full empty/partial-state work across every
+                tab is Batch 5's job). */}
+            {activeTab === "events" && (
+              (stock.events.length === 0 && relatedNews.length === 0 && stock.news.length === 0) ? (
+                <SectionCard title={`Recent Events Impacting ${symbol.toUpperCase()}`}>
+                  <p className="text-sm text-text-secondary">No recent events or news coverage tracked for {stock.name} yet.</p>
+                </SectionCard>
+              ) : <>
+                <EventTimeline stock={stock} symbol={symbol}/>
+                <NewsImpact stock={stock} relatedNews={relatedNews}/>
+              </>
+            )}
+
+            {activeTab === "opportunities" && <>
+              <OpportunityRadarSection stock={stock}/>
+            </>}
+
+            {/* Company redesign Batch 0 (2026-08-25) — removed NetworkGraph
+                (100% fabricated supply-chain graph). The real replacement,
+                /api/ripple/company/{ticker}, is wired here in Batch 4. */}
+            {activeTab === "ripple" && <RipplePlaceholder stock={stock}/>}
+
+            {activeTab === "peers" && <>
               <PeerComparison stock={stock}/>
               <CompareWithSection stock={stock}/>
-              <HistoricalPerformance stock={stock}/>
-              <RelatedStories stock={stock}/>
-            </> : renderGroup >= 1 && <>
-              {[220, 320, 220, 300, 240].map((h, i) => (
-                <SectionSkel key={i} h={h}/>
-              ))}
             </>}
 
           </div>
 
-          {/* ── RIGHT: sticky intelligence panel ──────────────────────── */}
+          {/* ── RIGHT: sticky intelligence panel — present on every tab ── */}
           <aside className="lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto scrollbar-hide">
-            {renderGroup >= 1
-              ? <IntelligencePanel stock={stock}/>
-              : <div className="animate-pulse space-y-5">
-                  {[200, 170, 160, 150, 160, 110].map((h, i) => <SectionSkel key={i} h={h}/>)}
-                </div>
-            }
+            <IntelligencePanel stock={stock}/>
           </aside>
 
         </div>
       </motion.div>
     </main>
+  );
+}
+
+export default function StockPage(props: PageProps & { initialStock?: StockDetail | null; initialRelated?: Record<string, RelatedItem[]> | null }) {
+  return (
+    <Suspense fallback={
+      <main className="min-w-0 pb-10">
+        <TopLoader active/>
+        <PageSkeleton/>
+      </main>
+    }>
+      <StockPageInner {...props} />
+    </Suspense>
   );
 }
