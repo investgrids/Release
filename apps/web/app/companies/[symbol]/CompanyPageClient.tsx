@@ -802,6 +802,58 @@ function NewsImpact({ stock, relatedNews }: { stock: StockDetail; relatedNews: a
   );
 }
 
+// ── News tab (queued Company-page request, 2026-08-25) ─────────────────────
+// Same real, already-fetched data source NewsImpact/LatestDevelopmentsList
+// use — GET /api/stocks/{symbol}/news (Finnhub's real last-7-days company
+// news), falling back to stock.news (yfinance's own sparse feed) only when
+// the richer fetch has nothing. Deliberately NOT a second, independent
+// "company articles" query: MarketRipple's general NewsArticle pipeline has
+// no reliable per-company field for RSS-sourced articles (RSSProvider.
+// normalize() hardcodes companies=[]), so there is no other real source to
+// build a broader feed from without fabricating relevance. No outbound
+// links to the original article — see feedback_no_external_links — this is
+// attribution-as-text only, same as NewsImpact.
+function CompanyNewsTabBody({ stock, relatedNews }: { stock: StockDetail; relatedNews: any[] }) {
+  const articles = relatedNews.length ? relatedNews : stock.news;
+
+  if (!articles.length) {
+    return (
+      <SectionCard title="News">
+        <p className="text-sm text-text-secondary">No real news coverage found for {stock.name} in the last 7 days.</p>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard title={`News — ${stock.name}`}>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {articles.map((a: any, i: number) => {
+          const hasScore = typeof a.impact_score === "number";
+          const score = hasScore ? Math.round(a.impact_score * 10) : 0;
+          const ic = impactColor(score);
+          return (
+            <div key={i} className="flex items-start gap-3 rounded-2xl border border-surface-border/5 bg-text-primary/[0.02] p-4 hover:border-sky-400/10 transition">
+              <div className={`h-14 w-14 shrink-0 rounded-xl ${["bg-gradient-to-br from-sky-500/20 to-violet-500/10","bg-gradient-to-br from-emerald-500/20 to-teal-500/10","bg-gradient-to-br from-rose-500/20 to-amber-500/10","bg-gradient-to-br from-amber-500/20 to-orange-500/10","bg-gradient-to-br from-violet-500/20 to-indigo-500/10"][i % 5]} flex items-center justify-center text-text-secondary`}>
+                {([<BarChart2 className="h-6 w-6" />, <TrendingUp className="h-6 w-6" />, <TrendingDown className="h-6 w-6" />, <Landmark className="h-6 w-6" />, <Briefcase className="h-6 w-6" />])[i % 5]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                  {hasScore && <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${ic.text} border-current/20`}>{ic.label}</span>}
+                  <span className="text-[10px] text-text-muted">{a.source || "Source"}</span>
+                  <span className="text-[10px] text-text-muted">{a.published_at?.slice(0, 10) || ""}</span>
+                </div>
+                <p className="text-[13px] font-semibold text-text-primary line-clamp-2">{a.headline}</p>
+                {a.summary && <p className="mt-0.5 text-[11px] text-text-muted line-clamp-2">{a.summary}</p>}
+              </div>
+              {hasScore && <ScoreCircle score={score} size={44}/>}
+            </div>
+          );
+        })}
+      </div>
+    </SectionCard>
+  );
+}
+
 // ── Section 11: AI Sentiment ──────────────────────────────────────────────────
 // Company redesign Batch 0 (2026-08-25) — was called "AI Sentiment
 // Analysis" and showed a "Bullish % Weekly Trend" chart where 4 of its 6
@@ -2058,6 +2110,7 @@ const COMPANY_TABS = [
   { id: "opportunities", label: "Opportunities" },
   { id: "ripple",        label: "Ripple" },
   { id: "peers",         label: "Peers" },
+  { id: "news",          label: "News" },
 ] as const;
 type CompanyTab = typeof COMPANY_TABS[number]["id"];
 
@@ -2449,6 +2502,10 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
               <PeerComparison stock={stock}/>
               <CompareWithSection stock={stock}/>
             </>}
+
+            {activeTab === "news" && (
+              <CompanyNewsTabBody stock={stock} relatedNews={relatedNews}/>
+            )}
 
           </div>
 
