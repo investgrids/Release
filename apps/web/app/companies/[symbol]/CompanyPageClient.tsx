@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
-import { InvestmentThesis, ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard, OpportunityLifecycleCard, IntelligenceBlock } from "@/components/intelligence";
+import { PatternIntelligenceCard } from "@/components/intelligence";
 import { useIntelligence } from "@/hooks/useIntelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
@@ -14,7 +14,6 @@ import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSect
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { scoreToColor, impactToStyle } from "@/lib/scoring";
-import { neutralRating } from "@/lib/text";
 import {
   Star, Check, Sparkles, TrendingUp, IndianRupee, Target, Zap,
   BarChart2, TrendingDown, Landmark, Briefcase, Clock,
@@ -1512,6 +1511,62 @@ function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
   );
 }
 
+// Batch D (Company Simplification spec, §4) — the Intelligence tab
+// previously stacked CompanyScoreContributors, CompanyIntelligenceSection,
+// StockDNA, AISentiment, a FULL IntelligenceBlock (opportunities, risks,
+// company stances, sectors, themes, historical context AND monitoring
+// points all rendered at once, compact={false}, single-column — the
+// heaviest of its own display modes), InvestmentThesis, ScenarioAnalysis
+// (including unsupported 30/50/20 Bull/Base/Bear percentages),
+// OpportunityLifecycleCard, and MonitoringChecklist — 9 competing AI
+// surfaces on one tab, several fabricated/unsupported (removed below),
+// several real but duplicating each other (e.g. IntelligenceBlock's
+// "Opportunities"/"Company Stance"/"Sectors" fields — built for
+// multi-entity contexts like the homepage or a theme page — showing
+// OTHER companies/sectors on a page about ONE company; already covered
+// more usefully by the Opportunities tab, Overview's Current Opportunity,
+// and CompanyScoreContributors' own real evidence).
+//
+// What's real and unique in that IntelligenceBlock payload that nothing
+// else on this page shows: monitoring_points — genuinely a "What to
+// Watch" list, not duplicated anywhere. Pulled out on its own, minimal,
+// instead of carrying the rest of that payload along with it.
+function WhatToWatchCard({ points }: { points: string[] }) {
+  if (!points.length) return null;
+  return (
+    <SectionCard title="What to Watch">
+      <ul className="mt-3 space-y-1.5">
+        {points.map((pt, i) => (
+          <li key={i} className="flex items-start gap-2 text-[12px] leading-5 text-text-secondary">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+            {pt}
+          </li>
+        ))}
+      </ul>
+    </SectionCard>
+  );
+}
+
+// Stock DNA and Pattern Intelligence are real, but neither is one of the
+// tab's 5 core concepts (MarketRipple View lives on Overview; Why This
+// View/What Changed/Key Evidence are CompanyScoreContributors +
+// CompanyIntelligenceSection; What to Watch is above) — tucked behind
+// progressive disclosure so they're available without competing with the
+// primary read. Collapsed by default.
+function MoreAnalysisDisclosure({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button onClick={() => setOpen(o => !o)}
+        className="flex w-full items-center justify-between rounded-xl border border-surface-border/10 bg-text-primary/[0.02] px-4 py-3 text-[12px] font-medium text-text-secondary hover:bg-text-primary/[0.04] transition">
+        <span>{open ? "Hide" : "Show"} more analysis (Stock DNA, Pattern Intelligence)</span>
+        <span className="text-text-muted">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && <div className="mt-4 space-y-6">{children}</div>}
+    </div>
+  );
+}
+
 // ── Financials sub-tabs (Income Statement / Balance Sheet / Cash Flow) ──────
 // Real annual+quarterly data from GET /api/stocks/{symbol}/financials —
 // see market_data.py::get_stock_financials's own docstring for the real
@@ -2166,95 +2221,44 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
               <FaqSection faqs={faqs ?? []}/>
             </>}
 
+            {/* Batch D (Company Simplification spec, §4) — Intelligence
+                tab reduced to its real 5-concept core (MarketRipple View
+                lives on Overview; the other four are represented here):
+                Why This View + What Changed (CompanyIntelligenceSection),
+                Key Evidence (CompanyScoreContributors), What to Watch
+                (WhatToWatchCard, extracted from the old IntelligenceBlock's
+                monitoring_points — the rest of that payload was either
+                redundant with what's already here or off-topic for a
+                single-company page, see WhatToWatchCard's own comment).
+                Removed entirely: InvestmentThesis (fabricated-fallback
+                "analyst consensus reading neutral" thesis text for
+                companies with zero analysts — the exact class of bug
+                Batch A/B fixed elsewhere, now deleted rather than patched
+                since the spec calls for its outright removal),
+                ScenarioAnalysis (unsupported, invariant 30/50/20 Bull/
+                Base/Bear percentages — identical for every company,
+                zero backtest data behind them), OpportunityLifecycleCard
+                (same "Neutral" bug plus a duplicate of the Opportunities
+                tab — not moved elsewhere per explicit instruction),
+                MonitoringChecklist (entirely templated). Stock DNA and
+                Pattern Intelligence are real but neither is one of the 5
+                concepts nor competes with the primary score — moved under
+                MoreAnalysisDisclosure's progressive disclosure. */}
             {activeTab === "intelligence" && <>
-              <CompanyScoreContributors stock={stock}/>
               <CompanyIntelligenceSection symbol={symbol} govScore={stock.gov_score} pricePositive={stock.pct_change >= 0}/>
-              <StockDNA stock={stock}/>
+              <CompanyScoreContributors stock={stock}/>
+              <WhatToWatchCard points={intelligence?.monitoring_points ?? []}/>
               <AISentiment stock={stock}/>
-              {intelligence && (
-                <IntelligenceBlock data={intelligence} label={`${stock.name} Intelligence`} compact={false} />
-              )}
-              <InvestmentThesis
-                entityType="company"
-                entityId={stock.symbol}
-                entityTitle={stock.name}
-                entityDescription={stock.description}
-                entitySector={stock.sector}
-                thesis={stock.description ? stock.description.slice(0, 280) : `${stock.name} operates in the ${stock.sector} with analyst consensus reading ${neutralRating(stock.recommendation).toLowerCase()}.`}
-                confidence={stock.buy_count != null && stock.analyst_count
-                  ? Math.round((stock.buy_count / Math.max(stock.analyst_count, 1)) * 100)
-                  : 60
-                }
-                timeHorizon={
-                  ["buy", "strong buy"].includes((stock.recommendation || "").toLowerCase()) ? "12–18 months" : "6–12 months"
-                }
-                assumptions={[
-                  `Sector tailwinds in ${stock.sector || "the sector"} continue`,
-                  "Management executes on guidance",
-                  "No material adverse regulatory changes",
-                ]}
-                riskFactors={[
-                  parseFloat(stock.beta || "0") > 1.2 ? "High beta — elevated market correlation risk" : "Market volatility risk",
-                  parseFloat(stock.debt_to_equity || "0") > 1 ? "Elevated leverage may constrain growth" : "Execution risk on growth plan",
-                ]}
-              />
-
-              <ScenarioAnalysis
-                entityType="company"
-                entityId={stock.symbol}
-                entityTitle={stock.name}
-                entityDescription={stock.description}
-                entitySector={stock.sector}
-                bull={{ probability: 30, description: "Strong earnings growth and sector re-rating drive outperformance.", target: stock.target_high || undefined }}
-                base={{ probability: 50, description: "Company delivers in line with consensus estimates.", target: stock.target_mean || undefined }}
-                bear={{ probability: 20, description: "Earnings miss or macro headwinds compress valuation multiples.", target: stock.target_low || undefined }}
-              />
-
-              <OpportunityLifecycleCard
-                stage={(() => {
-                  const buyPct = stock.buy_count != null && stock.analyst_count
-                    ? stock.buy_count / Math.max(stock.analyst_count, 1)
-                    : 0.5;
-                  const pe = parseFloat(stock.pe || "0");
-                  if (buyPct > 0.7) return "strong-momentum" as const;
-                  if (buyPct > 0.5) return "developing" as const;
-                  if (pe > 40) return "mature" as const;
-                  return "emerging" as const;
-                })()}
-                description={`Analyst consensus: ${neutralRating(stock.recommendation)} · PE: ${stock.pe ?? "N/A"}`}
-                whyAssigned={`${stock.buy_count ?? 0} of ${stock.analyst_count ?? 0} analysts rate this stock positively. ${stock.pe ? `Current PE of ${stock.pe} reflects ` + (parseFloat(stock.pe) > 30 ? "premium valuation" : "reasonable valuation") + "." : ""}`}
-                // Final re-audit fix — removed historicalComparison: a
-                // hardcoded template sentence asserting a specific
-                // historical outperformance pattern ("...have historically
-                // delivered above-market returns over 12-18 months") with
-                // zero real backtest data anywhere in this codebase to
-                // support it. No real replacement exists, so the section
-                // is simply omitted (the prop is optional) rather than
-                // replaced with another generic claim. See
-                // artifacts/company_redesign_final_reaudit.md §1/§12.
-                confidence={stock.analyst_count ? Math.round(Math.min(90, 50 + (stock.buy_count ?? 0) / Math.max(stock.analyst_count, 1) * 40)) : 55}
-                expectedEvolution={`If earnings trajectory holds, the opportunity is expected to ${stock.buy_count != null && stock.analyst_count && stock.buy_count / Math.max(stock.analyst_count, 1) > 0.6 ? "strengthen toward peak momentum" : "consolidate before the next catalyst"}.`}
-                risks={[
-                  `Valuation re-rating risk if PE exceeds ${stock.pe ? Math.round(parseFloat(stock.pe) * 1.3) : 40}x`,
-                  "Sector rotation out of growth into defensive positions",
-                  "Earnings miss relative to elevated analyst expectations",
-                ]}
-              />
-
-              <MonitoringChecklist
-                entityType="company"
-                entityId={stock.symbol}
-                entityTitle={stock.name}
-                entityDescription={stock.description}
-                entitySector={stock.sector}
-              />
-              <PatternIntelligenceCard
-                entityType="company"
-                entityId={stock.symbol}
-                entityTitle={stock.name}
-                entityDescription={stock.description}
-                entitySector={stock.sector}
-              />
+              <MoreAnalysisDisclosure>
+                <StockDNA stock={stock}/>
+                <PatternIntelligenceCard
+                  entityType="company"
+                  entityId={stock.symbol}
+                  entityTitle={stock.name}
+                  entityDescription={stock.description}
+                  entitySector={stock.sector}
+                />
+              </MoreAnalysisDisclosure>
 
               <RelatedContent
                 entityType="company"
