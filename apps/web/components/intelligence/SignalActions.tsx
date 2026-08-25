@@ -15,9 +15,12 @@ import { truncateForQuery } from "@/lib/text";
  * client-side.
  */
 export function SignalActions({
-  headline, url, companies, opportunityId,
+  headline, url, companies, opportunityHref,
 }: {
-  headline: string; url: string; companies: string[]; opportunityId?: string | number | null;
+  // Batch E consumer migration, 2026-08-24 — live_intelligence.py now
+  // resolves the full href server-side (V1 numeric id or V2 slug),
+  // never a raw id/opportunityId this component would guess how to route.
+  headline: string; url: string; companies: string[]; opportunityHref?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -51,8 +54,8 @@ export function SignalActions({
               <GitCompare className="h-3.5 w-3.5 shrink-0" /> Compare {companies[0]} vs {companies[1]}
             </Link>
           )}
-          {opportunityId != null && (
-            <Link href={`/opportunity-radar/${opportunityId}`}
+          {opportunityHref != null && (
+            <Link href={opportunityHref as any}
               onClick={() => trackEvent("signal_cta_click", { action: "opportunity" })}
               className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[12.5px] font-medium text-text-secondary transition hover:bg-text-primary/[0.05] hover:text-violet-600 dark:text-violet-300">
               <Radar className="h-3.5 w-3.5 shrink-0" /> View Related Opportunity

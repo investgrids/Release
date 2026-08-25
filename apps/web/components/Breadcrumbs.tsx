@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { safeJsonLd } from "@/lib/text";
 
 export interface Crumb {
   label: string;
@@ -176,8 +177,15 @@ export function Breadcrumbs({ items, siteUrl }: { items?: Crumb[]; siteUrl?: str
     <>
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger -- static JSON, no user-supplied HTML
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // SEO P1-P2, 2026-08-24 — was JSON.stringify with a comment claiming
+        // "static JSON, no user-supplied HTML", which is wrong for the
+        // override path: `items`/the context override can carry a real
+        // company name or article headline (external, not static). This
+        // component runs on every page via the root layout, so it's the
+        // highest-leverage single fix for the same escaping gap already
+        // closed on article/signal/research/opportunity-radar pages.
+        // eslint-disable-next-line react/no-danger -- escaped via safeJsonLd below
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-[12.5px] text-text-muted overflow-x-auto whitespace-nowrap">
         <Link href="/" className="flex items-center gap-1 hover:text-text-secondary transition shrink-0">

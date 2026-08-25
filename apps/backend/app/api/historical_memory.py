@@ -136,6 +136,20 @@ async def list_all_events(
                     "opportunity_score": r.opportunity_score,
                     "risk_score":    r.risk_score,
                     "historical_score": _score_for(r),
+                    # SEO P1-P2, 2026-08-24 — Sitemap Truth Audit's confirmed
+                    # gate mismatch: the detail page's own isSubstantive()
+                    # gate (historical/[id]/page.tsx) is nifty_1w != null ||
+                    # opportunity_score != null || historical_winners.length
+                    # > 0, but this list endpoint never exposed
+                    # historical_winners at all, so sitemap.xml/route.ts's
+                    # filter silently dropped the third condition — a real,
+                    # currently-dormant (0/91 live instances at audit time)
+                    # latent bug where a page the detail route considers
+                    # indexable could be excluded from the sitemap. A
+                    # boolean, not the full array — this list endpoint stays
+                    # lightweight; the sitemap only needs to know whether
+                    # the condition is satisfied, not the winner data itself.
+                    "has_winners":   bool(r.historical_winners),
                 }
                 for r in display
             ],

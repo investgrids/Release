@@ -13,6 +13,11 @@ import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
 
 interface RadarItem {
   id: string | number;
+  // Batch E consumer migration, 2026-08-24 — /api/radar/'s list endpoint
+  // returns V2 items (uuid id + slug) once promoted; a raw item.id link
+  // would 404 in that mode (radar.py's dual lookup treats a non-numeric
+  // segment as a slug lookup, and a uuid isn't a real slug).
+  slug?: string;
   theme: string;
   score: number | null;
   reason: string;
@@ -141,7 +146,7 @@ function OpportunityCardGrid({ displayed }: { displayed: RadarItem[] }) {
               </div>
             )}
             <div className="mt-auto pt-2 border-t border-surface-border/5">
-              <Link href={`/opportunity-radar/${item.id}`} className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
+              <Link href={`/opportunity-radar/${typeof item.id === "number" ? item.id : (item.slug ?? item.id)}`} className="flex items-center gap-1 text-[12px] font-medium text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">
                 View Details
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
               </Link>
@@ -348,16 +353,26 @@ export default function OpportunityRadarPage() {
       .then(d => {
         const raw = Array.isArray(d) ? d : (d?.items ?? []);
         const mapped: RadarItem[] = raw.map((o: any) => {
-          const rawScore = o.opportunity_score ?? o.score;
+          // current_strength is V2's real score field (no opportunity_score/
+          // score on a V2 list item) -- without this fallback every V2
+          // opportunity showed as unscored on this hub page.
+          const rawScore = o.opportunity_score ?? o.score ?? o.current_strength;
           const rawConf = o.confidence;
           return {
             id:           o.id,
+            // Batch E consumer migration, 2026-08-24 -- real bug caught by
+            // the promotion-readiness re-audit's live click-through: this
+            // mapping added `slug` to the RadarItem type but never actually
+            // copied o.slug through here, so the fallback below always hit
+            // the raw uuid instead. Confirmed live with Playwright before
+            // this fix (hub page "View Details" resolved to a bare uuid).
+            slug:         o.slug,
             theme:        o.title,
             score:        rawScore === null || rawScore === undefined ? null : Math.round(rawScore),
             reason:       o.summary ?? o.reason ?? "",
             confidence:   typeof rawConf === "number" ? (rawConf > 1 ? rawConf / 100 : rawConf) : null,
             beneficiaries: (o.companies ?? []).map((c: any) => typeof c === "string" ? c : c.symbol),
-            sectors:      o.sectors ?? [],
+            sectors:      o.sectors ?? o.sectors_themes ?? [],
             trend:        o.trend ?? null,
           };
         });

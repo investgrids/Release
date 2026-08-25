@@ -71,13 +71,6 @@ export default async function CommoditiesHubPage() {
     "@type": "CollectionPage",
     name: "Commodity & Energy Prices Today — MarketRipple",
     url,
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Commodities", item: url },
-      ],
-    },
     ...(allCommodities.length > 0 && {
       mainEntity: {
         "@type": "ItemList",

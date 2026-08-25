@@ -123,7 +123,11 @@ def _sector_link(name: str) -> str:
         # every IT-sector article to the generic /newsroom/themes fallback).
         if _words_overlap(candidate_words, target_words):
             return f"/sectors/{key}"
-    return "/newsroom/themes"
+    # SEO P1-P2, 2026-08-24 — /newsroom/themes is itself a confirmed
+    # duplicate of /opportunity-radar (now noindex,follow with its
+    # canonical pointed there); linking the fallback to the real canonical
+    # hub instead of a page we've marked as a duplicate.
+    return "/opportunity-radar"
 
 
 _SOURCE_CATEGORY_LABELS = {

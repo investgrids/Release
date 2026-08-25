@@ -164,7 +164,17 @@ async def _resolve_opportunities(db: AsyncSession, opportunity_refs: list[str]) 
     ref whose Opportunity row no longer exists is silently omitted, not
     an error (brief §6: "do not fail the entire response... omit the
     missing reference honestly" — same rule applied here for the
-    internal DTO)."""
+    internal DTO).
+
+    Batch E consumer migration, 2026-08-24 — deliberately NOT migrated;
+    see api/weekend_intelligence.py's sibling _resolve_opportunities for
+    the full reasoning (opportunity_refs come from this package's own
+    aggregator.py/evidence_window.py synthesis pipeline, a write path
+    out of scope here, and V1 ids can't be honestly resolved against V2)."""
+    from app.core.config import settings
+    if settings.opportunity_v2_promoted:
+        return []
+
     if not opportunity_refs:
         return []
     from sqlalchemy import select

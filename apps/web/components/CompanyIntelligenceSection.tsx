@@ -10,7 +10,12 @@ import { ConfidenceBreakdownPanel } from "@/components/ai/ConfidenceBreakdownPan
 interface ActiveEvent { id: string; slug?: string; headline: string; urgency: number; sentiment: string; lifecycle: string; active_score: number; direct: boolean; }
 interface RipplePosition { upstream: string[]; company: string; downstream: string[]; }
 interface Historical { event_title: string; similarity: number; key_lesson: string | null; winners: string[]; losers: string[]; }
-interface RelatedOpportunity { id: number; slug: string; title: string; opportunity_score: number; }
+// Batch E consumer migration, 2026-08-24 — company_intelligence.py now
+// resolves the full href server-side (V1 numeric id or V2 slug,
+// depending on settings.opportunity_read_source) rather than exposing a
+// raw id/slug pair. Supersedes the earlier V2-B fix that switched this
+// to o.id — that was only correct for V1 mode; href is correct in both.
+interface RelatedOpportunity { title: string; href: string; score: number | null; }
 interface CompanyIntel {
   available: boolean;
   symbol?: string;
@@ -43,12 +48,25 @@ function Stars({ n }: { n: number }) {
 export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: { symbol: string; govScore?: number | null; pricePositive?: boolean | null }) {
   const [data, setData] = useState<CompanyIntel | null>(null);
 
+  // Real, systemic bug found+fixed 2026-08-25 (3IINFOLTD/IIFL wrong-
+  // entity-intelligence audit) — without `cancelled`, a stale in-flight
+  // request for a previously-viewed company could overwrite the
+  // currently-displayed company's real data after the fact, with no
+  // further re-render to correct it. Same fix applied across every
+  // entity-scoped intelligence component that does its own fetch (see
+  // components/intelligence/InvestmentThesis.tsx for the full
+  // explanation).
   useEffect(() => {
+    let cancelled = false;
+    setData(null);
     const params = new URLSearchParams();
     if (govScore != null) params.set("gov_score", String(govScore));
     if (pricePositive != null) params.set("price_positive", String(pricePositive));
     fetch(`${API}/api/company-intelligence/${symbol}?${params.toString()}`)
-      .then(r => r.json()).then(setData).catch(() => setData({ available: false }));
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setData({ available: false }); });
+    return () => { cancelled = true; };
   }, [symbol, govScore, pricePositive]);
 
   if (!data?.available) return null;
@@ -177,9 +195,9 @@ export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: 
           </p>
           <div className="flex flex-wrap gap-2">
             {data.related_opportunities!.map(o => (
-              <Link key={o.id} href={`/opportunity-radar/${o.slug}` as any}
+              <Link key={o.href} href={o.href as any}
                 className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[12px] font-medium text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-500/10">
-                {o.title} <span className="text-[10px] text-emerald-400/70">{Math.round(o.opportunity_score)}</span>
+                {o.title} {o.score != null && <span className="text-[10px] text-emerald-400/70">{Math.round(o.score)}</span>}
               </Link>
             ))}
           </div>

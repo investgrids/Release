@@ -57,7 +57,9 @@ function SectorOverview({ sectors }: { sectors: any[] }) {
     <div className="rounded-2xl border border-surface-border/7 bg-surface-card p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-[13px] font-bold text-text-primary">Sector Performance</h3>
-        <Link href="/newsroom/themes" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
+        {/* SEO P1-P2, 2026-08-24 — was /newsroom/themes (a noindexed
+            Opportunity Radar duplicate, not sector content). */}
+        <Link href="/sectors" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>
       </div>
       {sorted.length === 0 ? (
         <p className="py-6 text-center text-[12px] text-text-muted">Sector data unavailable.</p>
@@ -252,11 +254,15 @@ export function OverviewTab({ data, loading = false, events: rawEvents, news: ra
     const rawScore = r.score ?? r.opportunity_score;
     const hasScore = rawScore !== null && rawScore !== undefined;
     return {
-      id:       String(r.id ?? r.slug),
+      // Batch E consumer migration, 2026-08-24 — market.py's
+      // /api/market/opportunities now resolves the full href server-side
+      // (real Opportunity/OpportunityV2 data, not the stale legacy
+      // RadarOpportunity table this used to build a broken id from).
+      href:     r.href,
       score:    hasScore ? Math.round(rawScore) : null,
       theme:    r.theme ?? r.title,
       reason:   r.reason ?? r.summary ?? "",
-      category: (r.beneficiaries ?? [])[0] ?? "General",
+      category: r.category ?? (r.beneficiaries ?? [])[0] ?? "General",
       trend:    (hasScore && rawScore >= 70 ? "up" : "stable") as "up" | "stable",
     };
   });

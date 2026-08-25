@@ -40,6 +40,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_daily_generate,
         job_daily_precompute,
         job_daily_opportunities,
+        job_opportunity_v2_shadow_pass,
         job_seed_opportunities,
         job_warm_premarket,
         job_evaluate_predictions,
@@ -113,11 +114,34 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         misfire_grace_time=1800,
     )
 
-    # ── Daily opportunity pipeline — 7:30 AM IST ─────────────────────────────
+    # ── Daily opportunity pipeline (V1) — 7:30 AM IST ────────────────────────
+    # V2-B, 2026-08-24: gated on the promotion flag — "when V1 stops
+    # receiving new writes" IS this job no longer registering. Not deleted
+    # (the owner's explicit non-goal for V2-B is deleting V1 code/tables) —
+    # simply not scheduled once settings.opportunity_read_source="v2".
+    if not settings.opportunity_v2_promoted:
+        scheduler.add_job(
+            job_daily_opportunities,
+            CronTrigger(hour=7, minute=30, timezone=_IST),
+            id="daily_opportunities",
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=1800,
+        )
+
+    # ── Opportunity V2 shadow/production pass — 7:30 AM IST ──────────────────
+    # Runs unconditionally, before AND after promotion (V2-B, 2026-08-24) —
+    # this is what accumulates the real observation-window data a promotion
+    # decision needs, and it's the ongoing sole writer once promoted. Same
+    # time slot as V1's job above is deliberate (matches the original
+    # remediation plan's "matching V1's own job_daily_opportunities()
+    # schedule" instruction) — the two jobs write to entirely separate
+    # tables (opportunities vs. opportunities_v2), so running them
+    # concurrently is safe.
     scheduler.add_job(
-        job_daily_opportunities,
+        job_opportunity_v2_shadow_pass,
         CronTrigger(hour=7, minute=30, timezone=_IST),
-        id="daily_opportunities",
+        id="opportunity_v2_shadow_pass",
         max_instances=1,
         coalesce=True,
         misfire_grace_time=1800,

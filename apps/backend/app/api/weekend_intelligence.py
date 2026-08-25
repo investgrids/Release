@@ -36,6 +36,20 @@ def _evidence_summary(evidence_refs: list[dict]) -> dict:
 
 
 async def _resolve_opportunities(db, opportunity_refs: list[str]) -> list[dict]:
+    # Batch E consumer migration, 2026-08-24 — deliberately NOT migrated.
+    # opportunity_refs are bare V1 Opportunity ids produced upstream by
+    # the weekend_intelligence/aggregator.py + evidence_window.py
+    # synthesis pipeline (a real, separate write path — not a simple read
+    # consumer, and out of this batch's stated scope). Once promoted,
+    # those ids can't be honestly resolved against V2 (different id
+    # space entirely, no correspondence) — returning [] here is the
+    # honest choice (real data or nothing), not a broken cross-table
+    # lookup. Migrating this properly means the aggregator pipeline
+    # itself needs to learn to reference V2, a real follow-up task.
+    from app.core.config import settings
+    if settings.opportunity_v2_promoted:
+        return []
+
     if not opportunity_refs:
         return []
     from sqlalchemy import select

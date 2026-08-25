@@ -490,20 +490,39 @@ def _synthesise_signals(
 async def read_opportunities(limit: int = 5) -> list[dict]:
     """
     Top-ranked opportunities from the real Opportunity Engine (the same
-    OpportunityService that backs /api/radar) — not re-derived here, just
-    read through, so "biggest opportunity" always matches what the
-    Opportunity Radar page itself shows.
+    service that backs /api/radar) — not re-derived here, just read
+    through, so "biggest opportunity" always matches what the Opportunity
+    Radar page itself shows.
+
+    Batch E consumer migration, 2026-08-24 — dispatches on
+    settings.opportunity_read_source, same as radar.py's own list route
+    (this doesn't call OpportunityService.list_opportunities() and rely
+    on that method being flag-aware — it isn't; its typed return
+    (PaginatedOpportunities/OpportunityListItem) is a real, V1-specific
+    schema that shouldn't silently start returning a different shape).
+    Both branches resolve `href` server-side — never a raw id/slug the
+    frontend (LiveMarketTab.tsx) has to guess how to route.
     """
     try:
+        from app.core.config import settings
         from app.db.session import AsyncSessionLocal
-        from app.services.opportunity_service import OpportunityService
         async with AsyncSessionLocal() as db:
+            if settings.opportunity_v2_promoted:
+                from app.services.opportunity_v2.read_service import list_public_opportunities_v2
+                result = await list_public_opportunities_v2(db, page=1, page_size=limit)
+                return [
+                    {
+                        "title": o.title, "href": f"/opportunity-radar/{o.slug}",
+                        "current_strength": o.current_strength, "sectors": o.sectors_themes,
+                    }
+                    for o in result.items
+                ]
+
+            from app.services.opportunity_service import OpportunityService
             result = await OpportunityService(db).list_opportunities(page=1, page_size=limit)
             return [
                 {
-                    "id":                o.id,
-                    "slug":              o.slug,
-                    "title":             o.title,
+                    "title": o.title, "href": f"/opportunity-radar/{o.id}",
                     "summary":           o.summary,
                     "opportunity_score": o.opportunity_score,
                     "confidence":        o.confidence,

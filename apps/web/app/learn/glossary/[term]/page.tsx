@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, ArrowLeft } from "lucide-react";
 import { GLOSSARY, getGlossaryTerm, getRelatedTerms } from "@/lib/glossary-data";
+import { safeJsonLd } from "@/lib/text";
+
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 export function generateStaticParams() {
   return GLOSSARY.map(t => ({ term: t.slug }));
@@ -16,6 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ term: str
     title: `${term.term} — Meaning & Definition`,
     description: term.shortDef,
     openGraph: { title: `${term.term} — MarketRipple Glossary`, description: term.shortDef },
+    alternates: { canonical: `${SITE}/learn/glossary/${slug}` },
   };
 }
 
@@ -25,9 +29,19 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ t
   if (!term) notFound();
 
   const related = getRelatedTerms(term);
+  const url = `${SITE}/learn/glossary/${slug}`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "DefinedTerm",
+    name: term.term,
+    description: term.shortDef,
+    url,
+    inDefinedTermSet: `${SITE}/learn/glossary`,
+  };
 
   return (
     <div className="space-y-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <nav className="flex items-center gap-1.5 text-[11px] text-text-muted">
         <Link href="/learn/glossary" className="hover:text-text-secondary">Glossary</Link>
         <ChevronRight className="h-3 w-3" />

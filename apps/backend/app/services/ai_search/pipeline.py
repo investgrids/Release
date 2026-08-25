@@ -481,10 +481,14 @@ async def _assemble_response(
     try:
         _opp_terms = (entities.get("companies") or []) + (entities.get("sectors") or [])
         if _opp_terms:
+            from app.core.config import settings
             from app.services.opportunity_service import OpportunityService
             _opp_hits = await OpportunityService(db).list_by_sector_or_theme(_opp_terms[:4], limit=1)
             if _opp_hits:
-                opportunity_score = _opp_hits[0]["opportunity_score"]
+                # Batch E consumer migration, 2026-08-24 — V2 mode returns
+                # current_strength, not opportunity_score (V2 doesn't have
+                # that concept). Same real signal, real V2 field name.
+                opportunity_score = _opp_hits[0]["current_strength"] if settings.opportunity_v2_promoted else _opp_hits[0]["opportunity_score"]
     except Exception as exc:
         log.warning("ai_search_v3.opportunity_score_fail", exc=str(exc)[:120])
 
@@ -699,9 +703,15 @@ async def _assemble_response(
             _sym_a = _name_to_symbol.get(intent_data.get("holding") or "")
             _sym_b = _name_to_symbol.get(intent_data.get("target") or "")
             if _sym_a and _sym_b:
+                from app.core.config import settings
+
                 async def _opp_for(sym: str) -> float | None:
                     hits = await OpportunityService(db).list_by_sector_or_theme([sym], limit=1)
-                    return hits[0]["opportunity_score"] if hits else None
+                    if not hits:
+                        return None
+                    # Batch E consumer migration, 2026-08-24 — current_strength
+                    # in V2 mode (real V2 field, no opportunity_score concept).
+                    return hits[0]["current_strength"] if settings.opportunity_v2_promoted else hits[0]["opportunity_score"]
                 _opp_a, _opp_b = await asyncio.gather(_opp_for(_sym_a), _opp_for(_sym_b))
                 response["decision_intelligence"]["engine_recommendation"] = compute_decision(
                     entity_a_symbol=_sym_a, entity_b_symbol=_sym_b,

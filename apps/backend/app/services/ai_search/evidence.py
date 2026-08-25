@@ -413,17 +413,26 @@ async def collect(query: str, intent_data: dict, entities: dict, db: AsyncSessio
 
     if _OPPORTUNITY_TRIGGER.search(query):
         try:
+            from app.core.config import settings
             from app.services.opportunity_service import OpportunityService
             terms = (entities.get("companies") or []) + _words(query)
             bundle.opportunities = await OpportunityService(db).list_by_sector_or_theme(terms[:6], limit=5)
             if bundle.opportunities:
-                bundle.context_lines.append(
-                    "Verified opportunities (real, from the Opportunity Engine): "
-                    + "; ".join(
+                # Batch E consumer migration, 2026-08-24 — list_by_sector_or_theme
+                # returns real V2-native fields in V2 mode (current_strength/
+                # direction, no confidence/risk_level — V2 doesn't have them).
+                # o['opportunity_score'] etc. would KeyError on a V2 dict.
+                if settings.opportunity_v2_promoted:
+                    summary = "; ".join(
+                        f"{o['title']} (strength {o['current_strength']}, direction {o['direction']})"
+                        for o in bundle.opportunities
+                    )
+                else:
+                    summary = "; ".join(
                         f"{o['title']} (score {o['opportunity_score']}, {o['confidence']} confidence, "
                         f"trend {o['trend']}, risk {o['risk_level']})" for o in bundle.opportunities
                     )
-                )
+                bundle.context_lines.append("Verified opportunities (real, from the Opportunity Engine): " + summary)
         except Exception:
             pass
 

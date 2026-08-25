@@ -77,3 +77,12 @@ class StockDetail(BaseModel):
     news: List[StockNews] = []
     peers: List[str] = []
     chart_data: List[dict] = []
+    # C4, 2026-08-24 — set only when the requested symbol resolved through
+    # a real, sourced Company Master historical/provider alias (see
+    # app.services.company_identity) to a DIFFERENT current symbol, e.g.
+    # a request for the old symbol "TATAMOTORS" resolving to "TMPV". Lets
+    # the frontend redirect to the canonical URL instead of silently
+    # serving old-symbol content at a stale address. None means the
+    # requested symbol was already canonical (the overwhelmingly common
+    # case) or didn't resolve through Company Master at all.
+    canonical_symbol: str = ""

@@ -191,8 +191,15 @@ export function ScenarioAnalysis({
   const [fetched, setFetched] = useState<{ bull?: ScenarioBranch; base?: ScenarioBranch; bear?: ScenarioBranch } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Real, systemic bug found+fixed 2026-08-25 (3IINFOLTD/IIFL wrong-
+  // entity-intelligence audit) — see InvestmentThesis.tsx's identical
+  // fix for the full explanation. Without `cancelled`, a stale in-flight
+  // request for a previous entity could overwrite this entity's real
+  // data after the fact, with no further re-render to correct it.
   useEffect(() => {
     if (!entityType || !entityId) return;
+    let cancelled = false;
+    setFetched(null);
     setLoading(true);
     const params = new URLSearchParams();
     if (entityTitle)       params.set("title",       entityTitle.slice(0, 200));
@@ -202,10 +209,11 @@ export function ScenarioAnalysis({
     fetch(`${API}/api/scenario/${entityType}/${encodeURIComponent(entityId)}?${params}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.bull || d?.base || d?.bear) setFetched(d);
+        if (!cancelled && (d?.bull || d?.base || d?.bear)) setFetched(d);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [entityType, entityId, entityTitle, entityDescription, entitySector]);
 
   const bull = staticBull ?? fetched?.bull;

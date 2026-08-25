@@ -79,16 +79,21 @@ export interface MIESignals {
 
 // ── Newsroom-style summary fields ──────────────────────────────────────────────
 
+// Batch E consumer migration, 2026-08-24 — engine.py::read_opportunities()
+// now resolves `href` server-side (V1 numeric id or V2 slug) and only
+// guarantees title/href; everything else is mode-dependent (V1: summary/
+// opportunity_score/confidence/trend/risk_level/sectors; V2: current_strength/
+// sectors only — V2 doesn't have confidence/trend/risk_level).
 export interface MIEOpportunity {
-  id:                string;
-  slug:              string;
-  title:             string;
-  summary:           string;
-  opportunity_score: number | null;
-  confidence:        number | null;
-  trend:             string | null;
-  risk_level:        string | null;
-  sectors:           string[];
+  title: string;
+  href:  string;
+  summary?:           string;
+  opportunity_score?: number | null;
+  confidence?:        number | null;
+  trend?:             string | null;
+  risk_level?:        string | null;
+  current_strength?:  number | null;
+  sectors?:           string[];
 }
 
 export interface MIERisk {

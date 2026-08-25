@@ -41,6 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const guide = getGuide(slug);
   if (!guide) return { title: "Guide Not Found" };
+  const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
   return {
     title: guide.title,
     description: guide.summary,
@@ -48,6 +49,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title: `${guide.title} | MarketRipple Guide`, description: guide.summary,
       images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
     },
+    alternates: { canonical: `${SITE}/learn/guides/${slug}` },
   };
 }
 

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
+import { safeJsonLd } from "@/lib/text";
 import EventExplorerPage, { type EventDetail } from "./EventPageClient";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
@@ -100,21 +101,13 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     datePublished: ev.event_date,
     url,
     publisher: { "@type": "Organization", name: "MarketRipple" },
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Events", item: `${SITE}/events` },
-        { "@type": "ListItem", position: 3, name: ev.title, item: url },
-      ],
-    },
     additionalProperty: factProperties,
   } : null;
 
   return (
     <>
       {jsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       )}
       {ev && (
         <section className="mb-4 border-b border-surface-border/6 pb-4">

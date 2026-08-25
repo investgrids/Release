@@ -122,14 +122,6 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
     // honest Organization-type author satisfies the schema requirement
     // without misrepresenting how the content was made.
     author: { "@type": "Organization", name: "MarketRipple AI Intelligence Engine" },
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: SITE },
-        { "@type": "ListItem", position: 2, name: "Research", item: `${SITE}/research` },
-        { "@type": "ListItem", position: 3, name: article.headline, item: url },
-      ],
-    },
   };
 
   return (
