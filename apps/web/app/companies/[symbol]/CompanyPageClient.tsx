@@ -103,6 +103,32 @@ function metricColor(label: string, value: string) {
   return "text-text-primary";
 }
 
+// Same good/neutral/weak/poor convention as metricColor above, but keyed
+// on the real numeric field (not a formatted display string) — used by
+// the Ratios sub-tab under Financials, whose fields are computed period-
+// by-period rather than the single latest-value snapshot metricColor was
+// built for. A ratio with no fixed "good" direction (EPS — its right
+// value is entirely size/valuation-dependent, not a threshold) is left
+// uncolored, same as metricColor already leaves it today.
+function ratioFieldColor(key: string, value: number | null): string {
+  if (value == null) return "text-text-primary";
+  const n = value;
+  switch (key) {
+    case "net_profit_margin":
+      return n > 15 ? "text-emerald-400" : n >= 5 ? "text-text-primary" : n >= 0 ? "text-amber-400" : "text-rose-400";
+    case "operating_margin":
+      return n > 20 ? "text-emerald-400" : n >= 10 ? "text-text-primary" : n >= 0 ? "text-amber-400" : "text-rose-400";
+    case "roe":
+      return n > 20 ? "text-emerald-400" : n >= 10 ? "text-text-primary" : n >= 0 ? "text-amber-400" : "text-rose-400";
+    case "roa":
+      return n > 10 ? "text-emerald-400" : n >= 5 ? "text-text-primary" : n >= 0 ? "text-amber-400" : "text-rose-400";
+    case "debt_to_equity":
+      return n < 0.3 ? "text-emerald-400" : n < 1 ? "text-text-primary" : n < 2 ? "text-amber-400" : "text-rose-400";
+    default:
+      return "text-text-primary";
+  }
+}
+
 // Real, live shareholding split from yfinance (`held_institutions` /
 // `held_insiders`, already fetched in market_data.py from
 // info.heldPercentInstitutions / heldPercentInsiders). Only two of the
@@ -1823,7 +1849,7 @@ function RatiosTable({ ratios, currencyPrefix = "₹" }: {
               <tr key={field.key}>
                 <td className="py-2 text-text-secondary">{field.label}</td>
                 {rows.map(r => (
-                  <td key={r.period} className="py-2 text-right font-semibold text-text-primary">
+                  <td key={r.period} className={`py-2 text-right font-semibold ${ratioFieldColor(field.key, r[field.key] as number | null)}`}>
                     {fmtStatementValue(r[field.key] as number | null, field, currencyPrefix)}
                   </td>
                 ))}
@@ -1856,24 +1882,24 @@ function CapitalStructureCard({ data, statementCurrencyPrefix = "₹", statement
       </SectionCard>
     );
   }
-  const rows: [string, string][] = [
-    ["Shares Outstanding", data.shares_outstanding != null ? data.shares_outstanding.toLocaleString("en-IN") : "—"],
-    ["Face Value", data.face_value != null ? `₹${data.face_value}` : "—"],
-    ["Book Value / Share", data.book_value_per_share != null ? `${statementCurrencyPrefix}${data.book_value_per_share}` : "—"],
-    ["Market Cap", data.market_cap != null ? `₹${data.market_cap.toLocaleString("en-IN")} Cr` : "—"],
-    ["Total Debt", data.total_debt != null ? `${statementCurrencyPrefix}${data.total_debt.toLocaleString("en-IN")} ${statementCurrencyUnit}` : "—"],
-    ["Shareholders' Equity", data.shareholders_equity != null ? `${statementCurrencyPrefix}${data.shareholders_equity.toLocaleString("en-IN")} ${statementCurrencyUnit}` : "—"],
-    ["Debt to Equity", data.debt_to_equity != null ? String(data.debt_to_equity) : "—"],
+  const rows: [string, string, string][] = [
+    ["Shares Outstanding", data.shares_outstanding != null ? data.shares_outstanding.toLocaleString("en-IN") : "—", "text-text-primary"],
+    ["Face Value", data.face_value != null ? `₹${data.face_value}` : "—", "text-text-primary"],
+    ["Book Value / Share", data.book_value_per_share != null ? `${statementCurrencyPrefix}${data.book_value_per_share}` : "—", "text-text-primary"],
+    ["Market Cap", data.market_cap != null ? `₹${data.market_cap.toLocaleString("en-IN")} Cr` : "—", "text-text-primary"],
+    ["Total Debt", data.total_debt != null ? `${statementCurrencyPrefix}${data.total_debt.toLocaleString("en-IN")} ${statementCurrencyUnit}` : "—", "text-text-primary"],
+    ["Shareholders' Equity", data.shareholders_equity != null ? `${statementCurrencyPrefix}${data.shareholders_equity.toLocaleString("en-IN")} ${statementCurrencyUnit}` : "—", "text-text-primary"],
+    ["Debt to Equity", data.debt_to_equity != null ? String(data.debt_to_equity) : "—", ratioFieldColor("debt_to_equity", data.debt_to_equity)],
   ];
   return (
     <SectionCard title="Capital Structure" action={
       data.as_of_period ? <span className="text-[10px] text-text-muted">as of {data.as_of_period}</span> : null
     }>
       <div className="mt-3 divide-y divide-surface-border/3">
-        {rows.map(([label, value]) => (
+        {rows.map(([label, value, colorClass]) => (
           <div key={label} className="flex items-center justify-between py-2 text-[12px]">
             <span className="text-text-secondary">{label}</span>
-            <span className="font-semibold text-text-primary">{value}</span>
+            <span className={`font-semibold ${colorClass}`}>{value}</span>
           </div>
         ))}
       </div>
