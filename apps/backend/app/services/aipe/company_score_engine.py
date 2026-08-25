@@ -21,6 +21,7 @@ a manufactured "0" that would read as a real bearish score.
 """
 from __future__ import annotations
 
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -81,6 +82,116 @@ def _is_real_symbol(symbol: str) -> bool:
 _IMPACT_SIGN = {"positive": 1.0, "negative": -1.0, "neutral": 0.0}
 _TREND_SIGN = {"up": 1.0, "down": -1.0, "neutral": 0.0}
 
+# Name<->symbol guard (owner decision, 2026-08-25, following the cross-
+# sector companies_affected extraction audit) — deterministic, no LLM
+# call. Validated against every real companies_affected entry in the dev
+# DB before being wired in here: found the same real bug the audit did
+# (PNB Housing Finance mis-tagged with symbol "PNB", Punjab National
+# Bank) plus 2 more of the same class (HDB Financial Services tagged
+# HDFCBANK; Shriram Finance tagged SRF), with zero false corrections and
+# zero wrongful drops on the full real dataset.
+_NAME_STOPWORDS = {"ltd", "limited", "inc", "corp", "corporation", "company", "co", "plc", "the", "and", "of", "for", "in", "at"}
+
+
+def _name_words(name: str) -> list[str]:
+    words = re.sub(r"[^a-z0-9\s]", " ", (name or "").lower()).split()
+    return [w for w in words if w not in _NAME_STOPWORDS and len(w) > 1]
+
+
+def _name_compact(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (name or "").lower())
+
+
+def _names_agree(symbol: str, real_name: str, claimed_name: str) -> bool:
+    """True when a companies_affected[] entry's own claimed `name` is
+    consistent with the real registered name for its `symbol`. Two real
+    escape hatches, both confirmed against live data, not guessed:
+    (1) several producers (e.g. signal_publisher.py's live-signal items)
+    have no real company name available and echo the bare ticker into
+    `name` as a placeholder — not a claim to validate, so it always
+    agrees; (2) a real, standard initialism either direction (SBI <->
+    "State Bank of India", BSE <-> "Bombay Stock Exchange") counts as
+    agreement rather than a false mismatch."""
+    if _name_compact(claimed_name) == _name_compact(symbol):
+        return True
+    real_words, claimed_words = _name_words(real_name), _name_words(claimed_name)
+    if not real_words or not claimed_words:
+        return True
+    if _name_compact(claimed_name) == "".join(w[0] for w in real_words):
+        return True
+    if _name_compact(real_name).replace("ltd", "") == "".join(w[0] for w in claimed_words):
+        return True
+    overlap = set(real_words) & set(claimed_words)
+    smaller = min(len(real_words), len(claimed_words))
+    return len(overlap) >= max(1, smaller // 2)
+
+
+def _name_candidates(claimed_name: str, exclude_symbol: str) -> list[str]:
+    """Deterministic candidate search across the real company universe —
+    never an LLM call. Requires >=2 real significant words on both sides
+    so a real name that reduces to one generic word after stopword-
+    stripping (e.g. "L&T Finance Ltd" -> just "finance") can't produce a
+    false match purely on that one word — confirmed live this was a real
+    risk (falsely resolved "Reliance Home Finance" to "L&T Finance"
+    before this guard was added)."""
+    from app.api.companies import _NSE_UNIVERSE
+
+    claimed_words = set(_name_words(claimed_name))
+    if len(claimed_words) < 2:
+        return []
+    candidates: list[str] = []
+    for c in _NSE_UNIVERSE:
+        if c["symbol"] == exclude_symbol:
+            continue
+        real_words = set(_name_words(c["name"]))
+        if len(real_words) < 2:
+            continue
+        smaller, larger = (claimed_words, real_words) if len(claimed_words) <= len(real_words) else (real_words, claimed_words)
+        jaccard = len(claimed_words & real_words) / len(claimed_words | real_words)
+        if smaller.issubset(larger) or jaccard >= 0.6:
+            candidates.append(c["symbol"])
+    return list(dict.fromkeys(candidates))
+
+
+def _validated_symbol(raw_symbol: str, claimed_name: str) -> str | None:
+    """The one entry point extract_company_signals() calls per companies_
+    affected[] item. Returns the symbol to actually use (unchanged, or
+    corrected to a confidently-resolved different real symbol), or None
+    to skip creating a signal for this entry entirely.
+
+    Three real outcomes, validated against the full real dev dataset
+    before being wired in: (1) name agrees, or disagrees but resolves to
+    exactly one other real company -> use that symbol (found 3 real
+    cases: PNB Housing Finance tagged PNB -> PNBHOUSING, HDB Financial
+    Services tagged HDFCBANK -> HDBFS, Shriram Finance tagged SRF ->
+    SHRIRAMFIN); (2) name resolves to 2+ real candidates -> genuinely
+    ambiguous, drop (zero real cases found, but a real possible state);
+    (3) name disagrees but resolves to zero candidates -> we can't prove
+    the symbol is wrong, only that the free-text name didn't textually
+    match the registry (a real, correct case: "Nykaa Retail Limited" for
+    FSN E-Commerce Ventures Ltd is a real brand-vs-legal-name difference,
+    not a bug) -- leave the entry untouched rather than destroy
+    potentially-valid evidence on a guess. A real, still-open exception
+    found live and not auto-fixed by any of these three outcomes: "RHIM"
+    tagged "Reliance Home Finance" (RHIM's real name, RHI Magnesita India
+    Ltd, has no relationship to it, but no confident resolution target
+    exists in the current universe either) -- correctly falls into
+    outcome (3), flagged here for a human look, not solved deterministically."""
+    from app.api.companies import _NSE_UNIVERSE
+
+    sym = raw_symbol.upper().split(".")[0].strip()
+    real_name = next((c["name"] for c in _NSE_UNIVERSE if c["symbol"] == sym), None)
+    if real_name is None:
+        return None  # not a real symbol at all -- _is_real_symbol's existing job, enforced earlier now instead of only downstream
+    if _names_agree(sym, real_name, claimed_name):
+        return sym
+    candidates = _name_candidates(claimed_name, exclude_symbol=sym)
+    if len(candidates) == 1:
+        return candidates[0]
+    if len(candidates) >= 2:
+        return None
+    return sym
+
 
 async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle, auto_commit: bool = True) -> int:
     """Extracts one AICompanySignal row per company mentioned in a just-
@@ -105,7 +216,17 @@ async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle
     for c in (article.companies_affected or []):
         if not isinstance(c, dict):
             continue
-        symbol = str(c.get("symbol") or "").upper().split(".")[0]
+        raw_symbol = str(c.get("symbol") or "")
+        if not raw_symbol:
+            continue
+        # Name<->symbol guard (2026-08-25, see _validated_symbol's own
+        # docstring) — also now enforces _is_real_symbol()'s own long-
+        # standing aspiration ("real fix belongs further upstream in
+        # extraction") at write time, not just downstream in every
+        # consumer: a non-real symbol (index proxies, malformed unsplit
+        # multi-symbol strings) is skipped here instead of ever reaching
+        # AICompanySignal.
+        symbol = _validated_symbol(raw_symbol, c.get("name") or "")
         if not symbol:
             continue
         sign = _IMPACT_SIGN.get(str(c.get("impact") or "").lower(), 0.0)
@@ -114,7 +235,7 @@ async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle
             source_type="article",
             source_id=article.id,
             symbol=symbol,
-            company_name=c.get("name") or _name_for(symbol),
+            company_name=_name_for(symbol) or c.get("name"),
             sector=_sector_for(symbol),
             signed_magnitude=magnitude,
             confidence=article.confidence_score,
