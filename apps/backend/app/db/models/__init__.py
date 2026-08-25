@@ -40,6 +40,7 @@ from app.db.models.source_registry import Source
 from app.db.models.market_observation import MarketObservation
 from app.db.models.raw_evidence import RawEvidence
 from app.db.models.company_entity import CompanyEntity, CompanyAlias
+from app.db.models.evidence_entity_link import EvidenceEntityLink
 
 __all__ = [
     "Opportunity",
@@ -86,4 +87,5 @@ __all__ = [
     "RawEvidence",
     "CompanyEntity",
     "CompanyAlias",
+    "EvidenceEntityLink",
 ]

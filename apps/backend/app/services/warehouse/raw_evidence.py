@@ -167,8 +167,9 @@ async def capture_raw_evidence(
             suppressed_duplicate += 1
             continue
 
+        row_id = str(uuid4())
         db.add(RawEvidence(
-            id=str(uuid4()), evidence_key=evidence_key, payload_hash=payload_hash,
+            id=row_id, evidence_key=evidence_key, payload_hash=payload_hash,
             source_id=source_id, source_type=source_type, external_id=external_id,
             title=_extract_title(source_name, raw),
             published_at=_parse_published_at(_extract_published_at_raw(source_name, raw)),
@@ -179,6 +180,14 @@ async def capture_raw_evidence(
             quality=quality,
         ))
         written += 1
+
+        # Warehouse Consumption Phase 2 -- the one real, deterministic
+        # entity link available today. See evidence_entity_linking.py's
+        # own docstring for why this is NSE-only and why an unresolved
+        # item is left unlinked rather than guessed.
+        if source_name == "NSE":
+            from app.services.warehouse.evidence_entity_linking import link_nse_evidence_to_entity
+            await link_nse_evidence_to_entity(db, row_id, raw)
 
     if written:
         try:
