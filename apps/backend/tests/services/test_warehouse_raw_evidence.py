@@ -31,6 +31,7 @@ from app.services.warehouse.raw_evidence import (
     _content_hash, _extract_external_id, _extract_published_at_raw,
     _parse_published_at, capture_raw_evidence,
 )
+from app.services.warehouse.source_registry_seed import seed_source_registry
 
 
 async def _cleanup(evidence_key_prefix: str) -> None:
@@ -49,6 +50,13 @@ async def test_same_stable_item_changed_payload_creates_a_new_version():
 
     try:
         async with AsyncSessionLocal() as db:
+            # capture_raw_evidence() resolves real, hardcoded production
+            # source_ids (resolve_source_id() -> _FIXED_SOURCE_IDS/
+            # _RSS_FEED_SOURCE_IDS) -- self-contained against a genuinely
+            # isolated test DB only once those rows actually exist there;
+            # seed_source_registry() is upsert-based, safe to call even
+            # when real rows already exist.
+            await seed_source_registry(db)
             r1 = await capture_raw_evidence(db, "Fed", [(raw_v1, "good")])
         assert r1["written"] == 1
 
@@ -78,6 +86,7 @@ async def test_source_without_reliable_publication_timestamp_stays_null():
     raw = {"id": "test-no-pubdate", "headline": "No date item", "summary": "x", "source": "RBI", "url": "https://x", "published_at": ""}
     try:
         async with AsyncSessionLocal() as db:
+            await seed_source_registry(db)
             await capture_raw_evidence(db, "RBI", [(raw, "good")])
 
         async with AsyncSessionLocal() as db:
@@ -112,6 +121,7 @@ async def test_filtered_and_invalid_items_are_stored_with_honest_quality_not_dis
     filtered = {"id": "test-quality-filtered", "headline": "", "summary": "x", "source": "SEBI", "url": "https://x", "published_at": "2026-08-20"}
     try:
         async with AsyncSessionLocal() as db:
+            await seed_source_registry(db)
             result = await capture_raw_evidence(db, "SEBI", [(good, "good"), (filtered, "filtered")])
         assert result["written"] == 2, "both the good AND the filtered item must be persisted"
 

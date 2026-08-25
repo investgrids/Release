@@ -5,8 +5,18 @@ following the read-only Warehouse Consumption Audit).
 Real DB-backed, no mocks. Uses a synthetic metric name (never colliding with
 a real production metric) so assertions are exact regardless of whatever
 real rows already exist in this DB, matching this session's established
-test-isolation discipline. `source_id` reuses a real seeded source row
-rather than a fabricated one, since MarketObservation FKs into `sources`.
+test-isolation discipline.
+
+`source_id` originally reused a real seeded source row from the shared dev
+DB (`yfinance_india_vix`) -- fixed after this test suite was run against a
+fully test-isolated DB (tests/conftest.py's session-scoped scratch DB,
+never the real dev DB) and every insert-based test failed on a real FK
+violation: the scratch DB has the real schema but none of
+source_registry_seed.py's real rows. That's not a bug in the isolation
+guardrail -- it's the guardrail correctly catching that these tests
+implicitly depended on real local seed data rather than being genuinely
+self-contained. Fixed properly: each test seeds its own synthetic Source
+row instead.
 """
 from __future__ import annotations
 
@@ -17,17 +27,31 @@ import pytest
 from sqlalchemy import delete
 
 from app.db.models.market_observation import MarketObservation
+from app.db.models.source_registry import Source
 from app.db.session import AsyncSessionLocal
 from app.services.warehouse.read_service import (
     get_latest_market_observations,
     get_market_context_at,
 )
 
-_REAL_SOURCE_ID = "yfinance_india_vix"   # real, seeded by source_registry_seed.py
-
 
 def _tag() -> str:
     return uuid.uuid4().hex[:8]
+
+
+@pytest.fixture
+async def source_id():
+    """A synthetic Source row, self-contained -- never assumes any real
+    seed data exists in whatever DB the test suite happens to run
+    against."""
+    sid = f"test_source_{_tag()}"
+    async with AsyncSessionLocal() as db:
+        db.add(Source(id=sid, name="Test Source", source_type="api", collection_method="test"))
+        await db.commit()
+    yield sid
+    async with AsyncSessionLocal() as db:
+        await db.execute(delete(Source).where(Source.id == sid))
+        await db.commit()
 
 
 async def _insert(rows: list[MarketObservation]) -> None:
@@ -42,23 +66,23 @@ async def _cleanup(metric: str) -> None:
         await db.commit()
 
 
-def _row(metric: str, value: float | None, quality: str, obs_time: datetime, extra: dict | None = None) -> MarketObservation:
+def _row(metric: str, value: float | None, quality: str, obs_time: datetime, source_id: str, extra: dict | None = None) -> MarketObservation:
     return MarketObservation(
         id=str(uuid.uuid4()), metric=metric, value=value, unit="index_points",
         observation_time=obs_time, market_date=obs_time.date(), session="live",
-        source_id=_REAL_SOURCE_ID, captured_at=obs_time, quality=quality, extra=extra,
+        source_id=source_id, captured_at=obs_time, quality=quality, extra=extra,
     )
 
 
 @pytest.mark.asyncio
-async def test_get_latest_returns_the_newest_row_per_metric():
+async def test_get_latest_returns_the_newest_row_per_metric(source_id):
     metric = f"TEST_METRIC_{_tag()}"
     now = datetime.now(timezone.utc)
     older = now - timedelta(minutes=30)
     try:
         await _insert([
-            _row(metric, 100.0, "fresh", older),
-            _row(metric, 105.5, "fresh", now),
+            _row(metric, 100.0, "fresh", older, source_id),
+            _row(metric, 105.5, "fresh", now, source_id),
         ])
         async with AsyncSessionLocal() as db:
             result = await get_latest_market_observations(db, metrics=[metric])
@@ -72,13 +96,13 @@ async def test_get_latest_returns_the_newest_row_per_metric():
 
 
 @pytest.mark.asyncio
-async def test_get_latest_reports_stale_data_honestly_not_as_current():
+async def test_get_latest_reports_stale_data_honestly_not_as_current(source_id):
     """A real row that's genuinely old (capture stopped) must be flagged
     is_current=False, never silently presented as if it were fresh."""
     metric = f"TEST_METRIC_{_tag()}"
     ancient = datetime.now(timezone.utc) - timedelta(hours=6)
     try:
-        await _insert([_row(metric, 42.0, "fresh", ancient)])
+        await _insert([_row(metric, 42.0, "fresh", ancient, source_id)])
         async with AsyncSessionLocal() as db:
             result = await get_latest_market_observations(db, metrics=[metric])
         assert result[metric].is_current is False
@@ -98,14 +122,14 @@ async def test_get_latest_never_fabricates_a_missing_metric():
 
 
 @pytest.mark.asyncio
-async def test_get_latest_preserves_a_real_source_failure_row_honestly():
+async def test_get_latest_preserves_a_real_source_failure_row_honestly(source_id):
     """A real source_failure row (value=NULL) must still come back --
     proves this layer doesn't silently filter out real capture failures,
     matching Warehouse's own 'never fabricate, never drop' discipline."""
     metric = f"TEST_METRIC_{_tag()}"
     now = datetime.now(timezone.utc)
     try:
-        await _insert([_row(metric, None, "source_failure", now)])
+        await _insert([_row(metric, None, "source_failure", now, source_id)])
         async with AsyncSessionLocal() as db:
             result = await get_latest_market_observations(db, metrics=[metric])
         assert metric in result
@@ -117,14 +141,14 @@ async def test_get_latest_preserves_a_real_source_failure_row_honestly():
 
 
 @pytest.mark.asyncio
-async def test_get_market_context_at_finds_the_nearest_real_observation():
+async def test_get_market_context_at_finds_the_nearest_real_observation(source_id):
     metric = f"TEST_METRIC_{_tag()}"
     anchor = datetime.now(timezone.utc) - timedelta(days=1)
     try:
         await _insert([
-            _row(metric, 10.0, "fresh", anchor - timedelta(minutes=20)),
-            _row(metric, 20.0, "fresh", anchor - timedelta(minutes=3)),   # nearest
-            _row(metric, 30.0, "fresh", anchor + timedelta(minutes=25)),
+            _row(metric, 10.0, "fresh", anchor - timedelta(minutes=20), source_id),
+            _row(metric, 20.0, "fresh", anchor - timedelta(minutes=3), source_id),   # nearest
+            _row(metric, 30.0, "fresh", anchor + timedelta(minutes=25), source_id),
         ])
         async with AsyncSessionLocal() as db:
             result = await get_market_context_at(db, anchor, metrics=[metric], window_minutes=30)
@@ -134,14 +158,14 @@ async def test_get_market_context_at_finds_the_nearest_real_observation():
 
 
 @pytest.mark.asyncio
-async def test_get_market_context_at_respects_the_window_boundary():
+async def test_get_market_context_at_respects_the_window_boundary(source_id):
     """A real row that exists but falls outside the requested window must
     not be returned -- no silent widening, no nearest-available fallback
     across an explicit boundary the caller set."""
     metric = f"TEST_METRIC_{_tag()}"
     anchor = datetime.now(timezone.utc) - timedelta(days=1)
     try:
-        await _insert([_row(metric, 99.0, "fresh", anchor - timedelta(minutes=90))])
+        await _insert([_row(metric, 99.0, "fresh", anchor - timedelta(minutes=90), source_id)])
         async with AsyncSessionLocal() as db:
             result = await get_market_context_at(db, anchor, metrics=[metric], window_minutes=30)
         assert metric not in result
@@ -150,7 +174,7 @@ async def test_get_market_context_at_respects_the_window_boundary():
 
 
 @pytest.mark.asyncio
-async def test_get_market_context_at_never_interpolates_between_real_rows():
+async def test_get_market_context_at_never_interpolates_between_real_rows(source_id):
     """Two real rows straddling the anchor must never be averaged/
     interpolated into a fabricated value -- only the nearer real row is
     ever returned."""
@@ -158,8 +182,8 @@ async def test_get_market_context_at_never_interpolates_between_real_rows():
     anchor = datetime.now(timezone.utc) - timedelta(days=1)
     try:
         await _insert([
-            _row(metric, 50.0, "fresh", anchor - timedelta(minutes=10)),
-            _row(metric, 60.0, "fresh", anchor + timedelta(minutes=15)),
+            _row(metric, 50.0, "fresh", anchor - timedelta(minutes=10), source_id),
+            _row(metric, 60.0, "fresh", anchor + timedelta(minutes=15), source_id),
         ])
         async with AsyncSessionLocal() as db:
             result = await get_market_context_at(db, anchor, metrics=[metric], window_minutes=30)
