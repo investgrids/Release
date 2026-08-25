@@ -81,6 +81,17 @@ const fadeUp = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const n2 = (v?: string | number) => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
+// Company redesign Batch 3 — EventTimeline now mixes two real date shapes:
+// yfinance's stock.events (already a short display string) and the real
+// /api/events?company= fetch (an ISO timestamp). Parses when it looks like
+// a real date, falls back to the raw string otherwise, rather than risking
+// "Invalid Date" on a value that was already display-formatted.
+function formatEventDate(raw: string): string {
+  if (!raw) return raw;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
 const scoreColor = scoreToColor;
 const impactColor = impactToStyle;
 
@@ -579,8 +590,15 @@ function KeyRatios({ stock }: { stock: StockDetail }) {
 // impact/sentiment score from the backend, so this intentionally does not
 // show an impact badge, sentiment badge, or score circle (a previous
 // version faked all three from a hardcoded cycling array).
-function EventTimeline({ stock, symbol }: { stock: StockDetail; symbol: string }) {
-  const events = stock.events.length > 0 ? stock.events : [];
+// Company redesign Batch 3 — companyEvents (real, symbol-matched events
+// from GET /api/events?company={symbol}, the same real matching logic
+// related.py's "company" branch already used) takes priority over
+// stock.events (yfinance's own sparse corporate-action list, frequently
+// empty — confirmed live for RELIANCE). Falls back to stock.events only
+// when the richer real fetch itself returns nothing, so a company still
+// covered only by yfinance's own event data doesn't lose it.
+function EventTimeline({ stock, symbol, companyEvents }: { stock: StockDetail; symbol: string; companyEvents?: StockEvent[] }) {
+  const events = (companyEvents && companyEvents.length > 0) ? companyEvents : stock.events;
   if (!events.length) return null;
   return (
     <SectionCard title={`Recent Events Impacting ${symbol.toUpperCase()}`} action={
@@ -595,7 +613,7 @@ function EventTimeline({ stock, symbol }: { stock: StockDetail; symbol: string }
                 <Clock className="h-5 w-5 text-sky-400"/>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-text-muted mb-1">{e.date}</p>
+                <p className="text-[10px] text-text-muted mb-1">{formatEventDate(e.date)}</p>
                 <p className="text-[13px] font-semibold text-text-primary line-clamp-1">{e.title}</p>
               </div>
             </>
@@ -610,6 +628,52 @@ function EventTimeline({ stock, symbol }: { stock: StockDetail; symbol: string }
           );
         })}
       </div>
+    </SectionCard>
+  );
+}
+
+// ── Related Opportunities (Batch 3) ─────────────────────────────────────────
+// The real gap this closes: the Opportunities tab previously only showed
+// an abstract AI Company Score (OpportunityRadarSection, below) with no
+// actual list of which real Opportunity records this company is linked
+// to. Fetches the same unified /api/related/company/{symbol} contract
+// Batch 0 already made canonical (company_intelligence.get_related_
+// opportunities — dispatches V1/V2 by settings.opportunity_v2_promoted
+// transparently; this tab never branches on that itself, so it already
+// satisfies "canonical V2 relationships only, no V1 compatibility UI" —
+// there is no V1-shaped UI here, just real title/href/score fields common
+// to both sources). Honest empty state when this company has no real
+// linked opportunities yet.
+function RelatedOpportunitiesList({ stock }: { stock: StockDetail }) {
+  const [items, setItems] = useState<RelatedItem[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API}/api/related/company/${encodeURIComponent(stock.symbol)}?${new URLSearchParams({ title: stock.name, ...(stock.sector ? { sector: stock.sector } : {}) })}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setItems(d?.opportunities ?? []); })
+      .catch(() => { if (!cancelled) setItems([]); });
+    return () => { cancelled = true; };
+  }, [stock.symbol, stock.name, stock.sector]);
+
+  if (items === null) return null;
+
+  return (
+    <SectionCard title={`Opportunities Connected to ${stock.name}`}>
+      {items.length === 0 ? (
+        <p className="text-sm text-text-secondary">No real opportunities are currently linked to {stock.name}.</p>
+      ) : (
+        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {items.map((o, i) => (
+            <Link key={o.id || i} href={o.href as any}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-4 transition hover:border-emerald-500/25">
+              <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{o.title}</p>
+              {o.score != null && (
+                <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-300">{Math.round(o.score)}</span>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
     </SectionCard>
   );
 }
@@ -1392,6 +1456,46 @@ function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
   );
 }
 
+// ── Events tab body (Batch 3) ───────────────────────────────────────────────
+// Fetches the real, symbol-matched event set (GET /api/events?company=)
+// only while the Events tab is mounted — see EventTimeline's own comment
+// for why this exists (yfinance's stock.events is frequently empty).
+// Owns the honest empty-state check itself so it reflects what's actually
+// being rendered (companyEvents OR the stock.events/news fallback), not
+// a pre-fetch snapshot.
+function EventsTabBody({ stock, symbol, relatedNews }: { stock: StockDetail; symbol: string; relatedNews: any[] }) {
+  const [companyEvents, setCompanyEvents] = useState<StockEvent[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API}/api/events/?company=${encodeURIComponent(stock.symbol)}&limit=8`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { if (!cancelled) setCompanyEvents(Array.isArray(d) ? d : []); })
+      .catch(() => { if (!cancelled) setCompanyEvents([]); });
+    return () => { cancelled = true; };
+  }, [stock.symbol]);
+
+  const effectiveEvents = (companyEvents && companyEvents.length > 0) ? companyEvents : stock.events;
+  const hasNews = relatedNews.length > 0 || stock.news.length > 0;
+  // Still resolving the real fetch — don't flash the empty state before
+  // we actually know whether there's real coverage.
+  if (companyEvents === null) return null;
+
+  if (effectiveEvents.length === 0 && !hasNews) {
+    return (
+      <SectionCard title={`Recent Events Impacting ${symbol.toUpperCase()}`}>
+        <p className="text-sm text-text-secondary">No recent events or news coverage tracked for {stock.name} yet.</p>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <>
+      <EventTimeline stock={stock} symbol={symbol} companyEvents={companyEvents}/>
+      <NewsImpact stock={stock} relatedNews={relatedNews}/>
+    </>
+  );
+}
+
 // ── Top Loading Bar ───────────────────────────────────────────────────────────
 function TopLoader({ active }: { active: boolean }) {
   return (
@@ -1812,17 +1916,11 @@ function StockPageInner({ params, initialStock, initialRelated }: PageProps & { 
                 content design (full empty/partial-state work across every
                 tab is Batch 5's job). */}
             {activeTab === "events" && (
-              (stock.events.length === 0 && relatedNews.length === 0 && stock.news.length === 0) ? (
-                <SectionCard title={`Recent Events Impacting ${symbol.toUpperCase()}`}>
-                  <p className="text-sm text-text-secondary">No recent events or news coverage tracked for {stock.name} yet.</p>
-                </SectionCard>
-              ) : <>
-                <EventTimeline stock={stock} symbol={symbol}/>
-                <NewsImpact stock={stock} relatedNews={relatedNews}/>
-              </>
+              <EventsTabBody stock={stock} symbol={symbol} relatedNews={relatedNews}/>
             )}
 
             {activeTab === "opportunities" && <>
+              <RelatedOpportunitiesList stock={stock}/>
               <OpportunityRadarSection stock={stock}/>
             </>}
 
