@@ -126,7 +126,10 @@ export function RelatedContent({
       {loading ? (
         <Skeleton />
       ) : (
-        <div className="space-y-4">
+        // Owner request (2026-08-25): render the groups (Related Events,
+        // Opportunities, etc.) side-by-side rather than stacked, when
+        // there's more than one — single column on narrow screens.
+        <div className={groups.length > 1 ? "grid grid-cols-1 gap-4 sm:grid-cols-2" : "space-y-4"}>
           {groups.map(group => (
             <div key={group.type}>
               <div className={`mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${COLOR_CLASSES[group.color] ?? "text-text-secondary"}`}>
