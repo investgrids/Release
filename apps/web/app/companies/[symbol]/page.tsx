@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import { neutralRating, safeJsonLd } from "@/lib/text";
 import StockPage, { type StockDetail } from "./CompanyPageClient";
@@ -114,6 +114,17 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
   const upper = symbol.toUpperCase();
   const { data: stock, symbolNotFound } = await fetchStock(upper);
   if (symbolNotFound) notFound();
+  // C5 — the backend already resolves a historical/renamed symbol
+  // (TATAMOTORS) or a known provider-ticker variant (HPCL) to the real
+  // current one (TMPV / HINDPETRO) via Company Master and serves live
+  // data under it (see api/stocks.py); this is what turns that
+  // resolution into an actual single canonical URL instead of two
+  // separate indexable pages for the same company. permanentRedirect
+  // (308) is Next.js's modern equivalent of a 301 — search engines
+  // consolidate signals to the target the same way.
+  if (stock?.canonical_symbol && stock.canonical_symbol !== upper) {
+    permanentRedirect(`/companies/${stock.canonical_symbol}`);
+  }
   const related = stock ? await fetchRelated(upper, stock.name, stock.sector) : null;
   const url = `${SITE}/companies/${upper}`;
   const faqs = stock ? buildFaqs(stock, upper) : [];

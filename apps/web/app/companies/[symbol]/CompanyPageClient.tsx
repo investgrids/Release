@@ -41,7 +41,7 @@ const HistoricalPerformanceBarChart = dynamic(() => import("./CompanyCharts").th
 interface StockEvent   { title: string; date: string; id?: string; slug?: string }
 interface GovBreak     { label: string; pct: number; color: string }
 export interface StockDetail  {
-  symbol: string; name: string; price: string; prev_close: string;
+  symbol: string; canonical_symbol?: string; name: string; price: string; prev_close: string;
   open: string; day_high: string; day_low: string; change: string;
   change_abs: string; pct_change: number; week52_high: string; week52_low: string;
   volume: string; avg_volume: string; market_cap: string; industry: string;

@@ -815,18 +815,28 @@ async def _fetch_prices(symbols: list[str]) -> dict[str, dict]:
         return {}
 
 
-# ── C4: qualified Company Master entries (real evidence, not on the
+# ── C5: Tier A/B Company Master entries (real evidence, not on the
 # static 512 list) ──────────────────────────────────────────────────────
-# Extends search/directory discoverability to the companies C4's
-# reconciliation found MarketRipple already has real evidence for --
-# `/api/stocks/{symbol}` already resolves any real, live-tradeable NSE
-# symbol regardless of this static list, but this list is the only
-# search/directory index, so a qualified company was previously
+# Extends search/directory discoverability to companies C5's tier
+# classification confirms deserve a public page (see
+# app.services.company_identity.tiers — Tier A: real MarketRipple
+# intelligence; Tier C: identity only, deliberately excluded here,
+# matching the tier table's "Public page: Optional/resolvable, not
+# automatic"). `/api/stocks/{symbol}` already resolves any real, live-
+# tradeable NSE symbol regardless of this static list, but this list is
+# the only search/directory index, so a qualifying company was previously
 # unreachable except by typing its exact URL. sector/industry/cap are
 # left honestly empty -- NSE's own EQ master file (Company Master's
-# source) doesn't carry sector data, and nothing here fabricates it; a
-# qualified entry just won't match a sector/cap filter, same as any
-# static entry with an unset field would.
+# source) doesn't carry sector data, and nothing here fabricates it.
+#
+# Tier B (real, live yfinance-verified market data) is deliberately NOT
+# computed here -- classify_all_entities(check_live_data=True) would mean
+# a live batch-price fetch against ~1,800 candidates inside a request
+# path, an unacceptable latency/reliability risk for a live directory
+# endpoint. The live-data check is built and tested
+# (tests/services/test_company_tiers.py) and ready to run as a periodic
+# background job that persists Tier B results, once that job exists --
+# not silently faked here in the meantime.
 _QUALIFIED_MASTER_CACHE: dict = {"data": None, "at": 0.0}
 _QUALIFIED_MASTER_TTL_S = 600.0
 
@@ -837,18 +847,19 @@ async def _get_qualified_master_entries(db: AsyncSession) -> list[dict]:
         return _QUALIFIED_MASTER_CACHE["data"]
 
     try:
-        from app.services.company_identity.qualification import qualified_missing_companies
-        qualified = await qualified_missing_companies(db)
+        from app.services.company_identity.tiers import classify_all_entities, CoverageTier
+        results = await classify_all_entities(db, check_live_data=False)
+        tier_a = [r for r in results if r.tier == CoverageTier.A_INTELLIGENCE_RICH]
     except Exception:
-        qualified = []
+        tier_a = []
 
     static_symbols = {co["symbol"] for co in _NSE_UNIVERSE}
     entries = [
         {
-            "symbol": q.symbol, "name": q.company_name, "sector": "", "industry": "", "cap": "",
-            "aliases": [], "_sym_l": q.symbol.lower(), "_name_l": q.company_name.lower(), "_alias_l": [],
+            "symbol": r.symbol, "name": r.company_name, "sector": "", "industry": "", "cap": "",
+            "aliases": [], "_sym_l": r.symbol.lower(), "_name_l": r.company_name.lower(), "_alias_l": [],
         }
-        for q in qualified if q.symbol not in static_symbols
+        for r in tier_a if r.symbol not in static_symbols
     ]
     _QUALIFIED_MASTER_CACHE["data"] = entries
     _QUALIFIED_MASTER_CACHE["at"] = now
