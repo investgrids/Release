@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.db.crud import get_events
 from app.schemas.stock import StockDetail, StockEvent, StockNews
-from app.services.market_data import get_stock_detail, get_stock_chart, get_top_movers
+from app.services.market_data import get_stock_detail, get_stock_chart, get_top_movers, get_stock_financials
 from app.services import finnhub
 
 router = APIRouter()
@@ -85,6 +85,26 @@ async def get_stock_news(symbol: str):
     """Company-specific news from Finnhub (last 7 days)."""
     articles = await finnhub.get_company_news(symbol, days=7)
     return articles
+
+
+@router.get("/{symbol}/financials")
+async def get_financials(symbol: str, db: AsyncSession = Depends(get_db)):
+    """Company redesign — Financials tab's Income Statement / Balance
+    Sheet / Cash Flow sub-tabs. Real annual+quarterly data only (see
+    get_stock_financials's own docstring) — separate, lazily-called
+    endpoint so the six real yfinance DataFrame fetches this needs never
+    load on the main company page. Same real Company Master canonical-
+    symbol resolution as GET /{symbol}, so a historical/alias symbol
+    (e.g. TATAMOTORS) still reaches the current entity's real statements."""
+    sym_upper = symbol.upper()
+    try:
+        from app.services.company_identity.qualification import resolve_entity_by_any_symbol
+        entity = await resolve_entity_by_any_symbol(db, sym_upper)
+        if entity is not None:
+            sym_upper = entity.symbol.upper()
+    except Exception:
+        pass
+    return await get_stock_financials(sym_upper)
 
 
 @router.get("/{symbol}", response_model=StockDetail)

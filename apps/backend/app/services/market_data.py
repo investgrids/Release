@@ -139,6 +139,150 @@ _PERIOD_MAP: dict = {
 _REV_KEYS = ["Total Revenue", "TotalRevenue", "Revenue"]
 _NI_KEYS  = ["Net Income", "NetIncome", "Net Income Common Stockholders"]
 
+# Company redesign — Financials tab restructure. Real yfinance row labels,
+# confirmed live against RELIANCE.NS's actual financials/balance_sheet/
+# cashflow DataFrames before writing this (not assumed) — each entry is
+# (output_key, [real candidate row labels in priority order], unit).
+# "currency" divides by 1e7 to match the Crore convention annual_financials/
+# quarterly_revenue already use; "percent" scales a real 0-1 rate to 0-100;
+# "raw" (EPS) is left as yfinance reports it, no conversion.
+_INCOME_STATEMENT_ROWS: list[tuple[str, list[str], str]] = [
+    ("revenue",             ["Total Revenue", "TotalRevenue", "Revenue"],        "currency"),
+    ("ebitda",               ["EBITDA", "Normalized EBITDA"],                     "currency"),
+    ("operating_profit",     ["Operating Income"],                                "currency"),
+    ("pbt",                  ["Pretax Income"],                                   "currency"),
+    ("tax_expense",          ["Tax Provision"],                                   "currency"),
+    ("effective_tax_rate",   ["Tax Rate For Calcs"],                              "percent"),
+    ("net_profit",           ["Net Income", "Net Income Common Stockholders"],    "currency"),
+    ("eps",                  ["Diluted EPS", "Basic EPS"],                        "raw"),
+]
+_BALANCE_SHEET_ROWS: list[tuple[str, list[str], str]] = [
+    ("total_assets",         ["Total Assets"],                                            "currency"),
+    ("cash_and_equivalents", ["Cash And Cash Equivalents", "Cash Financial"],              "currency"),
+    ("receivables",          ["Accounts Receivable", "Receivables"],                       "currency"),
+    ("inventory",            ["Inventory"],                                                "currency"),
+    ("total_debt",           ["Total Debt"],                                               "currency"),
+    ("total_liabilities",    ["Total Liabilities Net Minority Interest"],                  "currency"),
+    ("shareholders_equity",  ["Stockholders Equity", "Common Stock Equity"],               "currency"),
+    ("net_debt",             ["Net Debt"],                                                 "currency"),
+]
+_CASH_FLOW_ROWS: list[tuple[str, list[str], str]] = [
+    ("cash_from_operations", ["Operating Cash Flow"],   "currency"),
+    ("capex",                ["Capital Expenditure"],   "currency"),
+    ("free_cash_flow",       ["Free Cash Flow"],        "currency"),
+    ("cash_from_investing",  ["Investing Cash Flow"],   "currency"),
+    ("cash_from_financing",  ["Financing Cash Flow"],   "currency"),
+    ("dividends",            ["Cash Dividends Paid"],   "currency"),
+    ("net_change_in_cash",   ["Changes In Cash"],       "currency"),
+]
+
+
+def _is_real_number(raw) -> bool:
+    if raw is None:
+        return False
+    try:
+        f = float(raw)
+        return f == f  # NaN != NaN
+    except Exception:
+        return False
+
+
+def _extract_statement_rows(df, row_defs: list[tuple[str, list[str], str]], label_fn) -> list[dict]:
+    """Real-data-only extraction: a period is included only if at least
+    one of its real line items actually has a real value — never a row
+    of all-null placeholders. Each individual field is null (not 0, not
+    interpolated) when that specific line item isn't present for that
+    period, so the frontend can qualify/hide per field, not just per
+    period. Column order preserved (yfinance already returns most-recent
+    first)."""
+    if df is None or df.empty:
+        return []
+    periods: list[dict] = []
+    for col in df.columns:
+        try:
+            label = label_fn(col)
+        except Exception:
+            label = str(col)[:10]
+        row_data: dict = {"period": label}
+        any_real = False
+        for key, candidates, unit in row_defs:
+            src_row = next((df.loc[k] for k in candidates if k in df.index), None)
+            val = None
+            if src_row is not None:
+                raw = src_row[col]
+                if _is_real_number(raw):
+                    f = float(raw)
+                    if unit == "currency":
+                        val = round(f / 1e7, 1)
+                    elif unit == "percent":
+                        val = round(f * 100, 1)
+                    else:
+                        val = round(f, 2)
+                    any_real = True
+            row_data[key] = val
+        if any_real:
+            periods.append(row_data)
+    return periods
+
+
+def _annual_label(col) -> str:
+    return col.strftime("FY%y") if hasattr(col, "strftime") else str(col)[:7]
+
+
+def _quarterly_label(col) -> str:
+    return col.strftime("%b '%y") if hasattr(col, "strftime") else str(col)[:7]
+
+
+async def get_stock_financials(symbol: str) -> dict:
+    """The three core financial statements (Income Statement, Balance
+    Sheet, Cash Flow), annual and quarterly where real data exists —
+    Company redesign Financials sub-tabs. Deliberately a separate, lazily-
+    called endpoint (not part of get_stock_detail's payload): fetching
+    six real yfinance DataFrames on every company-page load would add
+    real latency to a path that doesn't need this data until a user
+    actually opens a Financials sub-tab. Real coverage varies sharply by
+    company — confirmed live: a smaller/less-covered real symbol can
+    return completely empty DataFrames for all three statements, and even
+    a well-covered one (RELIANCE) has zero quarterly cash-flow data from
+    this source. Never fabricates a statement or a period to fill a gap —
+    an empty list is the honest answer when the source has nothing."""
+    loop = asyncio.get_event_loop()
+    ns_ticker = f"{symbol.upper()}.NS"
+
+    def _fetch() -> dict:
+        t = yf.Ticker(ns_ticker)
+
+        def _safe(attr: str):
+            try:
+                return getattr(t, attr)
+            except Exception:
+                return None
+
+        income_a  = _safe("financials")
+        income_q  = _safe("quarterly_financials")
+        balance_a = _safe("balance_sheet")
+        balance_q = _safe("quarterly_balance_sheet")
+        cash_a    = _safe("cashflow")
+        cash_q    = _safe("quarterly_cashflow")
+
+        return {
+            "symbol": symbol.upper(),
+            "income_statement": {
+                "annual":    _extract_statement_rows(income_a,  _INCOME_STATEMENT_ROWS, _annual_label),
+                "quarterly": _extract_statement_rows(income_q,  _INCOME_STATEMENT_ROWS, _quarterly_label),
+            },
+            "balance_sheet": {
+                "annual":    _extract_statement_rows(balance_a, _BALANCE_SHEET_ROWS, _annual_label),
+                "quarterly": _extract_statement_rows(balance_q, _BALANCE_SHEET_ROWS, _quarterly_label),
+            },
+            "cash_flow": {
+                "annual":    _extract_statement_rows(cash_a,    _CASH_FLOW_ROWS, _annual_label),
+                "quarterly": _extract_statement_rows(cash_q,    _CASH_FLOW_ROWS, _quarterly_label),
+            },
+        }
+
+    return await loop.run_in_executor(None, _fetch)
+
 
 def _pct_str(v) -> str:
     try:

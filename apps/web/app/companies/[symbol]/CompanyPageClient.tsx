@@ -525,13 +525,20 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
             <tbody className="divide-y divide-surface-border/3">
               <tr>
                 <td className="py-2 text-text-secondary">Revenue</td>
-                {stock.annual_financials.map(f => <td key={f.year} className="py-2 text-right font-semibold text-text-primary">{f.revenue.toLocaleString()}</td>)}
-                <td className="py-2 text-right font-bold text-violet-600 dark:text-violet-300">{stock.quarterly_revenue.reduce((a, b) => a + b.value, 0).toLocaleString()}</td>
+                {/* Real, pre-existing hydration bug found live while testing the
+                    new Financials sub-tabs (2026-08-25): unqualified
+                    toLocaleString() formats digit grouping using the runtime's
+                    default locale, which differs between the Node.js SSR pass
+                    and the browser (e.g. "877,835" server vs "8,77,835"
+                    client), causing React to discard and re-render this whole
+                    tree. Explicit locale makes both passes agree. */}
+                {stock.annual_financials.map(f => <td key={f.year} className="py-2 text-right font-semibold text-text-primary">{f.revenue.toLocaleString("en-IN")}</td>)}
+                <td className="py-2 text-right font-bold text-violet-600 dark:text-violet-300">{stock.quarterly_revenue.reduce((a, b) => a + b.value, 0).toLocaleString("en-IN")}</td>
               </tr>
               <tr>
                 <td className="py-2 text-text-secondary">Net Profit</td>
-                {stock.annual_financials.map(f => <td key={f.year} className={`py-2 text-right font-semibold ${f.net_income >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>{f.net_income.toLocaleString()}</td>)}
-                <td className="py-2 text-right font-bold text-emerald-600 dark:text-emerald-300">{stock.quarterly_net_income.reduce((a, b) => a + b.value, 0).toLocaleString()}</td>
+                {stock.annual_financials.map(f => <td key={f.year} className={`py-2 text-right font-semibold ${f.net_income >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>{f.net_income.toLocaleString("en-IN")}</td>)}
+                <td className="py-2 text-right font-bold text-emerald-600 dark:text-emerald-300">{stock.quarterly_net_income.reduce((a, b) => a + b.value, 0).toLocaleString("en-IN")}</td>
               </tr>
               <tr>
                 <td className="py-2 text-text-secondary">ROE (%)</td>
@@ -1456,6 +1463,228 @@ function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
   );
 }
 
+// ── Financials sub-tabs (Income Statement / Balance Sheet / Cash Flow) ──────
+// Real annual+quarterly data from GET /api/stocks/{symbol}/financials —
+// see market_data.py::get_stock_financials's own docstring for the real
+// yfinance row labels this is built on and why real coverage varies (a
+// smaller company can return entirely empty statements; even RELIANCE
+// has zero quarterly cash-flow data from this source). One fetch covers
+// all three statements, made only once the Financials tab is opened, not
+// on the main company page load.
+interface StatementPeriod { period: string; [field: string]: string | number | null }
+interface StatementData { annual: StatementPeriod[]; quarterly: StatementPeriod[] }
+interface CompanyFinancialsData {
+  symbol: string;
+  income_statement: StatementData;
+  balance_sheet: StatementData;
+  cash_flow: StatementData;
+}
+
+interface StatementFieldDef { key: string; label: string; suffix?: string; prefix?: string }
+
+const INCOME_STATEMENT_FIELDS: StatementFieldDef[] = [
+  { key: "revenue",             label: "Revenue" },
+  { key: "ebitda",               label: "EBITDA" },
+  { key: "operating_profit",     label: "Operating Profit" },
+  { key: "pbt",                  label: "PBT" },
+  { key: "tax_expense",          label: "Tax Expense" },
+  { key: "effective_tax_rate",   label: "Effective Tax Rate", suffix: "%" },
+  { key: "net_profit",           label: "Net Profit" },
+  { key: "eps",                  label: "EPS", prefix: "₹" },
+];
+const BALANCE_SHEET_FIELDS: StatementFieldDef[] = [
+  { key: "total_assets",         label: "Total Assets" },
+  { key: "cash_and_equivalents", label: "Cash & Equivalents" },
+  { key: "receivables",          label: "Receivables" },
+  { key: "inventory",            label: "Inventory" },
+  { key: "total_debt",           label: "Total Debt" },
+  { key: "total_liabilities",    label: "Total Liabilities" },
+  { key: "shareholders_equity",  label: "Shareholders' Equity" },
+  { key: "net_debt",             label: "Net Debt" },
+];
+const CASH_FLOW_FIELDS: StatementFieldDef[] = [
+  { key: "cash_from_operations", label: "Cash from Operations" },
+  { key: "capex",                label: "Capex" },
+  { key: "free_cash_flow",       label: "Free Cash Flow" },
+  { key: "cash_from_investing",  label: "Cash from Investing" },
+  { key: "cash_from_financing",  label: "Cash from Financing" },
+  { key: "dividends",            label: "Dividends" },
+  { key: "net_change_in_cash",   label: "Net Change in Cash" },
+];
+
+// Real, transparent derived trend — a plain YoY % change computed from
+// two adjacent real annual values already shown in the table, never a
+// fabricated/estimated growth figure. Only rendered when both real
+// values exist; never shown for quarterly (adjacent quarters aren't a
+// meaningful YoY comparison) or when either side is missing/zero.
+function yoyPct(curr: number | null | undefined, prev: number | null | undefined): number | null {
+  if (curr == null || prev == null || prev === 0) return null;
+  return Math.round(((curr - prev) / Math.abs(prev)) * 1000) / 10;
+}
+
+function fmtStatementValue(v: number | null | undefined, field: StatementFieldDef): string {
+  if (v == null) return "—";
+  const abs = Math.abs(v);
+  const formatted = field.prefix === "₹" ? v.toFixed(2) : abs >= 1000 ? Math.round(v).toLocaleString("en-IN") : v.toFixed(1);
+  return `${field.prefix ?? ""}${formatted}${field.suffix ?? ""}`;
+}
+
+function StatementTable({ title, data, fields, showYoy }: {
+  title: string; data: StatementData | undefined; fields: StatementFieldDef[]; showYoy?: boolean;
+}) {
+  const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
+  const rows = data?.[period] ?? [];
+
+  if (!data || (data.annual.length === 0 && data.quarterly.length === 0)) {
+    return (
+      <SectionCard title={title}>
+        <p className="text-sm text-text-secondary">No real {title.toLowerCase()} data available for this company yet.</p>
+      </SectionCard>
+    );
+  }
+
+  const hasAnnual = data.annual.length > 0;
+  const hasQuarterly = data.quarterly.length > 0;
+
+  return (
+    <SectionCard title={title} action={
+      hasAnnual && hasQuarterly ? (
+        <div className="flex gap-1 rounded-full border border-surface-border/10 bg-text-primary/[0.03] p-0.5">
+          {(["annual", "quarterly"] as const).map(p => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize transition ${
+                period === p ? "bg-sky-500/20 text-sky-600 dark:text-sky-300" : "text-text-muted hover:text-text-secondary"
+              }`}>
+              {p}
+            </button>
+          ))}
+        </div>
+      ) : null
+    }>
+      {rows.length === 0 ? (
+        <p className="text-sm text-text-secondary">No real {period} {title.toLowerCase()} data available — {hasAnnual ? "annual" : "quarterly"} data is real and shown above.</p>
+      ) : (
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="border-b border-surface-border/6">
+                <th className="pb-2 text-left text-[10px] font-medium text-text-muted">₹ in Crore</th>
+                {rows.map(r => <th key={r.period} className="pb-2 text-right text-[10px] font-medium text-text-muted">{r.period}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-border/3">
+              {fields.map(field => (
+                <tr key={field.key}>
+                  <td className="py-2 text-text-secondary">{field.label}</td>
+                  {rows.map((r, i) => {
+                    const v = r[field.key] as number | null;
+                    const prevV = period === "annual" ? (rows[i + 1]?.[field.key] as number | null) : null;
+                    const yoy = showYoy && period === "annual" && (field.key === "revenue" || field.key === "net_profit") ? yoyPct(v, prevV) : null;
+                    return (
+                      <td key={r.period} className="py-2 text-right font-semibold text-text-primary">
+                        {fmtStatementValue(v, field)}
+                        {yoy != null && (
+                          <span className={`ml-1.5 text-[10px] font-medium ${yoy >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                            {yoy >= 0 ? "▲" : "▼"}{Math.abs(yoy)}%
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+const FINANCIALS_SUB_TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "income",   label: "Income Statement" },
+  { id: "balance",  label: "Balance Sheet" },
+  { id: "cashflow", label: "Cash Flow" },
+] as const;
+type FinancialsSubTab = typeof FINANCIALS_SUB_TABS[number]["id"];
+
+function FinancialsSubNav({ active, onChange }: { active: FinancialsSubTab; onChange: (t: FinancialsSubTab) => void }) {
+  return (
+    <nav
+      aria-label="Financials sections"
+      className="sticky top-[104px] z-20 -mx-1 mb-4 flex gap-1 overflow-x-auto border-b border-surface-border/8 bg-surface-base/90 px-1 py-1 backdrop-blur scrollbar-hide lg:top-[128px]"
+    >
+      {FINANCIALS_SUB_TABS.map(t => (
+        <button
+          key={t.id}
+          onClick={() => onChange(t.id)}
+          aria-current={active === t.id ? "page" : undefined}
+          className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors ${
+            active === t.id
+              ? "bg-sky-500/15 text-sky-600 dark:text-sky-300"
+              : "text-text-muted hover:bg-text-primary/[0.04] hover:text-text-secondary"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function FinancialsTabBody({ stock }: { stock: StockDetail }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requestedSub = searchParams.get("fsub");
+  const subTab: FinancialsSubTab = FINANCIALS_SUB_TABS.some(t => t.id === requestedSub)
+    ? (requestedSub as FinancialsSubTab)
+    : "overview";
+  const setSubTab = useCallback((t: FinancialsSubTab) => {
+    const base = `${pathname}?tab=financials`;
+    router.push(t === "overview" ? base : `${base}&fsub=${t}`, { scroll: false });
+  }, [router, pathname]);
+
+  const [financials, setFinancials] = useState<CompanyFinancialsData | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setFinancials(null);
+    fetch(`${API}/api/stocks/${stock.symbol}/financials`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setFinancials(d); })
+      .catch(() => { if (!cancelled) setFinancials(null); });
+    return () => { cancelled = true; };
+  }, [stock.symbol]);
+
+  return (
+    <>
+      <FinancialsSubNav active={subTab} onChange={setSubTab}/>
+      {subTab === "overview" && <>
+        <FinancialHighlights stock={stock}/>
+        <KeyRatios stock={stock}/>
+        <Shareholding stock={stock}/>
+        <HistoricalPerformance stock={stock}/>
+      </>}
+      {subTab === "income" && (
+        financials === null
+          ? null
+          : <StatementTable title="Income Statement" data={financials.income_statement} fields={INCOME_STATEMENT_FIELDS} showYoy/>
+      )}
+      {subTab === "balance" && (
+        financials === null
+          ? null
+          : <StatementTable title="Balance Sheet" data={financials.balance_sheet} fields={BALANCE_SHEET_FIELDS}/>
+      )}
+      {subTab === "cashflow" && (
+        financials === null
+          ? null
+          : <StatementTable title="Cash Flow" data={financials.cash_flow} fields={CASH_FLOW_FIELDS}/>
+      )}
+    </>
+  );
+}
+
 // ── Events tab body (Batch 3) ───────────────────────────────────────────────
 // Fetches the real, symbol-matched event set (GET /api/events?company=)
 // only while the Events tab is mounted — see EventTimeline's own comment
@@ -2020,12 +2249,7 @@ function StockPageInner({ params, initialStock, initialRelated }: PageProps & { 
                 got the identical 42/28/16/14 split; the cards were formula-
                 derived with hardcoded scores) with zero disclosure. See
                 artifacts/company_redesign_audit_spec.md §C/§D. */}
-            {activeTab === "financials" && <>
-              <FinancialHighlights stock={stock}/>
-              <KeyRatios stock={stock}/>
-              <Shareholding stock={stock}/>
-              <HistoricalPerformance stock={stock}/>
-            </>}
+            {activeTab === "financials" && <FinancialsTabBody stock={stock}/>}
 
             {/* Live-verified real gap (Batch 1): EventTimeline/NewsImpact
                 both already return null on empty data — correct, no
