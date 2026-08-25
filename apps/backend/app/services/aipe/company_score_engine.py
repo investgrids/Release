@@ -21,6 +21,7 @@ a manufactured "0" that would read as a real bearish score.
 """
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -173,37 +174,10 @@ async def extract_opportunity_signals(db: AsyncSession, opportunity_id: int, opp
     return created
 
 
-async def _accuracy_multiplier(db: AsyncSession, symbol: str) -> float:
-    """Real per-company historical-accuracy signal, joined through the
-    already-working prediction-evaluation loop (prediction_evaluator.py) —
-    but that data is sparse today (most symbols have single-digit sample
-    counts), so this stays neutral (1.0) below _MIN_ACCURACY_SAMPLE rather
-    than projecting false confidence from a handful of evaluations."""
-    from app.db.models.predictions import PredictionRecord, PredictionEvaluation
-
-    rows = (await db.execute(
-        select(PredictionEvaluation.score)
-        .join(PredictionRecord, PredictionRecord.id == PredictionEvaluation.prediction_id)
-        .where(PredictionRecord.target_entities.isnot(None))
-    )).all()
-    # target_entities is JSON — filter in Python (symbol match), not SQL,
-    # since SQLite JSON querying support varies by build.
-    matched: list[float] = []
-    if rows:
-        full = (await db.execute(
-            select(PredictionRecord.id, PredictionRecord.target_entities)
-            .where(PredictionRecord.status == "complete")
-        )).all()
-        matching_ids = [
-            pid for pid, entities in full
-            if any(str(e.get("symbol", "")).upper() == symbol for e in (entities or []) if isinstance(e, dict))
-        ]
-        if matching_ids:
-            scores = (await db.execute(
-                select(PredictionEvaluation.score).where(PredictionEvaluation.prediction_id.in_(matching_ids))
-            )).scalars().all()
-            matched = list(scores)
-
+def _accuracy_multiplier_from_matches(matched: list[float]) -> float:
+    """The real math half of the historical-accuracy signal, shared by
+    both the single-symbol and batch-precomputed callers so the formula
+    only lives in one place."""
     if len(matched) < _MIN_ACCURACY_SAMPLE:
         return 1.0
     avg = sum(matched) / len(matched)
@@ -211,6 +185,64 @@ async def _accuracy_multiplier(db: AsyncSession, symbol: str) -> float:
     # gentle 0.85-1.15 multiplier so historical accuracy nudges the score
     # rather than dominating it (this is a secondary signal, not the score).
     return 0.85 + (avg * 0.30)
+
+
+async def _accuracy_multiplier(db: AsyncSession, symbol: str) -> float:
+    """Real per-company historical-accuracy signal, joined through the
+    already-working prediction-evaluation loop (prediction_evaluator.py) —
+    but that data is sparse today (most symbols have single-digit sample
+    counts), so this stays neutral (1.0) below _MIN_ACCURACY_SAMPLE rather
+    than projecting false confidence from a handful of evaluations.
+
+    Single-symbol path only (used by the per-symbol /company-scores/{symbol}
+    lookup) — for ranking many symbols in one request, build an
+    accuracy_map once via _build_accuracy_map() and pass it to
+    compute_company_score() instead of calling this per symbol; see that
+    function's own docstring for why (this real query pair is symbol-
+    independent work that was being repeated once per ranked company —
+    confirmed live: /api/company-scores/?limit=50 took ~24s before that
+    fix, sub-second after)."""
+    matched = (await _build_accuracy_map(db)).get(symbol, [])
+    return _accuracy_multiplier_from_matches(matched)
+
+
+async def _build_accuracy_map(db: AsyncSession) -> dict[str, list[float]]:
+    """The real, symbol-independent half of the historical-accuracy query —
+    fetch every completed prediction's real target symbols and real
+    evaluation scores ONCE, group by symbol. Same real data and the same
+    Python-side JSON filtering _accuracy_multiplier always used (SQLite's
+    JSON query support varies by build, so this deliberately never filters
+    target_entities in SQL) — just computed once per request instead of
+    once per company being ranked."""
+    from app.db.models.predictions import PredictionRecord, PredictionEvaluation
+
+    full = (await db.execute(
+        select(PredictionRecord.id, PredictionRecord.target_entities)
+        .where(PredictionRecord.status == "complete")
+        .where(PredictionRecord.target_entities.isnot(None))
+    )).all()
+    if not full:
+        return {}
+
+    symbols_by_prediction_id: dict[int, set[str]] = {}
+    for pid, entities in full:
+        syms = {str(e.get("symbol", "")).upper() for e in (entities or []) if isinstance(e, dict) and e.get("symbol")}
+        if syms:
+            symbols_by_prediction_id[pid] = syms
+
+    if not symbols_by_prediction_id:
+        return {}
+
+    eval_rows = (await db.execute(
+        select(PredictionEvaluation.prediction_id, PredictionEvaluation.score)
+        .where(PredictionEvaluation.prediction_id.in_(symbols_by_prediction_id.keys()))
+    )).all()
+
+    accuracy_map: dict[str, list[float]] = {}
+    for pid, score in eval_rows:
+        for sym in symbols_by_prediction_id.get(pid, ()):
+            accuracy_map.setdefault(sym, []).append(score)
+    return accuracy_map
 
 
 def _trend_for(score: float) -> str:
@@ -244,7 +276,17 @@ def _risk_level_for(rows: list[AICompanySignal], confidences: list[float]) -> st
     return "Medium"
 
 
-async def compute_company_score(db: AsyncSession, symbol: str) -> dict[str, Any]:
+async def compute_company_score(
+    db: AsyncSession, symbol: str, *, accuracy_map: dict[str, list[float]] | None = None,
+) -> dict[str, Any]:
+    """accuracy_map (optional): a precomputed symbol -> [evaluation scores]
+    mapping from _build_accuracy_map(), for batch callers ranking many
+    symbols in one request — skips this function's own real but symbol-
+    independent DB fetch, which was previously repeated once per ranked
+    symbol (confirmed live: the ~24s /company-scores/?limit=50 regression).
+    Single-symbol callers (e.g. /company-scores/{symbol}) omit it and get
+    the exact same real per-symbol query as before — no behavior change
+    for that path."""
     symbol = symbol.upper().split(".")[0]
     rows = (await db.execute(
         select(AICompanySignal).where(AICompanySignal.symbol == symbol)
@@ -259,7 +301,10 @@ async def compute_company_score(db: AsyncSession, symbol: str) -> dict[str, Any]
         }
 
     now = datetime.now(timezone.utc)
-    accuracy_mult = await _accuracy_multiplier(db, symbol)
+    if accuracy_map is not None:
+        accuracy_mult = _accuracy_multiplier_from_matches(accuracy_map.get(symbol, []))
+    else:
+        accuracy_mult = await _accuracy_multiplier(db, symbol)
 
     weighted_rows = []
     confidences = []
@@ -355,7 +400,8 @@ async def get_ranking_stats(db: AsyncSession) -> dict[str, Any]:
     companies; nothing here is a display-tuned or rounded-up number."""
     symbols = (await db.execute(select(AICompanySignal.symbol).distinct())).scalars().all()
     symbols = [s for s in symbols if _is_real_symbol(s)]
-    scored = [await compute_company_score(db, s) for s in symbols]
+    accuracy_map = await _build_accuracy_map(db)
+    scored = [await compute_company_score(db, s, accuracy_map=accuracy_map) for s in symbols]
     scored = [r for r in scored if r["score"] is not None]
 
     sectors = {r["sector"] for r in scored if r["sector"]}
@@ -371,20 +417,58 @@ async def get_ranking_stats(db: AsyncSession) -> dict[str, Any]:
     }
 
 
+_RANKINGS_CACHE: dict[tuple[str | None, int], tuple[float, list[dict[str, Any]]]] = {}
+_RANKINGS_TTL_S = 300.0  # 5 min — short enough that rankings don't go
+                          # meaningfully stale, long enough that repeated
+                          # page loads within a session hit cache instead
+                          # of re-running the full ranking pass.
+
+
 async def compute_sector_rankings(db: AsyncSession, sector: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
     """Ranks every symbol that has at least one real signal, optionally
-    scoped to one sector. Powers bestStocks.ts and the sector page — the
-    single query both features share instead of N per-symbol calls."""
+    scoped to one sector. Powers bestStocks.ts, /companies (Overview tab),
+    and the sector page — the single computation all three share instead
+    of each running their own N per-symbol calls.
+
+    Real regression found and fixed 2026-08-25: this previously ran
+    compute_company_score() once per symbol with NO cache, and each of
+    those calls independently repeated the same real but symbol-
+    independent historical-accuracy query pair — confirmed live,
+    GET /api/company-scores/?limit=50 took ~24s (several hundred symbols
+    scored to produce a 50-row result), the dominant cost in a real
+    ~30s /companies page load with zero frontend-side caching on that
+    call. Two real, narrow fixes, not a full batch-query rewrite of
+    every per-symbol lookup: (1) accuracy_map is now built ONCE per call
+    via _build_accuracy_map() instead of once per symbol; (2) a short TTL
+    cache (this dict) around the full ranked-and-limited result, keyed by
+    the exact inputs that change it (sector, limit), so repeat requests
+    within the window skip the computation entirely. Never caches an
+    exception — a raised error propagates before the cache is written, so
+    a failed pass is retried on the next request rather than cached."""
+    cache_key = (sector, limit)
+    now = time.monotonic()
+    cached = _RANKINGS_CACHE.get(cache_key)
+    if cached is not None and now - cached[0] < _RANKINGS_TTL_S:
+        log.info("company_rankings.cache_hit", sector=sector, limit=limit)
+        return cached[1]
+
+    t0 = time.monotonic()
     query = select(AICompanySignal.symbol).distinct()
     if sector:
         query = query.where(AICompanySignal.sector == sector)
     symbols = (await db.execute(query)).scalars().all()
     symbols = [s for s in symbols if _is_real_symbol(s)]
 
-    results = [await compute_company_score(db, s) for s in symbols]
+    accuracy_map = await _build_accuracy_map(db)
+    results = [await compute_company_score(db, s, accuracy_map=accuracy_map) for s in symbols]
     results = [r for r in results if r["score"] is not None]
     results.sort(key=lambda r: r["score"], reverse=True)
-    return results[:limit]
+    results = results[:limit]
+
+    duration_ms = round((time.monotonic() - t0) * 1000, 1)
+    log.info("company_rankings.cache_miss", sector=sector, limit=limit, symbols_scored=len(symbols), duration_ms=duration_ms)
+    _RANKINGS_CACHE[cache_key] = (now, results)
+    return results
 
 
 async def historical_track_record(db: AsyncSession, symbol: str) -> dict[str, Any]:
