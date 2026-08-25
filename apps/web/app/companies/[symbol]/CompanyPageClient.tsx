@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState, useCallback, useMemo, useRef, Suspense } from "react";
+import { use, useEffect, useState, useCallback, useMemo, useRef, useId, Suspense } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -1524,14 +1524,15 @@ function WhatToWatchCard({ points }: { points: string[] }) {
 // primary read. Collapsed by default.
 function MoreAnalysisDisclosure({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const panelId = useId();
   return (
     <div>
-      <button onClick={() => setOpen(o => !o)}
+      <button onClick={() => setOpen(o => !o)} aria-expanded={open} aria-controls={panelId}
         className="flex w-full items-center justify-between rounded-xl border border-surface-border/10 bg-text-primary/[0.02] px-4 py-3 text-[12px] font-medium text-text-secondary hover:bg-text-primary/[0.04] transition">
         <span>{open ? "Hide" : "Show"} more analysis (Stock DNA, Pattern Intelligence)</span>
-        <span className="text-text-muted">{open ? "▲" : "▼"}</span>
+        <span className="text-text-muted" aria-hidden="true">{open ? "▲" : "▼"}</span>
       </button>
-      {open && <div className="mt-4 space-y-6">{children}</div>}
+      {open && <div id={panelId} className="mt-4 space-y-6">{children}</div>}
     </div>
   );
 }
