@@ -10,7 +10,6 @@ import { InvestmentThesis, ScenarioAnalysis, MonitoringChecklist, PatternIntelli
 import { useIntelligence } from "@/hooks/useIntelligence";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { SmartCTA } from "@/components/SmartCTA";
-import { NextSteps } from "@/components/NextSteps";
 import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSection";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
@@ -200,14 +199,43 @@ function MiniBar({ label, value, max = 100, color }: { label: string; value: num
 }
 
 // ── Section 1: Company Hero ───────────────────────────────────────────────────
+// Batch B (2026-08-25, Company Simplification spec) — this header
+// previously showed "AI Score" as the average of Stock DNA sub-scores,
+// silently substituting a hardcoded 72 when dna_scores was absent. That
+// number had nothing to do with the real, evidence-backed Company Score
+// (company_score_engine.py, served at /api/company-scores/{symbol} and
+// already shown honestly elsewhere on this page — CompanyScoreContributors,
+// OpportunityRadarSection). Worse, IntelligencePanel's sidebar "AI Rating"
+// gauge (visible on every tab) duplicated the exact same fabricated
+// StockDNA-or-72 number under a second label ("AI Investment Rating") —
+// two competing, both-fake headline ratings on every page load. Fixed by
+// making the header the single place a real Company Score is shown,
+// sourced from the real endpoint, with an honest "Insufficient evidence"
+// state instead of a fabricated number — never omitted silently, per the
+// owner's spec, so it stays a real, ever-present promise: there IS one
+// rating here, and it is either real or explicitly marked as not yet
+// available.
+function useCompanyRating(symbol: string) {
+  const [rating, setRating] = useState<CompanyScoreData | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    setRating(undefined);
+    fetch(`${API}/api/company-scores/${symbol}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setRating(d); })
+      .catch(() => { if (!cancelled) setRating(null); });
+    return () => { cancelled = true; };
+  }, [symbol]);
+  return rating;
+}
+
 function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRenderedH1 }: {
   stock: StockDetail; symbol: string; watchlisted: boolean; setWatchlisted: (v: boolean) => void; serverRenderedH1: boolean;
 }) {
   const isPos = stock.pct_change >= 0;
   const sign  = isPos ? "+" : "";
-  const ai_score = stock.dna_scores
-    ? Math.round(Object.values(stock.dna_scores).reduce((a, b) => a + b, 0) / Math.max(Object.values(stock.dna_scores).length, 1))
-    : 72;
+  const rating = useCompanyRating(stock.symbol);
+  const hasRealRating = !!rating && rating.signal_count > 0 && rating.score != null;
 
   return (
     <motion.div variants={fadeUp} initial="hidden" animate="show"
@@ -273,13 +301,27 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
               { label: "Market Cap",   value: stock.market_cap },
               { label: "PE Ratio",     value: stock.pe },
               { label: "Dividend",     value: stock.dividend_yield },
-              { label: "AI Score",     value: `${ai_score}/100` },
             ].map(k => (
               <div key={k.label} className="rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-3 text-center min-w-[90px]">
                 <p className="text-[9px] uppercase tracking-widest text-text-muted">{k.label}</p>
                 <p className="mt-1 text-[14px] font-black text-text-primary">{k.value || "—"}</p>
               </div>
             ))}
+            {/* The one real, primary MarketRipple rating for this company —
+                see useCompanyRating above for why this replaced the old
+                fabricated "AI Score" tile. */}
+            <div className={`rounded-2xl border px-4 py-3 text-center min-w-[90px] ${
+              hasRealRating ? "border-emerald-500/20 bg-emerald-500/[0.05]" : "border-surface-border/10 bg-text-primary/[0.03]"
+            }`}>
+              <p className="text-[9px] uppercase tracking-widest text-text-muted">MarketRipple Score</p>
+              {rating === undefined ? (
+                <p className="mt-1 text-[14px] font-black text-text-muted">···</p>
+              ) : hasRealRating ? (
+                <p className="mt-1 text-[14px] font-black text-emerald-500">{Math.round(rating!.score!)}/100</p>
+              ) : (
+                <p className="mt-1 text-[11px] font-semibold text-text-muted" title="No real published analysis or opportunity signal exists for this company yet.">Insufficient evidence</p>
+              )}
+            </div>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setWatchlisted(!watchlisted)}
@@ -377,6 +419,19 @@ function AISummary({ stock }: { stock: StockDetail }) {
     stock.dna_scores["News Sensitivity"] > 70 && "High sensitivity to macro news",
     stock.gov_score >= 75 && "Concentrated revenue dependency on govt. contracts",
   ].filter(Boolean).slice(0, 4);
+  // Batch B (2026-08-25) — this card's header used to read "AI Company
+  // Summary" with an "AI Generated" badge, but neither the description
+  // (yfinance's real longBusinessSummary, when present) nor the
+  // bullish/risk lines below (simple real-field threshold checks, not
+  // model output) are actually AI-generated — that badge was a false
+  // provenance claim on real, non-AI content. Also removed the
+  // fabricated generic fallback paragraph ("is a leading {sector}
+  // company listed on NSE...") that used to render, identically worded,
+  // for any company missing a real description — an honest missing-data
+  // state now renders instead. This section stays as "Company Snapshot"
+  // for this batch; Batch C folds its real description into the
+  // rebuilt Overview's About section.
+  if (!stock.description && !bullish.length && !risks.length) return null;
   return (
     <SectionCard>
       <div className="flex items-start gap-4">
@@ -385,12 +440,13 @@ function AISummary({ stock }: { stock: StockDetail }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-[15px] font-bold text-text-primary">AI Company Summary</h2>
-            <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-300">AI Generated</span>
+            <h2 className="text-[15px] font-bold text-text-primary">Company Snapshot</h2>
           </div>
-          <p className="text-[13px] leading-6 text-text-secondary line-clamp-3">
-            {stock.description || `${stock.name} is a leading ${stock.sector} company listed on NSE. The company operates across multiple business verticals with a strong focus on operational excellence and shareholder value creation.`}
-          </p>
+          {stock.description ? (
+            <p className="text-[13px] leading-6 text-text-secondary line-clamp-3">{stock.description}</p>
+          ) : (
+            <p className="text-[13px] leading-6 text-text-muted">No company description available.</p>
+          )}
           <AnimatePresence>
             {expanded && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
@@ -1272,12 +1328,16 @@ function OverviewGrid({ stock, relatedNews }: { stock: StockDetail; relatedNews:
 // duplicating the real, working ShareInsightCard already rendered
 // elsewhere on this page) entirely. See
 // artifacts/company_redesign_audit_spec.md §C.
+// Batch B (2026-08-25) — removed the "AI Rating" gauge that used to sit
+// here: it computed the exact same fabricated StockDNA-average-or-72
+// number as CompanyHero's old "AI Score" tile (see useCompanyRating above
+// for the full explanation), labeled "AI Investment Rating", and — because
+// this panel is sticky on every tab — sat on screen at the same time as
+// the header's rating, presenting two different numbers under two
+// different labels as if they were two separate real ratings. The header
+// now carries the one real MarketRipple Score; nothing here should
+// re-derive a second one.
 function IntelligencePanel({ stock }: { stock: StockDetail }) {
-  const ai_score = stock.dna_scores
-    ? Math.round(Object.values(stock.dna_scores).reduce((a, b) => a + b, 0) / Math.max(Object.values(stock.dna_scores).length, 1))
-    : 72;
-  const col = scoreColor(ai_score);
-  const rec_label = neutralRating(stock.recommendation);
   return (
     <div className="space-y-5">
 
@@ -1294,27 +1354,6 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
           <KvRow label="Dividend Yield"    value={stock.dividend_yield}/>
           <KvRow label="52W High"          value={`₹${stock.week52_high}`}/>
           <KvRow label="52W Low"           value={`₹${stock.week52_low}`}/>
-        </div>
-      </div>
-
-      {/* AI Rating */}
-      <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">AI Rating</h3>
-        <div className="flex flex-col items-center py-3">
-          <div className="relative h-24 w-24">
-            <svg className="h-24 w-24" style={{ transform: "rotate(-90deg)" }} viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="30" stroke="rgb(var(--text-primary) / 0.08)" strokeWidth={6} fill="none"/>
-              <circle cx="40" cy="40" r="30" stroke={col} strokeWidth={6} fill="none"
-                strokeLinecap="round" strokeDasharray={`${(ai_score / 100) * 2 * Math.PI * 30} ${2 * Math.PI * 30}`}
-                style={{ filter: `drop-shadow(0 0 6px ${col}80)` }}/>
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[22px] font-black" style={{ color: col }}>{ai_score}</span>
-              <span className="text-[8px] text-text-muted">/ 100</span>
-            </div>
-          </div>
-          <p className="mt-2 text-[13px] font-bold text-text-primary">{rec_label}</p>
-          <p className="text-[10px] text-text-muted">AI Investment Rating</p>
         </div>
       </div>
 
@@ -2099,47 +2138,16 @@ function StockPageInner({ params, initialStock, initialRelated }: PageProps & { 
                 title={`${stock.name} (${stock.symbol})`}
                 summary={stock.description?.slice(0, 120)}
               />
-              <NextSteps config={{
-                takeaway: `${stock.name} analyst consensus reads ${neutralRating(stock.recommendation)} with a P/E of ${stock.pe ?? "N/A"}x — understand the valuation context before sizing a position.`,
-                primary: {
-                  label: `Ask AI: Is ${stock.name} fairly valued right now?`,
-                  why:   `Because a P/E of ${stock.pe ?? "N/A"}x needs to be compared against sector peers and growth expectations to be meaningful.`,
-                  href:  `/ai-search?q=${encodeURIComponent(`Is ${stock.name} (${stock.symbol}) fairly valued at its current price? How does its PE of ${stock.pe ?? "N/A"} compare to ${stock.sector ?? "sector"} peers and justify the current valuation?`)}`,
-                },
-                groups: [
-                  {
-                    label: "Compare",
-                    actions: [
-                      {
-                        label: `Find ${stock.sector ?? "sector"} competitors`,
-                        why:   `Because valuation only makes sense relative to alternatives — comparing peers reveals whether any premium or discount is justified.`,
-                        href:  `/ai-search?q=${encodeURIComponent(`Compare ${stock.name} with the top 3 competitors in ${stock.sector ?? "its sector"} — valuation, growth rate, and risk`)}`,
-                      },
-                    ],
-                  },
-                  {
-                    label: "Continue Research",
-                    actions: [
-                      {
-                        label: `View events affecting ${stock.name}`,
-                        why:   `Because the investment case must account for macro and company-specific developments — events reveal the 'why' behind price moves.`,
-                        href:  `/events`,
-                      },
-                      {
-                        label: "Trace sector ripple effects",
-                        why:   `Because ${stock.sector ?? "sector"} moves create upstream and downstream implications that affect the entire thesis.`,
-                        href:  `/ripple`,
-                      },
-                      {
-                        label: `Check real coverage on ${stock.name}`,
-                        why:   `Because a thesis is only as good as the real, recent data behind it — see exactly how much event and news activity we're tracking on this name.`,
-                        href:  "/tools/portfolio-confidence",
-                      },
-                    ],
-                  },
-                ],
-                path: [stock.sector ?? "Sector", stock.name, "Valuation", "Investment Thesis"],
-              }} />
+              {/* Batch B (Company Simplification spec, §2) — removed the
+                  entire NextSteps/"Research Journey" block per explicit
+                  instruction: not redesigned, removed. It carried a
+                  Key Takeaway sentence, a "★ Recommended" Ask-AI CTA, a
+                  hardcoded "Compare"/"Continue Research" hub with
+                  templated "why" copy identical in structure for every
+                  company, and a breadcrumb-style Intelligence Path. None
+                  of it was real, company-specific research guidance —
+                  it was generic hub navigation dressed as personalized
+                  next steps. */}
               <RelatedStories stock={stock}/>
             </>}
 
