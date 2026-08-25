@@ -351,13 +351,32 @@ async def get_company_intelligence(symbol: str) -> dict:
             or any(sym_lower in (c or "").lower() for c in (n.companies or []))
         ][:5]
 
-        # Fallback: if nothing company-specific, use recent context
-        if not company_triage:
-            company_triage = triage_rows[:4]
-        if not company_news:
-            company_news = news_rows[:4]
+        # Company redesign intelligence-integrity audit (2026-08-25) — real,
+        # exactly-reproduced bug: this used to fall back to the most recent
+        # 4 EventTriage/NewsArticle rows for ANY company when this specific
+        # company had none, then labeled them "RECENT MARKET EVENTS RELATED
+        # TO THIS COMPANY" in the LLM prompt — a real wrong-entity
+        # contamination, not a hallucination. Live-confirmed: 3IINFOLTD (no
+        # real recent coverage) was fed IIFL Finance's real, unrelated
+        # tax-demand story under that "related to this company" label, and
+        # the model produced "3IINFOLTD (IIFL Finance) faces headwinds..."
+        # — a real company's real news, wrongly attributed. This is
+        # systemic, not isolated: any company with zero real recent
+        # triage/news coverage hit this same path. Fix: never borrow
+        # another company's real content as if it were this company's
+        # context. No real company-specific evidence -> no company-specific
+        # AI call at all; the honest _fallback() response is returned
+        # instead of asking the model to write a "market story" it has no
+        # real grounding for.
+        if not company_triage and not company_news:
+            result = _fallback("company", sym)
+            _cset(ck, result)
+            return result
 
-        # Inject MIE master story as base context — all pages share the same story
+        # Inject MIE master story as base context — all pages share the same
+        # story, and it's explicitly labeled as market-wide (never
+        # per-company), so it can't be mistaken for this company's own
+        # evidence the way the removed fallback rows were.
         mie_story = ""
         mie_mood = ""
         try:
@@ -370,7 +389,7 @@ async def get_company_intelligence(symbol: str) -> dict:
 
         parts = [f"COMPANY: {sym}", "EXCHANGE: NSE India"]
         if mie_story:
-            parts.append(f"MASTER MARKET NARRATIVE: {mie_story[:300]}")
+            parts.append(f"MASTER MARKET NARRATIVE (market-wide context, not specific to {sym}): {mie_story[:300]}")
         if mie_mood:
             parts.append(f"MARKET MOOD: {mie_mood}")
         if company_triage:

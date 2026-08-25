@@ -175,8 +175,13 @@ export function PatternIntelligenceCard({
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Real, systemic bug found+fixed 2026-08-25 (3IINFOLTD/IIFL wrong-
+  // entity-intelligence audit) — see InvestmentThesis.tsx's identical
+  // fix for the full explanation of `cancelled`.
   useEffect(() => {
     if (!entityType || !entityId) return;
+    let cancelled = false;
+    setFetched(null);
     setLoading(true);
     const params = new URLSearchParams();
     if (entityTitle)       params.set("title",       entityTitle.slice(0, 200));
@@ -195,9 +200,10 @@ export function PatternIntelligenceCard({
       // responses are now treated the same as "no real analysis" — never
       // stored into `fetched`, so the existing honest empty state renders
       // instead of fabricated content.
-      .then(d => { if (d?.patterns && !d?.degraded) setFetched(d); })
+      .then(d => { if (!cancelled && d?.patterns && !d?.degraded) setFetched(d); })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [entityType, entityId, entityTitle, entityDescription, entitySector]);
 
   const patterns   = staticPatterns   ?? fetched?.patterns   ?? [];

@@ -48,12 +48,25 @@ function Stars({ n }: { n: number }) {
 export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: { symbol: string; govScore?: number | null; pricePositive?: boolean | null }) {
   const [data, setData] = useState<CompanyIntel | null>(null);
 
+  // Real, systemic bug found+fixed 2026-08-25 (3IINFOLTD/IIFL wrong-
+  // entity-intelligence audit) — without `cancelled`, a stale in-flight
+  // request for a previously-viewed company could overwrite the
+  // currently-displayed company's real data after the fact, with no
+  // further re-render to correct it. Same fix applied across every
+  // entity-scoped intelligence component that does its own fetch (see
+  // components/intelligence/InvestmentThesis.tsx for the full
+  // explanation).
   useEffect(() => {
+    let cancelled = false;
+    setData(null);
     const params = new URLSearchParams();
     if (govScore != null) params.set("gov_score", String(govScore));
     if (pricePositive != null) params.set("price_positive", String(pricePositive));
     fetch(`${API}/api/company-intelligence/${symbol}?${params.toString()}`)
-      .then(r => r.json()).then(setData).catch(() => setData({ available: false }));
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setData({ available: false }); });
+    return () => { cancelled = true; };
   }, [symbol, govScore, pricePositive]);
 
   if (!data?.available) return null;

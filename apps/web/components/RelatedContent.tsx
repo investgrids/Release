@@ -89,23 +89,29 @@ export function RelatedContent({
   // identical pattern for the full reasoning.
   const skippedFirstResetRef = useRef(!!initialData);
 
+  // Real, systemic bug found+fixed 2026-08-25 (3IINFOLTD/IIFL wrong-
+  // entity-intelligence audit) — see components/intelligence/
+  // InvestmentThesis.tsx's identical fix for the full explanation of
+  // `cancelled`.
   useEffect(() => {
     if (!entityId) return;
     if (skippedFirstResetRef.current) {
       skippedFirstResetRef.current = false;
       return;
     }
+    let cancelled = false;
     const params = new URLSearchParams();
     if (title)  params.set("title",  title);
     if (sector) params.set("sector", sector);
     fetch(`${API}/api/related/${entityType}/${encodeURIComponent(entityId)}?${params}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (!data) return;
+        if (!data || cancelled) return;
         setGroups(buildGroups(data as Record<string, RelatedItem[]>));
       })
       .catch(() => {/* ignore */})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [entityType, entityId, title, sector]);
 
   if (!loading && groups.length === 0) return null;
