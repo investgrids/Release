@@ -60,7 +60,8 @@ export interface StockDetail  {
 interface PageProps { params: Promise<{ symbol: string }> }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
-const CARD = "rounded-[28px] border border-surface-border/10 bg-text-primary/[0.04] shadow-[0_20px_60px_rgba(0,0,0,.35)] transition-all duration-300 hover:border-sky-400/20";
+// 2026-08-25 — no box shadows, flat card treatment per owner request.
+const CARD = "rounded-[28px] border border-surface-border/10 bg-text-primary/[0.04] transition-colors duration-300 hover:border-sky-400/20";
 const PERIODS = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y", "Max"];
 
 const ANALYST_ICONS: React.ReactNode[] = [
