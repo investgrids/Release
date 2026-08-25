@@ -15,7 +15,7 @@ import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { scoreToColor, impactToStyle } from "@/lib/scoring";
 import {
-  Star, Check, Sparkles, TrendingUp, IndianRupee, Target, Zap,
+  Star, Check, Sparkles, TrendingUp,
   BarChart2, TrendingDown, Landmark, Briefcase, Clock,
 } from "lucide-react";
 
@@ -28,7 +28,6 @@ import {
 // artifacts/company_redesign_audit_spec.md §C.
 const PriceAreaChart              = dynamic(() => import("./CompanyCharts").then(m => m.PriceAreaChart),              { ssr: false });
 const DnaRadarChart               = dynamic(() => import("./CompanyCharts").then(m => m.DnaRadarChart),               { ssr: false });
-const Sparkline                   = dynamic(() => import("./CompanyCharts").then(m => m.Sparkline),                   { ssr: false });
 const ShareholdingDonut           = dynamic(() => import("./CompanyCharts").then(m => m.ShareholdingDonut),           { ssr: false });
 const HistoricalPerformanceBarChart = dynamic(() => import("./CompanyCharts").then(m => m.HistoricalPerformanceBarChart), { ssr: false });
 
@@ -456,32 +455,31 @@ function StockDNA({ stock }: { stock: StockDetail }) {
 
 // ── Section 5: Financial Highlights ──────────────────────────────────────────
 function FinancialHighlights({ stock }: { stock: StockDetail }) {
-  const kpis: { label: string; value: number; suffix: string; color: string; icon: React.ReactNode }[] = [
-    { label: "Revenue",   value: stock.quarterly_revenue.slice(-1)[0]?.value ?? 0,    suffix: " Cr", color: "text-sky-400",     icon: <TrendingUp className="h-4 w-4" /> },
-    { label: "Net Profit",value: stock.quarterly_net_income.slice(-1)[0]?.value ?? 0, suffix: " Cr", color: "text-emerald-400", icon: <IndianRupee className="h-4 w-4" /> },
-    { label: "ROE",       value: n2(stock.roe),  suffix: "%",   color: "text-violet-400", icon: <Target className="h-4 w-4" /> },
-    { label: "ROCE",      value: n2(stock.roce), suffix: "%",   color: "text-amber-400",  icon: <Zap className="h-4 w-4" /> },
-    { label: "EPS",       value: n2(stock.eps),  suffix: "",    color: "text-teal-400",   icon: <BarChart2 className="h-4 w-4" /> },
+  const kpis: { label: string; value: number; suffix: string; color: string }[] = [
+    { label: "Revenue",   value: stock.quarterly_revenue.slice(-1)[0]?.value ?? 0,    suffix: " Cr", color: "text-sky-400" },
+    { label: "Net Profit",value: stock.quarterly_net_income.slice(-1)[0]?.value ?? 0, suffix: " Cr", color: "text-emerald-400" },
+    { label: "ROE",       value: n2(stock.roe),  suffix: "%",   color: "text-violet-400" },
+    { label: "ROCE",      value: n2(stock.roce), suffix: "%",   color: "text-amber-400" },
+    { label: "EPS",       value: n2(stock.eps),  suffix: "",    color: "text-teal-400" },
   ];
   return (
     <SectionCard title="Financial Highlights">
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {kpis.map((k, i) => (
-          <motion.div key={k.label} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="rounded-2xl border border-surface-border/6 bg-surface-card p-4 hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
-            <div className="mb-2 flex items-center">{k.icon}</div>
-            <p className={`text-[22px] font-black leading-none ${k.color}`}>
+      {/* Batch E (Company Simplification spec, §5) — was a 5-card KPI
+          grid (individually bordered, hover-lift, per-card sparkline) —
+          exactly the "giant KPI card" pattern the spec calls out to
+          remove from this sub-tab in favor of tables. Replaced with the
+          same plain, restrained text-strip treatment PriceChart's own
+          OHLC row already uses on this page — the annual table right
+          below is the real detail; this row is a compact summary of it,
+          not a second competing presentation. */}
+      <div className="mt-4 grid grid-cols-2 gap-3 border-b border-surface-border/5 pb-4 sm:grid-cols-5">
+        {kpis.map(k => (
+          <div key={k.label} className="text-center">
+            <p className="text-[9px] uppercase tracking-wide text-text-muted">{k.label}</p>
+            <p className={`mt-0.5 text-[16px] font-bold leading-none ${k.color}`}>
               {k.value.toLocaleString("en-IN")}{k.suffix}
             </p>
-            <p className="mt-1 text-[10px] text-text-muted">{k.label}</p>
-            {/* Sparkline */}
-            <div className="mt-2 h-8">
-              <Sparkline
-                data={(k.label === "Revenue" ? stock.quarterly_revenue : stock.quarterly_net_income).slice(-6)}
-                stroke={k.color.replace("text-","").includes("sky") ? "#38bdf8" : "#22c55e"}
-              />
-            </div>
-          </motion.div>
+          </div>
         ))}
       </div>
 
@@ -1292,35 +1290,6 @@ function FaqSection({ faqs }: { faqs: { question: string; answer: string }[] }) 
           </details>
         ))}
       </div>
-    </SectionCard>
-  );
-}
-
-// Opportunity preview — the single top real linked Opportunity, if any.
-function OpportunityPreview({ stock }: { stock: StockDetail }) {
-  const [related, setRelated] = useState<Record<string, RelatedItem[]> | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`${API}/api/related/company/${encodeURIComponent(stock.symbol)}?${new URLSearchParams({ title: stock.name, ...(stock.sector ? { sector: stock.sector } : {}) })}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (!cancelled) setRelated(d); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [stock.symbol, stock.name, stock.sector]);
-
-  const topOpportunity = related?.opportunities?.[0];
-  if (!topOpportunity) return null;
-
-  return (
-    <SectionCard title="Current Opportunity" action={
-      <Link href={`/companies/${stock.symbol}?tab=opportunities` as any} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View all →</Link>
-    }>
-      <OverviewCell label="Linked Opportunity" href={topOpportunity.href}>
-        <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{topOpportunity.title}</p>
-        {topOpportunity.score != null && (
-          <p className="mt-1 text-[11px] text-emerald-400">Score {Math.round(topOpportunity.score)}</p>
-        )}
-      </OverviewCell>
     </SectionCard>
   );
 }
@@ -2195,14 +2164,17 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
             {/* Batch C (Company Simplification spec, §3) — Overview
                 rebuilt to the spec's own explicit sequence: About → Key
                 Data → MarketRipple View → Latest Developments →
-                Opportunity preview → (curated Latest Intelligence
-                articles, a distinct real source from raw news/events) →
-                FAQ moved to the bottom (was previously rendered above
-                the entire page in page.tsx, repeated on every tab —
-                see faqSection's own comment there). Price chart kept
-                high in the flow — a real, valuable, non-fabricated
-                element the "Google Finance restraint" reference point
-                itself leads with. */}
+                (curated Latest Intelligence articles, a distinct real
+                source from raw news/events) → FAQ moved to the bottom
+                (was previously rendered above the entire page in
+                page.tsx, repeated on every tab — see faqSection's own
+                comment there). Price chart kept high in the flow — a
+                real, valuable, non-fabricated element the "Google
+                Finance restraint" reference point itself leads with.
+                The spec's own "Opportunity preview" step was later
+                removed per explicit instruction (2026-08-25) — the
+                Opportunities tab already covers it; a preview here was
+                duplication, not a distinct real view. */}
             {activeTab === "overview" && <>
               <AboutSection stock={stock}/>
               <PriceChart symbol={symbol} chartData={chartData} loadingChart={loadingChart}
@@ -2210,7 +2182,11 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
               <KeyDataGrid stock={stock}/>
               <MarketRippleViewCard stock={stock}/>
               <LatestDevelopmentsList stock={stock} relatedNews={relatedNews}/>
-              <OpportunityPreview stock={stock}/>
+              {/* "Current Opportunity" preview removed per explicit
+                  instruction (2026-08-25) — the Opportunities tab is
+                  already the dedicated real surface for this; a preview
+                  here duplicated it rather than adding a distinct real
+                  view. */}
               <ShareInsightCard
                 entityType="company"
                 entityId={stock.symbol}
