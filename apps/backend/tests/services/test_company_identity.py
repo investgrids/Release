@@ -62,10 +62,35 @@ _FIXTURE_ISINS = [
 ]
 
 
+_FIXTURE_ALIAS_VALUES = [
+    # Every symbol/old_symbol/provider_symbol text this fixture's own EQ/
+    # symbolchange CSVs use. Real, reproducible bug this closes: a real C2
+    # import run against the same DB (done during this session's live
+    # verification) creates its own real LTIM entity with its own real
+    # ISIN -- not in _FIXTURE_ISINS, so it survived cleanup-by-ISIN -- and
+    # that real entity's own real "LTI" old_symbol alias then collided
+    # with this fixture's "LTI" alias (pointing at the fixture's
+    # fake-ISIN LTIM), producing two distinct entity_ids for the same
+    # alias value -> a genuine CONFLICT, not a resolver defect (the
+    # resolver correctly refused to guess between them). Cleaning by
+    # alias VALUE as well as by fixture ISIN makes this fixture immune to
+    # whatever real data happens to already be sitting in the DB.
+    "RELIANCE", "TCS", "CEATLTD", "HINDPETRO", "IOC", "AUROPHARMA",
+    "TMPV", "TMCV", "LTIM", "TELCO", "TATAMOTORS", "LTI",
+    "CEAT", "HPCL", "IOCL", "AUROBINDOPHARMA",
+]
+
+
 async def _clean_fixture_rows(db):
-    entity_ids = (await db.execute(
+    entity_ids = set((await db.execute(
         select(CompanyEntity.entity_id).where(CompanyEntity.isin.in_(_FIXTURE_ISINS))
-    )).scalars().all()
+    )).scalars().all())
+    entity_ids |= set((await db.execute(
+        select(CompanyEntity.entity_id).where(CompanyEntity.symbol.in_(_FIXTURE_ALIAS_VALUES))
+    )).scalars().all())
+    entity_ids |= set((await db.execute(
+        select(CompanyAlias.entity_id).where(CompanyAlias.alias_value.in_(_FIXTURE_ALIAS_VALUES))
+    )).scalars().all())
     if entity_ids:
         await db.execute(delete(CompanyAlias).where(CompanyAlias.entity_id.in_(entity_ids)))
         await db.execute(delete(CompanyEntity).where(CompanyEntity.entity_id.in_(entity_ids)))
