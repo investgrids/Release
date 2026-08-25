@@ -21,16 +21,19 @@ Two different integration shapes, deliberately:
   missing/stale row just means that one piece of evidence doesn't exist
   this cycle (matches read_service.py's own "never fabricate" contract),
   never a fallback to a live call that doesn't exist for these anyway.
-- Sector moves: real fallback. 9 of 54 Warehouse metrics (7 of them
-  sector ETFs) are currently failing 100% of the time in production
-  (confirmed live, see the audit) — a blind swap would silently regress
-  AI Search's sector coverage for those sectors starting today. Instead,
-  Warehouse's value is used per-sector only when it's real and current;
-  the pre-existing live `get_sector_changes()` call still backstops
-  every sector Warehouse doesn't have a good answer for right now, so
-  coverage never gets worse than it already was, and improves
-  automatically as the 9 broken metrics get fixed (a tracked follow-up,
-  not part of this change).
+- Sector moves: real fallback, kept even after fixing the root cause
+  below. The audit found 9 of 54 Warehouse metrics failing 100% of the
+  time in production, 7 of them sector ETFs whose tickers turned out to
+  be genuinely delisted (confirmed live against real yfinance data, not
+  a transient fetch error) — see `market_data.py::_SECTOR_ETFS`'s own
+  comment for the real replacement tickers found and verified, and for
+  why "Media" was removed outright (no real tradeable Nifty Media ETF
+  exists from any fund house as of 2026, not a ticker-naming problem).
+  The per-sector live fallback stays regardless — Warehouse's own
+  capture cadence means even a correct ticker can have a stale or
+  momentarily-failed row, and this retriever should never regress sector
+  coverage just because Warehouse's own collection cycle hasn't caught
+  up yet.
 """
 from __future__ import annotations
 
@@ -39,7 +42,7 @@ import re
 from app.ai_pipeline.contracts import Evidence
 from app.ai_pipeline.registry import RETRIEVER_REGISTRY
 from app.ai_pipeline.retrieval.base import RetrievalContext, RetrieverSpec
-from app.services.market_data import get_extended_indices, get_sector_changes, get_top_movers
+from app.services.market_data import _SECTOR_ETFS, get_extended_indices, get_sector_changes, get_top_movers
 from app.services.warehouse.read_service import get_latest_market_observations
 
 # metric -> (human label, unit suffix for the claim sentence)
@@ -90,10 +93,7 @@ async def _fetch(ctx: RetrievalContext) -> list[Evidence]:
     # One real query for everything Warehouse might answer this cycle --
     # the sector fallback below and the purely-additive block both read
     # from this single dict rather than each issuing their own query.
-    sector_metrics = [_sector_metric(name) for name in (
-        "IT", "Banking", "Pharma", "Auto", "Energy", "FMCG",
-        "Infra", "Metal", "Realty", "PSU Bank", "Private Bank", "Media",
-    )]
+    sector_metrics = [_sector_metric(name) for name in _SECTOR_ETFS]
     try:
         warehouse = await get_latest_market_observations(
             ctx.db, metrics=sector_metrics + _ALL_WAREHOUSE_ADDITIVE_METRICS,
@@ -124,8 +124,7 @@ async def _fetch(ctx: RetrievalContext) -> list[Evidence]:
     # market_data.py itself) backstops any sector Warehouse doesn't --
     # see this module's own docstring for why a blind swap isn't safe yet.
     sectors_needing_live_fallback: set[str] = set()
-    for name in ("IT", "Banking", "Pharma", "Auto", "Energy", "FMCG",
-                 "Infra", "Metal", "Realty", "PSU Bank", "Private Bank", "Media"):
+    for name in _SECTOR_ETFS:
         snap = warehouse.get(_sector_metric(name))
         if snap is not None and snap.has_real_value and snap.is_current:
             pct = snap.value

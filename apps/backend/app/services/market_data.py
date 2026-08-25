@@ -35,19 +35,41 @@ _EXTENDED_INDICES = {
     "NIFTY ENERGY":   "NIFTYENERGY.NS",
 }
 
+# Fixed 2026-08-25 (Warehouse Consumption Phase 2, Batch 3, per artifacts/
+# warehouse_consumption_audit.md's §1 finding: 7 of these tickers were
+# failing 100% of every capture bucket in production, not intermittently).
+# Confirmed live against real yfinance data that the old tickers are
+# genuinely delisted/no-longer-tradeable (HTTP 404 / "possibly delisted"
+# from Yahoo itself, not a transient fetch error) -- these are their real,
+# currently-tradeable replacements, verified live before this change:
+#   IT:           MOFSL-BSE-IT.NS (delisted)   -> ITBEES.NS (Nippon India ETF Nifty IT)
+#   FMCG:         FMCGBEES.NS (delisted)       -> FMCGIETF.NS (ICICI Prudential Nifty FMCG ETF)
+#   Energy:       ENERGYBEES.NS (delisted)     -> OILIETF.NS (ICICI Prudential Nifty Oil & Gas ETF --
+#                 the real, currently-tradeable proxy for this sector; there is no longer a
+#                 separately-branded "Energy" ETF distinct from Oil & Gas)
+#   Metal:        METALBEES.NS (delisted)      -> METALIETF.NS (ICICI Prudential Nifty Metal ETF)
+#   Realty:       REALTYBEES.NS (delisted)     -> MOREALTY.NS (Motilal Oswal Nifty Realty ETF --
+#                 a different fund house; Nippon India's own Realty BeES no longer trades)
+#   Private Bank: PVTBNKBEES.NS (delisted)     -> PVTBANIETF.NS (ICICI Prudential Nifty Private
+#                 Bank ETF -- note the real ticker spelling, "PVTBAN" not "PVTBNK")
+# Media was removed entirely, not re-pointed: there is no real, currently
+# tradeable Nifty Media ETF from any fund house as of 2026 (confirmed --
+# the Nifty Media *index* exists, nothing tracks it as a listed ETF) --
+# the honest fix for a metric with no real underlying instrument is to
+# stop claiming to track it, not to leave a ticker that will fail every
+# single capture forever while looking like a fixable technical glitch.
 _SECTOR_ETFS = {
-    "IT":           "MOFSL-BSE-IT.NS",
+    "IT":           "ITBEES.NS",
     "Banking":      "BANKBEES.NS",
     "Pharma":       "PHARMABEES.NS",
     "Auto":         "AUTOBEES.NS",
-    "Energy":       "ENERGYBEES.NS",
-    "FMCG":         "FMCGBEES.NS",
+    "Energy":       "OILIETF.NS",
+    "FMCG":         "FMCGIETF.NS",
     "Infra":        "INFRABEES.NS",
-    "Metal":        "METALBEES.NS",
-    "Realty":       "REALTYBEES.NS",
+    "Metal":        "METALIETF.NS",
+    "Realty":       "MOREALTY.NS",
     "PSU Bank":     "PSUBNKBEES.NS",
-    "Private Bank": "PVTBNKBEES.NS",
-    "Media":        "MEDIABEES.NS",
+    "Private Bank": "PVTBANIETF.NS",
 }
 
 
