@@ -241,22 +241,16 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
           </p>
         </section>
       )}
-      {faqs.length > 0 && (
-        <section className="mb-4 border-b border-surface-border/6 pb-4" aria-label={`${stock?.name} frequently asked questions`}>
-          <h2 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-text-muted">Frequently Asked Questions</h2>
-          <div className="space-y-1.5">
-            {faqs.map((f, i) => (
-              <details key={i} className="group rounded-lg border border-surface-border/6 bg-text-primary/[0.015] px-3 py-2">
-                <summary className="cursor-pointer list-none text-[12.5px] font-medium text-text-secondary marker:content-none">
-                  {f.question}
-                </summary>
-                <p className="mt-1.5 text-[12px] leading-5 text-text-muted">{f.answer}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-      )}
-      <StockPage params={params} initialStock={stock} initialRelated={related} />
+      {/* Company Simplification spec §3 — FAQ moves to the bottom of the
+          Overview tab (was previously rendered above the entire page,
+          ahead of the header, and repeated on every tab regardless of
+          which one was active). Passed down as plain, serializable data
+          (not a pre-built element) — StockPageInner (a client component)
+          builds and places the actual <details> markup itself, only when
+          Overview is the active tab, still fully present in the SSR'd
+          initial HTML exactly as before since Next.js server-renders
+          client components too. */}
+      <StockPage params={params} initialStock={stock} initialRelated={related} faqs={faqs}/>
     </>
   );
 }

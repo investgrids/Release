@@ -398,95 +398,14 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
   );
 }
 
-// ── Section 3: AI Summary ─────────────────────────────────────────────────────
-function AISummary({ stock }: { stock: StockDetail }) {
-  const [expanded, setExpanded] = useState(false);
-  const bullish = [
-    stock.gov_score >= 75 && "Strong government support & policy tailwinds",
-    n2(stock.roe) > 15 && `High ROE of ${stock.roe} — superior capital efficiency`,
-    stock.dna_scores["Growth"] > 60 && "Robust revenue growth trend in core segments",
-    stock.dividend_yield && stock.dividend_yield !== "—" && `Consistent dividend payer (${stock.dividend_yield})`,
-    n2(stock.debt_to_equity) < 0.5 && "Low leverage — strong balance sheet",
-  ].filter(Boolean).slice(0, 4);
-  // Company redesign Batch 0 (2026-08-25) — removed the always-on
-  // "Execution risk on order delivery timelines" line (shown for every
-  // company regardless of sector/data) and the entire "Growth Drivers"
-  // list (100% static text, not derived from any real field except a
-  // sector-name interpolation) — see artifacts/company_redesign_audit_spec.md §C.
-  const risks = [
-    n2(stock.pe) > 45 && "Premium valuation — priced for perfection",
-    n2(stock.debt_to_equity) > 1 && "High debt-to-equity ratio",
-    stock.dna_scores["News Sensitivity"] > 70 && "High sensitivity to macro news",
-    stock.gov_score >= 75 && "Concentrated revenue dependency on govt. contracts",
-  ].filter(Boolean).slice(0, 4);
-  // Batch B (2026-08-25) — this card's header used to read "AI Company
-  // Summary" with an "AI Generated" badge, but neither the description
-  // (yfinance's real longBusinessSummary, when present) nor the
-  // bullish/risk lines below (simple real-field threshold checks, not
-  // model output) are actually AI-generated — that badge was a false
-  // provenance claim on real, non-AI content. Also removed the
-  // fabricated generic fallback paragraph ("is a leading {sector}
-  // company listed on NSE...") that used to render, identically worded,
-  // for any company missing a real description — an honest missing-data
-  // state now renders instead. This section stays as "Company Snapshot"
-  // for this batch; Batch C folds its real description into the
-  // rebuilt Overview's About section.
-  if (!stock.description && !bullish.length && !risks.length) return null;
-  return (
-    <SectionCard>
-      <div className="flex items-start gap-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
-          <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-[15px] font-bold text-text-primary">Company Snapshot</h2>
-          </div>
-          {stock.description ? (
-            <p className="text-[13px] leading-6 text-text-secondary line-clamp-3">{stock.description}</p>
-          ) : (
-            <p className="text-[13px] leading-6 text-text-muted">No company description available.</p>
-          )}
-          <AnimatePresence>
-            {expanded && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden">
-                <div className="mt-5 grid grid-cols-2 gap-5">
-                  <div>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Bullish Factors</p>
-                    <ul className="space-y-1.5">
-                      {bullish.map((b, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary">
-                          <span className="mt-0.5 text-emerald-400 shrink-0">•</span>{b}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-rose-400">Key Risks</p>
-                    <ul className="space-y-1.5">
-                      {risks.map((r, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-text-secondary">
-                          <span className="mt-0.5 text-rose-400 shrink-0">•</span>{r}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <div className="mt-3 flex gap-2">
-            <button onClick={() => setExpanded(!expanded)}
-              className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-[12px] font-medium text-sky-400 hover:bg-text-primary/[0.06] transition">
-              {expanded ? "Collapse ↑" : "Read Full Analysis →"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </SectionCard>
-  );
-}
+// ── Section 3: About ──────────────────────────────────────────────────────────
+// Batch C (2026-08-25) — replaced "AI Company Summary": that card's
+// fabricated generic fallback paragraph and false "AI Generated"
+// provenance badge (both fixed in Batch B) and its threshold-derived
+// "Bullish Factors"/"Key Risks" lists (redundant with
+// CompanyScoreContributors' real, better-sourced positive/negative
+// evidence on the Intelligence tab) are gone. See AboutSection below,
+// defined alongside the rest of Batch C's Overview components.
 
 // ── Section 4: Stock DNA ──────────────────────────────────────────────────────
 function StockDNA({ stock }: { stock: StockDetail }) {
@@ -1224,16 +1143,165 @@ function OverviewCell({ label, children, href }: { label: string; children: Reac
     : <div className={cls}>{inner}</div>;
 }
 
-function OverviewGrid({ stock, relatedNews }: { stock: StockDetail; relatedNews: any[] }) {
-  const [score, setScore] = useState<CompanyScoreData | null>(null);
-  const [related, setRelated] = useState<Record<string, RelatedItem[]> | null>(null);
+// Batch C (Company Simplification spec, §3) — OverviewGrid's 6-cell mixed
+// grid (market data + financials + latest news + latest event + top
+// opportunity + score reasons, all flattened into one undifferentiated
+// grid) is replaced by the spec's own explicit Overview sequence: About →
+// Key Data → MarketRipple View → Latest Developments → Opportunity
+// preview, each answering one distinct question rather than one grid
+// answering five at once. Every field here is still the same real data
+// OverviewGrid already used — nothing new is fetched or invented, only
+// regrouped and given room to be read as a conclusion rather than a cell.
 
+// About — 1-3 real sentences, honest omission when there's no real
+// description. This replaced the old "AI Company Summary" card's
+// description role; that card's fabricated generic fallback and
+// mislabeled "AI Generated" badge (Batch B) and its threshold-derived
+// bullish/risk lists (redundant with CompanyScoreContributors' real,
+// better-sourced positive/negative evidence on the Intelligence tab) are
+// both gone rather than carried forward here.
+function AboutSection({ stock }: { stock: StockDetail }) {
+  if (!stock.description) return null;
+  const sentences = stock.description.split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, 3);
+  return (
+    <SectionCard title="About">
+      <p className="mt-2 text-[13px] leading-6 text-text-secondary">{sentences.join(" ")}</p>
+    </SectionCard>
+  );
+}
+
+// Key Data — compact, real market + financial facts only.
+function KeyDataGrid({ stock }: { stock: StockDetail }) {
+  return (
+    <SectionCard title="Key Data">
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
+        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">Day Range</p><p className="mt-0.5 font-semibold text-text-primary">₹{stock.day_low}–₹{stock.day_high}</p></div>
+        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">52W Range</p><p className="mt-0.5 font-semibold text-text-primary">₹{stock.week52_low}–₹{stock.week52_high}</p></div>
+        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">Volume</p><p className="mt-0.5 font-semibold text-text-primary">{stock.volume || "—"}</p></div>
+        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">P/E</p><p className={`mt-0.5 font-semibold ${metricColor("PE Ratio (TTM)", stock.pe)}`}>{stock.pe || "—"}</p></div>
+        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">ROE</p><p className={`mt-0.5 font-semibold ${metricColor("ROE", stock.roe)}`}>{stock.roe || "—"}</p></div>
+        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">D/E</p><p className={`mt-0.5 font-semibold ${metricColor("D/E Ratio", stock.debt_to_equity)}`}>{stock.debt_to_equity || "—"}</p></div>
+        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">Margin</p><p className="mt-0.5 font-semibold text-text-primary">{stock.net_margins || "—"}</p></div>
+      </div>
+    </SectionCard>
+  );
+}
+
+// MarketRipple View — the same real rating useCompanyRating (see
+// CompanyHero above) already fetches, presented as a conclusion: score,
+// verdict, one real helping/holding-back reason each, link to the full
+// Intelligence tab. Honest "insufficient evidence" state when there's no
+// real signal — never a second, different number than the header's.
+function MarketRippleViewCard({ stock }: { stock: StockDetail }) {
+  const rating = useCompanyRating(stock.symbol);
+  if (rating === undefined) return null;
+  const hasRealRating = !!rating && rating.signal_count > 0 && rating.score != null;
+  const helping = rating?.positive_reasons?.find(r => r.reason);
+  const holdingBack = rating?.risk_factors?.find(r => r.reason);
+
+  return (
+    <SectionCard title="MarketRipple View" action={
+      <Link href={`/companies/${stock.symbol}?tab=intelligence` as any} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View Intelligence →</Link>
+    }>
+      {!hasRealRating ? (
+        <p className="mt-3 text-[13px] text-text-muted">Insufficient evidence for a MarketRipple view on {stock.name} yet — this is built only from real published analysis and opportunity tracking, never estimated.</p>
+      ) : (
+        <div className="mt-3 space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-[28px] font-black leading-none text-text-primary">{Math.round(rating!.score!)}</span>
+            {rating!.verdict?.label && (
+              <Pill color={rating!.risk_level === "High" ? "rose" : rating!.risk_level === "Low" ? "green" : "amber"}>{rating!.verdict!.label}</Pill>
+            )}
+          </div>
+          {rating!.verdict?.reasoning && <p className="text-[13px] leading-6 text-text-secondary">{rating!.verdict!.reasoning}</p>}
+          {(helping || holdingBack) && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {helping && (
+                <p className="flex items-start gap-1.5 text-[12px] leading-5 text-text-secondary">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400"/> {helping.reason}
+                </p>
+              )}
+              {holdingBack && (
+                <p className="flex items-start gap-1.5 text-[12px] leading-5 text-text-secondary">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"/> {holdingBack.reason}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+// Latest Developments — the most recent real news headline and material
+// event, in one small list rather than two separate grid cells.
+function LatestDevelopmentsList({ stock, relatedNews }: { stock: StockDetail; relatedNews: any[] }) {
+  const latestNews = (relatedNews.length ? relatedNews : stock.news)?.[0];
+  const latestEvent = stock.events?.[0];
+  if (!latestNews && !latestEvent) return null;
+  return (
+    <SectionCard title="Latest Developments" action={
+      <Link href="/events" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View all →</Link>
+    }>
+      <div className="mt-3 space-y-2.5">
+        {latestEvent && (
+          <OverviewCell label="Latest Material Event" href={latestEvent.slug || latestEvent.id ? `/events/${latestEvent.slug || latestEvent.id}` : null}>
+            <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{latestEvent.title}</p>
+            {latestEvent.date && <p className="mt-1 text-[11px] text-text-muted">{latestEvent.date}</p>}
+          </OverviewCell>
+        )}
+        {latestNews && (
+          // No external link — headline is real, but the source is
+          // third-party; see feedback_no_external_links.md (attribution is
+          // plain text only, matching NewsImpact's own existing behavior).
+          <OverviewCell label="Latest News">
+            <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{latestNews.headline}</p>
+            <p className="mt-1 text-[11px] text-text-muted">
+              {latestNews.source || "Source"}{latestNews.published_at ? ` · ${latestNews.published_at.slice(0, 10)}` : ""}
+            </p>
+          </OverviewCell>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
+// FAQ — moved here (client component) from page.tsx (server component)
+// after a real dev-mode React warning ("missing key" on ForwardRef
+// (motion.div), owner CompanyPage) traced to passing a pre-built Server
+// Component element across the RSC boundary as a prop, then rendering it
+// at a conditionally-shifting position deep in a heavily data-dependent
+// tree — reproduced only for companies with fewer real FAQ entries
+// (0-analyst-coverage companies), never for RELIANCE. Passing the plain
+// `faqs` data instead and building the JSX here is the standard, robust
+// Next.js pattern; the markup is still fully present in the server-
+// rendered initial HTML (Next.js SSRs client components too), so nothing
+// about the real SEO/AEO behavior this replaced changes.
+function FaqSection({ faqs }: { faqs: { question: string; answer: string }[] }) {
+  if (!faqs.length) return null;
+  return (
+    <SectionCard>
+      <h2 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-text-muted">Frequently Asked Questions</h2>
+      <div className="space-y-1.5">
+        {faqs.map(f => (
+          <details key={f.question} className="group rounded-lg border border-surface-border/6 bg-text-primary/[0.015] px-3 py-2">
+            <summary className="cursor-pointer list-none text-[12.5px] font-medium text-text-secondary marker:content-none">
+              {f.question}
+            </summary>
+            <p className="mt-1.5 text-[12px] leading-5 text-text-muted">{f.answer}</p>
+          </details>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+// Opportunity preview — the single top real linked Opportunity, if any.
+function OpportunityPreview({ stock }: { stock: StockDetail }) {
+  const [related, setRelated] = useState<Record<string, RelatedItem[]> | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API}/api/company-scores/${stock.symbol}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (!cancelled) setScore(d); })
-      .catch(() => {});
     fetch(`${API}/api/related/company/${encodeURIComponent(stock.symbol)}?${new URLSearchParams({ title: stock.name, ...(stock.sector ? { sector: stock.sector } : {}) })}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!cancelled) setRelated(d); })
@@ -1241,78 +1309,20 @@ function OverviewGrid({ stock, relatedNews }: { stock: StockDetail; relatedNews:
     return () => { cancelled = true; };
   }, [stock.symbol, stock.name, stock.sector]);
 
-  const latestNews = (relatedNews.length ? relatedNews : stock.news)?.[0];
-  const latestEvent = stock.events?.[0];
   const topOpportunity = related?.opportunities?.[0];
-  const topPositive = score?.positive_reasons?.find(r => r.reason);
-  const topNegative = score?.risk_factors?.find(r => r.reason);
+  if (!topOpportunity) return null;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <OverviewCell label="Key Market Data">
-        <p className="text-[13px] text-text-secondary">
-          Day range <span className="font-semibold text-text-primary">₹{stock.day_low}–₹{stock.day_high}</span>
-        </p>
-        <p className="mt-1 text-[13px] text-text-secondary">
-          52W range <span className="font-semibold text-text-primary">₹{stock.week52_low}–₹{stock.week52_high}</span>
-        </p>
-        <p className="mt-1 text-[13px] text-text-secondary">
-          Volume <span className="font-semibold text-text-primary">{stock.volume}</span>
-        </p>
+    <SectionCard title="Current Opportunity" action={
+      <Link href={`/companies/${stock.symbol}?tab=opportunities` as any} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View all →</Link>
+    }>
+      <OverviewCell label="Linked Opportunity" href={topOpportunity.href}>
+        <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{topOpportunity.title}</p>
+        {topOpportunity.score != null && (
+          <p className="mt-1 text-[11px] text-emerald-400">Score {Math.round(topOpportunity.score)}</p>
+        )}
       </OverviewCell>
-
-      <OverviewCell label="Financial Snapshot">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px]">
-          <span className="text-text-secondary">P/E <span className={`font-semibold ${metricColor("PE Ratio (TTM)", stock.pe)}`}>{stock.pe || "—"}</span></span>
-          <span className="text-text-secondary">ROE <span className={`font-semibold ${metricColor("ROE", stock.roe)}`}>{stock.roe || "—"}</span></span>
-          <span className="text-text-secondary">D/E <span className={`font-semibold ${metricColor("D/E Ratio", stock.debt_to_equity)}`}>{stock.debt_to_equity || "—"}</span></span>
-          <span className="text-text-secondary">Margin <span className="font-semibold text-text-primary">{stock.net_margins || "—"}</span></span>
-        </div>
-      </OverviewCell>
-
-      {latestNews && (
-        // No external link — headline is real, but the source is
-        // third-party; see feedback_no_external_links.md (attribution is
-        // plain text only, matching NewsImpact's own existing behavior).
-        <OverviewCell label="Latest Development">
-          <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{latestNews.headline}</p>
-          <p className="mt-1 text-[11px] text-text-muted">
-            {latestNews.source || "Source"}{latestNews.published_at ? ` · ${latestNews.published_at.slice(0, 10)}` : ""}
-          </p>
-        </OverviewCell>
-      )}
-
-      {latestEvent && (
-        <OverviewCell label="Latest Material Event" href={latestEvent.slug || latestEvent.id ? `/events/${latestEvent.slug || latestEvent.id}` : null}>
-          <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{latestEvent.title}</p>
-          {latestEvent.date && <p className="mt-1 text-[11px] text-text-muted">{latestEvent.date}</p>}
-        </OverviewCell>
-      )}
-
-      {topOpportunity && (
-        <OverviewCell label="Current Opportunity" href={topOpportunity.href}>
-          <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{topOpportunity.title}</p>
-          {topOpportunity.score != null && (
-            <p className="mt-1 text-[11px] text-emerald-400">Score {Math.round(topOpportunity.score)}</p>
-          )}
-        </OverviewCell>
-      )}
-
-      {(topPositive || topNegative) && (
-        <OverviewCell label="Key Intelligence">
-          {topPositive && (
-            <p className="flex items-start gap-1.5 text-[12px] leading-5 text-text-secondary">
-              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400"/> {topPositive.reason}
-            </p>
-          )}
-          {topNegative && (
-            <p className="mt-1.5 flex items-start gap-1.5 text-[12px] leading-5 text-text-secondary">
-              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"/> {topNegative.reason}
-            </p>
-          )}
-        </OverviewCell>
-      )}
-    </div>
+    </SectionCard>
   );
 }
 
@@ -2035,7 +2045,7 @@ function RippleTabBody({ stock }: { stock: StockDetail }) {
 // question it answers rather than stacked in one long scroll — see
 // artifacts/company_redesign_audit_spec.md and the Batch 1 completion note
 // for the full per-tab mapping and rationale.
-function StockPageInner({ params, initialStock, initialRelated }: PageProps & { initialStock?: StockDetail | null; initialRelated?: Record<string, RelatedItem[]> | null }) {
+function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProps & { initialStock?: StockDetail | null; initialRelated?: Record<string, RelatedItem[]> | null; faqs?: { question: string; answer: string }[] }) {
   const { symbol } = use(params);
   const router = useRouter();
   const pathname = usePathname();
@@ -2127,28 +2137,33 @@ function StockPageInner({ params, initialStock, initialRelated }: PageProps & { 
           {/* ── LEFT: the active tab's research body ────────────────── */}
           <div className="min-w-0 space-y-6">
 
+            {/* Batch C (Company Simplification spec, §3) — Overview
+                rebuilt to the spec's own explicit sequence: About → Key
+                Data → MarketRipple View → Latest Developments →
+                Opportunity preview → (curated Latest Intelligence
+                articles, a distinct real source from raw news/events) →
+                FAQ moved to the bottom (was previously rendered above
+                the entire page in page.tsx, repeated on every tab —
+                see faqSection's own comment there). Price chart kept
+                high in the flow — a real, valuable, non-fabricated
+                element the "Google Finance restraint" reference point
+                itself leads with. */}
             {activeTab === "overview" && <>
-              <OverviewGrid stock={stock} relatedNews={relatedNews}/>
+              <AboutSection stock={stock}/>
               <PriceChart symbol={symbol} chartData={chartData} loadingChart={loadingChart}
                 period={period} setPeriod={p => { setPeriod(p); fetchChart(p); }} stock={stock}/>
-              <AISummary stock={stock}/>
+              <KeyDataGrid stock={stock}/>
+              <MarketRippleViewCard stock={stock}/>
+              <LatestDevelopmentsList stock={stock} relatedNews={relatedNews}/>
+              <OpportunityPreview stock={stock}/>
               <ShareInsightCard
                 entityType="company"
                 entityId={stock.symbol}
                 title={`${stock.name} (${stock.symbol})`}
                 summary={stock.description?.slice(0, 120)}
               />
-              {/* Batch B (Company Simplification spec, §2) — removed the
-                  entire NextSteps/"Research Journey" block per explicit
-                  instruction: not redesigned, removed. It carried a
-                  Key Takeaway sentence, a "★ Recommended" Ask-AI CTA, a
-                  hardcoded "Compare"/"Continue Research" hub with
-                  templated "why" copy identical in structure for every
-                  company, and a breadcrumb-style Intelligence Path. None
-                  of it was real, company-specific research guidance —
-                  it was generic hub navigation dressed as personalized
-                  next steps. */}
               <RelatedStories stock={stock}/>
+              <FaqSection faqs={faqs ?? []}/>
             </>}
 
             {activeTab === "intelligence" && <>
@@ -2301,7 +2316,7 @@ function StockPageInner({ params, initialStock, initialRelated }: PageProps & { 
   );
 }
 
-export default function StockPage(props: PageProps & { initialStock?: StockDetail | null; initialRelated?: Record<string, RelatedItem[]> | null }) {
+export default function StockPage(props: PageProps & { initialStock?: StockDetail | null; initialRelated?: Record<string, RelatedItem[]> | null; faqs?: { question: string; answer: string }[] }) {
   return (
     <Suspense fallback={
       <main className="min-w-0 pb-10">
