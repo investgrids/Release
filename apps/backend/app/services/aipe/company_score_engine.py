@@ -416,7 +416,7 @@ async def compute_company_score(
     if not rows:
         return {
             "symbol": symbol, "score": None, "confidence": None,
-            "signal_count": 0, "sector": _sector_for(symbol),
+            "signal_count": 0, "contributing_signal_count": 0, "sector": _sector_for(symbol),
             "top_contributors": [], "positive_reasons": [], "risk_factors": [],
             "trend": "neutral", "verdict": None, "breakdown": {},
         }
@@ -448,6 +448,24 @@ async def compute_company_score(
     trend = _trend_for(score)
     risk_level = _risk_level_for(rows, confidences)
 
+    # 2026-08-25 — owner decision, following the signal semantic integrity
+    # audit (artifacts/company_signal_semantic_integrity_audit.md): two
+    # real producers (comparison_publisher.py, signal_publisher.py) never
+    # set confidence_score/quality_score/event_score on the articles they
+    # create, so every row sourced from them carries a real, stored 0.0 in
+    # at least one weighted factor and is already mathematically inert —
+    # it was never moving the score, only inflating signal_count and
+    # dragging down the confidence average. Deliberately NOT fixed by
+    # populating those fields (that would flip comparison/live-signal rows
+    # from "harmlessly inert" to "actually influencing the score" without
+    # anyone having designed what that evidence should mean yet — a real
+    # scoring-policy change, not a display fix). Instead: signal_count
+    # keeps its existing meaning (every real row, for any caller relying
+    # on "has at least one signal at all"); contributing_signal_count is
+    # the new, honest number for display — only rows whose real weighted
+    # contribution is non-zero.
+    contributing_signal_count = sum(1 for w, _ in weighted_rows if w != 0)
+
     # "Why Ranked" / "Risk Factors" — the same weighted evidence, just split
     # by sign instead of by |magnitude| like the old single top_contributors
     # list, so the UI can show real supporting reasons and real countervailing
@@ -477,12 +495,26 @@ async def compute_company_score(
         verdict = compute_investment_verdict(
             opportunity_score=score, confidence=avg_confidence, risk_level=risk_level, trend=trend,
         )
+        # 2026-08-25 — compute_investment_verdict() is shared with the real
+        # V1 Opportunity Radar verdict (radar.py), whose own confidence is a
+        # separately-sourced, legitimate field this audit never touched —
+        # so the shared function itself (label/tone thresholds included)
+        # stays unchanged. Only this consumer's own `reasoning` sentence is
+        # rebuilt here to drop the embedded "{N}% confidence" clause, since
+        # the per-row-averaged confidence it would otherwise quote is
+        # exactly the number retired from display everywhere else on this
+        # page (see the confidence provenance audit).
+        reasons = [f"Opportunity score {round(score)}/100", f"{risk_level or 'Medium'} risk"]
+        if trend and trend != "neutral":
+            reasons.append(f"{trend} trend")
+        verdict["reasoning"] = " · ".join(reasons)
 
     return {
         "symbol": symbol,
         "score": round(score, 1),
         "confidence": round(avg_confidence, 2) if avg_confidence is not None else None,
         "signal_count": len(rows),
+        "contributing_signal_count": contributing_signal_count,
         "sector": _sector_for(symbol),
         "trend": trend,
         "risk_level": risk_level,

@@ -701,7 +701,7 @@ interface CompanyScoreContributor {
 interface CompanyScoreVerdict { label: string; tone: string; reasoning: string }
 interface CompanyScoreData {
   symbol: string; score: number | null; confidence: number | null;
-  signal_count: number; sector: string | null;
+  signal_count: number; contributing_signal_count: number; sector: string | null;
   top_contributors: CompanyScoreContributor[];
   // Real fields company_score_engine.py already returns (positive_reasons/
   // risk_factors are the same weighted signals as top_contributors, just
@@ -713,6 +713,26 @@ interface CompanyScoreData {
   verdict?: CompanyScoreVerdict | null;
   positive_reasons?: CompanyScoreContributor[];
   risk_factors?: CompanyScoreContributor[];
+}
+
+// 2026-08-25 — the raw per-signal confidence average (a plain mean of
+// each AICompanySignal row's own confidence field) was shown as a
+// prominent "Confidence: 71%" bar next to the score — a second, visually
+// competing number, architecturally unrelated to the score itself and
+// (per the confidence provenance audit) genuinely misleading on its own:
+// it isn't a measure of how trustworthy the SCORE is, just a mean of
+// inputs that could include zero-weight rows. Retired per owner decision
+// rather than replaced with a different raw percentage (e.g. a filtered-
+// rows recount) — that would just be a better-looking version of the same
+// wrong concept. risk_level is already a real, computed signal (average
+// confidence + whether signals agree in direction) reused here as a
+// qualitative label instead, until a real Evidence Confidence engine
+// (entity certainty/source quality/corroboration/freshness/agreement)
+// replaces it.
+function _evidenceLabel(riskLevel: CompanyScoreData["risk_level"]): string {
+  if (riskLevel === "Low") return "Strong";
+  if (riskLevel === "High") return "Limited";
+  return "Moderate";
 }
 
 function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
@@ -738,13 +758,12 @@ function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
         </div>
         <div className="flex-1 space-y-1.5">
           <div className="flex justify-between text-[10px]">
-            <span className="text-text-muted">Confidence</span>
-            <span className="font-semibold text-emerald-400">{data.confidence != null ? `${Math.round(data.confidence * 100)}%` : "—"}</span>
+            <span className="text-text-muted">Evidence quality</span>
+            <span className="font-semibold text-emerald-400">{data.risk_level ? _evidenceLabel(data.risk_level) : "—"}</span>
           </div>
-          <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
-            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${data.confidence != null ? Math.round(data.confidence * 100) : 0}%` }} />
-          </div>
-          <p className="text-[10px] text-text-muted">Based on {data.signal_count} real signal{data.signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking</p>
+          <p className="text-[10px] text-text-muted">
+            Based on {data.contributing_signal_count} contributing signal{data.contributing_signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking
+          </p>
         </div>
       </div>
       {data.top_contributors.length > 0 && (
@@ -1516,13 +1535,12 @@ function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
         </div>
         <div className="min-w-[160px] flex-1 space-y-1.5">
           <div className="flex justify-between text-[10px]">
-            <span className="text-text-muted">Confidence</span>
-            <span className="font-semibold text-emerald-400">{data.confidence != null ? `${Math.round(data.confidence * 100)}%` : "—"}</span>
+            <span className="text-text-muted">Evidence quality</span>
+            <span className="font-semibold text-emerald-400">{data.risk_level ? _evidenceLabel(data.risk_level) : "—"}</span>
           </div>
-          <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
-            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${data.confidence != null ? Math.round(data.confidence * 100) : 0}%` }} />
-          </div>
-          <p className="text-[10px] text-text-muted">Based on {data.signal_count} real signal{data.signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking</p>
+          <p className="text-[10px] text-text-muted">
+            Based on {data.contributing_signal_count} contributing signal{data.contributing_signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking
+          </p>
         </div>
         <div className="flex gap-2">
           {data.risk_level && <Pill color={data.risk_level === "High" ? "rose" : data.risk_level === "Low" ? "green" : "amber"}>{data.risk_level} Risk</Pill>}

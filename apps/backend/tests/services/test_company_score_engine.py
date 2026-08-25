@@ -35,6 +35,52 @@ async def _cleanup(symbols: list[str], prediction_ids: list[str]):
 
 
 @pytest.mark.asyncio
+async def test_contributing_signal_count_excludes_zero_weight_rows():
+    """2026-08-25 — signal semantic integrity audit follow-up (artifacts/
+    company_signal_semantic_integrity_audit.md): comparison_publisher.py
+    and signal_publisher.py never set confidence_score/quality_score on
+    their articles, so every AICompanySignal row sourced from them
+    carries a real, stored 0.0 in at least one weighted factor and
+    contributes exactly zero to the score — but still counts toward
+    signal_count. contributing_signal_count must only count rows whose
+    real weighted contribution is non-zero, while signal_count keeps
+    counting every real row (unchanged, for any caller relying on "has
+    at least one signal at all")."""
+    tag = _tag()
+    symbol = f"TESTCONTRIB{tag}"[:20].upper()
+    now = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as db:
+        db.add(AICompanySignal(  # a real, contributing row
+            source_type="article", source_id=f"art-{tag}-1", symbol=symbol,
+            company_name="Test Contributing Co", sector="Energy",
+            signed_magnitude=60.0, confidence=0.8, quality=0.9,
+            reason="real contributing signal", signal_at=now,
+        ))
+        db.add(AICompanySignal(  # zeroed like every real live_signal row (confidence=quality=0.0)
+            source_type="article", source_id=f"art-{tag}-2", symbol=symbol,
+            company_name="Test Contributing Co", sector="Energy",
+            signed_magnitude=0.0, confidence=0.0, quality=0.0,
+            reason="Intelligence Detection", signal_at=now,
+        ))
+        db.add(AICompanySignal(  # zeroed like every real comparison_intelligence row (quality=0.0)
+            source_type="article", source_id=f"art-{tag}-3", symbol=symbol,
+            company_name="Test Contributing Co", sector="Energy",
+            signed_magnitude=0.0, confidence=0.29, quality=0.0,
+            reason="Comparison subject", signal_at=now,
+        ))
+        await db.commit()
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await engine.compute_company_score(db, symbol)
+        assert result["signal_count"] == 3
+        assert result["contributing_signal_count"] == 1
+    finally:
+        await _cleanup([symbol], [])
+
+
+@pytest.mark.asyncio
 async def test_accuracy_map_matches_per_symbol_query_exactly():
     """The real regression-fix invariant: compute_company_score's score
     must not change whether accuracy is computed via the old per-symbol
