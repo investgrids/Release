@@ -1616,21 +1616,133 @@ function CompanyTabNav({ active, onChange }: { active: CompanyTab; onChange: (t:
   );
 }
 
-// Ripple tab, Batch 1 — the real wire-up (a lazily-loaded
-// /api/ripple/company/{ticker} graph) is Batch 4's job. This is an honest
-// placeholder, not a fabricated preview: it says plainly that the real
-// view isn't built here yet and links to the one real Ripple experience
-// that exists today, rather than inventing relationship data to fill the
-// tab.
-function RipplePlaceholder({ stock }: { stock: StockDetail }) {
+// ── Company Ripple (Batch 4) ────────────────────────────────────────────────
+// Real Intelligence Graph relationships only. /api/ripple/company/{ticker}
+// (the endpoint its own name suggests) was traced end to end and found to
+// be AI-generated or sector-templated (ripple_service.py: every result is
+// tagged source="ai_generated" or "fallback_template", with hardcoded
+// per-sector node/edge structures picking up fabricated strength/impact/
+// direction values). Disqualified for a surface users read as evidence-
+// backed market structure. This instead calls the real, evidence-only
+// resolver+subgraph endpoint added for this batch
+// (GET /api/companies/{symbol}/ripple -> graph_ripple.py -> the same
+// real get_subgraph() BFS over actual IGNode/IGEdge rows coherence.py
+// already uses) — never a generated placeholder.
+//
+// Fetched only while this tab is mounted (StockPageInner never renders
+// this component unless activeTab === "ripple"), so a company detail
+// page's initial load never pays for graph data, matching the owner's
+// explicit performance requirement for this batch.
+interface RippleGraphNode { id: string; node_type: string; label: string; ticker?: string | null; description?: string | null }
+interface RippleGraphEdge {
+  id: string; source: string; target: string; edge_type: string;
+  weight: number; confidence: number; lag_days?: number | null;
+  description?: string | null; source_event?: string | null;
+}
+interface CompanyRippleData {
+  status: "no_entity" | "no_node" | "no_edges" | "has_edges";
+  canonical_symbol: string | null; company_name: string | null; node_id: string | null;
+  nodes: RippleGraphNode[]; edges: RippleGraphEdge[];
+}
+
+const RIPPLE_NODE_TYPE_LABEL: Record<string, string> = {
+  company: "Company", event: "Event", development: "Development", sector: "Sector",
+  theme: "Theme", policy: "Policy", commodity: "Commodity", country: "Country",
+  index: "Index", currency: "Currency",
+};
+
+function RippleConnectionRow({ edge, node, companyNodeId }: { edge: RippleGraphEdge; node: RippleGraphNode; companyNodeId: string }) {
+  const outgoing = edge.source === companyNodeId;
   return (
-    <SectionCard title="Company Ripple">
-      <p className="text-sm leading-relaxed text-text-secondary">
-        A real, {stock.name}-specific relationship graph is being built for
-        this tab. In the meantime, explore how {stock.sector || "this sector"}{" "}
-        moves ripple through the market on the main{" "}
-        <Link href="/ripple" className="text-sky-500 hover:underline dark:text-sky-300">Ripple</Link> page.
+    <div className="flex items-start gap-3 rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
+      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-[11px] text-sky-400">
+        {outgoing ? "→" : "←"}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-text-muted">
+            {RIPPLE_NODE_TYPE_LABEL[node.node_type] ?? node.node_type}
+          </span>
+          <span className="text-[9px] uppercase tracking-wide text-sky-500">{edge.edge_type.replace(/_/g, " ")}</span>
+        </div>
+        <p className="mt-1 text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{node.label}</p>
+        {edge.description && <p className="mt-0.5 text-[11px] text-text-muted line-clamp-2">{edge.description}</p>}
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
+          <span>Weight {Math.round(edge.weight * 100)}%</span>
+          <span>Confidence {Math.round(edge.confidence * 100)}%</span>
+          {!!edge.lag_days && <span>~{edge.lag_days}d lag</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RippleEmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <SectionCard title={title}>
+      <p className="text-sm leading-relaxed text-text-secondary">{body}</p>
+    </SectionCard>
+  );
+}
+
+function RippleTabBody({ stock }: { stock: StockDetail }) {
+  const [data, setData] = useState<CompanyRippleData | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setData(null);
+    setFailed(false);
+    fetch(`${API}/api/companies/${stock.symbol}/ripple`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [stock.symbol]);
+
+  if (failed) {
+    return <RippleEmptyState title="Company Ripple"
+      body="Ripple relationship data is temporarily unavailable. Please try again shortly." />;
+  }
+  if (!data) return null;
+
+  if (data.status === "no_entity") {
+    return <RippleEmptyState title="Company Ripple"
+      body="Ripple relationship data is unavailable for this company." />;
+  }
+  if (data.status === "no_node") {
+    return <RippleEmptyState title="Company Ripple"
+      body={`No verified Ripple relationships yet. MarketRipple has not accumulated enough evidence-backed relationships for ${stock.name} yet. This section will expand as new events and evidence are processed.`} />;
+  }
+  if (data.status === "no_edges") {
+    return <RippleEmptyState title="Company Ripple"
+      body={`${stock.name} is tracked in the Intelligence Graph, but no verified relationships have been recorded for it yet.`} />;
+  }
+
+  const companyNodeId = data.node_id!;
+  const nodesById = Object.fromEntries(data.nodes.map(n => [n.id, n]));
+  const rows = data.edges
+    .map(e => {
+      const otherId = e.source === companyNodeId ? e.target : e.source;
+      const node = nodesById[otherId];
+      return node ? { edge: e, node } : null;
+    })
+    .filter((r): r is { edge: RippleGraphEdge; node: RippleGraphNode } => r !== null)
+    .sort((a, b) => b.edge.weight - a.edge.weight)
+    .slice(0, 8);
+
+  return (
+    <SectionCard title="Company Ripple" action={
+      <Link href="/graph" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">Explore full graph →</Link>
+    }>
+      <p className="mb-4 text-[11px] uppercase tracking-wider text-text-muted">
+        {data.edges.length} verified relationship{data.edges.length === 1 ? "" : "s"}
       </p>
+      <div className="space-y-2.5">
+        {rows.map(({ edge, node }) => (
+          <RippleConnectionRow key={edge.id} edge={edge} node={node} companyNodeId={companyNodeId}/>
+        ))}
+      </div>
     </SectionCard>
   );
 }
@@ -1925,9 +2037,11 @@ function StockPageInner({ params, initialStock, initialRelated }: PageProps & { 
             </>}
 
             {/* Company redesign Batch 0 (2026-08-25) — removed NetworkGraph
-                (100% fabricated supply-chain graph). The real replacement,
-                /api/ripple/company/{ticker}, is wired here in Batch 4. */}
-            {activeTab === "ripple" && <RipplePlaceholder stock={stock}/>}
+                (100% fabricated supply-chain graph). Batch 4 wires the
+                real replacement — see RippleTabBody's own comment for
+                why /api/ripple/company/{ticker} was rejected in favor of
+                a real graph-evidence-only endpoint. */}
+            {activeTab === "ripple" && <RippleTabBody stock={stock}/>}
 
             {activeTab === "peers" && <>
               <PeerComparison stock={stock}/>

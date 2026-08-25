@@ -912,6 +912,30 @@ async def get_company_tier(symbol: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.get("/{symbol}/ripple")
+async def get_company_ripple(symbol: str, hops: int = Query(2, ge=1, le=3), db: AsyncSession = Depends(get_db)):
+    """Company redesign Batch 4 — the Company page's Ripple tab reads
+    real Intelligence Graph relationships only (see
+    services.company_identity.graph_ripple's module docstring for why
+    /api/ripple/company/{ticker} was traced and rejected for this
+    surface: it's AI-generated or sector-template content, not real
+    evidence). `status` distinguishes "not a real company" from "real
+    company, no graph coverage yet" from "real graph node, zero edges"
+    from "real evidence exists" -- the frontend must never collapse
+    these into one generic empty state."""
+    from app.services.company_identity.graph_ripple import get_company_ripple as compute_ripple
+
+    result = await compute_ripple(db, symbol, hops=hops)
+    return {
+        "status": result.status,
+        "canonical_symbol": result.canonical_symbol,
+        "company_name": result.company_name,
+        "node_id": result.node_id,
+        "nodes": result.nodes,
+        "edges": result.edges,
+    }
+
+
 @router.get("/search")
 async def search_companies(
     q: str = Query("", description="Search term"),
