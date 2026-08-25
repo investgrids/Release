@@ -628,10 +628,21 @@ interface CompanyScoreContributor {
   reason: string | null; source_type: "article" | "opportunity"; href: string | null;
   signed_magnitude: number; signal_at: string | null;
 }
+interface CompanyScoreVerdict { label: string; tone: string; reasoning: string }
 interface CompanyScoreData {
   symbol: string; score: number | null; confidence: number | null;
   signal_count: number; sector: string | null;
   top_contributors: CompanyScoreContributor[];
+  // Real fields company_score_engine.py already returns (positive_reasons/
+  // risk_factors are the same weighted signals as top_contributors, just
+  // split by sign) — added Batch 2 so the Intelligence tab can show real
+  // negative contributors instead of the fabricated "Top Risks" removed
+  // in Batch 0.
+  trend?: "up" | "down" | "neutral";
+  risk_level?: "Low" | "Medium" | "High";
+  verdict?: CompanyScoreVerdict | null;
+  positive_reasons?: CompanyScoreContributor[];
+  risk_factors?: CompanyScoreContributor[];
 }
 
 function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
@@ -1066,6 +1077,118 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
 }
 
 // ── Section 25: Right Sticky Intelligence Panel ────────────────────────────────
+// ── Overview grid (Batch 2) ─────────────────────────────────────────────────
+// The compact Overview per the redesign's own target mockup: a scannable
+// grid of real facts (market data, most recent real development, a
+// financial snapshot, most recent real material event) plus the top real
+// opportunity and one real positive/counter-signal pair — never the whole
+// deep-dive content those tabs already carry. Every cell hides itself when
+// its real data is missing rather than showing a placeholder.
+function OverviewCell({ label, children, href }: { label: string; children: React.ReactNode; href?: string | null }) {
+  const inner = (
+    <>
+      <p className="text-[10px] uppercase tracking-wider text-text-muted">{label}</p>
+      <div className="mt-1.5">{children}</div>
+    </>
+  );
+  const cls = "rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-4";
+  return href
+    ? <Link href={href as any} className={`${cls} block transition hover:border-sky-400/20`}>{inner}</Link>
+    : <div className={cls}>{inner}</div>;
+}
+
+function OverviewGrid({ stock, relatedNews }: { stock: StockDetail; relatedNews: any[] }) {
+  const [score, setScore] = useState<CompanyScoreData | null>(null);
+  const [related, setRelated] = useState<Record<string, RelatedItem[]> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API}/api/company-scores/${stock.symbol}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setScore(d); })
+      .catch(() => {});
+    fetch(`${API}/api/related/company/${encodeURIComponent(stock.symbol)}?${new URLSearchParams({ title: stock.name, ...(stock.sector ? { sector: stock.sector } : {}) })}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setRelated(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [stock.symbol, stock.name, stock.sector]);
+
+  const latestNews = (relatedNews.length ? relatedNews : stock.news)?.[0];
+  const latestEvent = stock.events?.[0];
+  const topOpportunity = related?.opportunities?.[0];
+  const topPositive = score?.positive_reasons?.find(r => r.reason);
+  const topNegative = score?.risk_factors?.find(r => r.reason);
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <OverviewCell label="Key Market Data">
+        <p className="text-[13px] text-text-secondary">
+          Day range <span className="font-semibold text-text-primary">₹{stock.day_low}–₹{stock.day_high}</span>
+        </p>
+        <p className="mt-1 text-[13px] text-text-secondary">
+          52W range <span className="font-semibold text-text-primary">₹{stock.week52_low}–₹{stock.week52_high}</span>
+        </p>
+        <p className="mt-1 text-[13px] text-text-secondary">
+          Volume <span className="font-semibold text-text-primary">{stock.volume}</span>
+        </p>
+      </OverviewCell>
+
+      <OverviewCell label="Financial Snapshot">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px]">
+          <span className="text-text-secondary">P/E <span className={`font-semibold ${metricColor("PE Ratio (TTM)", stock.pe)}`}>{stock.pe || "—"}</span></span>
+          <span className="text-text-secondary">ROE <span className={`font-semibold ${metricColor("ROE", stock.roe)}`}>{stock.roe || "—"}</span></span>
+          <span className="text-text-secondary">D/E <span className={`font-semibold ${metricColor("D/E Ratio", stock.debt_to_equity)}`}>{stock.debt_to_equity || "—"}</span></span>
+          <span className="text-text-secondary">Margin <span className="font-semibold text-text-primary">{stock.net_margins || "—"}</span></span>
+        </div>
+      </OverviewCell>
+
+      {latestNews && (
+        // No external link — headline is real, but the source is
+        // third-party; see feedback_no_external_links.md (attribution is
+        // plain text only, matching NewsImpact's own existing behavior).
+        <OverviewCell label="Latest Development">
+          <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{latestNews.headline}</p>
+          <p className="mt-1 text-[11px] text-text-muted">
+            {latestNews.source || "Source"}{latestNews.published_at ? ` · ${latestNews.published_at.slice(0, 10)}` : ""}
+          </p>
+        </OverviewCell>
+      )}
+
+      {latestEvent && (
+        <OverviewCell label="Latest Material Event" href={latestEvent.slug || latestEvent.id ? `/events/${latestEvent.slug || latestEvent.id}` : null}>
+          <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{latestEvent.title}</p>
+          {latestEvent.date && <p className="mt-1 text-[11px] text-text-muted">{latestEvent.date}</p>}
+        </OverviewCell>
+      )}
+
+      {topOpportunity && (
+        <OverviewCell label="Current Opportunity" href={topOpportunity.href}>
+          <p className="text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{topOpportunity.title}</p>
+          {topOpportunity.score != null && (
+            <p className="mt-1 text-[11px] text-emerald-400">Score {Math.round(topOpportunity.score)}</p>
+          )}
+        </OverviewCell>
+      )}
+
+      {(topPositive || topNegative) && (
+        <OverviewCell label="Key Intelligence">
+          {topPositive && (
+            <p className="flex items-start gap-1.5 text-[12px] leading-5 text-text-secondary">
+              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400"/> {topPositive.reason}
+            </p>
+          )}
+          {topNegative && (
+            <p className="mt-1.5 flex items-start gap-1.5 text-[12px] leading-5 text-text-secondary">
+              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"/> {topNegative.reason}
+            </p>
+          )}
+        </OverviewCell>
+      )}
+    </div>
+  );
+}
+
 // Company redesign Batch 0 (2026-08-25) — removed the hardcoded
 // "Face Value: ₹1.00" row (real NSE face values vary widely across
 // companies — ₹1/₹2/₹5/₹10 — this was simply wrong for most of them) and
@@ -1150,6 +1273,122 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
       )}
 
     </div>
+  );
+}
+
+// ── Company Score Contributors (Batch 2) ───────────────────────────────────────
+// Intelligence tab, per the redesign audit: real Company Score
+// contributors — including real negative ones — replacing the fabricated
+// "Top Risks"/"Top Opportunities" cards removed in Batch 0. Fetches the
+// same /api/company-scores/{symbol} endpoint OpportunityRadarSection
+// (Opportunities tab) already uses, but renders company_score_engine.py's
+// own positive/negative split instead of collapsing everything into one
+// |magnitude|-sorted list — the FACT/EVIDENCE (real supporting signal) vs
+// COUNTER-SIGNAL (real disagreeing signal) distinction the audit required.
+function ContributorRow({ c, tone }: { c: CompanyScoreContributor; tone: "positive" | "negative" }) {
+  const positive = tone === "positive";
+  const inner = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+          positive
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+            : "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300"
+        }`}>
+          {positive ? "Evidence" : "Counter-Signal"}
+        </span>
+        <span className={`text-[11px] font-bold ${positive ? "text-emerald-400" : "text-rose-400"}`}>
+          {c.signed_magnitude >= 0 ? "+" : ""}{Math.round(c.signed_magnitude)}
+        </span>
+      </div>
+      <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{c.reason || "—"}</p>
+      {c.signal_at && (
+        <p className="mt-1.5 text-[10px] text-text-muted">
+          {c.source_type === "opportunity" ? "From opportunity tracking" : "From published analysis"} ·{" "}
+          {new Date(c.signal_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+        </p>
+      )}
+    </>
+  );
+  const cls = "rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5";
+  return c.href
+    ? <Link href={c.href as any} className={`${cls} block transition hover:border-surface-border/[0.15]`}>{inner}</Link>
+    : <div className={cls}>{inner}</div>;
+}
+
+function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
+  const [data, setData] = useState<CompanyScoreData | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API}/api/company-scores/${stock.symbol}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [stock.symbol]);
+
+  if (!data) return null;
+
+  if (data.signal_count === 0) {
+    return (
+      <SectionCard title="AI Company Score">
+        <p className="text-sm text-text-secondary">No AI Company Score evidence tracked for {stock.name} yet — this score is built only from real published analysis and opportunity tracking, never estimated.</p>
+      </SectionCard>
+    );
+  }
+
+  const positives = data.positive_reasons?.filter(r => r.reason) ?? [];
+  const negatives = data.risk_factors?.filter(r => r.reason) ?? [];
+
+  return (
+    <SectionCard title="AI Company Score" action={<span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-300">AI Powered</span>}>
+      <div className="mt-2 flex flex-wrap items-center gap-6 rounded-2xl border border-surface-border/6 bg-gradient-to-b from-text-primary/[0.03] to-transparent p-4">
+        <div className="text-center">
+          <p className="text-[36px] font-black leading-none text-text-primary">{data.score}</p>
+          <p className="mt-1 text-[9px] uppercase tracking-wider text-text-muted">AI Score</p>
+        </div>
+        <div className="min-w-[160px] flex-1 space-y-1.5">
+          <div className="flex justify-between text-[10px]">
+            <span className="text-text-muted">Confidence</span>
+            <span className="font-semibold text-emerald-400">{data.confidence != null ? `${Math.round(data.confidence * 100)}%` : "—"}</span>
+          </div>
+          <div className="h-1 overflow-hidden rounded-full bg-text-primary/[0.06]">
+            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${data.confidence != null ? Math.round(data.confidence * 100) : 0}%` }} />
+          </div>
+          <p className="text-[10px] text-text-muted">Based on {data.signal_count} real signal{data.signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking</p>
+        </div>
+        <div className="flex gap-2">
+          {data.risk_level && <Pill color={data.risk_level === "High" ? "rose" : data.risk_level === "Low" ? "green" : "amber"}>{data.risk_level} Risk</Pill>}
+          {data.trend && data.trend !== "neutral" && <Pill color={data.trend === "up" ? "green" : "rose"}>{data.trend === "up" ? "Trending Up" : "Trending Down"}</Pill>}
+        </div>
+      </div>
+      {data.verdict?.reasoning && (
+        <p className="mt-3 text-[11px] text-text-muted">{data.verdict.reasoning}</p>
+      )}
+
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div>
+          <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-500">Real Supporting Evidence</p>
+          {positives.length > 0 ? (
+            <div className="space-y-2.5">
+              {positives.map((c, i) => <ContributorRow key={i} c={c} tone="positive"/>)}
+            </div>
+          ) : (
+            <p className="text-[12px] text-text-muted">No positive signals in the current evidence.</p>
+          )}
+        </div>
+        <div>
+          <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-rose-500">Real Counter-Signals</p>
+          {negatives.length > 0 ? (
+            <div className="space-y-2.5">
+              {negatives.map((c, i) => <ContributorRow key={i} c={c} tone="negative"/>)}
+            </div>
+          ) : (
+            <p className="text-[12px] text-text-muted">No disagreeing signals in the current evidence.</p>
+          )}
+        </div>
+      </div>
+    </SectionCard>
   );
 }
 
@@ -1405,7 +1644,7 @@ function StockPageInner({ params, initialStock, initialRelated }: PageProps & { 
           <div className="min-w-0 space-y-6">
 
             {activeTab === "overview" && <>
-              <CompanyIntelligenceSection symbol={symbol} govScore={stock.gov_score} pricePositive={stock.pct_change >= 0}/>
+              <OverviewGrid stock={stock} relatedNews={relatedNews}/>
               <PriceChart symbol={symbol} chartData={chartData} loadingChart={loadingChart}
                 period={period} setPeriod={p => { setPeriod(p); fetchChart(p); }} stock={stock}/>
               <AISummary stock={stock}/>
@@ -1460,6 +1699,8 @@ function StockPageInner({ params, initialStock, initialRelated }: PageProps & { 
             </>}
 
             {activeTab === "intelligence" && <>
+              <CompanyScoreContributors stock={stock}/>
+              <CompanyIntelligenceSection symbol={symbol} govScore={stock.gov_score} pricePositive={stock.pct_change >= 0}/>
               <StockDNA stock={stock}/>
               <AISentiment stock={stock}/>
               {intelligence && (
