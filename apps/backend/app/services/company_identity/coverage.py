@@ -5,13 +5,16 @@ Graph. Owner's explicit instruction: don't carry forward a fixed number,
 both sides keep growing (the Graph alone grew from 1,005 to 1,041 company
 nodes within a single session during C1/C2).
 
-"Missing" here means the same thing C1 measured: a real company the Graph
-already has evidence for (a resolved CompanyEntity with >=1 real graph
-edge) that isn't in the static `_NSE_UNIVERSE` list the public site
-actually reads today (companies.py) — the site's exposure gate hasn't
-moved yet; only the identity layer underneath it has. Ranked by real
-graph-edge richness, same as C1, so C3 (or whatever exposes these next)
-can prioritize the same way.
+"Missing" means every real Company Master entity not in the static
+`_NSE_UNIVERSE` list the public site actually reads today (companies.py)
+— the site's exposure gate hasn't moved yet; only the identity layer
+underneath it has. The candidate universe is Company Master itself, not
+just the subset the Graph happens to already have a node for — a company
+whose only real evidence is an AICompanySignal (no Graph node at all)
+must still be visible here, or C4's qualification gate would silently
+never see it. Real graph-edge count is computed for every candidate
+(0 when the Graph has no node for it) and used to rank by richness, same
+methodology as C1.
 """
 from __future__ import annotations
 
@@ -39,9 +42,10 @@ class MissingCompanyCandidate:
     graph_edge_count: int
 
 
-async def find_missing_intelligence_rich_companies(db: AsyncSession) -> list[MissingCompanyCandidate]:
-    static_symbols = _static_universe_symbols()
-
+async def _entity_graph_edge_counts(db: AsyncSession) -> dict[str, int]:
+    """Real graph-edge count per resolved entity_id -- a company with no
+    Graph node at all simply never appears in this dict; callers must
+    default missing entities to 0, not skip them."""
     nodes = (await db.execute(select(IGNode).where(IGNode.node_type == "company"))).scalars().all()
 
     edge_counts_out = dict((await db.execute(
@@ -52,7 +56,6 @@ async def find_missing_intelligence_rich_companies(db: AsyncSession) -> list[Mis
     )).all())
 
     entity_edges: dict[str, int] = {}
-    entity_meta: dict[str, CompanyEntity] = {}
     for node in nodes:
         raw = node.ticker or node.id.split(":", 1)[-1]
         result = await resolve_identifier(db, raw)
@@ -60,13 +63,14 @@ async def find_missing_intelligence_rich_companies(db: AsyncSession) -> list[Mis
             continue
         edges = edge_counts_out.get(node.id, 0) + edge_counts_in.get(node.id, 0)
         entity_edges[result.entity_id] = entity_edges.get(result.entity_id, 0) + edges
+    return entity_edges
 
-    if not entity_edges:
-        return []
 
-    entities = (await db.execute(
-        select(CompanyEntity).where(CompanyEntity.entity_id.in_(entity_edges.keys()))
-    )).scalars().all()
+async def find_missing_intelligence_rich_companies(db: AsyncSession) -> list[MissingCompanyCandidate]:
+    static_symbols = _static_universe_symbols()
+    entity_edges = await _entity_graph_edge_counts(db)
+
+    entities = (await db.execute(select(CompanyEntity))).scalars().all()
 
     candidates: list[MissingCompanyCandidate] = []
     for entity in entities:

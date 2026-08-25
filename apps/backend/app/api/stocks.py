@@ -91,6 +91,27 @@ async def get_stock_news(symbol: str):
 async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
     sym_upper = symbol.upper()
 
+    # C4, 2026-08-24 — real historical-alias resolution via Company
+    # Master, sourced never guessed (see app.services.company_identity).
+    # A request for an old/renamed symbol (TATAMOTORS, now TMPV) or a
+    # provider-ticker variant (HPCL, whose real NSE symbol is HINDPETRO)
+    # resolves to the current canonical symbol *before* the live fetch —
+    # preserves the historical identity relationship instead of just
+    # 404ing, and the fetch itself always targets a real, currently-
+    # tradeable symbol. Falls through unchanged (no Company Master match)
+    # for the many real symbols the Master hasn't been extended to cover
+    # yet — same behavior as before this change.
+    canonical_symbol = ""
+    try:
+        from app.services.company_identity.qualification import resolve_entity_by_any_symbol
+        entity = await resolve_entity_by_any_symbol(db, sym_upper)
+        if entity is not None and entity.symbol.upper() != sym_upper:
+            canonical_symbol = entity.symbol.upper()
+            symbol = canonical_symbol
+            sym_upper = canonical_symbol
+    except Exception:
+        pass  # Company Master resolution is an enhancement, never a hard dependency for stock data
+
     # Run yfinance detail + Finnhub calls concurrently
     yf_task    = get_stock_detail(symbol)
     q_task     = finnhub.get_quote(symbol)
@@ -206,6 +227,7 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
 
     return StockDetail(
         symbol=sym_upper,
+        canonical_symbol=canonical_symbol,
         name=yf.get("name", f"{sym_upper} Ltd."),
         price=price_str,
         prev_close=prev_str,

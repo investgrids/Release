@@ -13,10 +13,14 @@ from __future__ import annotations
 
 import asyncio
 import math
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.session import get_db
 
 router = APIRouter()
 
@@ -811,6 +815,64 @@ async def _fetch_prices(symbols: list[str]) -> dict[str, dict]:
         return {}
 
 
+# ── C4: qualified Company Master entries (real evidence, not on the
+# static 512 list) ──────────────────────────────────────────────────────
+# Extends search/directory discoverability to the companies C4's
+# reconciliation found MarketRipple already has real evidence for --
+# `/api/stocks/{symbol}` already resolves any real, live-tradeable NSE
+# symbol regardless of this static list, but this list is the only
+# search/directory index, so a qualified company was previously
+# unreachable except by typing its exact URL. sector/industry/cap are
+# left honestly empty -- NSE's own EQ master file (Company Master's
+# source) doesn't carry sector data, and nothing here fabricates it; a
+# qualified entry just won't match a sector/cap filter, same as any
+# static entry with an unset field would.
+_QUALIFIED_MASTER_CACHE: dict = {"data": None, "at": 0.0}
+_QUALIFIED_MASTER_TTL_S = 600.0
+
+
+async def _get_qualified_master_entries(db: AsyncSession) -> list[dict]:
+    now = time.monotonic()
+    if _QUALIFIED_MASTER_CACHE["data"] is not None and now - _QUALIFIED_MASTER_CACHE["at"] < _QUALIFIED_MASTER_TTL_S:
+        return _QUALIFIED_MASTER_CACHE["data"]
+
+    try:
+        from app.services.company_identity.qualification import qualified_missing_companies
+        qualified = await qualified_missing_companies(db)
+    except Exception:
+        qualified = []
+
+    static_symbols = {co["symbol"] for co in _NSE_UNIVERSE}
+    entries = [
+        {
+            "symbol": q.symbol, "name": q.company_name, "sector": "", "industry": "", "cap": "",
+            "aliases": [], "_sym_l": q.symbol.lower(), "_name_l": q.company_name.lower(), "_alias_l": [],
+        }
+        for q in qualified if q.symbol not in static_symbols
+    ]
+    _QUALIFIED_MASTER_CACHE["data"] = entries
+    _QUALIFIED_MASTER_CACHE["at"] = now
+    return entries
+
+
+def _filter_and_rank_extended(candidates: list[dict], q: str, sector: str, cap: str) -> list[dict]:
+    """Same scoring/filtering as _filter_and_rank, over an arbitrary
+    candidate list -- reused for the qualified-Master extension so the
+    two sources rank consistently rather than the extension being
+    tacked on unranked at the end."""
+    results = []
+    ql = q.strip().lower()
+    for co in candidates:
+        if sector and co["sector"].lower() != sector.lower():
+            continue
+        if cap and co["cap"].lower() != cap.lower():
+            continue
+        score = _score(co, ql) if ql else 1
+        if score:
+            results.append({**co, "_score": score})
+    return results
+
+
 # ── API endpoints ─────────────────────────────────────────────────────────────
 
 @router.get("/sectors")
@@ -825,12 +887,17 @@ async def search_companies(
     sector: str = Query("", description="Filter by sector"),
     cap: str = Query("", description="Filter by cap: large | mid | small"),
     limit: int = Query(20, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Instant metadata-only search — no live prices.
-    Fast enough for typeahead (<5ms).
+    Instant metadata-only search — no live prices. Merges the static
+    512-company universe with real, evidence-qualified Company Master
+    companies (C4) so a search actually finds all of them, not just the
+    static list.
     """
-    results = _filter_and_rank(q, sector, cap)[:limit]
+    results = _filter_and_rank(q, sector, cap)
+    extended = _filter_and_rank_extended(await _get_qualified_master_entries(db), q, sector, cap)
+    results = sorted(results + extended, key=lambda x: (-x["_score"], x["name"]))[:limit]
     return {
         "count": len(results),
         "companies": [
@@ -855,26 +922,37 @@ async def list_companies(
     page:      int = Query(1,     ge=1),
     page_size: int = Query(24,    ge=6, le=60),
     live:      bool = Query(True, description="Fetch live prices for current page"),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Paginated company directory with optional live prices for the current page.
 
     Workflow:
       1. Filter the in-memory universe by q / sector / cap  (instant)
-      2. Sort by name / cap / sector                         (instant)
-      3. Paginate                                            (instant)
-      4. Optionally fetch live prices for the page's symbols via yfinance
+      2. Merge in real, evidence-qualified Company Master companies (C4)
+         not already in the static list — the directory now reflects
+         what MarketRipple actually has evidence for, not just the
+         hand-curated 512.
+      3. Sort by name / cap / sector                         (instant)
+      4. Paginate                                            (instant)
+      5. Optionally fetch live prices for the page's symbols via yfinance
     """
     matches = _filter_and_rank(q, sector, cap)
+    matches += _filter_and_rank_extended(await _get_qualified_master_entries(db), q, sector, cap)
 
     # Secondary sort (primary sort is always relevance score for queries,
-    # then by the selected sort column)
+    # then by the selected sort column). Always re-sorted explicitly here
+    # (rather than relying on _filter_and_rank's own ordering, as the
+    # pre-C4 code did) because the merged-in qualified-Master entries
+    # above are appended unsorted -- a bare concatenation would put every
+    # extension result after the static 512 regardless of relevance/name.
     cap_order = {"large": 0, "mid": 1, "small": 2}
     if sort == "cap":
         matches.sort(key=lambda x: (cap_order.get(x["cap"], 3), x["name"]))
     elif sort == "sector":
         matches.sort(key=lambda x: (x["sector"], x["name"]))
-    # "name" keeps existing alphabetical order from _filter_and_rank
+    else:
+        matches.sort(key=lambda x: (-x["_score"], x["name"]))
 
     total = len(matches)
     total_pages = max(1, math.ceil(total / page_size))
