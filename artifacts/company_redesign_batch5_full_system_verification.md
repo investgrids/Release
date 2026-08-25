@@ -1,7 +1,7 @@
 # Company Redesign — Batch 5: Full-System Verification
 
 Date: 2026-08-25
-Branch: `company-identity/c1-reconciliation` (worktree `D:\ig-company-identity`), commits TBD
+Branch: `company-identity/c1-reconciliation` (worktree `D:\ig-company-identity`), commit `445f54b`
 Scope: test the complete Company experience as one system, per the owner's exact checklist — 5 real company profiles, desktop+mobile, tab URL/back-forward, canonical redirects, metadata/JSON-LD, empty states, real cross-entity links, accessibility, median-of-3 performance gate.
 
 ## The 5 real profiles used
