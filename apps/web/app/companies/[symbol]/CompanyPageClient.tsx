@@ -1546,13 +1546,46 @@ function MoreAnalysisDisclosure({ children }: { children: React.ReactNode }) {
 // all three statements, made only once the Financials tab is opened, not
 // on the main company page load.
 interface StatementPeriod { period: string; [field: string]: string | number | null }
-interface StatementData { annual: StatementPeriod[]; quarterly: StatementPeriod[] }
+interface StatementData {
+  annual: StatementPeriod[]; quarterly: StatementPeriod[];
+  half_yearly?: StatementPeriod[]; nine_months?: StatementPeriod[];
+}
+interface RatioPeriod {
+  period: string; net_profit_margin: number | null; operating_margin: number | null;
+  roe: number | null; roa: number | null; debt_to_equity: number | null; eps: number | null;
+}
+interface CapitalStructureData {
+  as_of_period: string | null; shares_outstanding: number | null; face_value: number | null;
+  book_value_per_share: number | null; market_cap: number | null;
+  total_debt: number | null; shareholders_equity: number | null; debt_to_equity: number | null;
+}
 interface CompanyFinancialsData {
   symbol: string;
   income_statement: StatementData;
   balance_sheet: StatementData;
   cash_flow: StatementData;
+  ratios: { annual: RatioPeriod[]; quarterly: RatioPeriod[] };
+  capital_structure: CapitalStructureData;
+  // Real per-statement reporting currency (yfinance's own info.financial
+  // Currency — confirmed live: INFY reports in USD, most NSE companies in
+  // INR) and the display unit its "currency"-unit fields were scaled to.
+  // NOT the stock's own trading currency — market_cap is always real-time
+  // NSE INR regardless of this.
+  statement_currency: string;
+  statement_currency_prefix: string;
+  statement_currency_unit: string;
 }
+
+// The four period views a flow statement (P&L, Cash Flow) can offer —
+// Balance Sheet only ever passes the first two, since a snapshot
+// statement can't honestly be summed into a Half-Yearly/Nine-Month view.
+const STATEMENT_PERIODS = [
+  { key: "annual" as const,      label: "Yearly" },
+  { key: "quarterly" as const,   label: "Quarterly" },
+  { key: "half_yearly" as const, label: "Half Yearly" },
+  { key: "nine_months" as const, label: "Nine Months" },
+];
+type StatementPeriodKey = typeof STATEMENT_PERIODS[number]["key"];
 
 interface StatementFieldDef { key: string; label: string; suffix?: string; prefix?: string }
 
@@ -1596,20 +1629,28 @@ function yoyPct(curr: number | null | undefined, prev: number | null | undefined
   return Math.round(((curr - prev) / Math.abs(prev)) * 1000) / 10;
 }
 
-function fmtStatementValue(v: number | null | undefined, field: StatementFieldDef): string {
+// currencyPrefix overrides a field's own "₹" placeholder at render time —
+// fields are declared once with "₹" as a marker, but the real prefix
+// depends on the company's own real statement currency (see
+// statement_currency_prefix — USD "$" for INFY, INR "₹" for most others).
+function fmtStatementValue(v: number | null | undefined, field: StatementFieldDef, currencyPrefix?: string): string {
   if (v == null) return "—";
   const abs = Math.abs(v);
+  const prefix = field.prefix === "₹" ? (currencyPrefix ?? "₹") : (field.prefix ?? "");
   const formatted = field.prefix === "₹" ? v.toFixed(2) : abs >= 1000 ? Math.round(v).toLocaleString("en-IN") : v.toFixed(1);
-  return `${field.prefix ?? ""}${formatted}${field.suffix ?? ""}`;
+  return `${prefix}${formatted}${field.suffix ?? ""}`;
 }
 
-function StatementTable({ title, data, fields, showYoy }: {
+function StatementTable({ title, data, fields, showYoy, currencyPrefix = "₹", currencyUnit = "Crore" }: {
   title: string; data: StatementData | undefined; fields: StatementFieldDef[]; showYoy?: boolean;
+  currencyPrefix?: string; currencyUnit?: string;
 }) {
-  const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
-  const rows = data?.[period] ?? [];
+  const available = STATEMENT_PERIODS.filter(p => (data?.[p.key]?.length ?? 0) > 0);
+  const [period, setPeriod] = useState<StatementPeriodKey>("annual");
+  const activeKey: StatementPeriodKey = available.some(p => p.key === period) ? period : (available[0]?.key ?? "annual");
+  const rows = data?.[activeKey] ?? [];
 
-  if (!data || (data.annual.length === 0 && data.quarterly.length === 0)) {
+  if (!data || available.length === 0) {
     return (
       <SectionCard title={title}>
         <p className="text-sm text-text-secondary">No real {title.toLowerCase()} data available for this company yet.</p>
@@ -1617,32 +1658,29 @@ function StatementTable({ title, data, fields, showYoy }: {
     );
   }
 
-  const hasAnnual = data.annual.length > 0;
-  const hasQuarterly = data.quarterly.length > 0;
-
   return (
     <SectionCard title={title} action={
-      hasAnnual && hasQuarterly ? (
+      available.length > 1 ? (
         <div className="flex gap-1 rounded-full border border-surface-border/10 bg-text-primary/[0.03] p-0.5">
-          {(["annual", "quarterly"] as const).map(p => (
-            <button key={p} onClick={() => setPeriod(p)}
-              className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize transition ${
-                period === p ? "bg-sky-500/20 text-sky-600 dark:text-sky-300" : "text-text-muted hover:text-text-secondary"
+          {available.map(p => (
+            <button key={p.key} onClick={() => setPeriod(p.key)}
+              className={`rounded-full px-3 py-1 text-[11px] font-medium transition ${
+                activeKey === p.key ? "bg-sky-500/20 text-sky-600 dark:text-sky-300" : "text-text-muted hover:text-text-secondary"
               }`}>
-              {p}
+              {p.label}
             </button>
           ))}
         </div>
       ) : null
     }>
       {rows.length === 0 ? (
-        <p className="text-sm text-text-secondary">No real {period} {title.toLowerCase()} data available — {hasAnnual ? "annual" : "quarterly"} data is real and shown above.</p>
+        <p className="text-sm text-text-secondary">No real data available for this view — try another period above.</p>
       ) : (
         <div className="mt-2 overflow-x-auto">
           <table className="w-full text-[12px]">
             <thead>
               <tr className="border-b border-surface-border/6">
-                <th className="pb-2 text-left text-[10px] font-medium text-text-muted">₹ in Crore</th>
+                <th className="pb-2 text-left text-[10px] font-medium text-text-muted">{currencyPrefix} in {currencyUnit}</th>
                 {rows.map(r => <th key={r.period} className="pb-2 text-right text-[10px] font-medium text-text-muted">{r.period}</th>)}
               </tr>
             </thead>
@@ -1652,11 +1690,11 @@ function StatementTable({ title, data, fields, showYoy }: {
                   <td className="py-2 text-text-secondary">{field.label}</td>
                   {rows.map((r, i) => {
                     const v = r[field.key] as number | null;
-                    const prevV = period === "annual" ? (rows[i + 1]?.[field.key] as number | null) : null;
-                    const yoy = showYoy && period === "annual" && (field.key === "revenue" || field.key === "net_profit") ? yoyPct(v, prevV) : null;
+                    const prevV = activeKey === "annual" ? (rows[i + 1]?.[field.key] as number | null) : null;
+                    const yoy = showYoy && activeKey === "annual" && (field.key === "revenue" || field.key === "net_profit") ? yoyPct(v, prevV) : null;
                     return (
                       <td key={r.period} className="py-2 text-right font-semibold text-text-primary">
-                        {fmtStatementValue(v, field)}
+                        {fmtStatementValue(v, field, currencyPrefix)}
                         {yoy != null && (
                           <span className={`ml-1.5 text-[10px] font-medium ${yoy >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                             {yoy >= 0 ? "▲" : "▼"}{Math.abs(yoy)}%
@@ -1675,11 +1713,128 @@ function StatementTable({ title, data, fields, showYoy }: {
   );
 }
 
+const RATIO_FIELDS: StatementFieldDef[] = [
+  { key: "net_profit_margin", label: "Net Profit Margin", suffix: "%" },
+  { key: "operating_margin",  label: "Operating Margin",  suffix: "%" },
+  { key: "roe",                label: "Return on Equity",  suffix: "%" },
+  { key: "roa",                label: "Return on Assets",  suffix: "%" },
+  { key: "debt_to_equity",     label: "Debt to Equity" },
+  { key: "eps",                 label: "EPS", prefix: "₹" },
+];
+
+// Real ratios computed period-by-period from the same Income Statement +
+// Balance Sheet data already shown above (see market_data.py::_compute_
+// ratios) — never a second, independently-fetched ratio source that could
+// silently disagree with the statements.
+function RatiosTable({ ratios, currencyPrefix = "₹" }: {
+  ratios: { annual: RatioPeriod[]; quarterly: RatioPeriod[] } | undefined; currencyPrefix?: string;
+}) {
+  const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
+  const hasAnnual = (ratios?.annual.length ?? 0) > 0;
+  const hasQuarterly = (ratios?.quarterly.length ?? 0) > 0;
+  const rows = (ratios?.[period] ?? []) as unknown as StatementPeriod[];
+
+  if (!ratios || (!hasAnnual && !hasQuarterly)) {
+    return (
+      <SectionCard title="Ratios">
+        <p className="text-sm text-text-secondary">No real ratio data available for this company yet.</p>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard title="Ratios" action={
+      hasAnnual && hasQuarterly ? (
+        <div className="flex gap-1 rounded-full border border-surface-border/10 bg-text-primary/[0.03] p-0.5">
+          {(["annual", "quarterly"] as const).map(p => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize transition ${
+                period === p ? "bg-sky-500/20 text-sky-600 dark:text-sky-300" : "text-text-muted hover:text-text-secondary"
+              }`}>
+              {p}
+            </button>
+          ))}
+        </div>
+      ) : null
+    }>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full text-[12px]">
+          <thead>
+            <tr className="border-b border-surface-border/6">
+              <th className="pb-2 text-left text-[10px] font-medium text-text-muted">Ratio</th>
+              {rows.map(r => <th key={r.period} className="pb-2 text-right text-[10px] font-medium text-text-muted">{r.period}</th>)}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-surface-border/3">
+            {RATIO_FIELDS.map(field => (
+              <tr key={field.key}>
+                <td className="py-2 text-text-secondary">{field.label}</td>
+                {rows.map(r => (
+                  <td key={r.period} className="py-2 text-right font-semibold text-text-primary">
+                    {fmtStatementValue(r[field.key] as number | null, field, currencyPrefix)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionCard>
+  );
+}
+
+// Real, single latest-snapshot view (shares outstanding/market cap are
+// point-in-time facts, not something to show per period) — see market_
+// data.py::_compute_capital_structure. face_value stays "—" for the many
+// real NSE symbols yfinance doesn't carry it for, never guessed.
+// Market Cap is always real-time NSE INR (a .NS listing trades in INR
+// regardless of which currency the company files financials in), while
+// Total Debt/Shareholders' Equity/Book Value come straight from the
+// statement DataFrames — for a USD-reporting company like INFY those are
+// genuinely in statementCurrencyPrefix, not INR. Showing both in the same
+// hardcoded "₹" would silently mislabel one of them.
+function CapitalStructureCard({ data, statementCurrencyPrefix = "₹", statementCurrencyUnit = "Crore" }: {
+  data: CapitalStructureData | undefined; statementCurrencyPrefix?: string; statementCurrencyUnit?: string;
+}) {
+  if (!data || (data.shares_outstanding == null && data.market_cap == null && data.total_debt == null)) {
+    return (
+      <SectionCard title="Capital Structure">
+        <p className="text-sm text-text-secondary">No real capital structure data available for this company yet.</p>
+      </SectionCard>
+    );
+  }
+  const rows: [string, string][] = [
+    ["Shares Outstanding", data.shares_outstanding != null ? data.shares_outstanding.toLocaleString("en-IN") : "—"],
+    ["Face Value", data.face_value != null ? `₹${data.face_value}` : "—"],
+    ["Book Value / Share", data.book_value_per_share != null ? `${statementCurrencyPrefix}${data.book_value_per_share}` : "—"],
+    ["Market Cap", data.market_cap != null ? `₹${data.market_cap.toLocaleString("en-IN")} Cr` : "—"],
+    ["Total Debt", data.total_debt != null ? `${statementCurrencyPrefix}${data.total_debt.toLocaleString("en-IN")} ${statementCurrencyUnit}` : "—"],
+    ["Shareholders' Equity", data.shareholders_equity != null ? `${statementCurrencyPrefix}${data.shareholders_equity.toLocaleString("en-IN")} ${statementCurrencyUnit}` : "—"],
+    ["Debt to Equity", data.debt_to_equity != null ? String(data.debt_to_equity) : "—"],
+  ];
+  return (
+    <SectionCard title="Capital Structure" action={
+      data.as_of_period ? <span className="text-[10px] text-text-muted">as of {data.as_of_period}</span> : null
+    }>
+      <div className="mt-3 divide-y divide-surface-border/3">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between py-2 text-[12px]">
+            <span className="text-text-secondary">{label}</span>
+            <span className="font-semibold text-text-primary">{value}</span>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
 const FINANCIALS_SUB_TABS = [
   { id: "overview", label: "Overview" },
-  { id: "income",   label: "Income Statement" },
+  { id: "income",   label: "Profit & Loss" },
   { id: "balance",  label: "Balance Sheet" },
   { id: "cashflow", label: "Cash Flow" },
+  { id: "ratios",   label: "Ratios" },
+  { id: "capital",  label: "Capital Structure" },
 ] as const;
 type FinancialsSubTab = typeof FINANCIALS_SUB_TABS[number]["id"];
 
@@ -1743,17 +1898,27 @@ function FinancialsTabBody({ stock }: { stock: StockDetail }) {
       {subTab === "income" && (
         financials === null
           ? null
-          : <StatementTable title="Income Statement" data={financials.income_statement} fields={INCOME_STATEMENT_FIELDS} showYoy/>
+          : <StatementTable title="Profit & Loss" data={financials.income_statement} fields={INCOME_STATEMENT_FIELDS} showYoy
+              currencyPrefix={financials.statement_currency_prefix} currencyUnit={financials.statement_currency_unit}/>
       )}
       {subTab === "balance" && (
         financials === null
           ? null
-          : <StatementTable title="Balance Sheet" data={financials.balance_sheet} fields={BALANCE_SHEET_FIELDS}/>
+          : <StatementTable title="Balance Sheet" data={financials.balance_sheet} fields={BALANCE_SHEET_FIELDS}
+              currencyPrefix={financials.statement_currency_prefix} currencyUnit={financials.statement_currency_unit}/>
       )}
       {subTab === "cashflow" && (
         financials === null
           ? null
-          : <StatementTable title="Cash Flow" data={financials.cash_flow} fields={CASH_FLOW_FIELDS}/>
+          : <StatementTable title="Cash Flow" data={financials.cash_flow} fields={CASH_FLOW_FIELDS}
+              currencyPrefix={financials.statement_currency_prefix} currencyUnit={financials.statement_currency_unit}/>
+      )}
+      {subTab === "ratios" && (
+        financials === null ? null : <RatiosTable ratios={financials.ratios} currencyPrefix={financials.statement_currency_prefix}/>
+      )}
+      {subTab === "capital" && (
+        financials === null ? null : <CapitalStructureCard data={financials.capital_structure}
+          statementCurrencyPrefix={financials.statement_currency_prefix} statementCurrencyUnit={financials.statement_currency_unit}/>
       )}
     </>
   );
