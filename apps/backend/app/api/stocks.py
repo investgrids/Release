@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,29 +36,94 @@ def _related_events_for_symbol(all_events: list, symbol: str, limit: int = 4) ->
         for e in all_events if _matches(e)
     ][:limit]
 
-_PEERS_MAP: dict = {
-    "IT Services":             ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM"],
-    "Software—Application":    ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM"],
-    "Banks—Regional":          ["HDFCBANK", "ICICIBANK", "AXISBANK", "KOTAKBANK", "SBIN"],
-    "Banks—Diversified":       ["HDFCBANK", "ICICIBANK", "AXISBANK", "KOTAKBANK", "SBIN"],
-    "Banking":                 ["HDFCBANK", "ICICIBANK", "AXISBANK", "KOTAKBANK", "SBIN"],
-    "Pharmaceuticals":         ["SUNPHARMA", "DRREDDY", "CIPLA", "DIVISLAB", "AUROPHARMA"],
-    "Drug Manufacturers":      ["SUNPHARMA", "DRREDDY", "CIPLA", "DIVISLAB", "AUROPHARMA"],
-    "Oil & Gas E&P":           ["RELIANCE", "ONGC", "BPCL", "IOC", "GAIL"],
-    "Energy":                  ["RELIANCE", "ONGC", "NTPC", "POWERGRID", "TATAPOWER"],
-    "Auto Manufacturers":      ["MARUTI", "TATAMOTORS", "M&M", "BAJAJ-AUTO", "HEROMOTOCO"],
-    "Automobiles":             ["MARUTI", "TATAMOTORS", "M&M", "BAJAJ-AUTO", "HEROMOTOCO"],
-    "Infrastructure":          ["LT", "RVNL", "IRCON", "BEML", "BHEL"],
-    "Aerospace & Defence":     ["HAL", "BEL", "BHEL", "MTAR", "GRSE"],
-    "Steel":                   ["TATASTEEL", "JSWSTEEL", "HINDALCO", "VEDL", "SAIL"],
-    "Metals & Mining":         ["TATASTEEL", "HINDALCO", "JSWSTEEL", "VEDL", "COALINDIA"],
-    "Consumer Defensive":      ["HINDUNILVR", "ITC", "NESTLEIND", "BRITANNIA", "DABUR"],
-    "FMCG":                    ["HINDUNILVR", "ITC", "NESTLEIND", "BRITANNIA", "DABUR"],
-    "Telecom Services":        ["AIRTEL", "TATACOMM", "MTNL"],
-    "Real Estate":             ["DLF", "GODREJPROP", "OBEROIRLTY", "BRIGADE"],
-    "Chemicals":               ["PIDILITIND", "ATUL", "ASIANPAINT", "DEEPAKNTR", "UPL"],
+_PEER_GROUPS: dict = {
+    "it_services":     ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM"],
+    "banks":           ["HDFCBANK", "ICICIBANK", "AXISBANK", "KOTAKBANK", "SBIN"],
+    "pharma":          ["SUNPHARMA", "DRREDDY", "CIPLA", "DIVISLAB", "AUROPHARMA"],
+    "oil_gas":         ["RELIANCE", "ONGC", "BPCL", "IOC", "GAIL"],
+    "power_utilities": ["NTPC", "POWERGRID", "TATAPOWER", "ADANIGREEN", "NHPC"],
+    "auto":            ["MARUTI", "TATAMOTORS", "M&M", "BAJAJ-AUTO", "HEROMOTOCO"],
+    "infra_capital_goods": ["LT", "RVNL", "IRCON", "BEML", "BHEL"],
+    "defence":         ["HAL", "BEL", "BHEL", "MTAR", "GRSE"],
+    "steel_metals":    ["TATASTEEL", "JSWSTEEL", "HINDALCO", "VEDL", "COALINDIA"],
+    "fmcg":            ["HINDUNILVR", "ITC", "NESTLEIND", "BRITANNIA", "DABUR"],
+    "telecom":         ["AIRTEL", "TATACOMM", "MTNL"],
+    "realty":          ["DLF", "GODREJPROP", "OBEROIRLTY", "BRIGADE"],
+    "chemicals":       ["PIDILITIND", "ATUL", "ASIANPAINT", "DEEPAKNTR", "UPL"],
 }
 _DEFAULT_PEERS = ["TCS", "INFY", "WIPRO", "HDFCBANK", "RELIANCE"]
+
+# 2026-08-25 fix — the old _PEERS_MAP kept exact-string keys ("Banks—Regional"
+# with an em-dash) that never matched real yfinance industry/sector strings
+# ("Banks - Regional", hyphen+spaces), so almost every symbol silently fell
+# through to _DEFAULT_PEERS. Confirmed live: ICICIBANK and SUNPHARMA both
+# returned TCS/INFY/WIPRO/HDFCBANK regardless of their real industry. Keyword
+# substring matching tolerates yfinance's inconsistent taxonomy instead of
+# requiring an exact match. Checked most-specific-first; industry is tried
+# before the broader sector string.
+_PEER_KEYWORDS: list[tuple[str, str]] = [
+    ("drug manufacturer", "pharma"),
+    ("biotechnology", "pharma"),
+    ("bank", "banks"),
+    ("oil & gas", "oil_gas"),
+    ("oil", "oil_gas"),
+    ("gas", "oil_gas"),
+    ("utilit", "power_utilities"),
+    ("renewable", "power_utilities"),
+    ("auto", "auto"),
+    ("aerospace", "defence"),
+    ("defense", "defence"),
+    ("defence", "defence"),
+    ("steel", "steel_metals"),
+    ("metal", "steel_metals"),
+    ("mining", "steel_metals"),
+    ("coal", "steel_metals"),
+    ("household", "fmcg"),
+    ("personal product", "fmcg"),
+    ("packaged food", "fmcg"),
+    ("beverage", "fmcg"),
+    ("tobacco", "fmcg"),
+    ("telecom", "telecom"),
+    ("communication services", "telecom"),
+    ("real estate", "realty"),
+    ("reit", "realty"),
+    ("chemical", "chemicals"),
+    ("engineering", "infra_capital_goods"),
+    ("construction", "infra_capital_goods"),
+    ("infrastructure", "infra_capital_goods"),
+    ("capital goods", "infra_capital_goods"),
+    ("information technology", "it_services"),
+    ("software", "it_services"),
+    ("it services", "it_services"),
+    ("technology", "it_services"),
+    ("financial services", "banks"),
+    ("healthcare", "pharma"),
+    ("energy", "oil_gas"),
+    ("consumer defensive", "fmcg"),
+    ("consumer cyclical", "auto"),
+    ("industrials", "infra_capital_goods"),
+    ("basic materials", "steel_metals"),
+]
+
+
+def _normalize_peer_text(s: str) -> str:
+    """Real yfinance industry/sector strings use a plain ASCII hyphen
+    ("Banks - Regional"); collapse any Unicode dash variant to a space too
+    so keyword substring matching never depends on which dash character a
+    given field happened to use."""
+    return re.sub(r"[\x2d‐-―]", " ", (s or "").lower())
+
+
+def _classify_peer_group(industry: str, sector: str) -> list[str] | None:
+    industry_n = _normalize_peer_text(industry)
+    sector_n = _normalize_peer_text(sector)
+    for keyword, group in _PEER_KEYWORDS:
+        if keyword in industry_n:
+            return _PEER_GROUPS[group]
+    for keyword, group in _PEER_KEYWORDS:
+        if keyword in sector_n:
+            return _PEER_GROUPS[group]
+    return None
 
 _FMT_PRICE_RE = lambda v: f"{float(v):,.2f}" if v else "—"
 
@@ -236,7 +302,7 @@ async def get_stock(symbol: str, db: AsyncSession = Depends(get_db)):
     else:
         industry = (yf_data or {}).get("industry", "")
         sector   = (yf_data or {}).get("sector", "")
-        raw = _PEERS_MAP.get(industry) or _PEERS_MAP.get(sector) or _DEFAULT_PEERS
+        raw = _classify_peer_group(industry, sector) or _DEFAULT_PEERS
         peers = [p for p in raw if p != sym_upper][:4]
 
     # ── Related events from DB ───────────────────────────────────────────────
