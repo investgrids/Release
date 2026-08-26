@@ -52,21 +52,27 @@ def _label_for(score: float | None) -> str | None:
 
 
 async def compute_marketripple_score(db: AsyncSession, symbol: str) -> MarketRippleScore:
-    """Computes all 4 pillars concurrently (they share no mutable state)
-    and composes them into one MarketRippleScore. The single real entry
-    point for S2 — used directly by the 5-bank comparison in
-    scripts/marketripple_score_five_bank_comparison.py."""
+    """Composes all 4 pillars into one MarketRippleScore. The single real
+    entry point for S2/S3-D — used directly by the 5-bank comparison in
+    scripts/marketripple_score_five_bank_comparison.py.
+
+    S3-D note: financial_strength now also queries the real FinancialFact
+    store (for Gross NPA/Net NPA/CET1/ROA), so it and current_intelligence
+    both touch `db` — they must run sequentially, not via asyncio.gather,
+    since SQLAlchemy's AsyncSession isn't safe for concurrent use by
+    multiple coroutines. valuation/market_behaviour are pure yfinance and
+    stay concurrent with each other."""
     import asyncio
     from app.services.aipe.company_score_engine import _sector_for
 
     symbol = symbol.upper()
     sector = _sector_for(symbol)
 
-    fs, val, mkt, ci = await asyncio.gather(
-        score_financial_strength(symbol, sector),
+    fs = await score_financial_strength(db, symbol, sector)
+    ci = await score_current_intelligence(db, symbol)
+    val, mkt = await asyncio.gather(
         score_valuation(symbol, sector),
         score_market_behaviour(symbol, sector),
-        score_current_intelligence(db, symbol),
     )
 
     pillars: dict[str, PillarScore] = {

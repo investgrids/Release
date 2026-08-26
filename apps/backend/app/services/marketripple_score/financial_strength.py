@@ -1,42 +1,92 @@
 """
-Financial Strength pillar — S2-C, Banking reference sector. Explicitly
-PARTIAL by design, not a bug to fix here: S1 found 7 of 12 proposed
-banking metrics (both asset-quality metrics, both capital metrics, CASA,
-deposit growth, advances) completely absent from every real data source
-this app has. Scored from only the 4 real, usable metrics — ROE, ROA,
-NII growth, Profit growth — ranked against the same real Banking peer
-group Valuation uses.
+Financial Strength pillar — S3-D revision, Banking reference sector.
+Now scores 7 real metrics instead of S2-C's 4, using the real FinancialFact
+store (S3-B/C) for the 4 metrics that were BLOCKED at S1/S2 time and are
+now confirmed real and reliably available: Gross NPA %, Net NPA %, CET1
+Ratio, ROA (replacing the old yfinance-sourced ROA with the real,
+primary-source regulatory figure). ROE, NII growth, and Profit growth stay
+yfinance-sourced, unchanged from S2-C — real, already validated, no reason
+to re-source them.
 
-NIM is deliberately computed and reported in `detail` for visibility but
-NEVER included in metrics_used or the score itself, per explicit owner
-instruction: `Net Interest Income / Total Assets` is a real, live number
-but not actual bank NIM (the real denominator is average interest-earning
-assets, a line item that doesn't exist in this data source) — reporting
-it as NIM would misrepresent a proxy as the real thing.
+Owner's explicit S3-D scoping decision (2026-08-25) — deliberately NOT
+scoring the other 5 originally-proposed metrics, kept as explicit known
+gaps so coverage stays honest against the full 12-metric ambition, not a
+quietly-narrowed one:
+  - CASA, Provision Coverage Ratio, total CAR: confirmed structurally
+    absent from NSE's real XBRL taxonomy (S3-A/S3-B).
+  - Deposit growth, Advances growth: the underlying real values exist
+    (FinancialFact has real Deposits/Advances) but only 1 real year deep
+    per bank — not enough history for a real growth rate yet (S3-C).
 
-status is unconditionally PARTIAL for every real Banking symbol this
-scores today (never COMPLETE) — that's not a threshold miscalibration,
-it's the accurate reflection of a 12-metric pillar with 8 structurally
-unavailable inputs (7 blocked + NIM downgraded to a non-scored proxy).
+NIM stays a computed-but-never-scored diagnostic (unchanged from S2-C):
+`NII / Total Assets` is real but not actual bank NIM (real denominator is
+average interest-earning assets, still unavailable).
+
+Anomaly handling (owner's explicit rule): a FinancialFact row with
+quality_status=ANOMALY must never enter scoring, and is never silently
+replaced with an estimate — _latest_valid_fact_value() walks back to the
+symbol's own latest real POPULATED+non-ANOMALY observation for that
+metric instead. Confirmed live: ICICIBANK's real FY25 Q1 Gross NPA/ROA are
+flagged ANOMALY (see S3-B/C) — this pillar falls back to ICICIBANK's real
+FY25 Q2 or Q3 value, never FY25 Q1's own anomalous figure, and never a
+computed/interpolated substitute.
 """
 from __future__ import annotations
 
 import asyncio
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.marketripple_score.contracts import PillarScore, PillarStatus
 from app.services.marketripple_score.valuation import _BANKING_PEER_GROUP, _percentile_rank
 
 _PROPOSED_BANKING_METRICS = 12  # asset quality x3, capital x2, profitability x3 (incl. NIM), funding x2, growth x2
 
+# metric_code -> (real FinancialFact tag, higher_is_better)
+_FACT_METRICS: list[tuple[str, bool]] = [
+    ("gross_npa_pct", False),  # lower NPA is better
+    ("net_npa_pct", False),
+    ("cet1_ratio", True),
+    ("roa", True),
+]
+
+_KNOWN_UNAVAILABLE = [
+    "casa_ratio (SOURCE_UNAVAILABLE — confirmed absent from NSE's real XBRL taxonomy, S3-A)",
+    "provision_coverage_ratio (SOURCE_UNAVAILABLE — same)",
+    "car_total (SOURCE_UNAVAILABLE — same; never derived as CET1+AdditionalTier1, would omit Tier 2)",
+    "deposit_growth (real Deposits value exists but only 1 real year deep — not enough history for growth yet, S3-C)",
+    "advances_growth (same — only 1 real year deep)",
+]
+
+
+async def _latest_valid_fact_value(db: AsyncSession, symbol: str, metric_code: str) -> float | None:
+    """The real, current, non-anomalous observation for this symbol+metric
+    — walks back past any ANOMALY-flagged period rather than using it or
+    fabricating a replacement. Non-Consolidated only (load-bearing, see
+    FinancialFact's own module docstring)."""
+    from app.db.models.financial_fact import EXTRACTION_POPULATED, FinancialFact, QUALITY_ANOMALY
+
+    rows = (await db.execute(
+        select(FinancialFact.value, FinancialFact.fiscal_year, FinancialFact.fiscal_quarter, FinancialFact.quality_status)
+        .where(
+            FinancialFact.symbol == symbol, FinancialFact.metric_code == metric_code,
+            FinancialFact.consolidation_scope == "Non-Consolidated", FinancialFact.extraction_status == EXTRACTION_POPULATED,
+        )
+    )).all()
+    valid = [(v, fy, fq or 0) for v, fy, fq, qs in rows if qs != QUALITY_ANOMALY and v is not None]
+    if not valid:
+        return None
+    valid.sort(key=lambda r: (r[1], r[2]), reverse=True)
+    return valid[0][0]
+
 
 def _fetch_financial_strength_inputs_sync(symbol: str) -> dict:
     """Real, confirmed live: fetching 5 real peer tickers' `.info` at once
-    (5 concurrent calls per pillar, x4 pillars per bank) intermittently
-    returns an empty/partial dict from yfinance under that concurrent
-    load — reproduced twice, a different bank failing each run, never the
-    same real underlying data actually missing (re-checked in isolation:
-    real values exist every time). One retry after a short pause is the
-    standard fix for this class of live-API flakiness, not a data gap."""
+    intermittently returns an empty/partial dict from yfinance under
+    concurrent load. One retry after a short pause is the standard fix for
+    this class of live-API flakiness, not a data gap — see the identical,
+    already-validated comment on valuation.py's own peer fetch."""
     import time
     import yfinance as yf
 
@@ -47,12 +97,11 @@ def _fetch_financial_strength_inputs_sync(symbol: str) -> dict:
             info = t.info or {}
         except Exception:
             info = {}
-        if info.get("returnOnEquity") is not None or info.get("returnOnAssets") is not None:
+        if info.get("returnOnEquity") is not None:
             break
         if attempt == 0:
             time.sleep(1.5)
     roe = info.get("returnOnEquity")
-    roa = info.get("returnOnAssets")
 
     nii_growth = None
     profit_growth = None
@@ -78,10 +127,10 @@ def _fetch_financial_strength_inputs_sync(symbol: str) -> dict:
     except Exception:
         pass
 
-    return {"roe": roe, "roa": roa, "nii_growth": nii_growth, "profit_growth": profit_growth, "nim_proxy_not_scored": nim_proxy}
+    return {"roe": roe, "nii_growth": nii_growth, "profit_growth": profit_growth, "nim_proxy_not_scored": nim_proxy}
 
 
-async def score_financial_strength(symbol: str, sector: str | None) -> PillarScore:
+async def score_financial_strength(db: AsyncSession, symbol: str, sector: str | None) -> PillarScore:
     loop = asyncio.get_event_loop()
     symbol = symbol.upper()
 
@@ -89,99 +138,91 @@ async def score_financial_strength(symbol: str, sector: str | None) -> PillarSco
         return PillarScore(
             name="financial_strength", score=None, coverage_pct=0.0, status=PillarStatus.INSUFFICIENT,
             metrics_used=[], metrics_missing=["banking_reference_implementation_only"],
-            sources=[], detail={"note": "S2 Financial Strength is Banking-only in this phase"},
+            sources=[], detail={"note": "S3-D Financial Strength is Banking-only in this phase"},
         )
 
     peer_symbols = list(dict.fromkeys([symbol] + [s for s in _BANKING_PEER_GROUP if s != symbol]))
-    # Sequential, not asyncio.gather — confirmed live: firing all 5 real
-    # peer .info fetches at once, on top of Valuation's own simultaneous
-    # 5-peer fetch for the same bank, reproducibly starves ROE/ROA out of
-    # yfinance's response for 4 of 5 real reference banks (retried with a
-    # 1.5s pause, still starved — this is sustained concurrent pressure
-    # across pillars, not a one-off network blip). A small stagger trades
-    # latency for the real data actually being there.
-    fetched = []
-    for s in peer_symbols:
-        fetched.append(await loop.run_in_executor(None, _fetch_financial_strength_inputs_sync, s))
-        await asyncio.sleep(0.4)
-    by_symbol = dict(zip(peer_symbols, fetched))
-    own = by_symbol[symbol]
 
-    metrics_used, metrics_missing = [], []
+    # yfinance-sourced (ROE, NII growth, Profit growth) — sequential, not
+    # asyncio.gather, per the real, confirmed-live concurrent-load finding
+    # already documented in valuation.py's own peer fetch.
+    yf_fetched = []
+    for s in peer_symbols:
+        yf_fetched.append(await loop.run_in_executor(None, _fetch_financial_strength_inputs_sync, s))
+        await asyncio.sleep(0.4)
+    by_symbol_yf = dict(zip(peer_symbols, yf_fetched))
+    own_yf = by_symbol_yf[symbol]
+
+    # FinancialFact-sourced (Gross NPA%, Net NPA%, CET1, ROA) — real
+    # primary-source values, anomaly-excluded per _latest_valid_fact_value.
+    fact_values: dict[str, dict[str, float]] = {code: {} for code, _ in _FACT_METRICS}
+    for s in peer_symbols:
+        for code, _ in _FACT_METRICS:
+            v = await _latest_valid_fact_value(db, s, code)
+            if v is not None:
+                fact_values[code][s] = v
+
+    metrics_used, metrics_missing = [], list(_KNOWN_UNAVAILABLE)
     sub_scores: dict[str, float] = {}
     detail: dict = {
         "peer_group": peer_symbols,
-        "nim_proxy_pct": own.get("nim_proxy_not_scored"),
+        "nim_proxy_pct": own_yf.get("nim_proxy_not_scored"),
         "nim_proxy_disclaimer": "NII / Total Assets — NOT real NIM (needs average interest-earning assets, unavailable); computed for visibility only, never scored",
     }
 
-    roe_values = {s: d["roe"] for s, d in by_symbol.items() if d.get("roe") is not None}
-    roa_values = {s: d["roa"] for s, d in by_symbol.items() if d.get("roa") is not None}
+    for code, higher_is_better in _FACT_METRICS:
+        pctile = _percentile_rank(fact_values[code], symbol, cheaper_is_better=not higher_is_better)
+        if pctile is not None:
+            sub_scores[code] = pctile
+            metrics_used.append(f"{code}_peer_percentile (real, NSE XBRL, Non-Consolidated)")
+            detail[code] = fact_values[code].get(symbol)
+        else:
+            metrics_missing.append(f"{code} (no valid — non-anomalous — real observation for this symbol yet)")
 
+    roe_values = {s: d["roe"] for s, d in by_symbol_yf.items() if d.get("roe") is not None}
     roe_pctile = _percentile_rank(roe_values, symbol, cheaper_is_better=False)
-    roa_pctile = _percentile_rank(roa_values, symbol, cheaper_is_better=False)
-
     if roe_pctile is not None:
         sub_scores["roe"] = roe_pctile
-        metrics_used.append("roe_peer_percentile")
-        detail["roe"] = own.get("roe")
+        metrics_used.append("roe_peer_percentile (yfinance)")
+        detail["roe"] = own_yf.get("roe")
     else:
         metrics_missing.append("roe_peer_percentile")
 
-    if roa_pctile is not None:
-        sub_scores["roa"] = roa_pctile
-        metrics_used.append("roa_peer_percentile")
-        detail["roa"] = own.get("roa")
+    nii_growth_values = {s: d["nii_growth"] for s, d in by_symbol_yf.items() if d.get("nii_growth") is not None}
+    nii_growth_pctile = _percentile_rank(nii_growth_values, symbol, cheaper_is_better=False)
+    if nii_growth_pctile is not None:
+        sub_scores["nii_growth"] = nii_growth_pctile
+        metrics_used.append("nii_growth_peer_percentile (yfinance)")
+        detail["nii_growth_pct"] = own_yf.get("nii_growth")
     else:
-        metrics_missing.append("roa_peer_percentile")
+        metrics_missing.append("nii_growth_peer_percentile")
 
-    if own.get("nii_growth") is not None:
-        # Simple, transparent mapping: growth of 0% -> 50, +10%/-10% moves
-        # the score by 25 points either way, capped 0-100 — candidate,
-        # unvalidated, same as every other threshold in this phase.
-        sub_scores["nii_growth"] = max(0.0, min(100.0, 50 + own["nii_growth"] * 2.5))
-        metrics_used.append("nii_growth_yoy")
-        detail["nii_growth_pct"] = own["nii_growth"]
+    profit_growth_values = {s: d["profit_growth"] for s, d in by_symbol_yf.items() if d.get("profit_growth") is not None}
+    profit_growth_pctile = _percentile_rank(profit_growth_values, symbol, cheaper_is_better=False)
+    if profit_growth_pctile is not None:
+        sub_scores["profit_growth"] = profit_growth_pctile
+        metrics_used.append("profit_growth_peer_percentile (yfinance)")
+        detail["profit_growth_pct"] = own_yf.get("profit_growth")
     else:
-        metrics_missing.append("nii_growth_yoy")
-
-    if own.get("profit_growth") is not None:
-        sub_scores["profit_growth"] = max(0.0, min(100.0, 50 + own["profit_growth"] * 2.5))
-        metrics_used.append("profit_growth_yoy")
-        detail["profit_growth_pct"] = own["profit_growth"]
-    else:
-        metrics_missing.append("profit_growth_yoy")
-
-    # The 7 structurally blocked metrics — always missing, always listed,
-    # never silently absent from the pillar's own self-report.
-    metrics_missing += [
-        "net_npa (BLOCKED — no source anywhere, see S1 audit)",
-        "gross_npa (BLOCKED)",
-        "provision_coverage (BLOCKED)",
-        "cet1 (BLOCKED)",
-        "car (BLOCKED)",
-        "casa (BLOCKED)",
-        "deposit_growth (BLOCKED)",
-        "advances_growth (BLOCKED)",
-        "nim (real value known but excluded from score — see nim_proxy_disclaimer)",
-    ]
+        metrics_missing.append("profit_growth_peer_percentile")
 
     if not sub_scores:
         return PillarScore(
             name="financial_strength", score=None, coverage_pct=0.0, status=PillarStatus.INSUFFICIENT,
             metrics_used=metrics_used, metrics_missing=metrics_missing,
-            sources=[f"yfinance live ({symbol}.NS + {len(peer_symbols)-1} real peers)"], detail=detail,
+            sources=[f"NSE real XBRL + yfinance ({symbol}.NS + {len(peer_symbols)-1} real peers)"], detail=detail,
         )
 
-    # Equal weight across whichever of the 4 real metrics are available —
-    # candidate, unvalidated.
+    # Equal weight across whichever of the 7 real metrics are available —
+    # candidate, unvalidated, per owner's explicit instruction not to tune
+    # this on the S3-D run.
     score = round(sum(sub_scores.values()) / len(sub_scores), 1)
-    coverage_pct = round(len(metrics_used) / _PROPOSED_BANKING_METRICS * 100, 1)
+    coverage_pct = round(len(sub_scores) / _PROPOSED_BANKING_METRICS * 100, 1)
 
     return PillarScore(
         name="financial_strength", score=score, coverage_pct=coverage_pct,
         status=PillarStatus.PARTIAL,  # never COMPLETE for Banking today — see module docstring
         metrics_used=metrics_used, metrics_missing=metrics_missing,
-        sources=[f"yfinance live ({symbol}.NS + {len(peer_symbols)-1} real peers: {', '.join(s for s in peer_symbols if s != symbol)})"],
+        sources=[f"NSE real XBRL (Non-Consolidated) + yfinance ({symbol}.NS + {len(peer_symbols)-1} real peers: {', '.join(s for s in peer_symbols if s != symbol)})"],
         detail=detail,
     )

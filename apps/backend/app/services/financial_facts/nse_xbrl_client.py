@@ -75,17 +75,32 @@ def fetch_xbrl_text(url: str, session: requests.Session | None = None) -> str:
 
 
 def extract_tag_value(xbrl_content: str, tag: str) -> float | None:
-    """The exact real regex validated in S3/S3-A against 20 real filings.
-    Returns the FIRST occurrence (the current-period context; the second
-    occurrence in these real filings is consistently the year-to-date
-    cumulative figure, not needed here). None when the tag is genuinely
-    absent from this real filing — the caller distinguishes "absent
-    entirely" (TAG_MISSING/SOURCE_UNAVAILABLE) from "present but zero"
-    (a real, if suspicious, POPULATED value) itself."""
-    matches = re.findall(rf"<in-bse-fin:{tag}[^>]*>([^<]*)</in-bse-fin:{tag}>", xbrl_content)
-    if not matches:
+    """Real bug found live while validating S3-D against actual scored
+    output (HDFCBANK's ROA read 0.47%, implausible against its real ~1.4-
+    1.9% reputation and against ICICIBANK's own 2.36% for the same tag):
+    each real XBRL tag is filed under TWO contexts, `OneD` (this single
+    period only) and `FourD` (trailing four periods / annualized). For a
+    point-in-time balance-sheet ratio (NPA%, CET1) the two are always
+    identical — confirmed on both HDFCBANK and ICICIBANK's real filings.
+    For a flow metric (ReturnOnAssets), they can genuinely diverge — real,
+    confirmed case: HDFCBANK OneD=0.47% vs FourD=1.43%, a real 3x gap,
+    while ICICIBANK's same tag is 2.36%/2.38% (barely different) — a real
+    per-filer difference in how OneD gets populated, not a parsing
+    inconsistency on this side. FourD is always the safe, comparable
+    choice: identical to OneD when there's no real difference, and the
+    correct annualized figure when there is. Falls back to the first
+    match (old behavior) only if no contextRef is present at all — some
+    older real filings may not tag context explicitly."""
+    with_context = re.findall(rf'<in-bse-fin:{tag}\s+contextRef="([^"]+)"[^>]*>([^<]*)</in-bse-fin:{tag}>', xbrl_content)
+    if with_context:
+        four_d = next((v for ctx, v in with_context if ctx == "FourD"), None)
+        raw = four_d if four_d is not None else with_context[0][1]
+    else:
+        plain = re.findall(rf"<in-bse-fin:{tag}[^>]*>([^<]*)</in-bse-fin:{tag}>", xbrl_content)
+        raw = plain[0] if plain else None
+    if raw is None:
         return None
     try:
-        return float(matches[0])
+        return float(raw)
     except (TypeError, ValueError):
         return None

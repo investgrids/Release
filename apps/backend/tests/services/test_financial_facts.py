@@ -12,6 +12,38 @@ from __future__ import annotations
 from app.services.financial_facts.ingest import _fiscal_year_from_financial_year
 from app.services.financial_facts.metrics import METRICS_BY_CODE, QUARTERLY_METRICS, ANNUAL_METRICS
 from app.services.financial_facts import quality
+from app.services.financial_facts.nse_xbrl_client import extract_tag_value
+
+
+def test_extract_tag_value_prefers_four_d_context():
+    """Real bug found live during S3-D: ReturnOnAssets can genuinely
+    diverge between the OneD (single period) and FourD (trailing four
+    periods / annualized) contexts — confirmed live, HDFCBANK OneD=0.47%
+    vs FourD=1.43%, a real 3x gap. FourD must always win when present."""
+    xml = (
+        '<in-bse-fin:ReturnOnAssets contextRef="OneD" decimals="4">0.0047</in-bse-fin:ReturnOnAssets>'
+        '<in-bse-fin:ReturnOnAssets contextRef="FourD" decimals="4">0.0143</in-bse-fin:ReturnOnAssets>'
+    )
+    assert extract_tag_value(xml, "ReturnOnAssets") == 0.0143
+
+
+def test_extract_tag_value_identical_contexts_unaffected():
+    """Point-in-time ratios (NPA%, CET1) have identical OneD/FourD values
+    on every real filing checked — the fix must not change their result."""
+    xml = (
+        '<in-bse-fin:CET1Ratio contextRef="OneD" decimals="4">0.1997</in-bse-fin:CET1Ratio>'
+        '<in-bse-fin:CET1Ratio contextRef="FourD" decimals="4">0.1997</in-bse-fin:CET1Ratio>'
+    )
+    assert extract_tag_value(xml, "CET1Ratio") == 0.1997
+
+
+def test_extract_tag_value_falls_back_without_context():
+    xml = '<in-bse-fin:GrossNonPerformingAssets decimals="2">123.45</in-bse-fin:GrossNonPerformingAssets>'
+    assert extract_tag_value(xml, "GrossNonPerformingAssets") == 123.45
+
+
+def test_extract_tag_value_none_when_absent():
+    assert extract_tag_value("<xml></xml>", "CET1Ratio") is None
 
 
 def test_fiscal_year_parses_real_nse_format():
