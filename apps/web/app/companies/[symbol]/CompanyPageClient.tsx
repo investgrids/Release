@@ -342,7 +342,16 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
               {rating === undefined ? (
                 <p className="mt-1 text-[14px] font-black text-text-muted">···</p>
               ) : hasRealRating ? (
-                <p className="mt-1 text-[14px] font-black text-emerald-500">{Math.round(rating!.score!)}/100</p>
+                <>
+                  <p className="mt-1 text-[14px] font-black text-emerald-500">{Math.round(rating!.score!)}/100</p>
+                  {rating!.verdict?.label && (
+                    <p className={`text-[9px] font-bold uppercase tracking-wide ${
+                      rating!.verdict!.tone === "positive" ? "text-emerald-500"
+                        : rating!.verdict!.tone === "negative" ? "text-rose-500"
+                        : "text-amber-500"
+                    }`}>{rating!.verdict!.label}</p>
+                  )}
+                </>
               ) : (
                 <p className="mt-1 text-[11px] font-semibold text-text-muted" title="No real published analysis or opportunity signal exists for this company yet.">Insufficient evidence</p>
               )}
