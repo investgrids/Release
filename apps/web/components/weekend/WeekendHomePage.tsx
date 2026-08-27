@@ -30,6 +30,11 @@ import { WeekendEvidenceSummary } from "./WeekendEvidenceSummary";
  * already self-hides on empty input; this page never renders a hollow
  * card just because a backend array happens to exist.
  *
+ * `weekend-enter-stagger` (globals.css) staggers each top-level section's
+ * paint-time reveal — pure CSS (opacity/transform only), reduced-motion
+ * disables it to the settled end state. Nothing here is gated behind it:
+ * every section is already fully present in the server-rendered HTML.
+ *
  * "Since Our Last Update" (changes_since_prior) is deliberately NOT
  * rendered here (owner correction, 2026-08-15): it's not part of the
  * approved reference layout and exposed too much version-to-version
@@ -85,7 +90,7 @@ export async function WeekendHomePage() {
   const previous = currentIdx >= 0 ? versions[currentIdx + 1] : undefined;
 
   return (
-    <div className="space-y-4 pb-10 pt-6">
+    <div className="weekend-enter-stagger space-y-4 pb-10 pt-6">
       <WeekendPrimaryMetrics
         snapshot={snapshot}
         previousConfidence={previous?.production_confidence ?? null}

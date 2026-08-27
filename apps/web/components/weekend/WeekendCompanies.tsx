@@ -40,7 +40,7 @@ export function WeekendCompanies({ companies }: { companies: WeekendCompanyRef[]
             <li key={c.symbol} className="min-h-[58px]">
               <Link
                 href={`/companies/${c.symbol}` as any}
-                className="group flex h-full items-center gap-2.5 rounded-xl border border-surface-border/10 px-3 py-2 transition duration-200 hover:border-violet-400/30 hover:bg-violet-500/[0.03] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                className="group flex h-full items-center gap-2.5 rounded-xl border border-surface-border/10 px-3 py-2 transition duration-200 hover:-translate-y-px hover:border-violet-400/30 hover:bg-violet-500/[0.03] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
               >
                 {/* Same TickerAvatar convention as TopMoversSection.tsx —
                     initials, not a fetched external logo (brief §11: use

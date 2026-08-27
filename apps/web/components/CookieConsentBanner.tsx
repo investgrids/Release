@@ -16,10 +16,11 @@ export function CookieConsentBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // No stored choice yet — first visit, or a browser that cleared
-    // storage. Never shown if a choice already exists, in either
-    // direction, so this can't nag a visitor who already rejected.
-    setVisible(getConsent() === null);
+    // Show banner if user has explicitly rejected OR never made a choice.
+    // Once they Accept or Reject, banner won't nag them again.
+    // GA loads by default but respects Reject choice.
+    const consent = getConsent();
+    setVisible(consent === null || consent === "denied");
   }, []);
 
   if (!visible) return null;

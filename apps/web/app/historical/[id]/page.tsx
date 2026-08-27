@@ -89,6 +89,13 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
   const category = normalizeCategory(d.category);
   const p = d.pattern;
   const multi = p.category_occurrences > 1;
+  // Mirrors HistoricalDetailContent's own winners/losers presence check —
+  // must stay in sync with it, since the primary NextSteps action below
+  // links to that section's #winners-losers anchor and must never
+  // recommend a section that isn't actually rendered.
+  const hasWinnersOrLosers = multi
+    ? (p.top_winners.length > 0 || p.top_losers.length > 0)
+    : (d.historical_winners.length > 0 || d.historical_losers.length > 0);
 
   // Real, honestly-derived FAQs from fields already on the page and the
   // real cross-event pattern aggregate — not a second LLM call, not
@@ -151,10 +158,14 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
       <div className="mx-auto max-w-[1100px] pb-16">
         <NextSteps config={{
           takeaway: d.key_lesson || `${cleanText(d.event_title)} is real historical precedent — see who actually won and lost, then check if a similar setup is forming today.`,
-          primary: {
+          primary: hasWinnersOrLosers ? {
             label: "See Historical Winners & Losers",
             why:   "Because knowing which companies actually gained or lost last time is the whole point of a historical pattern — not just that the market moved.",
-            href:  "/ripple?tab=winners",
+            href:  "#winners-losers",
+          } : {
+            label: `Ask AI: does this pattern apply today?`,
+            why:   "Because market conditions change — an AI read on today's setup vs. this historical one adds context a static page can't.",
+            href:  `/ai-search?q=${encodeURIComponent(`Does the historical pattern from "${truncateForQuery(d.event_title)}" apply to current market conditions?`)}`,
           },
           groups: [
             ...(d.companies.length > 0 ? [{
@@ -173,11 +184,12 @@ export default async function HistoricalDetailPage({ params }: { params: Promise
                   why:   "Because a historical pattern is only useful if you connect it to what's happening right now.",
                   href:  "/ripple",
                 },
-                {
+                // Only shown here when it isn't already the primary action above.
+                ...(hasWinnersOrLosers ? [{
                   label: `Ask AI: does this pattern apply today?`,
                   why:   "Because market conditions change — an AI read on today's setup vs. this historical one adds context a static page can't.",
                   href:  `/ai-search?q=${encodeURIComponent(`Does the historical pattern from "${truncateForQuery(d.event_title)}" apply to current market conditions?`)}`,
-                },
+                }] : []),
               ],
             },
           ],

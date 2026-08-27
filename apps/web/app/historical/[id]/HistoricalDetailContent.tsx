@@ -248,7 +248,7 @@ export function HistoricalDetailContent({ d, faqs, category }: {
 
       {/* ── Section 4: Winners / Losers ───────────────────────────────── */}
       {(winners.length > 0 || losers.length > 0) && (
-        <motion.section {...fadeUp(0.1)} className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <motion.section id="winners-losers" {...fadeUp(0.1)} className="mt-10 scroll-mt-20 grid grid-cols-1 gap-4 md:grid-cols-2">
           <WinLoseCard title="Historical Winners" tone="positive" icon={<TrendingUp className="h-3.5 w-3.5" />} items={winners} multi={multi} />
           <WinLoseCard title="Historical Losers" tone="negative" icon={<TrendingDown className="h-3.5 w-3.5" />} items={losers} multi={multi} />
         </motion.section>

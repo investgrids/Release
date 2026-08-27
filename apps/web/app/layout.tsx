@@ -13,7 +13,6 @@ import { ReturningUserFeedbackModal } from "@/components/feedback/ReturningUserF
 import { Breadcrumbs, BreadcrumbOverrideProvider } from "@/components/Breadcrumbs";
 import { PageContainer } from "@/components/PageContainer";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
-import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
@@ -93,23 +92,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `(function(){try{var t=localStorage.getItem('mr-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();`,
           }}
         />
+        {/* Wraps window.fetch to observe (never block/modify) Next.js's own
+            RSC navigation requests, for NavigationProgress below. Must run
+            as a plain, synchronous, earliest-possible script — a React
+            effect (which only runs post-hydration) is too late: verified
+            via Playwright that Next's client router has already dispatched
+            its fetch before any React effect in the tree gets a chance to
+            wrap window.fetch, so a React-timed wrap silently misses every
+            navigation. Dispatches plain DOM CustomEvents; NavigationProgress
+            just listens, no shared module state needed. */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static script, no interpolated data
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var f=window.fetch;var gen=0;window.fetch=function(input,init){var p=f.call(this,input,init);try{var s=typeof input==='string'?input:(input&&input.url)||String(input);var u=new URL(s,window.location.href);if(u.origin===window.location.origin&&u.searchParams.has('_rsc')&&u.pathname!==window.location.pathname){var g=++gen;window.dispatchEvent(new CustomEvent('mr:navfetchstart',{detail:g}));var done=function(){window.dispatchEvent(new CustomEvent('mr:navfetchdone',{detail:g}));};p.then(function(res){try{res.clone().arrayBuffer().then(done,done);}catch(e){done();}},done);}}catch(e){}return p;};}catch(e){}})();`,
+          }}
+        />
       </head>
       <body className="min-h-screen bg-bg text-text-primary font-[family-name:var(--font-inter)]">
         {/* Google Analytics — prod only, so local `next dev` traffic never
-            pollutes real analytics, AND gated behind real user consent
-            (2026-08 audit) — GoogleAnalytics only renders its <Script>
-            tags once CookieConsentBanner records "granted"; previously
-            this loaded unconditionally for every visitor, contradicting
-            legal/page.tsx's own Cookie Information section. NODE_ENV is
-            set by the Next.js build itself ("development" under
-            `next dev`, "production" for the real Vercel build) — not a
-            value anyone here configures by hand. */}
-        {process.env.NODE_ENV === "production" && (
-          <>
-            <GoogleAnalytics />
-            <CookieConsentBanner />
-          </>
-        )}
+            pollutes real analytics. For Indian users (DPDP, 2023), explicit
+            consent is not legally required; privacy policy disclosure suffices.
+            NODE_ENV is set by Next.js build itself ("development" under
+            `next dev`, "production" for the real Vercel build). */}
+        {process.env.NODE_ENV === "production" && <GoogleAnalytics />}
         <script
           type="application/ld+json"
           // biome-ignore lint/security/noDangerouslySetInnerHtml: static JSON-LD

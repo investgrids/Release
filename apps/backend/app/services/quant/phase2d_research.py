@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.quant_research import QuantResearchPrediction, QuantResearchEvaluation
 from app.services.quant.phase2d_backtest import RUN_TAG, _year_bucket, _DIRECTION_TO_RELATIVE_LABEL
+from app.services.quant.membership import is_in_intervals, load_membership_intervals
 
 
 async def _load_rows(db: AsyncSession) -> list[dict]:
@@ -98,6 +99,69 @@ async def compute_accuracy_report(db: AsyncSession) -> list[dict]:
         report.append({
             "model": model, "horizon_days": horizon,
             "predictions_produced": n_produced, "evaluations_available": n_eval,
+            "coverage_pct": round(100 * n_eval / n_produced, 1) if n_produced else None,
+            "absolute_accuracy_pct": round(100 * abs_hits / len(abs_conclusive), 1) if abs_conclusive else None,
+            "absolute_balanced_accuracy_pct": _balanced_accuracy(abs_conclusive, "direction", "actual_direction_absolute", ("up", "down", "sideways")),
+            "absolute_rank_ic": _rank_ic(abs_conclusive, "stock_return_pct"),
+            "relative_accuracy_pct": round(100 * rel_hits / len(rel_conclusive), 1) if rel_conclusive else None,
+            "relative_balanced_accuracy_pct": _balanced_accuracy(
+                [{**r, "direction": _DIRECTION_TO_RELATIVE_LABEL.get(r["direction"])} for r in rel_conclusive],
+                "direction", "actual_direction_relative", ("outperform", "underperform", "inline"),
+            ),
+            "relative_rank_ic": _rank_ic(rel_conclusive, "relative_return_pct"),
+        })
+    return report
+
+
+async def compute_point_in_time_accuracy_report(db: AsyncSession) -> list[dict]:
+    """Phase B0 leakage-lock (owner instruction, 2026-08-23) — the SAME
+    aggregation as compute_accuracy_report() above (unchanged, still the
+    STATIC_UNIVERSE / SURVIVORSHIP-CAVEATED report), applied only to the
+    subset of already-stored predictions where the symbol was a REAL
+    NIFTY 50 constituent on its own as_of_date, per the real, sourced
+    IndexMembership table (index_membership_seed.py) rather than
+    universe.py's single static current-day snapshot. Filters
+    already-generated predictions; does not regenerate anything.
+
+    Labeled POINT_IN_TIME_UNIVERSE in any report that quotes it, to stay
+    distinguishable from the original static-universe numbers per the
+    owner's explicit instruction not to silently overwrite prior results."""
+    rows = await _load_rows(db)
+    produced_all = await _load_predictions_count_by_model(db)
+    intervals = await load_membership_intervals(db)
+
+    rows = [r for r in rows if is_in_intervals(intervals.get(r["symbol"], []), r["as_of_date"])]
+
+    # produced counts must also reflect only point-in-time-eligible predictions,
+    # not the full static-universe count, or coverage_pct would be nonsensical.
+    produced_pit: dict[str, int] = defaultdict(int)
+    all_pred_rows = (await db.execute(
+        select(QuantResearchPrediction.model_name, QuantResearchPrediction.symbol, QuantResearchPrediction.as_of_date)
+        .where(QuantResearchPrediction.run_tag == RUN_TAG)
+    )).all()
+    for r in all_pred_rows:
+        if is_in_intervals(intervals.get(r.symbol, []), r.as_of_date):
+            produced_pit[r.model_name] += 1
+
+    grouped: dict[tuple[str, int], list[dict]] = defaultdict(list)
+    for r in rows:
+        grouped[(r["model_name"], r["horizon_days"])].append(r)
+
+    report = []
+    for (model, horizon), items in sorted(grouped.items()):
+        n_produced = produced_pit.get(model, 0)
+        n_eval = len(items)
+        abs_conclusive = [r for r in items if r["actual_direction_absolute"] is not None]
+        rel_conclusive = [r for r in items if r["actual_direction_relative"] is not None]
+        abs_hits = sum(1 for r in abs_conclusive if r["direction"] == r["actual_direction_absolute"])
+        rel_hits = sum(1 for r in rel_conclusive
+                        if _DIRECTION_TO_RELATIVE_LABEL.get(r["direction"]) == r["actual_direction_relative"])
+
+        report.append({
+            "model": model, "horizon_days": horizon,
+            "predictions_produced_static_universe": produced_all.get(model, 0),
+            "predictions_produced_point_in_time": n_produced,
+            "evaluations_available": n_eval,
             "coverage_pct": round(100 * n_eval / n_produced, 1) if n_produced else None,
             "absolute_accuracy_pct": round(100 * abs_hits / len(abs_conclusive), 1) if abs_conclusive else None,
             "absolute_balanced_accuracy_pct": _balanced_accuracy(abs_conclusive, "direction", "actual_direction_absolute", ("up", "down", "sideways")),

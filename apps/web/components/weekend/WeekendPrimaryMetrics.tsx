@@ -168,7 +168,7 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
                 invented metric. */}
             <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-border/10">
               <div
-                className={`h-full rounded-full ${snapshot.production_confidence >= 60 ? "bg-emerald-500" : snapshot.production_confidence >= 40 ? "bg-amber-500" : "bg-rose-500"}`}
+                className={`weekend-fill h-full rounded-full ${snapshot.production_confidence >= 60 ? "bg-emerald-500" : snapshot.production_confidence >= 40 ? "bg-amber-500" : "bg-rose-500"}`}
                 style={{ width: `${Math.max(4, Math.min(100, Math.round(snapshot.production_confidence)))}%` }}
               />
             </div>
@@ -188,6 +188,7 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
       <WeekendMetricCard
         icon={<Rocket className="h-4 w-4" aria-hidden="true" />}
         iconClassName="bg-emerald-500/10 text-emerald-500"
+        accent="emerald"
         label="Biggest Opportunity"
         value={opportunityHeadline ? <>{opportunityHeadline} <span aria-hidden="true" className="text-emerald-500">↑</span></> : "—"}
         valueClassName={opportunityHeadline ? "text-text-primary" : "text-text-muted"}
@@ -231,9 +232,9 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
               )}
               <Link
                 href={`/opportunity-radar/${topOpportunity.id}`}
-                className="mt-auto flex items-center gap-1 pt-2 text-[11px] font-semibold text-violet-400 transition duration-200 hover:text-violet-300"
+                className="group/link mt-auto flex items-center gap-1 pt-2 text-[11px] font-semibold text-violet-400 transition duration-200 hover:text-violet-300"
               >
-                View opportunity <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                View opportunity <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover/link:translate-x-0.5" aria-hidden="true" />
               </Link>
             </div>
           ) : (
@@ -245,6 +246,7 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
       <WeekendMetricCard
         icon={<AlertTriangle className="h-4 w-4" aria-hidden="true" />}
         iconClassName="bg-rose-500/10 text-rose-500"
+        accent="rose"
         label="Biggest Risk"
         value={riskHeadline ? <>{riskHeadline} <span aria-hidden="true" className="text-rose-500">↓</span></> : "—"}
         valueClassName={riskHeadline ? "text-text-primary" : "text-text-muted"}
@@ -281,9 +283,9 @@ export function WeekendPrimaryMetrics({ snapshot, previousConfidence, previousCh
               {riskLinkSymbol && (
                 <Link
                   href={`/companies/${riskLinkSymbol}`}
-                  className="mt-auto flex items-center gap-1 pt-2 text-[11px] font-semibold text-violet-400 transition duration-200 hover:text-violet-300"
+                  className="group/link mt-auto flex items-center gap-1 pt-2 text-[11px] font-semibold text-violet-400 transition duration-200 hover:text-violet-300"
                 >
-                  View {riskLinkSymbol} <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                  View {riskLinkSymbol} <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover/link:translate-x-0.5" aria-hidden="true" />
                 </Link>
               )}
             </div>

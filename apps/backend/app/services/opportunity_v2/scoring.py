@@ -50,6 +50,14 @@ class ScoreBreakdown:
     freshness: float = 0.0
     contradiction_penalty: float = 0.0
     contradictions: list[str] = field(default_factory=list)
+    # Per-company real signal captured at the exact point it's computed
+    # below, rather than discarded once folded into company_confirmation's
+    # aggregate total — read_service.py's companies_connected needs this
+    # to show WHICH company confirms/contradicts, not just the total
+    # (V2 Promotion Blocker Remediation, Batch C). "No real signal for
+    # this company" is itself recorded honestly (score/real_direction
+    # both None), never silently omitted or imputed.
+    company_signals: list[dict] = field(default_factory=list)
 
     @property
     def total(self) -> float:
@@ -121,14 +129,24 @@ async def score_cluster(
     for symbol in companies:
         result = await compute_company_score(db, symbol)
         if result.get("score") is None:
+            breakdown.company_signals.append({
+                "symbol": symbol, "score": None, "real_direction": None,
+                "confirms_thesis": False, "contradicts_thesis": False,
+            })
             continue  # no real signal for this company — contributes nothing, never imputed
         real_direction = _TREND_TO_DIRECTION.get(result.get("trend"), "neutral")
         agrees = real_direction == thesis_direction or thesis_direction == "neutral" or real_direction == "neutral"
-        if real_direction != "neutral" and thesis_direction not in ("neutral", "mixed") and real_direction != thesis_direction:
+        contradicts = real_direction != "neutral" and thesis_direction not in ("neutral", "mixed") and real_direction != thesis_direction
+        confirms = agrees and real_direction != "neutral" and not contradicts
+        if contradicts:
             contradiction_total += 1
             breakdown.contradictions.append(f"{symbol}: real trend ({real_direction}) disagrees with thesis ({thesis_direction})")
-        elif agrees and real_direction != "neutral":
+        elif confirms:
             company_confirm_total += 1
+        breakdown.company_signals.append({
+            "symbol": symbol, "score": result.get("score"), "real_direction": real_direction,
+            "confirms_thesis": confirms, "contradicts_thesis": contradicts,
+        })
     if companies:
         breakdown.company_confirmation = round(
             _MAX_COMPANY_CONFIRMATION * min(1.0, company_confirm_total / max(1, len(companies))), 1

@@ -107,6 +107,32 @@ class OpportunityV2(Base):
     sectors                        = Column(JSON, nullable=False, default=list)
     companies                       = Column(JSON, nullable=False, default=list)
 
+    # V2 Promotion Blocker Remediation, Batch A — assigned ONCE, at the
+    # end of the same pass that first creates this row (see
+    # orchestration.py::_process_cluster), from whatever real title
+    # exists at that point (current_title if narrative generation
+    # succeeded synchronously, else formation_title, else thesis_anchor).
+    # Deliberately immutable after that: a permalink must not change
+    # under a reader just because the narrative regenerates later.
+    # Reuses V1's exact _slug() scheme (opportunity_v2/slugs.py), not
+    # reinvented. Nullable only because pre-existing rows created before
+    # this column existed are backfilled separately (slug_backfill.py),
+    # never left permanently null for a row created after this column.
+    slug                             = Column(String(200), nullable=True, index=True)
+
+    # V2 Promotion Blocker Remediation, Batch B/C — the real
+    # scoring.py::ScoreBreakdown that produced current_score, persisted
+    # at the exact same point current_score itself is set (never
+    # recomputed live at GET time — a read must reflect exactly the
+    # reasoning current_score was actually computed from). Field names
+    # match ScoreBreakdown's own dataclass fields verbatim.
+    score_breakdown                    = Column(JSON, nullable=True)
+    # ScoreBreakdown.contradictions, persisted alongside score_breakdown
+    # for the same reason — previously computed at scoring time and then
+    # discarded (only the final float survived), a real traceability gap
+    # the promotion-readiness audit's §10/§P1-6 flagged.
+    contradictions                      = Column(JSON, nullable=False, default=list)
+
     created_at                       = Column(DateTime(timezone=True), nullable=False, default=_now)
     updated_at                        = Column(DateTime(timezone=True), nullable=False, default=_now)  # bumped on every merge
 

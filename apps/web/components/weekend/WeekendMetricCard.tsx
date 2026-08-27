@@ -7,9 +7,16 @@ import type { ReactNode } from "react";
  * presentational — every value/caption is passed in by the caller, never
  * computed here, so this component has no opinion about what's real.
  */
+const ACCENT_VAR: Record<"violet" | "emerald" | "rose", string> = {
+  violet: "rgb(var(--accent-violet))",
+  emerald: "rgb(var(--accent-emerald))",
+  rose: "rgb(var(--accent-rose))",
+};
+
 export function WeekendMetricCard({
   icon,
   iconClassName = "bg-surface-border/8 text-text-muted",
+  accent = "violet",
   label,
   value,
   valueClassName = "text-text-primary",
@@ -22,6 +29,10 @@ export function WeekendMetricCard({
    * "bg-emerald-500/10 text-emerald-500") to match a card's real
    * direction/severity, same tone convention as valueClassName below. */
   iconClassName?: string;
+  /** Instrument-panel top accent (globals.css .weekend-card-accent, same
+   * recipe as the existing .card-data treatment elsewhere in the app) —
+   * matches each card's own real direction, never a uniform color. */
+  accent?: "violet" | "emerald" | "rose";
   label: string;
   value: ReactNode;
   valueClassName?: string;
@@ -40,7 +51,13 @@ export function WeekendMetricCard({
     // the same height regardless of how much real content each one has;
     // this shell must never gain a max-height/overflow cap or that
     // equalization breaks.
-    <div className="flex h-full min-h-[225px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]">
+    <div
+      className="weekend-card-accent flex h-full min-h-[225px] flex-col overflow-hidden rounded-2xl border border-surface-border/7 bg-surface-card p-5 shadow-[0_1px_2px_rgb(var(--text-primary)/0.04),0_10px_28px_-8px_rgb(var(--text-primary)/0.06)]"
+      style={{
+        // @ts-expect-error -- CSS custom property
+        "--card-accent": ACCENT_VAR[accent],
+      }}
+    >
       <div className="flex items-center gap-2.5">
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${iconClassName}`}>
           {icon}

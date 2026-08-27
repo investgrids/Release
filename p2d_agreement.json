@@ -1,0 +1,71 @@
+{
+  "1": [
+    {
+      "agreement_bucket": "4/4",
+      "horizon_days": 1,
+      "n": 56,
+      "absolute_accuracy_pct": 55.4,
+      "relative_accuracy_pct": 53.6
+    },
+    {
+      "agreement_bucket": "3/4",
+      "horizon_days": 1,
+      "n": 3615,
+      "absolute_accuracy_pct": 47.9,
+      "relative_accuracy_pct": 44.7
+    },
+    {
+      "agreement_bucket": "2/4_or_split",
+      "horizon_days": 1,
+      "n": 8572,
+      "absolute_accuracy_pct": 43.9,
+      "relative_accuracy_pct": 42.5
+    }
+  ],
+  "5": [
+    {
+      "agreement_bucket": "4/4",
+      "horizon_days": 5,
+      "n": 56,
+      "absolute_accuracy_pct": 46.4,
+      "relative_accuracy_pct": 46.4
+    },
+    {
+      "agreement_bucket": "3/4",
+      "horizon_days": 5,
+      "n": 3615,
+      "absolute_accuracy_pct": 48.7,
+      "relative_accuracy_pct": 47.2
+    },
+    {
+      "agreement_bucket": "2/4_or_split",
+      "horizon_days": 5,
+      "n": 8572,
+      "absolute_accuracy_pct": 46.1,
+      "relative_accuracy_pct": 45.0
+    }
+  ],
+  "20": [
+    {
+      "agreement_bucket": "4/4",
+      "horizon_days": 20,
+      "n": 56,
+      "absolute_accuracy_pct": 48.2,
+      "relative_accuracy_pct": 46.4
+    },
+    {
+      "agreement_bucket": "3/4",
+      "horizon_days": 20,
+      "n": 3615,
+      "absolute_accuracy_pct": 47.8,
+      "relative_accuracy_pct": 48.4
+    },
+    {
+      "agreement_bucket": "2/4_or_split",
+      "horizon_days": 20,
+      "n": 8572,
+      "absolute_accuracy_pct": 47.1,
+      "relative_accuracy_pct": 47.1
+    }
+  ]
+}

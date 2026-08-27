@@ -83,6 +83,16 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     # developments table without it; feeds development->theme graph edges
     # (app/services/development_memory/graph_link.py).
     ("developments", "themes", "JSON DEFAULT '[]'"),
+    # V2 Promotion Blocker Remediation, Batch A/B/C — opportunities_v2
+    # already existed before these columns did (219 real shadow rows).
+    # slug backfilled separately for those rows, see
+    # opportunity_v2/slug_backfill.py; score_breakdown/contradictions
+    # start null/empty for old rows and populate the next time each one
+    # is reprocessed by run_shadow_pass (no backfill needed — they're
+    # display enrichments, not identity/merge-critical fields).
+    ("opportunities_v2", "slug", "VARCHAR(200)"),
+    ("opportunities_v2", "score_breakdown", "JSON"),
+    ("opportunities_v2", "contradictions", "JSON DEFAULT '[]'"),
 ]
 
 

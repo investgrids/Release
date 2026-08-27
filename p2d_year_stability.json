@@ -1,0 +1,482 @@
+[
+  {
+    "model": "linear_regression",
+    "horizon_days": 1,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 42.3,
+    "relative_accuracy_pct": 43.5
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 1,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 44.8,
+    "relative_accuracy_pct": 41.6
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 1,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 43.8,
+    "relative_accuracy_pct": 43.8
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 1,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 45.4,
+    "relative_accuracy_pct": 44.4
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 1,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 47.7,
+    "relative_accuracy_pct": 44.5
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 5,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 44.8,
+    "relative_accuracy_pct": 45.7
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 5,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 46.9,
+    "relative_accuracy_pct": 44.9
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 5,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 46.7,
+    "relative_accuracy_pct": 46.2
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 5,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 47.5,
+    "relative_accuracy_pct": 47.2
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 5,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 44.1,
+    "relative_accuracy_pct": 46.0
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 20,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 45.8,
+    "relative_accuracy_pct": 45.9
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 20,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 46.1,
+    "relative_accuracy_pct": 46.4
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 20,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 45.3,
+    "relative_accuracy_pct": 45.1
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 20,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 49.9,
+    "relative_accuracy_pct": 47.1
+  },
+  {
+    "model": "linear_regression",
+    "horizon_days": 20,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 42.6,
+    "relative_accuracy_pct": 45.4
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 1,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 46.8,
+    "relative_accuracy_pct": 44.3
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 1,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 45.5,
+    "relative_accuracy_pct": 42.5
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 1,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 42.6,
+    "relative_accuracy_pct": 43.8
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 1,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 42.4,
+    "relative_accuracy_pct": 42.3
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 1,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 44.5,
+    "relative_accuracy_pct": 42.4
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 5,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 45.3,
+    "relative_accuracy_pct": 45.4
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 5,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 49.7,
+    "relative_accuracy_pct": 46.4
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 5,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 46.4,
+    "relative_accuracy_pct": 46.4
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 5,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 43.8,
+    "relative_accuracy_pct": 45.1
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 5,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 46.0,
+    "relative_accuracy_pct": 46.7
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 20,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 44.6,
+    "relative_accuracy_pct": 47.5
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 20,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 52.4,
+    "relative_accuracy_pct": 47.8
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 20,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 49.8,
+    "relative_accuracy_pct": 49.0
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 20,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 46.2,
+    "relative_accuracy_pct": 45.3
+  },
+  {
+    "model": "ma_momentum",
+    "horizon_days": 20,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 39.3,
+    "relative_accuracy_pct": 45.0
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 1,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 39.9,
+    "relative_accuracy_pct": 41.9
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 1,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 37.3,
+    "relative_accuracy_pct": 40.1
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 1,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 41.5,
+    "relative_accuracy_pct": 40.7
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 1,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 40.6,
+    "relative_accuracy_pct": 40.5
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 1,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 41.6,
+    "relative_accuracy_pct": 42.1
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 5,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 44.4,
+    "relative_accuracy_pct": 44.3
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 5,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 37.5,
+    "relative_accuracy_pct": 40.9
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 5,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 42.8,
+    "relative_accuracy_pct": 42.4
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 5,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 44.0,
+    "relative_accuracy_pct": 42.4
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 5,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 41.2,
+    "relative_accuracy_pct": 42.2
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 20,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 46.3,
+    "relative_accuracy_pct": 44.2
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 20,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 36.9,
+    "relative_accuracy_pct": 41.1
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 20,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 40.1,
+    "relative_accuracy_pct": 40.9
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 20,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 43.1,
+    "relative_accuracy_pct": 43.6
+  },
+  {
+    "model": "mean_reversion",
+    "horizon_days": 20,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 49.9,
+    "relative_accuracy_pct": 45.3
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 1,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 45.9,
+    "relative_accuracy_pct": 41.0
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 1,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 41.0,
+    "relative_accuracy_pct": 39.0
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 1,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 43.6,
+    "relative_accuracy_pct": 42.6
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 1,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 41.1,
+    "relative_accuracy_pct": 38.9
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 1,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 42.3,
+    "relative_accuracy_pct": 41.4
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 5,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 45.0,
+    "relative_accuracy_pct": 42.9
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 5,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 44.4,
+    "relative_accuracy_pct": 41.9
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 5,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 44.4,
+    "relative_accuracy_pct": 43.4
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 5,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 42.0,
+    "relative_accuracy_pct": 40.5
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 5,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 44.3,
+    "relative_accuracy_pct": 44.0
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 20,
+    "year": "2021/22",
+    "n": 3216,
+    "absolute_accuracy_pct": 45.0,
+    "relative_accuracy_pct": 45.4
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 20,
+    "year": "2023",
+    "n": 2510,
+    "absolute_accuracy_pct": 46.2,
+    "relative_accuracy_pct": 44.0
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 20,
+    "year": "2024",
+    "n": 2548,
+    "absolute_accuracy_pct": 46.1,
+    "relative_accuracy_pct": 45.8
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 20,
+    "year": "2025",
+    "n": 2548,
+    "absolute_accuracy_pct": 41.9,
+    "relative_accuracy_pct": 42.5
+  },
+  {
+    "model": "previous_return",
+    "horizon_days": 20,
+    "year": "2026 YTD",
+    "n": 1421,
+    "absolute_accuracy_pct": 43.0,
+    "relative_accuracy_pct": 43.8
+  }
+]

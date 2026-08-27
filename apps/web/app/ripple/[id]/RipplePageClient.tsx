@@ -925,9 +925,9 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
       <NextSteps config={{
         takeaway: `${eventTitle} is a traced ripple chain — validate it against real historical precedent before treating it as a thesis.`,
         primary: {
-          label: "Has this happened before?",
-          why:   "Because a causal chain is only as credible as its precedent — check Historical Winners & Losers for the same setup.",
-          href:  "/ripple?tab=winners",
+          label: "Browse historical patterns",
+          why:   "Because a causal chain is only as credible as its precedent — see verified winners and losers from similar past events.",
+          href:  "/historical",
         },
         groups: [
           {
