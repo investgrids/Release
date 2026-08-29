@@ -53,7 +53,14 @@ class MarketRippleScoreSnapshot(Base):
     current_intelligence = Column(Float, nullable=True)
 
     coverage_pct = Column(Float, nullable=False)             # MarketRippleScore.overall_coverage_pct
-    financial_coverage_pct = Column(Float, nullable=True)    # financial_strength pillar's own coverage_pct
+    # Each pillar's own real coverage_pct (S5-B needs all four, not just
+    # Financial Strength, to build a real per-pillar eligibility picture —
+    # never derived/estimated, each is the exact value PillarScore itself
+    # returned for that pillar's real computation).
+    financial_coverage_pct = Column(Float, nullable=True)
+    valuation_coverage_pct = Column(Float, nullable=True)
+    market_behaviour_coverage_pct = Column(Float, nullable=True)
+    current_intelligence_coverage_pct = Column(Float, nullable=True)
 
     # ── Methodology/version — real, structural (S4.5) ────────────────────
     methodology_version = Column(String(32), nullable=False)
