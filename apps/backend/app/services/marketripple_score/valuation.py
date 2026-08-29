@@ -21,9 +21,8 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 
+from app.services.marketripple_score.banking_universe import ALL_ELIGIBLE_NSE_BANKS
 from app.services.marketripple_score.contracts import PillarScore, PillarStatus
-
-_BANKING_PEER_GROUP = ["ICICIBANK", "HDFCBANK", "AXISBANK", "KOTAKBANK", "SBIN"]  # = app.api.stocks._PEER_GROUPS["banks"]
 
 
 def _fetch_valuation_snapshot_sync(symbol: str) -> dict:
@@ -123,7 +122,13 @@ def _percentile_rank(values: dict[str, float], symbol: str, cheaper_is_better: b
     return round((n - 1 - rank) / (n - 1) * 100, 1)
 
 
-async def score_valuation(symbol: str, sector: str | None) -> PillarScore:
+async def score_valuation(symbol: str, sector: str | None, peer_group: list[str] | None = None) -> PillarScore:
+    """peer_group: overrides the default peer group — S4.5 (owner decision,
+    2026-08-29) made ALL_ELIGIBLE_NSE_BANKS the canonical Banking V1 peer
+    universe, replacing the earlier 5-bank default; this parameter still
+    exists for callers that genuinely need a different, explicit
+    population (e.g. a future narrower "Large Private Bank Rank" analytic),
+    never as a silent way to get a different score for the same bank."""
     loop = asyncio.get_event_loop()
     symbol = symbol.upper()
 
@@ -134,7 +139,8 @@ async def score_valuation(symbol: str, sector: str | None) -> PillarScore:
             sources=[], detail={"note": "S2 Valuation is Banking-only in this phase, matching S1's reference scope"},
         )
 
-    peer_symbols = list(dict.fromkeys([symbol] + [s for s in _BANKING_PEER_GROUP if s != symbol]))
+    active_peer_group = peer_group if peer_group is not None else ALL_ELIGIBLE_NSE_BANKS
+    peer_symbols = list(dict.fromkeys([symbol] + [s for s in active_peer_group if s != symbol]))
     # Sequential, not asyncio.gather — see financial_strength.py's own
     # identical comment; same real, confirmed-live reason.
     snapshots = []

@@ -11,7 +11,7 @@ regardless of what the 4 available ones say.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import Enum
 
 
@@ -22,6 +22,14 @@ class PillarStatus(str, Enum):
 
 
 METHODOLOGY_VERSION = "s2-2026-08-25"
+
+# S4.5 (owner decision, 2026-08-29) — Banking gets its own versioned
+# methodology tag once its peer universe and quality rules are frozen,
+# separate from the generic placeholder above (which other, not-yet-built
+# sectors still use). Bumping this is how a future real methodology change
+# (a different peer universe, a new metric) becomes traceable on every
+# already-computed score, instead of silently reinterpreting old results.
+BANKING_METHODOLOGY_VERSION = "BANKING_V1"
 
 
 @dataclass
@@ -50,3 +58,13 @@ class MarketRippleScore:
     overall_coverage_pct: float
     methodology_version: str = METHODOLOGY_VERSION
     calculated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    # S4.5 (owner decision, 2026-08-29) — real, structural fields (not
+    # buried in a detail dict) so the same bank can never silently get one
+    # score from a 5-bank endpoint and another from the Company page: the
+    # peer population a score was actually computed against travels with
+    # the score itself. peer_universe is the real symbol list actually
+    # used for this computation (== ALL_ELIGIBLE_NSE_BANKS for the Banking
+    # V1 default; a caller-supplied peer_group when explicitly overridden).
+    peer_universe: list[str] = field(default_factory=list)
+    peer_universe_count: int = 0
+    peer_universe_as_of: date | None = None

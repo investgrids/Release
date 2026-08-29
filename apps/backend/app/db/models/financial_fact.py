@@ -59,6 +59,11 @@ EXTRACTION_PARSE_FAILED = "PARSE_FAILED"              # real fetch/parse error, 
 QUALITY_OK = "OK"
 QUALITY_ANOMALY = "ANOMALY"   # deviates sharply from this symbol's own trailing observations
 QUALITY_STALE = "STALE"       # real value, but from an old period relative to when it's being read
+QUALITY_IMPLAUSIBLE_SCALE = "IMPLAUSIBLE_SCALE"  # value itself is outside any plausible real-world
+# range for this metric/unit (S4.5) — independent of this symbol's own history, catches a filer
+# whose values are internally consistent (so the within-entity check above finds nothing wrong)
+# but wrong relative to the metric's real-world meaning, e.g. a genuine XBRL scale/unit error.
+# Never a correction: value is preserved exactly as filed, only quality_status/quality_reason change.
 
 
 class FinancialFact(Base):

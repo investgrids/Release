@@ -100,3 +100,27 @@ def test_quality_does_not_flag_normal_quarter_to_quarter_drift():
     # Real reference-bank data moves at most ~15% quarter to quarter.
     status, reason = quality.assess(0.145, [0.140, 0.138, 0.135])
     assert status == "OK"
+
+
+def test_plausibility_flags_real_confirmed_yesbank_cet1():
+    # The real, live-confirmed YESBANK case (S4): CET1 reads 0.13% across
+    # all 8 real quarters checked — internally consistent (assess() alone
+    # finds nothing wrong) but ~100x below any plausible real value.
+    status, reason = quality.assess_plausibility("cet1_ratio", 0.0013)
+    assert status == "IMPLAUSIBLE_SCALE"
+    assert "0.0013" in reason
+
+
+def test_plausibility_does_not_flag_real_observed_cet1_range():
+    # Real observed range across the S4 27-bank universe: 11.97%-21.71%.
+    for real_value in (0.1197, 0.1360, 0.1591, 0.1991, 0.2171):
+        status, reason = quality.assess_plausibility("cet1_ratio", real_value)
+        assert status == "OK", f"{real_value} incorrectly flagged: {reason}"
+
+
+def test_plausibility_ok_for_metric_with_no_registered_range():
+    # Additive layer only — a metric not yet scoped for plausibility must
+    # never be blocked by this check.
+    status, reason = quality.assess_plausibility("deposit_growth", 999.0)
+    assert status == "OK"
+    assert reason is None

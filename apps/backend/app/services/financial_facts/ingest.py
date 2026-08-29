@@ -79,7 +79,7 @@ async def ingest_period(db: AsyncSession, symbol: str, period_type: str, real_qu
     per-status counts, never a fabricated "success" summary."""
     symbol = symbol.upper()
     metric_defs = QUARTERLY_METRICS if period_type == "Quarterly" else ANNUAL_METRICS
-    counts = {"populated": 0, "tag_missing": 0, "source_unavailable": 0, "parse_failed": 0, "anomaly": 0}
+    counts = {"populated": 0, "tag_missing": 0, "source_unavailable": 0, "parse_failed": 0, "anomaly": 0, "implausible_scale": 0}
 
     session = client._session()
     try:
@@ -148,11 +148,19 @@ async def ingest_period(db: AsyncSession, symbol: str, period_type: str, real_qu
 
             trailing = await _trailing_values(db, symbol, m.code, "Non-Consolidated", fiscal_year, fiscal_quarter)
             quality_status, quality_reason = quality.assess(value, trailing)
+            # S4.5: cross-sectional/metric plausibility check runs in
+            # addition to the within-entity check above, not instead of it
+            # — a value already flagged ANOMALY stays ANOMALY (it's already
+            # excluded from scoring; no need to also evaluate plausibility).
+            if quality_status == "OK":
+                quality_status, quality_reason = quality.assess_plausibility(m.code, value)
             await _upsert(db, **common, value=value, source_tag=f"in-bse-fin:{m.tag}",
                            extraction_status=EXTRACTION_POPULATED, quality_status=quality_status, quality_reason=quality_reason)
             counts["populated"] += 1
             if quality_status == "ANOMALY":
                 counts["anomaly"] += 1
+            elif quality_status == "IMPLAUSIBLE_SCALE":
+                counts["implausible_scale"] += 1
 
     await db.commit()
     return counts

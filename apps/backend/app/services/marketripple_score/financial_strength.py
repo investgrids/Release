@@ -38,8 +38,9 @@ import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.marketripple_score.banking_universe import ALL_ELIGIBLE_NSE_BANKS
 from app.services.marketripple_score.contracts import PillarScore, PillarStatus
-from app.services.marketripple_score.valuation import _BANKING_PEER_GROUP, _percentile_rank
+from app.services.marketripple_score.valuation import _percentile_rank
 
 _PROPOSED_BANKING_METRICS = 12  # asset quality x3, capital x2, profitability x3 (incl. NIM), funding x2, growth x2
 
@@ -61,11 +62,15 @@ _KNOWN_UNAVAILABLE = [
 
 
 async def _latest_valid_fact_value(db: AsyncSession, symbol: str, metric_code: str) -> float | None:
-    """The real, current, non-anomalous observation for this symbol+metric
-    — walks back past any ANOMALY-flagged period rather than using it or
-    fabricating a replacement. Non-Consolidated only (load-bearing, see
-    FinancialFact's own module docstring)."""
-    from app.db.models.financial_fact import EXTRACTION_POPULATED, FinancialFact, QUALITY_ANOMALY
+    """The real, current, non-anomalous, plausible observation for this
+    symbol+metric — walks back past any ANOMALY or IMPLAUSIBLE_SCALE (S4.5)
+    flagged period rather than using it or fabricating a replacement.
+    Applies identically whether `symbol` is the scored bank or a peer being
+    pulled into another bank's percentile ranking — a filer whose values
+    are excluded from its own score is excluded from every other bank's
+    peer pool too. Non-Consolidated only (load-bearing, see FinancialFact's
+    own module docstring)."""
+    from app.db.models.financial_fact import EXTRACTION_POPULATED, FinancialFact, QUALITY_ANOMALY, QUALITY_IMPLAUSIBLE_SCALE
 
     rows = (await db.execute(
         select(FinancialFact.value, FinancialFact.fiscal_year, FinancialFact.fiscal_quarter, FinancialFact.quality_status)
@@ -74,7 +79,8 @@ async def _latest_valid_fact_value(db: AsyncSession, symbol: str, metric_code: s
             FinancialFact.consolidation_scope == "Non-Consolidated", FinancialFact.extraction_status == EXTRACTION_POPULATED,
         )
     )).all()
-    valid = [(v, fy, fq or 0) for v, fy, fq, qs in rows if qs != QUALITY_ANOMALY and v is not None]
+    _excluded = (QUALITY_ANOMALY, QUALITY_IMPLAUSIBLE_SCALE)
+    valid = [(v, fy, fq or 0) for v, fy, fq, qs in rows if qs not in _excluded and v is not None]
     if not valid:
         return None
     valid.sort(key=lambda r: (r[1], r[2]), reverse=True)
@@ -130,7 +136,17 @@ def _fetch_financial_strength_inputs_sync(symbol: str) -> dict:
     return {"roe": roe, "nii_growth": nii_growth, "profit_growth": profit_growth, "nim_proxy_not_scored": nim_proxy}
 
 
-async def score_financial_strength(db: AsyncSession, symbol: str, sector: str | None) -> PillarScore:
+async def score_financial_strength(
+    db: AsyncSession, symbol: str, sector: str | None, peer_group: list[str] | None = None,
+) -> PillarScore:
+    """peer_group: overrides the default peer group — see
+    valuation.py::score_valuation's identical parameter for why. The
+    scoring formula itself (percentile ranking, anomaly/plausibility
+    exclusion, equal-weight average) is completely unchanged by this — S4's
+    own frozen-algorithm requirement stays intact; only the population
+    being percentile-ranked against becomes configurable. Default is
+    ALL_ELIGIBLE_NSE_BANKS (S4.5 owner decision, 2026-08-29) — the
+    canonical Banking V1 peer universe, not a narrower hand-picked group."""
     loop = asyncio.get_event_loop()
     symbol = symbol.upper()
 
@@ -141,7 +157,8 @@ async def score_financial_strength(db: AsyncSession, symbol: str, sector: str | 
             sources=[], detail={"note": "S3-D Financial Strength is Banking-only in this phase"},
         )
 
-    peer_symbols = list(dict.fromkeys([symbol] + [s for s in _BANKING_PEER_GROUP if s != symbol]))
+    active_peer_group = peer_group if peer_group is not None else ALL_ELIGIBLE_NSE_BANKS
+    peer_symbols = list(dict.fromkeys([symbol] + [s for s in active_peer_group if s != symbol]))
 
     # yfinance-sourced (ROE, NII growth, Profit growth) — sequential, not
     # asyncio.gather, per the real, confirmed-live concurrent-load finding
