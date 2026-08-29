@@ -79,7 +79,7 @@ async def ingest_period(db: AsyncSession, symbol: str, period_type: str, real_qu
     per-status counts, never a fabricated "success" summary."""
     symbol = symbol.upper()
     metric_defs = QUARTERLY_METRICS if period_type == "Quarterly" else ANNUAL_METRICS
-    counts = {"populated": 0, "tag_missing": 0, "source_unavailable": 0, "parse_failed": 0, "anomaly": 0, "implausible_scale": 0}
+    counts = {"populated": 0, "tag_missing": 0, "source_unavailable": 0, "parse_failed": 0, "anomaly": 0, "implausible_scale": 0, "document_quarantined": 0}
 
     session = client._session()
     try:
@@ -161,6 +161,17 @@ async def ingest_period(db: AsyncSession, symbol: str, period_type: str, real_qu
                 counts["anomaly"] += 1
             elif quality_status == "IMPLAUSIBLE_SCALE":
                 counts["implausible_scale"] += 1
+
+        # S4.5-B — once every metric in THIS filing has been individually
+        # assessed, check whether any came back as a structural failure;
+        # if so, propagate quarantine to the rest of this same real
+        # document (never across documents/periods/scopes). Runs once per
+        # filing, after its own metrics loop, not per-metric.
+        await db.flush()
+        document_id = str(filing.get("seqNumber") or "")
+        counts["document_quarantined"] += await quality.quarantine_document_if_needed(
+            db, symbol, "NSE", document_id, "Non-Consolidated",
+        )
 
     await db.commit()
     return counts

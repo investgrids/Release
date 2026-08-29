@@ -65,6 +65,31 @@ QUALITY_IMPLAUSIBLE_SCALE = "IMPLAUSIBLE_SCALE"  # value itself is outside any p
 # but wrong relative to the metric's real-world meaning, e.g. a genuine XBRL scale/unit error.
 # Never a correction: value is preserved exactly as filed, only quality_status/quality_reason change.
 
+# S4.5-B — a metric-level structural failure (IMPLAUSIBLE_SCALE today; a
+# real future UNIT_MISMATCH/INVALID_NUMERIC_SCALE check would join this
+# same set) is strong evidence the WHOLE source document has a scale/unit
+# problem, not just the one metric it happened to be caught on — a single
+# XBRL filing shares one unit/scale convention across every tag it
+# contains. Every OTHER real, otherwise-OK metric from that SAME document
+# (identified by source_provider + source_document_id + consolidation_
+# scope — never just symbol+period, since one period can carry multiple
+# real documents/scopes) is propagated to this status. Distinct from
+# QUALITY_IMPLAUSIBLE_SCALE itself: that status stays on the metric that
+# actually triggered the check, so the report can always tell "this was
+# the evidence" from "this was quarantined by association." Deliberately
+# NOT propagated from a plain QUALITY_ANOMALY — an anomaly means this one
+# observation deviates from this symbol's own history, which is real
+# signal about that one metric, not proof the whole filing's scale is
+# wrong (see the real ICICIBANK Q1 FY25 case: a genuine single-metric
+# anomaly, not a filing-wide problem — propagating from anomalies would
+# have wrongly quarantined ICICIBANK's other real, valid Q1 metrics too).
+QUALITY_SOURCE_DOCUMENT_QUARANTINED = "SOURCE_DOCUMENT_QUARANTINED"
+
+# Statuses that are strong enough evidence of a filing-wide scale/unit
+# problem to propagate quarantine to the rest of that document. Ordinary
+# ANOMALY is deliberately excluded — see the comment above.
+QUALITY_STRUCTURAL_FAILURE_STATUSES = (QUALITY_IMPLAUSIBLE_SCALE,)
+
 
 class FinancialFact(Base):
     __tablename__ = "financial_facts"
@@ -99,7 +124,7 @@ class FinancialFact(Base):
 
     # ── Status — see module docstring rule 2/3 ──────────────────────────────
     extraction_status = Column(String(24), nullable=False, index=True)
-    quality_status = Column(String(16), nullable=True)             # null when extraction_status != POPULATED
+    quality_status = Column(String(32), nullable=True)             # null when extraction_status != POPULATED
     quality_reason = Column(Text, nullable=True)
 
     # ── Timing ────────────────────────────────────────────────────────────

@@ -62,15 +62,19 @@ _KNOWN_UNAVAILABLE = [
 
 
 async def _latest_valid_fact_value(db: AsyncSession, symbol: str, metric_code: str) -> float | None:
-    """The real, current, non-anomalous, plausible observation for this
-    symbol+metric — walks back past any ANOMALY or IMPLAUSIBLE_SCALE (S4.5)
-    flagged period rather than using it or fabricating a replacement.
-    Applies identically whether `symbol` is the scored bank or a peer being
-    pulled into another bank's percentile ranking — a filer whose values
-    are excluded from its own score is excluded from every other bank's
-    peer pool too. Non-Consolidated only (load-bearing, see FinancialFact's
-    own module docstring)."""
-    from app.db.models.financial_fact import EXTRACTION_POPULATED, FinancialFact, QUALITY_ANOMALY, QUALITY_IMPLAUSIBLE_SCALE
+    """The real, current, non-anomalous, plausible, non-quarantined
+    observation for this symbol+metric — walks back past any ANOMALY,
+    IMPLAUSIBLE_SCALE, or SOURCE_DOCUMENT_QUARANTINED (S4.5-B) flagged
+    period rather than using it or fabricating a replacement. Applies
+    identically whether `symbol` is the scored bank or a peer being pulled
+    into another bank's percentile ranking — a filer whose values are
+    excluded from its own score is excluded from every other bank's peer
+    pool too. Non-Consolidated only (load-bearing, see FinancialFact's own
+    module docstring)."""
+    from app.db.models.financial_fact import (
+        EXTRACTION_POPULATED, FinancialFact, QUALITY_ANOMALY,
+        QUALITY_IMPLAUSIBLE_SCALE, QUALITY_SOURCE_DOCUMENT_QUARANTINED,
+    )
 
     rows = (await db.execute(
         select(FinancialFact.value, FinancialFact.fiscal_year, FinancialFact.fiscal_quarter, FinancialFact.quality_status)
@@ -79,7 +83,7 @@ async def _latest_valid_fact_value(db: AsyncSession, symbol: str, metric_code: s
             FinancialFact.consolidation_scope == "Non-Consolidated", FinancialFact.extraction_status == EXTRACTION_POPULATED,
         )
     )).all()
-    _excluded = (QUALITY_ANOMALY, QUALITY_IMPLAUSIBLE_SCALE)
+    _excluded = (QUALITY_ANOMALY, QUALITY_IMPLAUSIBLE_SCALE, QUALITY_SOURCE_DOCUMENT_QUARANTINED)
     valid = [(v, fy, fq or 0) for v, fy, fq, qs in rows if qs not in _excluded and v is not None]
     if not valid:
         return None

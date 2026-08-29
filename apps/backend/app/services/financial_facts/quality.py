@@ -85,6 +85,61 @@ _PLAUSIBLE_RANGES: dict[str, tuple[float, float]] = {
 }
 
 
+async def quarantine_document_if_needed(
+    db, symbol: str, source_provider: str, source_document_id: str | None, consolidation_scope: str,
+) -> int:
+    """S4.5-B — after a filing's metrics have all been individually
+    assessed (assess() + assess_plausibility()), check whether any of them
+    came back as a structural failure (QUALITY_STRUCTURAL_FAILURE_STATUSES
+    — today just IMPLAUSIBLE_SCALE). If so, propagate
+    QUALITY_SOURCE_DOCUMENT_QUARANTINED to every OTHER real, currently-OK
+    metric row from that exact same document — identified by
+    (symbol, source_provider, source_document_id, consolidation_scope),
+    never just symbol+period, since one period can carry multiple real
+    documents/scopes and quarantine must never leak across them (a
+    Quarterly filing's scale problem must never touch an Annual filing's
+    real, unrelated facts, even for the same symbol/period).
+
+    Rows already flagged ANOMALY or IMPLAUSIBLE_SCALE keep their own,
+    more specific status — this only touches rows that were otherwise OK.
+    Never modifies `value`. Returns the count of rows newly quarantined
+    (0 when no structural failure exists in this document, or when
+    source_document_id is None — no real document identity to key on)."""
+    from sqlalchemy import select
+    from app.db.models.financial_fact import (
+        EXTRACTION_POPULATED, FinancialFact, QUALITY_OK,
+        QUALITY_SOURCE_DOCUMENT_QUARANTINED, QUALITY_STRUCTURAL_FAILURE_STATUSES,
+    )
+
+    if not source_document_id:
+        return 0
+
+    rows = (await db.execute(
+        select(FinancialFact).where(
+            FinancialFact.symbol == symbol,
+            FinancialFact.source_provider == source_provider,
+            FinancialFact.source_document_id == source_document_id,
+            FinancialFact.consolidation_scope == consolidation_scope,
+            FinancialFact.extraction_status == EXTRACTION_POPULATED,
+        )
+    )).scalars().all()
+
+    if not any(r.quality_status in QUALITY_STRUCTURAL_FAILURE_STATUSES for r in rows):
+        return 0
+
+    quarantined = 0
+    for r in rows:
+        if r.quality_status == QUALITY_OK:
+            r.quality_status = QUALITY_SOURCE_DOCUMENT_QUARANTINED
+            r.quality_reason = (
+                f"source document ({source_provider} {source_document_id}, {consolidation_scope}) "
+                f"contains a confirmed scale-integrity failure on another metric in the same filing "
+                f"— preserved as-filed, excluded from scoring pending manual review"
+            )
+            quarantined += 1
+    return quarantined
+
+
 def assess_plausibility(metric_code: str, value: float) -> tuple[str, str | None]:
     """Returns (quality_status, quality_reason) — independent of any
     trailing history, purely a metric/unit-level real-world plausibility
