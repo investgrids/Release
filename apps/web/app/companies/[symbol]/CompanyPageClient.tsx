@@ -254,13 +254,68 @@ function useCompanyRating(symbol: string) {
   return rating;
 }
 
+// S5-C — the real, unified four-pillar MarketRipple Score
+// (Financial Strength / Valuation / Market Behaviour / Current
+// Intelligence), reading only the persisted snapshot the backend
+// computed ahead of time (GET /api/companies/{symbol}/marketripple-score)
+// — never a live 27-bank recomputation from this page. "MarketRipple
+// Score" is reserved exclusively for this methodology going forward
+// (owner decision, 2026-08-29): the older single-engine AI/evidence
+// score (useCompanyRating above) no longer carries that name — see
+// MarketRippleScoreSection's own comment for how the two coexist.
+interface MarketRippleScoreData {
+  resolved: boolean;
+  snapshot?: boolean;
+  symbol?: string;
+  methodology_version?: string;
+  publication_policy_version?: string;
+  publishable?: boolean;
+  eligible?: boolean;
+  score?: number | null;
+  rating?: string | null;
+  pillars?: {
+    financial_strength: number | null; valuation: number | null;
+    market_behaviour: number | null; current_intelligence: number | null;
+  };
+  evidence_coverage_pct?: number;
+  financial_data_as_of?: string | null;
+  calculated_at?: string | null;
+  block_headline?: string | null;
+  block_message?: string | null;
+}
+
+function useMarketRippleScore(symbol: string) {
+  const [data, setData] = useState<MarketRippleScoreData | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    setData(undefined);
+    fetch(`${API}/api/companies/${symbol}/marketripple-score`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setData(null); });
+    return () => { cancelled = true; };
+  }, [symbol]);
+  return data;
+}
+
+function _marketRippleRatingColor(rating: string | null | undefined): string {
+  if (rating === "Strong" || rating === "Positive") return "text-emerald-500";
+  if (rating === "Cautious") return "text-rose-500";
+  return "text-amber-500"; // Neutral / unknown
+}
+
 function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRenderedH1 }: {
   stock: StockDetail; symbol: string; watchlisted: boolean; setWatchlisted: (v: boolean) => void; serverRenderedH1: boolean;
 }) {
   const isPos = stock.pct_change >= 0;
   const sign  = isPos ? "+" : "";
-  const rating = useCompanyRating(stock.symbol);
-  const hasRealRating = !!rating && rating.signal_count > 0 && rating.score != null;
+  const mrScore = useMarketRippleScore(stock.symbol);
+  // Never renders the internal score for a blocked company (eligible ===
+  // false) — the compact header tile shows "Not available yet" for both
+  // "no methodology for this sector" and "blocked by evidence quality",
+  // the same honest tone either way; the full reason lives in the larger
+  // Overview-tab card (MarketRippleScoreSection), not squeezed in here.
+  const hasMrScore = !!mrScore?.resolved && !!mrScore?.snapshot && mrScore.eligible === true && mrScore.score != null;
 
   return (
     <motion.div variants={fadeUp} initial="hidden" animate="show"
@@ -332,28 +387,27 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
                 <p className="mt-1 text-[14px] font-black text-text-primary">{k.value || "—"}</p>
               </div>
             ))}
-            {/* The one real, primary MarketRipple rating for this company —
-                see useCompanyRating above for why this replaced the old
-                fabricated "AI Score" tile. */}
+            {/* The one real, primary MarketRipple Score for this company —
+                the unified four-pillar BANKING_V1 methodology (S5-C,
+                2026-08-29). Reserved name: this tile no longer shows the
+                older single-engine evidence score (see
+                MarketRippleScoreSection for where that content still
+                lives, under its own "Current Intelligence" name). */}
             <div className={`rounded-2xl border px-4 py-3 text-center min-w-[90px] ${
-              hasRealRating ? "border-emerald-500/20 bg-emerald-500/[0.05]" : "border-surface-border/10 bg-text-primary/[0.03]"
+              hasMrScore ? "border-emerald-500/20 bg-emerald-500/[0.05]" : "border-surface-border/10 bg-text-primary/[0.03]"
             }`}>
               <p className="text-[9px] uppercase tracking-widest text-text-muted">MarketRipple Score</p>
-              {rating === undefined ? (
+              {mrScore === undefined ? (
                 <p className="mt-1 text-[14px] font-black text-text-muted">···</p>
-              ) : hasRealRating ? (
+              ) : hasMrScore ? (
                 <>
-                  <p className="mt-1 text-[14px] font-black text-emerald-500">{Math.round(rating!.score!)}/100</p>
-                  {rating!.verdict?.label && (
-                    <p className={`text-[9px] font-bold uppercase tracking-wide ${
-                      rating!.verdict!.tone === "positive" ? "text-emerald-500"
-                        : rating!.verdict!.tone === "negative" ? "text-rose-500"
-                        : "text-amber-500"
-                    }`}>{rating!.verdict!.label}</p>
+                  <p className="mt-1 text-[14px] font-black text-emerald-500">{Math.round(mrScore!.score!)}/100</p>
+                  {mrScore!.rating && (
+                    <p className={`text-[9px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(mrScore!.rating)}`}>{mrScore!.rating}</p>
                   )}
                 </>
               ) : (
-                <p className="mt-1 text-[11px] font-semibold text-text-muted" title="No real published analysis or opportunity signal exists for this company yet.">Insufficient evidence</p>
+                <p className="mt-1 text-[11px] font-semibold text-text-muted" title="MarketRipple Score is not yet available for this company.">Not available yet</p>
               )}
             </div>
           </div>
@@ -1251,11 +1305,13 @@ function OverviewCell({ label, children, href }: { label: string; children: Reac
 // grid (market data + financials + latest news + latest event + top
 // opportunity + score reasons, all flattened into one undifferentiated
 // grid) is replaced by the spec's own explicit Overview sequence: About →
-// Key Data → MarketRipple View → Latest Developments → Opportunity
-// preview, each answering one distinct question rather than one grid
-// answering five at once. Every field here is still the same real data
-// OverviewGrid already used — nothing new is fetched or invented, only
-// regrouped and given room to be read as a conclusion rather than a cell.
+// Key Data → MarketRipple Score (or Current Intelligence, when the
+// unified score isn't available for this company — see
+// MarketRippleScoreSection) → Latest Developments → Opportunity preview,
+// each answering one distinct question rather than one grid answering
+// five at once. Every field here is still the same real data OverviewGrid
+// already used — nothing new is fetched or invented, only regrouped and
+// given room to be read as a conclusion rather than a cell.
 
 // About — 1-3 real sentences, honest omission when there's no real
 // description. This replaced the old "AI Company Summary" card's
@@ -1291,12 +1347,22 @@ function KeyDataGrid({ stock }: { stock: StockDetail }) {
   );
 }
 
-// MarketRipple View — the same real rating useCompanyRating (see
-// CompanyHero above) already fetches, presented as a conclusion: score,
-// verdict, one real helping/holding-back reason each, link to the full
-// Intelligence tab. Honest "insufficient evidence" state when there's no
-// real signal — never a second, different number than the header's.
-function MarketRippleViewCard({ stock }: { stock: StockDetail }) {
+// Current Intelligence — the older, single-engine AI/evidence company
+// score (useCompanyRating), presented as a conclusion: score, verdict,
+// one real helping/holding-back reason each, link to the full
+// Intelligence tab. Renamed from "MarketRipple View" (S5-C, 2026-08-29,
+// owner decision) — "MarketRipple Score" is now reserved exclusively for
+// the unified four-pillar BANKING_V1 methodology (see
+// MarketRippleScoreSection). This card is now shown ONLY when that
+// unified score isn't available for the company (no methodology for its
+// sector yet, or no snapshot computed yet) — its real evidence still
+// deserves a home, just not under the MarketRipple Score brand. When the
+// unified score IS eligible, this same evidence already lives on the
+// Intelligence tab (CompanyScoreContributors) — showing it twice on
+// Overview would recreate the "two competing numbers" problem this
+// rename exists to prevent. Honest "insufficient evidence" state when
+// there's no real signal — never a fabricated number.
+function CurrentIntelligenceCard({ stock }: { stock: StockDetail }) {
   const rating = useCompanyRating(stock.symbol);
   if (rating === undefined) return null;
   const hasRealRating = !!rating && rating.signal_count > 0 && rating.score != null;
@@ -1304,11 +1370,11 @@ function MarketRippleViewCard({ stock }: { stock: StockDetail }) {
   const holdingBack = rating?.risk_factors?.find(r => r.reason);
 
   return (
-    <SectionCard title="MarketRipple View" action={
+    <SectionCard title="Current Intelligence" action={
       <Link href={`/companies/${stock.symbol}?tab=intelligence` as any} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View Intelligence →</Link>
     }>
       {!hasRealRating ? (
-        <p className="mt-3 text-[13px] text-text-muted">Insufficient evidence for a MarketRipple view on {stock.name} yet — this is built only from real published analysis and opportunity tracking, never estimated.</p>
+        <p className="mt-3 text-[13px] text-text-muted">Insufficient evidence for a current-intelligence view on {stock.name} yet — this is built only from real published analysis and opportunity tracking, never estimated.</p>
       ) : (
         <div className="mt-3 space-y-3">
           <div className="flex items-center gap-3">
@@ -1336,6 +1402,96 @@ function MarketRippleViewCard({ stock }: { stock: StockDetail }) {
       )}
     </SectionCard>
   );
+}
+
+// MarketRipple Score — the real, unified four-pillar card (S5-C,
+// 2026-08-29). Deliberately restrained per owner spec: the headline
+// number dominates, the four pillars read as an EXPLANATION of it (a
+// compact horizontal row, never four more circular gauges competing with
+// the headline), and evidence coverage is one understated line — not a
+// second meter, not labeled "confidence" (coverage and confidence are
+// different things: this is how much real evidence existed, not how sure
+// the model is). No per-pillar weights shown here — that belongs to the
+// methodology page (S5-D), not the Company card.
+//
+// A blocked company (eligible === false) NEVER shows its real internal
+// score — that number is operational/debugging information, not a public
+// fact. block_headline/block_message are the real, structural,
+// server-computed reason (see public_projection.py's priority-ordered
+// reason-code mapping) — never re-derived or guessed here.
+function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScoreData; stock: StockDetail }) {
+  const eligible = data.eligible === true && data.score != null;
+
+  if (!eligible) {
+    return (
+      <SectionCard title="MarketRipple Score">
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-[15px] font-bold text-text-primary">Unavailable</span>
+        </div>
+        <p className="mt-2 text-[13px] font-semibold text-text-secondary">{data.block_headline ?? "Not available yet"}</p>
+        {data.block_message && <p className="mt-1 text-[12px] leading-5 text-text-muted">{data.block_message}</p>}
+      </SectionCard>
+    );
+  }
+
+  const pillars: { label: string; value: number | null | undefined }[] = [
+    { label: "Financial Strength",    value: data.pillars?.financial_strength },
+    { label: "Valuation",             value: data.pillars?.valuation },
+    { label: "Market Behaviour",      value: data.pillars?.market_behaviour },
+    { label: "Current Intelligence",  value: data.pillars?.current_intelligence },
+  ];
+  const updated = data.calculated_at
+    ? new Date(data.calculated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+    : null;
+
+  return (
+    <SectionCard title="MarketRipple Score">
+      <p className="mt-1 text-[12px] leading-5 text-text-muted">
+        A combined view of financial strength, valuation, market behaviour and current market intelligence.
+      </p>
+      <div className="mt-3 flex items-baseline gap-3">
+        <span className="text-[36px] font-black leading-none text-text-primary">{Math.round(data.score!)}</span>
+        <span className="text-[13px] text-text-muted">/ 100</span>
+        {data.rating && (
+          <span className={`text-[11px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(data.rating)}`}>{data.rating}</span>
+        )}
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+        {pillars.map(p => (
+          <div key={p.label}>
+            <p className="text-[9px] uppercase tracking-wider text-text-muted">{p.label}</p>
+            <p className="mt-0.5 text-[16px] font-bold text-text-primary">{p.value != null ? Math.round(p.value) : "—"}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex items-center justify-between border-t border-surface-border/10 pt-3 text-[11px] text-text-muted">
+        <span title="Percentage of available evidence used across the MarketRipple Score pillars. Missing or invalid evidence is not estimated.">
+          Evidence coverage {Math.round(data.evidence_coverage_pct ?? 0)}%
+        </span>
+        {updated && <span>Updated {updated}</span>}
+      </div>
+    </SectionCard>
+  );
+}
+
+// The one real decision point for which Overview-tab card to show:
+// eligible-and-scored -> the new unified MarketRippleScoreCard;
+// blocked-but-scored (evidence exists, didn't clear BANKING_V1_P1) ->
+// MarketRippleScoreCard's own "Unavailable" state (never silently falls
+// back to the old score — that would defeat the point of a real,
+// structural eligibility gate); no methodology for this sector yet, or
+// no snapshot computed at all -> CurrentIntelligenceCard, so the older
+// engine's real evidence still has a home, just not under the
+// MarketRipple Score brand (owner decision, 2026-08-29).
+function MarketRippleScoreSection({ stock }: { stock: StockDetail }) {
+  const data = useMarketRippleScore(stock.symbol);
+  if (data === undefined) return null;
+  if (data?.resolved && data?.snapshot) {
+    return <MarketRippleScoreCard data={data} stock={stock} />;
+  }
+  return <CurrentIntelligenceCard stock={stock} />;
 }
 
 // Latest Developments — the most recent real news headline and material
@@ -1623,9 +1779,10 @@ function WhatToWatchCard({ points }: { points: string[] }) {
 }
 
 // Stock DNA and Pattern Intelligence are real, but neither is one of the
-// tab's 5 core concepts (MarketRipple View lives on Overview; Why This
-// View/What Changed/Key Evidence are CompanyScoreContributors +
-// CompanyIntelligenceSection; What to Watch is above) — tucked behind
+// tab's 5 core concepts (the MarketRipple Score / Current Intelligence
+// card lives on Overview; Why This View/What Changed/Key Evidence are
+// CompanyScoreContributors + CompanyIntelligenceSection; What to Watch is
+// above) — tucked behind
 // progressive disclosure so they're available without competing with the
 // primary read. Collapsed by default.
 function MoreAnalysisDisclosure({ children }: { children: React.ReactNode }) {
@@ -2436,8 +2593,8 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
 
             {/* Batch C (Company Simplification spec, §3) — Overview
                 rebuilt to the spec's own explicit sequence: About → Key
-                Data → MarketRipple View → Latest Developments →
-                (curated Latest Intelligence articles, a distinct real
+                Data → MarketRipple Score/Current Intelligence → Latest
+                Developments → (curated Latest Intelligence articles, a distinct real
                 source from raw news/events) → FAQ moved to the bottom
                 (was previously rendered above the entire page in
                 page.tsx, repeated on every tab — see faqSection's own
@@ -2453,7 +2610,7 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
               <PriceChart symbol={symbol} chartData={chartData} loadingChart={loadingChart}
                 period={period} setPeriod={p => { setPeriod(p); fetchChart(p); }} stock={stock}/>
               <KeyDataGrid stock={stock}/>
-              <MarketRippleViewCard stock={stock}/>
+              <MarketRippleScoreSection stock={stock}/>
               <LatestDevelopmentsList stock={stock} relatedNews={relatedNews}/>
               {/* "Current Opportunity" preview removed per explicit
                   instruction (2026-08-25) — the Opportunities tab is
@@ -2471,8 +2628,8 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
             </>}
 
             {/* Batch D (Company Simplification spec, §4) — Intelligence
-                tab reduced to its real 5-concept core (MarketRipple View
-                lives on Overview; the other four are represented here):
+                tab reduced to its real 5-concept core (the MarketRipple
+                Score/Current Intelligence card lives on Overview; the other four are represented here):
                 Why This View + What Changed (CompanyIntelligenceSection),
                 Key Evidence (CompanyScoreContributors), What to Watch
                 (WhatToWatchCard, extracted from the old IntelligenceBlock's

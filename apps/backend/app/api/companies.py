@@ -912,6 +912,27 @@ async def get_company_tier(symbol: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.get("/{symbol}/marketripple-score")
+async def get_company_marketripple_score(symbol: str, db: AsyncSession = Depends(get_db)):
+    """S5-C — the one real read path a Company page should use for the
+    MarketRipple Score. Never triggers a live computation (no yfinance/
+    NSE calls here) — reads the most recent real MarketRippleScoreSnapshot
+    only, resolved through the real Company Identity resolver first so an
+    alias/historical symbol lands on the same real record a current-symbol
+    request would.
+
+    `resolved: False` — not a real company (never a guess).
+    `resolved: True, snapshot: False` — real company, no snapshot computed yet.
+    Otherwise the full real projection; `eligible` (BANKING_V1_P1's real,
+    per-bank verdict) is what should drive the score-card vs. unavailable-
+    card UI decision — NOT `publishable`, which is a separate, whole-
+    feature phase lock (this endpoint is not wired into the deployed
+    production Company page while that stays False)."""
+    from app.services.marketripple_score.public_projection import get_marketripple_score_projection
+
+    return await get_marketripple_score_projection(db, symbol)
+
+
 @router.get("/{symbol}/ripple")
 async def get_company_ripple(symbol: str, hops: int = Query(2, ge=1, le=3), db: AsyncSession = Depends(get_db)):
     """Company redesign Batch 4 — the Company page's Ripple tab reads
