@@ -1422,9 +1422,13 @@ function CurrentIntelligenceCard({ stock }: { stock: StockDetail }) {
 function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScoreData; stock: StockDetail }) {
   const eligible = data.eligible === true && data.score != null;
 
+  const methodologyLink = (
+    <Link href="/methodology/marketripple-score" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">How this score works →</Link>
+  );
+
   if (!eligible) {
     return (
-      <SectionCard title="MarketRipple Score">
+      <SectionCard title="MarketRipple Score" action={methodologyLink}>
         <div className="mt-2 flex items-center gap-2">
           <span className="text-[15px] font-bold text-text-primary">Unavailable</span>
         </div>
@@ -1445,7 +1449,7 @@ function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScoreData; s
     : null;
 
   return (
-    <SectionCard title="MarketRipple Score">
+    <SectionCard title="MarketRipple Score" action={methodologyLink}>
       <p className="mt-1 text-[12px] leading-5 text-text-muted">
         A combined view of financial strength, valuation, market behaviour and current market intelligence.
       </p>
