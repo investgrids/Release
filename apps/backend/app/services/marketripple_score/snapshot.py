@@ -62,6 +62,8 @@ async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group
     compute_marketripple_score() call — callers should run this from a
     scheduled job or a manual script, never from a live request handler."""
     from app.services.company_identity.qualification import resolve_entity_by_any_symbol
+    from app.services.marketripple_score.eligibility import BANKING_V1_P1, evaluate_eligibility
+    from app.services.marketripple_score.financial_strength import REAL_BANKING_METRICS_TOTAL
 
     symbol = symbol.upper()
     result = await compute_marketripple_score(db, symbol, peer_group=peer_group)
@@ -73,6 +75,26 @@ async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group
     val = result.pillars.get("valuation")
     mkt = result.pillars.get("market_behaviour")
     ci = result.pillars.get("current_intelligence")
+
+    # S5-B — direct, real metric count (never reverse-derived from a
+    # coverage percentage), and the real BANKING_V1_P1 per-bank
+    # eligibility verdict. Banking-only today, matching methodology_version.
+    is_banking = result.methodology_version == "BANKING_V1"
+    financial_metrics_used_count = len(fs.metrics_used) if fs else None
+    financial_metrics_total_count = REAL_BANKING_METRICS_TOTAL if is_banking else None
+    publication_policy_version = None
+    publication_block_reasons = None
+    if is_banking:
+        eligibility = evaluate_eligibility(
+            financial_strength_score=fs.score if fs else None,
+            financial_metrics_used=financial_metrics_used_count or 0,
+            financial_metrics_total=REAL_BANKING_METRICS_TOTAL,
+            overall_coverage_pct=result.overall_coverage_pct,
+            financial_data_as_of=financial_data_as_of,
+            policy=BANKING_V1_P1,
+        )
+        publication_policy_version = BANKING_V1_P1.name
+        publication_block_reasons = eligibility.reasons
 
     snapshot = MarketRippleScoreSnapshot(
         entity_id=entity.entity_id if entity else None,
@@ -88,6 +110,10 @@ async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group
         valuation_coverage_pct=val.coverage_pct if val else None,
         market_behaviour_coverage_pct=mkt.coverage_pct if mkt else None,
         current_intelligence_coverage_pct=ci.coverage_pct if ci else None,
+        financial_metrics_used_count=financial_metrics_used_count,
+        financial_metrics_total_count=financial_metrics_total_count,
+        publication_policy_version=publication_policy_version,
+        publication_block_reasons=publication_block_reasons,
         methodology_version=result.methodology_version,
         peer_universe=result.peer_universe,
         peer_universe_count=result.peer_universe_count,

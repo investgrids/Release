@@ -52,6 +52,16 @@ _FACT_METRICS: list[tuple[str, bool]] = [
     ("roa", True),
 ]
 
+# S5-B (owner decision, 2026-08-29): the real, currently-scoreable Banking
+# V1 metric set — the 4 FinancialFact-sourced metrics above plus the 3
+# yfinance-sourced ones (roe, nii_growth, profit_growth) below. This is
+# the authoritative denominator for publication eligibility going
+# forward — NOT _PROPOSED_BANKING_METRICS (12), which is the original,
+# larger ambition kept only for the honest coverage_pct disclosure and is
+# now explicitly "historical implementation baggage" for any publication
+# decision (owner's own words).
+REAL_BANKING_METRICS_TOTAL = len(_FACT_METRICS) + 3
+
 _KNOWN_UNAVAILABLE = [
     "casa_ratio (SOURCE_UNAVAILABLE — confirmed absent from NSE's real XBRL taxonomy, S3-A)",
     "provision_coverage_ratio (SOURCE_UNAVAILABLE — same)",

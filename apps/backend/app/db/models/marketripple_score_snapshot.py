@@ -56,11 +56,26 @@ class MarketRippleScoreSnapshot(Base):
     # Each pillar's own real coverage_pct (S5-B needs all four, not just
     # Financial Strength, to build a real per-pillar eligibility picture —
     # never derived/estimated, each is the exact value PillarScore itself
-    # returned for that pillar's real computation).
+    # returned for that pillar's real computation). financial_coverage_pct
+    # stays scaled against the original 12-metric ambition (S3-D's own
+    # honest-disclosure denominator) — kept for that disclosure, but is
+    # deliberately NOT what publication eligibility is computed from; see
+    # financial_metrics_used_count below.
     financial_coverage_pct = Column(Float, nullable=True)
     valuation_coverage_pct = Column(Float, nullable=True)
     market_behaviour_coverage_pct = Column(Float, nullable=True)
     current_intelligence_coverage_pct = Column(Float, nullable=True)
+
+    # S5-B (owner decision, 2026-08-25) — the real, direct count of the 7
+    # currently-scoreable Financial Strength metrics actually used, read
+    # straight from PillarScore.metrics_used at persist time. NOT derived
+    # from financial_coverage_pct's 12-metric denominator — that
+    # reconstruction was explicitly rejected as "historical implementation
+    # baggage" for a publication decision. financial_metrics_total_count
+    # is REAL_BANKING_METRICS_TOTAL (7) for Banking, None for any
+    # not-yet-scoped sector.
+    financial_metrics_used_count = Column(Integer, nullable=True)
+    financial_metrics_total_count = Column(Integer, nullable=True)
 
     # ── Methodology/version — real, structural (S4.5) ────────────────────
     methodology_version = Column(String(32), nullable=False)
@@ -75,7 +90,22 @@ class MarketRippleScoreSnapshot(Base):
     intelligence_as_of = Column(DateTime(timezone=True), nullable=True)
 
     # ── Publication gate ──────────────────────────────────────────────────
+    # publishable/publication_block_reason: the STANDING, whole-initiative
+    # phase lock (owner decision since S2 — "S2 may calculate, may not
+    # replace the Company-page score yet"), unchanged by S5-B. Stays False
+    # for every real snapshot until S5-E's real, multi-cycle shadow
+    # validation actually passes — that has been reaffirmed at every S5
+    # checkpoint and is not what this batch changes.
     publishable = Column(Boolean, nullable=False, default=False)
     publication_block_reason = Column(Text, nullable=True)
+
+    # publication_policy_version/publication_block_reasons: the NEW,
+    # separate, real per-bank BANKING_V1_P1 verdict (S5-B) — whether THIS
+    # bank's own evidence would clear the publication bar, independent of
+    # the standing phase lock above. Empty list = this bank's real
+    # evidence is sufficient under BANKING_V1_P1 today; the phase lock is
+    # the only thing still holding `publishable` at False for it.
+    publication_policy_version = Column(String(32), nullable=True)
+    publication_block_reasons = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=_now)

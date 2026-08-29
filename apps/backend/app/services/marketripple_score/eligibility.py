@@ -1,19 +1,34 @@
 """
-S5-B — publication eligibility analysis. A publication-quality decision,
+S5-B — publication eligibility. A publication-quality decision,
 deliberately separate from BANKING_V1 scoring itself: this module never
 touches the score, the weights, the peer universe, or the pillar
 formulas — it only asks whether a given, already-computed
 MarketRippleScoreSnapshot carries enough real, current evidence to be
 shown publicly.
 
-Owner instruction (2026-08-29): this module does NOT choose a final
-threshold. evaluate_eligibility() takes the policy as an explicit
-parameter, so a real 27-bank audit can compare several candidate
-policies side by side rather than one rule baked in reactively after
-seeing any single bank's (e.g. YESBANK's) result. Wiring a chosen policy
-into compute_and_persist_snapshot()'s actual publishable/
-publication_block_reasons fields is a separate, later, explicit decision
-— not part of this module.
+BANKING_V1_P1 is the owner's real, decided policy (2026-08-29): >=5 of
+the 7 real Financial Strength metrics, >=65% overall evidence coverage,
+Financial Strength required, an eligible financial period required.
+Chosen over a >=4/7 floor (too permissive — almost half the core
+Banking model absent is not defensible for a public score, even though
+today's real population happens to produce an identical result at 4 or
+5) and over a >=70% overall floor (Policy C in the S5-B audit — would
+have additionally excluded BANKBARODA/PNB, both with PERFECT financial
+data, primarily for thin Current Intelligence, a pillar this design
+explicitly does NOT require).
+
+Historical quarantine does NOT independently block publication — a
+company's CURRENT snapshot inputs (their real coverage/freshness/metric
+count) are what's evaluated, not whether some past period was ever
+quarantined; current valid evidence supersedes stale flags on unrelated
+periods (see quarantine.py's own real document-identity scoping for why
+that's already true at the fact level).
+
+Freshness (STALE_FINANCIAL_DATA) is reserved but NOT enforced yet — the
+real S5-B audit found no genuinely lagging bank to calibrate a rule
+against (every real bank shares the same newest eligible period);
+activating a threshold before a real case exists would be inventing a
+number, not measuring one.
 """
 from __future__ import annotations
 
@@ -26,38 +41,29 @@ REASON_MISSING_REQUIRED_PILLAR = "MISSING_REQUIRED_PILLAR"
 REASON_NO_ELIGIBLE_FINANCIAL_PERIOD = "NO_ELIGIBLE_FINANCIAL_PERIOD"
 REASON_INSUFFICIENT_FINANCIAL_METRICS = "INSUFFICIENT_FINANCIAL_METRICS"
 REASON_INSUFFICIENT_OVERALL_COVERAGE = "INSUFFICIENT_OVERALL_COVERAGE"
-REASON_STALE_FINANCIAL_DATA = "STALE_FINANCIAL_DATA"
-
-# The real, currently-implemented Financial Strength metric set (S3-D) —
-# 7 of the originally-proposed 12 (5 permanently SOURCE_UNAVAILABLE/
-# insufficient-history, see financial_strength.py's own _KNOWN_UNAVAILABLE).
-# financial_coverage_pct is stored scaled against 12 (the full original
-# ambition, kept honest); this converts it back to "N of the 7 metrics
-# that can currently ever be scored" — the count the owner asked to
-# evaluate directly, not just a percentage that obscures it.
-_PROPOSED_BANKING_METRICS = 12
-_REAL_BANKING_METRICS = 7
-
-
-def financial_metrics_used_from_coverage_pct(financial_coverage_pct: float | None) -> int:
-    """Exact, not estimated: financial_coverage_pct is always
-    len(sub_scores)/_PROPOSED_BANKING_METRICS*100, so this recovers the
-    real integer count with no information loss — no live recomputation
-    needed to know how many of the 7 real metrics actually contributed."""
-    if financial_coverage_pct is None:
-        return 0
-    return round(financial_coverage_pct / 100 * _PROPOSED_BANKING_METRICS)
+REASON_STALE_FINANCIAL_DATA = "STALE_FINANCIAL_DATA"  # reserved, not enforced — see module docstring
 
 
 @dataclass
 class EligibilityPolicy:
-    """One candidate publication policy — parameterized so several can be
-    compared side by side, never a single hardcoded rule."""
+    """One publication policy — parameterized, not hardcoded, so
+    candidates could always be compared side by side (see the S5-B audit,
+    artifacts/marketripple_score_s5b_eligibility_audit.md)."""
     name: str
-    min_financial_metrics_used: int             # out of the real 7
+    min_financial_metrics_used: int             # out of REAL_BANKING_METRICS_TOTAL (7)
     min_overall_coverage_pct: float
     require_financial_strength_pillar: bool = True
-    max_financial_data_age_quarters: int | None = None  # not enforced numerically yet — see module docstring
+    max_financial_data_age_quarters: int | None = None  # not enforced yet — see module docstring
+
+
+# The real, decided Banking V1 publication policy (owner decision,
+# 2026-08-29, following the S5-B audit).
+BANKING_V1_P1 = EligibilityPolicy(
+    name="BANKING_V1_P1",
+    min_financial_metrics_used=5,
+    min_overall_coverage_pct=65.0,
+    require_financial_strength_pillar=True,
+)
 
 
 @dataclass
@@ -65,18 +71,20 @@ class PublicationEligibility:
     eligible: bool
     reasons: list[str] = field(default_factory=list)
     financial_metrics_used: int = 0
-    financial_metrics_used_pct: float = 0.0   # out of the real 7, NOT the 12-denominator coverage_pct
+    financial_metrics_total: int = 0
     overall_coverage_pct: float = 0.0
     financial_data_as_of: str | None = None
     policy_name: str = ""
 
 
 def evaluate_eligibility(
-    *, financial_strength_score: float | None, financial_coverage_pct: float | None,
+    *, financial_strength_score: float | None, financial_metrics_used: int, financial_metrics_total: int,
     overall_coverage_pct: float, financial_data_as_of: str | None, policy: EligibilityPolicy,
 ) -> PublicationEligibility:
+    """Takes the real, directly-persisted metric count (never a value
+    reverse-derived from a coverage percentage) — see
+    MarketRippleScoreSnapshot.financial_metrics_used_count."""
     reasons: list[str] = []
-    financial_metrics_used = financial_metrics_used_from_coverage_pct(financial_coverage_pct)
 
     if policy.require_financial_strength_pillar and financial_strength_score is None:
         reasons.append(REASON_MISSING_REQUIRED_PILLAR)
@@ -90,17 +98,9 @@ def evaluate_eligibility(
     if overall_coverage_pct < policy.min_overall_coverage_pct:
         reasons.append(REASON_INSUFFICIENT_OVERALL_COVERAGE)
 
-    # Freshness (owner-requested, audit-only for now): policy.max_financial_data_age_quarters
-    # is intentionally never compared against a real value here — doing so
-    # would need a real "current quarter" reference point, which the audit
-    # script establishes analytically (relative to the observed population)
-    # rather than this module guessing one.
-
     return PublicationEligibility(
         eligible=not reasons, reasons=reasons,
-        financial_metrics_used=financial_metrics_used,
-        financial_metrics_used_pct=round(financial_metrics_used / _REAL_BANKING_METRICS * 100, 1),
-        overall_coverage_pct=overall_coverage_pct,
-        financial_data_as_of=financial_data_as_of,
+        financial_metrics_used=financial_metrics_used, financial_metrics_total=financial_metrics_total,
+        overall_coverage_pct=overall_coverage_pct, financial_data_as_of=financial_data_as_of,
         policy_name=policy.name,
     )
