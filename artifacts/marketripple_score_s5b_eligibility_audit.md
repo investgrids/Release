@@ -66,8 +66,33 @@ Policies: **A** = ≥4/7 financial metrics, ≥60% overall coverage. **B** = ≥
 | B (≥5/7, ≥65%) | 25/27 | INDUSINDBK, YESBANK | same — identical real outcome to A |
 | C (≥6/7, ≥70%) | 23/27 | + BANKBARODA, PNB | adds 2 banks excluded mainly for thin (not missing) Current Intelligence |
 
-## Recommendation (not a decision — the owner's own next step)
+## Decision (owner, 2026-08-29): BANKING_V1_P1
 
-Given the real population: **A or B are the more defensible starting policies** — they correctly exclude the two real problem cases (YESBANK's data-quality failure, INDUSINDBK's evidence thinness) without also excluding two banks (BANKBARODA, PNB) whose only real gap is in a pillar the design explicitly treats as tolerant of missing evidence. Since A and B produce an identical real-world outcome today, the choice between `min_financial_metrics_used=4` vs. `5` is close to inconsequential now and mostly a statement about how much margin to keep for a future case — a real product judgment call, not something the data alone resolves.
+**≥5 of 7 real Financial Strength metrics, ≥65% overall evidence coverage, Financial Strength required as a pillar, an eligible financial period required.** Chosen over Policy A's 4/7 floor (too permissive for a public score — almost half the core Banking model absent isn't defensible even though today's population doesn't have a bank sitting at exactly 4/7) and over Policy C's 70% overall floor (would have additionally excluded BANKBARODA/PNB, both with *perfect* financial data, primarily for thin Current Intelligence — a pillar this design explicitly does not require).
 
-Not implemented: no policy is wired into `compute_and_persist_snapshot()`'s `publishable`/`publication_block_reasons` fields yet. That remains the next explicit step once a policy is chosen.
+### Schema cleanup that came with the decision
+
+`financial_metrics_used_from_coverage_pct()` (deriving the real metric count from the old 12-metric-denominator `financial_coverage_pct`) was retired as the source of truth — "historical implementation baggage" for a publication decision, in the owner's words. `MarketRippleScoreSnapshot` now persists `financial_metrics_used_count`/`financial_metrics_total_count` directly, read straight from `PillarScore.metrics_used` at compute time — no reconstruction. `REAL_BANKING_METRICS_TOTAL = 7` is now a real, code-derived constant in `financial_strength.py` (`len(_FACT_METRICS) + 3`), not a magic number.
+
+### Two-tier publication gate, deliberately kept separate
+
+- **`publishable` / `publication_block_reason`** (existing, unchanged): the standing, whole-initiative phase lock, reaffirmed at every S5 checkpoint — stays `False` for every real snapshot until S5-E's real, multi-cycle shadow validation actually passes. **Not touched by this decision.**
+- **`publication_policy_version` / `publication_block_reasons`** (new): the real, per-bank `BANKING_V1_P1` verdict — whether *this bank's own evidence* would clear the bar, independent of the phase lock. An empty reasons list means "this bank's real evidence is sufficient under BANKING_V1_P1 today; the phase lock is the only thing still holding `publishable` at `False`."
+
+This distinction matters: it lets the real per-bank eligibility work be built, computed, and verified now, without silently overriding the separate, repeatedly-reaffirmed "not live yet" gate.
+
+## Real verification (re-run, not just asserted)
+
+Re-ran the real 27-bank backfill with the new fields, then read back every persisted `publication_block_reasons`:
+
+**Result: 25/27 eligible under BANKING_V1_P1. Blocked: YESBANK, INDUSINDBK. Matches the predicted outcome exactly.**
+
+- **YESBANK** — 3 independent reasons: `NO_ELIGIBLE_FINANCIAL_PERIOD`, `INSUFFICIENT_FINANCIAL_METRICS`, `INSUFFICIENT_OVERALL_COVERAGE`. A real data-quality case.
+- **INDUSINDBK** — 1 reason only: `INSUFFICIENT_OVERALL_COVERAGE` (6/7 financial metrics, real and sufficient; 57.5% overall, driven by thin Current Intelligence). A real evidence-thinness case, correctly distinguished from YESBANK's by having only one reason instead of three.
+- **`publishable` on every one of the 27 real rows: `False`** — confirmed the standing phase lock was not touched by wiring in the new eligibility verdict.
+
+Combined MarketRipple Score test suite: **36/36 pass** (6 eligibility tests rewritten for the direct-count contract, 30 carried over unchanged).
+
+## Status: S5-B CLOSED
+
+Real policy decided, implemented, and verified against real data — not asserted from the earlier audit. `publishable` remains `False` everywhere pending S5-E. Ready for S5-C (Company-page UI), restrained to one MarketRipple Score, four explanatory pillars, one evidence line — no resurrection of a second AI score or confidence meter.
