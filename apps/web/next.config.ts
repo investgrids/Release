@@ -118,7 +118,18 @@ const nextConfig: NextConfig = {
       // matches an http:// origin.
       `img-src 'self' data: ${apiOrigin} https:`,
       "font-src 'self' data:",
-      `connect-src 'self' ${apiOrigin} https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com`,
+      // NOTE: *.analytics.google.com only matches SUBDOMAINS of
+      // analytics.google.com — it does NOT match the bare apex domain
+      // itself, which is exactly where gtag.js sends every real GA4
+      // /g/collect hit. That gap silently blocked 100% of page_view
+      // events at the browser level (confirmed live via a real CSP
+      // violation in the browser console against the production site)
+      // despite the script loading fine and gtag()/dataLayer looking
+      // correctly wired — GA showed zero views the whole time.
+      // stats.g.doubleclick.net and www.google.com are gtag's documented
+      // redundant-delivery beacon targets (Google's own CSP guidance
+      // lists all of these for gtag.js/GA4).
+      `connect-src 'self' ${apiOrigin} https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com https://stats.g.doubleclick.net https://www.google.com`,
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",
