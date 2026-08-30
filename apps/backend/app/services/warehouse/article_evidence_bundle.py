@@ -139,6 +139,7 @@ class Claim:
     text: str
     claim_type: str  # "FACT" | "INTERPRETATION" — an enum would over-formalize a 2-value field this early
     evidence_ids: list[str] = field(default_factory=list)
+    financial_fact_ids: list[str] = field(default_factory=list)  # Phase B — real metric_codes, e.g. "roa"
 
 
 def claims_from_what_happened(bundle: ArticleEvidenceBundle) -> list[Claim]:
@@ -168,6 +169,7 @@ def claims_from_what_happened(bundle: ArticleEvidenceBundle) -> list[Claim]:
                 text=f"{bundle.company_name}'s real {fact.metric_name} was {fact.value} ({fact.unit}) as of {fact.fiscal_year}"
                      + (f" Q{fact.fiscal_quarter}" if fact.fiscal_quarter else ""),
                 claim_type="FACT", evidence_ids=[],  # FinancialFact row, not a raw_evidence row -- no evidence_id to cite yet
+                financial_fact_ids=[fact.metric_code],
             ))
     return claims
 
