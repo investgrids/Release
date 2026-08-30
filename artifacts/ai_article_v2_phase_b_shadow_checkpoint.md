@@ -67,6 +67,24 @@ Cross-cutting quality flags observed within the 13 "factual update" cases (not s
 6. **Materiality-aware emphasis for severity-bearing evidence.** SIMBHALS shows real, high-stakes context (an IRP/insolvency proceeding) present in the evidence but treated with the same even tone as a routine filing. Phase C may need either prompt structuring that flags severity-bearing NSE subject categories, or a materiality signal passed alongside evidence.
 7. **An interpretation-quality floor for thin-evidence cases.** Several factual updates lean on generic boilerplate phrasing ("signals investor confidence," "reflects market sensitivity") that restates rather than illuminates. Worth considering whether thin evidence should produce a deliberately shorter factual note instead of a full paragraph padded with generic interpretive language.
 
+## Follow-up probe: does the financial-fact heuristic fire on irrelevant events? (owner-directed, before freeze)
+
+The main checkpoint's 2 real Banking cases (UCOBANK, CANBK) both happened to be financially-themed events, leaving the owner's question genuinely untested. Follow-up: 5 real Banking-sector events, each confirmed to have real `FinancialFact` rows AND whose only real linked evidence is genuinely non-financial (branch opening, AGM outcome, ESOP allotment, BRSR/ESG disclosure, a market-surveillance volume query) — script: `scripts/wh_probe_bank_nonfinancial.py`, log: `wh_probe_bank_nonfinancial.log`.
+
+**Answer: yes, definitively — 5 of 5.** `select_relevant_financial_facts()` selected the identical 6-metric set (`cet1_ratio, gross_npa_pct, net_npa_pct, roa, additional_tier1_ratio, gross_npa_amount`) every time, purely because the company is a Banking-sector entity with facts available — with no awareness of whether the triggering event has anything to do with capital or asset quality. Every real number cited was still correct (no numeric-validation failure in any of the 5) — this is not a Phase B correctness bug, it is exactly the irrelevant-context-selection failure mode the checkpoint was designed to surface:
+
+- CUB (branch opening): *"...its shares fell 3.05% and its capital ratios remain robust, with a CET1 of 21.29%..."*
+- BANDHANBNK (AGM outcome): *"...highlight the bank's solid capital footing—its CET1 ratio sits at 14.54%..."*
+- FEDERALBNK (ESOP allotment): *"...maintains a strong capital position with a CET1 Ratio of 13.78%..."*
+- J&KBANK (BRSR/ESG disclosure): *"...bank's FY2025 Q3 financials indicate a stable capital position with a CET1 Ratio of 11.67%..."*
+- IDBI (surveillance query): *"...appears well-capitalized, but the absence of Additional Tier 1 capital..."*
+
+**Recorded as a confirmed Phase C requirement (elevates item 5 from "untested" to "confirmed"), not fixed now** per explicit owner instruction. This resolves the one open question from the main checkpoint — item 5 in the requirements list above is no longer speculative.
+
+## Phase B status: FROZEN
+
+No further tuning of Phase B (grounding, ranking, FinancialFact selection, Why It Matters, numeric validation) until Phase C's architecture is designed from the combined shadow-checkpoint + production-scheduler-audit evidence. Next step is the production AIPE scheduler/publication-failure audit, not Phase C implementation.
+
 ## Explicitly not done in this checkpoint
 
 - No Phase B code changes — no defect was found that met the "genuine software/data-integrity bug" bar the owner set; the within-bundle duplicate-evidence finding is flagged for a separate decision, not fixed unilaterally.
