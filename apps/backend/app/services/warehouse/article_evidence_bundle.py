@@ -16,7 +16,16 @@ Explicitly Phase A scope only:
     the audit found this genuinely real, just not Warehouse-sourced yet;
     expanding it to Warehouse memory is a later pass, not Phase A)
   - Real market price move: reused verbatim from fact_grounding.py
-  - Financial facts: Phase B, deliberately not built here
+  - Financial facts: Phase B (2026-08-30) — real, via
+    read_service.get_verified_financial_context(). Only the FinancialFact
+    MODEL and its quality/quarantine status constants were cherry-picked
+    onto this branch from company-identity/c1-reconciliation, plus a
+    real, read-only copy of the already-computed FinancialFact rows
+    (2,481 real rows, quality statuses included) — never the scoring
+    engine, publication policy, score UI, or S5-E machinery. This module
+    never queries FinancialFact directly; get_verified_financial_context()
+    is the one real boundary that decides quality, so a quarantine
+    decision made once (S4.5-B) is honored here too, not re-litigated.
   - MarketRipple Score: deliberately NOT wired in. Two real reasons: (1)
     the owner's own instruction — AIPE must never receive an internal,
     not-yet-publishable score, not even hidden in a prompt, while S5-E is
@@ -43,7 +52,9 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.warehouse.evidence_ranking import RankedEvidence, rank_evidence
-from app.services.warehouse.read_service import LinkedEvidence, get_evidence_for_entity
+from app.services.warehouse.read_service import (
+    LinkedEvidence, VerifiedFinancialContext, get_evidence_for_entity, get_verified_financial_context,
+)
 
 
 @dataclass(frozen=True)
@@ -56,13 +67,14 @@ class ArticleEvidenceBundle:
     ranked_evidence: list[RankedEvidence] = field(default_factory=list)  # A.1 — same items, real explainable order
     price_move_pct: float | None = None
     historical_events: list[dict] = field(default_factory=list)
+    financial_context: VerifiedFinancialContext | None = None  # Phase B — real, quality-passed facts only
     marketripple_score: None = None  # deliberately always None in Phase A — see module docstring
     built_at: datetime | None = None
 
 
 async def build_article_evidence_bundle(
     db: AsyncSession, raw_symbol: str, *, query_context: str | None = None,
-    include_historical: bool = True, include_price_move: bool = True,
+    include_historical: bool = True, include_price_move: bool = True, include_financial_context: bool = True,
 ) -> ArticleEvidenceBundle:
     """The one real entry point for Phase A/A.1. Resolves `raw_symbol`
     through the canonical Company Identity resolver — never the hardcoded
@@ -101,11 +113,15 @@ async def build_article_evidence_bundle(
         from app.services.aipe.market_story_engine import fetch_historical_context
         historical_events = await fetch_historical_context(db, sectors=[entity.sector], keywords=[entity.company_name], limit=3)
 
+    financial_context = None
+    if include_financial_context:
+        financial_context = await get_verified_financial_context(db, entity.symbol)
+
     return ArticleEvidenceBundle(
         resolved=True, entity_id=entity.entity_id, symbol=entity.symbol, company_name=entity.company_name,
         evidence=evidence_in_rank_order, ranked_evidence=ranked,
         price_move_pct=price_move_pct, historical_events=historical_events,
-        marketripple_score=None, built_at=_dt.now(_tz.utc),
+        financial_context=financial_context, marketripple_score=None, built_at=_dt.now(_tz.utc),
     )
 
 
@@ -146,6 +162,13 @@ def claims_from_what_happened(bundle: ArticleEvidenceBundle) -> list[Claim]:
             text=f"{bundle.symbol} shares moved {bundle.price_move_pct:+.1f}% on the day this was reported",
             claim_type="FACT", evidence_ids=[],  # real market-data source, not a raw_evidence row -- no evidence_id to cite yet
         ))
+    if bundle.financial_context and bundle.financial_context.has_real_facts:
+        for fact in bundle.financial_context.facts:
+            claims.append(Claim(
+                text=f"{bundle.company_name}'s real {fact.metric_name} was {fact.value} ({fact.unit}) as of {fact.fiscal_year}"
+                     + (f" Q{fact.fiscal_quarter}" if fact.fiscal_quarter else ""),
+                claim_type="FACT", evidence_ids=[],  # FinancialFact row, not a raw_evidence row -- no evidence_id to cite yet
+            ))
     return claims
 
 

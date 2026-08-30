@@ -24,11 +24,13 @@ from sqlalchemy import select
 
 from app.db.session import AsyncSessionLocal
 from app.db.models.intelligence_article import IntelligenceArticle
-from app.services.warehouse.article_evidence_bundle import build_article_evidence_bundle, compose_what_happened_from_evidence
+from app.services.warehouse.article_evidence_bundle import (
+    build_article_evidence_bundle, claims_from_what_happened, compose_what_happened_from_evidence,
+)
 
 
 async def main() -> None:
-    for symbol in ["ICICIBANK", "TCS"]:
+    for symbol in ["ICICIBANK", "TCS", "YESBANK"]:
         async with AsyncSessionLocal() as db:
             bundle = await build_article_evidence_bundle(db, symbol)
         print(f"\n=== {symbol} — real ArticleEvidenceBundle ===")
@@ -37,9 +39,20 @@ async def main() -> None:
         for e in bundle.evidence[:3]:
             print(f"  - [{e.source_type}] {e.published_at}  {e.title!r:.120}")
         print(f"real price_move_pct: {bundle.price_move_pct}")
-        print(f"marketripple_score: {bundle.marketripple_score}  (Phase A: always None, see module docstring)")
+        print(f"marketripple_score: {bundle.marketripple_score}  (deliberately always None, see module docstring)")
+        print(f"\nreal financial_context (Phase B — quality-passed FinancialFact rows only):")
+        fc = bundle.financial_context
+        if fc is None or not fc.has_real_facts:
+            print(f"  <none> — has_real_facts=False (no verified facts for this symbol, or all excluded by quality)")
+        else:
+            print(f"  as_of={fc.as_of}")
+            for f in fc.facts:
+                print(f"  - {f.metric_name} ({f.metric_code}) = {f.value} {f.unit}  [{f.quality_status}]")
         print(f"\nGROUNDED What Happened (code-composed, real evidence only):")
         print(f"  {compose_what_happened_from_evidence(bundle)}")
+        print(f"\nreal claims (FACT-only today):")
+        for c in claims_from_what_happened(bundle):
+            print(f"  - [{c.claim_type}] {c.text}  evidence_ids={c.evidence_ids}")
 
     print("\n\n=== For comparison: a REAL current AIPE article's what_happened (different real event, same illustrative purpose) ===")
     async with AsyncSessionLocal() as db:

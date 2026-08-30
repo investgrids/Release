@@ -28,13 +28,20 @@ in the callers (e.g. `ai_pipeline`'s own fusion/decision layers).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.market_observation import MarketObservation
+# Imported at module level (not lazily inside get_verified_financial_context)
+# so FinancialFact is registered on Base.metadata by the time the test
+# suite's session-scoped schema-creation fixture runs -- a lazy,
+# function-body import here left the real dev DB fine (its table was
+# created by a one-off script) but broke the isolated pytest DB, which
+# only ever sees models actually imported before collection finishes.
+from app.db.models.financial_fact import EXTRACTION_POPULATED, FinancialFact
 
 # A row older than this is not treated as "current" by get_latest_market_
 # observations's own freshness flag -- roughly 3x the real 15-minute capture
@@ -169,3 +176,88 @@ async def get_evidence_for_entity(db: AsyncSession, entity_id: str, limit: int =
         )
         for ev, link in rows
     ]
+
+
+@dataclass(frozen=True)
+class VerifiedFinancialFact:
+    """One real, quality-passed financial metric — never a quarantined,
+    anomalous, or implausible-scale value. Article V2 Phase B (owner
+    decision, 2026-08-30): the article pipeline must never query
+    FinancialFact directly and decide quality for itself — this is the
+    one real boundary that does that filtering, so a quarantine decision
+    made once (S4.5-B) is honored everywhere downstream, not
+    re-litigated per-consumer."""
+    metric_code: str
+    metric_name: str
+    value: float
+    unit: str
+    fiscal_year: int
+    fiscal_quarter: int | None
+    period_type: str
+    source_document_url: str | None
+    quality_status: str
+
+
+@dataclass(frozen=True)
+class VerifiedFinancialContext:
+    symbol: str
+    facts: list[VerifiedFinancialFact] = field(default_factory=list)
+    as_of: str | None = None  # real "FYyyyyQq" of the newest fact actually included, or None if empty
+
+    @property
+    def has_real_facts(self) -> bool:
+        return len(self.facts) > 0
+
+
+# Structural failures strong enough that a value must never reach an
+# article, regardless of what a future check adds to this set — mirrors
+# QUALITY_STRUCTURAL_FAILURE_STATUSES from financial_fact.py exactly
+# (not imported from there to avoid coupling this read-only Warehouse
+# boundary to the marketripple_score package's own scoring concerns,
+# which this branch deliberately does not carry — see module docstring
+# on why FinancialFact was cherry-picked but the scoring engine was not).
+_FINANCIAL_EXCLUDED_QUALITY = ("ANOMALY", "IMPLAUSIBLE_SCALE", "SOURCE_DOCUMENT_QUARANTINED")
+
+
+async def get_verified_financial_context(db: AsyncSession, symbol: str) -> VerifiedFinancialContext:
+    """The real, latest quality-passed value per metric for this symbol —
+    never a quarantined/anomalous/implausible one, never an estimate when
+    a metric is simply missing. A company with zero verified facts
+    returns a real, honest empty context (`has_real_facts=False`), never
+    a fallback or a fabricated placeholder value."""
+    rows = (await db.execute(
+        select(FinancialFact).where(
+            FinancialFact.symbol == symbol.upper(),
+            FinancialFact.consolidation_scope == "Non-Consolidated",
+            FinancialFact.extraction_status == EXTRACTION_POPULATED,
+        )
+    )).scalars().all()
+
+    # Latest real, quality-passed row per metric_code — same "walk back to
+    # the latest valid observation, never the newest overall" discipline
+    # the scoring engine itself uses for these exact metrics.
+    latest_by_metric: dict[str, FinancialFact] = {}
+    for row in rows:
+        if row.quality_status in _FINANCIAL_EXCLUDED_QUALITY or row.value is None:
+            continue
+        key = (row.fiscal_year, row.fiscal_quarter or 0)
+        existing = latest_by_metric.get(row.metric_code)
+        if existing is None or (existing.fiscal_year, existing.fiscal_quarter or 0) < key:
+            latest_by_metric[row.metric_code] = row
+
+    facts = [
+        VerifiedFinancialFact(
+            metric_code=r.metric_code, metric_name=r.metric_name, value=r.value, unit=r.unit,
+            fiscal_year=r.fiscal_year, fiscal_quarter=r.fiscal_quarter, period_type=r.period_type,
+            source_document_url=r.source_document_url, quality_status=r.quality_status or "OK",
+        )
+        for r in latest_by_metric.values()
+    ]
+    facts.sort(key=lambda f: f.metric_code)
+
+    as_of = None
+    if facts:
+        newest = max(latest_by_metric.values(), key=lambda r: (r.fiscal_year, r.fiscal_quarter or 0))
+        as_of = f"FY{newest.fiscal_year}Q{newest.fiscal_quarter}" if newest.fiscal_quarter else f"FY{newest.fiscal_year}"
+
+    return VerifiedFinancialContext(symbol=symbol.upper(), facts=facts, as_of=as_of)
