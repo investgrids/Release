@@ -23,6 +23,7 @@ from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.score_history import ScoreHistory
 from app.db.models.feedback import FeedbackSubmission
 from app.db.models.event_coverage import EventCoverage
+from app.db.models.candidate_run import CandidateRun
 from app.db.models.fact import Fact
 from app.db.models.generated_media import GeneratedMedia
 from app.db.models.ai_search_feedback import AISearchFeedback
@@ -65,6 +66,7 @@ __all__ = [
     "ScoreHistory",
     "FeedbackSubmission",
     "EventCoverage",
+    "CandidateRun",
     "Fact",
     "GeneratedMedia",
     "AISearchFeedback",

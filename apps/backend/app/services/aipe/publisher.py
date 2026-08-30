@@ -57,6 +57,17 @@ from app.services.aipe.market_story_engine import (
 from app.services.aipe.quality_validator import validate
 from app.services.aipe.fact_grounding import validate_fact_grounding
 from app.services.aipe import perf_stats
+from app.services.aipe.candidate_lifecycle import start_candidate_run, complete_candidate_run
+from app.db.models.candidate_run import (
+    TERMINAL_PUBLISHED, TERMINAL_PROVIDER_FAILED, TERMINAL_VALIDATION_FAILED,
+    TERMINAL_INTERNAL_ERROR,
+)
+# TERMINAL_SKIPPED is deliberately not used here: a CandidateRun is only
+# created right before a generation attempt (see candidate_lifecycle.py's
+# docstring) -- a duplicate-match or already-covered/thin-sample skip
+# happens BEFORE that point and legitimately has no trace to add here
+# (a duplicate match already updates a real, different existing article).
+# The real gap this closes is specifically post-generation-attempt loss.
 
 log = structlog.get_logger(__name__)
 
@@ -162,8 +173,15 @@ async def _publish_new_article(
     angle_entity: str | None = None,
     parent_event_group_id: str | None = None,
     question: str = "",
+    failure_log: list[dict] | None = None,
 ) -> IntelligenceArticle | None:
-    """Generate, validate, and persist a new intelligence article."""
+    """Generate, validate, and persist a new intelligence article.
+
+    failure_log is optional and purely additive (see generate_intelligence_
+    article's own docstring) -- threaded through so callers that track
+    candidate lifecycle (candidate_lifecycle.py) get real provider-attempt
+    detail regardless of outcome; every existing caller that doesn't pass
+    one sees identical behavior to before this parameter existed."""
     start = datetime.now(timezone.utc)
 
     # Fetch real historical context (never hallucinate)
@@ -178,6 +196,7 @@ async def _publish_new_article(
         mie_context=mie_context,
         historical=historical,
         question=question,
+        failure_log=failure_log,
     )
 
     if not article_data:
@@ -866,11 +885,44 @@ async def run_aipe_cycle() -> None:
                         dup = await find_duplicate(db, story_id=story_id, article_type=art_type,
                                                    headline=sched_event["headline"], trigger_event_id=sched_event["event_id"])
                         if not dup:
-                            article = await _publish_new_article(db, sched_event, mie_context, art_type, story_id)
+                            # Real incident, 2026-08-30 (artifacts/ai_provider_
+                            # reliability_audit.md): this candidate has no
+                            # EventTriage/EventCoverage row (nothing to triage --
+                            # it's a scheduled slot, not a market event), so a
+                            # generation failure here used to leave ZERO database
+                            # trace. CandidateRun is this content's own durable
+                            # lifecycle record -- see candidate_run.py's docstring.
+                            run = await start_candidate_run(db, story_id, art_type)
+                            failure_log: list[dict] = []
+                            try:
+                                article = await _publish_new_article(
+                                    db, sched_event, mie_context, art_type, story_id, failure_log=failure_log,
+                                )
+                            except Exception as exc:
+                                await complete_candidate_run(
+                                    db, run, terminal_status=TERMINAL_INTERNAL_ERROR,
+                                    failure_reason=str(exc)[:500], provider_attempts=failure_log,
+                                )
+                                raise
                             if article and article.status == "published":
                                 daily_count += 1
                                 today_story_ids.add(story_id)
                                 log.info("aipe.cycle.scheduled_article", type=art_type, story_id=story_id)
+                                await complete_candidate_run(
+                                    db, run, terminal_status=TERMINAL_PUBLISHED,
+                                    article_id=article.id, provider_attempts=failure_log,
+                                )
+                            elif article is None:
+                                await complete_candidate_run(
+                                    db, run, terminal_status=TERMINAL_PROVIDER_FAILED,
+                                    failure_reason="generation_failed", provider_attempts=failure_log,
+                                )
+                            else:
+                                await complete_candidate_run(
+                                    db, run, terminal_status=TERMINAL_VALIDATION_FAILED,
+                                    article_id=article.id, failure_reason="validation_failed",
+                                    provider_attempts=failure_log,
+                                )
 
             # ── 6. Continuous update pass ─────────────────────────────────────
             updated_count = await run_continuous_update_cycle(
@@ -958,13 +1010,38 @@ async def run_evergreen_cycle() -> None:
                 if dup:
                     continue
 
-                article = await _publish_new_article(
-                    db, event, mie_context, "educational_intelligence", story_id,
-                    angle="evergreen", parent_event_group_id=story_id,
-                )
+                run = await start_candidate_run(db, story_id, "educational_intelligence")
+                failure_log: list[dict] = []
+                try:
+                    article = await _publish_new_article(
+                        db, event, mie_context, "educational_intelligence", story_id,
+                        angle="evergreen", parent_event_group_id=story_id,
+                        failure_log=failure_log,
+                    )
+                except Exception as exc:
+                    await complete_candidate_run(
+                        db, run, terminal_status=TERMINAL_INTERNAL_ERROR,
+                        failure_reason=str(exc)[:500], provider_attempts=failure_log,
+                    )
+                    raise
                 if article and article.status == "published":
                     generated += 1
                     log.info("aipe.evergreen.published", story_id=story_id)
+                    await complete_candidate_run(
+                        db, run, terminal_status=TERMINAL_PUBLISHED,
+                        article_id=article.id, provider_attempts=failure_log,
+                    )
+                elif article is None:
+                    await complete_candidate_run(
+                        db, run, terminal_status=TERMINAL_PROVIDER_FAILED,
+                        failure_reason="generation_failed", provider_attempts=failure_log,
+                    )
+                else:
+                    await complete_candidate_run(
+                        db, run, terminal_status=TERMINAL_VALIDATION_FAILED,
+                        article_id=article.id, failure_reason="validation_failed",
+                        provider_attempts=failure_log,
+                    )
                 await asyncio.sleep(2)
     except Exception as exc:
         log.error("aipe.evergreen.error", error=str(exc))
@@ -1105,12 +1182,19 @@ async def run_historical_cycle() -> None:
                 if dup:
                     continue
 
+                run = await start_candidate_run(db, story_id, "historical_intelligence")
+                failure_log: list[dict] = []
                 article_data = await generate_intelligence_article(
                     article_type="historical_intelligence",
                     event=event, mie_context=mie_context, historical=historical,
+                    failure_log=failure_log,
                 )
                 if not article_data:
                     log.warning("aipe.historical.generation_failed", topic=topic["headline"])
+                    await complete_candidate_run(
+                        db, run, terminal_status=TERMINAL_PROVIDER_FAILED,
+                        failure_reason="generation_failed", provider_attempts=failure_log,
+                    )
                     continue
 
                 # The prompt explicitly instructs "don't overstate confidence
@@ -1186,9 +1270,18 @@ async def run_historical_cycle() -> None:
                 await db.refresh(article)
                 if passed:
                     log.info("aipe.historical.published", story_id=story_id, slug=article.slug)
+                    await complete_candidate_run(
+                        db, run, terminal_status=TERMINAL_PUBLISHED,
+                        article_id=article.id, provider_attempts=failure_log,
+                    )
                     break  # one per day is enough; leave the rest of the cycle for next run
                 else:
                     log.warning("aipe.historical.validation_failed", story_id=story_id, results=results)
+                    await complete_candidate_run(
+                        db, run, terminal_status=TERMINAL_VALIDATION_FAILED,
+                        article_id=article.id, failure_reason="validation_failed",
+                        provider_attempts=failure_log,
+                    )
     except Exception as exc:
         log.error("aipe.historical.error", error=str(exc))
         perf_stats.mark_engine_run("Historical Engine", success=False, error=str(exc)[:200], duration_s=time.monotonic() - _cycle_start)

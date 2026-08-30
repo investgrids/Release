@@ -30,6 +30,7 @@ async def generate_intelligence_article(
     mie_context: dict[str, Any],
     historical: list[dict[str, Any]],
     question: str = "",
+    failure_log: list[dict] | None = None,
 ) -> dict[str, Any] | None:
     """
     Generate a structured intelligence article using the appropriate template.
@@ -39,6 +40,14 @@ async def generate_intelligence_article(
         event: Triage event or MIE context dict
         mie_context: Current MIE state (story, mood, themes, etc.)
         historical: Verified historical events from HistoricalMarketEvent DB
+        failure_log: optional, purely additive (see _call_provider's own
+            docstring) -- when passed, every skipped/failed provider
+            attempt on the way to this call's result (or lack of one)
+            appends a structured {model, provider, reason} record to it.
+            Built for candidate_lifecycle.py's real provider-attempt
+            visibility on scheduled/synthetic candidates (2026-08-30) --
+            every existing caller that doesn't pass one sees identical
+            behavior to before this parameter existed.
 
     Returns:
         Parsed article dict or None on failure.
@@ -100,15 +109,19 @@ async def generate_intelligence_article(
     )
 
     try:
-        raw = await _call_with_fallback(user_prompt, system=SYSTEM_PROMPT, max_tokens=3000, priority="background")
+        raw = await _call_with_fallback(user_prompt, system=SYSTEM_PROMPT, max_tokens=3000, failure_log=failure_log, priority="background")
     except Exception as exc:
         log.error("article_generator.ai_error", type=article_type, error=str(exc))
+        if failure_log is not None:
+            failure_log.append({"model": None, "provider": None, "reason": f"exception:{exc}"[:200]})
         return None
 
     if not raw:
         return None
 
     parsed = _parse_and_validate(raw, article_type, event)
+    if parsed is None and failure_log is not None:
+        failure_log.append({"model": None, "provider": None, "reason": "schema_parse_failed"})
     if parsed is not None:
         # Pipeline-internal only — never a real IntelligenceArticle column;
         # publisher.py reads this to run validate_fact_grounding() against
