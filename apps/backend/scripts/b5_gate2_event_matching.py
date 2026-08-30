@@ -128,12 +128,33 @@ _KEYWORD_CATEGORIES: dict[str, list[str]] = {
     "partnerships_deals": ["partnership", "tie-up", "tie up", "collaborat", "\\bmou\\b",
                             "joint venture", "\\bjv\\b", "alliance"],
     "fundraising_debt": ["raise funds", "fundraise", "\\bqip\\b", "rights issue", "\\bncd\\b", "bond issue",
-                          "debenture", "\\bipo\\b", "\\bofs\\b", "stake sale", "divest", "allotment",
-                          "offer for sale"],
+                          "debenture", "\\bipo\\b", "\\bofs\\b", "stake sale", "divest", "allot",
+                          "offer for sale",
+                          # added per the real Gate 2 failure audit, 2026-08-30: several real
+                          # "IPO listing debut" RSS stories (Lalithaa Jewellery Mart, Horizon
+                          # Industrial Parks) never said the literal word "IPO" in their own
+                          # text -- they described the listing itself ("shares list at 32%
+                          # premium", "debut", "listing date") -- a real, demonstrated gap,
+                          # not a speculative addition.
+                          "listing debut", "shares list at", "market debut", "listing date"],
     "regulatory_compliance": ["\\bsebi\\b", "\\brbi\\b", "regulatory", "compliance", "penalty", "notice",
-                               "litigation", "inquiry", "insolvency", "\\bnclt\\b", "investigation"],
+                               "litigation", "inquiry", "insolvency", "\\bnclt\\b", "investigation",
+                               # added per the real Gate 2 failure audit: a real lawsuit story
+                               # (Urban Company v. Kent RO) and 2 real USFDA-inspection stories
+                               # (Aurobindo Pharma) both went undetermined without these --
+                               # both are genuine regulatory/legal events, not price commentary.
+                               "\\bsue[sd]?\\b", "lawsuit", "usfda", "\\bfda\\b", "allegation"],
     "management_board": ["\\bceo\\b", "\\bcfo\\b", "\\bmd\\b", "director", "resign", "appoint", "board",
-                          "management", "chairman", "\\bkmp\\b"],
+                          "chairman", "\\bkmp\\b"],
+    # NOTE: bare "management" was REMOVED from this list per the real Gate 2
+    # failure audit: "TCS To Acquire Porshce Arm MHP Management" is a real
+    # acquisition story that misclassified as management_board purely
+    # because the ACQUIRED SUBSIDIARY's own legal name contains the word
+    # "Management" -- a false trigger from a company name, not a real
+    # management-change signal. The category's other keywords (ceo/cfo/
+    # director/resign/appoint/board/chairman/kmp) are specific enough on
+    # their own; dropping the generic word costs no real, demonstrated
+    # true positive found in this corpus.
     "corporate_actions": ["dividend", "bonus issue", "stock split", "buyback", "record date", "\\besop\\b"],
     "ma_investment": ["acquisition", "acquire", "merger", "stake in", "investment in", "takeover",
                        "scheme of arrangement"],
