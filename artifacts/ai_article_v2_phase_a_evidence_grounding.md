@@ -45,19 +45,34 @@ Phase A's own honest disclosure (TCS picking a generic "Bagging/Receiving of ord
 - 6 new tests (including the real TCS case verbatim as a regression test) + 2 existing bundle tests extended. Full relevant suite: 141/142 (same 1 pre-existing unrelated flaky failure).
 - **Re-verified live**: re-ran the Phase A demo script — TCS now correctly ranks the real Porsche press release above the generic order filing. ICICIBANK unaffected (was already correct).
 
-## Phase B — real blocker found, needs a decision before proceeding
+## Phase B — FinancialFact grounding (owner decision: Option 1, cherry-pick)
 
-The owner's Phase B design (`FinancialFact` grounding, a constrained "Why It Matters" LLM reasoning layer with numeric-claim validation) assumes `FinancialFact`/quality-quarantine data is reachable from this branch. **It is not.** Confirmed via `git merge-base`: `integration/warehouse-company-master` and `company-identity/c1-reconciliation` (where `FinancialFact`, the quality/quarantine system, and the MarketRipple Score all live) diverged well before either branch's recent work — the same real constraint already disclosed for `marketripple_score` in Phase A, now blocking Phase B's most substantive piece too.
+The branch-divergence blocker above was real (confirmed via `git merge-base`: `integration/warehouse-company-master` and `company-identity/c1-reconciliation` diverged before either branch's recent work). The owner's decision was **Option 1** — cherry-pick only the minimum read-only `FinancialFact`/quality dependency set onto this branch, explicitly excluding the scoring engine, publication policy, score UI, S5-E machinery, and any score recomputation code.
 
-Two honest paths, not decided here:
-1. **Cherry-pick the read-only pieces** (`FinancialFact` model + `quality.py`'s quarantine/anomaly status, real DB tables) onto this branch so Phase B can *read* verified facts without needing the scoring engine itself.
-2. **Wait for a real merge** of the two branches before building Phase B's `financial_context` — keeping the placeholder structure (`marketripple_score: None`, no `financial_context` field yet) until then.
+**What was cherry-picked, and nothing more:**
+- `app/db/models/financial_fact.py` — copied verbatim from `company-identity/c1-reconciliation` (`diff` confirmed byte-identical). Zero cross-branch imports: only `sqlalchemy`, `datetime`, `app.db.base.Base`.
+- The real `financial_facts` table + all **2,481 real rows**, copied directly via the `sqlite3` module (explicit column list, no ORM round-trip) from the Score branch's dev DB into this branch's own, separate dev DB.
+- No scoring code, no `marketripple_score` package, no eligibility/publication logic came along — confirmed by construction (only one new model file was added) and by `git status` on this branch.
 
-Not implemented in this batch pending that decision. The "Why It Matters" reasoning layer (a real, constrained LLM call reusing AIPE's existing `_call_with_fallback` infrastructure, with a numeric-claim validator rejecting any number not present in the evidence bundle) is real, separate engineering that should follow once Phase B's data question is resolved — not built speculatively ahead of it.
+**The new read boundary — `read_service.get_verified_financial_context(db, symbol)`:**
+- Returns a `VerifiedFinancialContext` (real `symbol`, `as_of`, and a list of `VerifiedFinancialFact` — each carrying `metric_code`, `metric_name`, `value`, `unit`, `fiscal_year`, `fiscal_quarter`, `period_type`, `source_document_url`, `quality_status`).
+- Excludes `ANOMALY`, `IMPLAUSIBLE_SCALE`, and `SOURCE_DOCUMENT_QUARANTINED` rows via a **locally-redeclared** tuple of literal quality-status strings — deliberately not imported from the Score package, so this read-only Warehouse boundary carries no dependency on the scoring engine's own module.
+- Keeps only the latest quality-passed value per `metric_code` (by fiscal year/quarter) — never a stale value when a newer real one exists.
+- A symbol with zero rows, or whose only rows are bad-quality, returns a real, honest empty context (`has_real_facts=False`) — never a fallback estimate, never a fabricated placeholder.
+- **The article pipeline never queries `FinancialFact` directly.** `ArticleEvidenceBundle.financial_context` is populated only through this one function — a quarantine decision made once (S4.5-B, on the Score branch) is honored here too, not re-litigated per-consumer.
+
+**Claim provenance extended**: `claims_from_what_happened()` now emits one real `FACT` claim per verified financial fact (e.g. *"ICICI Bank Limited's real Gross NPA % was 0.0196 (pct) as of 2025 Q3"*). `evidence_ids=[]` for these — a `FinancialFact` row isn't a `raw_evidence` row, so there's no evidence ID to cite yet; that's an honest gap, not silently smoothed over.
+
+**Real verification:**
+- 2 real bugs found and fixed while building this: a missing `field` import (`NameError`), and a lazy function-body import of `FinancialFact` that silently broke the isolated pytest DB's schema-creation fixture (the model was never registered on `Base.metadata` before the fixture ran) while working fine against the real dev DB — fixed by moving the import to module level.
+- 4 new real DB-backed tests for `get_verified_financial_context()` (real quality-passed facts surface; quarantined/implausible facts are excluded and produce an honest empty context when they're the only rows; zero rows also produce an honest empty context; a mix of good and bad-quality metrics surfaces only the good one). Full relevant suite: 13/13 passing (9 pre-existing + 4 new).
+- **Real, live demonstration** (re-ran `wh_article_evidence_bundle_demo.py` against ICICIBANK, TCS, YESBANK): ICICIBANK's bundle now carries 14 real, quality-passed financial facts (CET1 Ratio, Gross/Net NPA, ROA, Deposits, Advances, etc.), each flowing through into a real `FACT` claim. TCS and YESBANK — including YESBANK, whose facts are real but the ones sampled were entirely quarantined/implausible on the Score branch — both correctly return `has_real_facts=False` rather than any fallback.
+
+**Not yet built** (the remaining piece of the "Phase B GO" authorization): the constrained "Why It Matters" LLM reasoning layer with numeric-claim validation. That's real, separate engineering — a call reusing AIPE's existing `_call_with_fallback` infrastructure, prompted with the real evidence bundle (including `financial_context`), with a hard rule that any number in its output must match a number already present in the bundle or the output fails validation. Follows next.
 
 ## Status: Phase A.1 DONE, Phase B blocked on a real branch-divergence decision
 
-**One real, honest limitation surfaced, not hidden**: TCS's grounded output picked a generic "Bagging/Receiving of orders/contracts" filing over a more newsworthy same-day Porsche AI-partnership press release, because both landed within the same minute and "most recent" isn't "most substantive." A real evidence-ranking heuristic (beyond recency) is needed before this becomes production-ready — noted as a genuine Phase A follow-up, not glossed over.
+The TCS ranking limitation Phase A surfaced (picking a generic "Bagging/Receiving of orders/contracts" filing over the more newsworthy same-minute Porsche press release) is fixed as of Phase A.1 — see the section above. Re-running the demo confirms TCS now correctly ranks the Porsche press release first.
 
 ## Explicitly not done in this batch
 
