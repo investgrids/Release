@@ -68,19 +68,43 @@ The branch-divergence blocker above was real (confirmed via `git merge-base`: `i
 - 4 new real DB-backed tests for `get_verified_financial_context()` (real quality-passed facts surface; quarantined/implausible facts are excluded and produce an honest empty context when they're the only rows; zero rows also produce an honest empty context; a mix of good and bad-quality metrics surfaces only the good one). Full relevant suite: 13/13 passing (9 pre-existing + 4 new).
 - **Real, live demonstration** (re-ran `wh_article_evidence_bundle_demo.py` against ICICIBANK, TCS, YESBANK): ICICIBANK's bundle now carries 14 real, quality-passed financial facts (CET1 Ratio, Gross/Net NPA, ROA, Deposits, Advances, etc.), each flowing through into a real `FACT` claim. TCS and YESBANK — including YESBANK, whose facts are real but the ones sampled were entirely quarantined/implausible on the Score branch — both correctly return `has_real_facts=False` rather than any fallback.
 
-**Not yet built** (the remaining piece of the "Phase B GO" authorization): the constrained "Why It Matters" LLM reasoning layer with numeric-claim validation. That's real, separate engineering — a call reusing AIPE's existing `_call_with_fallback` infrastructure, prompted with the real evidence bundle (including `financial_context`), with a hard rule that any number in its output must match a number already present in the bundle or the output fails validation. Follows next.
+## Phase B — grounded Why It Matters + numeric-claim validation (owner architecture, 2026-08-30)
 
-## Status: Phase A.1 DONE, Phase B blocked on a real branch-divergence decision
+The full pipeline is now real, end to end:
 
-The TCS ranking limitation Phase A surfaced (picking a generic "Bagging/Receiving of orders/contracts" filing over the more newsworthy same-minute Porsche press release) is fixed as of Phase A.1 — see the section above. Re-running the demo confirms TCS now correctly ranks the Porsche press release first.
+```
+ranked evidence -> What Happened (deterministic FACT)
+  -> VerifiedFinancialContext (quality/quarantine filtered)
+  -> Why It Matters (constrained interpretation)
+  -> Claim extraction -> numeric + provenance validation
+  -> PASS (article continues) / FAIL (retry, then omit -- never publish)
+```
+
+**`numeric_validation.py`** — the authoritative gate. Extracts every numeric token (percentages, ₹/Rs/INR figures with crore multipliers, $/USD figures with billion/million multipliers, simple ratios) from the ACTUAL generated text via deterministic regex — never trusted from the model's own claimed citations, per the owner's explicit instruction. Each extracted number is checked against an allowed set built from the same evidence/financial-fact/price-move data the model was given. Formatting equivalents (`Rs 1,410 crore` vs `₹1,410 crore`) normalize to the same value; a currency conversion at an assumed exchange rate does not, since it introduces a genuinely new number the bundle never supplied. A lighter, separate check validates stated fiscal periods (`FY2025 Q3`) against real fact/evidence years.
+
+**`why_it_matters.py`** — the orchestration. Bounded 2-attempt retry (rejected numbers are fed back into the retry prompt so the model can self-correct). Never required for publication: no evidence and no financial context skips the LLM call entirely (`omitted_no_evidence`); validation failure after retry discards the generated text (`omitted_validation_failed`) — never publishes an unsupported claim. `select_relevant_financial_facts()` caps prompt facts at 6, preferring headline ratio metrics (NPA/CET1/ROA) over raw balance-sheet aggregates — an explicit, disclosed interim heuristic; real event-topic relevance selection is Phase C, not attempted here. `Claim` gained `financial_fact_ids` alongside `evidence_ids`.
+
+**A real bug found and fixed via the acceptance gate's own adversarial checks**: `_inr_allowed` originally expressed a fact's allowed value in crore-divided units, while `extract_numeric_claims` converts "X crore" text back to raw rupees (multiplies) — a real unit-space mismatch that would have silently failed every correctly-phrased crore figure. Fixed by keeping both sides in raw rupees.
+
+**Full acceptance gate, run for real (owner's 7-step gate, all steps executed, not sampled):**
+1. 19 new tests (12 numeric_validation, 7 why_it_matters with a mocked LLM) — all pass.
+2. Existing Article V2/Warehouse suite (bundle, ranking, financial context) — 13/13, no regression.
+3–4. Live demo against ICICIBANK, TCS, YESBANK, full detail inspected (not just pass/fail):
+   - **ICICIBANK** — 6 of 12 verified facts offered to the prompt; generated text: *"ICICI Bank's $1 billion USD note issuance at a time when its shares fell 1.40% underscores investor caution despite the bank's strong capital ratios (CET1 at 14.04%) and low NPA levels (gross NPA 1.96%, net NPA 0.42%)..."* — every number ($1B, 1.40%, 14.04%, 1.96%, 0.42%) matched the allowed set exactly; `status=ok`, `attempts=1`; 6 claims produced, a mix of FACT (citing real `evidence_ids`/`financial_fact_ids`) and one INTERPRETATION claim connecting the price move to the bond issuance without introducing a new number.
+   - **TCS** — 0 FinancialFact rows offered (none exist); generated text used only the real 4.16% price move (matches actual 4.163% within tolerance) and reasoned entirely from the Porsche partnership + acquisition + orders evidence — confirms evidence-only reasoning works with zero financial grounding, as required.
+   - **YESBANK** — zero linked evidence and an empty financial context (all real facts are quarantined) → `status=omitted_no_evidence`, `attempts=0`, LLM never called. No quarantined data reached any prompt.
+5. Adversarial injection: a deliberately fabricated `"ROA came in at an implausible 47.5%"` was run through the real validator — rejected (`passed=False`), listed in `rejected_numbers`, confirmed discarded rather than published.
+6. Confirmed directly: TCS produces valid reasoning with zero `FinancialFact` dependency; YESBANK's quarantine is enforced at the `financial_context` boundary (already unit-tested in Phase B's FinancialFact layer) and reconfirmed empty in this live run.
+7. Full backend suite: 1113 passed, 6 known pre-existing live-network flakes (RBI/US Treasury/AI-provider timeouts — none touch Warehouse/Phase B code, 2 of the 6 are the exact same `test_development_historical_retrieval.py` flake already documented in Phase A). Zero genuine regressions. Committed: `1c27ebe` on `integration/warehouse-company-master`.
+
+**One real observation worth carrying into the shadow checkpoint**: the ICICIBANK example's reasoning was genuinely coherent (bond issuance + price reaction + capital ratios is a real, sensible connection) — this single live example did not reproduce the "technically valid but irrelevant metrics" failure mode the owner is concerned about for Phase C. That's exactly why a 10-20 real-event sample, not one anecdote, is the right next check.
+
+## Status: Phase B — DONE (FinancialFact grounding + Why It Matters + numeric validation, all live-verified)
 
 ## Explicitly not done in this batch
 
-- No wiring into AIPE's actual production pipeline — `compose_what_happened_from_evidence()` is called only by the demonstration script.
-- No `fact_grounding_enforce` flip to `True` — that check doesn't validate most of what an article claims (financial numbers, causal reasoning, risks/opportunities), so enabling it now would create a false impression of "grounded" without fixing the deeper retrieval gap.
-- No `FinancialFact` integration (Phase B).
-- No "Why It Matters" reasoning layer — that's LLM reasoning *from* the grounded facts, a distinct, later stage.
-- No company-resolution swap inside AIPE's existing pipeline (only the new Phase A bundle uses the real resolver) — migrating AIPE's own `_NSE_UNIVERSE` usage is a separate, larger change.
+- No wiring into AIPE's actual production pipeline — everything above runs only through the demonstration script.
+- No `fact_grounding_enforce` flip to `True`.
+- No company-resolution swap inside AIPE's existing pipeline — migrating AIPE's own `_NSE_UNIVERSE` usage is a separate, larger change.
 - No touching of `BANKING_V1`/S5-E — kept on the completely separate `company-identity/c1-reconciliation` branch throughout.
-
-(Phase A status superseded below — the evidence-ranking gap noted above was fixed the same day; see Phase A.1.)
+- No Phase C event-aware context selection — deliberately deferred pending the real-event shadow-quality checkpoint the owner authorized next.
