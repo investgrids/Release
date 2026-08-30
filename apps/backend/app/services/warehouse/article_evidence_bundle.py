@@ -42,6 +42,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.warehouse.evidence_ranking import RankedEvidence, rank_evidence
 from app.services.warehouse.read_service import LinkedEvidence, get_evidence_for_entity
 
 
@@ -52,6 +53,7 @@ class ArticleEvidenceBundle:
     symbol: str | None
     company_name: str | None
     evidence: list[LinkedEvidence] = field(default_factory=list)
+    ranked_evidence: list[RankedEvidence] = field(default_factory=list)  # A.1 — same items, real explainable order
     price_move_pct: float | None = None
     historical_events: list[dict] = field(default_factory=list)
     marketripple_score: None = None  # deliberately always None in Phase A — see module docstring
@@ -59,12 +61,18 @@ class ArticleEvidenceBundle:
 
 
 async def build_article_evidence_bundle(
-    db: AsyncSession, raw_symbol: str, *, include_historical: bool = True, include_price_move: bool = True,
+    db: AsyncSession, raw_symbol: str, *, query_context: str | None = None,
+    include_historical: bool = True, include_price_move: bool = True,
 ) -> ArticleEvidenceBundle:
-    """The one real entry point for Phase A. Resolves `raw_symbol` through
-    the canonical Company Identity resolver — never the hardcoded
+    """The one real entry point for Phase A/A.1. Resolves `raw_symbol`
+    through the canonical Company Identity resolver — never the hardcoded
     `_NSE_UNIVERSE` the current AIPE pipeline uses for the same job — then
-    assembles whatever real evidence actually exists. An unresolved symbol
+    assembles whatever real evidence actually exists, ranked by real
+    substantiveness (A.1, owner review 2026-08-29) rather than picked by
+    recency alone. `query_context` is the triggering event's own real
+    headline/summary text, when the caller has one (AIPE would; the
+    standalone demo script doesn't, so ranking falls back to
+    substantiveness alone — see evidence_ranking.py). An unresolved symbol
     or a company with zero linked evidence still returns a real, honest
     bundle (resolved=False, or evidence=[]) — never fabricated content."""
     from datetime import datetime as _dt, timezone as _tz
@@ -78,6 +86,8 @@ async def build_article_evidence_bundle(
         )
 
     evidence = await get_evidence_for_entity(db, entity.entity_id)
+    ranked = rank_evidence(evidence, query_context=query_context)
+    evidence_in_rank_order = [r.evidence for r in ranked]
 
     price_move_pct = None
     if include_price_move:
@@ -93,9 +103,50 @@ async def build_article_evidence_bundle(
 
     return ArticleEvidenceBundle(
         resolved=True, entity_id=entity.entity_id, symbol=entity.symbol, company_name=entity.company_name,
-        evidence=evidence, price_move_pct=price_move_pct, historical_events=historical_events,
+        evidence=evidence_in_rank_order, ranked_evidence=ranked,
+        price_move_pct=price_move_pct, historical_events=historical_events,
         marketripple_score=None, built_at=_dt.now(_tz.utc),
     )
+
+
+@dataclass(frozen=True)
+class Claim:
+    """One real, atomic assertion an article makes — the initial claim-
+    provenance structure (owner decision, 2026-08-29, Phase B design).
+    FACT claims must trace to evidence_ids that actually support them;
+    INTERPRETATION claims may connect facts but introduce no new
+    quantitative content of their own. This distinction is what lets a
+    future 'Sources & Evidence' UI replace a generic
+    ['MarketRipple Intelligence Engine', 'NSE India', 'BSE India'] label
+    with real, per-claim citations — the exact gap the Adani Ports
+    example (Phase A report) demonstrated concretely."""
+    text: str
+    claim_type: str  # "FACT" | "INTERPRETATION" — an enum would over-formalize a 2-value field this early
+    evidence_ids: list[str] = field(default_factory=list)
+
+
+def claims_from_what_happened(bundle: ArticleEvidenceBundle) -> list[Claim]:
+    """The FACT half of claim provenance — real, deterministic, one claim
+    per code-composed sentence, each citing the real evidence_id it came
+    from. The INTERPRETATION half only exists once a reasoning stage
+    (Why It Matters) is actually built — not yet, see module docstring's
+    Phase B scope note."""
+    if not bundle.resolved or not bundle.evidence:
+        return []
+    top = bundle.evidence[0]
+    if not top.title:
+        return []
+
+    claims = [Claim(
+        text=f"{bundle.company_name} was the subject of a real {top.source_type} filing: \"{top.title}\"",
+        claim_type="FACT", evidence_ids=[top.raw_evidence_id],
+    )]
+    if bundle.price_move_pct is not None:
+        claims.append(Claim(
+            text=f"{bundle.symbol} shares moved {bundle.price_move_pct:+.1f}% on the day this was reported",
+            claim_type="FACT", evidence_ids=[],  # real market-data source, not a raw_evidence row -- no evidence_id to cite yet
+        ))
+    return claims
 
 
 def compose_what_happened_from_evidence(bundle: ArticleEvidenceBundle) -> str | None:
@@ -118,16 +169,16 @@ def compose_what_happened_from_evidence(bundle: ArticleEvidenceBundle) -> str | 
     if not bundle.resolved or not bundle.evidence:
         return None
 
-    latest = bundle.evidence[0]  # most recent real linked item (query is already DESC by published_at)
-    if not latest.title:
+    top = bundle.evidence[0]  # A.1: highest-ranked by real substantiveness/relevance, not just most recent
+    if not top.title:
         return None
 
-    date_str = latest.published_at.strftime("%d %B %Y") if latest.published_at else "an unspecified date"
+    date_str = top.published_at.strftime("%d %B %Y") if top.published_at else "an unspecified date"
     source_label = {"nse": "an NSE regulatory filing", "rss": "a published news report",
                     "rbi": "an RBI release", "pib": "a PIB release", "sebi": "a SEBI release",
-                    "fed": "a US Federal Reserve release"}.get(latest.source_type, f"a {latest.source_type} source")
+                    "fed": "a US Federal Reserve release"}.get(top.source_type, f"a {top.source_type} source")
 
-    parts = [f"On {date_str}, {bundle.company_name} was the subject of {source_label}: \"{latest.title}\""]
+    parts = [f"On {date_str}, {bundle.company_name} was the subject of {source_label}: \"{top.title}\""]
     if bundle.price_move_pct is not None:
         direction = "gained" if bundle.price_move_pct >= 0 else "declined"
         parts.append(f"{bundle.symbol} shares {direction} {abs(bundle.price_move_pct):.1f}% on the day this was reported.")

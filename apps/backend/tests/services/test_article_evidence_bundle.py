@@ -19,7 +19,9 @@ from app.db.models.evidence_entity_link import EvidenceEntityLink
 from app.db.models.raw_evidence import RawEvidence
 from app.db.models.source_registry import Source
 from app.db.session import AsyncSessionLocal
-from app.services.warehouse.article_evidence_bundle import build_article_evidence_bundle, compose_what_happened_from_evidence
+from app.services.warehouse.article_evidence_bundle import (
+    build_article_evidence_bundle, claims_from_what_happened, compose_what_happened_from_evidence,
+)
 
 
 def _tag():
@@ -72,6 +74,11 @@ async def test_bundle_resolves_and_includes_real_linked_evidence():
         assert what_happened is not None
         assert symbol not in what_happened or bundle.company_name in what_happened  # real company name used, not raw symbol
         assert "real test disclosure" in what_happened
+
+        claims = claims_from_what_happened(bundle)
+        assert len(claims) == 1  # no price move in this fixture -- only the FACT claim
+        assert claims[0].claim_type == "FACT"
+        assert claims[0].evidence_ids == [doc_id]
     finally:
         await _cleanup([symbol], [entity_id], [doc_id], [source_id])
 
@@ -101,5 +108,6 @@ async def test_bundle_resolved_but_zero_linked_evidence_never_fabricates():
         assert bundle.resolved is True
         assert bundle.evidence == []
         assert compose_what_happened_from_evidence(bundle) is None  # never a fabricated placeholder
+        assert claims_from_what_happened(bundle) == []
     finally:
         await _cleanup([symbol], [entity_id], [], [])
