@@ -90,7 +90,11 @@ def test_failed_copy_leaves_no_partial_file(isolated_backup_env, monkeypatch):
 def test_pruning_still_runs_after_a_failed_copy(isolated_backup_env, monkeypatch):
     """The exact incident bug: an unhandled copy failure must not skip
     pruning for that call — otherwise a retention bug and a disk-full
-    failure compound each other."""
+    failure compound each other. Retention itself is computed dynamically
+    (see _max_backup_slots) from the real DB size — pinned here to a known
+    value so this test verifies pruning-after-failure, not the sizing math
+    (that's covered separately below)."""
+    monkeypatch.setattr(backup_module, "_max_backup_slots", lambda: (4, 1))
     backup_dir = isolated_backup_env["backup_dir"]
     backup_dir.mkdir(parents=True)
     # Simulate stale excess boot backups already on disk, over retention.
@@ -101,10 +105,11 @@ def test_pruning_still_runs_after_a_failed_copy(isolated_backup_env, monkeypatch
     backup_database(kind="boot")
 
     remaining = sorted(backup_dir.glob("ig-*.db"))
-    assert len(remaining) == backup_module._BOOT_RETENTION
+    assert len(remaining) == 1  # boot retention pinned to 1 above
 
 
-def test_daily_and_boot_retention_are_independent(isolated_backup_env):
+def test_daily_and_boot_retention_are_independent(isolated_backup_env, monkeypatch):
+    monkeypatch.setattr(backup_module, "_max_backup_slots", lambda: (4, 1))
     backup_dir = isolated_backup_env["backup_dir"]
     backup_dir.mkdir(parents=True)
     for i in range(20):
@@ -116,8 +121,27 @@ def test_daily_and_boot_retention_are_independent(isolated_backup_env):
 
     daily_left = list(backup_dir.glob("ig-daily-*.db"))
     boot_left = [p for p in backup_dir.glob("ig-*.db") if not p.name.startswith("ig-daily-")]
-    assert len(daily_left) == backup_module._DAILY_RETENTION
-    assert len(boot_left) == backup_module._BOOT_RETENTION
+    assert len(daily_left) == 4
+    assert len(boot_left) == 1
+
+
+def test_retention_shrinks_as_real_db_size_grows(isolated_backup_env, monkeypatch):
+    """The actual 2026-08-26 incident: fixed retention counts went stale as
+    the real DB grew, silently letting backups outgrow the volume. Retention
+    must now shrink (never grow unboundedly) as the live DB gets bigger,
+    without ever dropping below the real minimum (1 daily + 1 boot)."""
+    src_db = isolated_backup_env["src_db"]
+
+    monkeypatch.setattr(backup_module, "_VOLUME_TOTAL_BYTES", 500 * 1024 * 1024)
+    src_db.write_bytes(b"x" * (10 * 1024 * 1024))  # small DB -> many slots fit
+    daily_small, boot_small = backup_module._max_backup_slots()
+
+    src_db.write_bytes(b"x" * (200 * 1024 * 1024))  # DB now most of the volume
+    daily_large, boot_large = backup_module._max_backup_slots()
+
+    assert daily_large < daily_small
+    assert daily_large >= backup_module._MIN_DAILY_RETENTION
+    assert boot_large >= backup_module._MIN_BOOT_RETENTION
 
 
 def test_zero_byte_files_are_dropped_regardless_of_retention(isolated_backup_env):

@@ -50,6 +50,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_macro_rates_sync,
         job_development_memory_sync,
         job_backup_database_daily,
+        job_check_ingestion_silence,
     )
     from app.services.intelligence.theme_worker import run_theme_scoring
     from app.services.intelligence.price_monitor import run_price_monitor_cycle
@@ -226,6 +227,20 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         max_instances=1,
         coalesce=True,
         misfire_grace_time=3600,
+    )
+
+    # ── Ingestion silence detector — every 30 minutes ────────────────────────
+    # See job_check_ingestion_silence's own docstring: a real multi-day
+    # EventTriage gap (2026-08-26 disk-full incident) went undetected for
+    # weeks. This only logs (no DB write), so it keeps working during the
+    # exact disk-full scenario it exists to catch.
+    scheduler.add_job(
+        job_check_ingestion_silence,
+        IntervalTrigger(minutes=30),
+        id="ingestion_silence_check",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=300,
     )
 
     # ── Theme scoring — every 10 minutes ─────────────────────────────────────

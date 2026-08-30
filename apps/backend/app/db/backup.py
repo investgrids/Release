@@ -29,14 +29,26 @@ log = structlog.get_logger(__name__)
 
 _BACKUP_DIR = Path("/data/backups")
 # The Railway volume backing /data is 434MB real (not the 500MB shown in the
-# dashboard), and each backup is a full ~49MB copy of the live DB — so
-# retention has a hard ceiling here, not just a "how much history do we
-# want" choice. 4 daily + 1 boot = 5 files (~245MB) keeps steady-state usage
-# around 70%, under the 75% warn threshold below with the DB at its current
-# size. Revisit these numbers if the DB grows materially or the volume is
-# resized (Railway dashboard only — not exposed via the CLI).
-_DAILY_RETENTION = 4  # one file per calendar date
-_BOOT_RETENTION = 1  # restart-triggered snapshot; not a dated history
+# dashboard). Real production incident, 2026-08-26 (audit: artifacts/
+# aipe_scheduler_publication_failure_audit.md): the 2026-08-19 fix below
+# hardcoded "4 daily + 1 boot = 5 files (~245MB), ~49MB/backup" — by
+# 2026-08-26 the live DB had grown to ~91MB, so those same 5 slots actually
+# cost ~475MB, already over the volume's real capacity before counting the
+# live DB file itself. The retention count was never "revisited" as its own
+# comment said it should be, and the volume filled again (91.5% used, every
+# write including EventTriage inserts failing with "database or disk is
+# full" for ~4 days). Fixed by computing retention from the REAL, current DB
+# size on every backup, not a number chosen once and left stale — see
+# _max_backup_slots(). Retention no longer needs manual revisiting as the DB
+# grows; it shrinks automatically as the db size grows, and only needs
+# attention if the VOLUME itself is resized (Railway dashboard only, not
+# exposed via the CLI) or if a slot count of 1 daily / 1 boot regularly
+# stops giving useful history (a real sign the volume itself is now too
+# small for this app's data, not a retention-math problem).
+_VOLUME_TOTAL_BYTES = 434 * 1024 * 1024
+_TARGET_USED_FRACTION = 0.70  # keep steady-state usage under the 75% warn threshold below
+_MIN_DAILY_RETENTION = 1  # always keep at least "yesterday", even on a large/growing DB
+_MIN_BOOT_RETENTION = 1
 
 # Backup volume usage at/above this fraction gets a log.warning on every
 # backup, so a slow refill (e.g. a retention bug) surfaces long before the
@@ -113,17 +125,43 @@ def backup_database(kind: str = "boot") -> dict:
     return result
 
 
+def _max_backup_slots() -> tuple[int, int]:
+    """Real, current-size-based retention — replaces the old fixed "4 daily +
+    1 boot" constants that silently went stale as the DB grew (see the
+    module-level comment on the 2026-08-26 incident). Returns
+    (daily_retention, boot_retention), each at least _MIN_*_RETENTION so a
+    single oversized DB can never zero out retention entirely — if even 2
+    total slots don't fit the target budget, this intentionally runs the
+    volume over the soft target rather than keeping zero history; that
+    condition should show up via _log_backup_disk_usage's warning, not be
+    silently absorbed here by deleting every backup."""
+    db_path = _sqlite_path()
+    db_size = db_path.stat().st_size if db_path and db_path.exists() else 0
+    if db_size <= 0:
+        return _MIN_DAILY_RETENTION, _MIN_BOOT_RETENTION
+
+    budget = (_VOLUME_TOTAL_BYTES * _TARGET_USED_FRACTION) - db_size  # live DB itself also lives on this volume
+    max_total_slots = max(int(budget // db_size), _MIN_DAILY_RETENTION + _MIN_BOOT_RETENTION)
+    # Daily history is the higher-value use of whatever slots are available
+    # (per this module's own daily-vs-boot distinction); boot always gets
+    # exactly its minimum, daily gets the rest.
+    boot_retention = _MIN_BOOT_RETENTION
+    daily_retention = max(max_total_slots - boot_retention, _MIN_DAILY_RETENTION)
+    return daily_retention, boot_retention
+
+
 def _prune_old_backups() -> None:
     # Orphaned .tmp files (process killed mid-copy, before the except
     # handler ran) are never valid backups regardless of age.
     for tmp in _BACKUP_DIR.glob("*.tmp"):
         tmp.unlink(missing_ok=True)
 
+    daily_retention, boot_retention = _max_backup_slots()
     all_backups = list(_BACKUP_DIR.glob("ig-*.db"))
     daily = sorted(p for p in all_backups if p.name.startswith(_DAILY_PREFIX))
     boot = sorted(p for p in all_backups if not p.name.startswith(_DAILY_PREFIX))
-    _prune_category(daily, _DAILY_RETENTION)
-    _prune_category(boot, _BOOT_RETENTION)
+    _prune_category(daily, daily_retention)
+    _prune_category(boot, boot_retention)
 
 
 def _prune_category(backups: list[Path], retention: int) -> None:

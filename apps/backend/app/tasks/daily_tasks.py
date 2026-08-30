@@ -470,7 +470,10 @@ async def job_seed_opportunities() -> None:
     log.info("job.seed_opportunities.done")
 
 
-# ── 2:00 AM IST — Backup the database (dated, kept ~14 days) ─────────────────
+# ── 2:00 AM IST — Backup the database (dated; real retention is computed ────
+# from the live DB's current size on every run, see app/db/backup.py's
+# _max_backup_slots() — not a fixed day count, which went stale twice as the
+# real DB grew and filled the volume, most recently 2026-08-26).
 
 async def job_backup_database_daily() -> None:
     """Snapshot the database to the persistent volume. Off-peak hour so the
@@ -896,3 +899,44 @@ async def job_backfill_company_signals() -> None:
             articles_scanned=len(articles), article_signals=article_signals,
             opportunities_scanned=len(opportunities), opportunity_signals=opp_signals,
         )
+
+
+# ── Every 30 min — ingestion silence detector ────────────────────────────────
+# Real incident (2026-08-26, audit: artifacts/aipe_scheduler_publication_
+# failure_audit.md): EventTriage received zero rows for ~4 consecutive days
+# (a disk-full incident silently broke every DB write) and nobody noticed
+# until a retrospective 30-day audit found it. This job's only job is to
+# make that kind of gap visible within the hour, not a month later. It only
+# logs (structlog -> stdout -> Railway's log stream) — deliberately not a DB
+# write, so it keeps working even during the exact disk-full scenario that
+# caused the incident it exists to catch.
+_INGESTION_SILENCE_THRESHOLD_MINUTES = 90  # ~6x the 15-min real ingestion cadence
+
+
+async def job_check_ingestion_silence() -> None:
+    from datetime import datetime, timezone
+    from sqlalchemy import select, func
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.intelligence import EventTriage
+
+    async with AsyncSessionLocal() as db:
+        latest = (await db.execute(select(func.max(EventTriage.triaged_at)))).scalar()
+
+    now = datetime.now(timezone.utc)
+    if latest is None:
+        log.error("ingestion.silence_detected", reason="no EventTriage rows exist at all")
+        return
+
+    if latest.tzinfo is None:
+        latest = latest.replace(tzinfo=timezone.utc)
+    gap_minutes = (now - latest).total_seconds() / 60
+
+    if gap_minutes >= _INGESTION_SILENCE_THRESHOLD_MINUTES:
+        log.error(
+            "ingestion.silence_detected",
+            latest_triage_at=latest.isoformat(),
+            gap_minutes=round(gap_minutes, 1),
+            threshold_minutes=_INGESTION_SILENCE_THRESHOLD_MINUTES,
+        )
+    else:
+        log.info("ingestion.silence_check_ok", gap_minutes=round(gap_minutes, 1))
