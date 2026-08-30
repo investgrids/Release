@@ -61,13 +61,48 @@ Real code (`b5_gate2_event_matching.py`) against real data: the 619-row `Evidenc
 
 **Acceptance-bar assessment**: the owner's hard rule — "zero known wrong-event matches" — is met on the observed PASS set (3/3 verified correct). Recall is intentionally very low (3/88 = 3.4%), driven mostly by real NSE-evidence-coverage gaps in the current corpus snapshot (`EvidenceEntityLink` only covers 376 of ~2,500+ real entities) rather than Gate 2's classification logic. Improving recall (broader `desc` mapping, richer keyword taxonomy, more complete NSE linkage) is real future work, explicitly not chased this pass.
 
-## Explicitly not done this pass
+## Iteration 3 (same evening) — multi-entity Gate 2 + failure-cause audit + demonstrated-only fixes
 
-- Gate 2 was only run against Gate 1's single-entity bucket (88 items) — the 37-item multi-entity bucket is unexplored for Gate 2 and is a natural next step.
-- No `EvidenceEntityLink`-style writes for RSS evidence, no backfill, no Article V2 wiring — still zero, per the owner's standing instruction.
-- The single-word-company-name recall trade (~30 real companies now unreachable by name, still reachable by ticker) was accepted, not re-opened, per "recall can improve later."
-- The "ACC" acronym-collision class was reported, not patched.
+Owner authorized three specific pieces of follow-up: run Gate 2 independently per entity across the multi-entity bucket, audit the 85 single-entity failures into root causes before touching the algorithm, and extend the taxonomy only where the audit demonstrates a real miss. Scripts: `b5_gate2_multi_entity.py`, `b5_gate2_failure_audit.py`, commit on `integration/warehouse-company-master`.
+
+### Multi-entity Gate 2 — per-entity independence, not per-story
+
+`b5_gate2_multi_entity.py` reuses `run_gate2_for_item()` unchanged, calling it once per entity within each multi-company story rather than once per story — a multi-company story never gets a single blanket verdict.
+
+Run against Gate 1's 37 multi-entity stories (104 per-entity checks): **1 PASS, 103 FAIL**. The PASS case (ICICI Bank's $1B bond pricing, hand-verified against the real matching NSE filing — the same real event also confirmed in the single-entity bucket from a different RSS source) sits inside a real **mixed-verdict story**: *"ICICI raises $1 billion, Union Bank $600 million through dollar bonds"* — `ICICI Bank` → PASS, `Union Bank of India` → FAIL, `UCO Bank` → FAIL, all three within the same story. This is direct, real proof the per-entity independence requirement does actual work, not just a theoretical safeguard: two of the three genuinely-mentioned companies in that story get zero fabricated evidence just because their sibling company had a real, confirmed filing.
+
+### Failure-cause audit (single-entity bucket, `b5_gate2_failure_audit.py`)
+
+Every one of the original 85 failures was traced to a specific, checkable root cause *before* any algorithm change:
+
+| Root cause | Count | What it means |
+|---|---|---|
+| `rss_category_undetermined` | 41 | RSS text didn't classify into any category |
+| `no_nse_evidence_at_all` | 33 | Entity has **zero** `EvidenceEntityLink` rows, period |
+| `category_mismatch_in_window` | 11 | Real linked evidence exists nearby in time, but its category ≠ the RSS item's category |
+
+Hand-reviewing each bucket found the large majority are **correct rejects, not bugs**: most `rss_category_undetermined` items are genuinely category-less content (pure price-movement listicles, analyst-recommendation round-ups, sports content) where "undetermined" is the right answer; most `category_mismatch_in_window` items have real nearby NSE evidence that is genuinely a *different* disclosure (e.g. a routine "Trading Window closure" notice sitting near an IPO-listing story) — the specific filing the RSS item describes just isn't linked yet, which Gate 2 is correctly refusing to fabricate.
+
+**4 real, demonstrated fixes found and applied** (all traced to a specific failing case, nothing speculative):
+1. Added `sue(s/d)|lawsuit|allegation` to `regulatory_compliance` — the real *Urban Company v. Kent RO* lawsuit story was undetermined without it; it now correctly PASSES against the exact real NSE "Regulation 30" disclosure of that same lawsuit.
+2. Added `usfda|fda|inspection` to `regulatory_compliance` — 2 real Aurobindo Pharma USFDA-inspection stories were undetermined without it.
+3. Broadened `fundraising_debt` to include `listing debut|shares list at|market debut|listing date` (and `allotment`→`allot` to also catch "allotted") — several real IPO-listing-debut stories (Lalithaa Jewellery Mart, Horizon Industrial Parks) never used the literal word "IPO" in their own text.
+4. **Removed the bare `management` keyword from `management_board`** — it was a real, demonstrated false trigger: *"TCS To Acquire Porshce Arm MHP **Management**"* misclassified as a management-change story purely because the acquired subsidiary's own legal name contains the word "Management," when it's genuinely an acquisition. The category's other keywords (ceo/cfo/director/resign/appoint/board/chairman/kmp) already cover real management-change language without this generic trigger.
+
+### Result of the 4 fixes — re-run, re-verified
+
+Single-entity Gate 2: **PASS went from 3 → 6, FAIL from 85 → 82.** All 6 PASS cases hand-verified against their real matched NSE filing text — **6/6 genuinely correct**, including the TCS/MHP acquisition (now correctly matched to the real "Acquisition" filing) and the BLS International visa-allegations story (matched to an NSE filing that is textually near-identical to the RSS story). Combined with the 1 multi-entity PASS, **7/7 total confirmed matches are genuinely correct — zero known wrong-event matches, maintained**.
+
+Re-running the failure audit after the fixes: root causes shift to **38 no-evidence / 32 undetermined / 12 mismatch** (82 total) — `no_nse_evidence_at_all` is now the *largest* single bucket (46%), reinforcing that **NSE evidence coverage, not matching logic, is now Gate 2's dominant recall constraint**. `EvidenceEntityLink` currently covers only 376 of ~2,500+ real entities.
+
+### Explicitly not done this pass
+
+- No semantic/fuzzy matching introduced — every fix above is a literal keyword addition traced to a specific real failing case.
+- No threshold tuning to inflate the 6/88 or 1/37 numbers — recall stays low and is reported as-is.
+- Multi-entity failures (103) were not individually root-cause-audited this pass (only single-entity was, per the explicit ask) — a natural next step if multi-entity recall becomes a priority.
+- The "ACC" acronym-collision class remains unpatched. Worth noting: because Gate 2 independently classifies "ACC Men's Premier Cup 2026..." as `rss_category_undetermined` (no describable corporate event), it would **never have produced a wrongly-grounded article anyway** — the two-gate architecture already contains that specific Gate 1 error.
+- No `EvidenceEntityLink`-style writes for RSS evidence, no backfill, no Article V2 wiring — still zero.
 
 ## Conclusion
 
-Gate 1's real, full-census precision moved from 77.3% (v3) to 99.2% (v4, 124/125) on the same fix scope the owner approved, with two genuine bugs (Welspun Corp / Urban Company) found and fixed along the way rather than shipped silently. Gate 2 exists now as real, tested code and meets the "zero known wrong-event matches" bar on everything it has actually confirmed so far, at low but honest recall. **Still not ready for backfill** — recall on both gates needs real improvement (NSE evidence coverage, category-mapping breadth) before this could support production-scale linkage, but the precision foundation the owner asked for is now demonstrated with real, verified numbers.
+Gate 1's real, full-census precision moved from 77.3% (v3) to 99.2% (v4, 124/125). Gate 2 now exists as real, tested code, runs independently per entity (proven via a real mixed-verdict story), and — after 4 fixes traced to specific demonstrated failures, not guesses — has **7/7 hand-verified correct matches, zero known wrong-event matches**, at low but now better-understood recall (6/88 single, 1/37 multi). The dominant remaining constraint is real NSE evidence coverage (`EvidenceEntityLink`), not matching quality — B.5's next real lever is likely a separate coverage-expansion workstream, not further precision tuning. **Still not ready for backfill.**
