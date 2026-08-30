@@ -39,3 +39,18 @@ A `CandidateRun` is only created **right before a generation attempt** — not a
 - No fix to the `historical_intelligence` path's separate `min_events`/thin-sample logic, duplicate detection, or content quality — only the zero-trace gap.
 - No new admin/API endpoint to query `CandidateRun` rows — this is the durable persistence layer the next step (candidate lifecycle observability, per the locked roadmap) would build on top of.
 - Not deployed yet — committed locally, pending review.
+
+## P1.1 — test-DB isolation, ported before deploying P1 (owner decision)
+
+Given the test-isolation gap above, the owner held P1's deployment and required porting the proven isolation guardrail from `company-identity/c1-reconciliation` (built there after a real repeated incident: test cleanup deleted real Company Master rows, twice) into `main` first — as its own, separately attributable commit (`2bf0642`), not bundled with `3f50d71`.
+
+**Ported, not redesigned**: `apps/backend/tests/conftest.py` (new — none existed before) gives every test its own on-disk scratch DB, wiped fresh every session, DATABASE_URL overridden before `app.core.config`/`app.db.session` can be imported by anything else. One addition beyond the ported original: a **fail-closed guard** — after the override, the module imports `settings` for real and asserts its resolved `database_url` is neither the real dev DB's filename nor anything but the exact expected scratch URL, refusing to even collect tests otherwise.
+
+Schema creation naturally imports `app.db.models` (registering every model, including the new `CandidateRun`) before `Base.metadata.create_all()` — no one-off manual table-creation script needed going forward, closing the exact gap that made this session create `candidate_run` by hand against the real dev DB.
+
+**Full suite run against the isolated DB**: 1004 passed, 2 skipped, 2 xfailed, 27 failed — all categorized, none traced to the isolation mechanism itself:
+- **14 pre-existing/unrelated**: live-network-named tests, plus 3 already independently confirmed today as pre-existing (a mock signature mismatch, a known flaky test).
+- **1 real, separate, already-explained cause**: `test_weekend_intelligence_scheduler.py`'s hardcoded expected job count (29) didn't account for this session's earlier P0 fix adding a 30th recurring job (`job_check_ingestion_silence`) — a P0 consequence, not a P1.1 one. Not fixed here to keep this commit attributable to test isolation only.
+- **12 genuine, previously-hidden data dependencies — exactly what isolation exists to surface**: `test_quant_leakage`/`test_quant_membership` need real historical `PriceBar`/`IndexMembership` rows; `test_warehouse_health` asserts on 20 real seeded `Source Registry` rows; `test_warehouse_market_observations` hit a **real `FOREIGN KEY constraint failed`** inserting into `market_observations` against an unseeded `source_registry` table; `test_warehouse_raw_evidence` shares the same pattern. None fixed here — they need their own real seed fixtures to become properly self-contained, a real, separate backlog item.
+
+**Decision point**: P1 (`3f50d71`) and P1.1 (`2bf0642`) are both committed, separately attributable, neither deployed. Next: owner review, then deploy both together, then real production verification of one scheduled cycle (a successful run producing `PUBLISHED` + real `article_id`, and eventually a genuine failed run producing a durable failure state — never manufactured in production).
