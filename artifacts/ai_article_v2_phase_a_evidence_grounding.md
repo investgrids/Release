@@ -35,6 +35,28 @@ Ran the bundle builder against the two companies with confirmed real linked evid
 
 **The comparison that *is* real and damning**: a real current AIPE article ("Adani Ports Boost Expected from Vizhinjam...") lists its `sources` field as `['MarketRipple Intelligence Engine', 'NSE India', 'BSE India']` — generic, non-traceable labels — while its actual `what_happened` text asserts specific, unverifiable numbers ("Axis Capital highlighted... roughly Rs 1,410 crore," named FII/DII net-flow direction) that trace to none of those three sources. This is exactly the LLM-fabrication pattern the audit diagnosed, now shown concretely side-by-side with what a grounded version looks like for a comparable real event.
 
+## Phase A.1 — Evidence ranking + claim provenance structure (owner review, same day)
+
+Phase A's own honest disclosure (TCS picking a generic "Bagging/Receiving of orders" filing over the more newsworthy same-minute Porsche press release) was treated as a real defect to fix, not a footnote.
+
+- **`evidence_ranking.rank_evidence()`** — real, deterministic, explainable ranking. Never an LLM judgment call ("which filing looks most important?"), never a hand-assigned importance score. Combines a real, code-based NSE subject-line substantiveness classifier with real title/query-token overlap (Jaccard) against a trigger context — reusing `duplicate_detector.py`'s exact tokenizer/similarity function verbatim, the same mechanism the original 7-consumer audit already found and praised, never reimplemented. Recency is a tie-breaker only. Every ranked result carries its own real `reasons` list.
+- The fix itself was non-trivial to get right: "Bagging/Receiving of orders" is a real NSE category, but a *bare* instance with no further real detail isn't more substantive than a press release with a real quoted title — that distinction, not a blanket keyword ban, is what the classifier encodes.
+- **`Claim`/`claims_from_what_happened()`** — the initial claim-provenance structure from the owner's Phase B design, built now since it needs zero `FinancialFact` dependency. `FACT` claims cite real `evidence_ids`; the `INTERPRETATION` half waits for an actual reasoning stage (not yet built).
+- 6 new tests (including the real TCS case verbatim as a regression test) + 2 existing bundle tests extended. Full relevant suite: 141/142 (same 1 pre-existing unrelated flaky failure).
+- **Re-verified live**: re-ran the Phase A demo script — TCS now correctly ranks the real Porsche press release above the generic order filing. ICICIBANK unaffected (was already correct).
+
+## Phase B — real blocker found, needs a decision before proceeding
+
+The owner's Phase B design (`FinancialFact` grounding, a constrained "Why It Matters" LLM reasoning layer with numeric-claim validation) assumes `FinancialFact`/quality-quarantine data is reachable from this branch. **It is not.** Confirmed via `git merge-base`: `integration/warehouse-company-master` and `company-identity/c1-reconciliation` (where `FinancialFact`, the quality/quarantine system, and the MarketRipple Score all live) diverged well before either branch's recent work — the same real constraint already disclosed for `marketripple_score` in Phase A, now blocking Phase B's most substantive piece too.
+
+Two honest paths, not decided here:
+1. **Cherry-pick the read-only pieces** (`FinancialFact` model + `quality.py`'s quarantine/anomaly status, real DB tables) onto this branch so Phase B can *read* verified facts without needing the scoring engine itself.
+2. **Wait for a real merge** of the two branches before building Phase B's `financial_context` — keeping the placeholder structure (`marketripple_score: None`, no `financial_context` field yet) until then.
+
+Not implemented in this batch pending that decision. The "Why It Matters" reasoning layer (a real, constrained LLM call reusing AIPE's existing `_call_with_fallback` infrastructure, with a numeric-claim validator rejecting any number not present in the evidence bundle) is real, separate engineering that should follow once Phase B's data question is resolved — not built speculatively ahead of it.
+
+## Status: Phase A.1 DONE, Phase B blocked on a real branch-divergence decision
+
 **One real, honest limitation surfaced, not hidden**: TCS's grounded output picked a generic "Bagging/Receiving of orders/contracts" filing over a more newsworthy same-day Porsche AI-partnership press release, because both landed within the same minute and "most recent" isn't "most substantive." A real evidence-ranking heuristic (beyond recency) is needed before this becomes production-ready — noted as a genuine Phase A follow-up, not glossed over.
 
 ## Explicitly not done in this batch
@@ -46,6 +68,4 @@ Ran the bundle builder against the two companies with confirmed real linked evid
 - No company-resolution swap inside AIPE's existing pipeline (only the new Phase A bundle uses the real resolver) — migrating AIPE's own `_NSE_UNIVERSE` usage is a separate, larger change.
 - No touching of `BANKING_V1`/S5-E — kept on the completely separate `company-identity/c1-reconciliation` branch throughout.
 
-## Status: Phase A DONE
-
-Real retrieval foundation built, tested, and demonstrated against real linked evidence. Next: expand the real-event comparison sample as more Warehouse-linked evidence accumulates, then (only if Phase A's quality gain holds up under more real cases) proceed to `FinancialFact` integration and a grounded "Why It Matters" reasoning stage.
+(Phase A status superseded below — the evidence-ranking gap noted above was fixed the same day; see Phase A.1.)
