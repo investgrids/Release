@@ -4,29 +4,41 @@ AI service — multi-provider free-tier AI with automatic fallback.
 Provider chain (empirically-reliable-first, auto-skips exhausted providers —
 see _call_with_fallback for the 2026-07-26 reordering rationale):
   1. Groq high-quality — gpt-oss-120b/20b, 1,000 req/day each
-  2. Cerebras          — gpt-oss-120b, no-op until billing is set up (402)
-  3. Groq fast         — qwen3.6-27b/compound/compound-mini/gpt-oss-safeguard-20b
-  4. OpenRouter large  — 550B, 120B, 31B, 20B free models (account-wide cap:
+  2. Groq fast         — qwen3.6-27b/compound/compound-mini/gpt-oss-safeguard-20b
+  3. OpenRouter large  — 550B, 120B, 31B free models (account-wide cap:
                          1,000 req/day once $10+ in credits is on file, tight
                          free-tier daily cap otherwise — NOT per-model, see
                          the P0.5 capacity writeup)
-  5. Mistral           — mistral-small/open-mistral-nemo, La Plateforme free
+  4. Mistral           — mistral-small/open-mistral-nemo, La Plateforme free
                          "Experiment" tier: 2 RPM account-wide (verified —
                          this is the tightest real ceiling in the whole chain).
-                         2026-08-22: MISTRAL_API_KEY is currently invalid
-                         (confirmed via live probe — Mistral's own API
-                         returns 401 "Invalid API Key" on every model) — this
-                         tier is a hard no-op until the key is rotated in
-                         Mistral's La Plateforme console and updated in
-                         Railway's env vars. Not fixable from this code.
-  6. Gemini            — 2026-08-22: gemini-2.5-flash/-flash-lite were BOTH
+  5. Gemini            — 2026-08-22: gemini-2.5-flash/-flash-lite were BOTH
                          retired ("no longer available to new users" per
                          Google's own error body) — replaced with the
                          current live models (gemini-3.6-flash /
                          gemini-3.5-flash-lite), confirmed via live probe.
-  7. OpenRouter small  — remaining free models (same account-wide cap as #4)
-  8. Cloudflare Workers AI — glm-4.7-flash, separate free account (10,000
-                         neurons/day pool), added 2026-08-05
+                         The demonstrated production workhorse as of the
+                         2026-08-30 provider audit.
+  6. OpenRouter small  — remaining free models (same account-wide cap as #3)
+
+  Cerebras and Cloudflare Workers AI tiers were REMOVED 2026-08-30 (provider
+  reliability audit, artifacts/ai_provider_reliability_audit.md) — both were
+  fully coded but never had real credentials configured in Railway, so
+  neither tier had ever executed a single real call; a fallback tier that
+  can never run is misleading resilience, not real capacity. Re-add only
+  alongside actually provisioning real credentials, not speculatively ahead
+  of that.
+
+  2026-08-30 provider reliability audit (real production logs + code
+  review, following up on the 2026-08-22 live-probe audit below): Mistral's
+  401 was reconfirmed as a bad/rotated key, not a code bug (rotated same
+  day — MISTRAL_API_KEY should now be valid; if 401s recur, the key needs
+  rotating again, this is not fixable from this code). Exactly 4 of the
+  ~10 configured OpenRouter free-tier slugs (openai/gpt-oss-20b:free plus 3
+  nvidia/nemotron-* entries in the small tier) were confirmed 404ing on
+  100% of real attempts while every sibling slug on the identical
+  account/key succeeded or 429'd normally — removed as stale/renamed
+  slugs, not a quota or account issue.
 
   2026-08-22 live-probe audit (every tier tested directly against its own
   provider with the real production keys, not inferred from app-level
@@ -37,11 +49,10 @@ see _call_with_fallback for the 2026-07-26 reordering rationale):
   found"); OpenRouter's remaining free models are fine, just genuinely
   exhausted on the account-wide free-models-per-day quota right now (429,
   self-heals on their own daily reset — not a code bug); Gemini's key is
-  valid but both configured models were retired (see #6 above); Mistral's
-  key itself is invalid (see #5 above). This is what was silently forcing
-  every caller (commodities insights, opening-prediction's AI layer, the
-  event-classification pipeline, etc.) onto their generic canned fallback
-  text on nearly every request.
+  valid but both configured models were retired (see #5 above). This is
+  what was silently forcing every caller (commodities insights, opening-
+  prediction's AI layer, the event-classification pipeline, etc.) onto
+  their generic canned fallback text on nearly every request.
 
 Each model that returns HTTP 429 (rate-limited) is remembered in _EXHAUSTED
 and skipped on future calls for a cooldown window (_EXHAUSTED_COOLDOWN_S) —
@@ -67,15 +78,13 @@ Priority = Literal["interactive", "background"]
 log = structlog.get_logger(__name__)
 
 # ── Provider endpoints ────────────────────────────────────────────────────────
+# Cerebras and Cloudflare Workers AI endpoints removed 2026-08-30 along with
+# their tiers (see the comment near _OR_SMALL below for the full rationale).
 _OR_URL       = "https://openrouter.ai/api/v1/chat/completions"
 _GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
-_CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions"
 _GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 _MISTRAL_URL  = "https://api.mistral.ai/v1/chat/completions"
 _NVIDIA_PATH  = "/chat/completions"   # appended to settings.nvidia_base_url
-# Cloudflare Workers AI — free tier, 10,000 neurons/day shared pool, account
-# ID baked into the URL path (fixed per deployment, not per-call).
-_CLOUDFLARE_URL = f"https://api.cloudflare.com/client/v4/accounts/{settings.cloudflare_account_id}/ai/v1/chat/completions"
 
 # Models that have returned 429 — skipped for a cooldown window, not forever.
 # A generic 429 doesn't distinguish "hit today's real daily quota" from "briefly
@@ -205,9 +214,11 @@ class PriorityTierLimiter:
 # Starting caps: 4 for the two highest-real-quota Groq tiers, 3 for the
 # rest — reasoned proposals from the P0 task file, not measured values.
 # Tune after real traffic data; don't treat these as final.
+# Cerebras and cloudflare-workers-ai limiters removed 2026-08-30 along with
+# their tiers in _call_with_fallback (never had credentials configured —
+# see the module-level comment near _OR_SMALL for the full rationale).
 _TIER_LIMITERS: dict[str, PriorityTierLimiter] = {
     "groq-hq":          PriorityTierLimiter("groq-hq", capacity=4),
-    "cerebras":         PriorityTierLimiter("cerebras", capacity=4),
     "groq-fast":        PriorityTierLimiter("groq-fast", capacity=4),
     "openrouter-hq":    PriorityTierLimiter("openrouter-hq", capacity=3),
     # Corrected from capacity=3 (a reasoned guess) to 2 after real quota
@@ -218,10 +229,6 @@ _TIER_LIMITERS: dict[str, PriorityTierLimiter] = {
     "mistral":          PriorityTierLimiter("mistral", capacity=2),
     "gemini":           PriorityTierLimiter("gemini", capacity=3),
     "openrouter-small": PriorityTierLimiter("openrouter-small", capacity=3),
-    # Cloudflare Workers AI — separate free account/quota (10,000 neurons/day
-    # pool), no official concurrency limit published; capacity=2 is a
-    # conservative starting guess like the original 7, not a measured value.
-    "cloudflare-workers-ai": PriorityTierLimiter("cloudflare-workers-ai", capacity=2),
 }
 
 # How long a caller will wait for a tier's semaphore before moving on to the
@@ -423,11 +430,15 @@ def get_nvidia_metrics() -> dict:
 # removed them, and every AIPE cycle was burning ~9 wasted round-trips on
 # this tier alone before ever reaching a model that actually answers. Only
 # currently-live free slugs are listed; re-verify before adding more.
+# 2026-08-30 provider reliability audit (artifacts/ai_provider_reliability_
+# audit.md): openai/gpt-oss-20b:free removed — confirmed via real production
+# logs to 404 on 100% of attempts (24/24 in one 8-min window) while every
+# sibling slug on the identical account/key succeeds or 429s normally, so
+# this is a stale/renamed slug, not a quota or account issue.
 _OR_HIGH_QUALITY = [
     "nvidia/nemotron-3-ultra-550b-a55b:free",       # 550B — largest free model
     "nvidia/nemotron-3-super-120b-a12b:free",        # 120B — NVIDIA quality
     "google/gemma-4-31b-it:free",                   # 31B  — Google quality
-    "openai/gpt-oss-20b:free",                      # 20B  — GPT OSS mid
 ]
 
 # ── Tier 1.5: Mistral La Plateforme — verified live 2026-07-22
@@ -519,20 +530,17 @@ _GROQ_REASONING_EFFORT: dict[str, str] = {
     "qwen/qwen3.6-27b": "none",
 }
 
-# ── Tier 5: Cerebras (10,000 req/day — ultra-fast inference)
-# 2026-07-26: llama3.1-70b/llama3.1-8b confirmed 404 "model does not exist"
-# via direct live probe against Cerebras's own API — deprecated on their
-# side. gpt-oss-120b is confirmed a real, current model name (probed 402
-# Payment Required, not 404) but 402 means this specific API key's account
-# needs billing/plan setup on cloud.cerebras.ai before it's actually usable —
-# a real account-level step, not something fixable from this code. Kept in
-# the list since _call_provider already treats any non-2xx as "try the next
-# model" gracefully; this tier is effectively a no-op until billing is set up.
-_CEREBRAS_MODELS = [
-    "gpt-oss-120b",
-]
+# Cerebras and Cloudflare Workers AI tiers were REMOVED from the active
+# chain 2026-08-30 (artifacts/ai_provider_reliability_audit.md, owner
+# decision): both were fully coded but had zero credentials ever
+# configured in Railway, so neither tier had executed a single real call —
+# Cerebras additionally needs billing/plan setup on cloud.cerebras.ai (402
+# Payment Required, confirmed via live probe) even once a key exists. A
+# fallback tier that can never execute is misleading resilience, not real
+# capacity — re-add only alongside actually provisioning real credentials
+# (and, for Cerebras, real billing), not speculatively ahead of that.
 
-# ── Tier 6: OpenRouter smaller free models (final fallback)
+# ── Tier: OpenRouter smaller free models (final fallback)
 #
 # 2026-07-22: same live-verification pass as Tier 1 — laguna-xs.2, the
 # llama-3.2-3b slug, dolphin-mistral, and both liquid/lfm-2.5 entries all
@@ -545,25 +553,16 @@ _CEREBRAS_MODELS = [
 # free-models-per-day quota (429 "Add 10 credits to unlock 1000 free model
 # requests per day") — a genuine capacity ceiling that self-heals on
 # OpenRouter's own daily reset, not a dead model to remove.
+#
+# 2026-08-30 provider reliability audit: the 3 nvidia/nemotron-* entries
+# removed here were confirmed via real production logs to 404 on 100% of
+# attempts (every time this tier was reached) while the 3 remaining models
+# below just hit the genuine account-wide quota (429) normally — same
+# stale-slug pattern as _OR_HIGH_QUALITY above, not a quota issue.
 _OR_SMALL = [
-    "nvidia/nemotron-3-nano-30b-a3b:free",
-    "nvidia/nemotron-nano-12b-v2-vl:free",
-    "nvidia/nemotron-nano-9b-v2:free",
     "google/gemma-4-26b-a4b-it:free",
     "cohere/north-mini-code:free",
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-]
-
-# ── Tier 8: Cloudflare Workers AI (free tier, 10,000 neurons/day shared pool
-# across every model on the account — a completely separate quota from all
-# 7 tiers above, not additional load on any of them). glm-4.7-flash is a
-# reasoning model — it emits thinking tokens via `reasoning_content` before
-# the final answer, so max_tokens needs enough headroom to clear the
-# reasoning phase or `content` comes back null (see _call_provider, which
-# already treats null content as "" — same as any other empty response,
-# just falls through to the next tier).
-_CLOUDFLARE_MODELS = [
-    "@cf/zai-org/glm-4.7-flash",
 ]
 
 async def _cached_async(key: str, ttl: int = 900) -> str | None:
@@ -623,8 +622,7 @@ async def _call_provider(
     fallback/retry behavior."""
     _PROVIDER_BY_URL_EARLY = {
         _OR_URL: "openrouter", _GROQ_URL: "groq",
-        _CEREBRAS_URL: "cerebras", _GEMINI_URL: "gemini",
-        _MISTRAL_URL: "mistral", _CLOUDFLARE_URL: "cloudflare-workers-ai",
+        _GEMINI_URL: "gemini", _MISTRAL_URL: "mistral",
     }
     if _is_exhausted(model):
         if failure_log is not None:
@@ -650,8 +648,7 @@ async def _call_provider(
         payload["reasoning_effort"] = _GROQ_REASONING_EFFORT[model]
     _PROVIDER_BY_URL = {
         _OR_URL: "openrouter", _GROQ_URL: "groq",
-        _CEREBRAS_URL: "cerebras", _GEMINI_URL: "gemini",
-        _MISTRAL_URL: "mistral", _CLOUDFLARE_URL: "cloudflare-workers-ai",
+        _GEMINI_URL: "gemini", _MISTRAL_URL: "mistral",
     }
     provider_name = _PROVIDER_BY_URL.get(base_url, "unknown")
 
@@ -815,16 +812,16 @@ async def _call_with_fallback(
 
     Chain (reordered 2026-07-26 after live benchmark testing showed OpenRouter's
     free models 429 almost immediately under any sustained load, while Groq
-    consistently succeeded — Groq and Cerebras now go first since they're the
-    tiers with real, working, high-quota keys; OpenRouter/Mistral/Gemini are
-    kept as later-tier headroom):
-      1. Groq high-quality models      — 120B, 70B, 32B (1,000 req/day each) — most reliable in testing
-      2. Cerebras                      — 10,000 req/day, ultra-fast
-      3. Groq fast models              — 8B (14,400 req/day, high-volume workhorse)
-      4. OpenRouter large free models  — 550B, 405B, 120B, 70B (best nominal quality, ~50/day each, but 429s fast)
-      5. Mistral La Plateforme
-      6. Gemini 2.0-flash              — 1,500 req/day (currently a no-op — see Gemini tier comment)
-      7. OpenRouter smaller models     — final fallback
+    consistently succeeded — Groq goes first since it's the tier with a real,
+    working, high-quota key; OpenRouter/Mistral/Gemini are kept as later-tier
+    headroom). Cerebras and Cloudflare removed 2026-08-30 — see the module
+    docstring's 2026-08-30 note for why:
+      1. Groq high-quality models      — 120B/20B (1,000 req/day each) — most reliable in testing
+      2. Groq fast models              — qwen3.6-27b/compound/compound-mini/gpt-oss-safeguard-20b (high-volume workhorse)
+      3. OpenRouter large free models  — 550B/120B/31B (best nominal quality, ~50/day each, but 429s fast)
+      4. Mistral La Plateforme
+      5. Gemini                        — 1,500 req/day, the demonstrated production workhorse
+      6. OpenRouter smaller models     — final fallback
 
     failure_log is optional and purely additive (see _call_provider's
     docstring) — every caller that doesn't pass one sees identical behavior
@@ -850,19 +847,8 @@ async def _call_with_fallback(
                         log.info("ai.success", provider="groq-hq", model=model)
                         return result
 
-    # ── Tier 2: Cerebras — ultra-fast, 10,000 req/day ────────────────────────
-    if settings.cerebras_api_key:
-        async with _tier_slot("cerebras", priority) as acquired:
-            if acquired:
-                for model in _CEREBRAS_MODELS:
-                    if _is_exhausted(model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "cerebras", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_CEREBRAS_URL, settings.cerebras_api_key, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="cerebras", model=model)
-                        return result
+    # Cerebras tier removed 2026-08-30 (never had credentials configured —
+    # see the module-level comment near _OR_SMALL for the full rationale).
 
     # ── Tier 3: Groq fast (8B, 14,400 req/day — high-volume backstop) ────────
     if settings.groq_api_key:
@@ -934,23 +920,8 @@ async def _call_with_fallback(
                         log.info("ai.success", provider="openrouter-small", model=model)
                         return result
 
-    # ── Tier 8: Cloudflare Workers AI (glm-4.7-flash) — separate free
-    # account/quota from every tier above, added 2026-08-05 during the P0.5
-    # capacity investigation. Placed last (unverified under real load) rather
-    # than reordered ahead of the known-weak Mistral tier — revisit once this
-    # tier has real traffic data behind it, same as the original 7.
-    if settings.cloudflare_account_id and settings.cloudflare_api_token:
-        async with _tier_slot("cloudflare-workers-ai", priority) as acquired:
-            if acquired:
-                for model in _CLOUDFLARE_MODELS:
-                    if _is_exhausted(model):
-                        if failure_log is not None:
-                            failure_log.append({"model": model, "provider": "cloudflare-workers-ai", "reason": "already_exhausted"})
-                        continue
-                    result = await _call_provider(_CLOUDFLARE_URL, settings.cloudflare_api_token, model, prompt, system, max_tokens, failure_log=failure_log)
-                    if result:
-                        log.info("ai.success", provider="cloudflare-workers-ai", model=model)
-                        return result
+    # Cloudflare Workers AI tier removed 2026-08-30 (never had credentials
+    # configured — see the module-level comment near _OR_SMALL).
 
     log.error("ai.all_providers_failed", exhausted_count=len(_EXHAUSTED))
     return ""
