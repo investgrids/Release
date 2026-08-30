@@ -46,8 +46,21 @@ The pre-restart window is the full retrievable history for that deployment (it h
 3. **Decide on Cerebras and Cloudflare** — both fully coded but zero credentials configured; either provision them or remove the dead tiers.
 4. **Not remediated here (out of scope for this pass)**: the scheduled-article zero-trace silent-drop is a real bug but is architectural (a missing `else` branch / a coverage-row model mismatch for untri­aged synthetic events), not a provider/key/model-list fix — flagged for separate follow-up.
 
+## Remediation applied and verified (2026-08-30, same day)
+
+Owner decision: GO on provider remediation now, smallest-scope only.
+
+- **`MISTRAL_API_KEY` rotated** (owner action, new key set via `railway variable set --stdin`) and **confirmed working via real, natural production traffic**: `provider="mistral" model="mistral-small-latest" event="ai.success"` observed twice in fresh post-deploy logs. Zero 401s in a 1000-line post-deploy sweep.
+- **4 dead OpenRouter slugs removed** from `ai_service.py` (`openai/gpt-oss-20b:free`, `nvidia/nemotron-3-nano-30b-a3b:free`, `nvidia/nemotron-nano-12b-v2-vl:free`, `nvidia/nemotron-nano-9b-v2:free`) — zero 404s in the same post-deploy sweep; remaining OpenRouter models show normal 429 (quota) behavior.
+- **Cerebras and Cloudflare tiers removed entirely** from the active chain (execution blocks, model lists, URL constants, tier-limiter registrations) — never had credentials configured, so removing them cost nothing real.
+- Deployed via `git push origin main` (`b839449`) + `railway redeploy --from-source --yes` (deployment `1211bd7f`, SUCCESS) — the GitHub-webhook path is still unreliable (see the P0 incident report), so the same working manual-redeploy method was used again.
+- Post-deploy system health: disk 311M/434M used (74%, stable), real ingestion continuing via `/api/coverage/funnel`, no new errors.
+- 19 relevant tests run before commit: 18 pass, 1 pre-existing failure confirmed unrelated (a test-mock signature mismatch on `_call_with_fallback`'s `priority` kwarg — the function signature itself is untouched by this diff).
+
+Rerunning the full provider matrix against production is the natural next check, but not yet done separately — the post-deploy sweep above already shows the two originally-broken tiers (Mistral, the 4 dead OpenRouter slugs) both resolved with zero regressions.
+
 ## Explicitly not done
 
-- No code or config changes.
 - No scheduler, candidate-window, prompt, Article V2, Score, Warehouse, or RSS-linkage changes.
 - No claim that this explains the 994 missing candidates — that connection is unproven and not asserted.
+- The scheduled-article zero-trace bug (found during this audit) is NOT fixed here — separate P1 track, per owner sequencing.
