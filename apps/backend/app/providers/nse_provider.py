@@ -5,8 +5,11 @@ import hashlib
 from datetime import date, datetime
 
 import httpx
+import structlog
 
 from .base import BaseProvider, RawItem
+
+log = structlog.get_logger(__name__)
 
 _URL = "https://www.nseindia.com/api/corporate-announcements?index=equities"
 # Data track Stage 4 (2026-08-07): widens NSE feed scope beyond
@@ -51,7 +54,7 @@ class NSEProvider(BaseProvider):
     source_name = "NSE"
     capture_raw_evidence = True   # Phase 1B Batch 2, 2026-08-23
 
-    async def _get(self, url: str, params: dict | None = None) -> list[dict]:
+    async def _get(self, url: str, params: dict | None = None, feed: str = "unknown") -> list[dict]:
         # Reliability hardening (2026-08-06): confirmed via a direct live test
         # from the actual production (Railway) egress IP that this endpoint
         # currently works fine bare — unlike BSE's, which is actively broken
@@ -68,12 +71,28 @@ class NSEProvider(BaseProvider):
             r = await c.get(url, params=params)
             r.raise_for_status()
             data = r.json()
-            return (data if isinstance(data, list) else data.get("data", []))[:50]
+            items = data if isinstance(data, list) else data.get("data", [])
+            # NSE Live Ingestion Completeness Audit (owner-authorized 2026-08-30
+            # evening) -- observability only, no behavior change. Logs the REAL
+            # raw count NSE returned for this sub-feed before the existing
+            # [:50] slice below, so a real production incident (raw > 50,
+            # meaning real disclosures are being silently dropped today) can
+            # be distinguished from harmless combined-feed totals (three
+            # independently-capped feeds summing past 50 loses nothing). Does
+            # NOT log the URL/query string or response payload.
+            raw_count = len(items)
+            returned = items[:50]
+            log.info(
+                "nse_provider.fetch_completeness",
+                feed=feed, raw_count=raw_count, returned_count=len(returned),
+                truncated=raw_count > 50,
+            )
+            return returned
 
     async def fetch_latest(self) -> list[dict]:
-        announcements = await self._get(_URL)
+        announcements = await self._get(_URL, feed="announcements")
         try:
-            board_meetings = await self._get(_BOARD_MEETINGS_URL)
+            board_meetings = await self._get(_BOARD_MEETINGS_URL, feed="board_meetings")
         except Exception:
             # Widened scope is additive — a failure here must not take down
             # the existing, reliability-hardened announcements feed.
@@ -81,7 +100,7 @@ class NSEProvider(BaseProvider):
         for item in board_meetings:
             item["_kind"] = "board_meeting"
         try:
-            corporate_actions = await self._get(_CORPORATE_ACTIONS_URL)
+            corporate_actions = await self._get(_CORPORATE_ACTIONS_URL, feed="corporate_actions")
         except Exception:
             corporate_actions = []
         for item in corporate_actions:
@@ -90,7 +109,7 @@ class NSEProvider(BaseProvider):
 
     async def fetch_by_date(self, target: date) -> list[dict]:
         params = {"from_date": target.isoformat(), "to_date": target.isoformat()}
-        return await self._get(_URL, params)
+        return await self._get(_URL, params, feed="announcements_by_date")
 
     async def fetch_announcements_only(self) -> list[RawItem]:
         """Phase 5E.2: the base corporate-announcements sub-feed only
@@ -109,7 +128,7 @@ class NSEProvider(BaseProvider):
         duplicate). Consumers sharing this method's RawItem.id can now
         derive a correlated CompanyAnnouncement id deterministically,
         closing that specific duplicate class without any fuzzy matching."""
-        raw = await self._get(_URL)
+        raw = await self._get(_URL, feed="announcements_via_company_service")
         out: list[RawItem] = []
         for r in raw:
             item = self._normalize_announcement(r)
