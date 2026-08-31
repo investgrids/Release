@@ -143,6 +143,104 @@ async def test_get_yesterday_changes_enriches_with_real_reasons(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_get_yesterday_changes_gathered_calls_use_isolated_sessions(monkeypatch):
+    """2026-08-31 concurrency fix -- the exact real production bug: the old
+    code passed the SAME request-scoped `db` into every concurrently
+    gathered _explain_change() call, and AsyncSession isn't safe for
+    concurrent use across coroutines (is_graph_worthy()'s per-read commit
+    discipline in graph_link.py raced, producing a real, recurring
+    sqlalchemy.exc.IllegalStateChangeError in production). This asserts
+    the actual fix mechanism deterministically -- each gathered call must
+    receive its OWN session object, never the request's own `db` -- rather
+    than depending on timing luck to reproduce the race itself."""
+    monkeypatch.setattr(hi_module, "_today", lambda: _FAKE_TODAY)
+    snapshot = HomepageDailySnapshot(
+        id=str(uuid.uuid4()), snapshot_date=_FAKE_YESTERDAY, article_id="test-article-iso",
+        sectors=[
+            {"name": "Banking", "impact": "neutral", "magnitude": "low", "score": 0},
+            {"name": "Auto", "impact": "neutral", "magnitude": "low", "score": 0},
+        ],
+    )
+    article = SimpleNamespace(
+        id="test-article-iso-2",
+        sectors_affected=[
+            {"name": "Banking", "impact": "positive", "magnitude": "high"},
+            {"name": "Auto", "impact": "positive", "magnitude": "high"},
+        ],
+    )
+    snap_ids = [snapshot.id]
+
+    seen_session_ids: list[int] = []
+    real_explain_change = hi_module._explain_change
+
+    async def _spy_explain_change(db, sector_name, direction, max_reasons=3):
+        seen_session_ids.append(id(db))
+        return await real_explain_change(db, sector_name, direction, max_reasons)
+
+    monkeypatch.setattr(hi_module, "_explain_change", _spy_explain_change)
+
+    try:
+        async with AsyncSessionLocal() as db:
+            db.add(snapshot)
+            await db.commit()
+            request_session_id = id(db)
+            await get_yesterday_changes(db, article)
+        assert len(seen_session_ids) == 2
+        # Neither gathered call reused the request's own session...
+        assert request_session_id not in seen_session_ids
+        # ...and the two concurrent calls didn't share a session with each other.
+        assert len(set(seen_session_ids)) == 2
+    finally:
+        async with AsyncSessionLocal() as db:
+            await _cleanup_snapshots(db, snap_ids)
+
+
+@pytest.mark.asyncio
+async def test_get_yesterday_changes_survives_concurrent_graph_worthy_commits(monkeypatch):
+    """End-to-end regression for the real trigger condition: 2 sectors
+    whose developments have evidence_count<2 and no High/Critical impact
+    tier, forcing is_graph_worthy() down its SELECT+commit path
+    (graph_link.py:67-81) for both, concurrently. Before the fix, this
+    shape reliably raced on the shared session; this just needs to
+    complete without raising."""
+    monkeypatch.setattr(hi_module, "_today", lambda: _FAKE_TODAY)
+    snapshot = HomepageDailySnapshot(
+        id=str(uuid.uuid4()), snapshot_date=_FAKE_YESTERDAY, article_id="test-article-race",
+        sectors=[
+            {"name": "Banking", "impact": "neutral", "magnitude": "low", "score": 0},
+            {"name": "Auto", "impact": "neutral", "magnitude": "low", "score": 0},
+        ],
+    )
+    dev_banking = _make_dev(
+        "Low-key banking development", sectors=["Banking"], direction="positive",
+        evidence_count=1, impact_tier="Low",
+    )
+    dev_auto = _make_dev(
+        "Low-key auto development", sectors=["Auto"], direction="positive",
+        evidence_count=1, impact_tier="Low",
+    )
+    article = SimpleNamespace(
+        id="test-article-race-2",
+        sectors_affected=[
+            {"name": "Banking", "impact": "positive", "magnitude": "high"},
+            {"name": "Auto", "impact": "positive", "magnitude": "high"},
+        ],
+    )
+    snap_ids = [snapshot.id]
+    dev_ids = [dev_banking.id, dev_auto.id]
+    try:
+        async with AsyncSessionLocal() as db:
+            db.add_all([snapshot, dev_banking, dev_auto])
+            await db.commit()
+            changes = await get_yesterday_changes(db, article)  # must not raise IllegalStateChangeError
+        assert {c["name"] for c in changes} == {"Banking", "Auto"}
+    finally:
+        async with AsyncSessionLocal() as db:
+            await _cleanup_snapshots(db, snap_ids)
+            await _cleanup_devs(db, dev_ids)
+
+
+@pytest.mark.asyncio
 async def test_get_yesterday_changes_honest_empty_reasons_when_no_evidence(monkeypatch):
     monkeypatch.setattr(hi_module, "_today", lambda: _FAKE_TODAY)
     snapshot = HomepageDailySnapshot(

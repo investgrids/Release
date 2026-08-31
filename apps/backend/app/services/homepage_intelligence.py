@@ -28,6 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.homepage_snapshot import HomepageDailySnapshot
+from app.db.session import AsyncSessionLocal
 
 # Categorical -> numeric, only for day-over-day comparison purposes — the
 # article itself never expresses a number here, so this scale is this
@@ -133,8 +134,22 @@ async def get_yesterday_changes(db: AsyncSession, article) -> list[dict]:
     # user-facing message. Parallelized — each is an independent
     # Development Memory lookup, and this whole endpoint runs under a
     # 6s client timeout (see page.tsx's getHomepageExtras).
+    #
+    # 2026-08-31 concurrency fix: each concurrent branch gets its OWN
+    # AsyncSession rather than sharing the request-scoped `db`. AsyncSession
+    # isn't safe for concurrent use across coroutines — is_graph_worthy()
+    # (graph_link.py) commits after every read as a deliberate SQLite
+    # lock-release discipline, and two of those commits racing on one
+    # shared session raised a real, recurring production
+    # IllegalStateChangeError. The isolated session is scoped to exactly
+    # this one gathered call, same pattern api/market.py already uses for
+    # this same list_active_developments() path.
+    async def _explain_change_isolated(sector_name: str, direction: str) -> list[str]:
+        async with AsyncSessionLocal() as isolated_db:
+            return await _explain_change(isolated_db, sector_name, direction)
+
     reasons_lists = await asyncio.gather(
-        *[_explain_change(db, c["name"], c["direction"]) for c in top_changes]
+        *[_explain_change_isolated(c["name"], c["direction"]) for c in top_changes]
     )
     for c, reasons in zip(top_changes, reasons_lists):
         c["reasons"] = reasons
