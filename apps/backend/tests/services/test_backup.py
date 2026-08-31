@@ -167,6 +167,20 @@ def test_orphaned_tmp_files_are_cleaned_up(isolated_backup_env):
     assert list(backup_dir.glob("*.tmp")) == []
 
 
+def test_orphaned_tmp_journal_siblings_are_cleaned_up(isolated_backup_env):
+    """2026-08-31 production disk-recovery finding: sqlite3's own backup
+    API leaves a *.tmp-journal sibling behind on an interrupted copy --
+    production had ~80 of these accumulated since 2026-08-18 because the
+    old glob ("*.tmp") never matched "*.tmp-journal"."""
+    backup_dir = isolated_backup_env["backup_dir"]
+    backup_dir.mkdir(parents=True)
+    (backup_dir / "ig-20260101T000000Z.db.tmp-journal").write_bytes(b"stray journal")
+
+    backup_module._prune_old_backups()
+
+    assert list(backup_dir.glob("*.tmp-journal")) == []
+
+
 def test_last_backup_info_finds_true_latest_across_kinds(isolated_backup_env):
     import os
     import time

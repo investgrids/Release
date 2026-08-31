@@ -152,9 +152,15 @@ def _max_backup_slots() -> tuple[int, int]:
 
 def _prune_old_backups() -> None:
     # Orphaned .tmp files (process killed mid-copy, before the except
-    # handler ran) are never valid backups regardless of age.
-    for tmp in _BACKUP_DIR.glob("*.tmp"):
-        tmp.unlink(missing_ok=True)
+    # handler ran) are never valid backups regardless of age. sqlite3's
+    # own backup API can also leave a *.tmp-journal sibling behind on an
+    # interrupted copy -- a real, confirmed leak found during the
+    # 2026-08-31 disk-recovery incident (production had accumulated ~80
+    # of these, dating back to 2026-08-18, because "*.tmp" never matched
+    # "*.tmp-journal"). Individually tiny, but unbounded until this fix.
+    for pattern in ("*.tmp", "*.tmp-journal"):
+        for tmp in _BACKUP_DIR.glob(pattern):
+            tmp.unlink(missing_ok=True)
 
     daily_retention, boot_retention = _max_backup_slots()
     all_backups = list(_BACKUP_DIR.glob("ig-*.db"))
