@@ -253,6 +253,134 @@ async def test_same_company_genuinely_different_development_is_still_a_candidate
 
 
 @pytest.mark.asyncio
+async def test_low_substantiveness_filing_is_not_rescued_by_query_relevance_alone():
+    """C1.1 regression, 2026-08-31 -- the exact real shadow-run finding:
+    TREJHARA's real 'Copy of Newspaper Publication' filing (explicitly a
+    recognized LOW-substantiveness phrase) scored 0.32 -- above the
+    unchanged 0.25 floor -- purely because the query context (the real
+    event's own headline) closely echoes the filing's own title, giving
+    a near-perfect Jaccard relevance score. Reproduced here with a
+    near-identical real-shaped case: must now be SKIP/LOW_MATERIALITY,
+    not CANDIDATE, with zero independent corroborating evidence."""
+    symbol, entity_id, source_id = f"T{_tag()}", f"cmp_{uuid.uuid4().hex[:12]}", f"src_{_tag()}"
+    evidence_ids = []
+    title = f"{symbol} SOLUTIONS LIMITED has informed the Exchange about Copy of Newspaper Publication regarding 09th Annual General Meeting"
+    try:
+        async with AsyncSessionLocal() as db:
+            await _seed_entity(db, symbol, entity_id)
+            await _seed_source(db, source_id)
+            doc_id = await _seed_evidence(db, entity_id=entity_id, source_id=source_id, title=title)
+            evidence_ids.append(doc_id)
+            await db.commit()
+        async with AsyncSessionLocal() as db:
+            # Query context is the near-identical real event headline --
+            # exactly the real-world condition that inflated the score.
+            result = await evaluate_candidate(db, symbol=symbol, event_headline=title)
+        assert result.outcome == SKIP
+        assert result.reason_code == "LOW_MATERIALITY"
+        assert "C1.1 hardening" in result.reason_detail
+    finally:
+        await _cleanup(entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id])
+
+
+@pytest.mark.asyncio
+async def test_low_substantiveness_top_item_still_candidate_with_independent_high_corroboration():
+    """The other half of C1.1: a low-substantiveness top-ranked item must
+    NOT block a real candidate decision when genuine, independent
+    corroborating evidence exists elsewhere in the bundle (a real,
+    separate HIGH-substantiveness filing) -- the gate, not blanket
+    suppression."""
+    symbol, entity_id, source_id = f"T{_tag()}", f"cmp_{uuid.uuid4().hex[:12]}", f"src_{_tag()}"
+    evidence_ids = []
+    try:
+        async with AsyncSessionLocal() as db:
+            await _seed_entity(db, symbol, entity_id)
+            await _seed_source(db, source_id)
+            # Top-ranked (most recent, day 0): low-substantiveness, will
+            # score highest on query-relevance alone.
+            low_title = f"{symbol} has informed the Exchange about Copy of Newspaper Publication regarding AGM"
+            doc1 = await _seed_evidence(db, entity_id=entity_id, source_id=source_id, title=low_title, days_ago=0)
+            evidence_ids.append(doc1)
+            # Independent real corroboration: a genuinely separate
+            # high-substantiveness filing (older, so it ranks below the
+            # query-matching one, but its own real signal must still count).
+            high_title = f"{symbol} has informed the Exchange regarding a press release: real board approval of merger"
+            doc2 = await _seed_evidence(db, entity_id=entity_id, source_id=source_id, title=high_title, days_ago=2)
+            evidence_ids.append(doc2)
+            await db.commit()
+        async with AsyncSessionLocal() as db:
+            result = await evaluate_candidate(db, symbol=symbol, event_headline=low_title)
+        assert result.outcome == CANDIDATE
+        assert result.reason_code == "EVIDENCE_SUFFICIENT"
+    finally:
+        await _cleanup(entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id])
+
+
+@pytest.mark.asyncio
+async def test_update_candidate_is_reachable_and_distinct_from_skip():
+    """Owner instruction, 2026-08-31: prove UPDATE_CANDIDATE is an
+    actually-reachable third state, not dead code, by exercising it with
+    GENUINELY NEW evidence about an already-covered development (not
+    just a re-surfaced identical headline) -- and prove in the SAME test
+    that a real zero-evidence case lands on SKIP, not UPDATE_CANDIDATE,
+    so the three outcomes are demonstrably distinct code paths, not one
+    branch wearing two labels."""
+    symbol, entity_id, source_id = f"T{_tag()}", f"cmp_{uuid.uuid4().hex[:12]}", f"src_{_tag()}"
+    evidence_ids, article_ids = [], []
+    try:
+        async with AsyncSessionLocal() as db:
+            await _seed_entity(db, symbol, entity_id)
+            await _seed_source(db, source_id)
+            # The ALREADY-COVERED article represents an earlier real
+            # development (a fundraising announcement).
+            article_id = str(uuid.uuid4())
+            db.add(IntelligenceArticle(
+                id=article_id, headline=f"{symbol} announces real Rs 500 crore fundraising plan via QIP",
+                article_type="event_analysis", trigger_event_id=f"evt_{_tag()}",
+                lifecycle_status="published", status="published",
+                companies_affected=[{"symbol": symbol, "name": symbol}],
+            ))
+            article_ids.append(article_id)
+            # GENUINELY NEW evidence: a real follow-up filing with fresh
+            # incremental information (the QIP price finalized) about the
+            # SAME real development, not just a re-post of the same text.
+            doc_id = await _seed_evidence(
+                db, entity_id=entity_id, source_id=source_id,
+                title=f"{symbol} has informed the Exchange regarding a press release: real Rs 500 crore fundraising plan via QIP priced at final issue price",
+            )
+            evidence_ids.append(doc_id)
+            await db.commit()
+        async with AsyncSessionLocal() as db:
+            update_result = await evaluate_candidate(
+                db, symbol=symbol,
+                event_headline=f"{symbol} finalizes real Rs 500 crore fundraising plan via QIP at final issue price",
+                event_id=f"evt_{_tag()}",  # a different real event_id -- caught via headline similarity, not identity
+            )
+        assert update_result.outcome == UPDATE_CANDIDATE
+        assert update_result.reason_code == "ALREADY_COVERED"
+        assert update_result.matched_article_id == article_id
+
+        # Same symbol, but a genuinely separate, zero-evidence gate call
+        # must land on SKIP -- proving UPDATE_CANDIDATE isn't just a
+        # renamed SKIP path triggered by any old symbol match.
+        other_symbol, other_entity_id = f"T{_tag()}", f"cmp_{uuid.uuid4().hex[:12]}"
+        async with AsyncSessionLocal() as db:
+            await _seed_entity(db, other_symbol, other_entity_id)
+            await db.commit()
+        try:
+            async with AsyncSessionLocal() as db:
+                skip_result = await evaluate_candidate(db, symbol=other_symbol, event_headline="Unrelated")
+            assert skip_result.outcome == SKIP
+            assert skip_result.reason_code == "INSUFFICIENT_EVIDENCE"
+        finally:
+            await _cleanup(entity_ids=[other_entity_id])
+
+        assert update_result.outcome != skip_result.outcome
+    finally:
+        await _cleanup(entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id], article_ids=article_ids)
+
+
+@pytest.mark.asyncio
 async def test_duplicated_evidence_within_bundle_does_not_crash_and_still_gates_sensibly():
     """Within-bundle evidence dedup is explicitly Phase C2's job, not C1's
     (owner's own 7-stage design) -- but C1 must not crash or produce a

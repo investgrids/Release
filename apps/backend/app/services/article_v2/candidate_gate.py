@@ -68,6 +68,16 @@ _LIVE_LIFECYCLE_STATUSES_EXCLUDED = ("archived", "merged", "failed")
 # not waved through by a floor set exactly at the same value.
 _MATERIALITY_FLOOR = 0.25
 
+# C1.1 hardening marker strings — _subject_substantiveness() in
+# evidence_ranking.py always emits exactly one of these three phrasings
+# into RankedEvidence.reasons; matching on them (not touching
+# evidence_ranking.py itself, and not changing the combined score or the
+# shared 0.6/0.4 weighting Phase A/A.1 also depend on) lets this gate
+# interrogate the SUBSTANTIVENESS component specifically, separate from
+# the combined score.
+_LOW_SUBSTANTIVENESS_MARKER = "low-substantiveness phrase"
+_HIGH_SUBSTANTIVENESS_MARKER = "high-substantiveness phrase"
+
 CANDIDATE = "CANDIDATE"
 UPDATE_CANDIDATE = "UPDATE_CANDIDATE"
 SKIP = "SKIP"
@@ -84,6 +94,14 @@ class CandidateDecision:
     top_evidence_score: float | None
     top_evidence_reasons: list[str] | None = None
     matched_article_id: str | None = None  # set only when reason_code == "ALREADY_COVERED"
+
+
+def _matched_low_substantiveness(reasons: list[str] | None) -> bool:
+    return bool(reasons) and any(_LOW_SUBSTANTIVENESS_MARKER in r for r in reasons)
+
+
+def _matched_high_substantiveness(reasons: list[str] | None) -> bool:
+    return bool(reasons) and any(_HIGH_SUBSTANTIVENESS_MARKER in r for r in reasons)
 
 
 async def _find_already_covered(
@@ -184,6 +202,46 @@ async def evaluate_candidate(
             top_evidence_score=top_score, top_evidence_reasons=top_reasons,
             matched_article_id=already_covered.id,
         )
+
+    # C1.1 hardening (owner instruction, 2026-08-31, real finding from the
+    # 120-event shadow run): a real, recognized LOW-substantiveness filing
+    # (evidence_ranking.py's own deterministic administrative-phrase
+    # classification) must act as a gate, not just a downweight -- for
+    # NSE-triaged events the query context is routinely near-identical to
+    # the filing's own title, so "relevant to the query" is close to a
+    # tautology for a low-substantiveness filing and cannot by itself
+    # stand in for real materiality (confirmed live: TREJHARA's "Copy of
+    # Newspaper Publication" filing scored 0.32 -- above the unchanged
+    # 0.25 floor -- purely on query-relevance). This does NOT touch
+    # rank_evidence()'s combined score, weighting, or thresholds (shared
+    # with Phase A/A.1) and does NOT touch _MATERIALITY_FLOOR -- it only
+    # changes how THIS gate interprets a top-ranked LOW-substantiveness
+    # result, requiring independent corroboration: a genuinely different,
+    # real evidence item that itself matched a HIGH-substantiveness
+    # phrase (not query-relevance). SUPREMEENG-shaped cases (top item
+    # matched a real high-substantiveness phrase like "financial
+    # results") never enter this branch at all.
+    if _matched_low_substantiveness(top_reasons):
+        independent_high = next(
+            (r for r in bundle.ranked_evidence[1:] if _matched_high_substantiveness(r.reasons)),
+            None,
+        )
+        if independent_high is None:
+            return CandidateDecision(
+                outcome=SKIP, reason_code="LOW_MATERIALITY",
+                reason_detail=(
+                    f"top-ranked evidence matched a recognized administrative/low-substantiveness "
+                    f"phrase and no independent high-substantiveness evidence corroborates it -- "
+                    f"query-relevance alone cannot override an administrative classification "
+                    f"(C1.1 hardening) -- {top_reasons}"
+                ),
+                entity_id=bundle.entity_id, symbol=bundle.symbol, evidence_count=len(bundle.evidence),
+                top_evidence_score=top_score, top_evidence_reasons=top_reasons,
+            )
+        # Real independent corroboration exists -- proceed using that
+        # item's own real signal, not the low-substantiveness one's
+        # query-inflated score.
+        top, top_score, top_reasons = independent_high, independent_high.score, independent_high.reasons
 
     if top_score is None or top_score < _MATERIALITY_FLOOR:
         return CandidateDecision(
