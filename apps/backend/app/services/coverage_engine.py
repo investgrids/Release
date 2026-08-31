@@ -339,6 +339,51 @@ async def mark_covered_by_existing(db: AsyncSession, *, event_id: str | None, ar
         log.error("coverage.mark_covered_failed", error=str(exc), event_id=event_id)
 
 
+async def mark_skipped_daily_cap(db: AsyncSession, *, event_id: str | None) -> None:
+    """A real, distinct terminal state (AIPE candidate lifecycle audit,
+    2026-08-31) -- deliberately NOT mark_failed. Neither this nor
+    mark_skipped_already_generated_today below is a failure: generation
+    was never attempted, so recording either as FAILED would tell a
+    future audit "generation failed" when it never ran at all. This is
+    the daily article cap blocking a non-critical event -- the exact
+    silent-return branch the audit found (publisher.py's `if daily_count
+    >= _MAX_PER_DAY and not is_critical: continue`, which previously left
+    the row at DETECTED forever with no trace it was ever even seen this
+    cycle)."""
+    if not event_id:
+        return
+    try:
+        row = (await db.execute(
+            select(EventCoverage).where(EventCoverage.event_id == event_id)
+        )).scalar_one_or_none()
+        if row and row.coverage_status not in ("PUBLISHED", "COVERED_BY_EXISTING_ARTICLE"):
+            row.coverage_status = "SKIPPED_DAILY_CAP"
+            row.last_checked_at = _now()
+            await db.commit()
+    except Exception as exc:
+        log.error("coverage.mark_skipped_daily_cap_failed", error=str(exc), event_id=event_id)
+
+
+async def mark_skipped_already_generated_today(db: AsyncSession, *, event_id: str | None) -> None:
+    """The other real, distinct non-failure terminal state this audit
+    found: the once-daily morning_intelligence/market_wrap slot was
+    already filled for today (should_generate_today's own
+    "already_generated_today" reason_code) -- also never a generation
+    attempt, so also never FAILED."""
+    if not event_id:
+        return
+    try:
+        row = (await db.execute(
+            select(EventCoverage).where(EventCoverage.event_id == event_id)
+        )).scalar_one_or_none()
+        if row and row.coverage_status not in ("PUBLISHED", "COVERED_BY_EXISTING_ARTICLE"):
+            row.coverage_status = "SKIPPED_ALREADY_GENERATED_TODAY"
+            row.last_checked_at = _now()
+            await db.commit()
+    except Exception as exc:
+        log.error("coverage.mark_skipped_already_generated_failed", error=str(exc), event_id=event_id)
+
+
 async def mark_failed(db: AsyncSession, *, event_id: str | None, reason: str) -> None:
     """Records that coverage was attempted and didn't succeed — generation
     failure, validation rejection, or a publish-cycle exception. Without
@@ -415,6 +460,8 @@ async def funnel_counts(db: AsyncSession, hours: int = 24) -> dict[str, Any]:
     published = 0
     covered_existing = 0
     failed = 0
+    skipped_daily_cap = 0
+    skipped_already_generated = 0
     uncovered_critical = 0
     for r in recent:
         by_tier[r.priority] = by_tier.get(r.priority, 0) + 1
@@ -424,6 +471,10 @@ async def funnel_counts(db: AsyncSession, hours: int = 24) -> dict[str, Any]:
             covered_existing += 1
         elif r.coverage_status == "FAILED":
             failed += 1
+        elif r.coverage_status == "SKIPPED_DAILY_CAP":
+            skipped_daily_cap += 1
+        elif r.coverage_status == "SKIPPED_ALREADY_GENERATED_TODAY":
+            skipped_already_generated += 1
         if is_must_cover(r.priority) and r.coverage_status not in ("PUBLISHED", "COVERED_BY_EXISTING_ARTICLE"):
             uncovered_critical += 1
 
@@ -436,6 +487,12 @@ async def funnel_counts(db: AsyncSession, hours: int = 24) -> dict[str, Any]:
         "published": published,
         "covered_by_existing_article": covered_existing,
         "failed": failed,
+        # AIPE candidate lifecycle audit, 2026-08-31: real, distinct
+        # non-failure terminal states -- generation was never attempted
+        # for either, so they're tracked separately from `failed` rather
+        # than folded into it.
+        "skipped_daily_cap": skipped_daily_cap,
+        "skipped_already_generated_today": skipped_already_generated,
         "uncovered_critical_or_high": uncovered_critical,
         "possibly_truncated": truncated,
         "generated_at": _now().isoformat(),

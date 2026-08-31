@@ -333,10 +333,20 @@ def should_generate_today(
     max_per_day: int = 8,
     *,
     critical: bool = False,
-) -> tuple[bool, str]:
+) -> tuple[bool, str, str]:
     """
     Check if we should generate a new article or skip.
-    Returns (should_generate, reason).
+    Returns (should_generate, reason, reason_code).
+
+    reason_code (AIPE candidate lifecycle audit, 2026-08-31) is a
+    machine-stable identifier for WHY should_generate is False -- added so
+    callers that need to record a real EventCoverage terminal state don't
+    have to guess it by parsing the human-readable `reason` string (which
+    is free-text and only meant for logs). One of:
+      "daily_cap"              -- the daily article cap blocked it
+      "already_generated_today" -- the once-daily morning/wrap slot is filled
+      "critical_bypass"        -- would-be cap block, but critical=True let it through
+      "approved"               -- no block; proceed to generation
 
     critical=True (a Critical/High-priority event per coverage_engine)
     bypasses the daily article cap — the audit's core finding was that an
@@ -346,15 +356,15 @@ def should_generate_today(
     "don't drop it for being late," not "publish it twice."
     """
     if daily_count >= max_per_day and not critical:
-        return False, f"Daily limit reached ({daily_count}/{max_per_day})"
+        return False, f"Daily limit reached ({daily_count}/{max_per_day})", "daily_cap"
 
     # Morning and wrap: exactly one per day
     if article_type in ("morning_intelligence", "market_wrap"):
         if story_id in existing_story_ids:
-            return False, f"{article_type} already generated for today"
-        return True, "Scheduled daily intelligence"
+            return False, f"{article_type} already generated for today", "already_generated_today"
+        return True, "Scheduled daily intelligence", "approved"
 
     if daily_count >= max_per_day and critical:
-        return True, f"Critical event bypasses daily cap ({daily_count}/{max_per_day})"
+        return True, f"Critical event bypasses daily cap ({daily_count}/{max_per_day})", "critical_bypass"
 
-    return True, f"New {article_type} approved"
+    return True, f"New {article_type} approved", "approved"

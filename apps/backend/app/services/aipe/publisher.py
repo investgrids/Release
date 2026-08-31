@@ -46,6 +46,8 @@ from app.services.coverage_engine import (
     mark_covered_by_existing as coverage_mark_covered_by_existing,
     mark_published as coverage_mark_published,
     mark_failed as coverage_mark_failed,
+    mark_skipped_daily_cap as coverage_mark_skipped_daily_cap,
+    mark_skipped_already_generated_today as coverage_mark_skipped_already_generated_today,
 )
 from app.services.aipe.market_story_engine import (
     fetch_historical_context,
@@ -736,19 +738,40 @@ async def run_aipe_cycle() -> None:
                 is_critical = coverage_is_must_cover(ev_tier)
 
                 if daily_count >= _MAX_PER_DAY and not is_critical:
+                    # AIPE candidate lifecycle audit, 2026-08-31: this was a
+                    # real silent-return branch -- the EventCoverage row for
+                    # a non-critical event blocked by the daily cap used to
+                    # stay at DETECTED forever, indistinguishable from "never
+                    # attempted." Not a failure -- generation was never
+                    # attempted -- so a dedicated non-FAILED terminal state.
+                    await coverage_mark_skipped_daily_cap(
+                        db, event_id=triage_event.get("event_id"),
+                    )
                     continue
 
                 article_type, story_id, priority = select_article_type(
                     triage_event, mie_context
                 )
 
-                should_gen, plan_reason = should_generate_today(
+                should_gen, plan_reason, plan_reason_code = should_generate_today(
                     article_type, story_id, today_story_ids, daily_count, _MAX_PER_DAY,
                     critical=is_critical,
                 )
 
                 if not should_gen:
                     log.info("aipe.cycle.skipped", reason=plan_reason)
+                    # reason_code is machine-stable (see content_planner.
+                    # should_generate_today's own docstring) -- dispatched
+                    # deterministically, never guessed from the free-text
+                    # `plan_reason` string.
+                    if plan_reason_code == "daily_cap":
+                        await coverage_mark_skipped_daily_cap(
+                            db, event_id=triage_event.get("event_id"),
+                        )
+                    elif plan_reason_code == "already_generated_today":
+                        await coverage_mark_skipped_already_generated_today(
+                            db, event_id=triage_event.get("event_id"),
+                        )
                     continue
 
                 # Duplicate detection
@@ -908,7 +931,7 @@ async def run_aipe_cycle() -> None:
                     art_type = sched_event["_article_type"]
                     story_id = f"morning-{today_ist}" if art_type == "morning_intelligence" else f"wrap-{today_ist}"
 
-                    should_gen, _ = should_generate_today(art_type, story_id, today_story_ids, daily_count, _MAX_PER_DAY)
+                    should_gen, _, _ = should_generate_today(art_type, story_id, today_story_ids, daily_count, _MAX_PER_DAY)
                     if should_gen:
                         dup = await find_duplicate(db, story_id=story_id, article_type=art_type,
                                                    headline=sched_event["headline"], trigger_event_id=sched_event["event_id"])

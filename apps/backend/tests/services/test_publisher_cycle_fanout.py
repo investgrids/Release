@@ -97,7 +97,7 @@ def _run_with_mocks(triage_events, publish_side_effect, fanout_return=None):
     stack.enter_context(patch("app.services.aipe.publisher.count_today_articles", new_callable=AsyncMock, return_value=0))
     stack.enter_context(patch("app.services.aipe.publisher.get_today_story_ids", new_callable=AsyncMock, return_value=set()))
     stack.enter_context(patch("app.services.aipe.publisher.select_article_type", side_effect=lambda ev, mie: ("company_intelligence", f"story-{ev['event_id']}", "normal")))
-    stack.enter_context(patch("app.services.aipe.publisher.should_generate_today", return_value=(True, "ok")))
+    stack.enter_context(patch("app.services.aipe.publisher.should_generate_today", return_value=(True, "ok", "approved")))
     stack.enter_context(patch("app.services.aipe.publisher.find_duplicate", new_callable=AsyncMock, return_value=None))
     publish_mock = stack.enter_context(patch("app.services.aipe.publisher._publish_new_article", new_callable=AsyncMock, side_effect=publish_side_effect))
     fanout_mock = stack.enter_context(patch("app.services.aipe.publisher.plan_extra_angles", return_value=fanout_return or []))
