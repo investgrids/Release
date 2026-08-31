@@ -784,21 +784,34 @@ async def run_aipe_cycle() -> None:
                         await coverage_mark_published(
                             db, event_id=triage_event.get("event_id"), article_id=article.id
                         )
-                    else:
-                        # Coverage was attempted and didn't succeed — record
-                        # WHY, not just leave the row at DETECTED forever
-                        # (indistinguishable from "not attempted yet," per
-                        # the audit finding that FAILED was declared in the
-                        # schema but never actually written by anything).
-                        reason = "generation_failed" if article is None else "validation_failed"
-                        await coverage_mark_failed(
-                            db, event_id=triage_event.get("event_id"), reason=reason,
-                        )
 
                         # ── Fan out: spin off per-company / sector-rollup /
-                        # theme / question angles from the same event
-                        # instead of stopping at one article (see
-                        # content_planner.plan_extra_angles).
+                        # theme / question angles from the same SUCCESSFULLY
+                        # published event instead of stopping at one article
+                        # (see content_planner.plan_extra_angles).
+                        #
+                        # Moved here from the failure branch below — real bug
+                        # found in the 2026-08-31 AIPE candidate lifecycle
+                        # audit: this block previously ran only when the
+                        # PRIMARY article did NOT publish, reading
+                        # article.headline/companies_affected/sectors_affected/
+                        # angle_entity even when `article` was None (a real
+                        # generation failure, not just a validation rejection
+                        # — see _publish_new_article's own None-return branch).
+                        # That raised an uncaught AttributeError, caught only
+                        # by the outer per-cycle try/except, which silently
+                        # aborted the REST of that cycle's approved batch (up
+                        # to 2 other candidates) and skipped the continuous-
+                        # update pass for that cycle — with zero record that
+                        # any of it happened. Checked ~14h of real production
+                        # log history (2026-08-30 11:56 UTC through 2026-08-31
+                        # 01:43 UTC, spanning a full trading day): zero
+                        # "publisher.generation_failed" and zero "aipe.cycle.
+                        # error" hits, so this specific crash was not observed
+                        # triggering in that window — but the code was
+                        # reachable and unsafe regardless of observed
+                        # frequency, and log history does not reach back far
+                        # enough to rule out earlier occurrences.
                         angle_plans = plan_extra_angles(
                             article_type, story_id, article.headline,
                             article.companies_affected, article.sectors_affected,
@@ -867,6 +880,21 @@ async def run_aipe_cycle() -> None:
                                     daily_count += 1
                                     today_story_ids.add(angle_story_id)
                                     log.info("aipe.cycle.angle_published", angle=angle, entity=angle_entity, story_id=angle_story_id)
+                    else:
+                        # Coverage was attempted and didn't succeed — record
+                        # WHY, not just leave the row at DETECTED forever
+                        # (indistinguishable from "not attempted yet," per
+                        # the audit finding that FAILED was declared in the
+                        # schema but never actually written by anything).
+                        # Deliberately does nothing else here: no fan-out
+                        # from a nonexistent/unpublished primary article
+                        # (the real bug this branch used to have, fixed
+                        # above) — just record the failure and safely move
+                        # on to the next approved candidate.
+                        reason = "generation_failed" if article is None else "validation_failed"
+                        await coverage_mark_failed(
+                            db, event_id=triage_event.get("event_id"), reason=reason,
+                        )
 
                 # Rate limit between AI calls
                 await asyncio.sleep(2)
