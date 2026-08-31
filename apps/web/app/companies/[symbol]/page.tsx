@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
-import { neutralRating } from "@/lib/text";
+import { neutralRating, safeJsonLd } from "@/lib/text";
 import StockPage, { type StockDetail } from "./CompanyPageClient";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
@@ -109,11 +110,76 @@ function withPeriod(text: string) {
   return /[.!?]$/.test(t) ? t : `${t}.`;
 }
 
+// Company redesign Batch 0 — real, single-symbol C5 tier lookup so the
+// robots directive reflects actual substance (Tier A -> index; anything
+// else -> noindex,follow, matching the Indexability Contract's "durable
+// but thin -> NOINDEX,FOLLOW" rule) instead of every Company page
+// defaulting to indexable regardless of whether MarketRipple has real
+// intelligence about it. Fails closed (noindex) on any error — an
+// indexability decision should never silently default to "index" when
+// the real signal couldn't be checked.
+async function fetchIndexable(symbol: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API}/api/companies/${symbol}/tier`, { next: { revalidate: 3600 } });
+    if (!res.ok) return false;
+    const d = await res.json();
+    return d.indexable === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ symbol: string }> }): Promise<Metadata> {
+  const { symbol } = await params;
+  const upper = symbol.toUpperCase();
+  const { data: stock, symbolNotFound } = await fetchStock(upper);
+  if (symbolNotFound || !stock) {
+    return { title: "Company Not Found — MarketRipple" };
+  }
+
+  // C5's canonical-symbol behavior must feed metadata too, not just the
+  // page-level redirect — a request under a historical/renamed symbol
+  // (TATAMOTORS) gets metadata for the real current one (TMPV), same as
+  // the body content and the eventual 308 both already do.
+  const canonicalSymbol = stock.canonical_symbol || upper;
+  const url = `${SITE}/companies/${canonicalSymbol}`;
+  const title = `${stock.name} (${canonicalSymbol}) Share Price & AI Investment Analysis`;
+  const description = withPeriod(
+    stock.description
+      ? stock.description.slice(0, 140)
+      : `${stock.name} (${canonicalSymbol}) trades on the NSE${stock.sector && stock.sector !== "N/A" ? ` in the ${stock.sector} sector` : ""}`
+  );
+
+  const indexable = await fetchIndexable(canonicalSymbol);
+
+  return {
+    title, description,
+    alternates: { canonical: url },
+    robots: indexable ? undefined : { index: false, follow: true },
+    openGraph: {
+      type: "website", title, description, url, siteName: "MarketRipple",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: ["/opengraph-image"] },
+  };
+}
+
 export default async function CompanyPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = await params;
   const upper = symbol.toUpperCase();
   const { data: stock, symbolNotFound } = await fetchStock(upper);
   if (symbolNotFound) notFound();
+  // C5 — the backend already resolves a historical/renamed symbol
+  // (TATAMOTORS) or a known provider-ticker variant (HPCL) to the real
+  // current one (TMPV / HINDPETRO) via Company Master and serves live
+  // data under it (see api/stocks.py); this is what turns that
+  // resolution into an actual single canonical URL instead of two
+  // separate indexable pages for the same company. permanentRedirect
+  // (308) is Next.js's modern equivalent of a 301 — search engines
+  // consolidate signals to the target the same way.
+  if (stock?.canonical_symbol && stock.canonical_symbol !== upper) {
+    permanentRedirect(`/companies/${stock.canonical_symbol}`);
+  }
   const related = stock ? await fetchRelated(upper, stock.name, stock.sector) : null;
   const url = `${SITE}/companies/${upper}`;
   const faqs = stock ? buildFaqs(stock, upper) : [];
@@ -143,10 +209,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
   return (
     <>
       {jsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       )}
       {faqJsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }} />
       )}
       {stock && (
         <section className="mb-4 border-b border-surface-border/6 pb-4">
@@ -175,22 +241,16 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
           </p>
         </section>
       )}
-      {faqs.length > 0 && (
-        <section className="mb-4 border-b border-surface-border/6 pb-4" aria-label={`${stock?.name} frequently asked questions`}>
-          <h2 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-text-muted">Frequently Asked Questions</h2>
-          <div className="space-y-1.5">
-            {faqs.map((f, i) => (
-              <details key={i} className="group rounded-lg border border-surface-border/6 bg-text-primary/[0.015] px-3 py-2">
-                <summary className="cursor-pointer list-none text-[12.5px] font-medium text-text-secondary marker:content-none">
-                  {f.question}
-                </summary>
-                <p className="mt-1.5 text-[12px] leading-5 text-text-muted">{f.answer}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-      )}
-      <StockPage params={params} initialStock={stock} initialRelated={related} />
+      {/* Company Simplification spec §3 — FAQ moves to the bottom of the
+          Overview tab (was previously rendered above the entire page,
+          ahead of the header, and repeated on every tab regardless of
+          which one was active). Passed down as plain, serializable data
+          (not a pre-built element) — StockPageInner (a client component)
+          builds and places the actual <details> markup itself, only when
+          Overview is the active tab, still fully present in the SSR'd
+          initial HTML exactly as before since Next.js server-renders
+          client components too. */}
+      <StockPage params={params} initialStock={stock} initialRelated={related} faqs={faqs}/>
     </>
   );
 }

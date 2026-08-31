@@ -13,10 +13,14 @@ from __future__ import annotations
 
 import asyncio
 import math
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.session import get_db
 
 router = APIRouter()
 
@@ -811,6 +815,75 @@ async def _fetch_prices(symbols: list[str]) -> dict[str, dict]:
         return {}
 
 
+# ── C5: Tier A/B Company Master entries (real evidence, not on the
+# static 512 list) ──────────────────────────────────────────────────────
+# Extends search/directory discoverability to companies C5's tier
+# classification confirms deserve a public page (see
+# app.services.company_identity.tiers — Tier A: real MarketRipple
+# intelligence; Tier C: identity only, deliberately excluded here,
+# matching the tier table's "Public page: Optional/resolvable, not
+# automatic"). `/api/stocks/{symbol}` already resolves any real, live-
+# tradeable NSE symbol regardless of this static list, but this list is
+# the only search/directory index, so a qualifying company was previously
+# unreachable except by typing its exact URL. sector/industry/cap are
+# left honestly empty -- NSE's own EQ master file (Company Master's
+# source) doesn't carry sector data, and nothing here fabricates it.
+#
+# Tier B (real, live yfinance-verified market data) is deliberately NOT
+# computed here -- classify_all_entities(check_live_data=True) would mean
+# a live batch-price fetch against ~1,800 candidates inside a request
+# path, an unacceptable latency/reliability risk for a live directory
+# endpoint. The live-data check is built and tested
+# (tests/services/test_company_tiers.py) and ready to run as a periodic
+# background job that persists Tier B results, once that job exists --
+# not silently faked here in the meantime.
+_QUALIFIED_MASTER_CACHE: dict = {"data": None, "at": 0.0}
+_QUALIFIED_MASTER_TTL_S = 600.0
+
+
+async def _get_qualified_master_entries(db: AsyncSession) -> list[dict]:
+    now = time.monotonic()
+    if _QUALIFIED_MASTER_CACHE["data"] is not None and now - _QUALIFIED_MASTER_CACHE["at"] < _QUALIFIED_MASTER_TTL_S:
+        return _QUALIFIED_MASTER_CACHE["data"]
+
+    try:
+        from app.services.company_identity.tiers import classify_all_entities, CoverageTier
+        results = await classify_all_entities(db, check_live_data=False)
+        tier_a = [r for r in results if r.tier == CoverageTier.A_INTELLIGENCE_RICH]
+    except Exception:
+        tier_a = []
+
+    static_symbols = {co["symbol"] for co in _NSE_UNIVERSE}
+    entries = [
+        {
+            "symbol": r.symbol, "name": r.company_name, "sector": "", "industry": "", "cap": "",
+            "aliases": [], "_sym_l": r.symbol.lower(), "_name_l": r.company_name.lower(), "_alias_l": [],
+        }
+        for r in tier_a if r.symbol not in static_symbols
+    ]
+    _QUALIFIED_MASTER_CACHE["data"] = entries
+    _QUALIFIED_MASTER_CACHE["at"] = now
+    return entries
+
+
+def _filter_and_rank_extended(candidates: list[dict], q: str, sector: str, cap: str) -> list[dict]:
+    """Same scoring/filtering as _filter_and_rank, over an arbitrary
+    candidate list -- reused for the qualified-Master extension so the
+    two sources rank consistently rather than the extension being
+    tacked on unranked at the end."""
+    results = []
+    ql = q.strip().lower()
+    for co in candidates:
+        if sector and co["sector"].lower() != sector.lower():
+            continue
+        if cap and co["cap"].lower() != cap.lower():
+            continue
+        score = _score(co, ql) if ql else 1
+        if score:
+            results.append({**co, "_score": score})
+    return results
+
+
 # ── API endpoints ─────────────────────────────────────────────────────────────
 
 @router.get("/sectors")
@@ -819,18 +892,88 @@ async def list_sectors():
     return {"sectors": _ALL_SECTORS}
 
 
+@router.get("/{symbol}/tier")
+async def get_company_tier(symbol: str, db: AsyncSession = Depends(get_db)):
+    """Company redesign Batch 0 — real, single-symbol C5 tier lookup for
+    `generateMetadata` to make a real indexability decision from (Tier A
+    -> index; else -> noindex,follow), rather than defaulting every
+    Company page to indexable regardless of substance. Deliberately a
+    separate, cheap endpoint rather than a field on /api/stocks/{symbol} —
+    tier is an identity/coverage concern, not stock data, and this stays
+    reusable without coupling to that endpoint's own live-price fetch."""
+    from app.services.company_identity.tiers import classify_one
+
+    result = await classify_one(db, symbol)
+    if result is None:
+        return {"resolved": False, "tier": None, "indexable": False}
+    return {
+        "resolved": True, "symbol": result.symbol, "tier": result.tier.value,
+        "indexable": result.indexable, "reasons": result.reasons,
+    }
+
+
+@router.get("/{symbol}/marketripple-score")
+async def get_company_marketripple_score(symbol: str, db: AsyncSession = Depends(get_db)):
+    """S5-C — the one real read path a Company page should use for the
+    MarketRipple Score. Never triggers a live computation (no yfinance/
+    NSE calls here) — reads the most recent real MarketRippleScoreSnapshot
+    only, resolved through the real Company Identity resolver first so an
+    alias/historical symbol lands on the same real record a current-symbol
+    request would.
+
+    `resolved: False` — not a real company (never a guess).
+    `resolved: True, snapshot: False` — real company, no snapshot computed yet.
+    Otherwise the full real projection; `eligible` (BANKING_V1_P1's real,
+    per-bank verdict) is what should drive the score-card vs. unavailable-
+    card UI decision — NOT `publishable`, which is a separate, whole-
+    feature phase lock (this endpoint is not wired into the deployed
+    production Company page while that stays False)."""
+    from app.services.marketripple_score.public_projection import get_marketripple_score_projection
+
+    return await get_marketripple_score_projection(db, symbol)
+
+
+@router.get("/{symbol}/ripple")
+async def get_company_ripple(symbol: str, hops: int = Query(2, ge=1, le=3), db: AsyncSession = Depends(get_db)):
+    """Company redesign Batch 4 — the Company page's Ripple tab reads
+    real Intelligence Graph relationships only (see
+    services.company_identity.graph_ripple's module docstring for why
+    /api/ripple/company/{ticker} was traced and rejected for this
+    surface: it's AI-generated or sector-template content, not real
+    evidence). `status` distinguishes "not a real company" from "real
+    company, no graph coverage yet" from "real graph node, zero edges"
+    from "real evidence exists" -- the frontend must never collapse
+    these into one generic empty state."""
+    from app.services.company_identity.graph_ripple import get_company_ripple as compute_ripple
+
+    result = await compute_ripple(db, symbol, hops=hops)
+    return {
+        "status": result.status,
+        "canonical_symbol": result.canonical_symbol,
+        "company_name": result.company_name,
+        "node_id": result.node_id,
+        "nodes": result.nodes,
+        "edges": result.edges,
+    }
+
+
 @router.get("/search")
 async def search_companies(
     q: str = Query("", description="Search term"),
     sector: str = Query("", description="Filter by sector"),
     cap: str = Query("", description="Filter by cap: large | mid | small"),
     limit: int = Query(20, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Instant metadata-only search — no live prices.
-    Fast enough for typeahead (<5ms).
+    Instant metadata-only search — no live prices. Merges the static
+    512-company universe with real, evidence-qualified Company Master
+    companies (C4) so a search actually finds all of them, not just the
+    static list.
     """
-    results = _filter_and_rank(q, sector, cap)[:limit]
+    results = _filter_and_rank(q, sector, cap)
+    extended = _filter_and_rank_extended(await _get_qualified_master_entries(db), q, sector, cap)
+    results = sorted(results + extended, key=lambda x: (-x["_score"], x["name"]))[:limit]
     return {
         "count": len(results),
         "companies": [
@@ -855,26 +998,37 @@ async def list_companies(
     page:      int = Query(1,     ge=1),
     page_size: int = Query(24,    ge=6, le=60),
     live:      bool = Query(True, description="Fetch live prices for current page"),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Paginated company directory with optional live prices for the current page.
 
     Workflow:
       1. Filter the in-memory universe by q / sector / cap  (instant)
-      2. Sort by name / cap / sector                         (instant)
-      3. Paginate                                            (instant)
-      4. Optionally fetch live prices for the page's symbols via yfinance
+      2. Merge in real, evidence-qualified Company Master companies (C4)
+         not already in the static list — the directory now reflects
+         what MarketRipple actually has evidence for, not just the
+         hand-curated 512.
+      3. Sort by name / cap / sector                         (instant)
+      4. Paginate                                            (instant)
+      5. Optionally fetch live prices for the page's symbols via yfinance
     """
     matches = _filter_and_rank(q, sector, cap)
+    matches += _filter_and_rank_extended(await _get_qualified_master_entries(db), q, sector, cap)
 
     # Secondary sort (primary sort is always relevance score for queries,
-    # then by the selected sort column)
+    # then by the selected sort column). Always re-sorted explicitly here
+    # (rather than relying on _filter_and_rank's own ordering, as the
+    # pre-C4 code did) because the merged-in qualified-Master entries
+    # above are appended unsorted -- a bare concatenation would put every
+    # extension result after the static 512 regardless of relevance/name.
     cap_order = {"large": 0, "mid": 1, "small": 2}
     if sort == "cap":
         matches.sort(key=lambda x: (cap_order.get(x["cap"], 3), x["name"]))
     elif sort == "sector":
         matches.sort(key=lambda x: (x["sector"], x["name"]))
-    # "name" keeps existing alphabetical order from _filter_and_rank
+    else:
+        matches.sort(key=lambda x: (-x["_score"], x["name"]))
 
     total = len(matches)
     total_pages = max(1, math.ceil(total / page_size))

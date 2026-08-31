@@ -164,7 +164,10 @@ function pulseDisplay(p: string): { label: string; cls: string } {
 function AIMarketIntelligenceHero({ story, storyLoading, drivers, opportunity, risk }: {
   story: MarketStory | null; storyLoading: boolean;
   drivers: { headline: string; urgency: number }[];
-  opportunity: { id: string; title: string } | null;
+  // Batch E consumer migration, 2026-08-24 — engine.py's read_opportunities()
+  // now resolves the full href server-side (V1 numeric id or V2 slug),
+  // never a raw id this component would have to guess how to route.
+  opportunity: { href: string; title: string } | null;
   risk: { headline: string | null; reason: string } | null;
 }) {
   const pulse = story ? pulseDisplay(story.pulse) : null;
@@ -212,7 +215,7 @@ function AIMarketIntelligenceHero({ story, storyLoading, drivers, opportunity, r
           {opportunity && (
             <div>
               <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-text-muted">Biggest Opportunity</p>
-              <Link href={`/opportunity-radar/${opportunity.id}` as any} className="line-clamp-2 text-[11px] font-bold text-emerald-400 hover:text-emerald-600 dark:text-emerald-300 transition">
+              <Link href={opportunity.href as any} className="line-clamp-2 text-[11px] font-bold text-emerald-400 hover:text-emerald-600 dark:text-emerald-300 transition">
                 {opportunity.title}
               </Link>
             </div>
@@ -454,7 +457,12 @@ function SectorRotationCard({ sectors }: { sectors: any[] }) {
           })}
         </div>
       )}
-      <Link href="/newsroom/themes" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-surface-border/7 bg-text-primary/[0.02] py-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary transition">
+      {/* SEO P1-P2, 2026-08-24 — was pointing "Sector Heatmap" at
+          /newsroom/themes (a noindexed Opportunity Radar duplicate, not
+          sector content at all — a pre-existing anchor/destination
+          mismatch found while fixing that duplicate). /sectors is the
+          real page this label describes. */}
+      <Link href="/sectors" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-surface-border/7 bg-text-primary/[0.02] py-1.5 text-[10px] font-semibold text-text-secondary hover:text-text-primary transition">
         Sector Heatmap
       </Link>
     </div>

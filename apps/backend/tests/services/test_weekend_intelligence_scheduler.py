@@ -57,10 +57,17 @@ def test_recurring_job_count_increased_by_exactly_two():
     feeds the new Development/DevelopmentEvidence persistent-identity
     layer; runs independently of the 3 existing request-time
     evidence-clustering call sites since Developments need to form every
-    day, not just when a request happens to touch that evidence."""
+    day, not just when a request happens to touch that evidence.
+    29 -> 30: V2-B added job_opportunity_v2_shadow_pass (7:30 AM IST,
+    same slot as job_daily_opportunities) — registers unconditionally
+    regardless of settings.opportunity_read_source (this default "v1"
+    test run still also has job_daily_opportunities registered
+    alongside it; V2-B's own scheduler test
+    (test_opportunity_v2_promotion.py) covers the "v2" case where
+    job_daily_opportunities stops registering instead)."""
     scheduler = _fresh_scheduler()
     register_jobs(scheduler)
-    assert len(scheduler.get_jobs()) == 29
+    assert len(scheduler.get_jobs()) == 30
 
 
 def test_checkpoint_jobs_are_weekend_only_and_ist():

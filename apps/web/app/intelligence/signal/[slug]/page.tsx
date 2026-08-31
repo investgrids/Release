@@ -29,8 +29,9 @@ import { SignalActions } from "@/components/intelligence/SignalActions";
  *   - No "Related Signals" rail and no fetched Related Events / full
  *     Opportunities grid — building those honestly needs either a new API
  *     call (explicitly out of scope for this pass) or fabricated content.
- *     What IS real and already in this response — a matched opportunity_id
- *     (early_theme) — gets a real single card; the rest link out to the
+ *     What IS real and already in this response — a matched opportunity
+ *     (early_theme, resolved to a real href server-side) — gets a real
+ *     single card; the rest link out to the
  *     real hub pages (/research, /opportunity-radar, /ai-search) instead
  *     of faking previews.
  *   - No company logos or per-company confidence — not present in
@@ -49,7 +50,12 @@ interface SignalPayload {
   path?: string[];
   is_fallback?: boolean;
   opportunity_score?: number | null;
-  opportunity_id?: string | number | null;
+  // Batch E consumer migration, 2026-08-24 — live_intelligence.py now
+  // publishes opportunity_href (full, pre-resolved path), not a raw
+  // opportunity_id. A signal published before this change still has the
+  // old key in its persisted payload and will just render without this
+  // card (safe: an absent optional field, not a broken link).
+  opportunity_href?: string | null;
   winners?: string[];
   losers?: string[];
   key_lesson?: string | null;
@@ -243,14 +249,6 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
     author: { "@type": "Organization", name: "MarketRipple AI Intelligence Engine" },
     publisher: { "@type": "Organization", name: "MarketRipple" },
     mainEntityOfPage: url,
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "MarketRipple", item: siteOrigin },
-        { "@type": "ListItem", position: 2, name: "Live Intelligence", item: `${siteOrigin}/#live-intelligence` },
-        { "@type": "ListItem", position: 3, name: a.headline, item: url },
-      ],
-    },
   };
   if (a.faqs && a.faqs.length > 0) {
     jsonLd.mainEntity = a.faqs.slice(0, 5).map(f => ({
@@ -493,9 +491,9 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
             </Card>
           )}
 
-          {ctx.signal_type === "early_theme" && p.opportunity_id != null && (
+          {ctx.signal_type === "early_theme" && p.opportunity_href != null && (
             <Card title="Related Opportunity" icon={<Radar className="h-3.5 w-3.5 text-emerald-500" />}>
-              <Link href={`/opportunity-radar/${p.opportunity_id}`}
+              <Link href={p.opportunity_href as any}
                 className="flex items-center justify-between rounded-[12px] border border-emerald-500/20 bg-emerald-500/[0.05] px-4 py-3 transition hover:border-emerald-500/35">
                 <span>
                   <span className="block text-[13.5px] font-bold text-text-primary">{a.headline}</span>
@@ -552,7 +550,7 @@ export default async function SignalPage({ params }: { params: Promise<{ slug: s
             </div>
           </Card>
 
-          <SignalActions headline={a.headline} url={url} companies={companies} opportunityId={p.opportunity_id} />
+          <SignalActions headline={a.headline} url={url} companies={companies} opportunityHref={p.opportunity_href} />
         </div>
       </div>
     </main>

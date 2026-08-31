@@ -181,9 +181,24 @@ export function InvestmentThesisCard({
   const [fetched,  setFetched]  = useState<FetchedThesis | null>(null);
   const [fetching, setFetching] = useState(false);
 
-  // Self-fetch enrichment when entity context is provided
+  // Self-fetch enrichment when entity context is provided.
+  // Real, systemic bug found+fixed during the Company redesign's
+  // wrong-entity-intelligence audit (2026-08-25 — the 3IINFOLTD/IIFL
+  // contamination investigation): without cancelling a stale in-flight
+  // request, a fast entity-to-entity navigation (A -> B -> C) could let
+  // A's or B's late-arriving response call setFetched() *after* C's own
+  // fetch has already resolved, silently overwriting C's real data with
+  // a different entity's real data — with no further re-render to
+  // correct it. hooks/useIntelligence.ts already guarded against this
+  // via AbortController; this component (and its siblings —
+  // ScenarioAnalysis, MonitoringChecklist, PatternIntelligenceCard,
+  // CompanyIntelligenceSection) did not. `cancelled` here is the same
+  // pattern already used throughout CompanyPageClient.tsx's own
+  // entity-scoped fetches.
   useEffect(() => {
     if (!entityType || !entityId) return;
+    let cancelled = false;
+    setFetched(null);
     setFetching(true);
     const p = new URLSearchParams();
     if (entityTitle)                              p.set("title",       entityTitle);
@@ -192,9 +207,10 @@ export function InvestmentThesisCard({
 
     fetch(`${API}/api/thesis/${entityType}/${encodeURIComponent(entityId)}?${p}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d  => { if (d) setFetched(d as FetchedThesis); })
+      .then(d  => { if (!cancelled && d) setFetched(d as FetchedThesis); })
       .catch(() => {})
-      .finally(() => setFetching(false));
+      .finally(() => { if (!cancelled) setFetching(false); });
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, entityId]);
 

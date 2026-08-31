@@ -82,9 +82,33 @@ async def list_events(
     # the requested limit, instead of limiting-then-filtering (which would
     # return almost nothing at limit=20 given the ~6% scored rate).
     scored_only: bool = Query(False),
+    # Company redesign Batch 3 — the Company page's Events tab previously
+    # only had yfinance's own sparse corporate-action list (stock.events)
+    # to show; real graph/RSS-sourced events that actually mention this
+    # company (already computed inline in related.py's "company" branch)
+    # were never reachable from a dedicated endpoint. Reuses the exact
+    # same real symbol-match logic against Event.companies, not a new
+    # heuristic.
+    company: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     effective_limit = page_size if page_size is not None else limit
+
+    if company:
+        sym_lower = company.strip().upper().lower()
+        pool = await get_events(db, limit=500, sort_by="impact_score")
+        matched = []
+        for e in pool:
+            mentions = any(
+                (c.get("symbol", "").lower() == sym_lower if isinstance(c, dict) else str(c).lower() == sym_lower)
+                for c in (e.companies or [])
+            )
+            if mentions:
+                matched.append(e)
+            if len(matched) >= effective_limit:
+                break
+        result = [_to_summary(e) for e in matched]
+        return await _attach_indexable(db, result)
 
     if scored_only and sort_by not in ("impact_score", "active"):
         pool_limit = min(max(effective_limit * 15, 300), 1000)

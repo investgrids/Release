@@ -232,7 +232,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
       <div className="flex flex-wrap gap-2">
         <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(eventTitle.slice(0, 100))}`} />
         <SmartCTA variant="view-event" href="/events" />
-        <SmartCTA variant="explore-opportunity" href="/radar" />
+        <SmartCTA variant="explore-opportunity" href="/opportunity-radar" />
       </div>
 
       {/* ── Intelligence Block ──────────────────────────────────────────── */}

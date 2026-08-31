@@ -139,6 +139,347 @@ _PERIOD_MAP: dict = {
 _REV_KEYS = ["Total Revenue", "TotalRevenue", "Revenue"]
 _NI_KEYS  = ["Net Income", "NetIncome", "Net Income Common Stockholders"]
 
+# Company redesign — Financials tab restructure. Real yfinance row labels,
+# confirmed live against RELIANCE.NS's actual financials/balance_sheet/
+# cashflow DataFrames before writing this (not assumed) — each entry is
+# (output_key, [real candidate row labels in priority order], unit).
+# "currency" divides by 1e7 to match the Crore convention annual_financials/
+# quarterly_revenue already use; "percent" scales a real 0-1 rate to 0-100;
+# "raw" (EPS) is left as yfinance reports it, no conversion.
+_INCOME_STATEMENT_ROWS: list[tuple[str, list[str], str]] = [
+    ("revenue",             ["Total Revenue", "TotalRevenue", "Revenue"],        "currency"),
+    ("ebitda",               ["EBITDA", "Normalized EBITDA"],                     "currency"),
+    ("operating_profit",     ["Operating Income"],                                "currency"),
+    ("pbt",                  ["Pretax Income"],                                   "currency"),
+    ("tax_expense",          ["Tax Provision"],                                   "currency"),
+    ("effective_tax_rate",   ["Tax Rate For Calcs"],                              "percent"),
+    ("net_profit",           ["Net Income", "Net Income Common Stockholders"],    "currency"),
+    ("eps",                  ["Diluted EPS", "Basic EPS"],                        "raw"),
+]
+_BALANCE_SHEET_ROWS: list[tuple[str, list[str], str]] = [
+    ("total_assets",         ["Total Assets"],                                            "currency"),
+    ("cash_and_equivalents", ["Cash And Cash Equivalents", "Cash Financial"],              "currency"),
+    ("receivables",          ["Accounts Receivable", "Receivables"],                       "currency"),
+    ("inventory",            ["Inventory"],                                                "currency"),
+    ("total_debt",           ["Total Debt"],                                               "currency"),
+    ("total_liabilities",    ["Total Liabilities Net Minority Interest"],                  "currency"),
+    ("shareholders_equity",  ["Stockholders Equity", "Common Stock Equity"],               "currency"),
+    ("net_debt",             ["Net Debt"],                                                 "currency"),
+]
+_CASH_FLOW_ROWS: list[tuple[str, list[str], str]] = [
+    ("cash_from_operations", ["Operating Cash Flow"],   "currency"),
+    ("capex",                ["Capital Expenditure"],   "currency"),
+    ("free_cash_flow",       ["Free Cash Flow"],        "currency"),
+    ("cash_from_investing",  ["Investing Cash Flow"],   "currency"),
+    ("cash_from_financing",  ["Financing Cash Flow"],   "currency"),
+    ("dividends",            ["Cash Dividends Paid"],   "currency"),
+    ("net_change_in_cash",   ["Changes In Cash"],       "currency"),
+]
+
+
+def _is_real_number(raw) -> bool:
+    if raw is None:
+        return False
+    try:
+        f = float(raw)
+        return f == f  # NaN != NaN
+    except Exception:
+        return False
+
+
+# yfinance's own `info.financialCurrency` (confirmed live: INFY reports
+# "USD" — its NYSE ADR filing currency — while RELIANCE/TCS/HDFCBANK/
+# WIPRO all report "INR") — a real, per-company field, not a guess. The
+# old hardcoded "/ 1e7" assumed every statement was INR-in-rupees, which
+# silently mislabeled INFY's real USD-in-ones figures as "₹ in Crore"
+# (its real ~$5B quarterly revenue rendered as "508" Crore, ~700x too
+# small). Unknown/missing currencies fall back to the INR/Crore scale —
+# the behavior every company had before this fix, not a new guess.
+_STATEMENT_CURRENCY_SCALE = {
+    "INR": (1e7, "₹", "Crore"),
+    "USD": (1e6, "$", "Million"),
+}
+
+
+def _statement_scale(financial_currency: str | None) -> tuple[float, str, str]:
+    return _STATEMENT_CURRENCY_SCALE.get((financial_currency or "INR").upper(), _STATEMENT_CURRENCY_SCALE["INR"])
+
+
+def _extract_statement_rows(df, row_defs: list[tuple[str, list[str], str]], label_fn, currency_scale: float = 1e7) -> list[dict]:
+    """Real-data-only extraction: a period is included only if at least
+    one of its real line items actually has a real value — never a row
+    of all-null placeholders. Each individual field is null (not 0, not
+    interpolated) when that specific line item isn't present for that
+    period, so the frontend can qualify/hide per field, not just per
+    period. Column order preserved (yfinance already returns most-recent
+    first). Each row also carries an internal "_date" (the real period-end
+    Timestamp) used by _derive_cumulative_periods()/_compute_ratios() for
+    real adjacency/matching checks — stripped by _strip_internal() before
+    a statement is returned from get_stock_financials(). `currency_scale`
+    divides "currency"-unit fields down to a human-scale figure (Crore for
+    INR, Million for USD — see _statement_scale()); it is NEVER a currency
+    conversion, only a magnitude scale, so it must match the statement's
+    own real reporting currency or the displayed number is wrong."""
+    if df is None or df.empty:
+        return []
+    periods: list[dict] = []
+    for col in df.columns:
+        try:
+            label = label_fn(col)
+        except Exception:
+            label = str(col)[:10]
+        row_data: dict = {"period": label, "_date": col if hasattr(col, "year") else None}
+        any_real = False
+        for key, candidates, unit in row_defs:
+            src_row = next((df.loc[k] for k in candidates if k in df.index), None)
+            val = None
+            if src_row is not None:
+                raw = src_row[col]
+                if _is_real_number(raw):
+                    f = float(raw)
+                    if unit == "currency":
+                        val = round(f / currency_scale, 1)
+                    elif unit == "percent":
+                        val = round(f * 100, 1)
+                    else:
+                        val = round(f, 2)
+                    any_real = True
+            row_data[key] = val
+        if any_real:
+            periods.append(row_data)
+    return periods
+
+
+def _strip_internal(periods: list[dict]) -> list[dict]:
+    return [{k: v for k, v in row.items() if not k.startswith("_")} for row in periods]
+
+
+def _annual_label(col) -> str:
+    return col.strftime("FY%y") if hasattr(col, "strftime") else str(col)[:7]
+
+
+def _quarterly_label(col) -> str:
+    return col.strftime("%b '%y") if hasattr(col, "strftime") else str(col)[:7]
+
+
+def _indian_fy_and_quarter(d) -> tuple[int, int] | None:
+    """Indian fiscal year runs Apr(Y-1)-Mar(Y); Q1=Apr-Jun, Q2=Jul-Sep,
+    Q3=Oct-Dec, Q4=Jan-Mar. Returns (fiscal_year, quarter_number) for a
+    real quarter-end date, or None if the date is missing/unparseable."""
+    if d is None or not hasattr(d, "month"):
+        return None
+    fy = d.year if d.month <= 3 else d.year + 1
+    q = {4: 1, 5: 1, 6: 1, 7: 2, 8: 2, 9: 2, 10: 3, 11: 3, 12: 3, 1: 4, 2: 4, 3: 4}[d.month]
+    return fy, q
+
+
+def _sum_quarter_rows(rows: list[dict], row_defs: list[tuple[str, list[str], str]]) -> dict:
+    """Sums real quarterly values for a cumulative (H1/9M) period. A field
+    is only summed when EVERY constituent quarter has a real value for it
+    — a partial sum would misrepresent the period, so it's left null
+    instead (same "honest gap over fabricated number" rule as everywhere
+    else in this file). Percent fields (e.g. effective tax rate) are never
+    summed — a summed percentage is meaningless — they stay null in
+    derived periods."""
+    out: dict = {}
+    for key, _candidates, unit in row_defs:
+        if unit == "percent":
+            out[key] = None
+            continue
+        vals = [r.get(key) for r in rows]
+        out[key] = round(sum(vals), 1) if all(v is not None for v in vals) else None
+    return out
+
+
+def _derive_cumulative_periods(quarterly_rows: list[dict], row_defs: list[tuple[str, list[str], str]]) -> dict:
+    """Builds Half-Yearly (Q1+Q2) and Nine-Month (Q1+Q2+Q3) real cumulative
+    periods from real, individually-dated quarters — never a fabricated
+    period. Requires the real constituent quarters to actually exist for
+    the same fiscal year (confirmed live: yfinance's own quarterly series
+    can have a real gap — e.g. a missing Sep-quarter — in which case H1/9M
+    for that fiscal year is correctly omitted, not guessed)."""
+    by_fy: dict[int, dict[int, dict]] = {}
+    for row in quarterly_rows:
+        fyq = _indian_fy_and_quarter(row.get("_date"))
+        if fyq is None:
+            continue
+        fy, q = fyq
+        by_fy.setdefault(fy, {})[q] = row
+
+    half_yearly: list[dict] = []
+    nine_months: list[dict] = []
+    for fy in sorted(by_fy.keys(), reverse=True):
+        quarters = by_fy[fy]
+        if 1 in quarters and 2 in quarters:
+            summed = _sum_quarter_rows([quarters[1], quarters[2]], row_defs)
+            summed["period"] = f"H1 FY{str(fy)[-2:]}"
+            half_yearly.append(summed)
+        if 1 in quarters and 2 in quarters and 3 in quarters:
+            summed = _sum_quarter_rows([quarters[1], quarters[2], quarters[3]], row_defs)
+            summed["period"] = f"9M FY{str(fy)[-2:]}"
+            nine_months.append(summed)
+    return {"half_yearly": half_yearly, "nine_months": nine_months}
+
+
+def _compute_ratios(income_periods: list[dict], balance_periods: list[dict]) -> list[dict]:
+    """Real ratios computed only where the same real period exists in both
+    the Income Statement and Balance Sheet extractions (matched by the
+    exact period label both are built from the same real date column) —
+    never mixes numbers from two different periods. Each ratio is null
+    when a required underlying field is missing, not estimated."""
+    balance_by_period = {r["period"]: r for r in balance_periods}
+    out: list[dict] = []
+    for inc in income_periods:
+        bal = balance_by_period.get(inc["period"])
+        revenue = inc.get("revenue")
+        net_profit = inc.get("net_profit")
+        operating_profit = inc.get("operating_profit")
+        equity = bal.get("shareholders_equity") if bal else None
+        assets = bal.get("total_assets") if bal else None
+        debt = bal.get("total_debt") if bal else None
+
+        def _ratio(num, den, as_pct=True):
+            if num is None or den is None or den == 0:
+                return None
+            v = num / den * (100 if as_pct else 1)
+            return round(v, 2 if not as_pct else 1)
+
+        out.append({
+            "period": inc["period"],
+            "net_profit_margin": _ratio(net_profit, revenue),
+            "operating_margin": _ratio(operating_profit, revenue),
+            "roe": _ratio(net_profit, equity),
+            "roa": _ratio(net_profit, assets),
+            "debt_to_equity": _ratio(debt, equity, as_pct=False),
+            "eps": inc.get("eps"),
+        })
+    return out
+
+
+def _compute_capital_structure(info: dict, balance_annual: list[dict]) -> dict:
+    """A single real, latest-snapshot view — not a period series, since
+    shares outstanding/market cap are point-in-time facts from yfinance's
+    own `info`, not something the quarterly/annual statement DataFrames
+    carry per period. Debt/equity mix comes from the most recent real
+    annual Balance Sheet period already extracted above (never
+    recomputed differently). Any field yfinance doesn't have for this
+    symbol (e.g. face value is frequently absent for NSE-listed
+    companies) stays null rather than being guessed."""
+    latest_bs = balance_annual[0] if balance_annual else {}
+    shares = info.get("sharesOutstanding") or info.get("impliedSharesOutstanding")
+    market_cap = info.get("marketCap")
+    total_debt = latest_bs.get("total_debt")
+    equity = latest_bs.get("shareholders_equity")
+    return {
+        "as_of_period": latest_bs.get("period"),
+        "shares_outstanding": int(shares) if shares else None,
+        "face_value": info.get("faceValue"),
+        "book_value_per_share": round(float(info["bookValue"]), 2) if info.get("bookValue") else None,
+        "market_cap": round(float(market_cap) / 1e7, 1) if market_cap else None,
+        "total_debt": total_debt,
+        "shareholders_equity": equity,
+        "debt_to_equity": round(total_debt / equity, 2) if total_debt is not None and equity else None,
+    }
+
+
+async def get_stock_financials(symbol: str) -> dict:
+    """Income Statement, Balance Sheet, and Cash Flow — Annual, Quarterly,
+    and (for the two flow statements) real derived Half-Yearly/Nine-Month
+    cumulative periods — plus real computed Ratios and a Capital Structure
+    snapshot. Company redesign Financials sub-tabs. Deliberately a
+    separate, lazily-called endpoint (not part of get_stock_detail's
+    payload): fetching six real yfinance DataFrames on every company-page
+    load would add real latency to a path that doesn't need this data
+    until a user actually opens a Financials sub-tab. Real coverage varies
+    sharply by company — confirmed live: a smaller/less-covered real
+    symbol can return completely empty DataFrames for all three
+    statements, and even a well-covered one (RELIANCE) has zero quarterly
+    cash-flow data from this source, and a real gap in its own quarterly
+    series (a missing Sep-quarter) correctly suppresses H1/9M derivation
+    for that fiscal year. Never fabricates a statement, a period, or a
+    ratio to fill a gap — null/empty is the honest answer when the source
+    has nothing."""
+    loop = asyncio.get_event_loop()
+    ns_ticker = f"{symbol.upper()}.NS"
+
+    def _fetch() -> dict:
+        t = yf.Ticker(ns_ticker)
+
+        def _safe(attr: str):
+            try:
+                return getattr(t, attr)
+            except Exception:
+                return None
+
+        try:
+            info = t.info or {}
+        except Exception:
+            info = {}
+
+        # Real, per-company field (confirmed live: INFY reports "USD" — its
+        # NYSE ADR filing currency — while RELIANCE/TCS/HDFCBANK/WIPRO all
+        # report "INR"). Determines the scale divisor for every "currency"-
+        # unit field below, plus the unit label the API returns so the
+        # frontend never hardcodes "₹ in Crore" for a statement that isn't
+        # actually in INR.
+        financial_currency = info.get("financialCurrency") or "INR"
+        scale, symbol_prefix, unit_name = _statement_scale(financial_currency)
+
+        income_a  = _extract_statement_rows(_safe("financials"),             _INCOME_STATEMENT_ROWS, _annual_label,    scale)
+        income_q  = _extract_statement_rows(_safe("quarterly_financials"),   _INCOME_STATEMENT_ROWS, _quarterly_label, scale)
+        balance_a = _extract_statement_rows(_safe("balance_sheet"),          _BALANCE_SHEET_ROWS,    _annual_label,    scale)
+        balance_q = _extract_statement_rows(_safe("quarterly_balance_sheet"),_BALANCE_SHEET_ROWS,    _quarterly_label, scale)
+        cash_a    = _extract_statement_rows(_safe("cashflow"),               _CASH_FLOW_ROWS,        _annual_label,    scale)
+        cash_q    = _extract_statement_rows(_safe("quarterly_cashflow"),     _CASH_FLOW_ROWS,        _quarterly_label, scale)
+
+        # Half-Yearly / Nine-Month Results — real derived cumulative periods,
+        # income statement + cash flow only (flow statements are legitimately
+        # summable across quarters; a balance sheet is a point-in-time
+        # snapshot, so it stays Annual/Quarterly only — summing it would be
+        # meaningless, not just imprecise).
+        income_cum = _derive_cumulative_periods(income_q, _INCOME_STATEMENT_ROWS)
+        cash_cum   = _derive_cumulative_periods(cash_q,   _CASH_FLOW_ROWS)
+
+        ratios_annual    = _compute_ratios(income_a, balance_a)
+        ratios_quarterly = _compute_ratios(income_q, balance_q)
+
+        capital_structure = _compute_capital_structure(info, balance_a)
+
+        return {
+            "symbol": symbol.upper(),
+            # Real per-statement reporting currency and the display unit it
+            # was scaled to — NOT the stock's own trading currency (always
+            # INR for a .NS listing; market_cap below stays INR/Crore
+            # regardless). Lets the frontend show "$ in Million" instead of
+            # a wrong "₹ in Crore" for a USD-reporting company like INFY.
+            "statement_currency": financial_currency,
+            "statement_currency_prefix": symbol_prefix,
+            "statement_currency_unit": unit_name,
+            "income_statement": {
+                "annual":      _strip_internal(income_a),
+                "quarterly":   _strip_internal(income_q),
+                "half_yearly": _strip_internal(income_cum["half_yearly"]),
+                "nine_months": _strip_internal(income_cum["nine_months"]),
+            },
+            "balance_sheet": {
+                "annual":    _strip_internal(balance_a),
+                "quarterly": _strip_internal(balance_q),
+            },
+            "cash_flow": {
+                "annual":      _strip_internal(cash_a),
+                "quarterly":   _strip_internal(cash_q),
+                "half_yearly": _strip_internal(cash_cum["half_yearly"]),
+                "nine_months": _strip_internal(cash_cum["nine_months"]),
+            },
+            "ratios": {
+                "annual":    ratios_annual,
+                "quarterly": ratios_quarterly,
+            },
+            "capital_structure": capital_structure,
+        }
+
+    return await loop.run_in_executor(None, _fetch)
+
 
 def _pct_str(v) -> str:
     try:

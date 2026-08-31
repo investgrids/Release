@@ -7,6 +7,8 @@ import {
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText, isRealSymbol } from "@/lib/text";
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
+
 interface OpportunityListItem { id: number; slug: string }
 interface AISummary { matters: string; benefits: string; risks: string[]; why_bullets: string[] }
 interface OppCompany { symbol: string; company_name: string; impact_score: number; trend: string; reason: string }
@@ -71,10 +73,21 @@ export async function generateMetadata(
 
   const title = `${cleanText(detail.title)} | Theme Intelligence`;
   const description = detail.summary ? cleanText(detail.summary) : `Real opportunity score, confidence, and AI analysis for ${cleanText(detail.title)}.`;
+  // Sitemap Truth Audit, 2026-08-24 — this route fetches the exact same
+  // /api/radar/{id} data as /opportunity-radar/[id] under a different
+  // label ("Theme Intelligence") and used to self-canonicalize, actively
+  // telling Google this was the primary URL for content it only duplicates.
+  // /opportunity-radar/[id] carries real Article+Breadcrumb JSON-LD this
+  // page has none of, so it's the one that should accumulate ranking
+  // signal. Per the Indexability Contract's DUPLICATE/ALTERNATE SURFACE
+  // rule: noindex, canonical → the real primary URL, absolute (matching
+  // every other canonical in the codebase — the old relative-path
+  // canonical here was itself inconsistent).
   return {
     title,
     description,
-    alternates: { canonical: `/newsroom/themes/${slug}` },
+    robots: { index: false, follow: true },
+    alternates: { canonical: `${SITE}/opportunity-radar/${id}` },
   };
 }
 

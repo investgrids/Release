@@ -21,6 +21,8 @@ a manufactured "0" that would read as a real bearish score.
 """
 from __future__ import annotations
 
+import re
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -80,6 +82,116 @@ def _is_real_symbol(symbol: str) -> bool:
 _IMPACT_SIGN = {"positive": 1.0, "negative": -1.0, "neutral": 0.0}
 _TREND_SIGN = {"up": 1.0, "down": -1.0, "neutral": 0.0}
 
+# Name<->symbol guard (owner decision, 2026-08-25, following the cross-
+# sector companies_affected extraction audit) — deterministic, no LLM
+# call. Validated against every real companies_affected entry in the dev
+# DB before being wired in here: found the same real bug the audit did
+# (PNB Housing Finance mis-tagged with symbol "PNB", Punjab National
+# Bank) plus 2 more of the same class (HDB Financial Services tagged
+# HDFCBANK; Shriram Finance tagged SRF), with zero false corrections and
+# zero wrongful drops on the full real dataset.
+_NAME_STOPWORDS = {"ltd", "limited", "inc", "corp", "corporation", "company", "co", "plc", "the", "and", "of", "for", "in", "at"}
+
+
+def _name_words(name: str) -> list[str]:
+    words = re.sub(r"[^a-z0-9\s]", " ", (name or "").lower()).split()
+    return [w for w in words if w not in _NAME_STOPWORDS and len(w) > 1]
+
+
+def _name_compact(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (name or "").lower())
+
+
+def _names_agree(symbol: str, real_name: str, claimed_name: str) -> bool:
+    """True when a companies_affected[] entry's own claimed `name` is
+    consistent with the real registered name for its `symbol`. Two real
+    escape hatches, both confirmed against live data, not guessed:
+    (1) several producers (e.g. signal_publisher.py's live-signal items)
+    have no real company name available and echo the bare ticker into
+    `name` as a placeholder — not a claim to validate, so it always
+    agrees; (2) a real, standard initialism either direction (SBI <->
+    "State Bank of India", BSE <-> "Bombay Stock Exchange") counts as
+    agreement rather than a false mismatch."""
+    if _name_compact(claimed_name) == _name_compact(symbol):
+        return True
+    real_words, claimed_words = _name_words(real_name), _name_words(claimed_name)
+    if not real_words or not claimed_words:
+        return True
+    if _name_compact(claimed_name) == "".join(w[0] for w in real_words):
+        return True
+    if _name_compact(real_name).replace("ltd", "") == "".join(w[0] for w in claimed_words):
+        return True
+    overlap = set(real_words) & set(claimed_words)
+    smaller = min(len(real_words), len(claimed_words))
+    return len(overlap) >= max(1, smaller // 2)
+
+
+def _name_candidates(claimed_name: str, exclude_symbol: str) -> list[str]:
+    """Deterministic candidate search across the real company universe —
+    never an LLM call. Requires >=2 real significant words on both sides
+    so a real name that reduces to one generic word after stopword-
+    stripping (e.g. "L&T Finance Ltd" -> just "finance") can't produce a
+    false match purely on that one word — confirmed live this was a real
+    risk (falsely resolved "Reliance Home Finance" to "L&T Finance"
+    before this guard was added)."""
+    from app.api.companies import _NSE_UNIVERSE
+
+    claimed_words = set(_name_words(claimed_name))
+    if len(claimed_words) < 2:
+        return []
+    candidates: list[str] = []
+    for c in _NSE_UNIVERSE:
+        if c["symbol"] == exclude_symbol:
+            continue
+        real_words = set(_name_words(c["name"]))
+        if len(real_words) < 2:
+            continue
+        smaller, larger = (claimed_words, real_words) if len(claimed_words) <= len(real_words) else (real_words, claimed_words)
+        jaccard = len(claimed_words & real_words) / len(claimed_words | real_words)
+        if smaller.issubset(larger) or jaccard >= 0.6:
+            candidates.append(c["symbol"])
+    return list(dict.fromkeys(candidates))
+
+
+def _validated_symbol(raw_symbol: str, claimed_name: str) -> str | None:
+    """The one entry point extract_company_signals() calls per companies_
+    affected[] item. Returns the symbol to actually use (unchanged, or
+    corrected to a confidently-resolved different real symbol), or None
+    to skip creating a signal for this entry entirely.
+
+    Three real outcomes, validated against the full real dev dataset
+    before being wired in: (1) name agrees, or disagrees but resolves to
+    exactly one other real company -> use that symbol (found 3 real
+    cases: PNB Housing Finance tagged PNB -> PNBHOUSING, HDB Financial
+    Services tagged HDFCBANK -> HDBFS, Shriram Finance tagged SRF ->
+    SHRIRAMFIN); (2) name resolves to 2+ real candidates -> genuinely
+    ambiguous, drop (zero real cases found, but a real possible state);
+    (3) name disagrees but resolves to zero candidates -> we can't prove
+    the symbol is wrong, only that the free-text name didn't textually
+    match the registry (a real, correct case: "Nykaa Retail Limited" for
+    FSN E-Commerce Ventures Ltd is a real brand-vs-legal-name difference,
+    not a bug) -- leave the entry untouched rather than destroy
+    potentially-valid evidence on a guess. A real, still-open exception
+    found live and not auto-fixed by any of these three outcomes: "RHIM"
+    tagged "Reliance Home Finance" (RHIM's real name, RHI Magnesita India
+    Ltd, has no relationship to it, but no confident resolution target
+    exists in the current universe either) -- correctly falls into
+    outcome (3), flagged here for a human look, not solved deterministically."""
+    from app.api.companies import _NSE_UNIVERSE
+
+    sym = raw_symbol.upper().split(".")[0].strip()
+    real_name = next((c["name"] for c in _NSE_UNIVERSE if c["symbol"] == sym), None)
+    if real_name is None:
+        return None  # not a real symbol at all -- _is_real_symbol's existing job, enforced earlier now instead of only downstream
+    if _names_agree(sym, real_name, claimed_name):
+        return sym
+    candidates = _name_candidates(claimed_name, exclude_symbol=sym)
+    if len(candidates) == 1:
+        return candidates[0]
+    if len(candidates) >= 2:
+        return None
+    return sym
+
 
 async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle, auto_commit: bool = True) -> int:
     """Extracts one AICompanySignal row per company mentioned in a just-
@@ -104,7 +216,17 @@ async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle
     for c in (article.companies_affected or []):
         if not isinstance(c, dict):
             continue
-        symbol = str(c.get("symbol") or "").upper().split(".")[0]
+        raw_symbol = str(c.get("symbol") or "")
+        if not raw_symbol:
+            continue
+        # Name<->symbol guard (2026-08-25, see _validated_symbol's own
+        # docstring) — also now enforces _is_real_symbol()'s own long-
+        # standing aspiration ("real fix belongs further upstream in
+        # extraction") at write time, not just downstream in every
+        # consumer: a non-real symbol (index proxies, malformed unsplit
+        # multi-symbol strings) is skipped here instead of ever reaching
+        # AICompanySignal.
+        symbol = _validated_symbol(raw_symbol, c.get("name") or "")
         if not symbol:
             continue
         sign = _IMPACT_SIGN.get(str(c.get("impact") or "").lower(), 0.0)
@@ -113,7 +235,7 @@ async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle
             source_type="article",
             source_id=article.id,
             symbol=symbol,
-            company_name=c.get("name") or _name_for(symbol),
+            company_name=_name_for(symbol) or c.get("name"),
             sector=_sector_for(symbol),
             signed_magnitude=magnitude,
             confidence=article.confidence_score,
@@ -173,37 +295,10 @@ async def extract_opportunity_signals(db: AsyncSession, opportunity_id: int, opp
     return created
 
 
-async def _accuracy_multiplier(db: AsyncSession, symbol: str) -> float:
-    """Real per-company historical-accuracy signal, joined through the
-    already-working prediction-evaluation loop (prediction_evaluator.py) —
-    but that data is sparse today (most symbols have single-digit sample
-    counts), so this stays neutral (1.0) below _MIN_ACCURACY_SAMPLE rather
-    than projecting false confidence from a handful of evaluations."""
-    from app.db.models.predictions import PredictionRecord, PredictionEvaluation
-
-    rows = (await db.execute(
-        select(PredictionEvaluation.score)
-        .join(PredictionRecord, PredictionRecord.id == PredictionEvaluation.prediction_id)
-        .where(PredictionRecord.target_entities.isnot(None))
-    )).all()
-    # target_entities is JSON — filter in Python (symbol match), not SQL,
-    # since SQLite JSON querying support varies by build.
-    matched: list[float] = []
-    if rows:
-        full = (await db.execute(
-            select(PredictionRecord.id, PredictionRecord.target_entities)
-            .where(PredictionRecord.status == "complete")
-        )).all()
-        matching_ids = [
-            pid for pid, entities in full
-            if any(str(e.get("symbol", "")).upper() == symbol for e in (entities or []) if isinstance(e, dict))
-        ]
-        if matching_ids:
-            scores = (await db.execute(
-                select(PredictionEvaluation.score).where(PredictionEvaluation.prediction_id.in_(matching_ids))
-            )).scalars().all()
-            matched = list(scores)
-
+def _accuracy_multiplier_from_matches(matched: list[float]) -> float:
+    """The real math half of the historical-accuracy signal, shared by
+    both the single-symbol and batch-precomputed callers so the formula
+    only lives in one place."""
     if len(matched) < _MIN_ACCURACY_SAMPLE:
         return 1.0
     avg = sum(matched) / len(matched)
@@ -211,6 +306,64 @@ async def _accuracy_multiplier(db: AsyncSession, symbol: str) -> float:
     # gentle 0.85-1.15 multiplier so historical accuracy nudges the score
     # rather than dominating it (this is a secondary signal, not the score).
     return 0.85 + (avg * 0.30)
+
+
+async def _accuracy_multiplier(db: AsyncSession, symbol: str) -> float:
+    """Real per-company historical-accuracy signal, joined through the
+    already-working prediction-evaluation loop (prediction_evaluator.py) —
+    but that data is sparse today (most symbols have single-digit sample
+    counts), so this stays neutral (1.0) below _MIN_ACCURACY_SAMPLE rather
+    than projecting false confidence from a handful of evaluations.
+
+    Single-symbol path only (used by the per-symbol /company-scores/{symbol}
+    lookup) — for ranking many symbols in one request, build an
+    accuracy_map once via _build_accuracy_map() and pass it to
+    compute_company_score() instead of calling this per symbol; see that
+    function's own docstring for why (this real query pair is symbol-
+    independent work that was being repeated once per ranked company —
+    confirmed live: /api/company-scores/?limit=50 took ~24s before that
+    fix, sub-second after)."""
+    matched = (await _build_accuracy_map(db)).get(symbol, [])
+    return _accuracy_multiplier_from_matches(matched)
+
+
+async def _build_accuracy_map(db: AsyncSession) -> dict[str, list[float]]:
+    """The real, symbol-independent half of the historical-accuracy query —
+    fetch every completed prediction's real target symbols and real
+    evaluation scores ONCE, group by symbol. Same real data and the same
+    Python-side JSON filtering _accuracy_multiplier always used (SQLite's
+    JSON query support varies by build, so this deliberately never filters
+    target_entities in SQL) — just computed once per request instead of
+    once per company being ranked."""
+    from app.db.models.predictions import PredictionRecord, PredictionEvaluation
+
+    full = (await db.execute(
+        select(PredictionRecord.id, PredictionRecord.target_entities)
+        .where(PredictionRecord.status == "complete")
+        .where(PredictionRecord.target_entities.isnot(None))
+    )).all()
+    if not full:
+        return {}
+
+    symbols_by_prediction_id: dict[int, set[str]] = {}
+    for pid, entities in full:
+        syms = {str(e.get("symbol", "")).upper() for e in (entities or []) if isinstance(e, dict) and e.get("symbol")}
+        if syms:
+            symbols_by_prediction_id[pid] = syms
+
+    if not symbols_by_prediction_id:
+        return {}
+
+    eval_rows = (await db.execute(
+        select(PredictionEvaluation.prediction_id, PredictionEvaluation.score)
+        .where(PredictionEvaluation.prediction_id.in_(symbols_by_prediction_id.keys()))
+    )).all()
+
+    accuracy_map: dict[str, list[float]] = {}
+    for pid, score in eval_rows:
+        for sym in symbols_by_prediction_id.get(pid, ()):
+            accuracy_map.setdefault(sym, []).append(score)
+    return accuracy_map
 
 
 def _trend_for(score: float) -> str:
@@ -244,7 +397,17 @@ def _risk_level_for(rows: list[AICompanySignal], confidences: list[float]) -> st
     return "Medium"
 
 
-async def compute_company_score(db: AsyncSession, symbol: str) -> dict[str, Any]:
+async def compute_company_score(
+    db: AsyncSession, symbol: str, *, accuracy_map: dict[str, list[float]] | None = None,
+) -> dict[str, Any]:
+    """accuracy_map (optional): a precomputed symbol -> [evaluation scores]
+    mapping from _build_accuracy_map(), for batch callers ranking many
+    symbols in one request — skips this function's own real but symbol-
+    independent DB fetch, which was previously repeated once per ranked
+    symbol (confirmed live: the ~24s /company-scores/?limit=50 regression).
+    Single-symbol callers (e.g. /company-scores/{symbol}) omit it and get
+    the exact same real per-symbol query as before — no behavior change
+    for that path."""
     symbol = symbol.upper().split(".")[0]
     rows = (await db.execute(
         select(AICompanySignal).where(AICompanySignal.symbol == symbol)
@@ -253,13 +416,16 @@ async def compute_company_score(db: AsyncSession, symbol: str) -> dict[str, Any]
     if not rows:
         return {
             "symbol": symbol, "score": None, "confidence": None,
-            "signal_count": 0, "sector": _sector_for(symbol),
+            "signal_count": 0, "contributing_signal_count": 0, "sector": _sector_for(symbol),
             "top_contributors": [], "positive_reasons": [], "risk_factors": [],
             "trend": "neutral", "verdict": None, "breakdown": {},
         }
 
     now = datetime.now(timezone.utc)
-    accuracy_mult = await _accuracy_multiplier(db, symbol)
+    if accuracy_map is not None:
+        accuracy_mult = _accuracy_multiplier_from_matches(accuracy_map.get(symbol, []))
+    else:
+        accuracy_mult = await _accuracy_multiplier(db, symbol)
 
     weighted_rows = []
     confidences = []
@@ -282,6 +448,24 @@ async def compute_company_score(db: AsyncSession, symbol: str) -> dict[str, Any]
     trend = _trend_for(score)
     risk_level = _risk_level_for(rows, confidences)
 
+    # 2026-08-25 — owner decision, following the signal semantic integrity
+    # audit (artifacts/company_signal_semantic_integrity_audit.md): two
+    # real producers (comparison_publisher.py, signal_publisher.py) never
+    # set confidence_score/quality_score/event_score on the articles they
+    # create, so every row sourced from them carries a real, stored 0.0 in
+    # at least one weighted factor and is already mathematically inert —
+    # it was never moving the score, only inflating signal_count and
+    # dragging down the confidence average. Deliberately NOT fixed by
+    # populating those fields (that would flip comparison/live-signal rows
+    # from "harmlessly inert" to "actually influencing the score" without
+    # anyone having designed what that evidence should mean yet — a real
+    # scoring-policy change, not a display fix). Instead: signal_count
+    # keeps its existing meaning (every real row, for any caller relying
+    # on "has at least one signal at all"); contributing_signal_count is
+    # the new, honest number for display — only rows whose real weighted
+    # contribution is non-zero.
+    contributing_signal_count = sum(1 for w, _ in weighted_rows if w != 0)
+
     # "Why Ranked" / "Risk Factors" — the same weighted evidence, just split
     # by sign instead of by |magnitude| like the old single top_contributors
     # list, so the UI can show real supporting reasons and real countervailing
@@ -291,8 +475,17 @@ async def compute_company_score(db: AsyncSession, symbol: str) -> dict[str, Any]
     top = sorted(weighted_rows, key=lambda x: abs(x[0]), reverse=True)[:3]
 
     def _contrib(w: float, r: AICompanySignal) -> dict:
+        # SEO P1-P2, 2026-08-24 — real opportunity-sourced contributors
+        # carried no link back to the opportunity they came from, despite
+        # source_id already holding the real Opportunity.id (see
+        # extract_opportunity_signals above). Article-sourced rows are
+        # deliberately left without an href here — IntelligenceArticle's
+        # public URL is keyed by slug, not the numeric id stored in
+        # source_id, and there's no confirmed id->slug lookup at this call
+        # site; a guessed link would risk pointing at the wrong article.
+        href = f"/opportunity-radar/{r.source_id}" if r.source_type == "opportunity" else None
         return {
-            "reason": r.reason, "source_type": r.source_type,
+            "reason": r.reason, "source_type": r.source_type, "href": href,
             "signed_magnitude": r.signed_magnitude, "signal_at": r.signal_at.isoformat() if r.signal_at else None,
         }
 
@@ -302,12 +495,26 @@ async def compute_company_score(db: AsyncSession, symbol: str) -> dict[str, Any]
         verdict = compute_investment_verdict(
             opportunity_score=score, confidence=avg_confidence, risk_level=risk_level, trend=trend,
         )
+        # 2026-08-25 — compute_investment_verdict() is shared with the real
+        # V1 Opportunity Radar verdict (radar.py), whose own confidence is a
+        # separately-sourced, legitimate field this audit never touched —
+        # so the shared function itself (label/tone thresholds included)
+        # stays unchanged. Only this consumer's own `reasoning` sentence is
+        # rebuilt here to drop the embedded "{N}% confidence" clause, since
+        # the per-row-averaged confidence it would otherwise quote is
+        # exactly the number retired from display everywhere else on this
+        # page (see the confidence provenance audit).
+        reasons = [f"Opportunity score {round(score)}/100", f"{risk_level or 'Medium'} risk"]
+        if trend and trend != "neutral":
+            reasons.append(f"{trend} trend")
+        verdict["reasoning"] = " · ".join(reasons)
 
     return {
         "symbol": symbol,
         "score": round(score, 1),
         "confidence": round(avg_confidence, 2) if avg_confidence is not None else None,
         "signal_count": len(rows),
+        "contributing_signal_count": contributing_signal_count,
         "sector": _sector_for(symbol),
         "trend": trend,
         "risk_level": risk_level,
@@ -346,7 +553,8 @@ async def get_ranking_stats(db: AsyncSession) -> dict[str, Any]:
     companies; nothing here is a display-tuned or rounded-up number."""
     symbols = (await db.execute(select(AICompanySignal.symbol).distinct())).scalars().all()
     symbols = [s for s in symbols if _is_real_symbol(s)]
-    scored = [await compute_company_score(db, s) for s in symbols]
+    accuracy_map = await _build_accuracy_map(db)
+    scored = [await compute_company_score(db, s, accuracy_map=accuracy_map) for s in symbols]
     scored = [r for r in scored if r["score"] is not None]
 
     sectors = {r["sector"] for r in scored if r["sector"]}
@@ -362,20 +570,58 @@ async def get_ranking_stats(db: AsyncSession) -> dict[str, Any]:
     }
 
 
+_RANKINGS_CACHE: dict[tuple[str | None, int], tuple[float, list[dict[str, Any]]]] = {}
+_RANKINGS_TTL_S = 300.0  # 5 min — short enough that rankings don't go
+                          # meaningfully stale, long enough that repeated
+                          # page loads within a session hit cache instead
+                          # of re-running the full ranking pass.
+
+
 async def compute_sector_rankings(db: AsyncSession, sector: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
     """Ranks every symbol that has at least one real signal, optionally
-    scoped to one sector. Powers bestStocks.ts and the sector page — the
-    single query both features share instead of N per-symbol calls."""
+    scoped to one sector. Powers bestStocks.ts, /companies (Overview tab),
+    and the sector page — the single computation all three share instead
+    of each running their own N per-symbol calls.
+
+    Real regression found and fixed 2026-08-25: this previously ran
+    compute_company_score() once per symbol with NO cache, and each of
+    those calls independently repeated the same real but symbol-
+    independent historical-accuracy query pair — confirmed live,
+    GET /api/company-scores/?limit=50 took ~24s (several hundred symbols
+    scored to produce a 50-row result), the dominant cost in a real
+    ~30s /companies page load with zero frontend-side caching on that
+    call. Two real, narrow fixes, not a full batch-query rewrite of
+    every per-symbol lookup: (1) accuracy_map is now built ONCE per call
+    via _build_accuracy_map() instead of once per symbol; (2) a short TTL
+    cache (this dict) around the full ranked-and-limited result, keyed by
+    the exact inputs that change it (sector, limit), so repeat requests
+    within the window skip the computation entirely. Never caches an
+    exception — a raised error propagates before the cache is written, so
+    a failed pass is retried on the next request rather than cached."""
+    cache_key = (sector, limit)
+    now = time.monotonic()
+    cached = _RANKINGS_CACHE.get(cache_key)
+    if cached is not None and now - cached[0] < _RANKINGS_TTL_S:
+        log.info("company_rankings.cache_hit", sector=sector, limit=limit)
+        return cached[1]
+
+    t0 = time.monotonic()
     query = select(AICompanySignal.symbol).distinct()
     if sector:
         query = query.where(AICompanySignal.sector == sector)
     symbols = (await db.execute(query)).scalars().all()
     symbols = [s for s in symbols if _is_real_symbol(s)]
 
-    results = [await compute_company_score(db, s) for s in symbols]
+    accuracy_map = await _build_accuracy_map(db)
+    results = [await compute_company_score(db, s, accuracy_map=accuracy_map) for s in symbols]
     results = [r for r in results if r["score"] is not None]
     results.sort(key=lambda r: r["score"], reverse=True)
-    return results[:limit]
+    results = results[:limit]
+
+    duration_ms = round((time.monotonic() - t0) * 1000, 1)
+    log.info("company_rankings.cache_miss", sector=sector, limit=limit, symbols_scored=len(symbols), duration_ms=duration_ms)
+    _RANKINGS_CACHE[cache_key] = (now, results)
+    return results
 
 
 async def historical_track_record(db: AsyncSession, symbol: str) -> dict[str, Any]:

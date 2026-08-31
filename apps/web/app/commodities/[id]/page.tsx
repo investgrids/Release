@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
 import { getCommodities, findCommodity, weekTrend } from "@/lib/commodities";
+import { safeJsonLd } from "@/lib/text";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
@@ -42,8 +43,23 @@ export default async function CommodityDetailPage({ params }: { params: Promise<
   const minVal = Math.min(...item.chart.map(c => c.value), maxVal);
   const range = maxVal - minVal || 1;
 
+  const url = `${SITE}/commodities/${id}`;
+  // Article, not Product/Offer -- these are live spot prices, not something
+  // MarketRipple sells, and schema.org's Offer type implies purchasability
+  // we can't honestly claim. Matches the same convention already used on
+  // ripple/events/opportunity-radar detail pages.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: `${item.name} Price Today`,
+    description: `Live ${item.name} price: ${item.price} ${item.unit}, ${item.change} (${item.pct >= 0 ? "+" : ""}${item.pct.toFixed(2)}%) today.`,
+    url,
+    publisher: { "@type": "Organization", name: "MarketRipple" },
+  };
+
   return (
     <main className="mx-auto max-w-[760px] py-8 pb-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <nav className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
         <Link href="/commodities" className="flex items-center gap-1 hover:text-text-secondary transition">
           <ArrowLeft className="h-3 w-3" /> Commodities

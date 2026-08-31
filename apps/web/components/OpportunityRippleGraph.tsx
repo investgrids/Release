@@ -23,10 +23,17 @@ const TYPE_COLOR: Record<string, string> = {
  * the middle, everything else spaced evenly around it — rather than
  * pulling in a full graph-layout library for a handful of nodes.
  */
-export function OpportunityRippleGraph({ nodes, edges }: { nodes: Node[]; edges: Edge[] }) {
+export function OpportunityRippleGraph({ nodes, edges, centerId }: { nodes: Node[]; edges: Edge[]; centerId?: string }) {
   if (nodes.length < 2) return null;
 
-  const center = nodes.find(n => n.node_type === "opportunity") ?? nodes[0];
+  // V2's Ripple has no synthetic "opportunity" node — the real Intelligence
+  // Graph has no such node type, so the caller passes the real thesis
+  // anchor's node id instead (see OpportunityPageClient.tsx's V2 renderer).
+  // V1 callers don't pass centerId, so the original node_type heuristic is
+  // unchanged for them.
+  const center = (centerId ? nodes.find(n => n.node_id === centerId) : undefined)
+    ?? nodes.find(n => n.node_type === "opportunity")
+    ?? nodes[0];
   const outer = nodes.filter(n => n.node_id !== center.node_id);
 
   const W = 520, H = 320, cx = W / 2, cy = H / 2, r = Math.min(W, H) / 2 - 60;

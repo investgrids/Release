@@ -55,7 +55,14 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     // next.config.ts's "AI Newsroom consolidation" redirects). A sitemap
     // listing a redirecting URL is a confirmed Search Console warning
     // ("Page with redirect") and wastes crawl budget every cycle.
-    { url: `${base}/newsroom/themes`,            lastModified: now, changeFrequency: "daily",  priority: 0.85 },
+    //
+    // SEO P1-P2, 2026-08-24 — /newsroom/themes itself used to be listed
+    // here too, at the same priority. It's a confirmed duplicate of this
+    // exact page (same /api/radar/ data) and was just set to
+    // robots: { index: false, follow: true } with its canonical pointed
+    // here — submitting a noindex page in the sitemap is a real Search
+    // Console "Excluded by 'noindex' tag" warning, so it's removed rather
+    // than listed twice under two different URLs.
     { url: `${base}/opportunity-radar`,          lastModified: now, changeFrequency: "daily",  priority: 0.85 },
     { url: `${base}/ripple`,                     lastModified: now, changeFrequency: "daily",  priority: 0.8 },
     { url: `${base}/ai-search`,                  lastModified: now, changeFrequency: "daily",  priority: 0.8 },
@@ -128,37 +135,67 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   // not assumed — /api/events caps `limit` at 100, /api/companies caps
   // `page_size` at 60, both silently 422 and fall back to [] if exceeded):
   //   /api/events/  -> bare array of events, keyed by `id`
-  //   /api/radar/   -> { items: [...] }; /opportunity-radar/[id] uses the numeric `id`
+  //   /api/radar/   -> { items: [...] } — V1 items are keyed by numeric
+  //                     `id` (/opportunity-radar/[id]); post-promotion
+  //                     (V2-B, settings.opportunity_read_source="v2") the
+  //                     same endpoint returns V2 items instead — string
+  //                     uuid `id` + a separate `slug`
+  //                     (/opportunity-radar/[slug]). Never both at once —
+  //                     the backend itself is the single source of truth
+  //                     for which shape is "live" right now.
   //   /api/companies/ -> { companies: [...], total_pages }, keyed by `symbol`
-  //   /api/news/    -> bare array of news items, keyed by `id`
   // Deliberately NOT fetching /api/stories/ — the Story model is confirmed
   // dead (seed data only, see next.config.ts's redirect comment) and
   // /stories/:slug 301-redirects to /newsroom/themes for every id, so
   // submitting these URLs in the sitemap only produced Search Console
   // "Page with redirect" warnings for pages that never had real content.
-  const [events, ripple, radar, companiesPage1, news, insights, sectors, research, historical] = await Promise.all([
+  //
+  // Deliberately NOT fetching /api/news/ (Sitemap Truth Audit, 2026-08-24) —
+  // /news/{id} is backed by an in-memory RSS cache (news_fetcher.py), not a
+  // database table. Submitting it here meant this sitemap was, on every
+  // hourly regeneration, actively asking Google to index URLs guaranteed to
+  // eventually 404 with no recovery path once they rotate out of the cache —
+  // confirmed live: a real page that earned ~20k real impressions
+  // (live-d0a558cbe3ba) had already 404'd on the backend while Vercel's ISR
+  // cache masked it. Per the Indexability Contract, ephemeral/cache-only
+  // content is never submitted. Route now sets `robots: {index:false}`
+  // (see app/news/[id]/layout.tsx) as the durable backstop.
+  const [events, ripple, radar, companiesPage1, insights, sectors, research, historical] = await Promise.all([
     safeJson<Array<{ id: string; slug?: string; date?: string; indexable?: boolean }>>(`${API}/api/events/?limit=100`, []),
     // Ripple pages exist for the same "featured" high-impact events the
     // Ripple hub itself surfaces — not blindly mirroring every event route,
     // since not every event has a ripple analysis worth indexing.
     safeJson<Array<{ id: string; slug?: string; event_date?: string }>>(`${API}/api/ripple/featured?limit=20`, []),
-    safeJson<{ items?: Array<{ id: number }> }>(`${API}/api/radar/?page_size=100`, {}),
-    safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1`, {}),
-    safeJson<Array<{ id: string; published_at?: string }>>(`${API}/api/news/?limit=100`, []),
+    safeJson<{ items?: Array<{ id: number | string; slug?: string; updated_at?: string }> }>(`${API}/api/radar/?page_size=100`, {}),
+    // Final re-audit fix (2026-08-25) — this route only needs symbol/name
+    // for URL generation, never live price. `live` defaults true on
+    // /api/companies/, and _fetch_prices() does a real yfinance batch
+    // call per page inside its own ThreadPoolExecutor(max_workers=1);
+    // firing that concurrently across every page (see extraCompanyPages
+    // below) triggered real Yahoo Finance throttling, most pages missing
+    // the route's 8s abort timeout and silently falling back to `{}`.
+    // Reproduced deterministically: with live=true, 11/13 concurrent page
+    // fetches timed out (only 180 of 824 real companies collected,
+    // matching the live sitemap's own observed truncation exactly); with
+    // live=false, all 13 succeed in ~1s and all 824 are collected. The
+    // Tier A qualification pipeline itself was never the problem — see
+    // artifacts/company_redesign_final_reaudit.md §5/§12 and its
+    // follow-up reconciliation.
+    safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1&live=false`, {}),
     safeJson<{ items?: Array<{ slug: string; article_type?: string; canonical_url?: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
     safeJson<Array<{ id: string }>>(`${API}/api/sectors/`, []),
     // SEO Phase 2, §2.2 — comparison research pages.
     safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string }> }>(`${API}/api/insights/?article_type=comparison_intelligence&limit=100`, {}),
     // Historical Memory pages — real dated events, ids are already
     // human-readable slugs (e.g. "rbi-rate-pause-2023"), not opaque UUIDs.
-    safeJson<{ events?: Array<{ id: string; nifty_1w?: number | null; opportunity_score?: number | null }> }>(`${API}/api/historical/all?limit=200`, {}),
+    safeJson<{ events?: Array<{ id: string; nifty_1w?: number | null; opportunity_score?: number | null; has_winners?: boolean }> }>(`${API}/api/historical/all?limit=200`, {}),
   ]);
 
   // Companies list is paginated server-side (60/page) — fetch the remaining
   // pages in parallel rather than truncating to just the first 60 of 200+.
   const extraCompanyPages = await Promise.all(
     Array.from({ length: Math.max(0, (companiesPage1.total_pages ?? 1) - 1) }, (_, i) =>
-      safeJson<{ companies?: Array<{ symbol: string }> }>(`${API}/api/companies/?page_size=60&page=${i + 2}`, {})
+      safeJson<{ companies?: Array<{ symbol: string }> }>(`${API}/api/companies/?page_size=60&page=${i + 2}&live=false`, {})
     )
   );
   const companies = {
@@ -189,12 +226,19 @@ async function buildEntries(): Promise<SitemapEntry[]> {
       priority: 0.7,
     }));
 
-  const radarRoutes: SitemapEntry[] = (radar.items ?? []).map(r => ({
-    url: `${base}/opportunity-radar/${r.id}`,
-    lastModified: now,
-    changeFrequency: "weekly",
-    priority: 0.7,
-  }));
+  // V2-B, 2026-08-24 — shape-detected per item, not per a global flag this
+  // route would have to fetch separately: typeof r.id === "number" is V1
+  // (numeric primary key, real today), a string id is V2's uuid (real
+  // post-promotion) and MUST use the real slug, never the uuid itself, or
+  // the id-only V2 lookup branch (radar.py) would 404 every one of these.
+  const radarRoutes: SitemapEntry[] = (radar.items ?? [])
+    .filter(r => typeof r.id === "number" || hasCleanSlug(r.slug))
+    .map(r => ({
+      url: `${base}/opportunity-radar/${typeof r.id === "number" ? r.id : r.slug}`,
+      lastModified: r.updated_at ?? now,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    }));
 
   // Ticker symbols routinely contain "&" (M&M, M&MFIN) — this is exactly
   // the field that broke Search Console validation. buildSitemapXml()
@@ -204,13 +248,6 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     lastModified: now,
     changeFrequency: "daily",
     priority: 0.7,
-  }));
-
-  const newsRoutes: SitemapEntry[] = (Array.isArray(news) ? news : []).map(n => ({
-    url: `${base}/news/${n.id}`,
-    lastModified: now,
-    changeFrequency: "monthly",
-    priority: 0.55,
   }));
 
   // Real destination, not /insights/{slug} — that path also 301-redirects
@@ -280,8 +317,12 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     priority: 0.75,
   }));
 
+  // SEO P1-P2, 2026-08-24 — now matches the detail page's own
+  // isSubstantive() gate exactly (nifty_1w || opportunity_score ||
+  // has_winners), closing the Sitemap Truth Audit's confirmed (if
+  // dormant) gate mismatch.
   const historicalRoutes: SitemapEntry[] = (historical.events ?? [])
-    .filter(e => e.nifty_1w != null || e.opportunity_score != null)
+    .filter(e => e.nifty_1w != null || e.opportunity_score != null || e.has_winners)
     .map(e => ({
       url: `${base}/historical/${e.id}`,
       lastModified: now,
@@ -301,7 +342,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     priority: 0.8,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...rippleRoutes, ...radarRoutes, ...companyRoutes, ...newsRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  return [...staticRoutes, ...eventRoutes, ...rippleRoutes, ...radarRoutes, ...companyRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }
 
 export async function GET() {

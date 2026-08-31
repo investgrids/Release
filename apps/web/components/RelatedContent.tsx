@@ -89,23 +89,29 @@ export function RelatedContent({
   // identical pattern for the full reasoning.
   const skippedFirstResetRef = useRef(!!initialData);
 
+  // Real, systemic bug found+fixed 2026-08-25 (3IINFOLTD/IIFL wrong-
+  // entity-intelligence audit) — see components/intelligence/
+  // InvestmentThesis.tsx's identical fix for the full explanation of
+  // `cancelled`.
   useEffect(() => {
     if (!entityId) return;
     if (skippedFirstResetRef.current) {
       skippedFirstResetRef.current = false;
       return;
     }
+    let cancelled = false;
     const params = new URLSearchParams();
     if (title)  params.set("title",  title);
     if (sector) params.set("sector", sector);
     fetch(`${API}/api/related/${entityType}/${encodeURIComponent(entityId)}?${params}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (!data) return;
+        if (!data || cancelled) return;
         setGroups(buildGroups(data as Record<string, RelatedItem[]>));
       })
       .catch(() => {/* ignore */})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [entityType, entityId, title, sector]);
 
   if (!loading && groups.length === 0) return null;
@@ -120,7 +126,10 @@ export function RelatedContent({
       {loading ? (
         <Skeleton />
       ) : (
-        <div className="space-y-4">
+        // Owner request (2026-08-25): render the groups (Related Events,
+        // Opportunities, etc.) side-by-side rather than stacked, when
+        // there's more than one — single column on narrow screens.
+        <div className={groups.length > 1 ? "grid grid-cols-1 gap-4 sm:grid-cols-2" : "space-y-4"}>
           {groups.map(group => (
             <div key={group.type}>
               <div className={`mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${COLOR_CLASSES[group.color] ?? "text-text-secondary"}`}>

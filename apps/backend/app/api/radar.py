@@ -12,10 +12,11 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.schemas.opportunity_detail import OpportunityDetailResponse, PaginatedOpportunities
 from app.services.opportunity_service import OpportunityService
-from app.services.opportunity_v2.read_service import get_opportunity_v2_detail
+from app.services.opportunity_v2.read_service import get_opportunity_v2_detail, list_public_opportunities_v2
 
 logger = structlog.get_logger(__name__)
 
@@ -24,6 +25,17 @@ router = APIRouter()
 
 def _get_service(db: AsyncSession = Depends(get_db)) -> OpportunityService:
     return OpportunityService(db)
+
+
+# ── Meta — V2-B, 2026-08-24. Must be declared BEFORE /{opportunity_id} or
+# the catch-all path param would swallow "meta" as an attempted numeric/slug
+# lookup. The one real signal the frontend needs to decide whether a V1
+# legacy detail page should self-noindex (page.tsx) — not exposing the
+# whole Settings object, just this one flag, which is the only one any
+# frontend consumer actually needs. ─────────────────────────────────────────
+@router.get("/meta")
+async def get_radar_meta():
+    return {"opportunity_v2_promoted": settings.opportunity_v2_promoted}
 
 
 # ── Detail — must be declared BEFORE list so /{id} doesn't swallow GET / ─────
@@ -80,11 +92,20 @@ async def get_opportunity_detail(
     return detail
 
 
-@router.get("/", response_model=PaginatedOpportunities)
+@router.get("/")
 async def list_opportunities(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     service: OpportunityService = Depends(_get_service),
-) -> PaginatedOpportunities:
+    db: AsyncSession = Depends(get_db),
+):
+    # V2-B, 2026-08-24: cutover-flag-aware. Pre-promotion (default), this is
+    # V1's list, byte-for-byte unchanged (no response_model constraint above
+    # any more, same reason the detail route already dropped it — the two
+    # shapes are real and different, never coerced into one Pydantic model).
+    # Post-promotion, real public V2 rows only — list_public_opportunities_v2
+    # applies the same public_status="public" gate the detail lookup does.
+    if settings.opportunity_v2_promoted:
+        return await list_public_opportunities_v2(db, page=page, page_size=page_size)
     return await service.list_opportunities(page=page, page_size=page_size)
 

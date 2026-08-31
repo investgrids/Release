@@ -171,11 +171,17 @@ export function PatternIntelligenceCard({
     typical_losers?: string[];
     average_timeline?: string;
     overall_confidence?: number;
+    degraded?: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Real, systemic bug found+fixed 2026-08-25 (3IINFOLTD/IIFL wrong-
+  // entity-intelligence audit) — see InvestmentThesis.tsx's identical
+  // fix for the full explanation of `cancelled`.
   useEffect(() => {
     if (!entityType || !entityId) return;
+    let cancelled = false;
+    setFetched(null);
     setLoading(true);
     const params = new URLSearchParams();
     if (entityTitle)       params.set("title",       entityTitle.slice(0, 200));
@@ -184,9 +190,20 @@ export function PatternIntelligenceCard({
 
     fetch(`${API}/api/pattern/${entityType}/${encodeURIComponent(entityId)}?${params}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.patterns) setFetched(d); })
+      // Company redesign final-re-audit fix — the backend's own `degraded`
+      // flag means "generic template, not real analysis" (see
+      // ai_service.py's own comment on this exact field: "caller must not
+      // present this as personalized"). This component was never reading
+      // it, so a failed real pattern-match silently rendered a fabricated-
+      // looking historical analog (a real live-observed case: "68%
+      // similarity", "75% success rate") with zero disclosure. Degraded
+      // responses are now treated the same as "no real analysis" — never
+      // stored into `fetched`, so the existing honest empty state renders
+      // instead of fabricated content.
+      .then(d => { if (!cancelled && d?.patterns && !d?.degraded) setFetched(d); })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [entityType, entityId, entityTitle, entityDescription, entitySector]);
 
   const patterns   = staticPatterns   ?? fetched?.patterns   ?? [];

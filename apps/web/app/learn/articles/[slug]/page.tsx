@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { ChevronRight, ArrowLeft, Clock } from "lucide-react";
 import { ARTICLES, getArticle, getRelatedArticles } from "@/lib/articles-data";
 import { getGlossaryTerm } from "@/lib/glossary-data";
+import { safeJsonLd } from "@/lib/text";
+
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 export function generateStaticParams() {
   return ARTICLES.map(a => ({ slug: a.slug }));
@@ -20,6 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title: article.title, description: article.summary, type: "article",
       images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
     },
+    alternates: { canonical: `${SITE}/learn/articles/${slug}` },
   };
 }
 
@@ -33,8 +37,21 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
     .map(s => getGlossaryTerm(s))
     .filter((t): t is NonNullable<typeof t> => !!t);
 
+  // No publishedAt/dateModified field exists on Article -- omitted rather
+  // than fabricated. Content is static reference material (like the
+  // guides/glossary), not time-sensitive news.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description: article.summary,
+    url: `${SITE}/learn/articles/${slug}`,
+    publisher: { "@type": "Organization", name: "MarketRipple" },
+  };
+
   return (
     <div className="space-y-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <nav className="flex items-center gap-1.5 text-[11px] text-text-muted">
         <Link href="/learn/articles" className="hover:text-text-secondary">Articles</Link>
         <ChevronRight className="h-3 w-3" />

@@ -261,10 +261,27 @@ async def _detect_early_theme(db: AsyncSession, exclude: str | None = None) -> d
         return None
     theme = themes[0]
 
-    opp = (await db.execute(select(Opportunity))).scalars().all()
-    match = next((o for o in opp if theme.theme.lower() in (o.title or "").lower()
-                  or any(theme.theme.lower() in (s or "").lower() for s in (o.sectors or []))), None)
-    opportunity_score = round(match.opportunity_score) if match else round(theme.score)
+    # Batch E consumer migration, 2026-08-24 — dispatches on
+    # settings.opportunity_read_source. V2 branch matches only public
+    # rows (public_status="public"), same real title/sectors substring
+    # match ported verbatim rather than reinvented, and resolves
+    # `opportunity_href` server-side (never a raw id/slug for
+    # SignalActions.tsx / signal/[slug]/page.tsx to guess how to route).
+    from app.core.config import settings
+    theme_lower = theme.theme.lower()
+    if settings.opportunity_v2_promoted:
+        from app.db.models.opportunity_v2 import OpportunityV2
+        opp = (await db.execute(select(OpportunityV2).where(OpportunityV2.public_status == "public"))).scalars().all()
+        match = next((o for o in opp if theme_lower in (o.current_title or o.formation_title or "").lower()
+                      or any(theme_lower in (s or "").lower() for s in (o.sectors or []))), None)
+        opportunity_score = round(match.current_score) if match and match.current_score is not None else round(theme.score)
+        opportunity_href = f"/opportunity-radar/{match.slug}" if match else None
+    else:
+        opp = (await db.execute(select(Opportunity))).scalars().all()
+        match = next((o for o in opp if theme_lower in (o.title or "").lower()
+                      or any(theme_lower in (s or "").lower() for s in (o.sectors or []))), None)
+        opportunity_score = round(match.opportunity_score) if match else round(theme.score)
+        opportunity_href = f"/opportunity-radar/{match.id}" if match else None
 
     # theme.top_stocks already carries each stock's real live change_pct
     # (see homepage_intelligence.py's theme-scoring job, which writes it) —
@@ -298,7 +315,7 @@ async def _detect_early_theme(db: AsyncSession, exclude: str | None = None) -> d
         "theme": theme.theme,
         "opportunity_score": opportunity_score,
         "companies": top_stocks,
-        "opportunity_id": match.id if match else None,
+        "opportunity_href": opportunity_href,
         "detected_at": theme.updated_at.isoformat() if theme.updated_at else None,
     }
 

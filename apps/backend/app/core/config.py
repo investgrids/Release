@@ -177,10 +177,33 @@ class Settings(BaseSettings):
     # once a day or two of shadow logs look clean.
     fact_grounding_enforce: bool = False
 
+    # ── Opportunity V2 promotion (V2-B, 2026-08-24) ──────────────────────────
+    # The one switch that moves the whole system's public posture at once —
+    # per the original remediation plan's Batch E design ("one config change
+    # later moves every consumer atomically. Do not flip the default in this
+    # batch — that's the actual cutover"). "v1" (default) is today's real,
+    # unchanged behavior: job_daily_opportunities keeps writing, V1 pages
+    # stay indexed, the sitemap keeps listing V1 numeric URLs, and every V1
+    # read consumer (related.py, sectors.py, weekend_intelligence.py,
+    # ai_search/pipeline.py, live_intelligence.py, company_intelligence.py,
+    # intelligence/engine.py — see V2-B's own audit) is untouched. "v2" is
+    # the promoted state: V1's generation job stops (see scheduler.py),
+    # run_shadow_pass becomes the sole writer, V1 pages get noindex,follow
+    # (V1 code/tables/reads are NOT deleted — this is promotion, not
+    # retirement), and the sitemap emits V2 canonical slugs. Flipping this
+    # to "v2" is the actual cutover decision and is explicitly NOT done by
+    # this settings default — a human decides when, after the observation
+    # window the owner specified.
+    opportunity_read_source: str = "v1"  # "v1" | "v2"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         extra = "ignore"  # silently skip any unrecognised env vars
+
+    @property
+    def opportunity_v2_promoted(self) -> bool:
+        return self.opportunity_read_source == "v2"
 
     @property
     def is_production(self) -> bool:

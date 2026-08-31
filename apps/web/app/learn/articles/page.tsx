@@ -2,21 +2,45 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Clock, ChevronRight } from "lucide-react";
 import { ARTICLES, ARTICLE_CATEGORIES } from "@/lib/articles-data";
+import { safeJsonLd } from "@/lib/text";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
 export const metadata: Metadata = {
   title: "Investor Education Articles",
   description:
     "Longer-form articles on how markets actually work — ripple effects, sector rotation, RBI policy transmission, FII/DII flows, and market cycles.",
+  alternates: { canonical: `${SITE_URL}/learn/articles` },
   openGraph: {
     title: "Investor Education Articles — MarketRipple Learn",
     description: "Longer-form articles on how Indian markets actually work.",
+    url: `${SITE_URL}/learn/articles`,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
+  },
+};
+
+// Built directly from ARTICLES — the same real, written articles rendered
+// on the page — so this can never drift into fabricated entries.
+const ARTICLES_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "Investor Education Articles",
+  url: `${SITE_URL}/learn/articles`,
+  mainEntity: {
+    "@type": "ItemList",
+    itemListElement: ARTICLES.map((a, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: a.title,
+      url: `${SITE_URL}/learn/articles/${a.slug}`,
+    })),
   },
 };
 
 export default function ArticlesIndexPage() {
   return (
     <div className="space-y-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(ARTICLES_JSONLD) }} />
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Knowledge Library</p>
         <h1 className="mt-3 text-[26px] font-black leading-tight text-text-primary md:text-[32px]">Investor Education</h1>

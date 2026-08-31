@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.development import Development, DevelopmentEvidence
@@ -88,6 +88,7 @@ class WhatChangedSchema(BaseModel):
 class OpportunityV2DetailResponse(BaseModel):
     id: str
     slug: str
+    title: str                                    # real fallback chain, see get_opportunity_v2_detail
     thesis_anchor: str
     direction: str
     current_strength: Optional[float] = None     # current_score — real, bounded, NEVER relabeled "confidence"
@@ -206,7 +207,17 @@ async def _build_ripple(thesis_anchor: str, developments: list[Development]) -> 
 
 
 async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[OpportunityV2DetailResponse]:
-    opp = (await db.execute(select(OpportunityV2).where(OpportunityV2.slug == slug))).scalar_one_or_none()
+    # Sitemap Truth Audit, 2026-08-24 — this lookup had no public_status
+    # filter at all, meaning any shadow-status (unpublished) opportunity
+    # would be fully fetchable by anyone who guessed or was given its real
+    # slug, bypassing the shadow gate entirely. public_status="public" is
+    # the only value that means "promoted, meant to be publicly reachable"
+    # per this model's own column comment — shadow rows return the same
+    # 404 an unknown slug would (radar.py's caller already maps a None
+    # return to HTTPException 404, so this is the only change needed).
+    opp = (await db.execute(
+        select(OpportunityV2).where(OpportunityV2.slug == slug, OpportunityV2.public_status == "public")
+    )).scalar_one_or_none()
     if opp is None:
         return None
 
@@ -221,9 +232,21 @@ async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[Opp
 
     why_this_exists = opp.current_summary if opp.narrative_status == "generated" else None
 
+    # V2-A contract alignment, 2026-08-24 — the response had no top-level
+    # display title at all (only formation_title/current_title inside
+    # what_changed, which is only present once the title has actually
+    # changed). The frontend page needs a real title to render regardless
+    # of narrative_status. Reuses the exact real fallback chain the model
+    # itself already documents (opportunity_v2.py's own column comment) and
+    # orchestration.py already uses for slug_base — never a fabricated
+    # string, and identical to what this opportunity would already fall
+    # back to elsewhere in the codebase.
+    title = opp.current_title or opp.formation_title or opp.thesis_anchor
+
     return OpportunityV2DetailResponse(
         id=opp.id,
         slug=opp.slug,
+        title=title,
         thesis_anchor=opp.thesis_anchor,
         direction=opp.thesis_direction,
         current_strength=opp.current_score,
@@ -241,3 +264,123 @@ async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[Opp
         created_at=opp.created_at.isoformat(),
         updated_at=opp.updated_at.isoformat(),
     )
+
+
+# ── List — V2-B, 2026-08-24 ───────────────────────────────────────────────────
+# The list capability the sitemap (and, later, any "recent opportunities"
+# widget migrated off V1) needs. No V2 list endpoint existed before this —
+# every prior consumer of OpportunityV2 was the single-slug detail lookup
+# above. Filters on public_status="public" for the exact same reason the
+# detail lookup does: a shadow row must never become independently
+# reachable, not through a direct slug guess and not through a list either.
+
+class OpportunityV2ListItem(BaseModel):
+    id: str
+    slug: str
+    title: str
+    current_strength: Optional[float] = None
+    sectors_themes: list[str] = []
+    updated_at: str
+
+
+class PaginatedOpportunitiesV2(BaseModel):
+    items: list[OpportunityV2ListItem]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+async def list_public_opportunities_v2(db: AsyncSession, page: int = 1, page_size: int = 100) -> PaginatedOpportunitiesV2:
+    base = select(OpportunityV2).where(OpportunityV2.public_status == "public")
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
+
+    rows = (await db.execute(
+        base.order_by(OpportunityV2.updated_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+    )).scalars().all()
+
+    items = [
+        OpportunityV2ListItem(
+            id=o.id, slug=o.slug,
+            title=o.current_title or o.formation_title or o.thesis_anchor,
+            current_strength=o.current_score, sectors_themes=o.sectors or [],
+            updated_at=o.updated_at.isoformat(),
+        )
+        for o in rows
+    ]
+    pages = max(1, (total + page_size - 1) // page_size)
+    return PaginatedOpportunitiesV2(items=items, total=total, page=page, page_size=page_size, pages=pages)
+
+
+# ── Sector/theme search — Batch E consumer migration, 2026-08-24 ────────────
+# V2-native equivalent of OpportunityRepository.list_by_sector_or_theme
+# (same real matching strategy: sectors is list-membership, title is a
+# length-gated substring match — ported verbatim, not reinvented, so
+# search behavior doesn't silently change shape between modes). Real
+# fields only in the returned dicts — current_strength/direction, never
+# opportunity_score/confidence/risk_level (V2 doesn't have them). Callers
+# (ai_search/pipeline.py, ai_search_service.py, ai_search/evidence.py,
+# ai_recommendation_engine.py) must read the right keys for the active
+# mode — see OpportunityService.list_by_sector_or_theme's dispatch.
+async def list_public_opportunities_v2_by_sector_or_theme(db: AsyncSession, terms: list[str], limit: int = 10) -> list[dict]:
+    if not terms:
+        return []
+    terms_lower = [t.lower() for t in terms]
+    title_terms = [t for t in terms_lower if len(t) >= 4]
+
+    candidates = (await db.execute(
+        select(OpportunityV2)
+        .where(OpportunityV2.public_status == "public")
+        .order_by(OpportunityV2.current_score.desc())
+        .limit(200)
+    )).scalars().all()
+
+    def _matches(opp: OpportunityV2) -> bool:
+        opp_sectors = [str(s).lower() for s in (opp.sectors or [])]
+        if any(t in opp_sectors for t in terms_lower):
+            return True
+        title = (opp.current_title or opp.formation_title or "").lower()
+        return any(t in title for t in title_terms)
+
+    return [
+        {
+            "id": o.id, "slug": o.slug,
+            "title": o.current_title or o.formation_title or o.thesis_anchor,
+            "summary": o.current_summary if o.narrative_status == "generated" else None,
+            "current_strength": o.current_score, "direction": o.thesis_direction,
+            "sectors": o.sectors or [],
+        }
+        for o in candidates if _matches(o)
+    ][:limit]
+
+
+# ── Company → Opportunity — Batch E consumer migration, 2026-08-24 ──────────
+# V2-native equivalent of company_intelligence.py::get_related_opportunities
+# (which joins V1's OpportunityCompany junction table). V2 has no such
+# junction table — real graph-confirmed companies live on
+# OpportunityV2.companies (JSON list, set by orchestration.py at write
+# time). SQLite has no portable JSON-containment operator (same reason
+# list_by_sector_or_theme's own V1 repository method filters in Python
+# rather than DB-side), so this filters a bounded, score-ordered public
+# candidate pool in Python too.
+async def list_public_opportunities_v2_for_company(db: AsyncSession, symbol: str, limit: int = 3) -> list[dict]:
+    symbol_upper = symbol.upper()
+    candidates = (await db.execute(
+        select(OpportunityV2)
+        .where(OpportunityV2.public_status == "public")
+        .order_by(OpportunityV2.current_score.desc())
+        .limit(200)
+    )).scalars().all()
+
+    matches = [o for o in candidates if symbol_upper in [c.upper() for c in (o.companies or [])]]
+    return [
+        {
+            "id": o.id,
+            "title": o.current_title or o.formation_title or o.thesis_anchor,
+            "href": f"/opportunity-radar/{o.slug}",
+            "score": o.current_score,
+        }
+        for o in matches[:limit]
+    ]

@@ -166,14 +166,23 @@ export async function generateMetadata({
   params: Promise<{ type: string; id: string }>;
 }): Promise<Metadata> {
   const { type, id } = await params;
-  if (!isValid(type)) return { title: "Not Found" };
+  // Sitemap Truth Audit, 2026-08-24 — a throwaway social-preview generator
+  // (7 entity types, no persistence of its own) should never itself be a
+  // ranked search result; the canonical below already correctly points
+  // readers/crawlers at the real entity page, but nothing previously
+  // stopped this URL from being crawled and indexed directly before that
+  // consolidation happens. Per the Indexability Contract's PREVIEW/
+  // ALTERNATE SURFACE rule: noindex, follow, always.
+  const noindex: Metadata["robots"] = { index: false, follow: true };
+  if (!isValid(type)) return { title: "Not Found", robots: noindex };
   const entity = await fetchEntity(type, id);
-  if (!entity) return { title: "Not Found" };
+  if (!entity) return { title: "Not Found", robots: noindex };
   const url  = `${SITE}/share/${type}/${id}`;
   const desc = (entity.description ?? "").slice(0, 160) || "AI-powered market intelligence from MarketRipple.";
   return {
     title:       entity.title,
     description: desc,
+    robots:      noindex,
     openGraph: {
       type:      "article",
       title:     entity.title,

@@ -474,7 +474,10 @@ export function PortfolioConfidenceForm({
                   ))
                 )}
               </div>
-              <Link href="/newsroom/themes" className="mt-3 inline-flex items-center gap-1 text-[11.5px] font-semibold text-accent-violet hover:text-accent-violet/80">
+              {/* SEO P1-P2, 2026-08-24 — was /newsroom/themes, a confirmed
+                  duplicate of this exact data (noindexed, canonical ->
+                  /opportunity-radar). Links to the real destination. */}
+              <Link href="/opportunity-radar" className="mt-3 inline-flex items-center gap-1 text-[11.5px] font-semibold text-accent-violet hover:text-accent-violet/80">
                 Explore All Themes <ArrowRight className="h-3 w-3" />
               </Link>
             </div>

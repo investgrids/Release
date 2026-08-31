@@ -81,8 +81,13 @@ export function MonitoringChecklist({
   const [fetched,  setFetched]  = useState<ChecklistItem[] | null>(null);
   const [loading,  setLoading]  = useState(false);
 
+  // Real, systemic bug found+fixed 2026-08-25 (3IINFOLTD/IIFL wrong-
+  // entity-intelligence audit) — see InvestmentThesis.tsx's identical
+  // fix for the full explanation.
   useEffect(() => {
     if (!entityType || !entityId) return;
+    let cancelled = false;
+    setFetched(null);
     setLoading(true);
     const params = new URLSearchParams();
     if (entityTitle)       params.set("title",       entityTitle.slice(0, 200));
@@ -92,10 +97,11 @@ export function MonitoringChecklist({
     fetch(`${API}/api/checklist/${entityType}/${encodeURIComponent(entityId)}?${params}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.items) setFetched(d.items);
+        if (!cancelled && d?.items) setFetched(d.items);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [entityType, entityId, entityTitle, entityDescription, entitySector]);
 
   const items = staticItems?.length ? staticItems : (fetched ?? []);

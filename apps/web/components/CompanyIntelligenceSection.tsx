@@ -5,12 +5,16 @@ import Link from "next/link";
 import { Sparkles, Zap, GitBranch, History, Lightbulb, ArrowRight } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { InvestmentWatchPanel, type WatchSubject } from "@/components/ai/InvestmentWatchPanel";
-import { ConfidenceBreakdownPanel } from "@/components/ai/ConfidenceBreakdownPanel";
 
 interface ActiveEvent { id: string; slug?: string; headline: string; urgency: number; sentiment: string; lifecycle: string; active_score: number; direct: boolean; }
 interface RipplePosition { upstream: string[]; company: string; downstream: string[]; }
 interface Historical { event_title: string; similarity: number; key_lesson: string | null; winners: string[]; losers: string[]; }
-interface RelatedOpportunity { id: number; slug: string; title: string; opportunity_score: number; }
+// Batch E consumer migration, 2026-08-24 — company_intelligence.py now
+// resolves the full href server-side (V1 numeric id or V2 slug,
+// depending on settings.opportunity_read_source) rather than exposing a
+// raw id/slug pair. Supersedes the earlier V2-B fix that switched this
+// to o.id — that was only correct for V1 mode; href is correct in both.
+interface RelatedOpportunity { title: string; href: string; score: number | null; }
 interface CompanyIntel {
   available: boolean;
   symbol?: string;
@@ -26,10 +30,6 @@ const _LIFECYCLE_DOT: Record<string, string> = {
   LIVE: "bg-rose-400", Developing: "bg-amber-400", Active: "bg-sky-400", Historical: "bg-slate-500",
 };
 
-function Stars({ n }: { n: number }) {
-  return <span className="text-amber-400 tracking-tight">{"★".repeat(n)}<span className="text-text-primary/15">{"★".repeat(5 - n)}</span></span>;
-}
-
 /**
  * Company Intelligence (Platform Integration Sprint) — "why does this
  * company matter today," reusing every engine already built this session
@@ -43,12 +43,25 @@ function Stars({ n }: { n: number }) {
 export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: { symbol: string; govScore?: number | null; pricePositive?: boolean | null }) {
   const [data, setData] = useState<CompanyIntel | null>(null);
 
+  // Real, systemic bug found+fixed 2026-08-25 (3IINFOLTD/IIFL wrong-
+  // entity-intelligence audit) — without `cancelled`, a stale in-flight
+  // request for a previously-viewed company could overwrite the
+  // currently-displayed company's real data after the fact, with no
+  // further re-render to correct it. Same fix applied across every
+  // entity-scoped intelligence component that does its own fetch (see
+  // components/intelligence/InvestmentThesis.tsx for the full
+  // explanation).
   useEffect(() => {
+    let cancelled = false;
+    setData(null);
     const params = new URLSearchParams();
     if (govScore != null) params.set("gov_score", String(govScore));
     if (pricePositive != null) params.set("price_positive", String(pricePositive));
     fetch(`${API}/api/company-intelligence/${symbol}?${params.toString()}`)
-      .then(r => r.json()).then(setData).catch(() => setData({ available: false }));
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setData({ available: false }); });
+    return () => { cancelled = true; };
   }, [symbol, govScore, pricePositive]);
 
   if (!data?.available) return null;
@@ -64,9 +77,17 @@ export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: 
             <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-violet-600 dark:text-violet-300">
               <Sparkles className="h-3.5 w-3.5" /> Why {symbol} Matters Today
             </p>
-            <Stars n={wm.stars} />
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {/* 2026-08-25 — Confidence (and the Stars rating, which was just
+              that same number divided by 20) retired per the confidence
+              provenance audit: this card's "confidence" is a hardcoded
+              6/10 AI-reasoning constant plus 2 other hardcoded factors
+              (macro alignment, volatility) summed with real but partial
+              evidence, and its own displayed sub-breakdown didn't even
+              arithmetically reduce to the number shown. Verdict and Last
+              Changed below are real, independently-sourced Investment
+              Watch data, unaffected by that finding. */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <p className="text-[9px] uppercase tracking-wider text-text-muted">Current Verdict</p>
               <p className="mt-0.5 text-[14px] font-bold text-text-primary">{wm.verdict ?? "—"}</p>
@@ -76,10 +97,6 @@ export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: 
               <p className="mt-0.5 text-[14px] font-bold text-text-primary">
                 {wm.last_change ? `${wm.last_change.from_date} → ${wm.last_change.to_date}` : "No change yet"}
               </p>
-            </div>
-            <div>
-              <p className="text-[9px] uppercase tracking-wider text-text-muted">Confidence</p>
-              <p className="mt-0.5 text-[14px] font-bold text-text-primary">{Math.round(wm.confidence)}%</p>
             </div>
           </div>
           {wm.reasons.length > 0 && (
@@ -139,13 +156,21 @@ export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: 
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* 5. Why Confidence — reused verbatim, AI Search's own component */}
-        {data.confidence_breakdown && <ConfidenceBreakdownPanel breakdown={data.confidence_breakdown} />}
-
-        {/* 7. Investment Watch — reused verbatim, Phase 2B's own component */}
-        <InvestmentWatchPanel subject={{ subject_key: `company:${symbol}`, subject_type: "company", subject_label: symbol } as WatchSubject} />
-      </div>
+      {/* 2026-08-25 — "Why This Confidence Score" (ConfidenceBreakdownPanel,
+          fed by data.confidence_breakdown) retired per the confidence
+          provenance audit: this card's headline percentage doesn't
+          arithmetically derive from the 5 sub-metrics shown beside it (each
+          independently rescaled to its own max), 2 of its real 8 inputs
+          (macro alignment, volatility) never appear in the breakdown at
+          all, "Data Freshness" is displayed as if it contributes to the
+          score but doesn't (0 of 8 factors), and "AI Reasoning" is a
+          hardcoded 6/10 constant, not a real rating, for this specific
+          consumer. ConfidenceBreakdownPanel itself is untouched — AI
+          Search's own use of it (AISearchClient.tsx) feeds a genuinely
+          different, real per-query LLM self-rating into the same shared
+          component and is a separate, not-yet-audited question. */}
+      {/* 7. Investment Watch — reused verbatim, Phase 2B's own component */}
+      <InvestmentWatchPanel subject={{ subject_key: `company:${symbol}`, subject_type: "company", subject_label: symbol } as WatchSubject} />
 
       {/* 6. Historical Intelligence */}
       {data.historical && (
@@ -177,9 +202,9 @@ export function CompanyIntelligenceSection({ symbol, govScore, pricePositive }: 
           </p>
           <div className="flex flex-wrap gap-2">
             {data.related_opportunities!.map(o => (
-              <Link key={o.id} href={`/opportunity-radar/${o.slug}` as any}
+              <Link key={o.href} href={o.href as any}
                 className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[12px] font-medium text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-500/10">
-                {o.title} <span className="text-[10px] text-emerald-400/70">{Math.round(o.opportunity_score)}</span>
+                {o.title} {o.score != null && <span className="text-[10px] text-emerald-400/70">{Math.round(o.score)}</span>}
               </Link>
             ))}
           </div>

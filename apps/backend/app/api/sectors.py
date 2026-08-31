@@ -160,6 +160,7 @@ async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)
     sector — same word-overlap matching pattern as context_pulse.py's
     _find_related_opportunity, reused rather than reinvented."""
     from sqlalchemy import select
+    from app.core.config import settings
     from app.db.models.event import Event
     from app.db.models.opportunity import Opportunity
 
@@ -187,19 +188,33 @@ async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)
     stocks = await _get_sector_stocks_cached(key)
     target_words = _sector_words(sector_name) | _sector_words(sector_id.replace("-", " "))
 
-    opp_rows = (await db.execute(
-        select(Opportunity).order_by(Opportunity.opportunity_score.desc()).limit(60)
-    )).scalars().all()
+    # Batch E consumer migration, 2026-08-24 — dispatches on
+    # settings.opportunity_v2_promoted. Both branches build `href`
+    # server-side (never a raw id/slug pair the frontend has to guess how
+    # to route — the exact class of bug already found and fixed on
+    # CompanyIntelligenceSection.tsx) and a generic `score` field
+    # (opportunity_score in V1, current_strength in V2 — same real
+    # signal, real field per mode, no V1-shaped fake in V2 mode).
     opportunities = []
-    for o in opp_rows:
-        opp_words = {w.lower() for s in (o.sectors or []) for w in _sector_words(s)}
-        if _words_overlap(target_words, opp_words):
-            opportunities.append({
-                "id": o.id, "slug": o.slug, "title": o.title,
-                "opportunity_score": o.opportunity_score, "confidence": o.confidence,
-            })
-        if len(opportunities) >= 6:
-            break
+    if settings.opportunity_v2_promoted:
+        from app.services.opportunity_v2.read_service import list_public_opportunities_v2
+        page = await list_public_opportunities_v2(db, page=1, page_size=100)
+        for o in page.items:
+            opp_words = {w.lower() for s in (o.sectors_themes or []) for w in _sector_words(s)}
+            if _words_overlap(target_words, opp_words):
+                opportunities.append({"title": o.title, "href": f"/opportunity-radar/{o.slug}", "score": o.current_strength})
+            if len(opportunities) >= 6:
+                break
+    else:
+        opp_rows = (await db.execute(
+            select(Opportunity).order_by(Opportunity.opportunity_score.desc()).limit(60)
+        )).scalars().all()
+        for o in opp_rows:
+            opp_words = {w.lower() for s in (o.sectors or []) for w in _sector_words(s)}
+            if _words_overlap(target_words, opp_words):
+                opportunities.append({"title": o.title, "href": f"/opportunity-radar/{o.id}", "score": o.opportunity_score})
+            if len(opportunities) >= 6:
+                break
 
     event_rows = (await db.execute(
         select(Event).order_by(Event.published_at.desc()).limit(200)
