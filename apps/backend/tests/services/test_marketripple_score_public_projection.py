@@ -56,7 +56,7 @@ async def _seed_entity(db, symbol: str, entity_id: str, old_symbol: str | None =
 
 
 def _snapshot(symbol, entity_id, *, score, financial_strength, coverage_pct, fin_metrics_used,
-              financial_data_as_of, block_reasons):
+              financial_data_as_of, block_reasons, publishable=False):
     now = datetime.now(timezone.utc)
     return MarketRippleScoreSnapshot(
         entity_id=entity_id, symbol=symbol, score=score, rating="Positive",
@@ -64,19 +64,22 @@ def _snapshot(symbol, entity_id, *, score, financial_strength, coverage_pct, fin
         coverage_pct=coverage_pct, financial_metrics_used_count=fin_metrics_used, financial_metrics_total_count=7,
         methodology_version="BANKING_V1", peer_universe=[], peer_universe_count=27,
         calculated_at=now, financial_data_as_of=financial_data_as_of,
-        publishable=False, publication_block_reason="S2 phase lock",
+        publishable=publishable, publication_block_reason=None if publishable else "S2 phase lock",
         publication_policy_version="BANKING_V1_P1", publication_block_reasons=block_reasons,
     )
 
 
 @pytest.mark.asyncio
 async def test_complete_eligible_bank_renders_real_score():
-    # Real ICICIBANK-shaped profile: 7/7 metrics, eligible.
+    # Real ICICIBANK-shaped profile: 7/7 metrics, eligible, AND the
+    # whole-feature lock lifted (publishable=True) -- the only
+    # combination that should ever render a real number.
     symbol, entity_id = f"T{_tag()}", _entity_id()
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=60.2, financial_strength=68.7, coverage_pct=83.3,
-                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[]))
+                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          publishable=True))
         await db.commit()
 
     try:
@@ -87,19 +90,21 @@ async def test_complete_eligible_bank_renders_real_score():
         assert result["score"] == 60.2
         assert result["block_headline"] is None
         assert result["block_message"] is None
-        assert result["publishable"] is False  # standing phase lock, unaffected by eligibility
+        assert result["publishable"] is True
     finally:
         await _cleanup([symbol], [entity_id])
 
 
 @pytest.mark.asyncio
 async def test_partial_but_eligible_bank_renders_real_score():
-    # Real KOTAKBANK-shaped profile: 6/7 metrics, still eligible under BANKING_V1_P1.
+    # Real KOTAKBANK-shaped profile: 6/7 metrics, still eligible under
+    # BANKING_V1_P1, AND publishable.
     symbol, entity_id = f"T{_tag()}", _entity_id()
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=57.7, financial_strength=71.8, coverage_pct=80.0,
-                          fin_metrics_used=6, financial_data_as_of="FY2025Q3", block_reasons=[]))
+                          fin_metrics_used=6, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          publishable=True))
         await db.commit()
 
     try:
@@ -107,6 +112,44 @@ async def test_partial_but_eligible_bank_renders_real_score():
             result = await get_marketripple_score_projection(db, symbol)
         assert result["eligible"] is True
         assert result["score"] == 57.7
+    finally:
+        await _cleanup([symbol], [entity_id])
+
+
+@pytest.mark.asyncio
+async def test_eligible_but_not_publishable_hides_real_score():
+    """Company Page release audit fix, 2026-08-31 -- the exact real leak
+    this closes: an eligible bank (real BANKING_V1_P1 pass) whose
+    whole-feature lock is still on (publishable=False, the real,
+    current, standing state for every bank today) must NEVER expose its
+    real score/rating/pillars/coverage/financial_data_as_of through this
+    public, unauthenticated endpoint -- eligibility alone is not enough,
+    `publishable` is the real trust boundary. `eligible` itself stays
+    correctly reported (calculation is untouched) so a caller can still
+    distinguish "genuinely ineligible" from "eligible but not yet
+    published" if it ever needs to."""
+    symbol, entity_id = f"T{_tag()}", _entity_id()
+    async with AsyncSessionLocal() as db:
+        await _seed_entity(db, symbol, entity_id)
+        db.add(_snapshot(symbol, entity_id, score=59.7, financial_strength=68.7, coverage_pct=83.3,
+                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          publishable=False))
+        await db.commit()
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await get_marketripple_score_projection(db, symbol)
+        assert result["resolved"] is True
+        assert result["publishable"] is False
+        assert result["eligible"] is True  # real per-bank verdict, still honestly reported
+        assert result["score"] is None
+        assert result["rating"] is None
+        assert result["pillars"] == {
+            "financial_strength": None, "valuation": None,
+            "market_behaviour": None, "current_intelligence": None,
+        }
+        assert result["evidence_coverage_pct"] is None
+        assert result["financial_data_as_of"] is None
     finally:
         await _cleanup([symbol], [entity_id])
 
@@ -131,6 +174,7 @@ async def test_data_quality_block_shows_insufficient_data_message():
         # NO_ELIGIBLE_FINANCIAL_PERIOD outranks INSUFFICIENT_OVERALL_COVERAGE in priority.
         assert result["block_headline"] == "Insufficient verified financial data"
         assert "financial evidence could not be verified" in result["block_message"]
+        assert result["score"] is None  # ineligible AND not publishable -- never exposed either way
     finally:
         await _cleanup([symbol], [entity_id])
 
@@ -152,6 +196,7 @@ async def test_evidence_thinness_block_shows_building_message():
         assert result["eligible"] is False
         assert result["block_headline"] == "Evidence still building"
         assert "enough current evidence" in result["block_message"]
+        assert result["score"] is None
     finally:
         await _cleanup([symbol], [entity_id])
 
@@ -164,7 +209,8 @@ async def test_alias_resolves_to_the_same_canonical_snapshot():
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, current_symbol, entity_id, old_symbol=old_symbol)
         db.add(_snapshot(current_symbol, entity_id, score=61.0, financial_strength=61.0, coverage_pct=77.8,
-                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[]))
+                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          publishable=True))
         await db.commit()
 
     try:

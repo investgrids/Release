@@ -13,7 +13,7 @@ import { SmartCTA } from "@/components/SmartCTA";
 import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSection";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
-import { scoreToColor, impactToStyle } from "@/lib/scoring";
+import { scoreToColor, impactToStyle, marketRippleScoreDisplayInt } from "@/lib/scoring";
 import {
   Star, Check, Sparkles, TrendingUp,
   BarChart2, TrendingDown, Landmark, Briefcase, Clock,
@@ -401,7 +401,7 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
                 <p className="mt-1 text-[14px] font-black text-text-muted">···</p>
               ) : hasMrScore ? (
                 <>
-                  <p className="mt-1 text-[14px] font-black text-emerald-500">{Math.round(mrScore!.score!)}/100</p>
+                  <p className="mt-1 text-[14px] font-black text-emerald-500">{marketRippleScoreDisplayInt(mrScore!.score)}/100</p>
                   {mrScore!.rating && (
                     <p className={`text-[9px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(mrScore!.rating)}`}>{mrScore!.rating}</p>
                   )}
@@ -1454,7 +1454,7 @@ function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScoreData; s
         A combined view of financial strength, valuation, market behaviour and current market intelligence.
       </p>
       <div className="mt-3 flex items-baseline gap-3">
-        <span className="text-[36px] font-black leading-none text-text-primary">{Math.round(data.score!)}</span>
+        <span className="text-[36px] font-black leading-none text-text-primary">{marketRippleScoreDisplayInt(data.score)}</span>
         <span className="text-[13px] text-text-muted">/ 100</span>
         {data.rating && (
           <span className={`text-[11px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(data.rating)}`}>{data.rating}</span>

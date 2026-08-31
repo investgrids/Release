@@ -97,6 +97,33 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
     eligible = len(reasons) == 0
     block = _public_block_message(reasons) if not eligible else None
 
+    # Publication safety fix — Company Page release audit, 2026-08-31.
+    # `publishable` was previously returned "for transparency/debugging"
+    # alongside the real score/rating/pillars regardless of its value —
+    # safe while this was a shadow-only, never-called-by-anything-public
+    # endpoint, but a real pre-deploy audit confirmed the merged Company
+    # page DOES call this endpoint client-side and render it. A real,
+    # unauthenticated request for an eligible-but-locked bank (e.g.
+    # ICICIBANK: eligible=True, publishable=False) returned its real
+    # score/rating/pillars in full — a genuine leak of an internal,
+    # not-yet-publication-ready number, discoverable via this API alone
+    # even if a UI never rendered it.
+    #
+    # `publishable` is now a hard trust boundary at this layer: whenever
+    # it's False, the numeric payload (score/rating/pillars/evidence
+    # coverage/financial_data_as_of) is never included in the response,
+    # regardless of `eligible`. This does NOT change eligibility
+    # calculation — `eligible` above is untouched and still reflects the
+    # real per-bank BANKING_V1_P1 verdict, still returned for callers
+    # that need it — only what numeric payload this projection is
+    # allowed to expose once the whole-feature lock is on. The existing
+    # frontend UI gate (`data.score != null`) already renders its own
+    # honest "Unavailable" / "Not available yet" state whenever score is
+    # null, so no frontend change is required for this fix to take
+    # effect — an eligible-but-locked bank now correctly shows the same
+    # honest empty state a genuinely-ineligible bank already did.
+    publishable = bool(snap.publishable)
+
     return {
         "resolved": True,
         "snapshot": True,
@@ -104,18 +131,18 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
         "entity_id": snap.entity_id,
         "methodology_version": snap.methodology_version,
         "publication_policy_version": snap.publication_policy_version,
-        "publishable": snap.publishable,  # whole-feature phase lock, for debugging — NOT the UI gate
-        "eligible": eligible,             # the real per-bank BANKING_V1_P1 verdict — the actual UI gate
-        "score": snap.score,
-        "rating": snap.rating,
+        "publishable": publishable,   # whole-feature phase lock — now also the real API trust boundary
+        "eligible": eligible,         # the real per-bank BANKING_V1_P1 verdict — unchanged calculation
+        "score": snap.score if publishable else None,
+        "rating": snap.rating if publishable else None,
         "pillars": {
-            "financial_strength": snap.financial_strength,
-            "valuation": snap.valuation,
-            "market_behaviour": snap.market_behaviour,
-            "current_intelligence": snap.current_intelligence,
+            "financial_strength": snap.financial_strength if publishable else None,
+            "valuation": snap.valuation if publishable else None,
+            "market_behaviour": snap.market_behaviour if publishable else None,
+            "current_intelligence": snap.current_intelligence if publishable else None,
         },
-        "evidence_coverage_pct": snap.coverage_pct,
-        "financial_data_as_of": snap.financial_data_as_of,
+        "evidence_coverage_pct": snap.coverage_pct if publishable else None,
+        "financial_data_as_of": snap.financial_data_as_of if publishable else None,
         "calculated_at": snap.calculated_at.isoformat() if snap.calculated_at else None,
         "block_reason_codes": reasons,
         "block_headline": block[0] if block else None,

@@ -134,3 +134,29 @@ export function averageScores(scores: Array<number | null | undefined>): number 
 export function countAtOrAbove(scores: Array<number | null | undefined>, threshold: number): number {
   return scores.filter((s): s is number => s !== null && s !== undefined && s >= threshold).length;
 }
+
+/**
+ * MarketRipple Score display integer — Company Page release audit fix,
+ * 2026-08-31. A real, confirmed bug: the raw score is a float, and its
+ * published rating label (engine.py::_label_for) is thresholded off
+ * that exact raw value (score >= 60 -> "Positive", etc.) — never off a
+ * rounded display integer. Math.round() can inflate a sub-threshold raw
+ * score into a displayed integer that has visually crossed a real
+ * boundary (a real historical case: ICICIBANK at 59.7 rounds to "60",
+ * while its correctly-computed rating stayed "Neutral" — the displayed
+ * "60/100 · Neutral" then directly contradicts the published "Positive
+ * >= 60" methodology). Math.floor() cannot do this: a floored integer
+ * is always <= the raw score, so it can never show as having crossed a
+ * threshold (45/60/75) the raw score hasn't actually reached.
+ *
+ * The one shared place the MarketRipple Score integer is derived for
+ * display — every render site (Company page hero tile, Overview score
+ * card, and any future one) must use this rather than rounding inline,
+ * so the guarantee holds everywhere the number appears, not just where
+ * someone remembered it. Does not touch `_label_for`'s own thresholds
+ * or how the rating itself is computed — display presentation only.
+ */
+export function marketRippleScoreDisplayInt(score: number | null | undefined): number | null {
+  if (score === null || score === undefined) return null;
+  return Math.floor(score);
+}
