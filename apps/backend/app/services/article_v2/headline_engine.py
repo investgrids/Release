@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 
 from app.services.ai_service import _call_with_fallback
 from app.services.aipe.duplicate_detector import _jaccard, _tokenize
+from app.services.article_v2.company_name import resolve_company_name
 from app.services.article_v2.context_builder import ArticleContextBundle
 from app.services.article_v2.evidence_set_builder import ArticleEvidenceSet
 from app.services.article_v2.identity import ArticleIdentity
@@ -74,7 +75,12 @@ _HEADLINE_UNIQUENESS_JACCARD_THRESHOLD = 0.50  # same bar duplicate_detector.py 
 # clause or "about/regarding" almost always carries the fullest real
 # content) -- with the boilerplate phrase itself stripped out entirely,
 # never included in the output.
-_COMPANY_NAME_RE = re.compile(r"^(.*?)\s+has (?:informed|submitted to)\s+(?:the exchange|bse|nse)", re.IGNORECASE)
+# Used only to strip the boilerplate lead-in when building the topic
+# fallback below (a different job from company-name resolution, which
+# now lives in company_name.py's shared resolve_company_name()).
+_BOILERPLATE_STRIP_RE = re.compile(
+    r"^(.*?)\s+(?:has (?:informed|submitted to)|informs)\s+(?:the exchange|bse|nse)", re.IGNORECASE,
+)
 
 _TOPIC_PATTERNS = [
     re.compile(r"""['"]([^'"]{6,110})['"]"""),
@@ -94,15 +100,16 @@ _MONTHS = {
 
 
 def _extract_company_name(evidence_set: ArticleEvidenceSet) -> str:
-    """Real company legal name, taken from the evidence's own text (the
-    part before "has informed the Exchange..."), never invented. Falls
-    back to the symbol only when the boilerplate phrase isn't present."""
-    title = evidence_set.primary_evidence.title if evidence_set.primary_evidence else None
-    if title:
-        m = _COMPANY_NAME_RE.match(title)
-        if m and m.group(1).strip():
-            return m.group(1).strip().rstrip(",")
-    return evidence_set.symbol or "The company"
+    """Prefers the real, resolver-verified canonical name
+    (evidence_set.company_name) over re-extracting one from filing
+    prose -- see company_name.py's own module docstring for the full
+    rationale (this shared implementation replaced two independently
+    drifting per-module regexes, C6.1 hardening, 2026-09-01)."""
+    return resolve_company_name(
+        verified_company_name=evidence_set.company_name,
+        primary_evidence_title=evidence_set.primary_evidence.title if evidence_set.primary_evidence else None,
+        symbol=evidence_set.symbol,
+    )
 
 
 # Compresses the two most common templated NSE clause shapes -- shorter,
@@ -199,7 +206,7 @@ def _build_deterministic_headline(evidence_set: ArticleEvidenceSet, identity: Ar
 
     topic = _extract_topic(primary_title)
     if not topic:
-        stripped = _COMPANY_NAME_RE.sub("", primary_title or "", count=1)
+        stripped = _BOILERPLATE_STRIP_RE.sub("", primary_title or "", count=1)
         stripped = re.sub(r"^\s*(regarding|about)\s*", "", stripped, flags=re.IGNORECASE).strip()
         topic = (stripped[:140].rstrip() or "a recent regulatory filing")
 

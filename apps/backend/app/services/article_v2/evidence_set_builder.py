@@ -145,6 +145,11 @@ class ArticleEvidenceSet:
     excluded_evidence: list[ExcludedEvidence] = field(default_factory=list)
     conflicts: list[EvidenceConflict] = field(default_factory=list)
     raw_evidence_count: int = 0  # before any C2 filtering (== bundle.evidence count)
+    # The real, resolver-verified canonical company name (threaded from
+    # build_article_evidence_bundle's own resolution, C6.1 hardening,
+    # 2026-09-01) -- lets downstream headline/composition code prefer a
+    # real verified name over re-extracting one from filing prose.
+    company_name: str | None = None
 
 
 def _matched_low_substantiveness(reasons: list[str] | None) -> bool:
@@ -212,7 +217,7 @@ async def build_evidence_set(
         return ArticleEvidenceSet(
             entity_id=bundle.entity_id, symbol=bundle.symbol, event_id=event_id,
             event_headline=event_headline, status=INSUFFICIENT, primary_evidence=None,
-            raw_evidence_count=len(bundle.evidence),
+            raw_evidence_count=len(bundle.evidence), company_name=bundle.company_name,
         )
 
     excluded: list[ExcludedEvidence] = []
@@ -283,6 +288,7 @@ async def build_evidence_set(
             entity_id=bundle.entity_id, symbol=bundle.symbol, event_id=event_id,
             event_headline=event_headline, status=INSUFFICIENT, primary_evidence=None,
             excluded_evidence=excluded, raw_evidence_count=len(bundle.evidence),
+            company_name=bundle.company_name,
         )
 
     # Stage 4 -- primary selection: authority first, not lexical score.
@@ -328,5 +334,5 @@ async def build_evidence_set(
         primary_evidence=primary.evidence,
         supporting_evidence=[r.evidence for r in supporting],
         excluded_evidence=excluded, conflicts=conflicts,
-        raw_evidence_count=len(bundle.evidence),
+        raw_evidence_count=len(bundle.evidence), company_name=bundle.company_name,
     )
