@@ -47,7 +47,7 @@ export function CompanyImpactTable({ companies, quotes }: { companies: CompanyIm
           Why still grows for longer reasons and wraps rather than
           truncating, it just no longer over-claims empty space. */}
       <div className="grid grid-cols-[minmax(0,200px)_auto_auto_minmax(0,380px)_auto] items-center gap-3 border-b border-surface-border/6 bg-text-primary/[0.02] px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
-        <span>Company</span><span>Price</span><span>AI Impact</span><span>Why</span><span className="text-right">Expected Horizon</span>
+        <span>Company</span><span className="text-right">Price</span><span>AI Impact</span><span>Why</span><span className="text-right">Expected Horizon</span>
       </div>
       {companies.map((c, i) => {
         const q = quotes[c.symbol];
