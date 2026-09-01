@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import cast, func, select, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -617,6 +618,56 @@ async def retry_failed_article(article_id: str, db: AsyncSession = Depends(get_d
     if not new_article:
         raise HTTPException(status_code=500, detail="Retry failed to generate a new article")
     return {"ok": True, "new_article_id": new_article.id, "status": new_article.status, "slug": new_article.slug}
+
+
+class RetirementRequest(BaseModel):
+    article_ids: list[str]
+    reason: str
+    retired_by: str
+    dry_run: bool = True
+
+
+class RetirementResultOut(BaseModel):
+    article_id: str
+    outcome: str
+    reason: str
+    prior_status: str | None = None
+    prior_trigger_event_id: str | None = None
+
+
+class RetirementResponse(BaseModel):
+    requested: int
+    retired: int
+    would_retire: int
+    skipped: int
+    results: list[RetirementResultOut]
+
+
+@router.post("/articles/retire", dependencies=[Depends(require_admin_key)], response_model=RetirementResponse)
+async def retire_articles(body: RetirementRequest, db: AsyncSession = Depends(get_db)):
+    """P0 content-integrity remediation (2026-09-01). Thin transport
+    wrapper around the reusable article_retirement primitive
+    (app/services/aipe/article_retirement.py) -- ALL real logic (existence/
+    status/provenance validation, idempotency, the actual write) lives
+    there, already tested independently. This endpoint never discovers
+    candidates on its own: callers must supply an explicit article_ids
+    list. dry_run defaults True -- a caller must explicitly pass
+    dry_run=false to mutate anything."""
+    from app.services.aipe.article_retirement import retire_articles_batch, RETIRED, WOULD_RETIRE
+
+    results = await retire_articles_batch(
+        db, body.article_ids, reason=body.reason, retired_by=body.retired_by, dry_run=body.dry_run,
+    )
+    retired = sum(1 for r in results if r.outcome == RETIRED)
+    would_retire = sum(1 for r in results if r.outcome == WOULD_RETIRE)
+    return RetirementResponse(
+        requested=len(body.article_ids), retired=retired, would_retire=would_retire,
+        skipped=len(results) - retired - would_retire,
+        results=[RetirementResultOut(
+            article_id=r.article_id, outcome=r.outcome, reason=r.reason,
+            prior_status=r.prior_status, prior_trigger_event_id=r.prior_trigger_event_id,
+        ) for r in results],
+    )
 
 
 # ── Articles ───────────────────────────────────────────────────────────────────
