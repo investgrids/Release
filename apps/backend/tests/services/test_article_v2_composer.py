@@ -267,7 +267,12 @@ async def test_provider_exhaustion_produces_grounded_deterministic_output(monkey
 
 
 @pytest.mark.asyncio
-async def test_no_context_does_not_invent_why_it_matters_section(monkeypatch):
+async def test_no_context_no_numbers_downgrades_via_depth_gate_and_never_invents_why_it_matters(monkeypatch):
+    """SAILIFE-shaped real case: no financial/market context AND no real
+    numeric substance in the primary evidence -- C8.4's depth gate
+    downgrades this to FACTUAL_UPDATE-shape entirely (a stronger
+    guarantee than the old 'attempt then omit' behavior), so the LLM is
+    never even considered, let alone called."""
     calls = _mock_llm(monkeypatch, ['{"why_it_matters": "should never be called", "claims": []}'])
     es = _evidence_set("SAILIFE", "Sai Life Sciences has informed the Exchange regarding Information relating to 27th Annual General Meeting")
     identity = compute_identity(es)
@@ -276,9 +281,34 @@ async def test_no_context_does_not_invent_why_it_matters_section(monkeypatch):
         status=NONE_STATUS,
     )
     article = await compose_article(_decision(es, FULL_ARTICLE), es, context, identity, _resolution(identity), _headline())
-    assert article.llm_status == "omitted_no_context"
+    assert article.llm_status == "not_used"
+    assert article.depth_gate_downgraded is True
+    assert article.content_type == FACTUAL_UPDATE
     assert not any(s.name == "why_it_matters" for s in article.sections)
     assert calls["n"] == 0  # the LLM must never even be called
+
+
+@pytest.mark.asyncio
+async def test_real_numeric_substance_alone_keeps_full_article_shape_but_still_omits_why_it_matters(monkeypatch):
+    """The owner's own explicit allowance: a single detailed primary
+    filing with real numeric substance can carry a FULL_ARTICLE on its
+    own, with no C3 context at all -- the depth gate must NOT downgrade
+    this. But Why It Matters still correctly has nothing to reason about
+    (no financial/market context), so it's still omitted -- just via the
+    FULL_ARTICLE-shaped path this time, not a full downgrade."""
+    calls = _mock_llm(monkeypatch, ['{"why_it_matters": "should never be called", "claims": []}'])
+    es = _evidence_set("SOMECO", "Some Company Limited has informed the Exchange regarding a real order worth Rs 5,000 crore from a client")
+    identity = compute_identity(es)
+    context = ArticleContextBundle(
+        entity_id=es.entity_id, symbol=es.symbol, event_id=es.event_id, event_headline=es.event_headline,
+        status=NONE_STATUS,
+    )
+    article = await compose_article(_decision(es, FULL_ARTICLE), es, context, identity, _resolution(identity), _headline())
+    assert article.depth_gate_downgraded is False
+    assert article.content_type == FULL_ARTICLE
+    assert article.llm_status == "omitted_no_context"
+    assert not any(s.name == "why_it_matters" for s in article.sections)
+    assert calls["n"] == 0
 
 
 @pytest.mark.asyncio
@@ -332,13 +362,17 @@ async def test_claim_provenance_survives_composition(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_full_article_section_order():
+    # Real financial context (synthesizable depth, so C8.4's gate keeps
+    # this FULL_ARTICLE-shaped) alongside a real scheduled date (so
+    # what_to_watch has real grounds to fire).
     es = _evidence_set("CANBK", "CANARA BANK has informed the Exchange about Board Meeting to be held on 03-Sep-2026 to consider Fund raising")
     identity = compute_identity(es)
     context = ArticleContextBundle(
         entity_id=es.entity_id, symbol=es.symbol, event_id=es.event_id, event_headline=es.event_headline,
-        status=NONE_STATUS,
+        status=AVAILABLE, financial_context=[_fact("cet1_ratio", 0.1197)],
     )
     article = await compose_article(_decision(es, FULL_ARTICLE), es, context, identity, _resolution(identity), _headline())
+    assert article.depth_gate_downgraded is False
     names = [s.name for s in article.sections]
     assert names[0] == "what_happened"
     assert names[-1] == "source_updated"

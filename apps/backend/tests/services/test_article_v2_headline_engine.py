@@ -8,6 +8,7 @@ pipeline actually works end to end.
 """
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -182,3 +183,159 @@ async def test_real_live_llm_generates_a_valid_headline():
     assert result.h1 is not None
     assert result.status in (ValidationOutcome.OK, ValidationOutcome.FALLBACK)
     assert "AXISCADES" in result.h1.upper() or "AXISCADES" in result.h1
+
+
+# ── C8.2 hardening: headline subject boundary + truncation ─────────────
+
+@pytest.mark.asyncio
+async def test_llm_headline_hijacked_by_supporting_evidence_is_rejected_then_falls_back(monkeypatch):
+    """NEWGEN's real 500-event C7 case: the LLM drew the headline's
+    subject from a supporting "Schedule of meet" filing instead of the
+    primary volume-increase notice. Must be rejected and retried, and
+    if it recurs, fall to the deterministic (primary-only-by-
+    construction) fallback rather than publish a hijacked headline."""
+    supporting = [_evidence("Newgen Software Technologies Limited has informed the Exchange about Schedule of meet")]
+    es = _es(
+        "NEWGEN",
+        "Significant increase in volume has been observed in Newgen Software Technologies Limited. "
+        "The Exchange has written to the company. Newgen Software Technologies Limited has submitted their response.",
+        supporting=supporting,
+    )
+    identity = compute_identity(es)
+    # The LLM keeps proposing a headline that is really about the
+    # supporting "Schedule of meet" filing, not the primary volume notice.
+    _mock_llm(monkeypatch, ['{"headline": "Newgen Software Technologies announces schedule of meet for investors"}'] * 2)
+    result = await generate_headline(es, None, identity, other_accepted_headlines={})
+    assert result.status == ValidationOutcome.FALLBACK
+    assert any("primary" in n for n in result.validation_notes)
+    # The deterministic fallback is guaranteed primary-only by construction.
+    assert "meet" not in (result.h1 or "").lower() or "volume" in (result.h1 or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_llm_headline_leaning_on_supporting_detail_without_hijack_is_accepted(monkeypatch):
+    """A headline may legitimately draw a SMALL corroborating detail from
+    supporting evidence without that making supporting evidence the
+    SUBJECT -- the hijack check uses a real margin, not a bare
+    supporting-vs-primary comparison, so this must not false-positive."""
+    supporting = [_evidence("Canara Bank has informed the Exchange regarding a related credit rating update")]
+    es = _es(
+        "CANBK", "Canara Bank has informed the Exchange about Board Meeting to be held on 03-Sep-2026 to consider Fund raising",
+        supporting=supporting,
+    )
+    identity = compute_identity(es)
+    _mock_llm(monkeypatch, ['{"headline": "Canara Bank board to consider fund raising on September 3"}'])
+    result = await generate_headline(es, None, identity, other_accepted_headlines={})
+    assert result.status == ValidationOutcome.OK
+
+
+def test_topic_extraction_never_truncates_mid_word():
+    """IDBI's real 500-event C7 bug: a raw character-count cap inside the
+    extraction regex sliced a real clause mid-word ('...has written t').
+    The fix must end on a real word boundary, always."""
+    from app.services.article_v2.headline_engine import _build_deterministic_headline
+    from app.services.article_v2.identity import compute_identity as _compute_identity
+
+    es = _es(
+        "IDBI",
+        "Significant increase in volume has been observed in IDBI Bank Limited. The Exchange, in order to "
+        "ensure that investors have latest relevant information about the company and to inform the market "
+        "place so that the interest of the investors is safeguarded, has written to the company. The response "
+        "from the company is awaited.",
+    )
+    identity = _compute_identity(es)
+    headline = _build_deterministic_headline(es, identity)
+    # No fragment ending in a bare partial word right before a truncation point.
+    assert not headline.rstrip("…").rstrip().endswith(" t")
+    assert not re.search(r"\b[a-z]\b$", headline.rstrip("…").rstrip())
+
+
+def test_truncate_at_word_boundary_never_cuts_mid_word():
+    from app.services.article_v2.headline_engine import _truncate_at_word_boundary
+    text = "the company and to inform the market place so that the interest of the investors is safeguarded, has written to the company"
+    result = _truncate_at_word_boundary(text, 110)
+    assert len(result) <= 111  # 110 + ellipsis char is acceptable, never mid-word
+    core = result.rstrip("…").rstrip(",.;:—- ")
+    assert text.startswith(core)
+    # the character immediately after the truncated core, in the original text, must be a space (a real word boundary)
+    assert text[len(core):len(core) + 1] in (" ", "")
+
+
+def test_truncate_at_word_boundary_returns_short_text_unchanged():
+    from app.services.article_v2.headline_engine import _truncate_at_word_boundary
+    assert _truncate_at_word_boundary("short text", 110) == "short text"
+
+
+def test_topic_extraction_does_not_stop_at_abbreviation_periods():
+    """HEG's real 500-event C8 case: 'w.e.f.' (with effect from) has
+    internal periods that used to be treated as a hard sentence-end
+    stop, producing 'of the company w' -- cut off after the first
+    letter, before length-based truncation even ran. Real Indian-filing
+    abbreviations (w.e.f., Dr., Mr., Ms.) make this a recurring shape."""
+    from app.services.article_v2.headline_engine import _build_deterministic_headline
+    from app.services.article_v2.identity import compute_identity as _compute_identity
+
+    es = _es(
+        "HEG",
+        "HEG Limited has informed the Exchange regarding Appointment of Shri Riju Jhunjhunwala as Chairman, "
+        "Managing Director & CEO of the company w.e.f. September 01, 2026.",
+    )
+    identity = _compute_identity(es)
+    headline = _build_deterministic_headline(es, identity)
+    assert not headline.rstrip("…").rstrip().endswith(" w")
+    assert not re.search(r"\b[a-z]\b(?:…)?$", headline.rstrip())
+
+
+# ── C8.3 hardening: batch-wide final uniqueness closure ─────────────────
+
+def test_finalize_batch_uniqueness_keeps_first_seen_downgrades_later_collisions():
+    """SAREGAMA's real 500-event C7 case: one identity collided with
+    THREE later ones, and each one's own per-item disambiguation
+    (checked only against headlines accepted so far) wasn't enough to
+    guarantee the WHOLE final set is distinguishable. First-seen wins,
+    same convention identity.py's own resolve_uniqueness() uses."""
+    from app.services.article_v2.headline_engine import finalize_batch_uniqueness
+
+    es_a = _es("SAREGAMA", "Saregama India Limited has informed the Exchange regarding Notice of Annual General Meeting to be held on September 15, 2026")
+    es_b = _es("SANDESH", "The Sandesh Limited has informed the Exchange regarding Notice of Annual General Meeting to be held on September 15, 2026")
+    es_c = _es("PPAP", "PPAP Automotive Limited has informed the Exchange regarding Notice of Annual General Meeting to be held on September 18, 2026")
+    id_a, id_b, id_c = compute_identity(es_a), compute_identity(es_b), compute_identity(es_c)
+
+    candidates = [
+        (id_a, "Saregama India Limited — AGM on September 15, 2026"),
+        (id_b, "The Sandesh Limited — AGM on September 15, 2026"),
+        (id_c, "PPAP Automotive Limited — AGM on September 18, 2026"),
+    ]
+    result = finalize_batch_uniqueness(candidates)
+    assert result[id_a.identity_key].kept is True
+    # SANDESH's headline is near-identical to SAREGAMA's (same date, same template)
+    assert result[id_b.identity_key].kept is False
+    assert result[id_b.identity_key].collided_with == id_a.identity_key
+
+
+def test_finalize_batch_uniqueness_keeps_genuinely_distinct_headlines():
+    from app.services.article_v2.headline_engine import finalize_batch_uniqueness
+
+    es_a = _es("AXISCADES", "AXISCADES Technologies Limited has informed the Exchange regarding a press release: acquisition of Cloud Wave Technologies")
+    es_b = _es("DABUR", "Dabur India Limited has informed the Exchange about Scheme of Amalgamation between Sesa Care and Dabur")
+    id_a, id_b = compute_identity(es_a), compute_identity(es_b)
+
+    candidates = [
+        (id_a, "AXISCADES Technologies acquires Cloud Wave Technologies"),
+        (id_b, "Dabur India amalgamation scheme with Sesa Care advances"),
+    ]
+    result = finalize_batch_uniqueness(candidates)
+    assert result[id_a.identity_key].kept is True
+    assert result[id_b.identity_key].kept is True
+
+
+def test_finalize_batch_uniqueness_never_compares_same_identity_against_itself():
+    """A batch containing only ONE real identity (e.g. UPDATE_EXISTING
+    reusing the same identity twice) must never self-collide."""
+    from app.services.article_v2.headline_engine import finalize_batch_uniqueness
+
+    es = _es("CANBK", "CANARA BANK has informed the Exchange about Board Meeting to consider Fund raising")
+    identity = compute_identity(es)
+    candidates = [(identity, "Canara Bank board to consider fund raising")]
+    result = finalize_batch_uniqueness(candidates)
+    assert result[identity.identity_key].kept is True

@@ -82,13 +82,53 @@ _BOILERPLATE_STRIP_RE = re.compile(
     r"^(.*?)\s+(?:has (?:informed|submitted to)|informs)\s+(?:the exchange|bse|nse)", re.IGNORECASE,
 )
 
+_MAX_TOPIC_LEN = 110
+
+# C8.2 hardening (owner review, 2026-09-01): these used to cap the
+# capture group itself at a raw character count ({4,110}), which can
+# and did slice a real clause mid-word -- IDBI's real 500-event C7 case
+# produced 'has written t' as its topic, cut off inside "to". The
+# regexes now capture up to the full real clause (a much higher bound,
+# just to keep pathological input bounded); the actual display-length
+# cap is applied afterward by _truncate_at_word_boundary(), which never
+# cuts inside a word.
+#
+# A second, deeper instance of the same real defect class found via
+# C8's manual review of HEG's composed output: the earlier [^.]
+# ("anything but a period") capture stops at the FIRST period at all --
+# including an abbreviation's internal periods, not just a real
+# sentence end. HEG's real primary text ("...CEO of the company
+# w.e.f. September 01, 2026.") produced the topic "...of the company w"
+# -- cut off right after the first letter of "w.e.f." before the length
+# cap even had a chance to apply. Real Indian-filing abbreviations
+# (w.e.f., Dr., Mr., Ms.) make this a real, recurring shape, not a
+# one-off. Fixed by capturing through ANY character (periods included)
+# up to the length bound, and letting _truncate_at_word_boundary() be
+# the ONLY thing that ever shortens the result -- it cuts on real word
+# boundaries, never mid-abbreviation, never mid-word.
 _TOPIC_PATTERNS = [
-    re.compile(r"""['"]([^'"]{6,110})['"]"""),
-    re.compile(r"\babout\s+([^.]{4,110})", re.IGNORECASE),
-    re.compile(r"\bregarding\s+([^.]{4,110})", re.IGNORECASE),
-    re.compile(r"\bNotice of\s+([^.]{4,110})", re.IGNORECASE),
-    re.compile(r"\bto consider\s+([^.]{4,110})", re.IGNORECASE),
+    re.compile(r"""['"]([^'"]{6,400})['"]"""),
+    re.compile(r"\babout\s+(.{4,400})", re.IGNORECASE),
+    re.compile(r"\bregarding\s+(.{4,400})", re.IGNORECASE),
+    re.compile(r"\bNotice of\s+(.{4,400})", re.IGNORECASE),
+    re.compile(r"\bto consider\s+(.{4,400})", re.IGNORECASE),
 ]
+
+
+def _truncate_at_word_boundary(text: str, max_len: int) -> str:
+    """Never cuts mid-word -- the direct fix for IDBI's real broken
+    headline ('...has written t'). Truncates at the last real word
+    boundary at or before max_len and marks the truncation visibly with
+    an ellipsis, rather than presenting a cut-off fragment as if it were
+    complete. A single "word" longer than max_len (pathological, not
+    seen in real data) is left whole rather than butchered."""
+    text = text.strip()
+    if len(text) <= max_len:
+        return text
+    cut = text.rfind(" ", 0, max_len)
+    if cut <= 0:
+        return text
+    return text[:cut].rstrip(",.;:—-") + "…"
 
 _DATE_DMY_RE = re.compile(r"\b(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s]?(\d{4})\b")
 _DATE_MDY_RE = re.compile(r"\b([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})\b")
@@ -149,7 +189,7 @@ def _extract_topic(text: str) -> str | None:
         if m:
             topic = m.group(1).strip().strip("'\"").rstrip(",.;")
             if topic:
-                return _compress_topic(topic)
+                return _truncate_at_word_boundary(_compress_topic(topic), _MAX_TOPIC_LEN)
     return None
 
 
@@ -208,7 +248,7 @@ def _build_deterministic_headline(evidence_set: ArticleEvidenceSet, identity: Ar
     if not topic:
         stripped = _BOILERPLATE_STRIP_RE.sub("", primary_title or "", count=1)
         stripped = re.sub(r"^\s*(regarding|about)\s*", "", stripped, flags=re.IGNORECASE).strip()
-        topic = (stripped[:140].rstrip() or "a recent regulatory filing")
+        topic = _truncate_at_word_boundary(stripped, _MAX_TOPIC_LEN) or "a recent regulatory filing"
 
     headline = f"{company} — {topic}"
     if not re.search(r"\d{4}", topic):  # topic doesn't already carry a real date
@@ -226,21 +266,6 @@ def _headline_collides(headline: str, identity: ArticleIdentity, other_accepted_
     )
 
 
-def _anchor_topic_tag(identity: ArticleIdentity) -> str | None:
-    """Turns a keyword-anchor identity (e.g.
-    'topic:web-link-letter') back into a short, real, human-readable
-    tag -- the actual substance that makes THIS identity different from
-    any other, not an arbitrary label. Two different identity_keys are
-    guaranteed to differ in development_type, anchor, or time_bucket by
-    construction; when the anchor itself is what differs, this is the
-    one piece of real, already-computed distinguishing content that's
-    guaranteed non-redundant."""
-    if not identity.anchor.startswith("topic:"):
-        return None
-    words = [w for w in identity.anchor[len("topic:"):].split("-") if w][-3:]
-    return " ".join(w.capitalize() for w in words) if words else None
-
-
 def _disambiguate_fallback(
     base_headline: str, evidence_set: ArticleEvidenceSet, identity: ArticleIdentity,
     other_accepted_headlines: dict[str, str],
@@ -248,12 +273,25 @@ def _disambiguate_fallback(
     """Repairs a colliding fallback with real, already-verified facts --
     never an artificial suffix like a bracketed time bucket. Tries the
     development's own real numeric anchor first (adds real information,
-    not just distinguishing noise), then the identity's own real anchor
-    topic tag, then the company's real exchange symbol as a last resort
-    (redundant when the symbol already appears inside the company name,
-    which the earlier two steps normally make unnecessary). If the two
-    developments are still this close after all real repairs, that's an
-    honest residual -- reported, not hidden."""
+    not just distinguishing noise), then the company's real exchange
+    symbol as a last resort. If the two developments are still this
+    close after both real repairs, that's an honest residual --
+    reported, not hidden.
+
+    C8.3 hardening (owner review, 2026-09-01): dropped the
+    keyword-anchor-tag repair tier that used to sit here. Real 500-event
+    data showed it appending the exact SAME generic text ("Annual
+    General Meeting") to every company whose development collapses to
+    that same generic keyword anchor -- it made a headline different
+    from the ONE collision it was checked against at generation time,
+    but not from the batch as a whole (SAREGAMA still collided with 3
+    OTHER companies even after 2 of them had already run this same
+    repair). Per explicit instruction: "don't append generic anchors" --
+    a headline that still can't be distinguished with real numeric/
+    symbol facts is a real signal the underlying development may belong
+    in EVENT_ONLY, not something to force-distinguish with more text.
+    See composer.py's finalize_batch_uniqueness() for the batch-wide
+    closure this residual now feeds into."""
     if not _headline_collides(base_headline, identity, other_accepted_headlines):
         return base_headline, []
 
@@ -263,13 +301,6 @@ def _disambiguate_fallback(
         if not _headline_collides(candidate, identity, other_accepted_headlines):
             return candidate, []
         base_headline = candidate  # keep the real enrichment even if not yet sufficient
-
-    anchor_tag = _anchor_topic_tag(identity)
-    if anchor_tag and anchor_tag.lower() not in base_headline.lower():
-        candidate = f"{base_headline} — re: {anchor_tag}"
-        if not _headline_collides(candidate, identity, other_accepted_headlines):
-            return candidate, []
-        base_headline = candidate
 
     if evidence_set.symbol and f"({evidence_set.symbol})" not in base_headline:
         candidate = f"{base_headline} ({evidence_set.symbol})"
@@ -292,6 +323,10 @@ _SYSTEM_PROMPT = (
     "a number given to you exactly — never invent one, never round to a different value. "
     "Never write a prediction, a market-movement forecast, or a consequence the given "
     "facts don't directly support. No clickbait, no hype words, no rhetorical questions. "
+    "The headline's SUBJECT must be the PRIMARY DEVELOPMENT below — never a RELATED filing. "
+    "Related filings may only be used to add a real corroborating detail to a headline that "
+    "is already about the primary development; they must never become what the headline is "
+    "ABOUT. "
     "Respond with JSON only, no markdown fences: "
     '{"headline": "..."}'
 )
@@ -347,12 +382,26 @@ def _format_fact_value(metric_code: str, value: float, unit: str) -> str:
 def _build_prompt(
     evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None, retry_errors: list[str] | None,
 ) -> str:
+    """C8.2 hardening (owner review, 2026-09-01): primary and supporting
+    evidence used to be listed together under one flat "VERIFIED
+    EVIDENCE" heading with no distinction -- a real found bug (NEWGEN's
+    real 500-event C7 case) let the model draw its headline's SUBJECT
+    from a supporting "Schedule of meet" filing instead of the primary
+    volume-increase notice. Split into two clearly-labeled sections so
+    the model can tell which evidence IS the story and which merely
+    corroborates it; see the matching instruction in _SYSTEM_PROMPT and
+    the post-generation _check_subject_hijack() structural backstop
+    below (never trust the prompt change alone to hold)."""
     lines = [f"Company: {evidence_set.symbol}"]
-    all_evidence = [evidence_set.primary_evidence] + list(evidence_set.supporting_evidence)
-    lines.append("\nVERIFIED EVIDENCE (real, linked filings/news -- the ONLY source of facts):")
-    for e in all_evidence:
-        if e and e.title:
-            lines.append(f"  [{e.source_type}] {e.title}")
+    lines.append("\nPRIMARY DEVELOPMENT (the headline's subject MUST be this, and only this):")
+    if evidence_set.primary_evidence and evidence_set.primary_evidence.title:
+        lines.append(f"  [{evidence_set.primary_evidence.source_type}] {evidence_set.primary_evidence.title}")
+
+    if evidence_set.supporting_evidence:
+        lines.append("\nSUPPORTING CONTEXT (may corroborate a detail; must NEVER become the headline's subject):")
+        for e in evidence_set.supporting_evidence:
+            if e and e.title:
+                lines.append(f"  [{e.source_type}] {e.title}")
 
     if context and context.financial_context:
         lines.append("\nVERIFIED FINANCIAL FACTS (quality-passed, use exactly as given if relevant):")
@@ -408,6 +457,40 @@ def _check_clickbait(headline: str) -> str | None:
     return None
 
 
+# C8.2 hardening (owner review, 2026-09-01): "Headline subject may come
+# from primary evidence + verified C3 context only; supporting evidence
+# may corroborate but must never introduce the subject." The prompt
+# restructuring above asks for this; this is the structural backstop
+# that actually enforces it on the model's REAL generated text, the
+# same "never trust intent, check the output" discipline every other
+# validator in this module already follows. A real margin (not just
+# "supporting >= primary") avoids flagging a headline that legitimately
+# leans on a supporting detail without making it the subject.
+_HIJACK_MARGIN = 0.05
+
+
+def _check_subject_hijack(headline: str, evidence_set: ArticleEvidenceSet) -> str | None:
+    """Returns the offending supporting evidence's title (truncated) if
+    the headline reads as more about a SUPPORTING item than the PRIMARY
+    one; None if the primary development is clearly the subject."""
+    if not evidence_set.primary_evidence or not evidence_set.primary_evidence.title:
+        return None
+    h_tokens = _tokenize(headline)
+    primary_sim = _jaccard(h_tokens, _tokenize(evidence_set.primary_evidence.title))
+    best_supporting_sim = 0.0
+    best_supporting_title = None
+    for s in evidence_set.supporting_evidence:
+        if not s.title:
+            continue
+        sim = _jaccard(h_tokens, _tokenize(s.title))
+        if sim > best_supporting_sim:
+            best_supporting_sim = sim
+            best_supporting_title = s.title
+    if best_supporting_sim >= primary_sim + _HIJACK_MARGIN:
+        return (best_supporting_title or "")[:80]
+    return None
+
+
 async def generate_headline(
     evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None, identity: ArticleIdentity,
     *, other_accepted_headlines: dict[str, str],
@@ -455,6 +538,10 @@ async def generate_headline(
         if clickbait_match:
             notes.append(f"clickbait/predictive phrase: {clickbait_match!r}")
 
+        hijacked_by = _check_subject_hijack(headline, evidence_set)
+        if hijacked_by:
+            notes.append(f"headline subject appears to be supporting evidence, not primary ({hijacked_by!r})")
+
         near_dup_of = None
         for other_key, other_headline in other_accepted_headlines.items():
             if other_key == identity.identity_key:
@@ -476,3 +563,58 @@ async def generate_headline(
         h1=fallback, seo_title=fallback, social_title=fallback, status=ValidationOutcome.FALLBACK,
         attempts=_MAX_ATTEMPTS, validation_notes=(retry_notes or []) + dedup_notes,
     )
+
+
+@dataclass(frozen=True)
+class BatchUniquenessResult:
+    kept: bool
+    collided_with: str | None = None
+
+
+def finalize_batch_uniqueness(
+    ordered_candidates: list[tuple[ArticleIdentity, str]],
+) -> dict[str, BatchUniquenessResult]:
+    """C8.3 hardening (owner review, 2026-09-01): "Before accepting the
+    complete publication set, every different ArticleIdentity must have
+    a headline below the near-duplicate threshold against every OTHER
+    accepted identity." The per-item disambiguation in
+    generate_headline() only ever checks a new headline against
+    headlines already accepted EARLIER in the batch -- real 500-event
+    data showed that's not the same guarantee: SAREGAMA's headline was
+    accepted first, then three LATER companies (SANDESH/PPAP/JINDRILL)
+    each independently collided against it, and even after each one's
+    own real-fact repairs ran, several residuals remained >=0.50
+    Jaccard. This is a real, final, exhaustive pass over the WHOLE
+    accepted ARTICLE-tier set -- run once, after every ARTICLE-tier
+    candidate in a batch has a real headline, and BEFORE any of them are
+    composed.
+
+    `ordered_candidates` must be (identity, headline) pairs for
+    ARTICLE-tier candidates ONLY, in real processing order -- EVENT_ONLY/
+    REJECT candidates never reach here since they never get a headline
+    at all (see composer.py's finalize_batch_uniqueness call site /
+    scripts/article_v2_c8_shadow_run.py). First-seen-in-batch wins, same
+    convention identity.py's own resolve_uniqueness() already
+    established; a later collision does NOT get a forced suffix or a
+    generic anchor tag -- per explicit instruction, an unresolved
+    collision is itself a real signal the colliding development(s)
+    likely belong in EVENT_ONLY, not something to paper over with more
+    text. The caller is responsible for actually downgrading the tier
+    for any `kept=False` result."""
+    accepted: list[tuple[str, str]] = []
+    result: dict[str, BatchUniquenessResult] = {}
+    for identity, headline in ordered_candidates:
+        if not headline:
+            result[identity.identity_key] = BatchUniquenessResult(kept=False, collided_with=None)
+            continue
+        collision = next(
+            (other_key for other_key, other_headline in accepted
+             if _jaccard(_tokenize(headline), _tokenize(other_headline)) >= _HEADLINE_UNIQUENESS_JACCARD_THRESHOLD),
+            None,
+        )
+        if collision:
+            result[identity.identity_key] = BatchUniquenessResult(kept=False, collided_with=collision)
+        else:
+            accepted.append((identity.identity_key, headline))
+            result[identity.identity_key] = BatchUniquenessResult(kept=True)
+    return result

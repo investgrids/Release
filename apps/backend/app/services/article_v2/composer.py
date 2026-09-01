@@ -113,7 +113,7 @@ import structlog
 from app.services.ai_service import _call_with_fallback
 from app.services.article_v2.company_name import resolve_company_name
 from app.services.article_v2.context_builder import ArticleContextBundle
-from app.services.article_v2.decision_engine import FACTUAL_UPDATE, FULL_ARTICLE
+from app.services.article_v2.decision_engine import FACTUAL_UPDATE, FULL_ARTICLE, _has_numeric_substance
 from app.services.article_v2.decision_engine import SKIP as C4_SKIP
 from app.services.article_v2.decision_engine import ArticleDecision
 from app.services.article_v2.evidence_set_builder import ArticleEvidenceSet
@@ -214,6 +214,7 @@ class ComposedArticle:
     llm_attempts: int
     word_count: int
     llm_validation_notes: list[str] = field(default_factory=list)  # the last rejection's reasons, for observability
+    depth_gate_downgraded: bool = False  # C8.4 -- True when C4's FULL_ARTICLE was composed as FACTUAL_UPDATE instead
 
 
 class _FactShim:
@@ -373,6 +374,36 @@ def _should_attempt_why_it_matters(context: ArticleContextBundle | None) -> bool
     return bool(context.financial_context) or context.market_reaction is not None
 
 
+def _has_synthesizable_depth(evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None) -> bool:
+    """C8.4 hardening (owner review, 2026-09-01): C4's FULL_ARTICLE
+    decision is necessary but not sufficient. HEG's real 500-event C7
+    case cleared C4's own depth gate through multiple independent
+    HIGH-substantiveness supporting items (a real cascade of director
+    appointment/resignation filings, each individually substantive) but
+    had nothing to actually SYNTHESIZE: no financial context, no market
+    reaction, no numeric substance in the primary evidence itself -- so
+    Why It Matters correctly never even attempted, and composition fell
+    back to a raw 15-item filing list (474 words, no analysis). This is
+    the "does this FULL_ARTICLE have something to explain, not merely
+    many related documents" gate the owner asked for -- checked at
+    COMPOSE time, once real section-building is about to happen, not by
+    re-deciding C4's own content_type/publication_action (those are
+    untouched; this only controls which SHAPE gets composed).
+
+    True when either of the two real sources of synthesizable depth
+    exist: (1) the same real material Why It Matters itself requires
+    (financial context or a market reaction -- if that's there, the LLM
+    has something concrete to explain), or (2) the owner's own explicit
+    allowance -- a single detailed primary filing with real, verified
+    numeric substance can carry a FULL_ARTICLE on its own, with no
+    upstream C3 context required at all."""
+    if _should_attempt_why_it_matters(context):
+        return True
+    if evidence_set.primary_evidence and evidence_set.primary_evidence.title:
+        return _has_numeric_substance(evidence_set.primary_evidence.title)
+    return False
+
+
 def _build_why_it_matters_prompt(
     evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None, retry_notes: list[str] | None,
 ) -> str:
@@ -509,7 +540,18 @@ async def compose_article(
     llm_attempts = 0
     llm_validation_notes: list[str] = []
 
-    if decision.content_type == FULL_ARTICLE:
+    # C8.4: a FULL_ARTICLE decision from C4 is necessary but not
+    # sufficient -- compose it as FULL_ARTICLE-shaped only when there is
+    # real synthesizable depth; otherwise compose the SAME concise
+    # FACTUAL_UPDATE shape used everywhere else, never a padded list of
+    # filings pretending to be analysis.
+    effective_content_type = decision.content_type
+    depth_gate_downgraded = False
+    if decision.content_type == FULL_ARTICLE and not _has_synthesizable_depth(evidence_set, context):
+        effective_content_type = FACTUAL_UPDATE
+        depth_gate_downgraded = True
+
+    if effective_content_type == FULL_ARTICLE:
         why_section, llm_status, llm_attempts, llm_validation_notes = await _generate_why_it_matters(evidence_set, context)
         if why_section:
             sections.append(why_section)
@@ -534,8 +576,15 @@ async def compose_article(
 
     word_count = sum(len(s.text.split()) for s in sections)
 
+    if depth_gate_downgraded:
+        llm_validation_notes = [
+            *llm_validation_notes,
+            "C4 decided FULL_ARTICLE but no synthesizable depth existed (no financial/market context, no "
+            "numeric substance in primary evidence) -- composed as FACTUAL_UPDATE instead of a raw filing list",
+        ]
+
     return ComposedArticle(
-        content_type=decision.content_type, headline=headline_result.h1, sections=sections,
+        content_type=effective_content_type, headline=headline_result.h1, sections=sections,
         all_claims=all_claims, llm_status=llm_status, llm_attempts=llm_attempts, word_count=word_count,
-        llm_validation_notes=llm_validation_notes,
+        llm_validation_notes=llm_validation_notes, depth_gate_downgraded=depth_gate_downgraded,
     )
