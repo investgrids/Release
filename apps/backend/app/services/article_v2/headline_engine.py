@@ -183,6 +183,60 @@ def _compress_topic(topic: str) -> str:
     return topic
 
 
+# C8.5 hardening (owner review, 2026-09-01): a real, general regulatory/
+# legal-citation preamble shape -- NOT a company-specific exception, a
+# genuine NSE filing convention. ICICIBANK's real second-cohort case:
+# "...disclosure under Regulation 30 of the SEBI (Listing Obligations
+# and Disclosure Requirements) Regulations, 2015 - This is to inform
+# you that [the actual $1B bond pricing, Moody's/S&P ratings]." Without
+# this, extraction captured the citation itself (which happened to be
+# nearly identical to a genuinely different, near-duplicate SUPPORTING
+# filing's own citation, tripping the subject-hijack heuristic even
+# though nothing was actually hijacked -- both just got stuck on shared
+# boilerplate before either reached its real content).
+#
+# Deliberately narrow: only activates when a real citation AND a real
+# transition phrase into further text are BOTH present. If the citation
+# is the whole story (no real substance follows) or nothing legible
+# follows the transition, this returns None and existing extraction is
+# completely unchanged -- never manufactures a clause that isn't there.
+_REGULATORY_PREAMBLE_RE = re.compile(
+    r"\b(?:disclosure|intimation)\s+under\s+regulation\s+\d+.{0,250}?regulations,?\s*\d{4}",
+    re.IGNORECASE,
+)
+_SUBSTANTIVE_TRANSITION_RE = re.compile(
+    r"[-–—]\s*(?:this is to inform you that|we wish to inform you that|"
+    r"please note that|kindly note that)\s+(.{20,400})",
+    re.IGNORECASE,
+)
+
+
+def _extract_post_preamble_topic(text: str) -> str | None:
+    preamble_match = _REGULATORY_PREAMBLE_RE.search(text)
+    if not preamble_match:
+        return None
+    remainder = text[preamble_match.end():]
+    transition_match = _SUBSTANTIVE_TRANSITION_RE.search(remainder)
+    if not transition_match:
+        return None
+    substance = transition_match.group(1).strip()
+    return substance or None
+
+
+def _strip_leading_company_repeat(text: str, company: str) -> str:
+    """A real NSE convention: the substantive clause after a transition
+    phrase often restates the company's own name before the real news
+    ("...that ICICI Bank Limited, acting through its IFSC Banking Unit,
+    has today..."). Stripping a genuine, already-known repeat of the
+    SAME name we already extracted isn't inference -- it's removing a
+    literal duplicate of data already in hand, freeing real length
+    budget for the actual development."""
+    if company and text.lower().startswith(company.lower()):
+        stripped = text[len(company):].lstrip(",; ")
+        return stripped or text
+    return text
+
+
 def _extract_topic(text: str) -> str | None:
     for pat in _TOPIC_PATTERNS:
         m = pat.search(text)
@@ -244,11 +298,22 @@ def _build_deterministic_headline(evidence_set: ArticleEvidenceSet, identity: Ar
     primary_title = evidence_set.primary_evidence.title if evidence_set.primary_evidence else ""
     company = _extract_company_name(evidence_set)
 
-    topic = _extract_topic(primary_title)
-    if not topic:
-        stripped = _BOILERPLATE_STRIP_RE.sub("", primary_title or "", count=1)
-        stripped = re.sub(r"^\s*(regarding|about)\s*", "", stripped, flags=re.IGNORECASE).strip()
-        topic = _truncate_at_word_boundary(stripped, _MAX_TOPIC_LEN) or "a recent regulatory filing"
+    # C8.5: try the real substantive clause past a regulatory/legal
+    # citation preamble FIRST -- when it's genuinely there (ICICIBANK's
+    # real case), it's more informative than the citation itself. When
+    # it isn't (the citation IS the whole real story, or nothing
+    # legible follows it), this returns None and falls straight through
+    # to the existing extraction, completely unchanged.
+    post_preamble = _extract_post_preamble_topic(primary_title)
+    if post_preamble:
+        post_preamble = _strip_leading_company_repeat(post_preamble, company)
+        topic = _truncate_at_word_boundary(_compress_topic(post_preamble), _MAX_TOPIC_LEN)
+    else:
+        topic = _extract_topic(primary_title)
+        if not topic:
+            stripped = _BOILERPLATE_STRIP_RE.sub("", primary_title or "", count=1)
+            stripped = re.sub(r"^\s*(regarding|about)\s*", "", stripped, flags=re.IGNORECASE).strip()
+            topic = _truncate_at_word_boundary(stripped, _MAX_TOPIC_LEN) or "a recent regulatory filing"
 
     headline = f"{company} — {topic}"
     if not re.search(r"\d{4}", topic):  # topic doesn't already carry a real date

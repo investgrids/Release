@@ -266,6 +266,88 @@ def test_truncate_at_word_boundary_returns_short_text_unchanged():
     assert _truncate_at_word_boundary("short text", 110) == "short text"
 
 
+# ── C8.5 hardening: regulatory-preamble-safe topic extraction ──────────
+
+def test_icicibank_real_bond_pricing_surfaces_past_regulatory_preamble():
+    """The real ICICIBANK second-cohort case: a genuine $1B bond pricing
+    with real Moody's/S&P ratings was buried after a long SEBI
+    Regulation 30 citation, and the 110-char cap used to truncate
+    before ever reaching it -- landing on the same generic citation
+    text a near-duplicate supporting filing also shared (a false
+    subject-hijack flag, not a real one). The real development must now
+    surface in the headline."""
+    from app.services.article_v2.headline_engine import _build_deterministic_headline
+    from app.services.article_v2.identity import compute_identity as _compute_identity
+
+    es = _es(
+        "ICICIBANK",
+        "ICICI Bank Limited has informed the Exchange about disclosure under Regulation 30 of the SEBI "
+        "(Listing Obligations and Disclosure Requirements) Regulations, 2015 - This is to inform you that "
+        "ICICI Bank Limited, acting through its IFSC Banking Unit,  has today at 10:45 a.m. IST priced USD 1 "
+        "billion Senior Unsecured Fixed Rate Notes under the USD 7.5 billion Global Medium Term Note Programme "
+        "of the Bank. Moody's Ratings and S&P Global Ratings have vide letters dated August 24, 2026, assigned "
+        "Baa3 and BBB ratings.",
+    )
+    identity = _compute_identity(es)
+    headline = _build_deterministic_headline(es, identity)
+    assert "priced usd 1 billion" in headline.lower() or "usd 1 billion" in headline.lower()
+    # the real substance surfaced -- not just the regulatory citation
+    assert "listing obligations" not in headline.lower()
+
+
+def test_icicibank_hijack_heuristic_no_longer_false_positives_against_near_duplicate_citation():
+    """The false hijack this was actually causing: primary and a near-
+    duplicate SUPPORTING filing shared the same long Regulation 30
+    citation, and truncation stuck both on that shared boilerplate --
+    making the headline look more similar to supporting evidence than
+    to its own primary evidence. Once the real substance surfaces, this
+    goes away."""
+    from app.services.article_v2.headline_engine import _build_deterministic_headline, _check_subject_hijack
+    from app.services.article_v2.identity import compute_identity as _compute_identity
+
+    supporting = [_evidence(
+        "ICICI Bank Limited has informed the Exchange about disclosure under Regulation 30 read with para A of "
+        "Schedule III and Regulation 46(2) of the Securities and Exchange Board of India (Listing Obligations "
+        "and Disclosure Requirements) Regulations, 2015"
+    )]
+    es = _es(
+        "ICICIBANK",
+        "ICICI Bank Limited has informed the Exchange about disclosure under Regulation 30 of the SEBI "
+        "(Listing Obligations and Disclosure Requirements) Regulations, 2015 - This is to inform you that "
+        "ICICI Bank Limited, acting through its IFSC Banking Unit,  has today at 10:45 a.m. IST priced USD 1 "
+        "billion Senior Unsecured Fixed Rate Notes under the USD 7.5 billion Global Medium Term Note Programme "
+        "of the Bank.",
+        supporting=supporting,
+    )
+    identity = _compute_identity(es)
+    headline = _build_deterministic_headline(es, identity)
+    assert _check_subject_hijack(headline, es) is None
+
+
+def test_regulation_30_that_is_genuinely_the_whole_story_is_not_altered():
+    """Adversarial case: Regulation 30 IS the real, complete, relevant
+    context -- no real substantive clause follows a genuine transition
+    phrase. Must fall through to existing extraction unchanged, never
+    manufacture a clause that isn't there."""
+    from app.services.article_v2.headline_engine import _extract_post_preamble_topic
+
+    text = (
+        "Some Company Limited has informed the Exchange about disclosure under Regulation 30 of the SEBI "
+        "(Listing Obligations and Disclosure Requirements) Regulations, 2015 regarding change in registered office address."
+    )
+    assert _extract_post_preamble_topic(text) is None
+
+
+def test_regulation_citation_with_nothing_following_returns_none():
+    """Adversarial case: the citation is present but nothing legible
+    follows it at all (the filing just ends) -- must return None, not
+    an empty or garbage topic."""
+    from app.services.article_v2.headline_engine import _extract_post_preamble_topic
+
+    text = "Some Company Limited has informed the Exchange about disclosure under Regulation 30 of the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015."
+    assert _extract_post_preamble_topic(text) is None
+
+
 def test_topic_extraction_does_not_stop_at_abbreviation_periods():
     """HEG's real 500-event C8 case: 'w.e.f.' (with effect from) has
     internal periods that used to be treated as a hard sentence-end
