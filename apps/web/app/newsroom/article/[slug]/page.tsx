@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
-  TrendingUp, TrendingDown, AlertTriangle, Building2, Clock,
+  AlertTriangle, Building2, Clock,
   BookOpen, HelpCircle, Eye, ListChecks, Activity,
   Brain, Layers, GitCommit, RadioTower,
-  Sparkles, Target, ArrowRight, Compass, Database,
+  Sparkles, ArrowRight, Compass, Database,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText, isRealSymbol, safeJsonLd } from "@/lib/text";
@@ -14,11 +14,28 @@ import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyShareBar } from "@/components/StickyShareBar";
 import { HeroImage } from "@/components/HeroImage";
-import { VerdictCard } from "@/components/article/VerdictCard";
 import { EvidenceList, type EvidenceFact } from "@/components/article/EvidenceList";
 import { CompanyImpactTable } from "@/components/article/CompanyImpactTable";
 import { ExploreNext } from "@/components/article/ExploreNext";
-import { deriveVerdict, type CompanyAffected, type SectorAffected } from "./deriveVerdict";
+import { type CompanyAffected, type SectorAffected } from "./deriveVerdict";
+
+// ── P0-CD1 — Public Claim Containment (2026-09-01) ─────────────────────────
+// The P0-D audit (recommendation provenance) found that every one of this
+// page's directional/actionable claims — AI Investment Verdict, Bullish/
+// Bearish, "Current view: X on Y", Likely Winners/Losers, opportunities[0]
+// as "Action", and public confidence percentages (P0-C: 4 incoherent
+// producers, bimodal) — render unconditionally regardless of article type,
+// with no field anywhere that lets this page tell a grounded claim apart
+// from an ungrounded one. Per owner authorization, this page fails closed:
+// those elements are suppressed at the presentation layer only. Nothing is
+// deleted — companies_affected[].impact, sectors_affected[].impact,
+// opportunities[], and confidence_score are all still fetched and still
+// exist in the API response; this page simply stops rendering them as a
+// public claim until P0-D's semantic-typing repair (impact.basis/
+// evidence_ids) makes it safe to. See project_market_wrap_integrity_incident
+// memory for the full audit trail. Reference implementations explicitly
+// NOT touched by this change: /ripple's dated historical outcomes, and AI
+// Search's InvestmentVerdictHero (refuses Buy/Sell wording already).
 
 // ── Article type metadata — light-first, matching Daily Brief's own
 // color-token convention (text-{c}-700 dark:text-{c}-300, border-{c}-200
@@ -195,25 +212,10 @@ function fmtRelative(iso?: string): string {
   return `${Math.floor(hr / 24)}d ago`;
 }
 
-const IMPACT_STYLE: Record<string, string> = {
-  positive: "border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  negative: "border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300",
-  neutral:  "border-surface-border/20 bg-text-primary/5 text-text-secondary",
-};
 // Plain CSS dots, not emoji — emoji glyphs render inconsistently across
 // platforms (Windows in particular renders "⚪"/"🟡" as shaded/glossy
 // spheres, clashing with this flat design system).
 const RISK_DOT: Record<string, string> = { low: "bg-emerald-500", medium: "bg-amber-500", high: "bg-rose-500" };
-// Real data doesn't always follow the schema's documented enum strictly —
-// opportunities[].timeframe has shown up with the *other* field's vocabulary
-// (immediate|short|medium|long, from companies_affected[].timeframe) as well
-// as its own (days|weeks|months|years). Both are mapped so the label stays
-// friendly regardless of which one the AI actually used; an unmapped value
-// still falls back to the raw text rather than breaking.
-const OPPORTUNITY_DURATION_LABEL: Record<string, string> = {
-  days: "A Few Days", weeks: "1–4 Weeks", months: "1–3 Months", years: "1+ Years",
-  immediate: "Immediate", short: "1–4 Weeks", medium: "1–3 Months", long: "3+ Months",
-};
 const MAGNITUDE_BARS: Record<string, number> = { high: 4, medium: 2, low: 1 };
 
 // Event Evolution — derived from real timestamps, not a stored field:
@@ -308,9 +310,6 @@ export default async function ArticlePage(
   const companies = article.companies_affected ?? [];
   const quotes = await fetchQuotes(companies.filter(c => isRealSymbol(c.symbol)).map(c => c.symbol as string));
   const sectors = article.sectors_affected ?? [];
-  const opportunities = article.opportunities ?? [];
-  const winners = companies.filter(c => c.impact === "positive");
-  const losers = companies.filter(c => c.impact === "negative");
   const risks = article.risks ?? [];
   const historical = article.historical_events ?? [];
   const rippleLinks = article.ripple_effect ?? [];
@@ -324,7 +323,6 @@ export default async function ArticlePage(
   const updateHistory = article.update_history ?? [];
   const status = deriveEventStatus(article);
   const StatusIcon = status.icon;
-  const verdict = deriveVerdict(companies, sectors);
 
   // Real, historically-verified base rate — only shown when the article
   // actually cites measured outcomes, never estimated.
@@ -346,11 +344,15 @@ export default async function ArticlePage(
       detail: [h.date, h.outcome != null ? `${h.outcome >= 0 ? "+" : ""}${h.outcome}%` : null].filter(Boolean).join(" — ") || undefined,
     })),
   ];
+  // opportunities[] deliberately excluded here (P0-CD1) — their titles are
+  // actionable Buy/Sell/Wait-style recommendations (P0-D), and this list
+  // renders as "AI Interpretation" evidence, not flagged as a suppressed
+  // section, so it was a real leak path for the exact claims Phase 1
+  // suppresses everywhere else on this page.
   const evidenceInterpretations: EvidenceFact[] = [
     ...[...companies, ...sectors].filter(x => x.reason).slice(0, 5).map(x => ({
-      label: `${x.name} (${x.impact ?? "neutral"})`, detail: x.reason,
+      label: x.name, detail: x.reason,
     })),
-    ...opportunities.slice(0, 3).map(o => ({ label: o.title, detail: o.description })),
     ...risks.slice(0, 3).map(r => ({ label: r.title, detail: r.description })),
     ...watch.slice(0, 3).map(w => ({ label: "What to watch", detail: w })),
   ];
@@ -467,44 +469,30 @@ export default async function ArticlePage(
           </div>
         </div>
 
-        {/* Above-the-fold 2-column: LEFT = AI verdict (the "so what"),
-            RIGHT = 30-second answer + quick facts (the "prove it") — same
-            verdict-then-evidence pairing Daily Brief uses above its own
-            fold. */}
-        <div className="mb-8 grid gap-4 lg:grid-cols-2">
-          <VerdictCard
-            stance={verdict.stance}
-            focus={verdict.focus}
-            confidenceScore={article.confidence_score}
-            horizons={verdict.horizons}
-            topAction={opportunities.length > 0 ? { title: opportunities[0].title, description: opportunities[0].description } : null}
-            whyAffected={[...companies, ...sectors].filter(x => x.reason).slice(0, 3).map(x => x.reason as string)}
-          />
-
-          <div className="space-y-4">
-            {article.key_takeaway && (
-              <div className="rounded-2xl border border-accent-violet/20 bg-accent-violet/[0.05] p-5">
-                <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-accent-violet">30-Second Answer</p>
-                <p className="text-[13.5px] leading-relaxed text-text-primary">{article.key_takeaway}</p>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-4 sm:grid-cols-4">
-              <div>
-                <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Companies</p>
-                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{companies.length}</p>
-              </div>
-              <div>
-                <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Sectors</p>
-                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{sectors.length}</p>
-              </div>
-              <div>
-                <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Sources</p>
-                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{sources.length}</p>
-              </div>
-              <div>
-                <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Confidence</p>
-                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{article.confidence_score != null ? `${Math.round(article.confidence_score * 100)}%` : "—"}</p>
-              </div>
+        {/* Above-the-fold: 30-second answer + quick facts (the "prove it").
+            P0-CD1 (2026-09-01): the AI Investment Verdict card that used to
+            sit alongside this — Bullish/Bearish stance, "Current view: X on
+            Y", top opportunity as "Action", confidence % — is suppressed
+            here. See the header comment for why. */}
+        <div className="mb-8 space-y-4">
+          {article.key_takeaway && (
+            <div className="rounded-2xl border border-accent-violet/20 bg-accent-violet/[0.05] p-5">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-accent-violet">30-Second Answer</p>
+              <p className="text-[13.5px] leading-relaxed text-text-primary">{article.key_takeaway}</p>
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-3 rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-4">
+            <div>
+              <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Companies</p>
+              <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{companies.length}</p>
+            </div>
+            <div>
+              <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Sectors</p>
+              <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{sectors.length}</p>
+            </div>
+            <div>
+              <p className="text-[9.5px] font-bold uppercase tracking-wide text-text-muted">Sources</p>
+              <p className="mt-0.5 text-[15px] font-bold tabular-nums text-text-primary">{sources.length}</p>
             </div>
           </div>
         </div>
@@ -530,16 +518,18 @@ export default async function ArticlePage(
               <section>
                 <Eyebrow icon={Layers}>Sector Impact</Eyebrow>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* P0-CD1: the positive/negative/neutral pill and the
+                      sign-colored magnitude bars are dropped — same
+                      unprovenanced `impact` field as companies_affected,
+                      same suppression. Magnitude (how much this sector was
+                      discussed) still renders, just direction-neutral. */}
                   {sectors.map((s, i) => (
                     <Card key={i} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[13px] font-bold text-text-primary">{s.name}</span>
-                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${IMPACT_STYLE[s.impact ?? "neutral"]}`}>{s.impact ?? "neutral"}</span>
-                      </div>
+                      <span className="text-[13px] font-bold text-text-primary">{s.name}</span>
                       {s.magnitude && (
                         <div className="mt-2 flex items-center gap-1">
                           {[1, 2, 3, 4].map(n => (
-                            <span key={n} className={`h-1.5 w-5 rounded-full ${n <= MAGNITUDE_BARS[s.magnitude!] ? (s.impact === "negative" ? "bg-rose-400" : "bg-emerald-400") : "bg-text-primary/10"}`} />
+                            <span key={n} className={`h-1.5 w-5 rounded-full ${n <= MAGNITUDE_BARS[s.magnitude!] ? "bg-sky-400" : "bg-text-primary/10"}`} />
                           ))}
                           <span className="ml-1.5 text-[10px] uppercase tracking-wide text-text-muted">{s.magnitude} magnitude</span>
                         </div>
@@ -581,116 +571,48 @@ export default async function ArticlePage(
         {companies.length > 0 && (
           <section className="mb-8">
             <Eyebrow icon={Building2}>Company Impact</Eyebrow>
-            <CompanyImpactTable companies={companies as { symbol: string; name: string; impact: "positive" | "negative" | "neutral"; reason?: string; timeframe?: string }[]} quotes={quotes} />
+            <CompanyImpactTable companies={companies as { symbol: string; name: string; impact: "positive" | "negative" | "neutral"; reason?: string; timeframe?: string }[]} quotes={quotes} showImpact={false} />
           </section>
         )}
 
-        {(winners.length > 0 || losers.length > 0) && (
-          <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {winners.length > 0 && (
-              <Card className="p-5">
-                <h3 className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                  <TrendingUp className="h-3.5 w-3.5" /> Likely Winners
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {winners.map((c, i) => (
-                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1.5 text-[12px] font-semibold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-200 transition">
-                      {c.name}
-                    </Link>
-                  ))}
+        {/* P0-CD1 (2026-09-01): "Likely Winners"/"Likely Losers" (grouping
+            companies by the same unprovenanced `impact` field as the
+            verdict card) and "Investment Opportunities" (opportunities[]
+            rendered as Buy/Sell/Wait-style recommendations — P0-D found
+            this is prompt-intended across every article type, not drift)
+            are both suppressed. opportunities[] is still fetched and still
+            in the API response; it just doesn't render publicly as advice
+            here. Risks stays — descriptive, not a directional claim. */}
+        {risks.length > 0 && (
+          <section className="mb-8">
+            <Eyebrow icon={AlertTriangle}>Risks</Eyebrow>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {risks.map((r, i) => (
+                <div key={i} className={`rounded-xl border p-4 ${
+                  r.severity === "high" ? "border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/[0.04]" : "border-amber-200 dark:border-amber-500/15 bg-amber-50 dark:bg-amber-500/[0.04]"
+                }`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className={`text-[13px] font-semibold ${r.severity === "high" ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300"}`}>
+                      {r.title}
+                    </h3>
+                    {r.severity && (
+                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] capitalize ${
+                        r.severity === "high"
+                          ? "border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                          : "border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                      }`}>{r.severity}</span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{r.description}</p>
+                  {r.mitigation && (
+                    <p className="mt-1.5 text-[11px] leading-5 text-text-muted">
+                      <span className="font-semibold text-text-muted">How to manage: </span>{r.mitigation}
+                    </p>
+                  )}
                 </div>
-              </Card>
-            )}
-            {losers.length > 0 && (
-              <Card className="p-5">
-                <h3 className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-300">
-                  <TrendingDown className="h-3.5 w-3.5" /> Likely Losers
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {losers.map((c, i) => (
-                    <Link key={i} href={`/companies/${c.symbol}`} className="rounded-full border border-rose-200 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 px-3 py-1.5 text-[12px] font-semibold text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-200 transition">
-                      {c.name}
-                    </Link>
-                  ))}
-                </div>
-              </Card>
-            )}
+              ))}
+            </div>
           </section>
-        )}
-
-        {(opportunities.length > 0 || risks.length > 0) && (
-          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {opportunities.length > 0 && (
-              <section>
-                <Eyebrow icon={Target}>Investment Opportunities</Eyebrow>
-                <div className="space-y-3">
-                  {opportunities.map((o, i) => (
-                    <Card key={i} className="p-4">
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
-                        <div className="col-span-2 sm:col-span-4">
-                          <p className="text-[9px] font-bold uppercase tracking-wide text-text-muted">Recommendation</p>
-                          <p className="mt-1 text-[14px] font-bold text-text-primary">{o.title}</p>
-                        </div>
-                        {o.timeframe && (
-                          <div>
-                            <p className="text-[9px] font-bold uppercase tracking-wide text-text-muted">Expected Duration</p>
-                            <p className="mt-1 text-[12px] font-semibold text-text-secondary">{OPPORTUNITY_DURATION_LABEL[o.timeframe] ?? o.timeframe}</p>
-                          </div>
-                        )}
-                        {o.risk && (
-                          <div>
-                            <p className="text-[9px] font-bold uppercase tracking-wide text-text-muted">Risk</p>
-                            <p className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold capitalize text-text-secondary">
-                              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${RISK_DOT[o.risk] ?? RISK_DOT.medium}`} />
-                              {o.risk}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      {o.description && (
-                        <div className="mt-3 border-t border-surface-border/6 pt-3">
-                          <p className="text-[9px] font-bold uppercase tracking-wide text-text-muted">Why?</p>
-                          <p className="mt-1 text-[12px] leading-5 text-text-secondary">{o.description}</p>
-                        </div>
-                      )}
-                    </Card>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {risks.length > 0 && (
-              <section>
-                <Eyebrow icon={AlertTriangle}>Risks</Eyebrow>
-                <div className="space-y-3">
-                  {risks.map((r, i) => (
-                    <div key={i} className={`rounded-xl border p-4 ${
-                      r.severity === "high" ? "border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/[0.04]" : "border-amber-200 dark:border-amber-500/15 bg-amber-50 dark:bg-amber-500/[0.04]"
-                    }`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <h3 className={`text-[13px] font-semibold ${r.severity === "high" ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300"}`}>
-                          {r.title}
-                        </h3>
-                        {r.severity && (
-                          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] capitalize ${
-                            r.severity === "high"
-                              ? "border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300"
-                              : "border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                          }`}>{r.severity}</span>
-                        )}
-                      </div>
-                      <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{r.description}</p>
-                      {r.mitigation && (
-                        <p className="mt-1.5 text-[11px] leading-5 text-text-muted">
-                          <span className="font-semibold text-text-muted">How to manage: </span>{r.mitigation}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
         )}
 
         {/* ══════════════════════ TIER 3 — DEEPER INTELLIGENCE ══════════════════════ */}
@@ -744,20 +666,15 @@ export default async function ArticlePage(
                     <p className="text-[13px] font-semibold text-text-primary">Article Published</p>
                     {article.key_takeaway && <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{article.key_takeaway}</p>}
                   </div>
+                  {/* P0-CD1: the version-over-version confidence % delta is
+                      suppressed along with every other public confidence
+                      percentage on this page — same P0-C provenance gap. */}
                   {updateHistory.map((u, i) => {
-                    const prevConf = i === 0 ? article.confidence_score : updateHistory[i - 1].confidence;
                     return (
                       <div key={i} className="relative pl-6 pb-5">
                         <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-emerald-500" />
                         {i < updateHistory.length - 1 && <span className="absolute left-[5px] top-4 bottom-0 w-px bg-text-primary/10" />}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">{fmtDate(u.at)} · v{u.version}</p>
-                          {u.confidence != null && prevConf != null && u.confidence !== prevConf && (
-                            <span className="text-[10px] font-bold text-text-secondary">
-                              Confidence {Math.round(prevConf * 100)}%→{Math.round(u.confidence * 100)}%
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">{fmtDate(u.at)} · v{u.version}</p>
                         <p className="text-[13px] font-semibold text-text-primary">{u.reason}</p>
                         {u.new_takeaway && u.new_takeaway !== u.previous_takeaway && (
                           <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{u.new_takeaway}</p>
@@ -817,6 +734,7 @@ export default async function ArticlePage(
             confidenceScore={article.confidence_score}
             historicalCount={historical.length}
             storyVersion={article.story_version}
+            showConfidence={false}
           />
         </div>
 

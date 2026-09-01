@@ -47,17 +47,31 @@ const HORIZON_LABEL: Record<string, string> = {
 // Fixed by making the header cells and every row's cells siblings in
 // ONE shared grid, so grid-auto-sizing computes each column's width from
 // every row's content at once, consistently.
-function cellCls(colIndex: number, isLastRow: boolean, extra = "") {
+function cellCls(isFirstCol: boolean, isLastCol: boolean, isLastRow: boolean, extra = "") {
   return [
-    colIndex === 0 ? "pl-4" : "",
-    colIndex === 4 ? "pr-4" : "",
+    isFirstCol ? "pl-4" : "",
+    isLastCol ? "pr-4" : "",
     isLastRow ? "" : "border-b border-surface-border/6",
     "py-3",
     extra,
   ].filter(Boolean).join(" ");
 }
 
-export function CompanyImpactTable({ companies, quotes }: { companies: CompanyImpactRow[]; quotes: Record<string, Quote> }) {
+// showImpact defaults true (unchanged behavior for every other caller of
+// this component). The Newsroom article page passes showImpact={false} —
+// P0-CD1 Public Claim Containment (2026-09-01): `impact` (positive/
+// negative/neutral) is not one signal, it's up to 5 semantically
+// incompatible producers (analytical judgment, today's price sign, one
+// event's sentiment broadcast to every ticker on it, a historical outcome,
+// a comparison-page derivation) rendered identically. There is currently
+// no way for this component to know which one it was given, so the badge
+// that turns it into a visible per-company positive/negative/neutral call
+// is suppressed here rather than risk asserting a claim the underlying
+// data can't actually support. The row itself (name, price, why, horizon)
+// is real, grounded, and stays. Underlying data is untouched — this is a
+// presentation-layer suppression, reversible by flipping the prop back
+// once P0-D's semantic-typing repair (impact.basis/evidence_ids) lands.
+export function CompanyImpactTable({ companies, quotes, showImpact = true }: { companies: CompanyImpactRow[]; quotes: Record<string, Quote>; showImpact?: boolean }) {
   const headerCls = "border-b border-surface-border/6 bg-text-primary/[0.02] py-2.5 text-[9px] font-bold uppercase tracking-widest text-text-muted";
   return (
     <div className="overflow-hidden rounded-2xl border border-surface-border/7 bg-text-primary/[0.02]">
@@ -70,10 +84,10 @@ export function CompanyImpactTable({ companies, quotes }: { companies: CompanyIm
           unconstrained fraction so the row sizes to its actual content —
           Why still grows for longer reasons and wraps rather than
           truncating, it just no longer over-claims empty space. */}
-      <div className="grid grid-cols-[minmax(0,200px)_auto_auto_minmax(0,380px)_auto] items-center gap-x-3">
+      <div className={`grid items-center gap-x-3 ${showImpact ? "grid-cols-[minmax(0,200px)_auto_auto_minmax(0,380px)_auto]" : "grid-cols-[minmax(0,200px)_auto_minmax(0,380px)_auto]"}`}>
         <span className={`${headerCls} pl-4`}>Company</span>
         <span className={`${headerCls} text-right`}>Price</span>
-        <span className={headerCls}>AI Impact</span>
+        {showImpact && <span className={headerCls}>AI Impact</span>}
         <span className={headerCls}>Why</span>
         <span className={`${headerCls} pr-4 text-right`}>Expected Horizon</span>
 
@@ -82,11 +96,11 @@ export function CompanyImpactTable({ companies, quotes }: { companies: CompanyIm
           const isLastRow = i === companies.length - 1;
           return (
             <Fragment key={i}>
-              <div className={cellCls(0, isLastRow, "min-w-0")}>
+              <div className={cellCls(true, false, isLastRow, "min-w-0")}>
                 <Link href={`/companies/${c.symbol}`} className="block text-[13px] font-bold text-sky-700 dark:text-sky-300 hover:text-sky-800 dark:hover:text-sky-200 transition">{c.symbol}</Link>
                 <span className="truncate text-[11px] text-text-muted">{c.name}</span>
               </div>
-              <div className={cellCls(1, isLastRow, "shrink-0 text-right")}>
+              <div className={cellCls(false, false, isLastRow, "shrink-0 text-right")}>
                 {q ? (
                   <>
                     <p className="text-[12px] font-bold tabular-nums text-text-primary">₹{q.price_str}</p>
@@ -96,16 +110,18 @@ export function CompanyImpactTable({ companies, quotes }: { companies: CompanyIm
                   <span className="text-[11px] text-text-muted">—</span>
                 )}
               </div>
-              <div className={cellCls(2, isLastRow, "shrink-0")}>
-                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>
-                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${IMPACT_DOT[c.impact] ?? IMPACT_DOT.neutral}`} />
-                  {c.impact}
-                </span>
-              </div>
-              <div className={cellCls(3, isLastRow, "min-w-0 text-[12px] leading-5 text-text-secondary")}>
+              {showImpact && (
+                <div className={cellCls(false, false, isLastRow, "shrink-0")}>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${IMPACT_DOT[c.impact] ?? IMPACT_DOT.neutral}`} />
+                    {c.impact}
+                  </span>
+                </div>
+              )}
+              <div className={cellCls(false, false, isLastRow, "min-w-0 text-[12px] leading-5 text-text-secondary")}>
                 {c.reason || "—"}
               </div>
-              <div className={cellCls(4, isLastRow, "shrink-0 text-right text-[11px] text-text-muted")}>
+              <div className={cellCls(false, true, isLastRow, "shrink-0 text-right text-[11px] text-text-muted")}>
                 {c.timeframe ? (HORIZON_LABEL[c.timeframe] ?? c.timeframe) : "—"}
               </div>
             </Fragment>

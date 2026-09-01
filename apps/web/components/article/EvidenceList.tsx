@@ -23,9 +23,20 @@ export interface EvidenceListProps {
   confidenceScore?: number | null;
   historicalCount: number;
   storyVersion?: number | null;
+  // Defaults true (unchanged for every other caller). The Newsroom article
+  // page passes showConfidence={false} — P0-CD1 Public Claim Containment
+  // (2026-09-01): confidence_score has 4 real producers (P0-C audit) —
+  // model self-report, a hardcoded 0.7 floor, a real 8-factor rubric, and
+  // "never assigned" — with no field on this component's props to tell
+  // them apart, so a percentage rendered here can't be trusted to mean
+  // what a reader assumes it means. Suppressed here, not deleted from the
+  // data, until that provenance is safe to surface again.
+  showConfidence?: boolean;
 }
 
-export function EvidenceList({ sources, facts, interpretations, confidenceScore, historicalCount, storyVersion }: EvidenceListProps) {
+export function EvidenceList({ sources, facts, interpretations, confidenceScore, historicalCount, storyVersion, showConfidence = true }: EvidenceListProps) {
+  const itemCount = (showConfidence ? 1 : 0) + 2 + (storyVersion != null ? 1 : 0);
+  const gridColsClass = itemCount >= 4 ? "sm:grid-cols-4" : itemCount === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
   return (
     <details className="group rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-5 open:bg-text-primary/[0.03]">
       <summary className="flex cursor-pointer list-none items-center justify-between marker:content-none">
@@ -35,11 +46,13 @@ export function EvidenceList({ sources, facts, interpretations, confidenceScore,
         <ChevronRight className="h-4 w-4 text-text-muted transition group-open:rotate-90" />
       </summary>
 
-      <div className={`mt-4 grid grid-cols-2 gap-4 border-b border-surface-border/6 pb-4 ${storyVersion != null ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">AI Confidence</p>
-          <p className="mt-1 text-[16px] font-bold tabular-nums text-text-primary">{confidenceScore != null ? `${Math.round(confidenceScore * 100)}%` : "—"}</p>
-        </div>
+      <div className={`mt-4 grid grid-cols-2 gap-4 border-b border-surface-border/6 pb-4 ${gridColsClass}`}>
+        {showConfidence && (
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">AI Confidence</p>
+            <p className="mt-1 text-[16px] font-bold tabular-nums text-text-primary">{confidenceScore != null ? `${Math.round(confidenceScore * 100)}%` : "—"}</p>
+          </div>
+        )}
         <div>
           <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Sources</p>
           <p className="mt-1 text-[16px] font-bold tabular-nums text-text-primary">{sources.length || "—"}</p>
