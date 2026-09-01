@@ -153,6 +153,44 @@ def check_status_tense(source_text: str, body_text: str) -> list[str]:
     return errors
 
 
+def check_zero_quotes_resolved(
+    companies: list[dict[str, Any]],
+    price_moves: dict[str, float],
+) -> list[str]:
+    """P0-CD2 Generation Containment (2026-09-01) — closes the exact bypass
+    the P0-D audit flagged as runtime-unproven: an article with directional
+    (positive/negative) company claims, where `price_moves` came back `{}`,
+    previously produced ZERO validation errors and read as "grounding
+    passed." That happened whenever there was nothing to check in the first
+    place -- most concretely, every company on a scheduled market_wrap
+    event used to carry symbol="" (see publisher.py's _build_scheduled_event,
+    now fixed to resolve real symbols), so fetch_price_moves() was never
+    even asked to look anything up, returned `{}` (not None), and the old
+    check here — has_symbol_companies, requiring a truthy SYMBOL per
+    company — was False for every one of them, so it never fired either.
+
+    The invariant this enforces instead: a company-level directional claim
+    plus zero resolved quotes to check it against is never a passed check,
+    regardless of WHY price_moves ended up empty (total fetch failure, no
+    symbols to look up, or a fetch that ran and found nothing). An empty
+    dict is an absence of evidence, not evidence of agreement.
+
+    Only companies with an actual directional call (positive/negative) are
+    counted — a "neutral" tag makes no claim that needs price verification,
+    and a company-less article (pure macro/policy piece) has nothing to
+    check regardless."""
+    directional = [c for c in (companies or []) if (c.get("impact") or "").lower() in ("positive", "negative")]
+    if directional and not price_moves:
+        names = [c.get("symbol") or c.get("name") or "?" for c in directional]
+        return [
+            f"ZERO_QUOTES_RESOLVED: {len(directional)} compan"
+            f"{'y' if len(directional) == 1 else 'ies'} have a directional impact claim "
+            f"({', '.join(names[:5])}) but zero real price quotes were resolved to check "
+            f"them against — grounding cannot be treated as passed"
+        ]
+    return []
+
+
 def validate_fact_grounding(
     article: dict[str, Any],
     price_moves: dict[str, float] | None,
@@ -187,6 +225,7 @@ def validate_fact_grounding(
             )
         price_moves = {}
 
+    errors += check_zero_quotes_resolved(companies, price_moves)
     errors += check_shared_causal_reasons(companies)
     errors += check_sentiment_magnitude_consistency(companies, price_moves)
 

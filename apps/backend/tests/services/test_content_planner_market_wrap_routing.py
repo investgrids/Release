@@ -129,6 +129,42 @@ async def test_legitimate_scheduled_market_wrap_still_generates_after_1530():
             await db.commit()
 
 
+@pytest.mark.asyncio
+async def test_build_scheduled_event_resolves_real_company_symbols():
+    """P0-CD2 Generation Containment (2026-09-01): _build_scheduled_event
+    used to hardcode symbol="" for every company pulled from real news
+    rows -- confirmed root cause of invented/mismatched symbols on
+    scheduled market_wrap articles (the LLM had to guess a ticker from the
+    name alone). A real, resolvable company name must now come out with
+    its real NSE symbol attached; an unresolvable/fictional name must stay
+    "" here (article_generator.py's own entity gate turns that into None
+    before persistence -- this layer's contract is just "don't leave it to
+    the LLM to guess")."""
+    tag = uuid.uuid4().hex[:8]
+    row_id = f"test-news-sym-{tag}"
+    async with AsyncSessionLocal() as db:
+        db.add(NewsArticle(
+            id=row_id, headline=f"Real market update headline {tag}",
+            summary="A real synthetic summary for this regression test.",
+            source="Test Wire", published_at=datetime.now(timezone.utc).isoformat(),
+            companies=["Tata Consultancy Services", "Totally Fictional Company Ltd"],
+            impact_score=5.0,
+        ))
+        await db.commit()
+
+    try:
+        async with AsyncSessionLocal() as db:
+            sched_event = await _build_scheduled_event(db, "post_market")
+            assert sched_event is not None
+            by_name = {c["name"]: c["symbol"] for c in sched_event["companies"]}
+            assert by_name.get("Tata Consultancy Services") == "TCS"
+            assert by_name.get("Totally Fictional Company Ltd") == ""
+    finally:
+        async with AsyncSessionLocal() as db:
+            await db.execute(delete(NewsArticle).where(NewsArticle.id == row_id))
+            await db.commit()
+
+
 def test_other_real_event_types_still_classify_correctly_after_1530():
     """Guard against an over-broad fix: policy/ripple/sector classification
     for OTHER real event shapes must still work normally post-15:30 -- the

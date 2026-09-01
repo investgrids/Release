@@ -272,7 +272,14 @@ async def update_article(
         "at":               now.isoformat(),
         "version":          new_version,
         "reason":           update_reason,
-        "summary":          f"Updated: {mie_context.get('mood', 'market conditions changed')}",
+        # P0-CD2: was f"Updated: {mie_context['mood']}" — the frontend
+        # falls back to rendering this exact field as the article's "new"
+        # AI opinion whenever new_takeaway is unavailable, so it inherited
+        # the same global-mood contamination new_takeaway just got fixed
+        # for. update_reason (already article-scoped: market move / new
+        # triage overlap / story-hash change) is the honest description of
+        # what happened this cycle.
+        "summary":          update_reason,
         "previous_takeaway": article.key_takeaway,
         "new_takeaway":      new_takeaway or article.key_takeaway,
         "confidence":        article.confidence_score,
@@ -299,8 +306,29 @@ async def update_article(
     # blocks (8.7KB, many near-identical) across 35 update cycles. Splitting
     # on the first delimiter keeps the original base explanation and swaps
     # in only the single latest update note each time.
-    if mie_context.get("story"):
-        update_note = f"\n\n**Update {now.strftime('%I:%M %p IST')}:** {mie_context['story']}"
+    #
+    # P0-CD2 (2026-09-01): this used to fire on bare `mie_context.get(
+    # "story")` — true on essentially every cycle, since the MIE always has
+    # SOME current global narrative — stamping that raw global text into
+    # why_it_matters for every touched article regardless of whether this
+    # article had anything to do with it. Same contamination class as the
+    # key_takeaway fix above (new_triage_events is now pre-filtered to this
+    # article's own overlap by the caller, run_continuous_update_cycle;
+    # market_move_reason is inherently article-scoped too — mie_context
+    # ["story"] alone is not). Gated the same way: only a genuine
+    # article-relevant trigger earns an update note.
+    if market_move_reason or new_triage_events:
+        # Prefer the actual article-relevant event's own content over the
+        # global market story — falls back to the global story only for a
+        # pure market_move_reason trigger, where the move itself already IS
+        # this article's own sector/price, so the broader narrative is
+        # legitimate context, not contamination.
+        if new_triage_events:
+            top_event = sorted(new_triage_events, key=lambda e: e.get("urgency", 0), reverse=True)[0]
+            note_text = top_event.get("one_liner") or mie_context.get("story", update_reason)
+        else:
+            note_text = market_move_reason or mie_context.get("story", update_reason)
+        update_note = f"\n\n**Update {now.strftime('%I:%M %p IST')}:** {note_text}"
         base = (article.why_it_matters or "").split("\n\n**Update ", 1)[0]
         article.why_it_matters = base + update_note
 
@@ -322,32 +350,33 @@ def _generate_updated_takeaway(
     mie_context: dict[str, Any],
     new_events: list[dict[str, Any]],
 ) -> str | None:
-    """Generate a fresh key takeaway based on current market context."""
-    mood = mie_context.get("mood", "")
-    opportunity = mie_context.get("opportunity", "")
-    risk = mie_context.get("risk", "")
-    investor_watch = mie_context.get("investor_watch", "")
+    """Generate a fresh key takeaway from developments genuinely connected
+    to THIS article's own subject — never from the global market mood/
+    opportunity/risk narrative.
 
-    if not any([mood, opportunity, risk]):
+    P0-CD2 Generation Containment (2026-09-01): this used to blend
+    mie_context's mood/opportunity/risk/investor_watch — the CURRENT
+    GLOBAL market narrative, identical for every article being updated in
+    the same cycle — directly into key_takeaway, with no connection to
+    whatever this specific article is actually about. Confirmed live: a
+    company-specific article (Ambuja) acquired an unrelated global "Nifty
+    swing-buy" opportunity string as its own takeaway, and (a related,
+    already-partially-fixed case) an ITC-vs-HUL comparison showed a
+    Cholamandalam Finance takeaway. `new_events` is now pre-filtered by the
+    caller (run_continuous_update_cycle) to only the events that actually
+    overlap this article's own sectors/companies — see that function's own
+    comment — so the single remaining source here is genuinely
+    article-specific. No article-relevant development this cycle means no
+    grounded takeaway can be produced: return None and leave the existing
+    key_takeaway in place (update_article already does `new_takeaway or
+    article.key_takeaway`), rather than manufacturing one from global
+    narrative that has nothing to do with this article's subject.
+    """
+    if not new_events:
         return None
-
-    parts = []
-    if mood:
-        parts.append(f"Market mood: {mood}.")
-    if opportunity:
-        parts.append(opportunity)
-    if risk:
-        parts.append(f"Key risk: {risk}")
-    if investor_watch:
-        parts.append(f"Watch: {investor_watch}")
-
-    # Add breaking development if any
-    if new_events:
-        top = sorted(new_events, key=lambda e: e.get("urgency", 0), reverse=True)[0]
-        if top.get("one_liner"):
-            parts.insert(0, f"LATEST: {top['one_liner']}")
-
-    return " | ".join(parts)[:400] if parts else None
+    top = sorted(new_events, key=lambda e: e.get("urgency", 0), reverse=True)[0]
+    one_liner = top.get("one_liner")
+    return f"LATEST: {one_liner}"[:400] if one_liner else None
 
 
 def _generate_watch_next(
@@ -423,8 +452,24 @@ async def run_continuous_update_cycle(
         sector_overlap = relevant_sectors & art_sectors
         company_overlap = relevant_tickers & art_companies
 
+        # P0-CD2 (2026-09-01): an article used to become "eligible" purely
+        # because mie_context's story_hash moved on (this OR branch, last),
+        # with zero sector/company overlap required — and once eligible,
+        # got the FULL, unfiltered new_triage_events list passed through,
+        # so _generate_updated_takeaway's "top urgency event" pick could be
+        # about a completely different company/sector than this article's
+        # own subject. Filtering to this article's own overlap here means
+        # a story-hash-only trigger (no real overlap) correctly passes an
+        # empty event list through — _generate_updated_takeaway already
+        # returns None for that, which is the honest "no article-specific
+        # development this cycle" answer, not a manufactured one.
+        article_relevant_events = [
+            ev for ev in new_triage_events
+            if (set(ev.get("sectors") or []) & art_sectors) or (set(ev.get("tickers") or []) & art_companies)
+        ]
+
         if market_move_reason or sector_overlap or company_overlap or mie_context.get("story_hash") != article.mie_story_hash:
-            ok = await update_article(db, article, mie_context, new_triage_events, market_move_reason)
+            ok = await update_article(db, article, mie_context, article_relevant_events, market_move_reason)
             if ok:
                 updated += 1
 

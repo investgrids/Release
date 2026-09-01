@@ -628,14 +628,27 @@ async def _build_scheduled_event(db, session: str) -> dict[str, Any] | None:
     combined_headline = " | ".join(headlines[:3]) if headlines else "Indian market update"
     combined_summary = " ".join(summaries[:2]) if summaries else combined_headline
 
-    # Deduplicate companies
+    # Deduplicate companies, resolving each to a real symbol where possible.
+    # P0-CD2 Generation Containment (2026-09-01): this used to hardcode
+    # symbol="" for every company, which meant (a) the LLM had to guess a
+    # ticker from the name alone with zero grounding — the root cause of
+    # confirmed invented/mismatched symbols on scheduled market_wrap
+    # articles (Bajaj Finance -> BAJAJFINSV, invented APOLLOMS, unlisted
+    # CIAL) — and (b) fetch_price_moves() below always received an empty
+    # symbol list, so real price grounding never had a chance to run for
+    # scheduled events at all (see fact_grounding.py's fail-closed fix for
+    # the {} case this produced). Resolving here means the {companies}
+    # prompt slot carries real tickers when they exist, and
+    # article_generator.py's own entity gate (_resolve_company_symbols)
+    # still catches anything this doesn't resolve or the LLM invents anyway.
+    from app.services.symbol_normalization import normalize_symbol
     seen = set()
     companies = []
     for c in companies_raw:
         key = str(c).lower()
         if key not in seen:
             seen.add(key)
-            companies.append({"name": c, "symbol": ""})
+            companies.append({"name": c, "symbol": normalize_symbol(None, str(c)) or ""})
 
     article_type = "morning_intelligence" if session in ("pre_open", "pre_market", "live") else "market_wrap"
     now_ist = datetime.now(_IST)

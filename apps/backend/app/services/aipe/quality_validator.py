@@ -8,19 +8,22 @@ Checks (in order):
   4. confidence_sufficient — score >= 0.65
   5. min_length            — what_happened >= 100 chars
   6. no_unfilled_placeholders — required
-  7. has_companies         — at least 1 company affected
-  8. has_opportunities     — at least 1 opportunity
-  9. has_faqs              — at least 1 FAQ
- 10. has_seo_fields        — seo_title + meta_description present
- 11. seo_score_sufficient  — >= 60
+  7. no_recommendation_language — required (P0-CD2, 2026-09-01)
+  8. has_companies         — at least 1 company affected
+  9. has_opportunities     — at least 1 opportunity
+ 10. has_faqs              — at least 1 FAQ
+ 11. has_seo_fields        — seo_title + meta_description present
+ 12. seo_score_sufficient  — >= 60
 
-Required checks (failure → do not publish): 1, 2, 3, 4, 5, 6
-Soft checks (failure → lower quality_score but still publish): 7-11
+Required checks (failure → do not publish): 1, 2, 3, 4, 5, 6, 7
+Soft checks (failure → lower quality_score but still publish): 8-12
 """
 from __future__ import annotations
 
 import re
 from typing import Any
+
+from app.services.aipe.recommendation_language import scan_recommendation_language
 
 # Catches literal unfilled template placeholders the LLM sometimes echoes
 # instead of resolving (e.g. "On [specific date], tensions escalated..." —
@@ -66,7 +69,7 @@ def validate(article: dict[str, Any], seo_score: int) -> tuple[bool, dict[str, A
     """
     results: dict[str, Any] = {}
     passed_required = 0
-    total_required = 6
+    total_required = 7
     passed_soft = 0
     total_soft = 5
 
@@ -78,9 +81,18 @@ def validate(article: dict[str, Any], seo_score: int) -> tuple[bool, dict[str, A
     what_happened = article.get("what_happened") or ""
     results["min_length"] = len(what_happened) >= 100
     results["no_unfilled_placeholders"] = not _has_unfilled_placeholder(article)
+    # P0-CD2 (2026-09-01): the deterministic backstop behind the prompt
+    # changes in content_templates.py — see recommendation_language.py's
+    # own docstring for why this is a required (publish-blocking), not
+    # soft, check.
+    recommendation_violations = scan_recommendation_language(article)
+    results["no_recommendation_language"] = not recommendation_violations
+    if recommendation_violations:
+        results["recommendation_language_violations"] = recommendation_violations
 
     for check in ["has_headline", "has_executive_summary", "has_key_takeaway",
-                  "confidence_sufficient", "min_length", "no_unfilled_placeholders"]:
+                  "confidence_sufficient", "min_length", "no_unfilled_placeholders",
+                  "no_recommendation_language"]:
         if results[check]:
             passed_required += 1
 

@@ -20,6 +20,7 @@ import structlog
 from app.services.ai_service import _call_with_fallback
 from app.services.aipe.content_templates import SYSTEM_PROMPT, get_template
 from app.services.aipe.fact_grounding import fetch_price_moves, format_price_grounding
+from app.services.symbol_normalization import normalize_symbol
 
 log = structlog.get_logger(__name__)
 
@@ -235,8 +236,34 @@ def _parse_and_validate(
     data["article_type"] = article_type
 
     _normalize_pipe_enum_leaks(data)
+    _resolve_company_symbols(data)
 
     return data
+
+
+# P0-CD2 Generation Containment (2026-09-01) — entity authorization gate.
+# The LLM is given company NAMES (article_generator.py's own {companies}
+# prompt slot never includes real symbols for scheduled/synthesized events —
+# see publisher.py's _build_scheduled_event) and is free to guess a ticker
+# for companies_affected[].symbol; that guess was persisted verbatim
+# (publisher.py IntelligenceArticle(companies_affected=article_data...)),
+# with normalize_symbol() only ever applied downstream, cosmetically, to
+# internal_links/related_companies — never to the field every surface
+# actually renders. Concrete confirmed instances of the resulting damage:
+# "Bajaj Finance" stored under BAJAJFINSV (Bajaj Finserv, a different
+# company), an invented APOLLOMS symbol with no real listing, unlisted
+# entities (CIAL) presented as though tradeable. This runs immediately
+# after generation, before any caller (publisher.py, signal_publisher.py's
+# enrich_signal_article) can persist the article, so every path is covered
+# uniformly rather than patching each caller separately. Unknown stays
+# unknown — a company whose symbol can't be confidently resolved is kept
+# (name/reason/impact/timeframe are still real content) with symbol set to
+# None, never silently dropped and never left holding a guessed ticker.
+def _resolve_company_symbols(data: dict[str, Any]) -> None:
+    for c in (data.get("companies_affected") or []):
+        if not isinstance(c, dict):
+            continue
+        c["symbol"] = normalize_symbol(c.get("symbol"), c.get("name"))
 
 
 # content_templates.py's schema documents enum-shaped fields as pipe-joined
@@ -274,7 +301,18 @@ def _normalize_pipe_enum_leaks(data: dict[str, Any]) -> None:
 
 
 def compute_seo_score(article: dict[str, Any]) -> int:
-    """Heuristic SEO score 0-100 based on article completeness."""
+    """Heuristic SEO score 0-100 based on article completeness.
+
+    P0-CD2 Generation Containment (2026-09-01): dropped the >=2
+    companies_affected and >=2 ripple_effect bonuses (worth 10 and 5 points).
+    Both rewarded an article purely for NAMING more companies/relationships,
+    with no check that either was actually evidence-supported — an incentive
+    pointed the wrong way for an evidence-first system, and one real
+    contributing factor behind the over-broad company/ripple claims found in
+    the P0-D audit. Not replaced with an evidence-aware equivalent here —
+    that's real scoring-architecture work, out of scope for this
+    containment pass; simply removing the incentive is the CD2-sized fix.
+    """
     score = 0
     hl = article.get("headline") or ""
     st = article.get("seo_title") or ""
@@ -286,9 +324,7 @@ def compute_seo_score(article: dict[str, Any]) -> int:
     if 120 <= len(md) <= 160:                                   score += 15
     if article.get("slug"):                                     score += 8
     if len(article.get("faqs") or []) >= 2:                    score += 12
-    if len(article.get("companies_affected") or []) >= 2:      score += 10
     if len(article.get("sectors_affected") or []) >= 1:        score += 8
     if article.get("historical_context"):                       score += 10
     if len(article.get("what_to_watch_next") or []) >= 3:      score += 5
-    if len(article.get("ripple_effect") or []) >= 2:           score += 5
     return min(score, 100)

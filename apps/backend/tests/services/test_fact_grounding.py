@@ -13,6 +13,7 @@ from app.services.aipe.fact_grounding import (
     check_shared_causal_reasons,
     check_sentiment_magnitude_consistency,
     check_status_tense,
+    check_zero_quotes_resolved,
     validate_fact_grounding,
 )
 
@@ -189,6 +190,65 @@ def test_total_fetch_failure_does_not_block_company_less_article():
     )
     assert passed is True
     assert errors == []
+
+
+# ── Zero-quotes-resolved bypass (P0-CD2, 2026-09-01) ────────────────────────
+# The exact runtime-unproven bypass the P0-D audit flagged: a scheduled
+# market_wrap article whose companies all had symbol="" meant
+# fetch_price_moves() was never asked to look anything up (empty candidate
+# list -> {} immediately, not None), so the OLD has_symbol_companies check
+# (which required a truthy SYMBOL) was False for every company and the
+# whole grounding check produced zero errors — read as "passed" even though
+# nothing was actually verified.
+
+def test_directional_claims_with_empty_price_moves_flagged():
+    companies = [
+        {"symbol": "", "name": "Some Company", "impact": "positive"},
+        {"symbol": "", "name": "Another Company", "impact": "negative"},
+    ]
+    errors = check_zero_quotes_resolved(companies, {})
+    assert len(errors) == 1
+    assert "ZERO_QUOTES_RESOLVED" in errors[0]
+    assert "Some Company" in errors[0] and "Another Company" in errors[0]
+
+
+def test_directional_claims_with_real_price_moves_not_flagged():
+    companies = [{"symbol": "SBIN", "impact": "positive"}]
+    assert check_zero_quotes_resolved(companies, {"SBIN": 1.2}) == []
+
+
+def test_neutral_only_claims_with_empty_price_moves_not_flagged():
+    # A "neutral" tag makes no directional claim that needs price
+    # verification — nothing to check against real prices regardless.
+    companies = [{"symbol": "", "name": "Some Company", "impact": "neutral"}]
+    assert check_zero_quotes_resolved(companies, {}) == []
+
+
+def test_no_companies_with_empty_price_moves_not_flagged():
+    assert check_zero_quotes_resolved([], {}) == []
+
+
+def test_validate_fact_grounding_catches_empty_symbol_bypass():
+    # The real bug shape: _build_scheduled_event used to emit symbol="" for
+    # every company (fixed separately in publisher.py), which meant
+    # fetch_price_moves([]) returned {} — not None — so the pre-fix
+    # has_symbol_companies branch never fired and this whole article read
+    # as grounding-passed with zero real verification.
+    article = {
+        "companies_affected": [
+            {"symbol": "", "name": "Cupid Limited", "impact": "positive", "reason": "Momentum"},
+        ],
+        "opportunities": [{"title": "Cupid shares show momentum"}],
+        "what_happened": "Markets moved on broad sentiment today.",
+        "why_it_matters": "Investors are watching the session's leaders.",
+    }
+    passed, errors = validate_fact_grounding(
+        article, {},  # empty dict, NOT None — the exact bypass shape
+        source_headline="Market wrap",
+        source_summary="A quiet session overall.",
+    )
+    assert passed is False
+    assert any("ZERO_QUOTES_RESOLVED" in e for e in errors)
 
 
 def test_validate_fact_grounding_fails_on_real_bug_combination():
