@@ -134,11 +134,17 @@ function hasRealScore(s: number | null | undefined): s is number {
   return s !== null && s !== undefined && s > 0;
 }
 
-// Same 0-100 -> High/Medium/Low bucket thresholds as the backend's
-// _confidence_bucket (event_deep_research_service.py) — kept in sync so
-// the qualitative label a user sees never implies a precision the
-// underlying score doesn't have.
-function confidenceTier(c: number | null | undefined): "High" | "Medium" | "Low" | null {
+// P0-CD1E (2026-09-01): renamed from confidenceTier/"Confidence" to
+// coverageTier/"Evidence Coverage" everywhere on this page. The audit
+// (P0-CD1.5) found `data.confidence` is literally `coverage` — the
+// fraction of the impact-magnitude computation backed by real data
+// (scoring_engine.py) — not a measure of how reliable any directional
+// claim is. Displaying it as "Confidence" implicitly vouched for the
+// Top Pick/beneficiary framing beside it, which has no such backing.
+// This is also now the ONE definition used everywhere this value is
+// shown — the audit found two independently hand-written threshold
+// functions producing "Low" and "Medium" for the identical value 50.
+function coverageTier(c: number | null | undefined): "High" | "Medium" | "Low" | null {
   if (c === null || c === undefined) return null;
   if (c >= 66) return "High";
   if (c >= 33) return "Medium";
@@ -431,19 +437,15 @@ function MostAffectedSectors({ data }: { data: EventDetail }) {
 }
 
 // ── Layer 1: Affected Companies ─────────────────────────────────────────────
-// Grouped Positive/Negative/Neutral — a group with zero members is never
-// rendered (2026-08 UX redesign: "why are we spending 150px telling the
-// user there's nothing here?"). Zero companies overall gets one honest
-// sentence, not three empty cards.
+// P0-CD1E (2026-09-01): previously grouped Positive/Negative/Neutral by
+// `impact_type` and showed each company's `impact_score` in that group's
+// color. The audit (P0-CD1.5) found `impact_type` is a single one-shot LLM
+// guess never corrected by the real evidence pass, and `impact_score` can
+// hold either a raw 0-10 LLM self-rating or a real 0-100 evidence
+// composite with no field anywhere that says which — so neither the
+// grouping nor the number can be shown as if they were reliable. One flat
+// list of real identified companies, no direction, no score.
 function AffectedCompaniesSummary({ data, goTab }: { data: EventDetail; goTab: (t: Tab) => void }) {
-  const classifiedSymbols = new Set([...data.beneficiaries, ...data.losers].map(c => c.symbol));
-  const neutral = data.companies.filter(c => !classifiedSymbols.has(c.symbol));
-  const groups = [
-    { list: data.beneficiaries, label: "Positive",  dot: "bg-emerald-400", text: "text-emerald-400" },
-    { list: data.losers,        label: "Negative",  dot: "bg-rose-400",    text: "text-rose-400"    },
-    { list: neutral,            label: "Neutral / unclear", dot: "bg-text-muted", text: "text-text-secondary" },
-  ].filter(g => g.list.length > 0);
-
   if (data.companies.length === 0) {
     return (
       <Card title="Company-Level Impact" className="mb-4 break-inside-avoid">
@@ -454,28 +456,20 @@ function AffectedCompaniesSummary({ data, goTab }: { data: EventDetail; goTab: (
 
   return (
     <Card title="Affected Companies" className="mb-4 break-inside-avoid" action={<span className="text-[11px] text-text-muted">{data.companies.length} compan{data.companies.length === 1 ? "y" : "ies"} identified</span>}>
-      <div className="space-y-3">
-        {groups.map(g => (
-          <div key={g.label}>
-            <p className={`mb-1.5 text-[10px] font-bold uppercase tracking-wider ${g.text}`}>{g.label}</p>
-            <div className="space-y-1.5">
-              {g.list.slice(0, 5).map((c, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${g.dot}`}/>
-                  {isRealSymbol(c.symbol) ? (
-                    <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-text-primary hover:text-sky-600 dark:text-sky-300 transition truncate">{c.name || c.symbol}</Link>
-                  ) : (
-                    <span className="flex-1 min-w-0 text-[12px] font-medium text-text-primary truncate">{c.name}</span>
-                  )}
-                  <span className={`shrink-0 text-[11px] font-bold ${g.text}`}>{c.impact_score === null || c.impact_score === undefined ? "—" : Math.round(c.impact_score)}</span>
-                </div>
-              ))}
-              {g.list.length > 5 && (
-                <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">+{g.list.length - 5} more →</button>
-              )}
-            </div>
+      <div className="space-y-1.5">
+        {data.companies.slice(0, 8).map((c, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-text-muted"/>
+            {isRealSymbol(c.symbol) ? (
+              <Link href={`/companies/${c.symbol}`} className="flex-1 min-w-0 text-[12px] font-medium text-text-primary hover:text-sky-600 dark:text-sky-300 transition truncate">{c.name || c.symbol}</Link>
+            ) : (
+              <span className="flex-1 min-w-0 text-[12px] font-medium text-text-primary truncate">{c.name}</span>
+            )}
           </div>
         ))}
+        {data.companies.length > 8 && (
+          <button onClick={() => goTab("Companies")} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">+{data.companies.length - 8} more →</button>
+        )}
       </div>
     </Card>
   );
@@ -542,7 +536,7 @@ function WhatCouldChangeView({ data }: { data: EventDetail }) {
 function BottomLineCard({ data }: { data: EventDetail }) {
   const opp = data.summary.opportunities?.[0];
   const risk = data.summary.risk_factors?.[0];
-  const tier = confidenceTier(data.confidence);
+  const tier = coverageTier(data.confidence);
   if (!opp && !risk && !hasRealScore(data.impactScore)) return null;
   return (
     <div className="mb-4 break-inside-avoid rounded-[20px] border border-violet-500/15 bg-violet-500/[0.03] p-4">
@@ -550,7 +544,10 @@ function BottomLineCard({ data }: { data: EventDetail }) {
       <div className="space-y-1.5 text-[13px] leading-5 text-text-secondary">
         {opp && <p><span className="font-semibold text-emerald-400">Opportunity — </span>{opp}</p>}
         {risk && <p><span className="font-semibold text-rose-400">Risk — </span>{risk}</p>}
-        <p><span className="font-semibold text-text-primary">Confidence — </span>{tier ?? "Unscored, pending more analysis"}</p>
+        {/* P0-CD1E: renamed from "Confidence" to "Evidence Coverage",
+            same reasoning and same shared coverageTier() as the rest of
+            this page. */}
+        <p><span className="font-semibold text-text-primary">Evidence Coverage — </span>{tier ?? "Unscored, pending more analysis"}</p>
       </div>
     </div>
   );
@@ -918,70 +915,47 @@ function DeepIntelligencePanel({ data, initialRelated, open, onToggle }: {
 }
 
 // ── Tab: Companies ────────────────────────────────────────────────────────────
-// `companies` is the full identified list; `beneficiaries`/`losers` are the
-// subset the backend classified with a clear direction (event_service.py's
-// impact_type === "beneficiary"/"loser"). A company can be identified but
-// classified neither way (e.g. impact_type "neutral", or unset) — found live
-// on a routine "financial results" filing showing "Companies: 1" with both
-// beneficiaries and losers empty, so the company silently vanished from this
-// tab entirely. The `neutral` group below is exactly that leftover set —
-// still rendered, so "1 company identified" never again means "0 shown."
+// P0-CD1E (2026-09-01): previously grouped into Beneficiaries/Negatively
+// Affected/Mentioned by `impact_type`, with "↑ BENEFIT"/"↓ RISK" tags and
+// each company's `impact_score` shown in the group's direction color. The
+// audit (P0-CD1.5) proved `impact_type` is a single ungrounded LLM guess —
+// live example: the same company (HDFCBANK) classified "loser" on one
+// event and "neutral" on a same-day near-duplicate story about the
+// identical facts, with an identical impact_score on both — and that
+// `impact_score` itself mixes an unmarked raw 0-10 LLM scale with a real
+// 0-100 evidence composite. One flat list of every real identified
+// company — name, symbol, the AI's stated reason (still real, still
+// useful) — with no direction and no numeric score. `beneficiaries`/
+// `losers` are no longer read here at all.
 function CompaniesTab({ data }: { data: EventDetail }) {
   if (!data.companies.length) return <Empty msg="Company analysis not yet available."/>;
-  const classifiedSymbols = new Set([...data.beneficiaries, ...data.losers].map(c => c.symbol));
-  const neutral = data.companies.filter(c => !classifiedSymbols.has(c.symbol));
-  const STYLE: Record<string, { badge: string; border: string; bg: string; impact: string }> = {
-    emerald: { badge: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300", border: "border-emerald-500/10", bg: "bg-emerald-500/[0.04]", impact: "text-emerald-400" },
-    rose:    { badge: "bg-rose-500/20 text-rose-600 dark:text-rose-300",       border: "border-rose-500/10", bg: "bg-rose-500/[0.04]", impact: "text-rose-400" },
-    slate:   { badge: "bg-text-primary/10 text-text-secondary",                border: "border-surface-border/10", bg: "bg-text-primary/[0.02]", impact: "text-text-secondary" },
-  };
   return (
-    <div className="space-y-4">
-      {[
-        { list: data.beneficiaries, label: "Beneficiaries",          color: "emerald", tag: "↑ BENEFIT" },
-        { list: data.losers,        label: "Negatively Affected",    color: "rose",    tag: "↓ RISK"    },
-        { list: neutral,            label: "Mentioned — Impact Unclear", color: "slate", tag: "NEUTRAL"  },
-      ].filter(g => g.list.length > 0).map(group => {
-        const s = STYLE[group.color];
-        return (
-        <Card key={group.label} title={group.label}>
-          <div className="space-y-2">
-            {group.list.map((c, i) => {
-              const real = isRealSymbol(c.symbol);
-              const avatar = (
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold ${s.badge} ${real ? "transition hover:opacity-80" : ""}`}>
-                  {(real ? c.symbol : c.name).slice(0, 3)}
-                </div>
-              );
-              const nameEl = (
-                <span className="text-[13px] font-semibold text-text-primary">{c.name || c.symbol}</span>
-              );
-              return (
-              <div key={i} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${s.border} ${s.bg}`}>
-                {real ? <Link href={`/companies/${c.symbol}`}>{avatar}</Link> : avatar}
-                <div className="min-w-0 flex-1">
-                  {real ? (
-                    <Link href={`/companies/${c.symbol}`} className="hover:text-sky-600 dark:text-sky-300 transition">{nameEl}</Link>
-                  ) : nameEl}
-                  {c.reason && <p className="text-[11px] text-text-muted line-clamp-1">{c.reason}</p>}
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-[10px] text-text-muted">Impact</p>
-                  <p className={`text-[14px] font-black ${c.impact_score === null || c.impact_score === undefined ? "text-text-muted" : s.impact}`}>
-                    {c.impact_score === null || c.impact_score === undefined ? "—" : c.impact_score.toFixed(0)}
-                  </p>
-                </div>
-                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${s.badge}`}>
-                  {group.tag}
-                </span>
+    <Card title="Companies Identified">
+      <div className="space-y-2">
+        {data.companies.map((c, i) => {
+          const real = isRealSymbol(c.symbol);
+          const avatar = (
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold bg-text-primary/10 text-text-secondary ${real ? "transition hover:opacity-80" : ""}`}>
+              {(real ? c.symbol : c.name).slice(0, 3)}
+            </div>
+          );
+          const nameEl = (
+            <span className="text-[13px] font-semibold text-text-primary">{c.name || c.symbol}</span>
+          );
+          return (
+            <div key={i} className="flex items-center gap-3 rounded-xl border border-surface-border/10 bg-text-primary/[0.02] px-3 py-2.5">
+              {real ? <Link href={`/companies/${c.symbol}`}>{avatar}</Link> : avatar}
+              <div className="min-w-0 flex-1">
+                {real ? (
+                  <Link href={`/companies/${c.symbol}`} className="hover:text-sky-600 dark:text-sky-300 transition">{nameEl}</Link>
+                ) : nameEl}
+                {c.reason && <p className="text-[11px] text-text-muted line-clamp-1">{c.reason}</p>}
               </div>
-              );
-            })}
-          </div>
-        </Card>
-        );
-      })}
-    </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
@@ -1286,7 +1260,7 @@ function RightPanel({
             <span className={`text-[12px] font-bold ${sc.text}`}>{hasRealScore(data.impactScore) ? Math.round(data.impactScore) : "—"}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-text-muted">Confidence</span>
+            <span className="text-[11px] text-text-muted">Evidence Coverage</span>
             <span className="text-[12px] font-bold text-text-primary">{data.confidence === null || data.confidence === undefined ? "—" : `${Math.round(data.confidence)}%`}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -1408,16 +1382,18 @@ function RightPanel({
 }
 
 // ── VerdictCard ───────────────────────────────────────────────────────────────
+// P0-CD1E (2026-09-01): renamed from an "Investment Verdict" card to an
+// impact-magnitude assessment, and Top Pick/Caution removed entirely. The
+// audit (P0-CD1.5) found Top Pick/Caution were driven by `impact_type` — a
+// single one-shot LLM guess per company that the later evidence-based
+// enrichment pass never corrects (only the adjacent magnitude number gets
+// corrected) — proven live: the same company got opposite impact_type
+// labels across two near-duplicate events while its impact_score stayed
+// byte-identical. `score`/`verdict` below are untouched: they come from
+// the real weighted Scoring Engine composite and describe magnitude only
+// ("how much this event matters"), never a direction or a pick.
 function VerdictCard({ data }: { data: EventDetail }) {
   const score = data.impactScore;
-  // .find(isRealSymbol), not [0] (2026-08 audit — GSC 404 report):
-  // beneficiaries/losers are AI-extracted and can rank a placeholder
-  // symbol ("N/A") as the #1 entry; confirmed live via
-  // /companies/N/A showing up as a crawled 404 sourced from exactly
-  // this unguarded [0] pick (the same array IS guarded elsewhere in
-  // this file, e.g. the CompaniesTab list below).
-  const topBen = data.beneficiaries.find(c => isRealSymbol(c.symbol));
-  const topRisk = data.losers.find(c => isRealSymbol(c.symbol));
 
   // Tier label derived from the real impact score (not fabricated text) —
   // deliberately doesn't restate why_it_matters, which now has its own
@@ -1430,45 +1406,17 @@ function VerdictCard({ data }: { data: EventDetail }) {
     score >= 50 ? "Moderate impact. Monitor if you are exposed to the affected sectors." :
     "Low broad impact — unlikely to affect diversified portfolios significantly.";
 
-  const sc = scoreColor(score);
-  const tier = confidenceTier(data.confidence);
+  const tier = coverageTier(data.confidence);
 
   return (
     <div className="mb-5 rounded-[20px] border border-sky-500/[0.15] bg-gradient-to-r from-surface-card to-surface-bg p-5">
-      <div className="flex items-start gap-5">
-        {/* Verdict */}
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-400">Investment Verdict</p>
-          </div>
-          <p className="text-[15px] font-semibold leading-snug text-text-primary">{verdict}</p>
-          {tier && <p className="mt-1.5 text-[11px] text-text-muted">Confidence: <span className="font-semibold text-text-secondary">{tier}</span></p>}
+      <div className="min-w-0">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-400">Impact Assessment</p>
         </div>
-
-        {/* Top pick + risk */}
-        <div className="flex shrink-0 gap-6 text-right">
-          {topBen && (
-            <div>
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-500">Top Pick</p>
-              <Link href={`/companies/${topBen.symbol}`}
-                className="block text-[14px] font-bold text-emerald-600 dark:text-emerald-300 transition hover:text-emerald-700 dark:text-emerald-200">
-                {topBen.name || topBen.symbol}
-              </Link>
-              <p className="text-[10px] text-text-muted">↑ Benefits most</p>
-            </div>
-          )}
-          {topRisk && (
-            <div>
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-rose-500">Caution</p>
-              <Link href={`/companies/${topRisk.symbol}`}
-                className="block text-[14px] font-bold text-rose-600 dark:text-rose-300 transition hover:text-rose-700 dark:text-rose-200">
-                {topRisk.name || topRisk.symbol}
-              </Link>
-              <p className="text-[10px] text-text-muted">↓ At risk</p>
-            </div>
-          )}
-        </div>
+        <p className="text-[15px] font-semibold leading-snug text-text-primary">{verdict}</p>
+        {tier && <p className="mt-1.5 text-[11px] text-text-muted">Evidence Coverage: <span className="font-semibold text-text-secondary">{tier}</span></p>}
       </div>
 
       {/* Action row */}
@@ -1480,12 +1428,6 @@ function VerdictCard({ data }: { data: EventDetail }) {
           <Sparkles className="h-3.5 w-3.5" />
           Ask AI what this means for me
         </Link>
-        {topBen && (
-          <Link href={`/companies/${topBen.symbol}`}
-            className="text-[12px] font-medium text-emerald-400 transition hover:text-emerald-600 dark:text-emerald-300">
-            Research {topBen.name || topBen.symbol} →
-          </Link>
-        )}
         <Link href={`/ripple/${data.event.slug || data.event.id}`}
           className="ml-auto text-[12px] font-medium text-text-muted transition hover:text-text-secondary">
           See ripple chain →
@@ -1496,19 +1438,24 @@ function VerdictCard({ data }: { data: EventDetail }) {
 }
 
 // ── WhatNextSection ───────────────────────────────────────────────────────────
+// P0-CD1E (2026-09-01): the primary CTA and the "Monitor" group used to be
+// driven by `impact_type` (beneficiary/loser classification) — the exact
+// field P0-CD1.5 found is a single ungrounded LLM guess, never corrected
+// by the real evidence pass. Two of the three CTA "why" strings also
+// asserted specific, un-evidenced causal/timing claims ("this event
+// directly improves their order book and revenue outlook", "...signals a
+// potential entry") that don't originate anywhere in the intelligence
+// pipeline — they were authored directly in this component. The "Monitor"
+// group existed only to hang that second claim on a loser-classified
+// company, so it's removed rather than reworded; there's no
+// classification-independent version of "watch this company for an
+// entry point." Primary now treats every real, identified company the
+// same way — connected to the event, not benefit/risk-classified.
 function WhatNextSection({ data }: { data: EventDetail }) {
   const q         = (s: string) => encodeURIComponent(s);
-  // .find(isRealSymbol), not [0] — see VerdictCard's identical fix above.
-  const topBen    = data.beneficiaries.find(c => isRealSymbol(c.symbol));
-  const topRisk   = data.losers.find(c => isRealSymbol(c.symbol));
+  const topCompany = data.companies.find(c => isRealSymbol(c.symbol));
   const topSec    = data.affectedSectors[0]?.sector;
   const title     = truncateForQuery(data.event.title);
-  // Same leftover-set reasoning as CompaniesTab: a company can be identified
-  // without a benefit/risk classification. When that's the only company on
-  // record, the primary action should still name it instead of falling
-  // through to a generic "ask AI" suggestion.
-  const classifiedSymbols = new Set([...data.beneficiaries, ...data.losers].map(c => c.symbol));
-  const topNeutral = data.companies.find(c => !classifiedSymbols.has(c.symbol) && isRealSymbol(c.symbol));
 
   return (
     <NextSteps config={{
@@ -1517,18 +1464,14 @@ function WhatNextSection({ data }: { data: EventDetail }) {
       // already surfaces one via IntelligenceBlock. Repeating a second,
       // differently-derived one at the bottom of every tab was the
       // duplicate, not this section's actual recommendations below.
-      primary: topBen ? {
-        label: `Research ${topBen.name || topBen.symbol}`,
-        why:   `Because they're the highest-conviction beneficiary — this event directly improves their order book and revenue outlook.`,
-        href:  `/companies/${topBen.symbol}`,
-      } : topNeutral ? {
-        label: `Research ${topNeutral.name || topNeutral.symbol}`,
-        why:   `Because they're the company this event is actually about — start there before asking AI for a broader read.`,
-        href:  `/companies/${topNeutral.symbol}`,
+      primary: topCompany ? {
+        label: `Research ${topCompany.name || topCompany.symbol}`,
+        why:   `Because they're a company this event is connected to — see how it plays out for them specifically.`,
+        href:  `/companies/${topCompany.symbol}`,
       } : {
-        label: `Ask AI: Who benefits most from this event?`,
-        why:   `Because identifying specific winners is the first step toward an actionable investment thesis.`,
-        href:  `/ai-search?q=${q(`Which companies benefit most from "${title}"?`)}`,
+        label: `Ask AI: Which companies are connected to this event?`,
+        why:   `Because identifying the specific companies involved is the first step toward understanding this event's reach.`,
+        href:  `/ai-search?q=${q(`Which companies are connected to "${title}"?`)}`,
       },
       groups: [
         {
@@ -1536,30 +1479,22 @@ function WhatNextSection({ data }: { data: EventDetail }) {
           actions: [
             {
               label: `Ask AI: How long will this impact last?`,
-              why:   `Because duration determines whether to buy now or wait for a better entry after the initial market reaction.`,
-              href:  `/ai-search?q=${q(`How long will the market impact of "${title}" last and what should investors do?`)}`,
+              why:   `Because how long an event's effects persist changes how much weight it deserves in your own research.`,
+              href:  `/ai-search?q=${q(`How long will the market impact of "${title}" last?`)}`,
             },
             topSec ? {
               label: `Trace the ripple across ${topSec}`,
-              why:   `Because indirect effects in adjacent sectors often create the best risk-adjusted opportunities.`,
+              why:   `Because indirect effects in adjacent sectors are often missed by a headline-only read.`,
               href:  `/ripple/${data.event.slug || data.event.id}`,
             } : {
               label: "Trace the full ripple chain",
-              why:   "Because second-order effects compound — the real opportunity is often two steps removed from the headline.",
+              why:   "Because second-order effects compound — following the chain shows more than the headline alone.",
               href:  `/ripple/${data.event.slug || data.event.id}`,
             },
           ],
         },
-        ...(topRisk ? [{
-          label: "Monitor",
-          actions: [{
-            label: `Watch ${topRisk.name || topRisk.symbol}`,
-            why:   `Because they face the most direct headwind — when the risk is fully priced in, that signals a potential entry.`,
-            href:  `/companies/${topRisk.symbol}`,
-          }],
-        }] : []),
       ],
-      path: [data.event.event_type || "Event", topSec || "Sector", topBen?.name || topBen?.symbol || "Company", "Investment Thesis"].filter(Boolean) as string[],
+      path: [data.event.event_type || "Event", topSec || "Sector", topCompany?.name || topCompany?.symbol || "Company", "Research"].filter(Boolean) as string[],
     }} />
   );
 }
@@ -1686,6 +1621,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
   const catPill = CATEGORY_PILL[ev.event_type] ?? "bg-slate-500/20 text-text-secondary border-surface-border/7";
   const titleQuestion = extractQuestion(ev.title);
   const questionAnswer = titleQuestion ? deriveQuestionAnswer(data, titleQuestion) : null;
+  const quickLinkCompany = data.companies.find(c => isRealSymbol(c.symbol));
 
   return (
     <main className="min-w-0 pb-10">
@@ -1721,8 +1657,12 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
           ✦ Intelligence Feed
         </Link>
         <SmartCTA variant="ask-ai" href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${truncateForQuery(ev.title)}`)}`} />
-        {data.beneficiaries?.[0] && (
-          <SmartCTA variant="see-companies" href={`/companies/${data.beneficiaries[0].symbol}`} context={data.beneficiaries[0].name || data.beneficiaries[0].symbol} />
+        {/* P0-CD1E: was data.beneficiaries[0] — featuring a specific
+            company here because impact_type called it a "beneficiary" is
+            the same claim as the removed Top Pick, just relocated to a
+            quick-link. Any real identified company, not the classified one. */}
+        {quickLinkCompany && (
+          <SmartCTA variant="see-companies" href={`/companies/${quickLinkCompany.symbol}`} context={quickLinkCompany.name || quickLinkCompany.symbol} />
         )}
         <SmartCTA variant="view-ripple" href={`/ripple/${ev.slug || ev.id}`} />
       </div>
@@ -1791,7 +1731,7 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
               </div>
               <div className="text-center">
                 <ScoreRing score={data.confidence} size={80}/>
-                <p className="mt-1 text-[10px] text-text-muted">Confidence</p>
+                <p className="mt-1 text-[10px] text-text-muted">Evidence Coverage</p>
               </div>
             </div>
           </div>
@@ -1800,10 +1740,18 @@ export default function EventExplorerPage({ initialDetail, initialRelated }: { i
 
       {/* ── KPI cards ─────────────────────────────────────────────────────── */}
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* P0-CD1E: "Companies Affected" sub no longer splits by benefit/
+            at-risk — that split is impact_type, the exact ungrounded field
+            this containment suppresses. "Confidence Level" renamed to
+            "Evidence Coverage" and now shares coverageTier() with every
+            other coverage display on this page (was its own inline >=80/
+            >=60 bucketing, independently wrong from confidenceTier's
+            >=66/>=33 — the audit's live "50 -> Low here, Medium there"
+            contradiction). */}
         <KpiCard label="Impact Score"       value={hasRealScore(data.impactScore) ? Math.round(data.impactScore) : "—"} sub={hasRealScore(data.impactScore) ? scoreLabel(data.impactScore) : "Pending analysis"} icon={<Target className="h-4 w-4" />} color={sc.text} border={`${sc.border}/20`}/>
-        <KpiCard label="Companies Affected" value={data.companies.length || "—"} sub={`${data.beneficiaries.length} benefit · ${data.losers.length} at risk`} icon={<Building2 className="h-4 w-4" />} color="text-sky-400"     border="border-sky-500/15"/>
+        <KpiCard label="Companies Affected" value={data.companies.length || "—"} sub={data.companies.length ? `${data.companies.length} identified` : "Analyzing…"} icon={<Building2 className="h-4 w-4" />} color="text-sky-400"     border="border-sky-500/15"/>
         <KpiCard label="Sectors Impacted"   value={data.affectedSectors.length || "—"} sub={data.affectedSectors[0]?.sector ?? "Analyzing…"} icon={<BarChart2 className="h-4 w-4" />} color="text-emerald-400" border="border-emerald-500/15"/>
-        <KpiCard label="Confidence Level"   value={data.confidence !== null && data.confidence !== undefined ? `${Math.round(data.confidence)}%` : "—"} sub={data.confidence === null || data.confidence === undefined ? "Unscored" : data.confidence >= 80 ? "High Confidence" : data.confidence >= 60 ? "Moderate" : "Low Confidence"} icon={<Sparkles className="h-4 w-4" />} color="text-violet-400" border="border-violet-500/15"/>
+        <KpiCard label="Evidence Coverage"  value={data.confidence !== null && data.confidence !== undefined ? `${Math.round(data.confidence)}%` : "—"} sub={coverageTier(data.confidence) ? `${coverageTier(data.confidence)} Coverage` : "Unscored"} icon={<Sparkles className="h-4 w-4" />} color="text-violet-400" border="border-violet-500/15"/>
       </div>
 
       {/* ── Verdict card ─────────────────────────────────────────────────── */}
