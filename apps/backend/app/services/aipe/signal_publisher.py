@@ -245,15 +245,53 @@ async def publish_signal(db: AsyncSession, item: dict) -> dict:
     return {"slug": slug, "headline": headline}
 
 
+async def run_signal_publish_cycle() -> int:
+    """P0-B (2026-09-01) -- the sole real writer for live-signal
+    IntelligenceArticle rows. Moved here from GET /api/live-intelligence/
+    feed, which used to call publish_signal() directly inside the request
+    handler on every cache-cold hit -- a public, unauthenticated GET
+    request creating/updating durable publication state as a side effect
+    of generating its own response. The invariant now holds: a GET
+    request only ever computes a read-only response (see
+    live_intelligence.py's feed handler, which now calls slug_for_item()
+    directly -- a pure function of the item, no DB access at all -- for
+    the same slug value this used to return from the write). Durable
+    publication happens only here, on this job's own schedule (see
+    scheduler.py; same 5-minute cadence the feed's cache TTL already
+    used, so real page freshness is unchanged)."""
+    import structlog
+    log = structlog.get_logger(__name__)
+    from app.db.session import AsyncSessionLocal
+    from app.services import live_intelligence as li
+
+    published = 0
+    async with AsyncSessionLocal() as db:
+        article = (await db.execute(
+            select(IntelligenceArticle)
+            .where(IntelligenceArticle.article_type == "morning_intelligence")
+            .order_by(IntelligenceArticle.published_at.desc())
+            .limit(1)
+        )).scalars().first()
+
+        items = await li.get_live_intelligence(db, article)
+        for item in items:
+            try:
+                await publish_signal(db, item)
+                published += 1
+            except Exception as exc:
+                log.warning("signal_publish_cycle.failed", type=item.get("type"), error=str(exc)[:200])
+
+    return published
+
+
 # ── Async enrichment ──────────────────────────────────────────────────────
 #
-# publish_signal above is deliberately fast and LLM-free — it runs inside a
-# real user's request (live_intelligence.py's /feed endpoint, on a cache
-# miss), and blocking that on an LLM call would make a live page load wait
-# on AI generation. What it stores is genuinely thin though (SEO audit's
-# Stage-2 "Live Feed explanations" gap, and the roadmap's own "one-click
-# article generation from every feed item" ask): why_it_matters/
-# what_happened/opportunities/risks/faqs are never set.
+# publish_signal above is deliberately fast and LLM-free -- it runs from
+# run_signal_publish_cycle's own scheduled job (P0-B), never inside a
+# request. What it stores is genuinely thin though (SEO audit's Stage-2
+# "Live Feed explanations" gap, and the roadmap's own "one-click article
+# generation from every feed item" ask): why_it_matters/what_happened/
+# opportunities/risks/faqs are never set.
 #
 # Enrichment is a SEPARATE, scheduled, async pass — same decoupling
 # principle already proven safe in this codebase by image_worker.py (hero

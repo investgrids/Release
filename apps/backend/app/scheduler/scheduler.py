@@ -380,13 +380,32 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         misfire_grace_time=120,
     )
 
+    # ── Live Intelligence signal publisher — every 5 minutes ─────────────────
+    # P0-B (2026-09-01): the sole real writer for live-signal
+    # IntelligenceArticle rows. Was previously GET /api/live-intelligence/
+    # feed's own request-time side effect (a public, unauthenticated GET
+    # creating/updating durable publication state on every cache-cold hit)
+    # -- moved to this controlled, scheduled producer instead. Same 5-
+    # minute cadence the feed's own cache TTL already used, so real page
+    # freshness for users is unchanged; the feed handler itself is now
+    # read-only (see live_intelligence.py, api/live_intelligence.py).
+    from app.services.aipe.signal_publisher import run_signal_publish_cycle
+    scheduler.add_job(
+        run_signal_publish_cycle,
+        IntervalTrigger(seconds=300),
+        id="signal_publish_cycle",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=120,
+    )
+
     # Same decoupling principle as media_generation above — publish_signal
-    # (live_intelligence.py's request-time path) stays fast and LLM-free;
-    # this separately, asynchronously backfills real why_it_matters/
-    # what_happened/opportunities/risks/FAQs onto live_signal rows that are
-    # still thin (see signal_publisher.py's enrichment section docstring —
-    # roadmap Stage 2's "Live Feed explanations" / "one-click article
-    # generation from every feed item" ask).
+    # (now run_signal_publish_cycle's own scheduled job, see above) stays
+    # fast and LLM-free; this separately, asynchronously backfills real
+    # why_it_matters/what_happened/opportunities/risks/FAQs onto live_signal
+    # rows that are still thin (see signal_publisher.py's enrichment section
+    # docstring — roadmap Stage 2's "Live Feed explanations" / "one-click
+    # article generation from every feed item" ask).
     from app.services.aipe.signal_publisher import run_signal_enrichment_cycle
     scheduler.add_job(
         run_signal_enrichment_cycle,

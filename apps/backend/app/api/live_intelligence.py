@@ -13,7 +13,7 @@ from app.core.redis import cache_get, cache_set
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.session import get_db
 from app.services import live_intelligence as li
-from app.services.aipe.signal_publisher import publish_signal
+from app.services.aipe.signal_publisher import slug_for_item
 
 router = APIRouter()
 log = structlog.get_logger(__name__)
@@ -39,18 +39,20 @@ async def live_intelligence_feed(db: AsyncSession = Depends(get_db)):
 
     items = await li.get_live_intelligence(db, article)
 
-    # Give each detected signal a permanent /intelligence/signal/{slug} page
-    # (homepage audit, Priority 1) — only on a real cache miss, not on every
-    # request, since publishing is a DB write and the underlying signal
-    # hasn't changed within the 5-minute cache window anyway. One failing
-    # publish (e.g. a transient DB hiccup) drops that item's slug but never
-    # breaks the feed itself.
+    # P0-B (2026-09-01) -- read-only. Each detected signal's permanent
+    # /intelligence/signal/{slug} page (homepage audit, Priority 1) still
+    # gets a real, durable IntelligenceArticle row -- but that write now
+    # happens only from run_signal_publish_cycle's own scheduled job (see
+    # signal_publisher.py), never from this GET handler. slug_for_item()
+    # is a pure function of the item alone (no DB access), so this returns
+    # the exact same slug value the old write path returned -- the
+    # response contract is unchanged; only the write side effect is gone.
+    # A page can very briefly show a slug before the next cycle has
+    # created its durable row (up to ~5 min, matching this cache's own
+    # TTL) -- the accepted tradeoff of moving publication onto a
+    # scheduled cadence instead of a request.
     for item in items:
-        try:
-            published = await publish_signal(db, item)
-            item["slug"] = published["slug"]
-        except Exception as exc:
-            log.warning("live_intelligence.publish_fail", type=item.get("type"), exc=str(exc)[:160])
+        item["slug"] = slug_for_item(item)
 
     await cache_set(_CACHE_KEY, items, ttl=_CACHE_TTL)
     return {"items": items}
