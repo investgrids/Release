@@ -112,10 +112,30 @@ def select_article_type(
     if session == "pre_market":
         return "morning_intelligence", f"morning-{today}", 1
 
-    # Post-market after 3:30 PM: generate market wrap
-    now = _ist_now()
-    if now.hour == 15 and now.minute >= 30 or now.hour >= 16:
-        return "market_wrap", f"wrap-{today}", 2
+    # P0-A Market Wrap Integrity Fix (2026-09-01) -- REMOVED the post-3:30PM
+    # override that used to relabel WHATEVER single EventTriage item this
+    # function was called with as "market_wrap", purely because of the
+    # clock. That single-subject event (real example: one micro-cap's
+    # routine machine-readable-filing notice) then got the whole-market
+    # MARKET_WRAP prompt, which the LLM dutifully filled with an invented
+    # sector breakdown, a fabricated Nifty/Bank Nifty ripple, and named
+    # trade recommendations traceable to nothing in the source event —
+    # published in production with confidence_score 0.85-0.95.
+    #
+    # market_wrap must only ever come from the real, whole-market
+    # synthetic event `_build_scheduled_event()` builds from actual recent
+    # cross-market news specifically for this content type (publisher.py's
+    # "5b. Scheduled article path") -- that path sets `_article_type`
+    # directly and never calls select_article_type() at all, so removing
+    # this branch cannot affect it. A single triage event now keeps
+    # falling through to the real content-type selection below regardless
+    # of what time it is -- exactly the same classification it would get
+    # at 11am, at 4pm, or at 11pm.
+    #
+    # grep confirms select_article_type() has exactly one caller in the
+    # whole codebase (publisher.py's per-triage-event loop) and this was
+    # the only branch inside it that could ever produce "market_wrap" --
+    # narrowly scoped, no other code path is affected.
 
     # ── Content type selection ────────────────────────────────────────────────
     # Policy / Macro
