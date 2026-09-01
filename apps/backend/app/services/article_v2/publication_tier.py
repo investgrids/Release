@@ -115,7 +115,14 @@ def _matches_supplementary_high_signal(text: str) -> bool:
 # A real, honest "the source filing's own subject was malformed" marker
 # -- SIGACHI's real case ("Notice of undefined"). Not fabricated, but
 # conveys nothing to a reader; a mechanical REJECT, not an editorial one.
-_DEGENERATE_SUBJECT_RE = re.compile(r"\bundefined\b", re.IGNORECASE)
+# D-Link's real second-cohort case is the same class from the opposite
+# direction: the raw NSE filing text itself has a genuinely BLANK name
+# field ("Appointment of   as Non-Executive Independent Director" --
+# three spaces where a real person's name should be, confirmed directly
+# against the raw ingested evidence, not an artifact of this module's
+# own extraction). `of\s{2,}as` catches this real, recurring upstream
+# data-quality shape without inventing a name to fill the gap.
+_DEGENERATE_SUBJECT_RE = re.compile(r"\bundefined\b|\bof\s{2,}as\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True)

@@ -110,6 +110,19 @@ def test_real_currency_figure_escalates_to_article():
     assert "REAL_NUMERIC_SUBSTANCE" in result.reason_codes
 
 
+def test_blank_name_field_subject_is_rejected():
+    """D-Link's real second-cohort case: the raw NSE filing text itself
+    has a genuinely blank name field ('Appointment of   as Non-
+    Executive Independent Director') -- confirmed directly against the
+    real ingested evidence, not an extraction artifact. Same class as
+    SIGACHI's 'undefined' case: honest, not fabricated, but conveys
+    nothing to a reader."""
+    es = _es("DLINKINDIA", "D-Link (India) Limited has informed the Exchange regarding Appointment of   as Non- Executive Independent Director of the company w.e.f. August 26, 2026.")
+    result = classify_publication_tier(_decision(es), es, None)
+    assert result.tier == REJECT
+    assert "DEGENERATE_SUBJECT" in result.reason_codes
+
+
 def test_degenerate_undefined_subject_is_rejected():
     """SIGACHI's real case: the source filing's own subject field was
     malformed and C5 correctly refused to invent one -- honest, but not
