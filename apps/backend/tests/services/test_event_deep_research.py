@@ -224,3 +224,36 @@ class TestDeepResearchService:
             assert "sector" in levels
         finally:
             await _cleanup(event_id)
+
+    async def test_second_order_effects_never_labeled_observed(self):
+        """CD3-B fix: this endpoint's second-order effects come entirely
+        from RippleGraph.insights, an AI-generated summary with no
+        per-event evidence-validation path (CD3-A finding) — the
+        'immediate' summary effect used to be hardcoded status="observed"
+        even though it's the same unverified content as the sector/company
+        effects below it, which were already "likely". All three must now
+        read "hypothesized", never "observed" -- that state is reserved for
+        a future evidence-validated producer this endpoint doesn't have."""
+        event_id = f"pytest-dr-ripplestatus-{uuid.uuid4().hex[:8]}"
+        await _cleanup(event_id)
+        try:
+            async with AsyncSessionLocal() as db:
+                db.add(_mk_event(event_id, impact_score=20.0, confidence=50.0))
+                db.add(RippleGraph(
+                    event_id=event_id, scenario_type="event", source="ai_generated",
+                    graph_data={"nodes": [{"id": "n1"}], "edges": []},
+                    insights={
+                        "summary": "Real AI-generated ripple summary.",
+                        "impacted_sectors": [{"name": "Banking"}],
+                        "beneficiaries": [{"name": "HDFC Bank"}],
+                    },
+                ))
+                await db.commit()
+                result = await get_deep_research(db, event_id)
+            assert result is not None
+            assert len(result.second_order_effects) == 3
+            statuses = {e.status for e in result.second_order_effects}
+            assert statuses == {"hypothesized"}
+            assert "observed" not in statuses
+        finally:
+            await _cleanup(event_id)

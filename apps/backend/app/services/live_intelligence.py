@@ -38,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.intelligence import EventTriage, ThemeState
 from app.db.models.opportunity import Opportunity
+from app.services.claim_provenance import ClaimProvenance
 
 log = structlog.get_logger(__name__)
 
@@ -160,7 +161,13 @@ async def _detect_anomaly(db: AsyncSession) -> dict | None:
     headline = f"{sector} Sector: {len(bucket['tickers'])} Stocks Show Simultaneous Activity — {detection_date}"
 
     companies = [
-        {"symbol": sym, "impact": _direction_to_impact(bucket["directions"].get(sym, (None, None))[0])}
+        {
+            "symbol": sym,
+            "impact": _direction_to_impact(bucket["directions"].get(sym, (None, None))[0]),
+            # CD3-B: this is the event-level EventTriage.direction broadcast to
+            # every company matched to that event, not a per-company assessment.
+            "impact_provenance": ClaimProvenance.EVENT_DIRECTION.value,
+        }
         for sym in sorted(bucket["tickers"])[:6]
     ]
 
@@ -225,7 +232,10 @@ async def _detect_policy_ripple(db: AsyncSession) -> dict | None:
             # _build_ripple_chain only reaches sector-level nodes, not a
             # company-level benefits/hurts classification — so impact
             # stays honestly None (renders grey) rather than guessed.
-            companies = [{"symbol": s, "impact": None} for s in _companies_for_chain(chain)]
+            companies = [
+                {"symbol": s, "impact": None, "impact_provenance": ClaimProvenance.UNAVAILABLE.value}
+                for s in _companies_for_chain(chain)
+            ]
             return {
                 "type": "policy_ripple",
                 "headline": seed,
@@ -289,8 +299,15 @@ async def _detect_early_theme(db: AsyncSession, exclude: str | None = None) -> d
     # invented: a plain string entry (no dict/change_pct) gets impact=None,
     # never a guessed direction.
     top_stocks = [
-        {"symbol": s.get("sym"), "impact": _change_pct_to_impact(s.get("change_pct"))}
-        if isinstance(s, dict) else {"symbol": str(s), "impact": None}
+        {
+            "symbol": s.get("sym"),
+            "impact": _change_pct_to_impact(s.get("change_pct")),
+            # CD3-B: real observed price direction, not an analytical claim —
+            # may render "shares rose/fell", must not authorize beneficiary/
+            # forecast framing. See app.services.claim_provenance.
+            "impact_provenance": ClaimProvenance.PRICE_SIGN.value,
+        }
+        if isinstance(s, dict) else {"symbol": str(s), "impact": None, "impact_provenance": ClaimProvenance.UNKNOWN.value}
         for s in (theme.top_stocks or [])
     ][:5]
 

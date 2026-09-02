@@ -19,6 +19,7 @@ from app.db.models_legacy import NewsArticle
 from app.services import coverage_engine
 from app.repositories.event_repository import EventRepository
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
+from app.services.claim_provenance import ClaimProvenance, RippleEvidenceState
 from app.services.event_scale import normalize_impact_score, normalize_confidence
 
 logger = structlog.get_logger(__name__)
@@ -132,9 +133,15 @@ class EventService:
                 raw_sectors = _CAT_SECTORS.get((event.category or "macro").lower(), ["Economy"])
 
             class _FakeSector:
+                # CD3-B: zero evidence backs this row at all (no EventSector
+                # rows, no Event.sectors JSON) — "positive" was a fabricated
+                # directional claim, indistinguishable from a real one at the
+                # API surface. "unavailable" is not a second guess ("neutral"
+                # would still be a claim); it authorizes no directional claim
+                # whatsoever. See app.services.claim_provenance.
                 def __init__(self, name: str):
                     self.sector       = name
-                    self.impact       = "positive"
+                    self.impact       = "unavailable"
                     self.impact_score = 50.0
 
             sectors = [_FakeSector(s) for s in raw_sectors]
@@ -221,6 +228,14 @@ class EventService:
                     "impact_type": c.impact_type,
                     "impact_score": float(c.impact_score or 0),
                     "reason": c.reason or "",
+                    # CD3-B: a one-shot LLM extraction at Stage 4, made before
+                    # the real Scoring Engine runs at Stage 5b and never
+                    # reconciled with it afterward — an analytical hypothesis,
+                    # never a verified beneficiary/loser. Same on both the
+                    # real EventCompany path and the event.companies JSON
+                    # fallback (_FakeCompany) — both come from the same
+                    # extraction, just persisted differently.
+                    "impact_provenance": ClaimProvenance.ANALYTICAL_HYPOTHESIS.value,
                 }
                 for c in companies
             ],
@@ -230,6 +245,7 @@ class EventService:
                     "name": c.name or c.symbol,
                     "impact_score": float(c.impact_score or 0),
                     "reason": c.reason or "",
+                    "impact_provenance": ClaimProvenance.ANALYTICAL_HYPOTHESIS.value,
                 }
                 for c in companies
                 if c.impact_type == "beneficiary"
@@ -240,6 +256,7 @@ class EventService:
                     "name": c.name or c.symbol,
                     "impact_score": float(c.impact_score or 0),
                     "reason": c.reason or "",
+                    "impact_provenance": ClaimProvenance.ANALYTICAL_HYPOTHESIS.value,
                 }
                 for c in companies
                 if c.impact_type == "loser"
@@ -249,6 +266,17 @@ class EventService:
                     "sector": s.sector,
                     "impact": s.impact,
                     "impact_score": float(s.impact_score or 0),
+                    # CD3-B: real EventSector rows are the same one-shot Stage-4
+                    # LLM extraction as companies above (analytical hypothesis).
+                    # "unavailable" only ever comes from the _FakeSector
+                    # zero-evidence fallback above, which already sets
+                    # impact="unavailable" itself — detected here from that
+                    # value rather than an isinstance check so this works
+                    # regardless of which branch populated `sectors`.
+                    "impact_provenance": (
+                        ClaimProvenance.UNAVAILABLE.value if s.impact == "unavailable"
+                        else ClaimProvenance.ANALYTICAL_HYPOTHESIS.value
+                    ),
                 }
                 for s in sectors
             ],
@@ -310,6 +338,11 @@ class EventService:
                         "source": e.source,
                         "target": e.target,
                         "relationship": e.edge_relationship,
+                        # CD3-B: LLM-chosen relationship type (generate_graph),
+                        # no evidence check for this specific event — same
+                        # unverified-mechanism shape as ripple_effect[] and
+                        # Deep Research's second-order effects.
+                        "evidence_state": RippleEvidenceState.HYPOTHESIZED.value,
                     }
                     for e in edges
                 ],

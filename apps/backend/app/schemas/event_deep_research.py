@@ -48,7 +48,14 @@ class HistoricalPattern(BaseModel):
 class SecondOrderEffect(BaseModel):
     level: Literal["immediate", "sector", "company", "broader"]
     description: str
-    status: Literal["observed", "likely", "potential"]
+    # CD3-B — matches app.services.claim_provenance.RippleEvidenceState
+    # exactly. Previously "observed"/"likely"/"potential", with the
+    # "immediate" summary effect wrongly labeled "observed" even though it
+    # (like the other two) is an AI-generated ripple insight with no
+    # evidence-validation path — see event_deep_research_service.py's
+    # _get_second_order_effects. "observed"/"supported" stay in the schema
+    # for a future evidence-validated producer; nothing produces them today.
+    status: Literal["observed", "supported", "hypothesized", "unavailable"]
 
 
 class RiskItem(BaseModel):

@@ -1,11 +1,15 @@
 """
 Regression suite — article_generator.py's P0-CD2 additions, offline
 (no DB/network/LLM): the entity authorization gate (_resolve_company_symbols)
-and the SEO score breadth-incentive removal (compute_seo_score).
+and the SEO score breadth-incentive removal (compute_seo_score). Also
+CD3-B's typed claim provenance tagging (_attach_claim_provenance).
 """
 from __future__ import annotations
 
-from app.services.aipe.article_generator import _resolve_company_symbols, compute_seo_score
+from app.services.aipe.article_generator import (
+    _attach_claim_provenance, _resolve_company_symbols, compute_seo_score,
+)
+from app.services.claim_provenance import ClaimProvenance, RippleEvidenceState
 
 
 # ── Entity authorization gate ────────────────────────────────────────────────
@@ -98,3 +102,49 @@ def test_seo_score_max_possible_without_breadth_bonuses():
     # 5 (what_to_watch_next>=3) = 85. No path to 95/100 via company/ripple
     # count alone any more.
     assert compute_seo_score(_BASE_ARTICLE) == 85
+
+
+# ── CD3-B typed claim provenance (2026-09-02) ────────────────────────────────
+# Every companies_affected[]/sectors_affected[].impact on this generation
+# path is an LLM analytical judgment (never an observed fact); every
+# ripple_effect[] entry is an unverified generated hypothesis (the prompt
+# explicitly asks the model to invent connections, fact_grounding.py never
+# validates this field). _attach_claim_provenance tags both with fixed
+# values because every row on this path genuinely shares the same real
+# producer -- not a per-row guess.
+
+def test_attach_claim_provenance_tags_companies_as_analytical_hypothesis():
+    data = {"companies_affected": [{"name": "TCS", "symbol": "TCS", "impact": "positive"}]}
+    _attach_claim_provenance(data)
+    assert data["companies_affected"][0]["impact_provenance"] == ClaimProvenance.ANALYTICAL_HYPOTHESIS.value
+    # Original fields untouched -- this is an additive tag, not a rewrite.
+    assert data["companies_affected"][0]["impact"] == "positive"
+
+
+def test_attach_claim_provenance_tags_sectors_as_analytical_hypothesis():
+    data = {"sectors_affected": [{"name": "Banking", "impact": "negative"}]}
+    _attach_claim_provenance(data)
+    assert data["sectors_affected"][0]["impact_provenance"] == ClaimProvenance.ANALYTICAL_HYPOTHESIS.value
+
+
+def test_attach_claim_provenance_tags_ripple_as_hypothesized():
+    data = {"ripple_effect": [{"from_entity": "RBI rate hold", "to_entity": "Bank NIMs", "mechanism": "..."}]}
+    _attach_claim_provenance(data)
+    assert data["ripple_effect"][0]["evidence_state"] == RippleEvidenceState.HYPOTHESIZED.value
+
+
+def test_attach_claim_provenance_handles_missing_keys_and_non_dict_items():
+    data = {"headline": "No companies/sectors/ripple here"}
+    _attach_claim_provenance(data)  # must not raise
+    assert "companies_affected" not in data
+
+    data2 = {
+        "companies_affected": ["not-a-dict", {"name": "TCS"}],
+        "sectors_affected": ["not-a-dict"],
+        "ripple_effect": ["not-a-dict"],
+    }
+    _attach_claim_provenance(data2)
+    assert data2["companies_affected"][0] == "not-a-dict"
+    assert data2["companies_affected"][1]["impact_provenance"] == ClaimProvenance.ANALYTICAL_HYPOTHESIS.value
+    assert data2["sectors_affected"][0] == "not-a-dict"
+    assert data2["ripple_effect"][0] == "not-a-dict"

@@ -85,7 +85,7 @@ export interface EventDetail {
 interface DRTimelineStep { date: string | null; title: string; description: string; kind: string }
 interface DRScenario { label: "Bull" | "Base" | "Bear"; outcome: string; key_drivers: string[]; confidence: "High" | "Medium" | "Low" | null }
 interface DRHistoricalPattern { id: string; slug?: string; title: string; event_date: string | null; similarity_score: number | null; impact_score: number | null; reason: string | null }
-interface DRSecondOrderEffect { level: "immediate" | "sector" | "company" | "broader"; description: string; status: "observed" | "likely" | "potential" }
+interface DRSecondOrderEffect { level: "immediate" | "sector" | "company" | "broader"; description: string; status: "observed" | "supported" | "hypothesized" | "unavailable" }
 interface DRRiskItem { risk: string; why_it_matters: string | null }
 interface DRReasoning { data_used: string[]; sources: string[]; analysis_timestamp: string | null; confidence: number | null; summary: string | null }
 interface DeepResearch {
@@ -416,7 +416,10 @@ function MostAffectedSectors({ data }: { data: EventDetail }) {
           <span className="text-[10px] font-semibold text-text-muted">{tier(s.impact_score)}</span>
         )}
         <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold capitalize ${impactBg(s.impact)}`}>
-          {s.impact === "positive" ? "↑ Positive" : s.impact === "negative" ? "↓ Negative" : "Neutral"}
+          {/* CD3-B: "unavailable" (zero-evidence _FakeSector fallback) must
+              never render as "Neutral" — that's still a directional claim,
+              just a different one. */}
+          {s.impact === "positive" ? "↑ Positive" : s.impact === "negative" ? "↓ Negative" : s.impact === "unavailable" ? "No data" : "Neutral"}
         </span>
       </div>
     </div>
@@ -825,7 +828,12 @@ function DeepIntelligencePanel({ data, initialRelated, open, onToggle }: {
               )}
 
               {/* Ripple Effects — read-only reuse of the Ripple Engine's
-                  own stored graph, Observed/Likely/Potential labeled.
+                  own stored graph. CD3-B evidence-state labeling:
+                  Observed/Supported/Hypothesized/Unavailable — every effect
+                  produced today is "hypothesized" (AI-generated, no
+                  per-event evidence check); Observed/Supported are real
+                  states reserved for a future evidence-validated producer,
+                  never fabricated here just because the label exists.
                   Never triggers a fresh ripple generation just from
                   opening this panel — see
                   event_deep_research_service._get_second_order_effects. */}
@@ -837,7 +845,7 @@ function DeepIntelligencePanel({ data, initialRelated, open, onToggle }: {
                     {dr.second_order_effects.map((e, i) => (
                       <div key={i} className="flex items-start gap-2 text-[12px] leading-5 text-text-secondary">
                         <span className={`mt-0.5 shrink-0 rounded-full border px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide ${
-                          e.status === "observed" ? "border-emerald-500/30 text-emerald-400" : e.status === "likely" ? "border-sky-500/30 text-sky-400" : "border-amber-500/30 text-amber-400"
+                          e.status === "observed" ? "border-emerald-500/30 text-emerald-400" : e.status === "supported" ? "border-sky-500/30 text-sky-400" : "border-amber-500/30 text-amber-400"
                         }`}>{e.status}</span>
                         <span>{e.description}</span>
                       </div>

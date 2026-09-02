@@ -20,6 +20,7 @@ import structlog
 from app.services.ai_service import _call_with_fallback
 from app.services.aipe.content_templates import SYSTEM_PROMPT, get_template
 from app.services.aipe.fact_grounding import fetch_price_moves, format_price_grounding
+from app.services.claim_provenance import ClaimProvenance, RippleEvidenceState
 from app.services.symbol_normalization import normalize_symbol
 
 log = structlog.get_logger(__name__)
@@ -237,6 +238,7 @@ def _parse_and_validate(
 
     _normalize_pipe_enum_leaks(data)
     _resolve_company_symbols(data)
+    _attach_claim_provenance(data)
 
     return data
 
@@ -264,6 +266,28 @@ def _resolve_company_symbols(data: dict[str, Any]) -> None:
         if not isinstance(c, dict):
             continue
         c["symbol"] = normalize_symbol(c.get("symbol"), c.get("name"))
+
+
+# CD3-B — typed claim provenance (2026-09-02). Attaches new, additive tags
+# alongside the existing impact/ripple fields; does not change what's
+# publicly rendered (that's CD3-D). companies_affected[].impact and
+# sectors_affected[].impact are always an LLM analytical judgment on this
+# generation path (never an observed fact), and ripple_effect[] is always
+# an unverified generated hypothesis (the prompt explicitly asks the model
+# to invent "concentric rings of impact" with no evidence requirement, and
+# fact_grounding.py never validates this field) — see the CD3-A audit for
+# the full producer trace. Both tags are constant here because every row
+# on this path shares the same real producer; this is not a per-row guess.
+def _attach_claim_provenance(data: dict[str, Any]) -> None:
+    for c in (data.get("companies_affected") or []):
+        if isinstance(c, dict):
+            c["impact_provenance"] = ClaimProvenance.ANALYTICAL_HYPOTHESIS.value
+    for s in (data.get("sectors_affected") or []):
+        if isinstance(s, dict):
+            s["impact_provenance"] = ClaimProvenance.ANALYTICAL_HYPOTHESIS.value
+    for r in (data.get("ripple_effect") or []):
+        if isinstance(r, dict):
+            r["evidence_state"] = RippleEvidenceState.HYPOTHESIZED.value
 
 
 # content_templates.py's schema documents enum-shaped fields as pipe-joined

@@ -131,8 +131,10 @@ async def _get_scenarios(title: str, description: str, sector: str, event_id: st
 
 async def _get_second_order_effects(db: AsyncSession, event_id: str) -> list[SecondOrderEffect]:
     """Read-only — never generates a ripple graph. A real, already-stored
-    graph's insights become 'observed' facts; nothing is invented when
-    none exists yet."""
+    graph's insights become 'hypothesized' effects (the graph itself is
+    AI-generated with no per-event evidence check, per CD3-B — never
+    'observed', which this function does not currently have a path to
+    produce); nothing is invented when none exists yet."""
     row = (await db.execute(
         select(RippleGraph)
         .where(RippleGraph.event_id == event_id)
@@ -148,18 +150,25 @@ async def _get_second_order_effects(db: AsyncSession, event_id: str) -> list[Sec
     if not row or not row.graph_data or not row.graph_data.get("nodes"):
         return []
 
+    # CD3-B: every effect below comes from the same AI-generated
+    # RippleGraph.insights blob (real_generation confirmed by CD3-A: model
+    # analysis with no evidence-validation path for this specific event) —
+    # none of them are actually OBSERVED or SUPPORTED. Do not retroactively
+    # promote existing/old rows to a stronger state just because they were
+    # previously labeled "observed"; this is a labeling fix, not new
+    # evidence appearing.
     effects: list[SecondOrderEffect] = []
     insights = row.insights or {}
     if insights.get("summary"):
-        effects.append(SecondOrderEffect(level="immediate", description=insights["summary"], status="observed"))
+        effects.append(SecondOrderEffect(level="immediate", description=insights["summary"], status="hypothesized"))
     for sector in (insights.get("impacted_sectors") or [])[:3]:
         name = sector.get("name") if isinstance(sector, dict) else str(sector)
         if name:
-            effects.append(SecondOrderEffect(level="sector", description=f"{name} sector exposure identified", status="likely"))
+            effects.append(SecondOrderEffect(level="sector", description=f"{name} sector exposure identified", status="hypothesized"))
     for company in (insights.get("beneficiaries") or [])[:2]:
         name = company.get("name") if isinstance(company, dict) else str(company)
         if name:
-            effects.append(SecondOrderEffect(level="company", description=f"{name} flagged as a potential beneficiary", status="likely"))
+            effects.append(SecondOrderEffect(level="company", description=f"{name} flagged as a potential beneficiary", status="hypothesized"))
     return effects
 
 
