@@ -20,7 +20,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import ArticlePage from "./page";
+import ArticlePage, { generateMetadata } from "./page";
 
 interface Fixture {
   article_type: string;
@@ -215,5 +215,119 @@ describe("Newsroom article page — P0-CD1 containment, edge shapes", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Test Headline For Containment Coverage" })).toBeInTheDocument();
     expect(screen.queryByText("AI Investment Verdict")).not.toBeInTheDocument();
     expect(screen.queryByText("Likely Winners")).not.toBeInTheDocument();
+  });
+});
+
+describe("Newsroom article page — legacy-history containment patch (2026-09-01)", () => {
+  // The real live specimen that motivated this patch: CD1's structural
+  // suppression removed the dedicated verdict/opportunities UI, but this
+  // exact pre-CD2 key_takeaway and update_history text was still visible
+  // through the 30-Second Answer, Intelligence Timeline, and AI Opinion
+  // Evolution sections.
+  const UNSAFE_TAKEAWAY = "Consider shorting over-valued circuit-climbed names like Hy-Tech Engineers and TBZ, while watching for potential rebound in the banking sector.";
+
+  it("omits the 30-Second Answer when key_takeaway contains recommendation language", async () => {
+    const insight = baseInsight("market_wrap", { key_takeaway: UNSAFE_TAKEAWAY });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.queryByText("30-Second Answer")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Consider shorting/i)).not.toBeInTheDocument();
+  });
+
+  it("still shows the 30-Second Answer when key_takeaway is clean", async () => {
+    const insight = baseInsight("market_wrap", { key_takeaway: "Grounded, evidence-based summary of the quarter." });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("30-Second Answer")).toBeInTheDocument();
+    expect(screen.getAllByText("Grounded, evidence-based summary of the quarter.").length).toBeGreaterThan(0);
+  });
+
+  it("never renders update_history free text (previous_takeaway/new_takeaway/summary) in Intelligence Timeline or AI Opinion Evolution", async () => {
+    const insight = baseInsight("market_wrap", {
+      key_takeaway: UNSAFE_TAKEAWAY,
+      update_history: [
+        {
+          at: "2026-08-30T10:00:00Z", version: 2, reason: "Market narrative updated: Bearish",
+          summary: "Updated: Bearish", previous_takeaway: UNSAFE_TAKEAWAY,
+          new_takeaway: "Auto moved -2.2% today, unrelated to this Signet story.", confidence: 0.85,
+        },
+        {
+          at: "2026-08-30T16:00:00Z", version: 3, reason: "2 high-urgency development(s)",
+          summary: "Updated: Bearish", previous_takeaway: "Auto moved -2.2% today, unrelated to this Signet story.",
+          new_takeaway: UNSAFE_TAKEAWAY, confidence: 0.85,
+        },
+      ],
+    });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.queryByText(/Consider shorting/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Auto moved -2\.2%/i)).not.toBeInTheDocument();
+    // The safe meta-description (why the update happened) still renders —
+    // once in Intelligence Timeline, once in AI Opinion Evolution.
+    expect(screen.getAllByText("Market narrative updated: Bearish").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2 high-urgency development(s)").length).toBeGreaterThan(0);
+    // AI Opinion Evolution is metadata-only now — "Current"/"Updated
+    // (vN)" labels, not the replayed opinion text.
+    expect(screen.getByText("Current")).toBeInTheDocument();
+  });
+
+  it("gates u.reason itself, not just new_takeaway/summary — real bug: reason can carry the same contamination", async () => {
+    // The real gap this test locks in: u.reason was assumed to be a safe
+    // meta-description ("Market narrative updated: X"), but a real
+    // article's stored reason was literally "Auto moved -2.2% today |
+    // Market narrative updated: Cautious..." — the exact unrelated-sector
+    // contamination shape, just inside the field this patch's first pass
+    // treated as always-safe.
+    const CONTAMINATED_REASON = "Auto moved -2.2% today | Market narrative updated: Cautious Bear. | Consider shorting over-valued names.";
+    const insight = baseInsight("market_wrap", {
+      key_takeaway: "Grounded, clean takeaway.",
+      update_history: [
+        { at: "2026-08-30T10:00:00Z", version: 2, reason: CONTAMINATED_REASON, summary: "s", previous_takeaway: "p", new_takeaway: "n", confidence: 0.85 },
+      ],
+    });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.queryByText(/Auto moved/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Consider shorting/i)).not.toBeInTheDocument();
+    // Falls back to a generic, safe label instead of omitting the line
+    // entirely — still shows the "something happened" without the
+    // contaminated specifics.
+    expect(screen.getAllByText("Article updated").length).toBeGreaterThan(0);
+  });
+
+  it("does not leak an unsafe key_takeaway into the page's meta description / og:description / twitter:description", async () => {
+    const insight = baseInsight("market_wrap", {
+      key_takeaway: UNSAFE_TAKEAWAY,
+      meta_description: "",
+      executive_summary: "",
+    });
+    mockFetchFor(insight);
+
+    const metadata = await generateMetadata({ params: Promise.resolve({ slug: "test-slug" }) });
+
+    expect(metadata.description ?? "").not.toMatch(/Consider shorting/i);
+    expect((metadata.openGraph as { description?: string } | undefined)?.description ?? "").not.toMatch(/Consider shorting/i);
+    expect((metadata.twitter as { description?: string } | undefined)?.description ?? "").not.toMatch(/Consider shorting/i);
+  });
+
+  it("still uses a clean key_takeaway as the meta-description fallback when nothing else is available", async () => {
+    const insight = baseInsight("market_wrap", {
+      key_takeaway: "Grounded, evidence-based summary of the quarter.",
+      meta_description: "",
+      executive_summary: "",
+    });
+    mockFetchFor(insight);
+
+    const metadata = await generateMetadata({ params: Promise.resolve({ slug: "test-slug" }) });
+
+    expect(metadata.description).toBe("Grounded, evidence-based summary of the quarter.");
   });
 });

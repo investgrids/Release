@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText, isRealSymbol, safeJsonLd } from "@/lib/text";
+import { containsRecommendationLanguage } from "@/lib/recommendationLanguage";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
 import { ArticleViewTracker } from "@/components/ArticleViewTracker";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
@@ -194,6 +195,19 @@ async function fetchQuotes(symbols: string[]): Promise<Record<string, Quote>> {
   }
 }
 
+// Legacy-history containment patch (2026-09-01): u.reason was assumed
+// safe (a meta-description of why an update happened, e.g. "Market
+// narrative updated: Bullish"), but a real pre-CD2 article proved that
+// assumption wrong — its stored reason was literally "Auto moved -2.2%
+// today | Market narrative updated: Cautious ...", the exact unrelated-
+// sector-contamination shape continuous_updater.py's CD2 fix addresses
+// going forward, just already persisted. Gated the same way as
+// key_takeaway: omit the unsafe text, fall back to a generic label,
+// never rewrite it into something that merely sounds safer.
+function safeReason(reason: string): string {
+  return containsRecommendationLanguage(reason) ? "Article updated" : reason;
+}
+
 function fmtDate(iso?: string) {
   if (!iso) return null;
   return new Date(iso).toLocaleString("en-IN", {
@@ -243,7 +257,19 @@ export async function generateMetadata(
   if (!article) return { title: "Not Found" };
 
   const title = article.seo_title || article.headline;
-  const description = article.meta_description || article.executive_summary || article.key_takeaway || "";
+  // Legacy-history containment patch (2026-09-01): the key_takeaway
+  // fallback here feeds <meta name="description">, og:description, and
+  // twitter:description directly — a real leak path this patch's original
+  // pass missed (it only gated the visible 30-Second Answer/Intelligence
+  // Timeline renderings of the same field, not this metadata fallback).
+  const safeKeyTakeaway = article.key_takeaway && !containsRecommendationLanguage(article.key_takeaway) ? article.key_takeaway : "";
+  // Same gate applied to executive_summary — a real live example (this
+  // exact article) proved it can carry the identical unsafe language
+  // ("...consider shorting over-valued circuit-climbed stocks.") and was
+  // the actual source of the leak here, since it's the first fallback,
+  // ahead of key_takeaway, when meta_description is empty.
+  const safeExecutiveSummary = article.executive_summary && !containsRecommendationLanguage(article.executive_summary) ? article.executive_summary : "";
+  const description = article.meta_description || safeExecutiveSummary || safeKeyTakeaway || "";
   // Real per-article AI-generated hero images exist for a real subset of
   // articles (served from the backend at /api/media/{id}.jpg) but were
   // never read here — og:image/twitter:image were silently absent even
@@ -307,6 +333,17 @@ export default async function ArticlePage(
   if (!article || !article.headline) notFound();
 
   const meta = TYPE_META[article.article_type] ?? DEFAULT_TYPE_META;
+  // Legacy-history containment patch (2026-09-01): single source of truth
+  // for every place on this page that used to read article.key_takeaway
+  // directly — the 30-Second Answer box, Intelligence Timeline's "Article
+  // Published" entry, and the share-card summaries below all now go
+  // through this instead of their own separate (and, first time round,
+  // incomplete) inline check.
+  const safeKeyTakeaway = article.key_takeaway && !containsRecommendationLanguage(article.key_takeaway) ? article.key_takeaway : null;
+  // Same gate on executive_summary — real live example (this exact
+  // article, via the share-card summary fallback) proved it can carry the
+  // identical unsafe language independently of key_takeaway.
+  const safeExecutiveSummary = article.executive_summary && !containsRecommendationLanguage(article.executive_summary) ? article.executive_summary : null;
   const companies = article.companies_affected ?? [];
   const quotes = await fetchQuotes(companies.filter(c => isRealSymbol(c.symbol)).map(c => c.symbol as string));
   const sectors = article.sectors_affected ?? [];
@@ -387,7 +424,7 @@ export default async function ArticlePage(
         entityType="article"
         entityId={article.slug}
         title={article.headline}
-        summary={article.key_takeaway ?? article.executive_summary}
+        summary={safeKeyTakeaway ?? safeExecutiveSummary ?? undefined}
         shareCount={article.share_count}
       />
 
@@ -408,7 +445,7 @@ export default async function ArticlePage(
             entityType="article"
             entityId={article.slug}
             title={article.headline}
-            summary={article.key_takeaway ?? article.executive_summary}
+            summary={safeKeyTakeaway ?? safeExecutiveSummary ?? undefined}
             shareCount={article.share_count}
             className="shrink-0"
           />
@@ -475,10 +512,19 @@ export default async function ArticlePage(
             Y", top opportunity as "Action", confidence % — is suppressed
             here. See the header comment for why. */}
         <div className="mb-8 space-y-4">
-          {article.key_takeaway && (
+          {/* Legacy-history containment patch (2026-09-01): key_takeaway is
+              a free-text field that predates CD2's generation-side fix —
+              real live example, this exact article: "Consider shorting
+              over-valued circuit-climbed names like Hy-Tech Engineers and
+              TBZ..." was still surfacing here as the "30-Second Answer"
+              despite the dedicated verdict/opportunities UI already being
+              suppressed elsewhere on the page. Same fail-closed rule as the
+              rest of CD1 — omit rather than show, never rewrite the text
+              into something that merely sounds safer. */}
+          {safeKeyTakeaway && (
             <div className="rounded-2xl border border-accent-violet/20 bg-accent-violet/[0.05] p-5">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-accent-violet">30-Second Answer</p>
-              <p className="text-[13.5px] leading-relaxed text-text-primary">{article.key_takeaway}</p>
+              <p className="text-[13.5px] leading-relaxed text-text-primary">{safeKeyTakeaway}</p>
             </div>
           )}
           <div className="grid grid-cols-3 gap-3 rounded-2xl border border-surface-border/7 bg-text-primary/[0.02] p-4">
@@ -664,21 +710,29 @@ export default async function ArticlePage(
                       {fmtDate(article.created_at || article.published_at)}
                     </p>
                     <p className="text-[13px] font-semibold text-text-primary">Article Published</p>
-                    {article.key_takeaway && <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{article.key_takeaway}</p>}
+                    {/* Legacy-history containment patch (2026-09-01): same
+                        gate as the 30-Second Answer above — this is the
+                        same field, just re-displayed here. */}
+                    {safeKeyTakeaway && (
+                      <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{safeKeyTakeaway}</p>
+                    )}
                   </div>
                   {/* P0-CD1: the version-over-version confidence % delta is
                       suppressed along with every other public confidence
-                      percentage on this page — same P0-C provenance gap. */}
+                      percentage on this page — same P0-C provenance gap.
+                      Legacy-history patch: new_takeaway free text dropped
+                      entirely (metadata only — date/version/reason); u.reason
+                      itself also gated (see safeReason) — proven live that
+                      it can carry the same unrelated-sector-contamination
+                      shape CD2's continuous_updater.py fix addresses going
+                      forward, just already persisted for this article. */}
                   {updateHistory.map((u, i) => {
                     return (
                       <div key={i} className="relative pl-6 pb-5">
                         <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-emerald-500" />
                         {i < updateHistory.length - 1 && <span className="absolute left-[5px] top-4 bottom-0 w-px bg-text-primary/10" />}
                         <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">{fmtDate(u.at)} · v{u.version}</p>
-                        <p className="text-[13px] font-semibold text-text-primary">{u.reason}</p>
-                        {u.new_takeaway && u.new_takeaway !== u.previous_takeaway && (
-                          <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{u.new_takeaway}</p>
-                        )}
+                        <p className="text-[13px] font-semibold text-text-primary">{safeReason(u.reason)}</p>
                       </div>
                     );
                   })}
@@ -691,20 +745,32 @@ export default async function ArticlePage(
         {updateHistory.length > 0 && (
           <section className="mb-8">
             <Eyebrow icon={Brain}>AI Opinion Evolution</Eyebrow>
+            {/* Legacy-history containment patch (2026-09-01): this section
+                used to replay the article's own stored opinion-evolution
+                free text (previous_takeaway/new_takeaway/summary) verbatim
+                — a real, confirmed leak path for pre-CD2 recommendation
+                language that CD1's structural suppression elsewhere on
+                this page never touched (this exact article's "Consider
+                shorting over-valued circuit-climbed names..." was still
+                visible here across multiple versions). Simplified to
+                metadata only, per owner instruction — timestamps and the
+                same safe update_reason used in Intelligence Timeline above,
+                never the generated conclusion text. */}
             <Card className="p-5">
-              <div className="space-y-3">
-                <div className="rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Original — {fmtDate(article.created_at || article.published_at)}</p>
-                  <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">{updateHistory[0].previous_takeaway ?? article.key_takeaway}</p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
+                  <p className="text-[12px] font-semibold text-text-primary">Original</p>
+                  <p className="text-[11px] text-text-muted">{fmtDate(article.created_at || article.published_at)}</p>
                 </div>
                 {updateHistory.map((u, i) => (
-                  <div key={i} className={`ml-4 rounded-xl border p-3.5 ${i === updateHistory.length - 1 ? "border-emerald-200 dark:border-emerald-500/15 bg-emerald-50 dark:bg-emerald-500/[0.04]" : "border-surface-border/6 bg-text-primary/[0.02]"}`}>
-                    <p className={`text-[9px] font-bold uppercase tracking-wider ${i === updateHistory.length - 1 ? "text-emerald-700 dark:text-emerald-400" : "text-text-muted"}`}>
-                      {i === updateHistory.length - 1 ? "Current" : `v${u.version}`} — {fmtDate(u.at)}
-                    </p>
-                    <p className="mt-1.5 text-[12px] leading-5 text-text-secondary">
-                      {u.new_takeaway ?? u.summary}
-                    </p>
+                  <div key={i} className={`ml-4 flex items-center justify-between rounded-xl border p-3.5 ${i === updateHistory.length - 1 ? "border-emerald-200 dark:border-emerald-500/15 bg-emerald-50 dark:bg-emerald-500/[0.04]" : "border-surface-border/6 bg-text-primary/[0.02]"}`}>
+                    <div className="min-w-0">
+                      <p className={`text-[12px] font-semibold ${i === updateHistory.length - 1 ? "text-emerald-700 dark:text-emerald-400" : "text-text-primary"}`}>
+                        {i === updateHistory.length - 1 ? "Current" : `Updated (v${u.version})`}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-text-muted line-clamp-1">{safeReason(u.reason)}</p>
+                    </div>
+                    <p className="shrink-0 pl-3 text-[11px] text-text-muted">{fmtDate(u.at)}</p>
                   </div>
                 ))}
               </div>
