@@ -143,7 +143,7 @@ def _parse_ai(raw: str | None) -> dict:
     return {}
 
 
-def _build_confidence(ai: dict, source_count: int, similar: list) -> dict:
+async def _build_confidence(ai: dict, source_count: int, similar: list) -> dict:
     try:
         from app.services.confidence_service import ConfidenceFactors, calculate_confidence
         factors = ConfidenceFactors(
@@ -156,32 +156,23 @@ def _build_confidence(ai: dict, source_count: int, similar: list) -> dict:
             ai_certainty=min(10, max(1, int(ai.get("confidence_self_rating", 5) or 5))),
         )
         res = calculate_confidence(factors)
-        raw_score = round(res.total_score)
 
-        # Apply learning engine calibration factor (evidence-based accuracy adjustment)
-        calibration_note: str | None = None
+        # Apply learning engine calibration via the same shared entry point
+        # ai_search_service.py uses (get_calibration_data + apply_calibration)
+        # rather than reimplementing it — that shared function already has the
+        # >=10-verified-predictions guard, so we never calibrate off thin data.
         try:
             from app.services.prediction_service import get_calibration_data
-            cal = get_calibration_data()
-            cal_entry = cal.get("aipe") or cal.get("overall") or {}
-            factor = float(cal_entry.get("calibration_factor", 1.0))
-            if 0.5 <= factor <= 1.5 and factor != 1.0:
-                raw_score = round(min(95, max(10, raw_score * factor)))
-                calibration_note = (
-                    f"Calibrated ×{factor:.2f} from "
-                    f"{cal_entry.get('total_predictions', 0)} past predictions"
-                )
+            from app.services.ai_search.prediction_recording import apply_calibration
+            cal = await get_calibration_data()
+            apply_calibration(res, cal)
         except Exception:
             pass
 
-        reasons = list(res.reasons)
-        if calibration_note:
-            reasons.append(calibration_note)
-
         return {
             "level":     res.level,
-            "score":     raw_score,
-            "reasons":   reasons,
+            "score":     round(res.total_score),
+            "reasons":   list(res.reasons),
             "breakdown": dict(res.breakdown),
         }
     except Exception:
@@ -224,7 +215,7 @@ async def _ai_call(ctype: str, cid: str, context_data: str, source_count: int = 
     # reaches this function (confirmed via real caller tracing, not assumed).
     raw = await _call_with_fallback(prompt, _SYSTEM, max_tokens=1800, priority="interactive")
     ai  = _parse_ai(raw)
-    conf = _build_confidence(ai, source_count, similar or [])
+    conf = await _build_confidence(ai, source_count, similar or [])
     return _wrap(ai, conf, ctype, cid)
 
 
