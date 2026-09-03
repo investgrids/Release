@@ -168,7 +168,13 @@ export function HistoricalDetailContent({ d, faqs, category }: {
           <div><span className="text-text-muted">First Occurrence </span><span className="font-semibold text-text-primary">{p.date_range.earliest ?? "—"}</span></div>
           <div><span className="text-text-muted">Latest Occurrence </span><span className="font-semibold text-text-primary">{p.date_range.latest ?? "—"}</span></div>
           <div><span className="text-text-muted">Occurrences </span><span className="font-semibold text-text-primary">{p.category_occurrences}</span></div>
-          <div><span className="text-text-muted">Data Confidence </span><span className="font-semibold text-text-primary">{d.confidence != null ? `${d.confidence}%` : "—"}</span></div>
+          {/* CD3-C: historical_memory_service.py's per-record confidence mixes
+              real computed values with hand-seeded historical constants --
+              mixed provenance, disclosed via tooltip. The gauge below
+              ("Pattern Match") is a separate, real weighted EVIDENCE_COMPOSITE
+              (Sample Size/Consistency/Data Quality) and was already correctly
+              labeled -- no change needed there. */}
+          <div title="Historical record confidence -- provenance varies by entry, not a uniformly verified score"><span className="text-text-muted">Data Confidence </span><span className="font-semibold text-text-primary">{d.confidence != null ? `${d.confidence}%` : "—"}</span></div>
         </div>
       </motion.div>
 
@@ -218,7 +224,7 @@ export function HistoricalDetailContent({ d, faqs, category }: {
         <SnapshotCard label="Historical Occurrences" value={String(p.category_occurrences)} sub={multi ? `since ${p.date_range.earliest}` : "single event"} />
         <SnapshotCard label="Avg. Nifty Reaction (1M)" value={pct(p.avg_nifty_1m)} sub="across all occurrences" cls={pctCls(p.avg_nifty_1m)} />
         <SnapshotCard label="Historically Positive" value={p.win_rate_pct != null ? `${p.win_rate_pct}%` : "—"} sub={`${p.bull_count} of ${p.bull_count + p.bear_count} times`} />
-        <SnapshotCard label="Avg. Data Confidence" value={p.avg_confidence != null ? `${p.avg_confidence}%` : "—"} sub="across occurrences" />
+        <SnapshotCard label="Avg. Data Confidence" value={p.avg_confidence != null ? `${p.avg_confidence}%` : "—"} sub="across occurrences" title="Historical record confidence -- provenance varies by entry, not a uniformly verified score" />
       </motion.div>
 
       {/* ── Section 3: Timeline ───────────────────────────────────────── */}
@@ -454,9 +460,9 @@ function SectionHeading({ icon, title, sub }: { icon?: React.ReactNode; title: s
   );
 }
 
-function SnapshotCard({ label, value, sub, cls }: { label: string; value: string; sub?: string; cls?: string }) {
+function SnapshotCard({ label, value, sub, cls, title }: { label: string; value: string; sub?: string; cls?: string; title?: string }) {
   return (
-    <div className="rounded-xl border border-surface-border/10 bg-surface-card p-4">
+    <div className="rounded-xl border border-surface-border/10 bg-surface-card p-4" title={title}>
       <p className="text-[9.5px] font-bold uppercase tracking-widest text-text-muted">{label}</p>
       <p className={`mt-1.5 text-[22px] font-black tabular-nums ${cls ?? "text-text-primary"}`}>{value}</p>
       {sub && <p className="mt-0.5 text-[10.5px] text-text-muted">{sub}</p>}

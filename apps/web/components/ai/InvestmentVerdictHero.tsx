@@ -122,7 +122,14 @@ export function InvestmentVerdictHero({ data }: { data: HeroVerdictData }) {
           {data.verdictScale}
         </span>
         <span className="text-[11px] text-text-muted">·</span>
-        <span className="text-[11px] text-text-secondary">
+        {/* CD3-C: this confidence is confidence_breakdown.final_confidence --
+            a HYBRID_RUBRIC (evidence_quality/market_confirmation/historical_
+            similarity/data_freshness blended with a reasoning_confidence
+            self-report), the same composite ConfidenceBreakdownPanel already
+            discloses in full elsewhere on this page. Disclosed via tooltip
+            here rather than duplicating that full breakdown in a compact
+            hero stat. */}
+        <span className="text-[11px] text-text-secondary" title="An evidence-based composite with a minor self-assessed component -- see the Confidence Breakdown panel below for the full factor split">
           Confidence <span className="font-semibold text-text-primary tabular-nums">{data.confidence ?? "—"}%</span>
         </span>
         <span className="text-[11px] text-text-muted">·</span>

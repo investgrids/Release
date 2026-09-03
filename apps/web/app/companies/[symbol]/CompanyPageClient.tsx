@@ -2403,9 +2403,13 @@ function RippleConnectionRow({ edge, node, companyNodeId }: { edge: RippleGraphE
         </div>
         <p className="mt-1 text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{node.label}</p>
         {edge.description && <p className="mt-0.5 text-[11px] text-text-muted line-clamp-2">{edge.description}</p>}
+        {/* CD3-C: "Confidence {edge.confidence}%" removed -- ig_edges.confidence
+            is overwhelmingly either upsert_edge()'s hardcoded 0.8 default or a
+            hand-seeded constant, not a real per-relationship measurement, same
+            finding that removed IntelligenceGraph.tsx's average-edge-confidence
+            display earlier this session. */}
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
           <span>Weight {Math.round(edge.weight * 100)}%</span>
-          <span>Confidence {Math.round(edge.confidence * 100)}%</span>
           {!!edge.lag_days && <span>~{edge.lag_days}d lag</span>}
         </div>
       </div>

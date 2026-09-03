@@ -185,8 +185,13 @@ export default async function DailyBriefPage() {
             <div className="mt-2 flex items-center gap-2">
               {dirMeta.icon}
               <p className="text-[22px] font-black">{dirMeta.label}</p>
+              {/* CD3-C: this verdict is built the same way as
+                  opening_prediction_service.py's opening prediction (same
+                  ai_generated flag + fallback wording) -- confidence blends
+                  a bounded LLM self-report with deterministic signal
+                  adjustments, a HYBRID_RUBRIC. */}
               {verdict.confidence != null && (
-                <span className="ml-auto text-[13px] font-bold tabular-nums">{verdict.confidence}% confidence</span>
+                <span className="ml-auto text-[13px] font-bold tabular-nums" title="A blend of signal-based analysis and the model's own self-assessed certainty -- not a fully computed score">{verdict.confidence}% confidence</span>
               )}
             </div>
             {verdict.reasoning && <p className="mt-2 text-[12.5px] leading-relaxed opacity-90">{verdict.reasoning}</p>}
@@ -417,7 +422,13 @@ export default async function DailyBriefPage() {
             {evidence.slice(0, 8).map((e, i) => (
               <div key={i} className="rounded-lg border border-surface-border/6 bg-text-primary/[0.02] p-3 text-[11.5px]">
                 <p className="text-text-secondary">{cleanText(e.claim)}</p>
-                <p className="mt-1 text-[10.5px] text-text-muted">
+                {/* CD3-C: fact_registry.py folds several genuinely different
+                    producers (opening-prediction HYBRID_RUBRIC, EventTriage,
+                    raw market data with no confidence at all) into one
+                    per-fact `confidence` field -- mixed provenance,
+                    disclosed via tooltip rather than asserted as one clean
+                    measurement. */}
+                <p className="mt-1 text-[10.5px] text-text-muted" title={e.confidence != null ? "Confidence provenance varies by fact source -- not a single uniform measurement" : undefined}>
                   {e.source}{e.confidence != null && ` · ${Math.round(e.confidence * 100)}% confidence`}
                 </p>
               </div>

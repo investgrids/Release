@@ -126,7 +126,14 @@ export default async function ThemeDetailPage({ params }: { params: Promise<{ sl
           <p className="text-[28px] font-black text-emerald-400">{Math.round(detail.opportunity_score)}</p>
           <p className="mt-0.5 text-[10px] uppercase tracking-wider text-text-muted">Opportunity Score</p>
         </div>
-        <div className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 text-center">
+        {/* CD3-C: this "Confidence" is opportunity_generator.py's
+            `min(0.95, score / 110)` -- a DERIVED_TRANSFORM of the
+            Opportunity Score shown to its left, not an independent
+            measurement (same finding as opportunity-radar/page.tsx). This
+            page is noindexed/canonicalized to /opportunity-radar, so
+            disclosed via tooltip rather than removed, matching that page's
+            treatment for consistency. */}
+        <div className="rounded-xl border border-surface-border/7 bg-text-primary/[0.03] p-4 text-center" title="Derived from the opportunity score, not an independently measured confidence">
           <p className="text-[28px] font-black text-sky-400">{Math.round(detail.confidence * 100)}%</p>
           <p className="mt-0.5 text-[10px] uppercase tracking-wider text-text-muted">Confidence</p>
         </div>
