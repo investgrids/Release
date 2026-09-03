@@ -153,6 +153,26 @@ async def get_homepage_event_intelligence(db: AsyncSession) -> dict:
 
     companies = (detail.get("beneficiaries") or [])[:3] or (detail.get("companies") or [])[:3]
 
+    # CD3-D (D2) — event_service.py already attaches real impact_provenance
+    # (and impact_type, for the unfiltered `companies` list) to every one of
+    # these dicts; this function used to reduce them to {symbol, name} before
+    # building the API response below, discarding the exact information a
+    # consumer would need to decide what it's allowed to say. This is an
+    # integrity boundary, not a cosmetic one -- see
+    # app.services.claim_authorization for what consumes these fields.
+    # ClaimProvenance.UNKNOWN.value (never "positive"/"neutral" defaulted)
+    # when a row genuinely predates CD3-B tagging, so downstream consumers
+    # fail closed on legacy data rather than inferring a stronger claim.
+    from app.services.claim_provenance import ClaimProvenance, RippleEvidenceState
+
+    def _preserve_provenance(c: dict) -> dict:
+        return {
+            "symbol": c.get("symbol"),
+            "name": c.get("name"),
+            "impact_provenance": c.get("impact_provenance") or ClaimProvenance.UNKNOWN.value,
+            **({"impact_type": c["impact_type"]} if "impact_type" in c else {}),
+        }
+
     # deepseek_provider.py's own degraded-response placeholder — real text,
     # just not a real answer. Showing it on the homepage hero would read as
     # genuine analysis; better to omit and let the frontend fall back to
@@ -164,7 +184,11 @@ async def get_homepage_event_intelligence(db: AsyncSession) -> dict:
     graph = detail.get("graph") or {}
     ripple_edges = [
         {"from_entity": n_by_id.get(edge["source"], {}).get("label", edge["source"]),
-         "to_entity": n_by_id.get(edge["target"], {}).get("label", edge["target"])}
+         "to_entity": n_by_id.get(edge["target"], {}).get("label", edge["target"]),
+         # CD3-D (D2): same integrity-boundary fix as companies/sectors
+         # above -- event_service.py's graph.edges[] already carries a
+         # real evidence_state; preserve it rather than dropping it here.
+         "evidence_state": edge.get("evidence_state") or RippleEvidenceState.UNAVAILABLE.value}
         for n_by_id in [{n["id"]: n for n in (graph.get("nodes") or [])}]
         for edge in (graph.get("edges") or [])[:3]
     ] if graph.get("nodes") else []
@@ -179,8 +203,10 @@ async def get_homepage_event_intelligence(db: AsyncSession) -> dict:
             "why_it_matters": why,
             "sectors": [s.get("sector") for s in sectors][:4],
             "opportunity_sector": (opportunity_sector or {}).get("sector"),
+            "opportunity_sector_provenance": (opportunity_sector or {}).get("impact_provenance") or ClaimProvenance.UNKNOWN.value,
             "risk_sector": (risk_sector or {}).get("sector"),
-            "companies": [{"symbol": c.get("symbol"), "name": c.get("name")} for c in companies],
+            "risk_sector_provenance": (risk_sector or {}).get("impact_provenance") or ClaimProvenance.UNKNOWN.value,
+            "companies": [_preserve_provenance(c) for c in companies],
             "ripple": ripple_edges,
             "confidence": detail.get("confidence"),
             "impact_score": detail.get("impactScore"),
