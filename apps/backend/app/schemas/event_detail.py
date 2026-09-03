@@ -38,6 +38,12 @@ class CompanyDetail(BaseModel):
     impact_type: str = "neutral"
     impact_score: float = 0.0
     reason: str = ""
+    # CD3-B (2026-09-02) — see app.services.claim_provenance.ClaimProvenance.
+    # Default "unknown" (not e.g. "analytical_hypothesis") for the same
+    # reason get_claim_provenance() defaults there: legacy/unmapped data
+    # must never be inferred into a stronger provenance than the response
+    # actually set.
+    impact_provenance: str = "unknown"
 
 
 class BeneficiaryDetail(BaseModel):
@@ -45,12 +51,14 @@ class BeneficiaryDetail(BaseModel):
     name: str = ""
     impact_score: float = 0.0
     reason: str = ""
+    impact_provenance: str = "unknown"
 
 
 class SectorDetail(BaseModel):
     sector: str
     impact: str = "neutral"
     impact_score: float = 0.0
+    impact_provenance: str = "unknown"
 
 
 class TimelineStep(BaseModel):
@@ -99,6 +107,10 @@ class GraphEdge(BaseModel):
     source: str
     target: str
     relationship: str = "impacts"
+    # CD3-B — see app.services.claim_provenance.RippleEvidenceState.
+    # Default "unavailable" (the weakest state), same fail-safe reasoning
+    # as impact_provenance above.
+    evidence_state: str = "unavailable"
 
 
 class GraphDetail(BaseModel):
