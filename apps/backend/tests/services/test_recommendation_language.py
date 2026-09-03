@@ -151,6 +151,29 @@ def test_comparative_recommendation_phrases_flagged():
         assert v, f"expected a violation for: {text!r}"
 
 
+def test_favor_conjugations_all_flagged():
+    # Real gap found live in production AFTER the first version of this
+    # fix deployed: \bfavor(?:s|ing)?\b did not match "favored" (past
+    # participle) at all -- "ICICI Bank Ltd is favored for 12-month
+    # tactical outperformance" kept rendering live on /research/
+    # hdfcbank-vs-icicibank through the new defense-in-depth gate
+    # completely unnoticed, because the gate itself shared the same
+    # regex and had nothing to catch. Every real conjugation must be
+    # covered, not just the ones a hand-picked test list happened to try.
+    cases = ["favor", "favors", "favored", "favoring"]
+    for word in cases:
+        v = scan_recommendation_language({"key_takeaway": f"Company A is {word} here."})
+        assert v, f"expected a violation for conjugation: {word!r}"
+
+
+def test_real_live_specimen_favored_past_participle():
+    v = scan_recommendation_language({
+        "key_takeaway": "ICICI Bank Ltd is favored for 12-month tactical outperformance due to "
+                         "operational momentum, while HDFC Bank Ltd remains a core holding.",
+    })
+    assert v
+
+
 def test_preferred_stock_not_flagged():
     # Real financial instrument type, not a recommendation -- must not
     # collide with the new "preferred" pattern.

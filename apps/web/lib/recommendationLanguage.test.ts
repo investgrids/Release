@@ -51,6 +51,23 @@ describe("containsRecommendationLanguage — P0-CD1 legacy-history patch", () =>
     expect(containsRecommendationLanguage("Most investors would choose Company A here")).toBe(true);
   });
 
+  it("flags all conjugations of favor, including 'favored' (past participle)", () => {
+    // Real gap found live in production after the first version of this
+    // fix deployed -- /\bfavor(?:s|ing)?\b/i did not match "favored" at
+    // all, so a real already-published sentence kept rendering through
+    // the new defense-in-depth gate unnoticed.
+    expect(containsRecommendationLanguage("Company A is favor here.")).toBe(true);
+    expect(containsRecommendationLanguage("Company A is favors here.")).toBe(true);
+    expect(containsRecommendationLanguage("Company A is favored here.")).toBe(true);
+    expect(containsRecommendationLanguage("Company A is favoring here.")).toBe(true);
+  });
+
+  it("flags the real live specimen with 'favored' (past participle)", () => {
+    expect(containsRecommendationLanguage(
+      "ICICI Bank Ltd is favored for 12-month tactical outperformance due to operational momentum, while HDFC Bank Ltd remains a core holding."
+    )).toBe(true);
+  });
+
   it("does not flag preferred stock/shares", () => {
     expect(containsRecommendationLanguage("The company issued new preferred stock last quarter.")).toBe(false);
     expect(containsRecommendationLanguage("Preferred shares carry a fixed dividend.")).toBe(false);

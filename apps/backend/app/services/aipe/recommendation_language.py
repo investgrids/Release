@@ -74,7 +74,7 @@ _PATTERNS: list[re.Pattern[str]] = [re.compile(p, re.IGNORECASE) for p in [
     # preferred choice over Oil & Natural Gas Corporation") that matched
     # none of the patterns above. "preferred" excludes the real financial
     # instrument sense ("preferred stock"/"preferred shares").
-    r"\bfavor(?:s|ing)?\b",
+    r"\bfavor(?:s|ed|ing)?\b",
     r"\bpreferred\b(?!\s+(?:stock|shares?|equity))",
     r"\bbetter\s+(?:choice|pick|option|investment|buy)\b",
     r"\bwould\s+choose\b",
