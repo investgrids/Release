@@ -10,6 +10,8 @@ import { HomepageRefresher } from "@/components/homepage/HomepageRefresher";
 import { IndependenceDayBanner } from "@/components/homepage/IndependenceDayBanner";
 import { WhatToWatchNext } from "@/components/homepage/WhatToWatchNext";
 import { deriveWhatToWatchNext } from "@/lib/whatToWatchNext";
+import { authorizeDirection, type ClaimProvenanceValue } from "@/lib/claimAuthorization";
+import { companyDirection } from "@/lib/companyDirection";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
 import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
 import { WeekendHomePage } from "@/components/weekend/WeekendHomePage";
@@ -492,13 +494,29 @@ async function HomepageIntelligenceHero() {
   // added specifically because the first two sources alone regularly
   // produced just a single real company on a quiet day, and hardcoding
   // extras was never the right fix for that.
-  const evCompanies = ev ? ev.companies.map((c: any) => ({ symbol: c.symbol, name: c.name, impact: "positive" as const })) : [];
+  //
+  // CD3-D (D3): each source used to reconstruct a stronger directional
+  // claim than its own real data supported -- evCompanies hardcoded
+  // impact="positive" unconditionally regardless of the real impact_type
+  // event_lifecycle.py now preserves (D2); activeCompanies defaulted to
+  // "positive" for anything that wasn't the literal string "negative"
+  // (including "neutral"/missing). Both now read the real value and gate
+  // on authorizeDirection(impact_provenance) -- a company whose provenance
+  // authorization resolves "unavailable" is dropped from this list
+  // entirely rather than shown with a fabricated or default direction.
+  const evCompanies = ev ? ev.companies
+    .map((c: any) => ({ symbol: c.symbol, name: c.name, impact: companyDirection(c.impact_type), provenance: c.impact_provenance as ClaimProvenanceValue | undefined }))
+    .filter((c: any) => authorizeDirection(c.provenance ?? "unknown").strength !== "unavailable")
+    : [];
   const briefCompanies = ((brief.companies_affected ?? []) as any[])
-    .filter(c => c.impact === "positive" || c.impact === "negative")
-    .map(c => ({ symbol: c.symbol, name: c.name, impact: c.impact as "positive" | "negative" }));
+    .filter(c => (c.impact === "positive" || c.impact === "negative")
+      && authorizeDirection((c.impact_provenance as ClaimProvenanceValue) ?? "unknown").strength !== "unavailable")
+    .map(c => ({ symbol: c.symbol, name: c.name, impact: c.impact as "positive" | "negative", provenance: c.impact_provenance as ClaimProvenanceValue | undefined }));
   const activeEventsList = ((activeForWatch as any)?.results ?? (activeForWatch as any) ?? []) as any[];
   const activeCompanies = activeEventsList.flatMap(e =>
-    (e.companies ?? []).map((c: any) => ({ symbol: c.symbol, name: c.name, impact: (c.impact ?? "").toLowerCase() === "negative" ? "negative" as const : "positive" as const }))
+    (e.companies ?? [])
+      .map((c: any) => ({ symbol: c.symbol, name: c.name, impact: companyDirection(c.impact), provenance: c.impact_provenance as ClaimProvenanceValue | undefined }))
+      .filter((c: any) => authorizeDirection(c.provenance ?? "unknown").strength !== "unavailable")
   );
   const seenSymbols = new Set<string>();
   const companies = [...evCompanies, ...briefCompanies, ...activeCompanies].filter(c => {

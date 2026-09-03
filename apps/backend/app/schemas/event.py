@@ -6,6 +6,12 @@ class CompanyImpact(BaseModel):
     symbol: str
     name: str
     impact: str
+    # CD3-D (D3) — same integrity boundary as EventDetailResponse's
+    # CompanyDetail (CD3-B). Default "unknown" (app.services.claim_
+    # provenance.ClaimProvenance.UNKNOWN), never inferred stronger, so a
+    # legacy/unmapped row fails closed for any consumer of the events
+    # list endpoint the same way it already does for the detail endpoint.
+    impact_provenance: str = "unknown"
 
 class EventSummary(BaseModel):
     id: str

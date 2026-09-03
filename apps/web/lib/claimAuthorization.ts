@@ -35,6 +35,86 @@ export interface AuthorizedClaim {
   reason?: string | null;
 }
 
+// Mirrors app.services.claim_provenance.ClaimProvenance /
+// RippleEvidenceState and app.services.measurement_semantics.
+// IntegrityStatus (no TS type for these existed before CD3-D; frontend
+// CD3-B consumers used inline string literals matching the backend
+// values directly). Kept in sync by inspection, same convention as
+// every other Python<->TS mirror in this codebase.
+export type ClaimProvenanceValue =
+  | "price_sign" | "event_direction" | "analytical_hypothesis"
+  | "historical_outcome" | "fallback" | "unavailable" | "unknown";
+export type RippleEvidenceStateValue = "observed" | "supported" | "hypothesized" | "unavailable";
+export type IntegrityStatusValue = "valid" | "degraded" | "fallback" | "unavailable" | "invalid";
+
+// ── Authorization decision logic — mirrors claim_authorization.py's
+// three functions exactly. This IS enforcement logic living in the
+// frontend, which looks like it contradicts "authorization lives below
+// presentation" -- it doesn't: this is not a component deciding for
+// itself, it's the same SHARED, reusable, non-bypassable-by-a-new-page
+// contract as the Python version, callable from view-model code before
+// any component ever sees the data (server components building page
+// props, not JSX). The two implementations must be changed together;
+// test_claim_authorization.py (backend) and claimAuthorization.test.ts
+// (frontend) both pin the exact same decision table so drift is caught
+// immediately, not silently. ────────────────────────────────────────
+
+export function authorizeDirection(
+  provenance: ClaimProvenanceValue,
+  integrity: IntegrityStatusValue = "valid",
+): AuthorizedClaim {
+  if (integrity !== "valid") {
+    return { capability: "analytical_hypothesis", strength: "unavailable", reason: `integrity_status=${integrity}` };
+  }
+  if (provenance === "price_sign") return { capability: "observed_direction", strength: "authorized" };
+  if (provenance === "historical_outcome") return { capability: "historical_description", strength: "authorized" };
+  if (provenance === "analytical_hypothesis" || provenance === "event_direction") {
+    return { capability: "analytical_hypothesis", strength: "qualified" };
+  }
+  return { capability: "analytical_hypothesis", strength: "unavailable", reason: `provenance=${provenance}` };
+}
+
+export function authorizeRipple(
+  evidenceState: RippleEvidenceStateValue,
+  integrity: IntegrityStatusValue = "valid",
+): AuthorizedClaim {
+  if (integrity !== "valid") {
+    return { capability: "causal_relationship", strength: "unavailable", reason: `integrity_status=${integrity}` };
+  }
+  if (evidenceState === "observed") return { capability: "causal_relationship", strength: "authorized" };
+  if (evidenceState === "supported") return { capability: "causal_relationship", strength: "qualified" };
+  if (evidenceState === "hypothesized") return { capability: "causal_relationship", strength: "qualified" };
+  return { capability: "causal_relationship", strength: "unavailable", reason: `evidence_state=${evidenceState}` };
+}
+
+export function authorizeMeasurement(
+  measurementType: string,
+  integrity: IntegrityStatusValue,
+): AuthorizedClaim {
+  if (integrity !== "valid") {
+    return { capability: "evidence_quality", strength: "unavailable", reason: `integrity_status=${integrity}` };
+  }
+  if (measurementType === "self_reported_certainty") {
+    return { capability: "evidence_quality", strength: "qualified", reason: "self-reported, not independently verified" };
+  }
+  if (["evidence_composite", "hybrid_rubric", "deterministic_metric", "historical_calibration"].includes(measurementType)) {
+    return { capability: "evidence_quality", strength: "authorized" };
+  }
+  return { capability: "evidence_quality", strength: "unavailable", reason: `measurement_type=${measurementType}` };
+}
+
+// FORECAST/RECOMMENDATION: no authorize_* function ever produces these
+// capabilities. Named explicitly, permanently unavailable -- same
+// reasoning as the Python constants.
+export const FORECAST_UNAVAILABLE: AuthorizedClaim = {
+  capability: "forecast", strength: "unavailable",
+  reason: "No producer in the pipeline generates a verified forward-looking claim today",
+};
+export const RECOMMENDATION_UNAVAILABLE: AuthorizedClaim = {
+  capability: "recommendation", strength: "unavailable",
+  reason: "MarketRipple does not issue investment instructions",
+};
+
 const KNOWN_CAPABILITIES: Capability[] = [
   "observed_direction", "historical_description", "analytical_hypothesis",
   "causal_relationship", "evidence_quality", "forecast", "recommendation",

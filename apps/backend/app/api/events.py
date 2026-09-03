@@ -47,10 +47,20 @@ def _build_summary(e, companies: list, indexable: bool = False) -> EventSummary:
 
 
 def _to_summary(e, indexable: bool = False) -> EventSummary:
+    # CD3-D (D3): e.companies is the raw Event.companies JSON field --
+    # the same Stage-4 one-shot LLM extraction event_service.py's own
+    # _FakeCompany fallback reads (ClaimProvenance.ANALYTICAL_HYPOTHESIS,
+    # per CD3-A/B). A bare string entry (no dict at all) carries no real
+    # signal whatsoever, not even a guessed one -- UNAVAILABLE, not
+    # ANALYTICAL_HYPOTHESIS, so a consumer never treats it as a real
+    # (if weak) hypothesis when there was genuinely nothing behind it.
+    from app.services.claim_provenance import ClaimProvenance
     companies = [
-        CompanyImpact(symbol=c.get("symbol", ""), name=c.get("name", ""), impact=c.get("impact", "Neutral"))
+        CompanyImpact(symbol=c.get("symbol", ""), name=c.get("name", ""), impact=c.get("impact", "Neutral"),
+                       impact_provenance=ClaimProvenance.ANALYTICAL_HYPOTHESIS.value)
         if isinstance(c, dict) else
-        CompanyImpact(symbol=c.strip(), name=c.strip(), impact="Neutral")
+        CompanyImpact(symbol=c.strip(), name=c.strip(), impact="Neutral",
+                       impact_provenance=ClaimProvenance.UNAVAILABLE.value)
         for c in (e.companies or []) if isinstance(c, dict) or (isinstance(c, str) and c.strip())
     ]
     return _build_summary(e, companies, indexable)
