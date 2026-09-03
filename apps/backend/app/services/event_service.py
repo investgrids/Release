@@ -218,6 +218,10 @@ class EventService:
                 "long_term_impact": ai_s.get("long_term_impact", "neutral"),
                 "risk_factors": ai_s.get("risk_factors", []),
                 "opportunities": ai_s.get("opportunities", []),
+                # CD3-D (D6) — summarize_event's own integrity_status tag
+                # (deepseek_provider.py's _safe_json_call), preserved
+                # through event_pipeline.py's merged_summary spread.
+                "integrity_status": ai_s.get("integrity_status", "unknown"),
             },
             "impactScore": normalize_impact_score(event.id, event.impact_score),
             "confidence": normalize_confidence(event.id, event.confidence),
@@ -347,10 +351,21 @@ class EventService:
                     for e in edges
                 ],
             },
-            "marketReaction": ai_s.get("market_reaction", {}),
+            # CD3-D (D6) — both market_reaction and analysis come from the
+            # SAME generate_impact_analysis call, so they share one
+            # integrity_status tag (event_pipeline.py's
+            # "narrative_integrity_status", since neither sub-dict alone
+            # carries the top-level tag generate_impact_analysis actually
+            # sets). classification carries its own, independent tag
+            # nested inside itself (a separate AI call, classify_event).
+            "marketReaction": {
+                **(ai_s.get("market_reaction", {})),
+                "integrity_status": ai_s.get("narrative_integrity_status", "unknown"),
+            },
             "aiAnalysis": {
                 **(ai_s.get("analysis", {})),
                 "classification": ai_s.get("classification", {}),
+                "integrity_status": ai_s.get("narrative_integrity_status", "unknown"),
             },
             "macroRelease": (
                 {

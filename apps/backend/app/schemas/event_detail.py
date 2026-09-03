@@ -30,6 +30,12 @@ class EventSummaryDetail(BaseModel):
     long_term_impact: str = "neutral"
     risk_factors: List[str] = []
     opportunities: List[str] = []
+    # CD3-D (D6) — see app.services.measurement_semantics.IntegrityStatus.
+    # Default "unknown" (never "valid"), same fail-safe reasoning as
+    # impact_provenance elsewhere in this file — a legacy/pre-D6 row must
+    # never be inferred as a genuinely generated summary just because
+    # this field is absent.
+    integrity_status: str = "unknown"
 
 
 class CompanyDetail(BaseModel):

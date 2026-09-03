@@ -12,6 +12,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.services.ai_provider import AIProvider
+from app.services.measurement_semantics import IntegrityStatus
 
 logger = structlog.get_logger(__name__)
 
@@ -73,18 +74,26 @@ class DeepSeekProvider(AIProvider):
 
     async def _safe_json_call(
         self, system: str, user: str, fallback: Any, max_tokens: int = 2048
-    ) -> Any:
+    ) -> tuple[Any, str]:
+        """CD3-D (D6) — returns (value, integrity_status) instead of just
+        value. Before this, a fallback dict was byte-identical in shape to
+        a real success -- every one of the 9 call sites below, and any
+        consumer further downstream, had no way to tell a genuinely
+        generated answer from static exception-path boilerplate (the
+        exact gap CD3-C/CD3-D's audits both flagged, unresolved until
+        now). Callers attach `integrity_status` onto whatever they
+        return so the tag survives to persistence/API/consumer."""
         try:
             raw = await self._chat(system, user, max_tokens=max_tokens)
-            return self._parse_json(raw)
+            return self._parse_json(raw), IntegrityStatus.VALID.value
         except Exception as exc:
             logger.warning("AI call failed (%s): %s", type(exc).__name__, exc)
-            return fallback
+            return fallback, IntegrityStatus.FALLBACK.value
 
     # ── Legacy pipeline methods ───────────────────────────────────────────────
 
     async def classify_event(self, text: str) -> Dict[str, Any]:
-        return await self._safe_json_call(
+        result, status = await self._safe_json_call(
             system=(
                 'You are a financial event classifier for Indian capital markets. '
                 'Return JSON only: '
@@ -94,6 +103,8 @@ class DeepSeekProvider(AIProvider):
             user=f"Classify this event:\n{text[:1200]}",
             fallback={"category": "macro", "confidence": 0.7, "subcategory": "general"},
         )
+        result["integrity_status"] = status
+        return result
 
     async def summarize_news(self, text: str) -> str:
         try:
@@ -122,7 +133,7 @@ class DeepSeekProvider(AIProvider):
             return "Market story generation unavailable."
 
     async def generate_radar(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        return await self._safe_json_call(
+        result, status = await self._safe_json_call(
             system=(
                 'You are an investment opportunity analyst for Indian equities. '
                 'Return JSON only: {"theme": "string", "score": 0-100, '
@@ -131,6 +142,8 @@ class DeepSeekProvider(AIProvider):
             user=json.dumps(context),
             fallback={"theme": "Market Opportunity", "score": 70, "reason": "Analysis unavailable", "time_horizon": "medium"},
         )
+        result["integrity_status"] = status
+        return result
 
     # ── Event detail pipeline methods ─────────────────────────────────────────
 
@@ -146,7 +159,7 @@ class DeepSeekProvider(AIProvider):
             "risk_factors": [],
             "opportunities": [],
         }
-        return await self._safe_json_call(
+        result, status = await self._safe_json_call(
             system="""You are a senior Indian capital markets analyst.
 Return JSON only (no extra text):
 {
@@ -162,11 +175,13 @@ Return JSON only (no extra text):
             fallback=fallback,
             max_tokens=1024,
         )
+        result["integrity_status"] = status
+        return result
 
     async def extract_companies(
         self, title: str, text: str
     ) -> List[Dict[str, Any]]:
-        result = await self._safe_json_call(
+        result, _status = await self._safe_json_call(
             system="""You are an Indian equity markets analyst.
 Extract all NSE-listed companies directly affected by this event.
 Return a JSON array only (empty array if none apply):
@@ -177,12 +192,16 @@ Limit to 10 companies maximum.""",
             fallback=[],
             max_tokens=1024,
         )
+        # No tagging needed here -- this call's only fallback is [], which
+        # is already self-evidently honest ("nothing extracted"), unlike
+        # the dict-shaped fallbacks above that manufacture plausible-
+        # looking placeholder content.
         return result if isinstance(result, list) else []
 
     async def extract_sectors(
         self, title: str, text: str
     ) -> List[Dict[str, Any]]:
-        result = await self._safe_json_call(
+        result, _status = await self._safe_json_call(
             system="""You are an Indian equity sector analyst.
 Identify sectors most affected by this event.
 Return a JSON array only:
@@ -199,7 +218,7 @@ Return 1-5 most relevant sectors only.""",
     async def generate_timeline(
         self, title: str, text: str, event_type: str
     ) -> List[Dict[str, Any]]:
-        result = await self._safe_json_call(
+        result, _status = await self._safe_json_call(
             system="""You are a market event analyst.
 Generate a 4-5 phase chronological timeline for this event.
 Return a JSON array only:
@@ -239,7 +258,7 @@ Phases should cover: background context, triggering event, immediate market reac
                 "key_risks": [], "catalysts": [],
             },
         }
-        return await self._safe_json_call(
+        result, status = await self._safe_json_call(
             system="""You are a risk analyst specialising in Indian capital markets.
 Return JSON only:
 {
@@ -263,6 +282,8 @@ Return JSON only:
             fallback=fallback,
             max_tokens=1024,
         )
+        result["integrity_status"] = status
+        return result
 
     async def find_similar_events(
         self,
@@ -280,7 +301,7 @@ Return JSON only:
                 for e in candidate_events[:20]
             ],
         }
-        result = await self._safe_json_call(
+        result, _status = await self._safe_json_call(
             system="""You are an event similarity analyst.
 From the candidate events, identify those most similar to the current event.
 Return a JSON array only (empty if none are genuinely similar):
@@ -307,7 +328,7 @@ Return top 3 most similar events.""",
             "sectors": [s.get("sector") for s in sectors[:5]],
         }
         fallback = {"nodes": [], "edges": []}
-        result = await self._safe_json_call(
+        result, status = await self._safe_json_call(
             system="""You are a financial network graph designer.
 Return JSON only:
 {
@@ -324,6 +345,7 @@ Include the event as a central node. Connect it to companies and sectors. Max 15
             max_tokens=1536,
         )
         if not isinstance(result, dict):
-            return fallback
+            return {**fallback, "integrity_status": IntegrityStatus.FALLBACK.value}
+        result["integrity_status"] = status
         return result
 

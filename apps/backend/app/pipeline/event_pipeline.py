@@ -26,22 +26,28 @@ from app.repositories.government_policy_repository import GovernmentPolicyReposi
 from app.services.fallback_chain_provider import get_resilient_ai_provider
 from app.services import feature_extraction, scoring_engine, intelligence_orchestrator
 from app.services.historical_memory_service import find_similar_events
+from app.services.measurement_semantics import IntegrityStatus
 
 logger = structlog.get_logger(__name__)
 
-# DeepSeekProvider.classify_event's exact fallback (deepseek_provider.py) —
-# returned verbatim whenever the AI call fails after retries are exhausted,
-# indistinguishable from a real response to any caller that doesn't know to
-# check for it. Confirmed live originally: under sustained 429s, every one
-# of the pipeline's 7 AI-call stages falls back silently, and the event
-# still reaches mark_status(eid, "done") with impact_score=None —
-# permanently, since get_pending_enrichment only retries 'pending'/'failed'
-# rows, never 'done' ones. This exact dict (including confidence=0.7
-# precisely) is what a real AI response would essentially never produce by
-# coincidence, so checking for it right after the first AI call is a cheap,
-# reliable "is the provider actually responding right now" probe — fails
-# fast (skips the other 6 calls) rather than burning through the rest of an
-# already-exhausted quota.
+# DeepSeekProvider.classify_event's fallback (deepseek_provider.py) —
+# returned whenever the AI call fails after retries are exhausted.
+# Checking for it right after the first AI call is a cheap, reliable "is
+# the provider actually responding right now" probe — fails fast (skips
+# the other 6 calls) rather than burning through the rest of an
+# already-exhausted quota. Confirmed live originally: under sustained
+# 429s, every one of the pipeline's 7 AI-call stages falls back silently,
+# and the event still reaches mark_status(eid, "done") with
+# impact_score=None — permanently, since get_pending_enrichment only
+# retries 'pending'/'failed' rows, never 'done' ones.
+#
+# CD3-D (D6): this used to compare classification against a magic literal
+# dict ({"category": "macro", "confidence": 0.7, "subcategory": "general"})
+# — the code's own prior comment admitted this was "what a real AI
+# response would essentially never produce by coincidence," i.e. a
+# heuristic, not a guarantee. classify_event now attaches a real
+# `integrity_status` tag (see deepseek_provider.py's _safe_json_call),
+# so this checks that explicitly instead of relying on coincidence.
 #
 # Phase 5F.2a: this whole check used to fire constantly — `ai` came from
 # get_ai_provider() (provider_factory.py), a SINGLE provider (OpenRouter,
@@ -55,7 +61,6 @@ logger = structlog.get_logger(__name__)
 # fire when EVERY tier of that cascade is down at once, not whenever one
 # single account is rate-limited. The probe itself, and everything
 # downstream of it (_AIUnavailable, retry/backoff), is unchanged.
-_CLASSIFY_FALLBACK = {"category": "macro", "confidence": 0.7, "subcategory": "general"}
 
 
 class _AIUnavailable(Exception):
@@ -152,7 +157,7 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         # Stage 2 — Classify
         logger.debug("[Pipeline:%s] classify", eid)
         classification = await ai.classify_event(full_text)
-        if classification == _CLASSIFY_FALLBACK:
+        if classification.get("integrity_status") == IntegrityStatus.FALLBACK.value:
             raise _AIUnavailable("classify_event returned its fallback — AI provider unavailable")
         event_type = str(classification.get("category", "macro"))
 
@@ -229,10 +234,22 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         slug = await _make_unique_slug(repo, title, exclude_id=eid)
 
         merged_summary = {
+            # CD3-D (D6): ai_summary already carries its own top-level
+            # integrity_status (summarize_event's tag, covering
+            # why_it_matters/key_bullets/summary/risk_factors/
+            # opportunities) — spread through unchanged.
             **ai_summary,
             "classification": classification,
             "market_reaction": impact.get("market_reaction", {}),
             "analysis": impact.get("analysis", {}),
+            # generate_impact_analysis's own tag -- market_reaction/analysis
+            # only extract 2 of its keys above, which would otherwise
+            # silently drop its integrity_status the same way
+            # event_lifecycle.py dropped impact_provenance before D2 fixed
+            # it. A separate key from the top-level "integrity_status"
+            # above since they come from two different AI calls that can
+            # independently succeed or fall back.
+            "narrative_integrity_status": impact.get("integrity_status", IntegrityStatus.UNAVAILABLE.value),
             # Real, evidence-backed score — breakdown/top_contributors/reasoning/
             # version travel with the event so the "why" UI (Phase 4/5) can read
             # them straight from ai_summary without recomputing anything.

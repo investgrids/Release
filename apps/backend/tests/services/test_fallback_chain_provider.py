@@ -22,10 +22,19 @@ from sqlalchemy import delete, select
 
 from app.db.models.event import Event
 from app.db.session import AsyncSessionLocal
-from app.pipeline.event_pipeline import _AIUnavailable, _CLASSIFY_FALLBACK
+from app.pipeline.event_pipeline import _AIUnavailable
 from app.repositories.event_repository import EventRepository
 from app.services import ai_service
 from app.services.fallback_chain_provider import FallbackChainAIProvider, get_resilient_ai_provider
+from app.services.measurement_semantics import IntegrityStatus
+
+# CD3-D (D6): event_pipeline.py's health probe used to compare classify_event's
+# result against this exact literal dict -- classify_event now attaches a real
+# integrity_status tag instead (see deepseek_provider.py's _safe_json_call),
+# so the probe checks that directly. Redefined here (not imported -- the
+# module-level constant was removed along with the fragile equality check)
+# only to build the expected fallback shape these tests assert against.
+_CLASSIFY_FALLBACK_BASE = {"category": "macro", "confidence": 0.7, "subcategory": "general"}
 
 
 async def _cleanup(*ids: str) -> None:
@@ -68,7 +77,8 @@ async def test_openrouter_429_second_provider_succeeds(monkeypatch):
     provider = FallbackChainAIProvider()
     result = await provider.classify_event("Reliance announces new refinery capacity")
 
-    assert result == {"category": "corporate", "confidence": 0.9, "subcategory": "capex"}
+    assert result == {"category": "corporate", "confidence": 0.9, "subcategory": "capex",
+                       "integrity_status": IntegrityStatus.VALID.value}
     assert calls["n"] >= 2  # had to fall through past the first failure
 
 
@@ -86,7 +96,8 @@ async def test_two_failures_third_provider_succeeds(monkeypatch):
     provider = FallbackChainAIProvider()
     result = await provider.classify_event("RBI announces new regulatory framework")
 
-    assert result == {"category": "policy", "confidence": 0.8, "subcategory": "regulatory"}
+    assert result == {"category": "policy", "confidence": 0.8, "subcategory": "regulatory",
+                       "integrity_status": IntegrityStatus.VALID.value}
     assert calls["n"] >= 3
 
 
@@ -99,8 +110,11 @@ async def test_all_providers_fail_returns_classify_fallback_not_a_crash(monkeypa
     provider = FallbackChainAIProvider()
     result = await provider.classify_event("Some event")
 
-    # Preserves the exact pre-existing degraded-stub contract event_pipeline.py checks for.
-    assert result == _CLASSIFY_FALLBACK
+    # Preserves the exact pre-existing degraded-stub contract event_pipeline.py
+    # checks for -- now via the real integrity_status tag rather than a
+    # coincidence-based literal-dict comparison (CD3-D D6).
+    assert result == {**_CLASSIFY_FALLBACK_BASE, "integrity_status": IntegrityStatus.FALLBACK.value}
+    assert result["integrity_status"] == IntegrityStatus.FALLBACK.value
 
 
 @pytest.mark.asyncio
@@ -115,7 +129,8 @@ async def test_first_provider_success_makes_no_unnecessary_fallback_calls(monkey
     provider = FallbackChainAIProvider()
     result = await provider.classify_event("Company Q1 results beat estimates")
 
-    assert result == {"category": "earnings", "confidence": 0.95, "subcategory": "results"}
+    assert result == {"category": "earnings", "confidence": 0.95, "subcategory": "results",
+                       "integrity_status": IntegrityStatus.VALID.value}
     assert calls["n"] == 1  # no wasted calls past the first success
 
 

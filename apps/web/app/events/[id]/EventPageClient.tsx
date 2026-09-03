@@ -63,7 +63,7 @@ interface MacroRelease {
 
 export interface EventDetail {
   event: { id: string; slug?: string; title: string; description: string; source: string; event_type: string; event_date: string; enrichment_status: string };
-  summary: { text: string; why_it_matters: string; key_bullets: string[]; immediate_impact: string; long_term_impact: string; risk_factors: string[]; opportunities: string[] };
+  summary: { text: string; why_it_matters: string; key_bullets: string[]; immediate_impact: string; long_term_impact: string; risk_factors: string[]; opportunities: string[]; integrity_status?: string };
   impactScore: number | null;
   confidence: number | null;
   companies: Company[];
@@ -75,8 +75,8 @@ export interface EventDetail {
   historicalEvents: HistEvt[];
   relatedNews: NewsItem[];
   graph: { nodes: GNode[]; edges: GEdge[] };
-  marketReaction: { short_term?: string; medium_term?: string; volatility?: string; sentiment?: string };
-  aiAnalysis: { bull_case?: string; bear_case?: string; base_case?: string; key_risks?: string[]; catalysts?: string[] };
+  marketReaction: { short_term?: string; medium_term?: string; volatility?: string; sentiment?: string; integrity_status?: string };
+  aiAnalysis: { bull_case?: string; bear_case?: string; base_case?: string; key_risks?: string[]; catalysts?: string[]; integrity_status?: string };
   macroRelease?: MacroRelease | null;
 }
 
@@ -1135,8 +1135,24 @@ function EventIntelligenceTab({ data, intelligence, intelligenceLoading }: {
     );
   }
 
+  // CD3-D (D6) — this legacy aiAnalysis/marketReaction content used to be
+  // structurally indistinguishable from a genuinely generated analysis
+  // even when the AI provider had exhausted retries and every field below
+  // is deepseek_provider.py's static exception-path boilerplate (P0-D's
+  // originally-flagged, never-fixed-until-now risk). integrity_status now
+  // carries the real answer; a legacy pre-D6 row (field absent) fails
+  // closed to "unknown" and is NOT shown this banner -- only a positively
+  // confirmed fallback is disclosed, never assumed.
+  const isFallbackContent = ai.integrity_status === "fallback" || mr.integrity_status === "fallback";
+
   return (
     <div className="space-y-4">
+      {isFallbackContent && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3">
+          <span className="text-[13px] font-semibold text-amber-600 dark:text-amber-300">AI analysis unavailable</span>
+          <span className="text-[11px] text-amber-400/70">The provider was unreachable when this event was enriched — the case/outlook below is a generic placeholder, not event-specific analysis.</span>
+        </div>
+      )}
       {/* Layer 1: Bull/Base/Bear case — the core stance, always visible.
           No probability badge — this codebase never presents a fixed,
           unearned percentage as if it were a real computed likelihood. */}
