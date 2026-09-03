@@ -86,7 +86,13 @@ function ScenarioCard({ caseKey, data }: { caseKey: CaseKey; data: ScenarioBranc
           <Icon className={`h-3.5 w-3.5 ${a.text}`} aria-hidden />
           <span className={`text-[10px] font-bold uppercase tracking-[0.12em] ${a.text}`}>{a.label}</span>
         </div>
-        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black ${a.badge}`}>
+        {/* CD3-C fix: same self-reported-split caveat as the Self-Rating
+            line below -- this is the model's own probability split
+            across Bull/Base/Bear, never independently verified. */}
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[11px] font-black ${a.badge}`}
+          title="The model's own self-reported probability split across scenarios, not a calibrated or verified probability"
+        >
           {data.probability}%
         </span>
       </div>
@@ -110,10 +116,16 @@ function ScenarioCard({ caseKey, data }: { caseKey: CaseKey; data: ScenarioBranc
         </div>
       )}
 
-      {/* Confidence */}
+      {/* CD3-C fix (2026-09-03): this is the model's own self-rated
+          certainty for this scenario (ai_service.py's generate_scenario_
+          analysis prompt literally hands it anchor example numbers --
+          65/70/60 -- inside the schema template), never an independently
+          calibrated or verified probability. measurement_type=
+          SELF_REPORTED_CERTAINTY per app/services/measurement_semantics.py
+          -- labeled accordingly, not as a bare "Confidence". */}
       {data.confidence != null && (
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-text-muted">Confidence</span>
+        <div className="flex items-center justify-between" title="The model's own self-rated certainty for this scenario, not a calibrated probability">
+          <span className="text-[10px] text-text-muted">Self-Rating</span>
           <span className="text-[10px] text-text-secondary">{data.confidence}%</span>
         </div>
       )}
@@ -279,7 +291,7 @@ export function ScenarioAnalysis({
           {/* Probability sanity note */}
           {bull && base && bear && (
             <p className="mt-3 text-[10px] text-text-muted text-right">
-              Probabilities: {bull.probability + base.probability + bear.probability}% total · AI-generated, not financial advice
+              Probabilities: {bull.probability + base.probability + bear.probability}% total · model self-reported, not calibrated · not financial advice
             </p>
           )}
         </>

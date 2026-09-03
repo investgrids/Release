@@ -284,6 +284,7 @@ export function AITransparencyPanel({
         relationshipChain={relationshipChain}
         assumptions={assumptions}
         limitations={limitations}
+        confidenceBreakdown={confidenceBreakdown}
       />
     </>
   );

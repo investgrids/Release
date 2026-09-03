@@ -18,6 +18,7 @@ import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
 import { fixMojibake } from "@/lib/text";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc } from "@/lib/scoring";
+import { deriveRippleStage } from "@/lib/rippleStage";
 
 
 // Dynamic import — ReactFlow requires browser APIs
@@ -547,24 +548,25 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
               />
 
               <OpportunityLifecycleCard
-                stage={(() => {
-                  const strength = data?.insights?.ripple_strength;
-                  const directStr = (strength?.direct ?? "").toLowerCase();
-                  const impact = data?.event_impact;
-                  if (impact !== null && impact !== undefined) {
-                    if (impact > 80 || directStr.includes("high")) return "strong-momentum" as const;
-                    if (impact > 60 || directStr.includes("medium")) return "developing" as const;
-                  } else if (directStr.includes("high")) {
-                    return "strong-momentum" as const;
-                  } else if (directStr.includes("medium")) {
-                    return "developing" as const;
-                  }
-                  return "emerging" as const;
-                })()}
+                // CD3-C fix: event_impact is a real 0-10 impact magnitude
+                // (app/api/ripple.py::_impact_hint, Event.impact_score/10),
+                // never 0-100 -- the old >80/>60 thresholds were dead code
+                // for every real event (max real event_impact is ~10).
+                // Extracted to lib/rippleStage.ts so the scale-boundary fix
+                // is directly unit-tested, not just visually inspected.
+                stage={deriveRippleStage(data?.event_impact, data?.insights?.ripple_strength?.direct)}
                 description={data?.insights?.ripple_timeline?.[0]?.description}
-                whyAssigned={`Ripple strength — Direct: ${data?.insights?.ripple_strength?.direct ?? "N/A"} · Indirect: ${data?.insights?.ripple_strength?.indirect ?? "N/A"} · Long-term: ${data?.insights?.ripple_strength?.long_term ?? "N/A"}`}
+                whyAssigned={`Ripple strength — Direct: ${data?.insights?.ripple_strength?.direct ?? "N/A"} · Indirect: ${data?.insights?.ripple_strength?.indirect ?? "N/A"} · Long-term: ${data?.insights?.ripple_strength?.long_term ?? "N/A"}${data?.event_impact != null ? ` · Impact magnitude: ${data.event_impact.toFixed(1)}/10` : ""}`}
                 historicalComparison="Events with this ripple profile typically see sector-level re-pricing within 10–15 trading sessions followed by earnings guidance revisions in the next quarter."
-                confidence={data?.event_impact != null ? Math.min(90, Math.round(data.event_impact * 0.85)) : null}
+                // CD3-C fix: event_impact is a real impact MAGNITUDE
+                // (measurement_type=DETERMINISTIC_METRIC), never a
+                // confidence in anything -- there is no genuine "confidence
+                // in this stage assignment" measurement at this call site,
+                // so this now renders honestly as unscored (this card's own
+                // hasConfidence check hides the badge on null) rather than a
+                // fabricated number. The real magnitude is still shown
+                // above, correctly labeled, in whyAssigned.
+                confidence={null}
                 expectedEvolution={data?.insights?.ripple_timeline?.[data.insights.ripple_timeline.length - 1]?.description ?? "Expect ripple effects to peak in the near term and gradually dissipate as markets price in the new information."}
                 risks={[
                   `Volatility regime: ${data?.insights?.market_volatility ?? "Moderate"} — amplifies both upside and downside`,
@@ -746,8 +748,21 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
               </div>
               <p className="text-[12px] text-text-secondary leading-5">{insights.summary}</p>
               <AITransparencyPanel
-                confidence={data?.event_impact !== null && data?.event_impact !== undefined ? Math.min(100, Math.round(data.event_impact * 10)) : null}
-                reasoning={data?.insights?.summary ?? "AI-generated ripple impact analysis based on event data and market relationships."}
+                // CD3-C fix: event_impact is a real 0-10 impact MAGNITUDE
+                // (measurement_type=DETERMINISTIC_METRIC), not a confidence
+                // in this analysis -- even correctly rescaled to 0-100
+                // (this call site's own math was actually right, unlike the
+                // sibling OpportunityLifecycleCard's ×0.85 above) it would
+                // still be mislabeling a magnitude as "AI Confidence".
+                // ConfidenceBadge/ConfidenceMeter render "Unscored" (an
+                // honest UNAVAILABLE state) for null, never a crash. The
+                // real magnitude is surfaced honestly in `reasoning` below
+                // instead of being smuggled into the confidence badge.
+                confidence={null}
+                reasoning={
+                  (data?.insights?.summary ?? "AI-generated ripple impact analysis based on event data and market relationships.")
+                  + (data?.event_impact != null ? ` Impact magnitude: ${data.event_impact.toFixed(1)}/10.` : "")
+                }
                 events={data?.event_title ? [{ title: data.event_title }] : []}
               />
               <AIDisclaimer />

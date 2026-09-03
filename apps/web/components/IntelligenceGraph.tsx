@@ -148,10 +148,20 @@ function impact(nodeId:string, nodes:RawNode[], edges:RawEdge[]): number {
   const aw=dv>0?c.reduce((s,e)=>s+e.weight,0)/dv:0;
   return parseFloat(Math.min(10,Math.max(2,aw*8+Math.min(dv*.25,2))).toFixed(1));
 }
-function conf(nodeId:string, edges:RawEdge[]): number {
-  const c=edges.filter(e=>e.source===nodeId||e.target===nodeId);
-  return c.length?Math.round(60+c.reduce((s,e)=>s+e.confidence,0)/c.length*40):70;
-}
+// CD3-C fix (2026-09-03): a conf() function used to live here, averaging
+// each node's connected edges' `confidence` field into a 60-100%-floored
+// "AI Confidence" display shown on every node, the NodePanel, and the
+// bottom bar. Removed, not replaced with another formula, per the CD3-C
+// authorization: the underlying edge.confidence values (ig_edges table)
+// are overwhelmingly either a hardcoded upsert_edge() default (0.8, for
+// every auto-added Development-Memory edge -- intelligence_graph_service.py
+// never passes a real per-relationship confidence there) or hand-authored
+// seed constants (e.g. 0.93/0.75/0.85/0.80 for the Defence/Metal/"Make in
+// India" seed edges) -- not a real per-relationship measurement. Averaging
+// those and floor-inflating the result to 60-100% produced a number with
+// no evidentiary backing at all (measurement_type would be UNKNOWN/
+// DERIVED_TRANSFORM over largely-defaulted inputs -- see
+// app/services/measurement_semantics.py -- never publicly authorized).
 
 // ─── Panel helpers ────────────────────────────────────────────────────────────
 const _WHY: Record<string,string> = {
@@ -336,8 +346,8 @@ function Sparkline({values,color,width=60,height=18}:{values:number[];color:stri
   );
 }
 
-function CenterNode({node,pos,imp,cnf,dimmed,selected,livePrice,onClick}:{
-  node:RawNode;pos:{x:number;y:number};imp:number;cnf:number;
+function CenterNode({node,pos,imp,dimmed,selected,livePrice,onClick}:{
+  node:RawNode;pos:{x:number;y:number};imp:number;
   dimmed:boolean;selected:boolean;livePrice?:LivePrice;onClick:()=>void;
 }){
   const m=nt(node.node_type);
@@ -375,15 +385,14 @@ function CenterNode({node,pos,imp,cnf,dimmed,selected,livePrice,onClick}:{
             <div style={{fontSize:8,color:"#c4b5fd",fontWeight:600}}>Impact Score</div>
           </>
         )}
-        <div style={{fontSize:8,color:"rgba(196,181,253,.55)",fontWeight:500}}>{cnf}% conf.</div>
       </motion.div>
     </motion.div>
   );
 }
 
 // ─── Intel node card ──────────────────────────────────────────────────────────
-function IntelNode({node,pos,imp,cnf,dimmed,selected,rippleDir,livePrice,onHover,onHoverEnd,onClick}:{
-  node:RawNode;pos:{x:number;y:number};imp:number;cnf:number;
+function IntelNode({node,pos,imp,dimmed,selected,rippleDir,livePrice,onHover,onHoverEnd,onClick}:{
+  node:RawNode;pos:{x:number;y:number};imp:number;
   dimmed:boolean;selected:boolean;rippleDir?:string;livePrice?:LivePrice;
   onHover:()=>void;onHoverEnd:()=>void;onClick:()=>void;
 }){
@@ -425,16 +434,11 @@ function IntelNode({node,pos,imp,cnf,dimmed,selected,rippleDir,livePrice,onHover
               {livePrice!.positive?"+":""}{livePrice!.pct.toFixed(2)}% today
             </div>
           </div>
-          <div style={{marginLeft:"auto",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
-            <div style={{fontSize:8.5,fontWeight:600,color:"#334155"}}>Conf. {cnf}%</div>
-          </div>
         </div>
       ):(
         <div style={{display:"flex",gap:4,alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:800,color:"#e2e8f0"}}>{imp}</span>
           <span style={{fontSize:8.5,color:"#334155",fontWeight:600}}>Impact</span>
-          <span style={{marginLeft:"auto",fontSize:9.5,fontWeight:700,color:"#4b5563"}}>{cnf}%</span>
-          <span style={{fontSize:8,color:"#334155"}}>Conf.</span>
         </div>
       )}
     </motion.div>
@@ -448,7 +452,6 @@ function NodePanel({node,data,livePrice,onClose,onRipple,onMakeCenter}:{node:Raw
   const d=conns.length;
   const[bc,bl]=d>=6?["#22c55e","High Impact"]:d>=3?["#f59e0b","Moderate Impact"]:["rgb(var(--text-muted))","Connected"];
   const imp=impact(node.id,data.nodes,data.edges);
-  const cnf=conf(node.id,data.edges);
   const [sparkline,setSparkline]=useState<number[]>([]);
   useEffect(()=>{
     if(!node.ticker)return;
@@ -529,11 +532,10 @@ function NodePanel({node,data,livePrice,onClose,onRipple,onMakeCenter}:{node:Raw
 
         {/* Metrics row */}
         <div style={{display:"flex",gap:6}}>
-          {[["Impact",`${imp}/10`,"#22c55e"],["Confidence",`${cnf}%`,"#818cf8"]].map(([k,v,c])=>(
+          {[["Impact",`${imp}/10`,"#22c55e"]].map(([k,v,c])=>(
             <div key={k} style={{flex:1,...card}}>
               <div style={{fontSize:7,color:"rgb(var(--surface-border))",fontWeight:700,marginBottom:3,textTransform:"uppercase",letterSpacing:".07em"}}>{k}</div>
               <div style={{fontSize:17,fontWeight:900,color:c as string,lineHeight:1}}>{v}</div>
-              {k==="Confidence"&&<div style={{height:2.5,borderRadius:999,background:"rgba(255,255,255,.06)",marginTop:5,overflow:"hidden"}}><motion.div initial={{width:0}} animate={{width:`${cnf}%`}} transition={{duration:.9,ease:"easeOut"}} style={{height:"100%",borderRadius:999,background:"#818cf8"}}/></div>}
             </div>
           ))}
         </div>
@@ -713,7 +715,10 @@ function BottomBar({data,centerId,liveData,lastUpdated}:{data:GData;centerId:str
   const opps=edges.filter(e=>e.weight>0.6);
   const topS=[...sectors].sort((a,b)=>impact(b.id,nodes,edges)-impact(a.id,nodes,edges))[0];
   const topC=[...companies].sort((a,b)=>impact(b.id,nodes,edges)-impact(a.id,nodes,edges))[0];
-  const avgConf=edges.length?Math.round(edges.reduce((s,e)=>s+e.confidence,0)/edges.length*100):0;
+  // CD3-C fix: an "AI CONFIDENCE" bottom-bar item used to live here,
+  // averaging every edge's largely-defaulted/hand-seeded `confidence`
+  // field across the whole graph -- removed, not replaced, same reasoning
+  // as the per-node conf() removal above.
   // Best opportunity: highest positive-weight edge target
   const bestOppEdge=[...edges].filter(e=>e.weight>0.5).sort((a,b)=>b.weight-a.weight)[0];
   const bestOpp=bestOppEdge?nodes.find(n=>n.id===bestOppEdge.target):null;
@@ -733,7 +738,7 @@ function BottomBar({data,centerId,liveData,lastUpdated}:{data:GData;centerId:str
     {lb:"SECTOR IN FOCUS",   icon:<BarChart2     size={14} color="#34d399" strokeWidth={1.6}/>,v:topS?.label??"—",                 sub:topS?`${impact(topS.id,nodes,edges)} impact`:"",  accent:"#34d399"},
     {lb:"COMPANY IN FOCUS",  icon:<Building2     size={14} color="#60a5fa" strokeWidth={1.6}/>,v:topC?.label??"—",                 sub:topC?`${impact(topC.id,nodes,edges)} impact`:"",  accent:"#60a5fa"},
     {lb:"RIPPLE REACH",      icon:<GitFork       size={14} color="#94a3b8" strokeWidth={1.6}/>,v:`${reach} nodes`,                 sub:`${risks.length} risks · ${opps.length} opps`,   accent:"#94a3b8"},
-    {lb:"AI CONFIDENCE",     icon:<Shield        size={14} color="#818cf8" strokeWidth={1.6}/>,v:`${avgConf}%`,                    sub:`${priceCount} live prices`,                      accent:"#818cf8"},
+    {lb:"LIVE PRICES",       icon:<Shield        size={14} color="#818cf8" strokeWidth={1.6}/>,v:`${priceCount}`,                  sub:"Updating every 30s",                             accent:"#818cf8"},
     {lb:"LAST UPDATED",      icon:<Clock         size={14} color="#475569" strokeWidth={1.6}/>,v:updStr,                           sub:"Prices every 30s",                               accent:"#475569"},
   ];
   return(
@@ -1274,10 +1279,9 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
               const isC=node.id===centerId;
               const dimmed=nodeDimmed(node.id,node.node_type);
               const imp=impact(node.id,gData.nodes,gData.edges);
-              const cnf=conf(node.id,gData.edges);
               const lp=liveData?.prices[node.id];
-              if(isC)return<CenterNode key={node.id} node={node} pos={pos} imp={imp} cnf={cnf} dimmed={dimmed} selected={selectedNode?.id===node.id} livePrice={lp} onClick={()=>{setSelectedNode(node);const p=positions.current.get(node.id);if(p)flyTo(p);}}/>;
-              return<IntelNode key={node.id} node={node} pos={pos} imp={imp} cnf={cnf} dimmed={dimmed} selected={selectedNode?.id===node.id}
+              if(isC)return<CenterNode key={node.id} node={node} pos={pos} imp={imp} dimmed={dimmed} selected={selectedNode?.id===node.id} livePrice={lp} onClick={()=>{setSelectedNode(node);const p=positions.current.get(node.id);if(p)flyTo(p);}}/>;
+              return<IntelNode key={node.id} node={node} pos={pos} imp={imp} dimmed={dimmed} selected={selectedNode?.id===node.id}
                 rippleDir={rippleMap[node.id]} livePrice={lp}
                 onHover={()=>setHoveredId(node.id)} onHoverEnd={()=>setHoveredId(null)}
                 onClick={()=>handleNodeClick(node)}/>;

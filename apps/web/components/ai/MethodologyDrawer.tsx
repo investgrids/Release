@@ -18,6 +18,14 @@ interface MethodologyDrawerProps {
   relationshipChain?: RelationshipStep[];
   assumptions?: string[];
   limitations?: string[];
+  /** CD3-C fix: same raw confidence_service.py breakdown AITransparencyPanel
+   * takes -- when it includes a real `ai_certainty` component, the caption
+   * below must disclose it rather than describing the score as purely
+   * evidence-based (measurement_type=HYBRID_RUBRIC, not EVIDENCE_COMPOSITE,
+   * per app/services/measurement_semantics.py). Optional: callers that
+   * don't have the breakdown get the honest evidence-only wording instead
+   * of a false claim either way. */
+  confidenceBreakdown?: Record<string, number>;
 }
 
 export function MethodologyDrawer({
@@ -31,7 +39,12 @@ export function MethodologyDrawer({
   relationshipChain = [],
   assumptions = [],
   limitations = [],
+  confidenceBreakdown,
 }: MethodologyDrawerProps) {
+  const aiCertainty = confidenceBreakdown?.ai_certainty;
+  const confidenceCaption = aiCertainty != null
+    ? "Confidence combines real evidence signals (data completeness, historical precedent, market and sector confirmation) with a small self-assessed component from the model itself -- not a purely evidence-based figure."
+    : "Confidence reflects the strength of evidence supporting this analysis, based on data completeness, historical precedent, and market confirmation.";
   const drawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -104,7 +117,7 @@ export function MethodologyDrawer({
                 )}
               </div>
               <p className="mt-2 text-[11px] text-text-secondary">
-                Confidence reflects the strength of evidence supporting this analysis. It accounts for data completeness, historical precedent, and analytical consensus.
+                {confidenceCaption}
               </p>
             </div>
           </section>
