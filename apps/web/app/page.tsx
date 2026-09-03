@@ -18,6 +18,7 @@ import { isWeekendSession } from "@/lib/weekendSession";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { cleanText, truncateForQuery } from "@/lib/text";
 import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 export const dynamic = "force-dynamic";
 
@@ -1152,7 +1153,12 @@ async function TodaysBiggestEventsCard() {
                   <Link href={`/ai-search?q=${encodeURIComponent(`What are the investment implications of: ${truncateForQuery(e.title)}`)}` as any} className="text-[10px] font-semibold text-violet-400 hover:text-violet-600 dark:text-violet-300 transition">Analyze with AI →</Link>
                   <Link href={`/ripple?event=${e.id}` as any} className="text-[10px] font-semibold text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">Ripple Analysis →</Link>
                   <Link href={`/events/${e.slug || e.id}` as any} className="text-[10px] font-semibold text-text-muted hover:text-text-secondary transition">Full Event Analysis →</Link>
-                  {e.confidence != null && <span className="ml-auto text-[10px] text-text-muted">Confidence <span className="font-bold text-text-secondary">{Math.round(e.confidence)}%</span></span>}
+                  {/* Relabeled per CD3-C: event.confidence comes from
+                      scoring_engine.score_event_impact(), which sets
+                      confidence = round(coverage * 100, 1) -- a real
+                      EVIDENCE_COMPOSITE (fraction of structural signals
+                      present), never an LLM self-report. */}
+                  {e.confidence != null && <span className="ml-auto text-[10px] text-text-muted">{MEASUREMENT_LABEL.evidence_composite} <span className="font-bold text-text-secondary">{Math.round(e.confidence)}%</span></span>}
                 </div>
               </div>
             );
@@ -1386,9 +1392,13 @@ async function ThemeStrengthCard() {
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-text-primary/[0.06]">
                   <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
                 </div>
+                {/* "X% confidence" removed per CD3-C: this radar theme's
+                    confidence is opportunity_generator.py's
+                    `min(0.95, score / 110)` -- a DERIVED_TRANSFORM of the
+                    same score already shown above, not an independent
+                    measurement. */}
                 <div className="mt-1 flex items-center gap-2 text-[9.5px] text-text-muted">
-                  <span>{Math.round((t.confidence ?? 0) * 100)}% confidence</span>
-                  {t.risk_level && <span>· {t.risk_level} risk</span>}
+                  {t.risk_level && <span>{t.risk_level} risk</span>}
                 </div>
               </Link>
             );
@@ -1499,7 +1509,14 @@ async function LatestIntelligenceRow() {
               <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-surface-border/5 pt-2.5 text-[9px] text-text-muted">
                 {publishedLabel && <span>Published {publishedLabel}</span>}
                 <span>{a.read_time_minutes ?? 1} min read</span>
-                {a.confidence_score != null && <span className="text-sky-400 font-semibold">{Math.round(a.confidence_score * 100)}% confidence</span>}
+                {a.confidence_score != null && (
+                  <span
+                    className="text-sky-400 font-semibold"
+                    title="The model's own self-reported certainty at generation time -- not a verified or computed score"
+                  >
+                    {MEASUREMENT_LABEL.self_reported_certainty}: {Math.round(a.confidence_score * 100)}%
+                  </span>
+                )}
                 {a.impact_score != null && <span className="text-violet-400 font-semibold">Impact {Math.round(a.impact_score)}</span>}
                 {!!a.views && <span>{a.views.toLocaleString("en-IN")} {a.views === 1 ? "view" : "views"}</span>}
               </div>

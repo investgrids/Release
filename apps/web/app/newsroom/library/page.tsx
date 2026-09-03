@@ -3,12 +3,13 @@ import Link from "next/link";
 import {
   Search, Clock, ChevronLeft, ChevronRight, Flame, Sparkles, Eye,
   FileText, CalendarDays, TrendingUp, Building2, Radio as RadioIcon,
-  Tag, ShieldCheck, type LucideIcon,
+  Tag, type LucideIcon,
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText, isRealSymbol } from "@/lib/text";
 import { HeroImage } from "@/components/HeroImage";
 import { BookmarkButton } from "@/components/BookmarkButton";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 export const metadata: Metadata = {
   title: "AI Intelligence Library",
@@ -165,7 +166,13 @@ export default async function LibraryPage(
         <StatTile icon={Building2}    label="Companies Covered"  value={stats.companies_covered} sub="Active companies" />
         <StatTile icon={RadioIcon}    label="Events Covered"     value={stats.events_covered}    sub="Key events tracked" />
         <StatTile icon={Tag}          label="Themes Covered"     value={stats.themes_covered}    sub="Investment themes" />
-        <StatTile icon={ShieldCheck}  label="Avg AI Confidence"  value={stats.avg_confidence != null ? `${Math.round(stats.avg_confidence * 100)}%` : undefined} sub="Across all articles" />
+        {/* Avg AI Confidence removed per CD3-C: avg_confidence is a plain SQL
+            avg() across confidence_score, whose per-article inputs are 4
+            genuinely incompatible producers (LLM self-report, 0.0 DB
+            default, 0.7 soft-fill, 0.7 hard publish-gate floor) -- a
+            DERIVED_TRANSFORM average of incompatible inputs authorizes
+            nothing, same rule that removed IntelligenceGraph's average-
+            edge-confidence stat. */}
         <StatTile icon={Clock}        label="Last Updated"       value={stats.last_updated ? fmtRelative(stats.last_updated) : undefined} sub="Real-time updates" />
       </div>
 
@@ -248,7 +255,14 @@ export default async function LibraryPage(
                     </div>
                   )}
                   <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-muted">
-                    {featured.confidence_score != null && <span className="font-semibold text-sky-400">{Math.round(featured.confidence_score * 100)}% confidence</span>}
+                    {featured.confidence_score != null && (
+                      <span
+                        className="font-semibold text-sky-400"
+                        title="The model's own self-reported certainty at generation time -- not a verified or computed score"
+                      >
+                        {MEASUREMENT_LABEL.self_reported_certainty}: {Math.round(featured.confidence_score * 100)}%
+                      </span>
+                    )}
                     {featured.read_time_minutes && <span>{featured.read_time_minutes} min read</span>}
                     {featured.published_at && <span>{fmtRelative(featured.published_at)}</span>}
                   </div>
@@ -412,7 +426,14 @@ function GridCard({ a, large = false }: { a: InsightCard; large?: boolean }) {
           </p>
         )}
         <div className="mt-auto flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-2.5 text-[10px] text-text-muted">
-          {a.confidence_score != null && <span className="font-semibold text-sky-400">{Math.round(a.confidence_score * 100)}%</span>}
+          {a.confidence_score != null && (
+            <span
+              className="font-semibold text-sky-400"
+              title="Model Self-Rating -- the article's own self-reported certainty, not a verified score"
+            >
+              {Math.round(a.confidence_score * 100)}%
+            </span>
+          )}
           {a.read_time_minutes && <span>{a.read_time_minutes} min</span>}
           {a.published_at && <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{fmtRelative(a.published_at)}</span>}
           {!!a.views && <span className="ml-auto flex items-center gap-1"><Eye className="h-2.5 w-2.5" />{a.views}</span>}

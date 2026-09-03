@@ -7,6 +7,7 @@ import {
 import { API_BASE_URL as API } from "@/lib/api";
 import { cleanText, isRealSymbol } from "@/lib/text";
 import { MarketSentimentGauge } from "@/components/MarketSentimentGauge";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 export const metadata: Metadata = {
   title: "AI Newsroom",
@@ -182,7 +183,12 @@ export default async function NewsroomHomePage() {
         <StatTile label="Companies" value={stats.companies_covered} />
         <StatTile label="Events" value={stats.events_covered} />
         <StatTile label="Themes" value={stats.themes_covered} />
-        <StatTile label="Avg Confidence" value={stats.avg_confidence != null ? `${Math.round(stats.avg_confidence * 100)}%` : undefined} />
+        {/* "Avg Confidence" stat removed per CD3-C: avg_confidence is a plain
+            SQL avg() across confidence_score, whose per-article inputs are 4
+            incompatible producers (self-report, 0.0 default, 0.7 soft-fill,
+            0.7 gate floor) -- an averaged DERIVED_TRANSFORM of incompatible
+            inputs authorizes nothing (same rule as IntelligenceGraph's
+            removed average-edge-confidence stat). */}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -216,7 +222,11 @@ export default async function NewsroomHomePage() {
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(hero.published_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} IST</span>
                   )}
                   {hero.read_time_minutes && <span>{hero.read_time_minutes} min read</span>}
-                  {hero.confidence_score != null && <span>Confidence: {Math.round(hero.confidence_score * 100)}%</span>}
+                  {hero.confidence_score != null && (
+                    <span title="The model's own self-reported certainty at generation time -- not a verified or computed score">
+                      {MEASUREMENT_LABEL.self_reported_certainty}: {Math.round(hero.confidence_score * 100)}%
+                    </span>
+                  )}
                   {hero.sources && hero.sources.length > 0 && <span>Sources: {hero.sources.length}</span>}
                 </div>
                 <span className="mt-4 inline-flex items-center gap-1 text-[13px] font-medium text-sky-400">
@@ -253,7 +263,12 @@ export default async function NewsroomHomePage() {
                     <tr className="border-b border-surface-border/7 text-[10px] uppercase tracking-wider text-text-muted">
                       <th className="px-4 py-2.5 font-semibold">Theme</th>
                       <th className="px-4 py-2.5 font-semibold">Score</th>
-                      <th className="px-4 py-2.5 font-semibold">Confidence</th>
+                      {/* "Confidence" column removed per CD3-C: Opportunity.confidence
+                          here is opportunity_generator.py's `min(0.95, score / 110)` --
+                          a DERIVED_TRANSFORM arithmetic function of the same
+                          opportunity_score already shown in the Score column, not an
+                          independent measurement. Displaying it as "Confidence" implied
+                          a second, corroborating signal that doesn't exist. */}
                       <th className="px-4 py-2.5 font-semibold">Risk</th>
                       <th className="px-4 py-2.5 font-semibold">Trend</th>
                     </tr>
@@ -267,7 +282,6 @@ export default async function NewsroomHomePage() {
                           </Link>
                         </td>
                         <td className="px-4 py-2.5 font-bold text-emerald-400">{Math.round(t.opportunity_score)}</td>
-                        <td className="px-4 py-2.5 text-text-secondary">{Math.round(t.confidence * 100)}%</td>
                         <td className="px-4 py-2.5 text-text-secondary">{t.risk_level}</td>
                         <td className="px-4 py-2.5">
                           {t.trend?.toLowerCase().includes("positive") ? (

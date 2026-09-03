@@ -842,8 +842,13 @@ export default function OperationsIntelligence() {
                       {lc.label}
                     </div>
 
-                    {/* Confidence */}
-                    <div className={`text-[11px] font-bold tabular-nums ${
+                    {/* Confidence — confidence_score is the article's own self-reported
+                        certainty (occasionally publish-gate floored to 0.7), not a
+                        verified score. Title discloses this; column stays abbreviated
+                        for space, per CD3-C. */}
+                    <div
+                      title="Model Self-Rating — the article's own self-reported certainty, not a verified score"
+                      className={`text-[11px] font-bold tabular-nums cursor-help ${
                       art.confidence_score >= 0.8 ? "text-emerald-400" : art.confidence_score >= 0.65 ? "text-violet-400" : "text-rose-400"
                     }`}>{Math.round(art.confidence_score * 100)}%</div>
 

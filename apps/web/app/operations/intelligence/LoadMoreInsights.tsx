@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Loader2, ArrowRight } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { TYPE_LABEL, fmtRelative, type FeedArticle } from "./shared";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 export function LoadMoreInsights({ initialItems, startOffset, total }: { initialItems: FeedArticle[]; startOffset: number; total: number }) {
   const [items, setItems] = useState<FeedArticle[]>(initialItems);
@@ -52,7 +53,14 @@ export function LoadMoreInsights({ initialItems, startOffset, total }: { initial
               )}
               <div className="mt-3 flex items-center justify-between text-[10px] text-text-muted">
                 <span>{fmtRelative(a.published_at)}</span>
-                {a.confidence_score != null && <span className="text-emerald-400 font-semibold">{Math.round(a.confidence_score * 100)}% confidence</span>}
+                {a.confidence_score != null && (
+                  <span
+                    className="text-emerald-400 font-semibold"
+                    title="The model's own self-reported certainty at generation time -- not a verified or computed score"
+                  >
+                    {MEASUREMENT_LABEL.self_reported_certainty}: {Math.round(a.confidence_score * 100)}%
+                  </span>
+                )}
               </div>
             </Link>
           ))}

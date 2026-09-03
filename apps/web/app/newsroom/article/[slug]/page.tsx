@@ -793,6 +793,11 @@ export default async function ArticlePage(
         )}
 
         <div className="mb-8">
+          {/* CD3-C confirmed: confidenceScore is passed here but
+              showConfidence={false} (set by the earlier CD1 Public Claim
+              Containment pass) means EvidenceList's internal "AI Confidence"
+              block never renders on this page -- genuinely dead prop, not
+              re-fixed since nothing downstream displays it. */}
           <EvidenceList
             sources={sources}
             facts={evidenceFacts}

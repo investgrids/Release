@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import { truncateForQuery } from "@/lib/text";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 import {
   ArrowRight, Zap, Building2, BookOpen,
   Target, Activity, Search, ExternalLink,
@@ -24,6 +25,11 @@ interface EntityData {
   sector?:     string;
   score?:      number;
   confidence?: number;
+  // Per-entity-type measurement label -- this card's `confidence` field is
+  // fed by genuinely different producers depending on `type` (CD3-C), so a
+  // single blanket "AI Confidence" caption would misrepresent whichever one
+  // it wasn't written for. Only set alongside `confidence`.
+  confidenceLabel?: string;
   href:        string;
   type:        EntityType;
 }
@@ -42,7 +48,10 @@ async function fetchEntity(type: EntityType, id: string): Promise<EntityData | n
           summary:     d.summary?.why_it_matters,
           sector:      d.affectedSectors?.[0]?.sector,
           score:       d.impactScore,
-          confidence:  d.confidence,
+          // event.confidence = scoring_engine.score_event_impact()'s
+          // coverage-based figure -- a real EVIDENCE_COMPOSITE, per CD3-C.
+          confidence:      d.confidence,
+          confidenceLabel: MEASUREMENT_LABEL.evidence_composite,
           href:        `/events/${ev.slug || id}`,
           type,
         };
@@ -68,7 +77,11 @@ async function fetchEntity(type: EntityType, id: string): Promise<EntityData | n
           description: d.description ?? d.summary ?? "",
           sector:      d.sectors?.[0],
           score:       d.opportunity_score,
-          confidence:  d.confidence,
+          // Story model is confirmed dead (SEO/Growth audit finding #3) --
+          // StoryDetail's schema never actually includes a confidence
+          // field, so d.confidence is always undefined here and this never
+          // renders. Left unset rather than assigned a label for a field
+          // that can't populate.
           href:        `/stories/${id}`,
           type,
         };
@@ -77,12 +90,15 @@ async function fetchEntity(type: EntityType, id: string): Promise<EntityData | n
         const r = await fetch(`${API}/api/radar/${id}`, { next: { revalidate: 3600 } });
         if (!r.ok) return null;
         const d = await r.json();
+        // No `confidence` here (was d.confidence) per CD3-C: Opportunity.
+        // confidence is opportunity_generator.py's `min(0.95, score / 110)`
+        // -- a DERIVED_TRANSFORM arithmetic function of opportunity_score,
+        // already shown as `score` above, not an independent measurement.
         return {
           title:       d.title ?? "Investment Opportunity",
           description: d.summary ?? "",
           sector:      d.sector,
           score:       d.opportunity_score,
-          confidence:  d.confidence,
           href:        `/radar/${id}`,
           type,
         };
@@ -119,7 +135,10 @@ async function fetchEntity(type: EntityType, id: string): Promise<EntityData | n
           title:       d.headline ?? "Market Intelligence",
           description: d.key_takeaway ?? d.executive_summary ?? "",
           sector:      d.sectors_affected?.[0]?.name,
-          confidence:  d.confidence_score,
+          // AIPE confidence_score is a bare self-report (occasionally
+          // publish-gate floored) -- SELF_REPORTED_CERTAINTY, per CD3-C.
+          confidence:      d.confidence_score,
+          confidenceLabel: MEASUREMENT_LABEL.self_reported_certainty,
           href:        `/newsroom/article/${id}`,
           type,
         };
@@ -260,7 +279,7 @@ export default async function SharePage({
               {entity.confidence !== undefined && (
                 <div className="text-center">
                   <div className="text-2xl font-bold text-text-primary">{entity.confidence}%</div>
-                  <div className="text-xs text-text-primary/60">AI Confidence</div>
+                  <div className="text-xs text-text-primary/60">{entity.confidenceLabel ?? "Confidence"}</div>
                 </div>
               )}
             </div>

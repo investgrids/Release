@@ -11,6 +11,7 @@ import { isRealSymbol } from "@/lib/text";
 import { LiveTicker } from "./LiveTicker";
 import { LoadMoreInsights } from "./LoadMoreInsights";
 import { TYPE_LABEL, fmtRelative, sectorName, type FeedArticle } from "./shared";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 export const metadata: Metadata = {
   title: "Market Intelligence — MarketRipple's AI Newsroom",
@@ -291,7 +292,10 @@ export default async function MarketIntelligenceShowcase() {
                   </div>
 
                   {featured.confidence_score != null && (
-                    <div className="flex flex-col items-center justify-center rounded-2xl border border-surface-border/8 bg-text-primary/[0.02] p-6">
+                    <div
+                      className="flex flex-col items-center justify-center rounded-2xl border border-surface-border/8 bg-text-primary/[0.02] p-6"
+                      title="The model's own self-reported certainty at generation time -- not a verified or computed score"
+                    >
                       <div className="relative flex h-28 w-28 items-center justify-center">
                         <svg width={112} height={112} viewBox="0 0 112 112" className="-rotate-90">
                           <circle cx={56} cy={56} r={48} fill="none" stroke="rgb(var(--text-primary) / 0.06)" strokeWidth={8} />
@@ -309,7 +313,10 @@ export default async function MarketIntelligenceShowcase() {
                         </svg>
                         <span className="absolute text-[22px] font-black text-text-primary">{Math.round(featured.confidence_score * 100)}%</span>
                       </div>
-                      <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">AI Confidence</p>
+                      {/* Relabeled from "AI Confidence" per CD3-C -- confidence_score
+                          is a bare LLM self-report (occasionally publish-gate
+                          floored), never a verified confidence. */}
+                      <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{MEASUREMENT_LABEL.self_reported_certainty}</p>
                       {featured.sectors_affected?.length > 0 && (
                         <div className="mt-4 flex flex-wrap justify-center gap-1.5">
                           {featured.sectors_affected.slice(0, 3).map((s, i) => (
@@ -399,7 +406,12 @@ export default async function MarketIntelligenceShowcase() {
                       </span>
                       <span className="text-[10px] text-text-muted">{fmtRelative(a.published_at)}</span>
                       {a.confidence_score != null && (
-                        <span className="text-[10px] font-bold text-emerald-400">{Math.round(a.confidence_score * 100)}% confidence</span>
+                        <span
+                          className="text-[10px] font-bold text-emerald-400"
+                          title="The model's own self-reported certainty at generation time -- not a verified or computed score"
+                        >
+                          {MEASUREMENT_LABEL.self_reported_certainty}: {Math.round(a.confidence_score * 100)}%
+                        </span>
                       )}
                       {a.update_count > 0 && <span className="text-[10px] font-bold text-sky-400">Live · {a.update_count} updates</span>}
                     </div>

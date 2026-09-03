@@ -8,6 +8,7 @@ import {
 import MiniIntelligenceGraph from "@/components/MiniIntelligenceGraph";
 import { API_BASE_URL as API } from "@/lib/api";
 import { isRealSymbol, truncateForQuery } from "@/lib/text";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 function makeNodeId(nodeType: string, label: string): string {
   const slug = label.toLowerCase().replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
@@ -235,10 +236,17 @@ export default async function IntelligenceArticlePage({
                 <h1 className="text-[28px] font-black leading-[1.2] tracking-tight text-text-primary md:text-[34px]">
                   {art.headline}
                 </h1>
-                {/* Confidence card */}
+                {/* Self-rating card. confidence_score is the article's own
+                    self-reported certainty at generation time (AIPE
+                    publisher.py) -- not a verified/computed score, and for
+                    historical_intelligence articles it can be a 0.7
+                    publish-gate floor rather than a genuine self-report.
+                    Labeled per CD3-C's SELF_REPORTED_CERTAINTY boundary. */}
                 {confPct > 0 && (
-                  <div className="hidden shrink-0 flex-col items-center rounded-2xl border border-surface-border/10 bg-surface-card p-4 text-center sm:flex" style={{ minWidth: 100 }}>
-                    <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-text-muted">Confidence</p>
+                  <div
+                    title="The model's own self-reported certainty at generation time -- not a verified or computed score"
+                    className="hidden shrink-0 flex-col items-center rounded-2xl border border-surface-border/10 bg-surface-card p-4 text-center sm:flex cursor-help" style={{ minWidth: 100 }}>
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-text-muted">{MEASUREMENT_LABEL.self_reported_certainty}</p>
                     <p className={`text-[26px] font-black tabular-nums ${confColor(art.confidence_score)}`}>{confPct}%</p>
                     <p className={`text-[10px] font-semibold ${confColor(art.confidence_score)}`}>{confLabel(art.confidence_score)}</p>
                     <button className="mt-1.5 text-text-muted hover:text-text-secondary transition"><Info className="h-3 w-3" /></button>
@@ -615,7 +623,7 @@ export default async function IntelligenceArticlePage({
                   },
                   {
                     icon: <Zap className="h-3.5 w-3.5 text-text-muted" />,
-                    label: "Confidence",
+                    label: MEASUREMENT_LABEL.self_reported_certainty,
                     value: confPct > 0 ? `${confLabel(art.confidence_score)} (${confPct}%)` : "—",
                     cls: `font-semibold ${confColor(art.confidence_score)}`,
                   },
