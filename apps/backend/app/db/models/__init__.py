@@ -43,6 +43,7 @@ from app.db.models.raw_evidence import RawEvidence
 from app.db.models.company_entity import CompanyEntity, CompanyAlias
 from app.db.models.financial_fact import FinancialFact
 from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
+from app.db.models.evidence_entity_link import EvidenceEntityLink
 
 __all__ = [
     "Opportunity",
@@ -92,4 +93,5 @@ __all__ = [
     "CompanyAlias",
     "FinancialFact",
     "MarketRippleScoreSnapshot",
+    "EvidenceEntityLink",
 ]

@@ -28,6 +28,7 @@ from sqlalchemy import delete, select, func
 from app.db.models.market_observation import MarketObservation
 from app.db.session import AsyncSessionLocal
 from app.services.warehouse import market_observations as mo
+from app.services.warehouse.source_registry_seed import seed_source_registry
 
 
 def _fake_bucket_now(observation_time: datetime, market_date: date, session: str, bucket_key: str):
@@ -53,6 +54,12 @@ async def test_scheduled_capture_persists_real_rows_when_gate_is_live(monkeypatc
 
     try:
         async with AsyncSessionLocal() as db:
+            # capture_market_observations_if_due() writes real, hardcoded
+            # production source_ids (e.g. "yfinance_india_vix") -- self-
+            # contained against a genuinely isolated test DB only if those
+            # rows actually exist here; seed_source_registry() is upsert-
+            # based, safe to call even when real rows already exist.
+            await seed_source_registry(db)
             result = await mo.capture_market_observations_if_due(db)
 
         assert result["skipped"] is False
@@ -83,6 +90,7 @@ async def test_second_call_in_same_bucket_is_suppressed_not_duplicated(monkeypat
 
     try:
         async with AsyncSessionLocal() as db:
+            await seed_source_registry(db)
             first = await mo.capture_market_observations_if_due(db)
         assert first["skipped"] is False
         first_count = first["capture_attempts"]
