@@ -12,11 +12,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.db.models.ripple import RippleGraph
+from app.services.claim_provenance import RippleEvidenceState
 
 log = structlog.get_logger(__name__)
 
 _cache: dict = {}
 _CACHE_TTL = 3600  # 1 hour
+
+
+def _annotate_evidence_state(graph_data: dict, source: str) -> dict:
+    """CD3-D (D4) — tags every edge with the evidence basis of the whole
+    graph it belongs to. "ai_generated" is a single-shot LLM narrative with
+    no evidence-validation path behind it (CD3-A's own finding), never a
+    confirmed causal chain -- HYPOTHESIZED, not OBSERVED/SUPPORTED.
+    "fallback_template" is hardcoded, keyword-selected market lore with no
+    connection to this specific event at all -- UNAVAILABLE, matching the
+    precedent event_deep_research_service.py's _get_second_order_effects
+    already set for excluding fallback_template rows from being presented
+    as real. Mutates graph_data in place (and returns it) so every call
+    site -- DB-cache read, fresh AI generation, fresh fallback generation
+    -- can apply it uniformly right before the result is returned/persisted.
+    """
+    state = (
+        RippleEvidenceState.HYPOTHESIZED.value
+        if source == "ai_generated"
+        else RippleEvidenceState.UNAVAILABLE.value
+    )
+    for edge in graph_data.get("edges", []):
+        edge["evidence_state"] = state
+    return graph_data
 
 
 def _cached(key: str) -> dict | None:
@@ -42,7 +66,12 @@ async def _db_get(event_id: str, db: AsyncSession) -> dict | None:
     )
     row = result.scalar_one_or_none()
     if row and row.graph_data and row.graph_data.get("nodes"):
-        return row.to_dict()
+        d = row.to_dict()
+        # Pre-D4 rows were persisted before evidence_state existed --
+        # annotate on read so old cached graphs fail closed too, not just
+        # newly generated ones.
+        _annotate_evidence_state(d["graph_data"], d["source"])
+        return d
     return None
 
 
@@ -138,6 +167,8 @@ async def get_or_generate_ripple(
         insights = fb.get("insights", {})
         source = "fallback_template"
 
+    _annotate_evidence_state(graph_data, source)
+
     result = {
         "event_id":    event_id,
         "event_title": event_title,
@@ -193,6 +224,8 @@ async def generate_scenario_ripple(scenario_text: str, db: AsyncSession) -> dict
         graph_data = {"nodes": fb["nodes"], "edges": fb["edges"]}
         insights = fb.get("insights", {})
         source = "fallback_template"
+
+    _annotate_evidence_state(graph_data, source)
 
     result = {
         "event_id":    None,

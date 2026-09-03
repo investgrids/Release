@@ -40,6 +40,7 @@ export interface RippleEdgeData {
   confidence: number | null;
   explanation: string;
   time_horizon: string;
+  evidence_state?: string;
 }
 
 // ── Color config ──────────────────────────────────────────────────────────────
@@ -68,6 +69,10 @@ const EDGE_COLORS: Record<string, string> = {
   supports:   "#a78bfa",
   risk:       "#f59e0b",
   opportunity:"#22c55e",
+  // CD3-D (D4) — a genuinely missing/unrecognized relationship must
+  // render as its own muted, non-committal color, never silently reuse
+  // "causes"' color as if an unclaimed edge were a real observed one.
+  unavailable:"#64748b",
 };
 
 // ── Layout algorithm ──────────────────────────────────────────────────────────
@@ -196,12 +201,23 @@ function AnimatedRippleEdge({
   sourcePosition, targetPosition, data,
 }: EdgeProps<RippleEdgeData>) {
   const [path] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
-  const color = EDGE_COLORS[data?.relationship ?? "causes"] || "#475569";
+  // CD3-D (D4) — a missing/unrecognized relationship must NEVER fall
+  // back to "causes"' color, since that would visually claim a real
+  // observed relationship for data that has none. Falls back to the
+  // dedicated "unavailable" muted color instead.
+  const color = EDGE_COLORS[data?.relationship ?? "unavailable"] || EDGE_COLORS.unavailable;
+  // The public graph is expected to look visibly more cautious for
+  // unconfirmed data: HYPOTHESIZED/UNAVAILABLE edges (today, effectively
+  // all of them — Ripple has no evidence-validation path yet) render
+  // fainter than a genuinely OBSERVED/SUPPORTED edge would.
+  const isHedged = data?.evidence_state === "hypothesized" || data?.evidence_state === "unavailable" || !data?.evidence_state;
+  const baseOpacity = isHedged ? 0.12 : 0.25;
+  const animOpacity = isHedged ? 0.45 : 0.75;
 
   return (
     <g>
       {/* Base path — faint */}
-      <path d={path} fill="none" stroke={color} strokeWidth={1.5} strokeOpacity={0.25} />
+      <path d={path} fill="none" stroke={color} strokeWidth={1.5} strokeOpacity={baseOpacity} />
       {/* Animated dashes */}
       <path
         id={id}
@@ -209,8 +225,8 @@ function AnimatedRippleEdge({
         fill="none"
         stroke={color}
         strokeWidth={2}
-        strokeOpacity={0.75}
-        strokeDasharray="8 6"
+        strokeOpacity={animOpacity}
+        strokeDasharray={isHedged ? "3 5" : "8 6"}
         className="ripple-edge-animate"
       />
       {/* Arrowhead */}

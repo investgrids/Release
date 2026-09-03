@@ -19,6 +19,7 @@ import { fixMojibake } from "@/lib/text";
 import { API_BASE_URL as API } from "@/lib/api";
 import { compareScoresDesc } from "@/lib/scoring";
 import { deriveRippleStage } from "@/lib/rippleStage";
+import { rippleEdgeDisplay } from "@/lib/rippleEdgeWording";
 
 
 // Dynamic import — ReactFlow requires browser APIs
@@ -58,6 +59,7 @@ interface RippleEdge {
   source: string; target: string; relationship: string;
   impact_strength: number | null; confidence: number | null;
   explanation: string; time_horizon: string;
+  evidence_state?: string;
 }
 interface Beneficiary {
   name: string; ticker: string; confidence: number | null; impact: string; reason: string;
@@ -505,7 +507,9 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                   {graphData.edges.slice(0, 15).map((edge, i) => {
                     const srcNode = graphData.nodes.find(n => n.id === edge.source);
                     const tgtNode = graphData.nodes.find(n => n.id === edge.target);
-                    const relColor = edge.relationship === "hurts" ? "text-rose-400" :
+                    const rel = rippleEdgeDisplay(edge.evidence_state, edge.relationship);
+                    const relColor = !rel.asserts ? "text-text-muted italic" :
+                                     edge.relationship === "hurts" ? "text-rose-400" :
                                      edge.relationship === "benefits" ? "text-emerald-400" :
                                      edge.relationship === "causes" ? "text-sky-400" : "text-text-secondary";
                     return (
@@ -513,7 +517,7 @@ export default function RipplePage({ initialData, initialRelated }: { initialDat
                         <div className="flex items-start gap-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             <span className="text-[11px] font-semibold text-text-primary truncate">{srcNode?.label || edge.source}</span>
-                            <span className={`text-[10px] font-bold shrink-0 ${relColor}`}>→ {edge.relationship}</span>
+                            <span className={`text-[10px] font-bold shrink-0 ${relColor}`}>{rel.asserts ? "→" : "⋯"} {rel.label}</span>
                             <span className="text-[11px] font-semibold text-text-primary truncate">{tgtNode?.label || edge.target}</span>
                           </div>
                           <div className="shrink-0 text-right">
