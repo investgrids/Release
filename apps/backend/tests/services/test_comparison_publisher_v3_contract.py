@@ -124,6 +124,41 @@ async def test_try_generate_quality_gate_rejects_missing_decision_intelligence()
 
 
 @pytest.mark.asyncio
+async def test_try_generate_rejects_comparative_recommendation_language():
+    """Directional-surface reassessment (2026-09-03) — the real leak: a
+    response whose real decision_framework.ai_stance/decision_summary
+    would compose into an unsafe key_takeaway must be rejected the same
+    way synthesis_incomplete is, not published as-is."""
+    bad = _v3_response()
+    bad["decision_intelligence"]["decision_framework"]["ai_stance"] = (
+        "Favor the holding for 12-month capital appreciation -- preferred choice over the target."
+    )
+    with patch(
+        "app.services.ai_search.pipeline.run_ai_search_v3",
+        new=AsyncMock(return_value=(bad, False)),
+    ):
+        async with AsyncSessionLocal() as db:
+            result = await _try_generate("query", db)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_generate_comparison_retries_then_succeeds_once_language_is_clean():
+    """The bounded retry loop must actually recover: an unsafe first
+    attempt followed by a clean one must publish the clean result, not
+    give up just because attempt 1 tripped the language gate."""
+    bad = _v3_response()
+    bad["decision_intelligence"]["decision_framework"]["ai_stance"] = "Favor the holding over the target."
+    clean = _v3_response()
+    mock = AsyncMock(side_effect=[(bad, False), (clean, False)])
+    with patch("app.services.ai_search.pipeline.run_ai_search_v3", new=mock):
+        async with AsyncSessionLocal() as db:
+            result = await generate_comparison(db, "TCS", "INFY", "TCS", "Infosys")
+    assert result is not None
+    assert mock.call_count == 2
+
+
+@pytest.mark.asyncio
 async def test_generate_comparison_retries_bounded_number_of_times_then_gives_up():
     """Unchanged retry contract: _MAX_ATTEMPTS calls, then None -- not
     retry-forever, not a single-shot."""
@@ -179,6 +214,38 @@ async def test_publish_comparison_article_consumes_v3_shape_end_to_end():
                 # (2 holding, 1 target here -- not a >=2 lean, so both stay neutral)
                 assert len(article.companies_affected) == 2
                 assert article.market_context["decision_intelligence"]["engine_recommendation"]["favored_entity"] == "TCS"
+    finally:
+        async with AsyncSessionLocal() as db:
+            await db.execute(delete(IntelligenceArticle).where(IntelligenceArticle.slug == slug))
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_publish_comparison_article_never_stores_recommendation_language():
+    """End-to-end proof of the real leak's fix: an AI response that would
+    have composed into an unsafe key_takeaway must never reach a stored
+    IntelligenceArticle row -- not the row's own fields, and not the raw
+    decision_framework.ai_stance stashed inside market_context (the
+    frontend's own render path for /research/{slug})."""
+    slug = "tcs-vs-infy"
+    unsafe_every_time = _v3_response()
+    unsafe_every_time["decision_intelligence"]["decision_framework"]["ai_stance"] = (
+        "Favor TCS over Infosys -- our preferred choice for the next 12 months."
+    )
+    try:
+        with patch(
+            "app.services.ai_search.pipeline.run_ai_search_v3",
+            new=AsyncMock(return_value=(unsafe_every_time, False)),
+        ):
+            async with AsyncSessionLocal() as db:
+                published = await publish_comparison_article(db, "TCS", "INFY", "TCS", "Infosys", sector="IT")
+        assert published is None, "an unsafe run must never publish, even after exhausting retries"
+
+        async with AsyncSessionLocal() as db:
+            article = (await db.execute(
+                select(IntelligenceArticle).where(IntelligenceArticle.slug == slug)
+            )).scalar_one_or_none()
+        assert article is None, "no row -- including no market_context.decision_intelligence.ai_stance -- was ever stored"
     finally:
         async with AsyncSessionLocal() as db:
             await db.execute(delete(IntelligenceArticle).where(IntelligenceArticle.slug == slug))

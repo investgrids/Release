@@ -161,6 +161,7 @@ def compose_key_takeaway(di: dict, decision_summary: str) -> str:
 
 async def _try_generate(query: str, db: AsyncSession) -> dict | None:
     from app.services.ai_search.pipeline import run_ai_search_v3
+    from app.services.aipe.recommendation_language import scan_recommendation_language
 
     try:
         result, _was_cached = await run_ai_search_v3(query, db)
@@ -174,6 +175,26 @@ async def _try_generate(query: str, db: AsyncSession) -> dict | None:
     # block (present even on a degraded run).
     if not di.get("holding_analysis") and not di.get("comparison"):
         return None
+
+    # Directional-surface reassessment (2026-09-03) — comparison_publisher.py
+    # never wired the recommendation-language validator at all, confirmed
+    # live: a real /research/{slug} page's key_takeaway read "Favor GAIL
+    # India Ltd for 12-month capital appreciation... preferred choice over
+    # Oil & Natural Gas Corporation," matching none of the existing
+    # patterns (now extended, see recommendation_language.py). Same
+    # treatment as synthesis_incomplete above -- a run whose real would-be
+    # key_takeaway trips the same required, publish-blocking check every
+    # other AIPE article type already enforces is not "genuinely
+    # complete," it's unsafe -- retry (generate_comparison's existing
+    # bounded loop), never publish. di is the exact object market_context
+    # would also store, so rejecting here also keeps the unsafe
+    # decision_framework.ai_stance out of the frontend's raw market_context
+    # render, not just out of key_takeaway.
+    decision_summary = di.get("decision_summary") or (result.get("answer") or {}).get("bottom_line") or ""
+    would_be_key_takeaway = compose_key_takeaway(di, decision_summary)
+    if scan_recommendation_language({"key_takeaway": would_be_key_takeaway}):
+        return None
+
     return result
 
 

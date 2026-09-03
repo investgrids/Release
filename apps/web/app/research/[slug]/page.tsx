@@ -6,6 +6,7 @@ import { Brain } from "lucide-react";
 import { AskAICta } from "@/components/AskAICta";
 import { RelatedContent } from "@/components/RelatedContent";
 import { safeJsonLd } from "@/lib/text";
+import { containsRecommendationLanguage } from "@/lib/recommendationLanguage";
 
 /**
  * Comparison research pages (SEO Phase 2, §2.2 — the permanent-page half
@@ -105,6 +106,18 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
   const [a, b] = [di.holding_analysis, di.target_analysis];
   const related = await fetchRelated(slug, a.sector || b.sector);
 
+  // Directional-surface reassessment (2026-09-03) — defense-in-depth
+  // matching newsroom/article/[slug]/page.tsx's existing pattern.
+  // comparison_publisher.py's generation-time gate (recommendation_
+  // language.py) now blocks NEW unsafe content from ever being stored,
+  // but this stays a real backstop for anything already persisted from
+  // before that gate existed — same fail-closed, never-rewrite contract:
+  // omit the field entirely rather than showing a "cleaned up" version.
+  const safeExecutiveSummary = article.executive_summary && !containsRecommendationLanguage(article.executive_summary)
+    ? article.executive_summary : "";
+  const safeAiStance = di.decision_framework?.ai_stance && !containsRecommendationLanguage(di.decision_framework.ai_stance)
+    ? di.decision_framework.ai_stance : "";
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -149,8 +162,8 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
           <Brain className="h-3.5 w-3.5 text-violet-400" />
           By <span className="font-semibold text-text-secondary">MarketRipple AI Intelligence Engine</span> — AI-generated from real market data, not written by a human reporter.
         </p>
-        {article.executive_summary && (
-          <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-text-secondary">{article.executive_summary}</p>
+        {safeExecutiveSummary && (
+          <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-text-secondary">{safeExecutiveSummary}</p>
         )}
         <p className="mt-2 text-[11px] text-text-muted">Not investment advice — research framing only.</p>
       </div>
@@ -231,10 +244,10 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
       )}
 
       {/* Decision framework / AI stance */}
-      {di.decision_framework?.ai_stance && (
+      {safeAiStance && (
         <div className="rounded-[16px] border border-violet-500/20 bg-violet-500/[0.04] px-5 py-4">
           <p className="text-[11px] uppercase tracking-wider text-violet-400 font-semibold mb-1.5">Research Framing</p>
-          <p className="text-[13.5px] leading-relaxed text-text-primary">{di.decision_framework.ai_stance}</p>
+          <p className="text-[13.5px] leading-relaxed text-text-primary">{safeAiStance}</p>
           {di.decision_framework.key_unknowns?.filter(Boolean).length > 0 && (
             <p className="mt-2 text-[11.5px] text-text-muted">
               Key unknowns: {di.decision_framework.key_unknowns.filter(Boolean).join(" · ")}

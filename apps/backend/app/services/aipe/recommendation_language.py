@@ -68,6 +68,17 @@ _PATTERNS: list[re.Pattern[str]] = [re.compile(p, re.IGNORECASE) for p in [
     r"\bstrong\s+buy\b",
     r"\blikely\s+winner\b",
     r"\blikely\s+loser\b",
+    # P0-D5X (2026-09-03, directional-surface reassessment) — comparative
+    # recommendation phrasing, confirmed live on a real /research/{slug}
+    # page ("Favor GAIL India Ltd for 12-month capital appreciation...
+    # preferred choice over Oil & Natural Gas Corporation") that matched
+    # none of the patterns above. "preferred" excludes the real financial
+    # instrument sense ("preferred stock"/"preferred shares").
+    r"\bfavor(?:s|ing)?\b",
+    r"\bpreferred\b(?!\s+(?:stock|shares?|equity))",
+    r"\bbetter\s+(?:choice|pick|option|investment|buy)\b",
+    r"\bwould\s+choose\b",
+    r"\bprefer(?:s|ring)?\b.{0,25}\bover\b",
 ]]
 
 

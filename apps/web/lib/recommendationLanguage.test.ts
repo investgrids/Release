@@ -37,4 +37,22 @@ describe("containsRecommendationLanguage — P0-CD1 legacy-history patch", () =>
     expect(containsRecommendationLanguage(undefined)).toBe(false);
     expect(containsRecommendationLanguage("")).toBe(false);
   });
+
+  it("flags the real live comparison-article specimen (2026-09-03 reassessment)", () => {
+    expect(containsRecommendationLanguage(
+      "Favor GAIL India Ltd for 12-month capital appreciation... preferred choice over Oil & Natural Gas Corporation"
+    )).toBe(true);
+  });
+
+  it("flags comparative recommendation phrasing", () => {
+    expect(containsRecommendationLanguage("We favor Company A over Company B")).toBe(true);
+    expect(containsRecommendationLanguage("Company A is our preferred choice for growth investors")).toBe(true);
+    expect(containsRecommendationLanguage("This makes Company A the better investment right now")).toBe(true);
+    expect(containsRecommendationLanguage("Most investors would choose Company A here")).toBe(true);
+  });
+
+  it("does not flag preferred stock/shares", () => {
+    expect(containsRecommendationLanguage("The company issued new preferred stock last quarter.")).toBe(false);
+    expect(containsRecommendationLanguage("Preferred shares carry a fixed dividend.")).toBe(false);
+  });
 });

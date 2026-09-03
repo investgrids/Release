@@ -125,6 +125,41 @@ def test_non_dict_opportunity_items_skipped_safely():
     assert v == []
 
 
+# ── Comparative recommendation phrasing (2026-09-03, directional-surface
+# reassessment — comparison_publisher.py's real leak) ───────────────────────
+
+def test_favor_preferred_choice_over_flagged_the_real_live_specimen():
+    # The exact real live specimen this pass was found from: a comparison
+    # article's key_takeaway matched none of the pre-existing patterns.
+    v = scan_recommendation_language({
+        "key_takeaway": "Favor GAIL India Ltd for 12-month capital appreciation... "
+                         "preferred choice over Oil & Natural Gas Corporation",
+    })
+    assert v
+
+
+def test_comparative_recommendation_phrases_flagged():
+    cases = [
+        "We favor Company A over Company B for the next 12 months",
+        "Company A is our preferred choice for growth investors",
+        "This makes Company A the better investment right now",
+        "Most investors would choose Company A here",
+        "Analysts prefer Company A over Company B",
+    ]
+    for text in cases:
+        v = scan_recommendation_language({"key_takeaway": text})
+        assert v, f"expected a violation for: {text!r}"
+
+
+def test_preferred_stock_not_flagged():
+    # Real financial instrument type, not a recommendation -- must not
+    # collide with the new "preferred" pattern.
+    v = scan_recommendation_language({"key_takeaway": "The company issued new preferred stock last quarter."})
+    assert v == []
+    v = scan_recommendation_language({"key_takeaway": "Preferred shares carry a fixed dividend."})
+    assert v == []
+
+
 # ── Field awareness ───────────────────────────────────────────────────────────
 
 def test_only_high_risk_fields_scanned():

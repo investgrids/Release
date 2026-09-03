@@ -42,6 +42,13 @@ const PATTERNS: RegExp[] = [
   /\bstrong\s+buy\b/i,
   /\blikely\s+winner\b/i,
   /\blikely\s+loser\b/i,
+  // P0-D5X (2026-09-03) -- mirrors recommendation_language.py's own
+  // comparative-recommendation additions, kept in sync by inspection.
+  /\bfavor(?:s|ing)?\b/i,
+  /\bpreferred\b(?!\s+(?:stock|shares?|equity))/i,
+  /\bbetter\s+(?:choice|pick|option|investment|buy)\b/i,
+  /\bwould\s+choose\b/i,
+  /\bprefer(?:s|ring)?\b.{0,25}\bover\b/i,
 ];
 
 export function containsRecommendationLanguage(text: string | null | undefined): boolean {
