@@ -209,7 +209,14 @@ export function ScenarioAnalysis({
     fetch(`${API}/api/scenario/${entityType}/${encodeURIComponent(entityId)}?${params}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (!cancelled && (d?.bull || d?.base || d?.bear)) setFetched(d);
+        // CD3-C follow-up (2026-09-03): the backend's public contract
+        // marks fallback/degraded scenario content unavailable and nulls
+        // bull/base/bear out. This check is defense in depth on top of
+        // that -- fail closed rather than trust bull/base/bear alone,
+        // which were previously indistinguishable between real and
+        // templated fallback content.
+        const usable = !!d && d.status === "available" && d.provenance === "generated" && !d.degraded;
+        if (!cancelled && usable && (d.bull || d.base || d.bear)) setFetched(d);
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
