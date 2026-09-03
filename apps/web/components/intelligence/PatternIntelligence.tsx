@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { History, Loader2, ChevronRight, TrendingUp, TrendingDown } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -112,9 +113,13 @@ function PatternCard({ pattern, index }: { pattern: HistoricalPattern; index: nu
             </p>
           </div>
         )}
+        {/* CD3-C: relabeled -- generate_pattern_intelligence()'s prompt asks
+            the LLM for this per-pattern "confidence" directly (a bare
+            self-report, SELF_REPORTED_CERTAINTY), never a verified match
+            score. */}
         {pattern.confidence != null && (
           <div>
-            <p className="text-[9px] text-text-muted uppercase tracking-widest">Confidence</p>
+            <p className="text-[9px] text-text-muted uppercase tracking-widest">{MEASUREMENT_LABEL.self_reported_certainty}</p>
             <p className="text-[11px] text-text-secondary">{pattern.confidence}%</p>
           </div>
         )}
@@ -230,8 +235,11 @@ export function PatternIntelligenceCard({
         <div className="flex items-center gap-2">
           {loading && <Loader2 className="h-3 w-3 text-text-muted animate-spin" />}
           {confidence != null && (
-            <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[9px] font-bold text-violet-400">
-              {confidence}% confidence
+            <span
+              className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[9px] font-bold text-violet-400"
+              title="The model's own self-reported certainty -- not a verified match score"
+            >
+              {MEASUREMENT_LABEL.self_reported_certainty}: {confidence}%
             </span>
           )}
         </div>

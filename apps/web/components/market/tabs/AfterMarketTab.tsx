@@ -250,7 +250,12 @@ export function AfterMarketTab({ initialData }: { initialData?: any }) {
           <p className="py-4 text-center text-[12px] text-text-muted">Prediction unavailable.</p>
         ) : (
           <>
-            <div className="flex items-baseline gap-3">
+            {/* CD3-C: opening_prediction_service.py's confidence blends a
+                bounded LLM self-report with deterministic signal-agreement
+                adjustments -- a HYBRID_RUBRIC, not a fully computed score.
+                Tooltip discloses the self-report component per the
+                HYBRID_RUBRIC authorization boundary. */}
+            <div className="flex items-baseline gap-3" title="A blend of signal-based analysis and the model's own self-assessed certainty -- not a fully computed score">
               <span className={`text-[30px] font-black leading-none ${predCls}`}>{pred.confidence}%</span>
               <span className={`text-[14px] font-bold ${predCls}`}>{predLabel}</span>
               {pred.ai_generated === false && <span className="text-[10px] text-text-muted">Signal-based estimate</span>}

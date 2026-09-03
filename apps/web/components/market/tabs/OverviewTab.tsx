@@ -6,6 +6,7 @@ import { BarChart2, Bot, Zap, Target, Newspaper, CalendarDays, Sparkles } from "
 import { AIOpportunitySection } from "@/components/AIOpportunitySection";
 import { TopEventsSection }     from "@/components/TopEventsSection";
 import { useMarketIntelligence } from "@/hooks/useMarketIntelligence";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 // ── AI Executive Summary ──────────────────────────────────────────────────────
 function AIExecutiveSummary({ data, storyConfidence, storyText }: { data: any; storyConfidence: number | null; storyText: string | null }) {
@@ -31,7 +32,9 @@ function AIExecutiveSummary({ data, storyConfidence, storyText }: { data: any; s
         <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
           {([
             { label: "Sentiment Score", value: unscored ? "—" : `${score}%`, color,                    icon: <BarChart2 className="h-3.5 w-3.5" /> },
-            { label: "AI Confidence",   value: storyConfidence != null ? `${storyConfidence}%` : "—", color: "text-violet-400", icon: <Bot className="h-3.5 w-3.5" /> },
+            // CD3-C: relabeled -- storyConfidence is story_engine.py's bare
+            // self-reported "confidence" (SELF_REPORTED_CERTAINTY).
+            { label: MEASUREMENT_LABEL.self_reported_certainty, value: storyConfidence != null ? `${storyConfidence}%` : "—", color: "text-violet-400", icon: <Bot className="h-3.5 w-3.5" /> },
             { label: "Events Today",    value: String(data?.events?.length ?? 0),        color: "text-amber-400",  icon: <Zap className="h-3.5 w-3.5" /> },
             { label: "Opportunities",   value: String(data?.opportunities?.length ?? 0), color: "text-emerald-400", icon: <Target className="h-3.5 w-3.5" /> },
           ] as { label: string; value: string; color: string; icon: ReactNode }[]).map(s => (

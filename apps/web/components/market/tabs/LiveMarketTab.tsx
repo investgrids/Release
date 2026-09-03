@@ -8,6 +8,7 @@ import { mieClient } from "@/services/intelligence/mie-client";
 import { compareScoresDesc, impactToStyle } from "@/lib/scoring";
 import { API_BASE_URL as API } from "@/lib/api";
 import { calendarCategoryLabel } from "@/lib/economicCalendarCategory";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 import {
   TrendingUp, TrendingDown, Minus, ChevronRight,
   CalendarClock,
@@ -186,8 +187,14 @@ function AIMarketIntelligenceHero({ story, storyLoading, drivers, opportunity, r
         <>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className={`text-[22px] font-black ${meta.cls}`}>{pulse?.label ?? story.mood}</span>
-            <span className="rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] font-bold text-text-secondary">
-              {story.confidence !== null && story.confidence !== undefined ? `${story.confidence}% Confidence` : "Confidence unscored"}
+            {/* CD3-C: relabeled -- story_engine.py's prompt asks the LLM for
+                this "confidence" field directly (bare self-report,
+                SELF_REPORTED_CERTAINTY), never a verified market read. */}
+            <span
+              className="rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] font-bold text-text-secondary"
+              title="The model's own self-reported certainty in this narrative -- not a verified score"
+            >
+              {story.confidence !== null && story.confidence !== undefined ? `${story.confidence}% ${MEASUREMENT_LABEL.self_reported_certainty}` : `${MEASUREMENT_LABEL.self_reported_certainty} unscored`}
             </span>
           </div>
           <p className="mb-4 text-[12px] leading-[1.7] text-text-secondary line-clamp-3">{story.text}</p>
@@ -727,8 +734,13 @@ function AIConfidenceMeterCard({ confidence, accuracy, tracked, updatedAt }: {
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-surface-border/7 bg-surface-card p-5">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">AI Confidence Meter</p>
-      <p className="mb-3 text-[9px] text-text-muted">Overall market confidence</p>
+      {/* CD3-C: relabeled from "AI Confidence Meter" -- the gauge value is
+          story_engine.py's bare self-reported "confidence" field
+          (SELF_REPORTED_CERTAINTY), never a verified market read. Accuracy/
+          Predictions Tracked below are a real, separately-sourced
+          calibration stat and were already correctly labeled. */}
+      <p className="text-[11px] font-bold uppercase tracking-wider text-text-secondary" title="The model's own self-reported certainty in its market narrative -- not a verified score">{MEASUREMENT_LABEL.self_reported_certainty}</p>
+      <p className="mb-3 text-[9px] text-text-muted">Overall market self-rating</p>
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           <svg width="76" height="76" viewBox="0 0 76 76">

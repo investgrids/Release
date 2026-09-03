@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
 import { sectorDirectionStyle, companyStateStyle, biasLabel } from "@/components/weekend/weekendLabels";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 
 // ── Real mini-chart from backend data ─────────────────────────────────────────
@@ -484,9 +485,12 @@ function Hero({ pred, generatedAt, greeting, dateLabel, dataCoverage }: {
             </p>
           </div>
         )}
+        {/* CD3-C: opening_prediction_service.py's confidence blends a
+            bounded LLM self-report with deterministic signal-agreement
+            adjustments -- a HYBRID_RUBRIC, not a fully computed score. */}
         {pred?.confidence != null && (
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Confidence</p>
+          <div title="A blend of signal-based analysis and the model's own self-assessed certainty -- not a fully computed score">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">{MEASUREMENT_LABEL.hybrid_rubric}</p>
             <p className="text-[22px] font-black text-text-primary tabular-nums">{pred.confidence}%</p>
           </div>
         )}
@@ -737,8 +741,13 @@ function HistoricalSimilarDays({ historical }: { historical: any }) {
                   </p>
                 </div>
               )}
+              {/* CD3-C: historical_memory_service.py's confidence for these
+                  rows is a mix of real Event.confidence and hand-seeded
+                  constants for older historical entries -- mixed/uncertain
+                  provenance, not a single clean measurement type. Disclosed
+                  rather than asserted as a clean score. */}
               {e.confidence != null && (
-                <div>
+                <div title="Historical record confidence -- provenance varies by entry, not a uniformly verified score">
                   <p className="text-[9px] uppercase tracking-wide text-text-muted">Confidence</p>
                   <p className="text-[16px] font-black text-text-primary">{e.confidence}%</p>
                 </div>

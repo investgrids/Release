@@ -57,47 +57,15 @@ function FearGreedGauge({ value }: { value: number }) {
   );
 }
 
-// ── AI Confidence Meter ───────────────────────────────────────────────────────
-function AIConfidenceMeter({ value }: { value: number | null | undefined }) {
-  const unscored = value === null || value === undefined;
-  const label = unscored ? "Unscored" : value >= 85 ? "Very High" : value >= 70 ? "High" : value >= 55 ? "Medium" : "Low";
-  const R = 32, CX = 38, CY = 38;
-  const circ = 2 * Math.PI * R;
-  const offset = unscored ? circ : circ - (value / 100) * circ;
-  return (
-    <div className="rounded-xl border border-surface-border/10 bg-surface-card p-4">
-      <p className="mb-1 text-[11px] font-bold text-text-primary">AI Confidence Meter</p>
-      <p className="mb-3 text-[9px] text-text-muted uppercase tracking-wider">Overall Market Confidence</p>
-      <div className="flex items-center gap-4">
-        <div className="relative shrink-0">
-          <svg width="76" height="76" viewBox="0 0 76 76">
-            <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgb(var(--text-primary) / 0.05)" strokeWidth="7"/>
-            {!unscored && (
-              <circle cx={CX} cy={CY} r={R} fill="none" stroke="#a855f7" strokeWidth="7"
-                strokeDasharray={circ} strokeDashoffset={offset}
-                strokeLinecap="round" transform="rotate(-90,38,38)"/>
-            )}
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-[14px] font-black text-text-primary leading-none">{unscored ? "—" : `${value}%`}</p>
-            <p className="text-[7px] text-violet-400 font-semibold">{label}</p>
-          </div>
-        </div>
-        <div className="space-y-1">
-          {[
-            { l: "Data Points", v: "1,240+" },
-            { l: "Updated", v: "Live" },
-          ].map(r => (
-            <div key={r.l} className="flex justify-between gap-3 text-[10px]">
-              <span className="text-text-muted">{r.l}</span>
-              <span className="font-semibold text-text-secondary">{r.v}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+// CD3-C: "AI Confidence Meter" removed entirely (was here) rather than
+// relabeled. Its value came from /api/market/insights's `conf = min(95, 55
+// + gainers_count * 8)` -- arbitrary arithmetic on the gainer count, not a
+// measurement of anything nameable. Unlike Event.confidence (a real
+// evidence-coverage fraction) or story.confidence (a genuine, if bare, LLM
+// self-report), this number has no real-world referent to disclose or
+// relabel honestly -- DERIVED_TRANSFORM with no compatible underlying
+// claim, same authorization gap as the removed IntelligenceGraph
+// average-edge-confidence stat.
 
 // ── Pre-Market Top Movers ─────────────────────────────────────────────────────
 // Was a tab switcher (Gainers/Losers/Most Active) that only ever rendered the
@@ -213,7 +181,6 @@ export function MarketIntelligenceSidebar({
     });
   }, []);
 
-  const conf      = liveInsights?.confidence ?? null;
   const fearGreed = liveInsights?.fear_greed ?? 72;
   const gainers   = liveMovers?.gainers ?? [];
   const losers    = liveMovers?.losers ?? [];
@@ -231,10 +198,7 @@ export function MarketIntelligenceSidebar({
         <UpcomingEventsPanel events={calendarEvents}/>
         <BreakingNewsPanel news={news}/>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <FearGreedGauge value={fearGreed}/>
-        <AIConfidenceMeter value={conf}/>
-      </div>
+      <FearGreedGauge value={fearGreed}/>
     </div>
   );
 }
