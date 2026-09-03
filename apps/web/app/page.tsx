@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { HomepageRefresher } from "@/components/homepage/HomepageRefresher";
 import { IndependenceDayBanner } from "@/components/homepage/IndependenceDayBanner";
+import { WhatToWatchNext } from "@/components/homepage/WhatToWatchNext";
+import { deriveWhatToWatchNext } from "@/lib/whatToWatchNext";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
 import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
 import { WeekendHomePage } from "@/components/weekend/WeekendHomePage";
@@ -411,9 +413,14 @@ const _SESSION_NOUN: Record<string, string> = {
 };
 
 async function HomepageIntelligenceHero() {
-  const [brief, extras, premarket, radar, activeForWatch, mie, session, developments] = await Promise.all([
+  const [brief, extras, premarket, radar, activeForWatch, mie, session, developments, indices, calendar] = await Promise.all([
     getMorningBrief(), getHomepageExtras(), getPremarket(), getRadar(), getActiveEventsForWatch(), getMieState(),
     getSession(), getDevelopments(),
+    // "What To Watch Next" (2026-09-03) — both already cache()-deduped
+    // top-level calls (getIndices backs the ticker strip, getCalendar
+    // backs Watch Tomorrow further down this same page), so adding them
+    // here is zero new network requests, not a new data source.
+    getIndices(), getCalendar(),
   ]);
   if (!brief) return null;
 
@@ -657,6 +664,48 @@ async function HomepageIntelligenceHero() {
     return words.length > 50 ? words.slice(0, 50).join(" ") + "…" : words.join(" ");
   })();
 
+  // "What To Watch Next" (2026-09-03) — deterministic only, see
+  // lib/whatToWatchNext.ts's own module docstring for the full CD3-B
+  // provenance argument. Every signal below is a REAL observed value
+  // already fetched on this same render (usFut/crude/usdInr/fiiDii are the
+  // exact same raw objects `drivers` above is built from — reused, not
+  // refetched); the legacy AIPE `brief.what_to_watch_next` field is never
+  // read here, by the derive function's own type signature.
+  const indexList = (indices ?? []) as any[];
+  const bankNiftyIdx = indexList.find((i: any) => (i.name ?? "").toUpperCase() === "BANK NIFTY");
+  const nifty50Idx   = indexList.find((i: any) => (i.name ?? "").toUpperCase() === "NIFTY 50");
+
+  // Same-day-only real calendar events (start of today IST -> end of today
+  // IST) — deliberately narrower than WatchTomorrowCard's own 7-day window
+  // further down this page, since this card is specifically about today's
+  // picture, and showing the same event on both would be redundant.
+  const calendarTriggers = (() => {
+    const cal = (calendar ?? []) as any[];
+    const nowIst = new Date(Date.now() + 5.5 * 3600_000);
+    const startIst = new Date(Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate()));
+    const endIst = new Date(startIst.getTime() + 86_400_000);
+    return cal
+      .filter((e: any) => {
+        try {
+          const raw = e.date ?? e.event_date ?? e.datetime;
+          const d = new Date(new Date(raw).getTime() + 5.5 * 3600_000);
+          return d >= startIst && d < endIst;
+        } catch { return false; }
+      })
+      .map((e: any) => ({ title: e.title as string, when: e.date as string, category: e.category as string | null }))
+      .slice(0, 2);
+  })();
+
+  const watchNextItems = deriveWhatToWatchNext({
+    bankNifty: bankNiftyIdx ? { positive: bankNiftyIdx.positive ?? null } : null,
+    nifty50:   nifty50Idx   ? { positive: nifty50Idx.positive ?? null }   : null,
+    usFutures: usFut  ? { positive: usFut.positive ?? null }  : null,
+    crude:     crude  ? { positive: crude.positive ?? null }  : null,
+    usdInr:    usdInr ? { positive: usdInr.positive ?? null } : null,
+    fiiDii:    fiiDii ? { available: !!fiiDii.available, fiiNet: fiiDii.fii_net ?? null } : null,
+    calendarTriggers,
+  });
+
   return (
     <div className="rounded-[24px] border border-surface-border/7 bg-gradient-to-br from-surface-card to-surface-bg p-6 md:p-7">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -793,6 +842,12 @@ async function HomepageIntelligenceHero() {
               <span className="text-[12px] font-bold text-text-primary">{highestRiskDisplay}</span>
             </div>
           </div>
+
+          {/* What To Watch Next — fills the left column's remaining
+              whitespace below Opportunity/Risk. Renders nothing (not a
+              placeholder card) when no trustworthy item exists — see
+              WhatToWatchNext.tsx / lib/whatToWatchNext.ts. */}
+          <WhatToWatchNext items={watchNextItems} />
         </div>
 
         {/* RIGHT — Evidence: What Changed Today, Companies In Focus. */}
