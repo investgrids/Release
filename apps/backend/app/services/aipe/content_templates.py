@@ -101,7 +101,14 @@ instructions further up that could be read as asking for a recommendation:
   worse than no symbol.
 - Structure your analysis, wherever the instructions below ask "what to do" or similar, around: what
   changed, why it matters, evidence-supported implications, risks, what to monitor next, and what
-  would strengthen or weaken this read — not around a buy/sell/hold instruction."""
+  would strengthen or weaken this read — not around a buy/sell/hold instruction.
+- A historical outcome (what happened after a similar past event) may be reported as a retrospective
+  fact only — "X rose/fell after Y in 2020", "this pattern has repeated N times". Never convert a
+  historical pattern into a present-tense instruction or expectation ("so add to X now", "expect X to
+  outperform over the next 3-6 months") in the same breath as describing the pattern — that requires
+  separately identified evidence about the CURRENT situation, not the historical pattern itself. If
+  you only have historical data and no current evidence, describe the pattern and its reliability
+  (sample size, outliers) and stop there — do not extrapolate it into present-tense guidance."""
 # "sources" is deliberately NOT part of this schema — it used to be here as
 # a literal example array (["MarketRipple Intelligence Engine", "NSE India",
 # "BSE India"]), which the LLM reliably echoed back verbatim regardless of
@@ -471,13 +478,18 @@ Focus on:
    weeks after this type of event, based only on the data provided
 2. Which of the listed events were outliers, and what made them different
 3. Which stocks/sectors consistently won or lost across these events (use only the winners/losers data given)
-4. The single most important, honest lesson an investor should take from this history
+4. The single most important, honest lesson this history teaches — described as what the pattern shows
+   ("this pattern has historically preceded a rebound in banking stocks"), NOT as guidance for what to
+   do right now ("so add to banking stocks"). This article has no information about today's specific
+   situation — only the historical pattern — so it cannot responsibly tell anyone what to do today.
 5. How reliable is this pattern? Be explicit about sample size — do not overstate confidence from a handful
    of data points
 6. What would make the NEXT similar event play out differently from the historical pattern
 
 Do not fabricate events, numbers, or outcomes beyond what is explicitly listed above. If the sample is
-small, say so plainly rather than implying a stronger pattern than the data supports.
+small, say so plainly rather than implying a stronger pattern than the data supports. Every historical
+fact here describes the past — do not let it slide into a present-tense instruction in the same
+sentence (see OUTPUT DISCIPLINE below); this is the one thing this article type gets wrong most easily.
 
 """ + _BASE_SECTIONS
 

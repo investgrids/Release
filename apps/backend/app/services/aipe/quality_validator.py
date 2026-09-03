@@ -9,20 +9,22 @@ Checks (in order):
   5. min_length            — what_happened >= 100 chars
   6. no_unfilled_placeholders — required
   7. no_recommendation_language — required (P0-CD2, 2026-09-01)
-  8. has_companies         — at least 1 company affected
-  9. has_opportunities     — at least 1 opportunity
- 10. has_faqs              — at least 1 FAQ
- 11. has_seo_fields        — seo_title + meta_description present
- 12. seo_score_sufficient  — >= 60
+  8. no_historical_forecast_collapse — required (P0-CD3-B, 2026-09-02)
+  9. has_companies         — at least 1 company affected
+ 10. has_opportunities     — at least 1 opportunity
+ 11. has_faqs              — at least 1 FAQ
+ 12. has_seo_fields        — seo_title + meta_description present
+ 13. seo_score_sufficient  — >= 60
 
-Required checks (failure → do not publish): 1, 2, 3, 4, 5, 6, 7
-Soft checks (failure → lower quality_score but still publish): 8-12
+Required checks (failure → do not publish): 1, 2, 3, 4, 5, 6, 7, 8
+Soft checks (failure → lower quality_score but still publish): 9-13
 """
 from __future__ import annotations
 
 import re
 from typing import Any
 
+from app.services.aipe.historical_forecast_guard import scan_historical_forecast_collapse
 from app.services.aipe.recommendation_language import scan_recommendation_language
 
 # Catches literal unfilled template placeholders the LLM sometimes echoes
@@ -69,7 +71,7 @@ def validate(article: dict[str, Any], seo_score: int) -> tuple[bool, dict[str, A
     """
     results: dict[str, Any] = {}
     passed_required = 0
-    total_required = 7
+    total_required = 8
     passed_soft = 0
     total_soft = 5
 
@@ -90,9 +92,18 @@ def validate(article: dict[str, Any], seo_score: int) -> tuple[bool, dict[str, A
     if recommendation_violations:
         results["recommendation_language_violations"] = recommendation_violations
 
+    # P0-CD3-B (2026-09-02): a producer-level semantic guard, not another
+    # blacklisted phrase — see historical_forecast_guard.py's own
+    # docstring for why (the RBI-article specimen CD3-A found matches
+    # none of scan_recommendation_language's patterns).
+    historical_collapse_violations = scan_historical_forecast_collapse(article)
+    results["no_historical_forecast_collapse"] = not historical_collapse_violations
+    if historical_collapse_violations:
+        results["historical_forecast_collapse_violations"] = historical_collapse_violations
+
     for check in ["has_headline", "has_executive_summary", "has_key_takeaway",
                   "confidence_sufficient", "min_length", "no_unfilled_placeholders",
-                  "no_recommendation_language"]:
+                  "no_recommendation_language", "no_historical_forecast_collapse"]:
         if results[check]:
             passed_required += 1
 

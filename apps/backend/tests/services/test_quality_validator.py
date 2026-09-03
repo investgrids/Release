@@ -65,3 +65,61 @@ def test_buyback_fact_does_not_block_publication():
     passed, results, _ = validate(article, seo_score=70)
     assert passed is True
     assert results["no_recommendation_language"] is True
+
+
+# ── P0-CD3-B: no_historical_forecast_collapse (2026-09-02) ──────────────────
+# The exact live specimen CD3-A found (rbi-rate-pauses-banking-investors-
+# historic, published 2026-08-08) — confirmed to match NONE of
+# scan_recommendation_language's patterns, which is why this is a separate
+# required check rather than another blacklisted phrase there.
+
+def test_rbi_style_historical_forecast_collapse_blocks_publication():
+    article = _clean_article(
+        key_takeaway=(
+            "Use policy-driven market dips to add to high-quality banking stocks, "
+            "as they typically rebound and outperform over the next 3-6 months."
+        )
+    )
+    passed, results, _ = validate(article, seo_score=70)
+    assert passed is False
+    assert results["no_historical_forecast_collapse"] is False
+    assert "historical_forecast_collapse_violations" in results
+    # And confirm the boundary this check exists to cover: the same
+    # sentence does NOT trip the older, narrower recommendation-language
+    # scan at all -- proving this is a genuinely new backstop, not a
+    # duplicate of the existing one.
+    assert results["no_recommendation_language"] is True
+
+
+def test_historical_forecast_collapse_in_opportunities_blocks_publication():
+    article = _clean_article(opportunities=[{
+        "title": "Banking stocks historically rebound after a rate hold",
+        "description": "Investors should add to positions given this pattern tends to repeat.",
+    }])
+    passed, results, _ = validate(article, seo_score=70)
+    assert passed is False
+    assert results["no_historical_forecast_collapse"] is False
+
+
+def test_pure_retrospective_historical_statement_does_not_block_publication():
+    """A real historical fact, reported as a fact, with no forward-looking
+    instruction stitched onto it -- exactly what OUTPUT DISCIPLINE now
+    asks historical articles to do instead of the collapse."""
+    article = _clean_article(
+        key_takeaway="Banking stocks rose 4.2% on average in the month after the 2020 and 2023 rate holds.",
+    )
+    passed, results, _ = validate(article, seo_score=70)
+    assert passed is True
+    assert results["no_historical_forecast_collapse"] is True
+
+
+def test_forward_claim_without_historical_connector_does_not_block_publication():
+    """Deliberately not a blanket future-tense regex: a forward-looking
+    statement grounded in a real current event (no historical/habitual
+    connector anywhere) must not be flagged."""
+    article = _clean_article(
+        key_takeaway="The RBI's guidance today points to easing pressure on bank funding costs over the next 2 months.",
+    )
+    passed, results, _ = validate(article, seo_score=70)
+    assert passed is True
+    assert results["no_historical_forecast_collapse"] is True
