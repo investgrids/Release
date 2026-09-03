@@ -101,7 +101,13 @@ export function InvestmentWatchPanel({ subject }: { subject: WatchSubject | null
             {current_verdict.verdict_scale || "—"}
           </p>
         </div>
-        <div className="text-right">
+        {/* CD3-C: verdict_scale is decision_engine_v2's vocabulary --
+            confidence here is very likely the same confidence_breakdown.
+            final_confidence HYBRID_RUBRIC composite used by
+            InvestmentVerdictHero/AISearchClient (not independently
+            re-traced through this panel's own watch endpoint), disclosed
+            via tooltip rather than asserted without confirming. */}
+        <div className="text-right" title="An evidence-based composite with a minor self-assessed component -- not a fully computed score">
           <p className="text-[9px] uppercase tracking-wider text-text-muted mb-1">Confidence</p>
           <p className="text-[15px] font-bold text-text-primary">{current_verdict.confidence}%</p>
         </div>

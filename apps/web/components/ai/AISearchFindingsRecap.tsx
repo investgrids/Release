@@ -79,7 +79,16 @@ export function AISearchFindingsRecap({ sourcesCount, companies, sectors, topHis
     rows.push({
       key: "historical",
       node: (
-        <div className="flex items-center gap-2">
+        // CD3-C: found but only partially fixable within this pass --
+        // `similarity` is a DETERMINISTIC_METRIC (historical-match
+        // closeness), not a confidence, but it's rendered through the
+        // shared components/ai/ConfidenceBadge, whose internal aria-label
+        // hardcodes "AI confidence: X%" with no override prop. The visible
+        // title tooltip below is corrected; the aria-label a screen reader
+        // announces is NOT (would require changing ConfidenceBadge's
+        // public API, which has other real callers not audited in this
+        // pass -- flagged in the CD3-C report rather than risked here).
+        <div className="flex items-center gap-2" title={`${Math.round(topHistoricalMatch.similarity)}% historical similarity -- not a confidence measurement`}>
           <p className="text-[12.5px] text-text-secondary">✓ Historical match: {topHistoricalMatch.event_title}</p>
           <ConfidenceBadge score={Math.round(topHistoricalMatch.similarity)} showLabel={false} size="sm" />
         </div>
