@@ -12,6 +12,7 @@ import { WhatToWatchNext } from "@/components/homepage/WhatToWatchNext";
 import { deriveWhatToWatchNext } from "@/lib/whatToWatchNext";
 import { authorizeDirection, type ClaimProvenanceValue } from "@/lib/claimAuthorization";
 import { companyDirection } from "@/lib/companyDirection";
+import { directionLabel, sessionChangeLabel } from "@/lib/directionLabel";
 import { MarketSessionGate }  from "@/components/MarketSessionGate";
 import { LiveIntelligenceFeed } from "@/components/market/LiveIntelligenceFeed";
 import { WeekendHomePage } from "@/components/weekend/WeekendHomePage";
@@ -459,14 +460,13 @@ async function HomepageIntelligenceHero() {
   const negativeSectors = sectors.filter(s => s.impact === "negative" && !NON_INVESTABLE.has((s.name ?? "").toLowerCase()))
     .sort((a, b) => _magRank(b.magnitude) - _magRank(a.magnitude));
 
-  // The article's own sectors_affected is the SAME source ai_prediction is
-  // generated from — preferred over the event engine's opportunity_sector/
-  // risk_sector, which named a non-investable macro bucket from a routine
-  // event often enough to contradict ai_prediction's own stated sector
-  // (found live: Focus said "Economy" while ai_prediction said "led by
-  // IT" — both should trace back to the same signal). Event-engine fields
-  // are now only a fallback, and only when they're not themselves a
-  // non-investable bucket.
+  // The article's own sectors_affected is preferred over the event
+  // engine's opportunity_sector/risk_sector, which named a non-investable
+  // macro bucket from a routine event often enough to contradict this
+  // card's own stated sector (found live: Focus said "Economy" while the
+  // article's strongest sector said "IT" — both should trace back to the
+  // same signal). Event-engine fields are now only a fallback, and only
+  // when they're not themselves a non-investable bucket.
   const evOpportunity = ev?.opportunity_sector && !NON_INVESTABLE.has(ev.opportunity_sector.toLowerCase()) ? ev.opportunity_sector : null;
   const evRisk = ev?.risk_sector && !NON_INVESTABLE.has(ev.risk_sector.toLowerCase()) ? ev.risk_sector : null;
   const focusSector = positiveSectors[0]?.name ?? evOpportunity;
@@ -537,6 +537,13 @@ async function HomepageIntelligenceHero() {
   // research: many Developments are sector/macro-level with no named
   // companies, so relying on it alone would under-fill on a quiet day).
   const devItems = ((developments as any)?.items ?? []) as any[];
+  // CD3-D (D5): Development Memory's own `direction` is an LLM-classified
+  // judgment on the development, not raw observed price data -- same
+  // semantic category as AIPE's ANALYTICAL_HYPOTHESIS-tagged fields, so
+  // it's labeled that way here for the wording qualification below rather
+  // than left provenance-less (which authorizeDirection would otherwise
+  // resolve UNAVAILABLE, incorrectly treating a real, evidenced
+  // Development Memory row as if it had no signal at all).
   const devCompanyRows = devItems.flatMap(d =>
     ((d.companies ?? []) as string[])
       .filter(isRealCompanySymbol)
@@ -545,12 +552,13 @@ async function HomepageIntelligenceHero() {
         direction: (d.direction ?? "neutral") as "positive" | "negative" | "neutral" | "mixed",
         evidenceCount: d.evidence_count as number | null,
         updatedAt: d.last_observed_at as string | null,
+        provenance: "analytical_hypothesis" as ClaimProvenanceValue,
       }))
   );
   const seenFocusSymbols = new Set<string>();
   const companiesInFocus = [
     ...devCompanyRows,
-    ...companies.map(c => ({ symbol: c.symbol, reason: null as string | null, direction: c.impact, evidenceCount: null as number | null, updatedAt: null as string | null })),
+    ...companies.map(c => ({ symbol: c.symbol, reason: null as string | null, direction: c.impact, evidenceCount: null as number | null, updatedAt: null as string | null, provenance: c.provenance })),
   ].filter(c => {
     if (seenFocusSymbols.has(c.symbol)) return false;
     seenFocusSymbols.add(c.symbol);
@@ -664,21 +672,32 @@ async function HomepageIntelligenceHero() {
 
   // Today's Summary — a template composed entirely from real fields
   // already derived above (outlook, focusSector/macroTheme, the same
-  // honest risk fallback, ai_prediction) — not a new LLM call, not
-  // invented. Each clause is only included when its underlying field is
-  // real; capped at 50 words per the explicit ask. "today" only appears
-  // when the underlying data actually is from today — otherwise it names
-  // the real day the data reflects, same principle as the heading above.
+  // honest risk fallback) — not a new LLM call, not invented. Each
+  // clause is only included when its underlying field is real; capped at
+  // 50 words per the explicit ask. "today" only appears when the
+  // underlying data actually is from today — otherwise it names the real
+  // day the data reflects, same principle as the heading above.
+  //
+  // CD3-D (D5): the confidence clause now names what marketConfPct
+  // actually is (a bare model self-rating, same field/wording
+  // LiveMarketTab already discloses) instead of an unqualified
+  // "confidence" that would authorize it as a verified score. The
+  // closing "Today's market will likely be led by X" forecast clause is
+  // REMOVED entirely -- it was the audit's #2 finding, a genuine FORECAST
+  // claim with zero legitimate producer in the pipeline (see
+  // claim_authorization.py's FORECAST_UNAVAILABLE) rendered from a
+  // backend Python f-string template, not even LLM prose, which made it
+  // structurally invisible to both recommendation_language.py and
+  // historical_forecast_guard.py.
   const todaysSummary = (() => {
     const parts: string[] = heroIsCurrent
-      ? [`Markets look ${outlook.label.toLowerCase()} today${marketConfPct != null ? ` with ${marketConfPct}% confidence` : ""}.`]
-      : [`As of ${heroDayLabel}'s close, markets looked ${outlook.label.toLowerCase()}${marketConfPct != null ? ` with ${marketConfPct}% confidence` : ""}.`];
+      ? [`Markets look ${outlook.label.toLowerCase()} today${marketConfPct != null ? ` with a ${marketConfPct}% model self-rating` : ""}.`]
+      : [`As of ${heroDayLabel}'s close, markets looked ${outlook.label.toLowerCase()}${marketConfPct != null ? ` with a ${marketConfPct}% model self-rating` : ""}.`];
     if (focusSector) parts.push(heroIsCurrent ? `${focusSector} stands out as the biggest opportunity.` : `${focusSector} stood out as the biggest opportunity.`);
     else if (macroTheme) parts.push(heroIsCurrent ? `${macroTheme} is the dominant macro theme today.` : `${macroTheme} was the dominant macro theme.`);
     parts.push(highestRisk
       ? `Watch ${highestRisk} as the key risk area.`
       : (heroIsCurrent ? `No major verified risk stands out today.` : `No major verified risk stood out.`));
-    if (ex.ai_prediction) parts.push(ex.ai_prediction);
     const words = parts.join(" ").split(/\s+/);
     return words.length > 50 ? words.slice(0, 50).join(" ") + "…" : words.join(" ");
   })();
@@ -768,6 +787,16 @@ async function HomepageIntelligenceHero() {
               <span className="text-[11px] font-bold tabular-nums text-text-primary">{marketConfPct}%</span>
             </div>
           )}
+          {/* CD3-D (D5): mieStory.confidence is a bare LLM self-report
+              (same underlying field LiveMarketTab's AI Confidence Meter
+              already discloses as MEASUREMENT_LABEL.self_reported_
+              certainty) -- rendering it here as an unqualified "65%" would
+              authorize it as a verified score, which it isn't. */}
+          {marketConfPct != null && (
+            <p className="mt-0.5 text-[8px] text-text-muted" title="The model's own self-reported certainty in its market narrative -- not a verified score">
+              {MEASUREMENT_LABEL.self_reported_certainty}
+            </p>
+          )}
           <p className="mt-1 text-[10px] text-text-muted">{positiveSectors.length} positive · {negativeSectors.length} negative signals</p>
         </div>
       </div>
@@ -825,7 +854,16 @@ async function HomepageIntelligenceHero() {
               <div className="divide-y divide-surface-border/6">
                 {changes.map((c, i) => {
                   const up = c.direction === "up";
-                  const label = c.is_new ? (up ? "New Opportunity" : "New Risk") : (up ? "Improving" : "Weakening");
+                  // CD3-D (D5) — the "Banking: Improving" audit specimen.
+                  // This delta is computed from AIPE's own self-reported
+                  // per-sector impact/magnitude (_sector_score,
+                  // ANALYTICAL_HYPOTHESIS-shaped per CD3-B), not raw
+                  // observed price/index data -- a delta of two one-shot
+                  // LLM judgments reads as a measured trend if left bare.
+                  // authorizeDirection("analytical_hypothesis") always
+                  // resolves QUALIFIED, so every row here gets the same
+                  // hedge, not a per-row check.
+                  const label = sessionChangeLabel(!!c.is_new, up);
                   const reasons = c.reasons ?? [];
                   return (
                     <div key={i} className="py-2 first:pt-0 last:pb-0">
@@ -896,6 +934,19 @@ async function HomepageIntelligenceHero() {
               <div className="divide-y divide-surface-border/6">
                 {companiesInFocus.map((c, i) => {
                   const dirColor = c.direction === "positive" ? "text-emerald-400" : c.direction === "negative" ? "text-rose-400" : "text-amber-400";
+                  // CD3-D (D5) — a bare "Positive"/"Negative" badge here
+                  // was the exact "BALUFORGE: Positive" audit specimen:
+                  // D3 already fixed which companies get INCLUDED, this
+                  // fixes the WORDING for the ones that legitimately are.
+                  // Every source feeding this list is ANALYTICAL_
+                  // HYPOTHESIS-shaped (an LLM judgment, not observed
+                  // price data), so authorizeDirection never returns
+                  // AUTHORIZED here -- QUALIFIED renders hedged, and this
+                  // list is never fed an UNAVAILABLE-provenance row
+                  // (companies.map already filters those upstream, and
+                  // devCompanyRows always tags analytical_hypothesis).
+                  const dirAuth = authorizeDirection((c.provenance as ClaimProvenanceValue) ?? "unknown");
+                  const dirLabel = directionLabel(c.direction, dirAuth.strength);
                   return (
                     <Link key={i} href={`/companies/${c.symbol}` as any}
                       className="-mx-1 flex items-center justify-between gap-3 rounded px-1 py-2 transition first:pt-0 last:pb-0 hover:bg-text-primary/[0.03]">
@@ -904,7 +955,7 @@ async function HomepageIntelligenceHero() {
                         <p className="truncate text-[10px] text-text-muted">{c.reason ? cleanText(c.reason) : "AI-assessed catalyst"}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <span className={`text-[10px] font-bold uppercase tracking-wide ${dirColor}`}>{c.direction}</span>
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${dirColor}`}>{dirLabel}</span>
                         {c.evidenceCount != null && (
                           <p className="text-[9px] text-text-muted">{c.evidenceCount} {c.evidenceCount === 1 ? "source" : "sources"}</p>
                         )}

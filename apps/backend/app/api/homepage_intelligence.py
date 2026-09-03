@@ -55,17 +55,16 @@ async def homepage_intelligence(db: AsyncSession = Depends(get_db)):
         log.warning("homepage_intelligence.snapshot_fail", exc=str(exc)[:160])
 
     yesterday_changes = await hi.get_yesterday_changes(db, article)
-    ai_prediction = hi.get_ai_prediction(article)
 
     # Today's Biggest Story / Ripple / Companies Most Likely To Move /
     # Biggest Opportunity / Highest Risk now all come from the SAME Latest
     # Biggest Events Engine that ranks the Events page (event_lifecycle.py)
     # — the homepage no longer independently decides what "today's story"
-    # is. Confidence / What Changed / AI Prediction stay article-sourced
-    # (a market-wide daily read is a genuinely different thing from one
-    # event's own confidence, not a second competing version of the same
-    # claim). Best-effort: if the events engine finds nothing, the hero
-    # falls back to the article's own fields — never a broken section.
+    # is. Confidence / What Changed stay article-sourced (a market-wide
+    # daily read is a genuinely different thing from one event's own
+    # confidence, not a second competing version of the same claim).
+    # Best-effort: if the events engine finds nothing, the hero falls back
+    # to the article's own fields — never a broken section.
     try:
         from app.services.event_lifecycle import get_homepage_event_intelligence
         event_intel = await get_homepage_event_intelligence(db)
@@ -79,6 +78,5 @@ async def homepage_intelligence(db: AsyncSession = Depends(get_db)):
         "published_at": article.published_at.isoformat() if article.published_at else None,
         **session_info,
         "yesterday_changes": yesterday_changes,
-        "ai_prediction": ai_prediction,
         "event": event_intel,
     }

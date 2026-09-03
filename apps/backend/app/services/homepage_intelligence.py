@@ -4,20 +4,25 @@ brief hero. Deliberately reuses the SAME single source of truth the
 homepage's existing AI Market Brief card already uses (the real AIPE
 morning_intelligence article — see apps/web/app/page.tsx's
 AIMarketBriefCard docstring: "Deliberately not blending in MIE or any
-other pipeline here"). This module adds exactly two things that article
-doesn't already carry:
+other pipeline here"). This module adds exactly one more thing that
+article doesn't already carry:
   - "What Changed Since Yesterday" — needs a real day-over-day comparison,
     which requires persisting a snapshot (HomepageDailySnapshot) since no
     existing table tracked this. Sourced from the SAME article's
     sectors_affected field, not a second signal.
-  - A one-line AI Prediction — deterministically derived from the
-    article's own sectors_affected (the sector with the strongest positive
-    stance), never a new LLM call (the article's own opportunities[0]/
-    risks[0] already carry the real narrative reasoning).
 Everything else (headline, confidence, companies_affected, ripple_effect,
 opportunities, risks) is already on the article and rendered directly by
 the frontend from the existing /api/insights/{slug} response — this
 module doesn't duplicate it.
+
+CD3-D (D5): this module used to also derive a one-line "AI Prediction"
+("Today's market will likely be led by {sector}.") from the article's
+strongest positive sector. Removed entirely — a real FORECAST clause
+with zero legitimate producer in the pipeline (see
+app.services.claim_authorization.FORECAST_UNAVAILABLE), and the fact
+that it was a deterministic template rather than LLM prose made it
+structurally invisible to both recommendation_language.py and
+historical_forecast_guard.py, which only scan generated text fields.
 """
 from __future__ import annotations
 
@@ -155,16 +160,3 @@ async def get_yesterday_changes(db: AsyncSession, article) -> list[dict]:
         c["reasons"] = reasons
 
     return top_changes
-
-
-def get_ai_prediction(article) -> str | None:
-    """One deterministic sentence — the strongest real positive-impact
-    sector from the article's own sectors_affected, never invented and
-    never a new LLM call. None when nothing qualifies (e.g. an all-neutral
-    day) rather than forcing a hollow sentence."""
-    sectors = article.sectors_affected or []
-    positive = [s for s in sectors if s.get("impact") == "positive"]
-    if not positive:
-        return None
-    best = max(positive, key=lambda s: _MAGNITUDE_WEIGHT.get((s.get("magnitude") or "").lower(), 0))
-    return f"Today's market will likely be led by {best['name']}."
