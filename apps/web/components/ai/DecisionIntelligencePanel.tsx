@@ -106,13 +106,18 @@ const OUTLOOK_CONFIG = {
   negative: { label: "Negative",  icon: TrendingDown, color: "text-rose-400" },
 };
 
+// CD3-C: score here is HoldingAnalysis/EntityAnalysis.confidence, a bare
+// per-entity LLM self-report from the comparison/multi-entity prompts
+// (SELF_REPORTED_CERTAINTY) -- no accompanying text label existed at either
+// call site to relabel, so disclosed via a title tooltip on the ring itself.
 function ScoreRing({ score, size = 44 }: { score: number; size?: number }) {
   const r = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (score / 100) * circ;
   const color = score >= 75 ? "#34d399" : score >= 55 ? "#60a5fa" : "#f59e0b";
   return (
-    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }} role="img" aria-label={`Model self-rating: ${score}%`}>
+      <title>Model self-rating -- the AI's own self-reported certainty, not a verified score</title>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--text-primary) / 0.06)" strokeWidth="4" />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="4"
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"

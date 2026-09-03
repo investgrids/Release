@@ -459,8 +459,11 @@ export function HistoricalPatternsMasterDetail({
                         </div>
                       </div>
                     </div>
+                    {/* CD3-C: historical_memory_service.py's per-record confidence
+                        mixes real computed values with hand-seeded historical
+                        constants -- mixed provenance, disclosed via tooltip. */}
                     {detail.confidence != null && (
-                      <div className="rounded-[14px] border border-surface-border/8 bg-text-primary/[0.02] px-4 py-2.5 text-right">
+                      <div className="rounded-[14px] border border-surface-border/8 bg-text-primary/[0.02] px-4 py-2.5 text-right" title="Historical record confidence -- provenance varies by entry, not a uniformly verified score">
                         <p className="text-[10px] uppercase tracking-wide text-text-muted">Historical Confidence</p>
                         <p className="text-[22px] font-black text-sky-600 dark:text-sky-300">{Math.round(detail.confidence)}%</p>
                       </div>

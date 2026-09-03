@@ -208,7 +208,12 @@ export default function OpeningPrediction() {
                   )}
                 </div>
               </div>
-              <div className="shrink-0 text-right min-w-[80px]">
+              {/* CD3-C: opening_prediction_service.py's confidence blends a
+                  bounded LLM self-report with deterministic signal-agreement
+                  adjustments -- a HYBRID_RUBRIC, not a fully computed score
+                  (same producer as AfterMarketTab/PreMarketTab's opening
+                  prediction cards). */}
+              <div className="shrink-0 text-right min-w-[80px]" title="A blend of signal-based analysis and the model's own self-assessed certainty -- not a fully computed score">
                 <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted mb-1">Confidence</p>
                 <ConfidenceBar value={pred.confidence} />
                 {pred.ai_generated === false && (

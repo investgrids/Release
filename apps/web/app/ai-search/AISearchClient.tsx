@@ -8,6 +8,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Bot, BarChart2, CheckCircle2, Sparkles, Bookmark, Plus, Download, Share2, Copy, TrendingUp, TrendingDown, Minus, RotateCcw, Building2, ChevronRight, Target, Truck, Landmark, Factory, Ship, LineChart as LineChartIcon, ShieldAlert, ShieldCheck, Users, Cpu, Wallet, Scale, Receipt, GitBranch, DollarSign, Package, CreditCard, Eye, ListChecks, ArrowRight, Clock, AlertTriangle, GitCompare, FileText } from "lucide-react";
 import { AITransparencyPanel } from "@/components/ai/AITransparencyPanel";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
+// CD3-C sweep note: this file's `sectors[]`/`market_impact_horizons[]`/
+// KeyDriver/Company confidence fields are ai_search_service.py's prompt-
+// requested per-item self-reports (SELF_REPORTED_CERTAINTY) -- the same
+// producer as `answer.confidence`/`investment_verdict.confidence`.
+// confidence_breakdown.final_confidence (used by the hero + the "Confidence"
+// stats row) and result.scores.market_confidence are HYBRID_RUBRIC
+// (confidence_service.py, a real evidence composite plus a minor
+// self-report factor). Comments below mark the render sites fixed this
+// pass; not every one of the ~15 confidence-bearing fields in this file
+// has an individual comment.
 import { DecisionIntelligencePanel, type DecisionIntelligence } from "@/components/ai/DecisionIntelligencePanel";
 import { AISearchGraphReveal } from "@/components/ai/AISearchGraphReveal";
 import { AISearchFindingsRecap } from "@/components/ai/AISearchFindingsRecap";
@@ -714,7 +725,10 @@ function MarketPulseResults({ result }: { result: MarketPulseResult }) {
         </div>
         <p className="text-[14px] text-text-primary leading-relaxed mb-3">{result.market_summary}</p>
         <div className="flex flex-wrap gap-2 mb-3">
-          <span className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-1 text-[10px] font-semibold text-text-secondary">
+          <span
+            className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-1 text-[10px] font-semibold text-text-secondary"
+            title="An evidence-based composite (source/market/sector confirmation, macro alignment) with a minor self-assessed component -- not a fully computed score"
+          >
             Market Confidence <span className="tabular-nums text-text-primary">{Math.round(result.scores.market_confidence.score)}%</span> · {result.scores.market_confidence.level}
           </span>
           <span className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-1 text-[10px] font-semibold text-text-secondary">
@@ -1126,12 +1140,12 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: "Confidence", value: conf != null ? `${conf}%` : "Unscored", color: confidenceColor(conf) },
-            { label: "Time Horizon", value: investment_verdict?.horizon || "Not specified", color: investment_verdict?.horizon ? "text-text-primary" : "text-text-muted" },
-            { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0] },
-            { label: "Suitable For", value: suitableForLabel, color: "text-text-primary" },
+            { label: "Confidence", value: conf != null ? `${conf}%` : "Unscored", color: confidenceColor(conf), title: "An evidence-based composite with a minor self-assessed component -- see the Confidence Breakdown panel below for the full factor split" as string | undefined },
+            { label: "Time Horizon", value: investment_verdict?.horizon || "Not specified", color: investment_verdict?.horizon ? "text-text-primary" : "text-text-muted", title: undefined as string | undefined },
+            { label: "Risk Level", value: risk.label, color: risk.color.split(" ")[0], title: undefined as string | undefined },
+            { label: "Suitable For", value: suitableForLabel, color: "text-text-primary", title: undefined as string | undefined },
           ].map(s => (
-            <div key={s.label} className="rounded-[12px] border border-surface-border/6 bg-text-primary/[0.02] px-3 py-2">
+            <div key={s.label} className="rounded-[12px] border border-surface-border/6 bg-text-primary/[0.02] px-3 py-2" title={s.title}>
               <p className="text-[9px] uppercase tracking-wider text-text-muted mb-0.5">{s.label}</p>
               <p className={`text-[12px] font-semibold ${s.color}`}>{s.value}</p>
             </div>
@@ -1351,9 +1365,12 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
             <p className="text-[14px] font-semibold text-text-primary mb-4">Sector Impact</p>
             <div className="w-full">
+              {/* CD3-C: per-sector confidence is ai_search_service.py's
+                  prompt-requested self-report (SELF_REPORTED_CERTAINTY),
+                  disclosed via the column header's tooltip. */}
               <div className="grid grid-cols-[1.3fr_0.6fr_0.7fr_1fr_0.8fr] gap-x-2 mb-2">
                 {["Sector", "Impact", "Confidence", "Status", "Horizon"].map(h => (
-                  <p key={h} className="text-[9px] uppercase tracking-wider text-text-muted font-semibold">{h}</p>
+                  <p key={h} className="text-[9px] uppercase tracking-wider text-text-muted font-semibold" title={h === "Confidence" ? "The model's own self-reported certainty -- not a verified score" : undefined}>{h}</p>
                 ))}
               </div>
               <div className="space-y-3">
@@ -1466,9 +1483,12 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       )}
 
       {/* ── 8. Market Impact — Immediate / Next Quarter / Long Term ──────────── */}
+      {/* CD3-C: multi_horizon_service.py's per-horizon confidence is a
+          prompt-requested LLM self-report (SELF_REPORTED_CERTAINTY),
+          disclosed via the section title's tooltip. */}
       {market_impact_horizons?.length > 0 && (
         <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
-          <p className="text-[15px] font-semibold text-text-primary mb-4">Market Impact Over Time</p>
+          <p className="text-[15px] font-semibold text-text-primary mb-4" title="Confidence per horizon is the model's own self-reported certainty -- not a verified score">Market Impact Over Time</p>
           <div className="grid grid-cols-3 gap-3">
             {market_impact_horizons.map(h => {
               const dirColor = h.direction === "positive" ? "text-emerald-400" : h.direction === "negative" ? "text-rose-400" : "text-amber-400";
