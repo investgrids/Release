@@ -159,7 +159,10 @@ function CompanyPill({ co }: { co: IntelligenceCompany }) {
       <div className="mb-1 flex items-center gap-1.5">
         <span className={s.cls}>{s.icon}</span>
         <span className="text-[11px] font-bold text-text-primary">{isRealSymbol(co.symbol) ? co.symbol : co.name}</span>
-        <span className="ml-auto text-[10px] tabular-nums text-text-muted">{co.confidence === null || co.confidence === undefined ? "—" : `${co.confidence}%`}</span>
+        {/* CD3-C: this generated block's per-company confidence is a bare
+            LLM self-report (SELF_REPORTED_CERTAINTY), disclosed via
+            tooltip since no text label exists here to relabel. */}
+        <span className="ml-auto text-[10px] tabular-nums text-text-muted" title={co.confidence != null ? "The model's own self-reported certainty -- not a verified score" : undefined}>{co.confidence === null || co.confidence === undefined ? "—" : `${co.confidence}%`}</span>
       </div>
       <p className="text-[10px] text-text-secondary leading-snug">{co.reason}</p>
     </div>

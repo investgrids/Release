@@ -56,8 +56,13 @@ function PickCard({ c }: { c: RankedCompany }) {
 
       <p className="mt-2.5 line-clamp-3 text-[12px] leading-relaxed text-text-secondary">{c.reason}</p>
 
+      {/* CD3-C: c.confidence is company_score_engine.py's weighted mean of
+          per-signal confidences (0.5-defaulted where absent) -- the same
+          figure CompanyIntelligenceSection.tsx already retired from direct
+          display elsewhere as "genuinely misleading on its own". Disclosed
+          via tooltip here rather than removed. */}
       <div className="mt-3 flex items-center justify-between border-t border-surface-border/6 pt-2.5 text-[10.5px] text-text-muted">
-        <span>{c.confidence != null ? `${Math.round(c.confidence * 100)}% confidence` : "Confidence n/a"}</span>
+        <span title={c.confidence != null ? "A weighted average of per-signal confidence -- not an independently verified score" : undefined}>{c.confidence != null ? `${Math.round(c.confidence * 100)}% confidence` : "Confidence n/a"}</span>
         <span>{c.signalCount} signal{c.signalCount === 1 ? "" : "s"}</span>
       </div>
     </Link>

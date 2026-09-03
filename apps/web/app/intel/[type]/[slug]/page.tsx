@@ -192,8 +192,12 @@ export default async function IntelPage(
           {subtitle && (
             <p className="mt-2 text-[15px] leading-relaxed text-text-secondary">{subtitle}</p>
           )}
+          {/* CD3-C: this generated intel object's confidence provenance
+              wasn't independently re-traced for this legacy /intel route --
+              disclosed via tooltip rather than asserted as a specific
+              measurement type without confirming it. */}
           <div className="mt-3 flex items-center gap-3">
-            <span className={`text-[12px] font-bold ${confColor}`}>
+            <span className={`text-[12px] font-bold ${confColor}`} title="An AI-generated confidence estimate -- not an independently verified score">
               Confidence: {confLevel} ({confScore}%)
             </span>
             {intel.generated_at && (

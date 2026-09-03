@@ -32,7 +32,13 @@ export async function BestStocksContent({ headingLevel = "h1" }: { headingLevel?
     { label: "Stocks Ranked", value: stats.stocksRanked.toLocaleString(), icon: Layers },
     { label: "Sectors Covered", value: String(stats.sectorsCovered), icon: Target },
     { label: "Active Opportunities", value: String(activeOpportunities), icon: Sparkles },
-    { label: "Avg. AI Confidence", value: stats.avgConfidence != null ? `${Math.round(stats.avgConfidence)}%` : "—", icon: Percent },
+    // CD3-C: avgConfidence is company_score_engine.py's weighted mean of
+    // per-signal confidences (0.5-defaulted where absent) -- the same
+    // figure CompanyIntelligenceSection.tsx already found "genuinely
+    // misleading on its own" and retired from direct display elsewhere.
+    // Disclosed via tooltip rather than removed here (a page-level KPI,
+    // more disruptive to drop entirely).
+    { label: "Avg. AI Confidence", value: stats.avgConfidence != null ? `${Math.round(stats.avgConfidence)}%` : "—", icon: Percent, title: "A weighted average of per-signal confidence across ranked stocks -- not an independently verified score" },
   ];
 
   return (
@@ -93,7 +99,7 @@ export async function BestStocksContent({ headingLevel = "h1" }: { headingLevel?
       {/* ── KPI cards ────────────────────────────────────────────────── */}
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {kpis.map(k => (
-          <div key={k.label} className="rounded-[18px] border border-surface-border/8 bg-surface-card p-4">
+          <div key={k.label} className="rounded-[18px] border border-surface-border/8 bg-surface-card p-4" title={"title" in k ? k.title : undefined}>
             <k.icon className="h-4 w-4 text-violet-500" />
             <p className="mt-2 text-[22px] font-black tabular-nums text-text-primary">{k.value}</p>
             <p className="text-[11px] text-text-muted">{k.label}</p>
