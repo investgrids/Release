@@ -2,6 +2,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { rippleEdgeDisplay } from "@/lib/rippleEdgeWording";
 import {
   Zap, Landmark, BarChart2, Building2, Globe, Package, Lightbulb,
   TrendingUp, TrendingDown, ArrowLeftRight, Globe2, Activity,
@@ -80,26 +81,21 @@ const NT: Record<string,{icon:LucideIcon;color:string;bg:string;border:string;la
 const RISK_OVR = { bg:"rgba(185,28,28,.18)",border:"rgba(239,68,68,.42)",color:"#fca5a5" };
 function nt(type:string, risk=false) { const t=NT[type]??NT.macro; return risk?{...t,...RISK_OVR}:t; }
 
-const ET: Record<string,{color:string;label:string;pos:boolean}> = {
-  benefits:     {color:"#22c55e",label:"Benefits",     pos:true },
-  supports:     {color:"#22c55e",label:"Supports",     pos:true },
-  stimulates:   {color:"#22c55e",label:"Stimulates",   pos:true },
-  boosts:       {color:"#22c55e",label:"Boosts",       pos:true },
-  drives:       {color:"#22c55e",label:"Drives",       pos:true },
-  enables:      {color:"#22c55e",label:"Enables",      pos:true },
-  triggers:     {color:"#a78bfa",label:"Triggers",     pos:true },
-  triggered_by: {color:"#a78bfa",label:"Triggered By", pos:true },
-  influences:   {color:"#60a5fa",label:"Influences",   pos:true },
-  related:      {color:"#60a5fa",label:"Related",      pos:true },
-  hurts:        {color:"#ef4444",label:"Hurts",        pos:false},
-  damages:      {color:"#ef4444",label:"Damages",      pos:false},
-  pressures:    {color:"#ef4444",label:"Pressures",    pos:false},
-  risk_factor:  {color:"#ef4444",label:"Risk Factor",  pos:false},
-  supplies:     {color:"#fb923c",label:"Supplies",     pos:true },
-  depends_on:   {color:"#60a5fa",label:"Depends On",   pos:true },
-  competes_with:{color:"#475569",label:"Competes",     pos:false},
-};
-function et(type:string) { return ET[type]??{color:"#334155",label:type,pos:true}; }
+// Directional-surface reassessment (2026-09-03) — every edge_type here
+// used to render as a bold, factual causal label ("Benefits"/"Hurts"/
+// "Triggers") with zero evidence-quality signal at all: RawEdge carries
+// no evidence_state field, unlike Ripple's/Event's graphs (already fixed
+// via D4/D7, see rippleEdgeWording.ts). Since nothing in this graph has
+// ever been evidence-validated (intelligence_graph_service.py derives
+// edge_type from a bare sentiment lookup, confidence silently defaults
+// to the IGEdge column default, never a real per-relationship
+// measurement), every edge is unconditionally treated as HYPOTHESIZED —
+// reusing the exact same wording function already proven correct twice,
+// rather than inventing a second decision here. The raw edge_type still
+// drives filtering/lookups elsewhere; it is never again surfaced to a
+// user as if it were a confirmed relationship.
+const _HEDGED_LABEL = rippleEdgeDisplay("hypothesized", undefined).label;
+function et(_type:string) { return {color:"#64748b",label:_HEDGED_LABEL}; }
 
 const FILTERS = ["All","Events","Policies","Companies","Sectors","Themes","Macro","Commodities","Countries"];
 const FMAP: Record<string,string[]> = {
@@ -188,8 +184,10 @@ function keyTakeaway(node:RawNode, data:GData):string {
   if(!top)return `Monitor ${node.label} for directional conviction before taking a position.`;
   const othId=top.source===node.id?top.target:top.source;
   const oth=data.nodes.find(n=>n.id===othId);
-  const verb=top.weight>0?"directly benefits":"pressures";
-  return `${node.label} ${verb} ${oth?.label??"connected nodes"} — a ${et(top.edge_type).label.toLowerCase()} link of ${Math.abs(top.weight).toFixed(2)}.`;
+  // "directly benefits"/"pressures" asserted the exact same fabricated
+  // causality et()'s labels did, just as a sentence instead of a badge —
+  // same fix, same reasoning (see et()'s own comment above).
+  return `${node.label} may have a ${et(top.edge_type).label.toLowerCase()} to ${oth?.label??"connected nodes"} — unconfirmed, strength ${Math.abs(top.weight).toFixed(2)}.`;
 }
 const _HIST_REF: Record<string,string> = {
   event:    "During COVID (Mar 2020), event nodes of this type saw 15–25% sector moves within 3 sessions. Budget 2025 showed similar short-duration catalysts producing 8–12% re-ratings.",
@@ -320,7 +318,7 @@ function Edges({nodes,edges,positions,centerId,hoveredId,selectedId,hlIds,ripple
               <foreignObject x={mx-48} y={my-14} width={96} height={28} style={{overflow:"visible"}}>
                 <div style={{background:"rgba(2,6,18,.92)",backdropFilter:"blur(8px)",border:`1px solid ${color}22`,borderRadius:5,padding:"2px 6px",textAlign:"center",pointerEvents:"none"}}>
                   <div style={{fontSize:7.5,fontWeight:700,color:"#334155",letterSpacing:".07em"}}>{eType.label.toUpperCase()}</div>
-                  <div style={{fontSize:9.5,fontWeight:800,color}}>{eType.pos?"+":"−"}{w.toFixed(2)}</div>
+                  <div style={{fontSize:9.5,fontWeight:800,color}}>{w.toFixed(2)}</div>
                 </div>
               </foreignObject>
             )}
@@ -620,7 +618,7 @@ function NodePanel({node,data,livePrice,onClose,onRipple,onMakeCenter}:{node:Raw
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{padding:"2px 7px",borderRadius:999,fontSize:8.5,fontWeight:700,background:`${em.color}12`,color:em.color,border:`1px solid ${em.color}25`}}>
-                    {em.label} {em.pos?`+${w.toFixed(2)}`:`−${w.toFixed(2)}`}
+                    {em.label} {w.toFixed(2)}
                   </span>
                   <span style={{fontSize:8,color:"#334155",marginLeft:"auto"}}>{w>=0.7?"Strong":w>=0.45?"Moderate":"Mild"}</span>
                 </div>
@@ -1245,7 +1243,11 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
           {FILTERS.map(f=><motion.button key={f} whileHover={{scale:1.04}} whileTap={{scale:.96}} onClick={()=>{setFilter(f);setRipple(null);}} style={{padding:"5px 11px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",background:filter===f?"rgba(99,102,241,.22)":"transparent",border:filter===f?"1px solid rgba(99,102,241,.45)":"1px solid rgba(255,255,255,.07)",color:filter===f?"#a5b4fc":"#334155",transition:"all .15s"}}>{f}</motion.button>)}
         </div>
         <div style={{marginLeft:"auto",display:"flex",gap:12,alignItems:"center",flexShrink:0}}>
-          {[{c:"#22c55e",l:"Positive Impact"},{c:"#ef4444",l:"Negative Impact"},{c:"#60a5fa",l:"Related"},{c:"#a78bfa",l:"Triggers"},{c:"#475569",l:"Weak Relation"}].map(({c,l})=>(
+          {/* This used to advertise a positive/negative/triggers color
+              legend that no edge in this graph actually earns (see et()'s
+              own comment) -- one honest entry replaces it now that every
+              edge renders the same unconfirmed-relationship gray. */}
+          {[{c:"#64748b",l:"Unconfirmed Relationship"}].map(({c,l})=>(
             <span key={l} style={{display:"flex",alignItems:"center",gap:4,fontSize:9.5,color:"#334155",whiteSpace:"nowrap"}}>
               <span style={{width:7,height:7,borderRadius:"50%",background:c,flexShrink:0,display:"inline-block"}}/>
               {l}
