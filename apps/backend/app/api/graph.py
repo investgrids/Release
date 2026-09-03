@@ -284,7 +284,11 @@ async def graph_chat(request: Request, body: ChatIn):
 
     raw = await _call_with_fallback(prompt, system, max_tokens=350, priority="interactive")
     if not raw:
-        return {"answer": "I couldn't generate a response right now. Please try again.", "highlight_nodes": [], "confidence": 0}
+        # CD3-C: was "confidence": 0 -- indistinguishable on the frontend
+        # from a real self-report of zero certainty. Nothing was generated
+        # at all here (total LLM failure), so there is no self-report to
+        # report; None makes that distinction visible to the caller.
+        return {"answer": "I couldn't generate a response right now. Please try again.", "highlight_nodes": [], "confidence": None}
 
     try:
         text = raw.strip()
@@ -295,7 +299,12 @@ async def graph_chat(request: Request, body: ChatIn):
                 text = text[4:]
         return _json.loads(text.strip())
     except Exception:
-        return {"answer": raw.strip()[:500], "highlight_nodes": [], "confidence": 60}
+        # CD3-C: was a hardcoded "confidence": 60 standing in for a
+        # self-report that never happened (the model's raw text failed to
+        # parse as the requested JSON, so no confidence field was ever
+        # produced). FALLBACK content authorizes nothing -- None, not a
+        # fabricated number.
+        return {"answer": raw.strip()[:500], "highlight_nodes": [], "confidence": None}
 
 
 # ── Write endpoints ───────────────────────────────────────────────────────────

@@ -42,7 +42,7 @@ interface LivePrice { price:number; change:number; pct:number; positive:boolean;
 interface LiveData  { prices:Record<string,LivePrice>; topology:{node_count:number;edge_count:number}; updated_at:string; }
 interface Snapshot { data:GData; centerId:string; }
 interface VP { x:number; y:number; s:number; }
-interface ConvoMsg { role:"user"|"assistant"; text:string; highlightIds?:string[]; confidence?:number; }
+interface ConvoMsg { role:"user"|"assistant"; text:string; highlightIds?:string[]; confidence?:number|null; }
 
 const TIMELINE=[
   {label:"Yesterday",key:"yesterday",offset:-1},
@@ -863,8 +863,16 @@ function AIChatPanel({open,onClose,messages,loading,onSend,gData,centerId,select
                   color:msg.role==="user"?"#c7d2fe":"#cbd5e1"}}>
                   {msg.text}
                 </div>
-                {msg.confidence!==undefined&&msg.role==="assistant"&&(
-                  <span style={{fontSize:8.5,color:"#334155",marginTop:2,marginLeft:2}}>Confidence: {msg.confidence}%</span>
+                {/* CD3-C: relabeled from "Confidence" -- graph.py's chat
+                    prompt asks the LLM for a self-reported 0-100
+                    "confidence" field (real SELF_REPORTED_CERTAINTY, never
+                    a probability). Checked with != null, not !== undefined:
+                    the backend's fallback/failure paths now return
+                    confidence: None rather than a fabricated 0 or 60, and
+                    None must not render as if the model had self-reported
+                    zero certainty. */}
+                {msg.confidence!=null&&msg.role==="assistant"&&(
+                  <span style={{fontSize:8.5,color:"#334155",marginTop:2,marginLeft:2}} title="The model's own self-reported certainty -- not a verified probability">Self-Rating: {msg.confidence}%</span>
                 )}
               </div>
             ))}
