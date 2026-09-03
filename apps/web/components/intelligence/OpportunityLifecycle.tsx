@@ -1,6 +1,7 @@
 "use client";
 
 import { Activity, TrendingUp } from "lucide-react";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -154,10 +155,13 @@ export function OpportunityLifecycleCard({
             Opportunity Lifecycle
           </span>
         </div>
+        {/* CD3-C: this is the model's own self-rated certainty in the
+            stage assignment, not a verified score. */}
         {hasConfidence && (
           <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${confidenceCls(confidence as number)}`}
-            aria-label={`AI confidence: ${confidence}%`}>
-            {confidence}% Confidence
+            aria-label={`Model self-rating: ${confidence}%`}
+            title="The model's own self-reported certainty in this stage assignment -- not a verified score">
+            {confidence}% {MEASUREMENT_LABEL.self_reported_certainty}
           </span>
         )}
       </div>

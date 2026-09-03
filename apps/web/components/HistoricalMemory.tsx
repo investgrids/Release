@@ -246,8 +246,11 @@ function EventCard({ ev, index }: { ev: HistoricalEvent; index: number }) {
           )}
           {/* Meta */}
           <div className="flex flex-wrap gap-3 pt-0.5">
+            {/* CD3-C: historical_memory_service.py's per-record confidence
+                mixes real computed values with hand-seeded historical
+                constants -- mixed provenance, disclosed via tooltip. */}
             {ev.confidence && (
-              <span className="text-[10px] text-text-muted">
+              <span className="text-[10px] text-text-muted" title="Historical record confidence -- provenance varies by entry, not a uniformly verified score">
                 Data confidence: <span className="text-text-secondary">{ev.confidence}%</span>
               </span>
             )}

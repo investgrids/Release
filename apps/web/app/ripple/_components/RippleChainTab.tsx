@@ -177,7 +177,12 @@ export async function RippleChainTab() {
             { label: "Node Types Tracked", value: "7", sub: "Event → Company chain" },
             { label: "Ripple Depth Levels", value: "4", sub: "Direct to Long-term" },
             { label: "Edge Relationship Types", value: "7", sub: "Causes, Hurts, Benefits…" },
-            { label: "AI Confidence Scoring", value: "Per Edge", sub: "0-100% on every link" },
+            /* CD3-C: was "AI Confidence Scoring" / "0-100% on every link" --
+               overstated ig_edges.confidence, which is overwhelmingly a
+               hardcoded 0.8 default or hand-seeded constant, not a live
+               per-relationship AI score on every edge (same finding that
+               removed the per-edge confidence display elsewhere). */
+            { label: "Edge Relationship Weighting", value: "Per Edge", sub: "Causal strength, 0-100 scale" },
           ].map(s => (
             <div key={s.label} className="px-6 first:pl-0 last:pr-0">
               <p className="text-[22px] font-black text-text-primary tabular-nums">{s.value}</p>

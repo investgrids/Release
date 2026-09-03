@@ -52,8 +52,10 @@ function RichCard({ entry }: { entry: FeedEntry }) {
             {entry.marketImpact} impact
           </span>
         )}
+        {/* CD3-C: entry.confidence is EventTriage.confidence -- triage_worker.py's
+            bare LLM self-report (0-10 scale, hence * 10 here), SELF_REPORTED_CERTAINTY. */}
         {entry.confidence != null && (
-          <span className="ml-auto text-[9px] font-bold tabular-nums text-text-muted">{Math.round(entry.confidence * 10)}% confidence</span>
+          <span className="ml-auto text-[9px] font-bold tabular-nums text-text-muted" title="The model's own self-reported certainty from event triage -- not a verified score">{Math.round(entry.confidence * 10)}% confidence</span>
         )}
       </div>
 

@@ -81,11 +81,11 @@ function outlookLevel(level: number): OutlookLevel {
 
 // ── Confidence bar ────────────────────────────────────────────────────────────
 
-function ConfidenceBar({ value, level }: { value: number | null | undefined; level: OutlookLevel }) {
+function ConfidenceBar({ value, level, title }: { value: number | null | undefined; level: OutlookLevel; title?: string }) {
   const cfg = LEVEL_CONFIG[level];
   const hasValue = value !== null && value !== undefined;
   return (
-    <div className="flex items-center gap-2 mt-1">
+    <div className="flex items-center gap-2 mt-1" title={hasValue ? title : undefined}>
       <div className="h-1 flex-1 rounded-full bg-text-primary/[0.06] overflow-hidden">
         {hasValue && (
           <div
@@ -155,8 +155,12 @@ function HorizonRow({
           </div>
         </div>
 
-        {/* Confidence */}
-        <ConfidenceBar value={horizon.confidence} level={level} />
+        {/* Confidence -- CD3-C: multi_horizon_service.py requests this
+            per-horizon as a bare LLM self-report (SELF_REPORTED_CERTAINTY),
+            same producer as AISearchClient.tsx's Market Impact Over Time
+            section. No text label exists at this render site to relabel,
+            so disclosed via the bar's own title tooltip. */}
+        <ConfidenceBar value={horizon.confidence} level={level} title="The model's own self-reported certainty for this horizon -- not a verified score" />
 
         {/* Reason */}
         <p className="mt-2 text-[12px] leading-[1.55] text-text-secondary">{horizon.reason}</p>

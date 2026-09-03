@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { fetchAPI } from "@/lib/api";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 import { Sparkles, BarChart2, Landmark, Globe, TrendingUp, ClipboardList } from "lucide-react";
 
 interface Event {
@@ -102,8 +103,15 @@ export default async function AIWrapPage() {
                           <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2.5 py-0.5 text-[11px] text-text-secondary">
                             {e.category}
                           </span>
-                          <span className="text-[11px] text-text-muted">
-                            {e.confidence === null || e.confidence === undefined ? "Confidence unavailable" : `Confidence ${Math.round(e.confidence * 100)}%`}
+                          {/* CD3-C: event.confidence is scoring_engine.py's
+                              coverage-based EVIDENCE_COMPOSITE, a real
+                              structural measure -- relabeled. Also fixed a
+                              scale bug found in the same line: /api/events
+                              already normalizes confidence to 0-100 (see
+                              event_scale.py's normalize_confidence), so the
+                              prior `* 100` here double-scaled it. */}
+                          <span className="text-[11px] text-text-muted" title="A structural evidence-coverage measure, not the model's self-reported certainty">
+                            {e.confidence === null || e.confidence === undefined ? `${MEASUREMENT_LABEL.evidence_composite} unavailable` : `${MEASUREMENT_LABEL.evidence_composite} ${Math.round(e.confidence)}%`}
                           </span>
                         </div>
                         <h3 className="mt-2 text-base font-semibold leading-snug text-text-primary">{e.title}</h3>
