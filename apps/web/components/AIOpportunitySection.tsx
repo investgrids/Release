@@ -16,21 +16,25 @@ interface OpportunityRow {
   trend: "up" | "down" | "stable";
 }
 
-function TrendSparkline({ trend, seed }: { trend: string; seed: number }) {
-  const up = trend === "up";
-  const color = up ? "#22c55e" : trend === "down" ? "#f43f5e" : "rgb(var(--text-muted))";
-  const pts: number[] = [];
-  let v = 50;
-  for (let i = 0; i < 8; i++) {
-    v += Math.sin(seed + i * 0.9) * 5 + (up ? 2 : trend === "down" ? -2 : 0);
-    v = Math.max(15, Math.min(85, v));
-    pts.push(v);
-  }
-  const svgPts = pts.map((p, i) => `${(i / 7) * 48},${90 - p}`).join(" ");
+// Directional-surface reassessment (2026-09-03) — this used to draw a
+// small line chart from `Math.sin(seed + i * 0.9)`-generated points, a
+// deterministic fake shape seeded only by the item's row index, not any
+// real price/score history — visually indistinguishable from a genuine
+// trend chart. No real historical series exists in this data path (
+// OpportunityRow carries only a single categorical `trend` snapshot, no
+// time series) — rather than build a new history feature just to
+// preserve a chart, this shows the one real signal that IS available
+// (the direction itself) honestly, as a direction, not a fabricated
+// magnitude/shape.
+function TrendIndicator({ trend }: { trend: "up" | "down" | "stable" }) {
+  const color = trend === "up" ? "#22c55e" : trend === "down" ? "#f43f5e" : "rgb(var(--text-muted))";
+  const symbol = trend === "up" ? "↑" : trend === "down" ? "↓" : "→";
+  const label = trend === "up" ? "Up" : trend === "down" ? "Down" : "Stable";
   return (
-    <svg viewBox="0 0 48 100" className="h-8 w-12 shrink-0" fill="none">
-      <polyline points={svgPts} stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
+    <span className="flex h-8 w-12 shrink-0 flex-col items-center justify-center" style={{ color }} aria-label={`Trend: ${label}`}>
+      <span className="text-[16px] font-bold leading-none">{symbol}</span>
+      <span className="text-[8px] font-medium uppercase tracking-wide">{label}</span>
+    </span>
   );
 }
 
@@ -84,7 +88,7 @@ export function AIOpportunitySection({ items }: { items: OpportunityRow[] }) {
             <p className="text-[12px] text-text-muted">No opportunities detected yet.</p>
           </div>
         )}
-        {items.slice(0, 6).map((item, i) => (
+        {items.slice(0, 6).map((item) => (
           <Link
             key={item.href}
             href={item.href as any}
@@ -100,7 +104,7 @@ export function AIOpportunitySection({ items }: { items: OpportunityRow[] }) {
               </div>
             </div>
             <ScoreCircle score={item.score}/>
-            <TrendSparkline trend={item.trend} seed={i * 7.3}/>
+            <TrendIndicator trend={item.trend}/>
           </Link>
         ))}
       </div>
