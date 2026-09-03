@@ -117,7 +117,13 @@ function OpportunityCardGrid({ displayed }: { displayed: RadarItem[] }) {
                 {sectors.length > 0 && <p className="mt-0.5 text-[11px] text-text-muted">{sectors.join(" • ")}</p>}
               </div>
             </div>
-            <div className="mb-3 flex items-center gap-3">
+            {/* CD3-C: this "Confidence" is opportunity_generator.py's
+                `min(0.95, score / 110)` -- a DERIVED_TRANSFORM function of
+                the opportunity score, not an independent measurement.
+                Disclosed via tooltip rather than removed here (unlike the
+                homepage/newsroom table columns) since it's structurally
+                load-bearing for this page's own High Conviction filter. */}
+            <div className="mb-3 flex items-center gap-3" title="Derived from the opportunity score, not an independently measured confidence">
               <ConfidenceCircle value={conf} size={52}/>
               <div className="min-w-0">
                 <p className="text-[10px] text-text-muted">Confidence</p>

@@ -13,6 +13,7 @@ import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
 import { isRealSymbol, truncateForQuery } from "@/lib/text";
 import { AIDisclaimer } from "@/components/ai/AIDisclaimer";
 import { ShareInsightCard } from "@/components/ShareInsightCard";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 import { SmartCTA } from "@/components/SmartCTA";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { HistoricalMemory } from "@/components/HistoricalMemory";
@@ -807,7 +808,10 @@ function DeepIntelligencePanel({ data, initialRelated, open, onToggle }: {
                         <div key={s.label} className={`rounded-xl border bg-text-primary/[0.02] p-3 ${color.split(" ")[1]}`}>
                           <div className="mb-1.5 flex items-center justify-between">
                             <p className={`text-[10px] font-bold uppercase tracking-wider ${color.split(" ")[0]}`}>{s.label} Case</p>
-                            {s.confidence && <span className="text-[9px] text-text-muted">{s.confidence} confidence</span>}
+                            {/* CD3-C: relabeled -- scenario confidence is a bucketed
+                                LLM self-report (generate_scenario_analysis), same as
+                                the ScenarioAnalysis.tsx fix earlier this session. */}
+                            {s.confidence && <span className="text-[9px] text-text-muted" title="The model's own self-reported certainty in this scenario -- not a calibrated probability">{s.confidence} {MEASUREMENT_LABEL.self_reported_certainty}</span>}
                           </div>
                           <p className="text-[12px] leading-5 text-text-secondary">{s.outcome}</p>
                           {s.key_drivers.length > 0 && (
@@ -874,8 +878,14 @@ function DeepIntelligencePanel({ data, initialRelated, open, onToggle }: {
               {/* Sources & AI Transparency */}
               <Card title="Sources & AI Transparency" className="mb-4 break-inside-avoid">
                 <div className="grid grid-cols-3 gap-3 border-b border-surface-border/6 pb-3">
+                  {/* CD3-C: relabeled -- dr.reasoning.confidence is
+                      event_deep_research_service.py's detail["confidence"],
+                      the identical field this page already renamed to
+                      "Evidence Coverage" everywhere else (P0-CD1E found it's
+                      literally `coverage`) -- this one render site was
+                      missed in that earlier pass. */}
                   <div>
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">AI Confidence</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted">{MEASUREMENT_LABEL.evidence_composite}</p>
                     <p className="mt-1 text-[15px] font-bold tabular-nums text-text-primary">{dr.reasoning.confidence !== null && dr.reasoning.confidence !== undefined ? `${Math.round(dr.reasoning.confidence)}%` : "—"}</p>
                   </div>
                   <div>

@@ -11,6 +11,7 @@ import { OpportunityRippleGraph } from "@/components/OpportunityRippleGraph";
 import Link from "next/link";
 import { Lightbulb, Building2, AlertTriangle, Ban, Check, Zap, CalendarClock, History, Gauge } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import { MEASUREMENT_LABEL } from "@/lib/measurementSemantics";
 import {
   isV2Detail,
   type OpportunityDetail, type AnyOpportunityDetail, type OpportunityV2Detail,
@@ -77,9 +78,9 @@ function buildScoreHistory(score: number | null): { month: string; value: number
   }));
 }
 
-function StatCard({ label, value, sub, valueClass = "text-text-primary" }: { label: string; value: string; sub?: string; valueClass?: string }) {
+function StatCard({ label, value, sub, valueClass = "text-text-primary", title }: { label: string; value: string; sub?: string; valueClass?: string; title?: string }) {
   return (
-    <div className="rounded-[16px] border border-surface-border/10 bg-text-primary/[0.03] p-4 text-center">
+    <div className="rounded-[16px] border border-surface-border/10 bg-text-primary/[0.03] p-4 text-center" title={title}>
       <p className="mb-1 text-[10px] uppercase tracking-widest text-text-muted">{label}</p>
       <p className={`text-xl font-bold ${valueClass}`}>{value}</p>
       {sub && <span className="mt-1 inline-block rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] text-text-secondary">{sub}</span>}
@@ -264,7 +265,11 @@ function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialRelated 
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatCard label="Confidence Score" value={confidence !== null ? `${confidence}%` : "—"} sub={confidence !== null ? "Confidence" : "Unscored"} valueClass="text-sky-400"/>
+              {/* CD3-C: this opportunity's "confidence" is opportunity_generator.py's
+                  `min(0.95, score / 110)` -- a DERIVED_TRANSFORM of the opportunity
+                  score, not an independent measurement (also feeds the Investment
+                  Verdict below, so kept rather than removed). Disclosed via tooltip. */}
+              <StatCard label="Confidence Score" value={confidence !== null ? `${confidence}%` : "—"} sub={confidence !== null ? "Confidence" : "Unscored"} valueClass="text-sky-400" title="Derived from the opportunity score, not an independently measured confidence"/>
               <StatCard label="Time Horizon"     value={fixMojibake(d.time_horizon)}/>
               <StatCard label="Risk Level"       value={d.risk_level}   valueClass={riskColor(d.risk_level)}/>
               <StatCard label="Trend"            value={d.trend}        valueClass={trendColor(d.trend)}/>
@@ -839,7 +844,10 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-text-muted">
                       <span>{ev.evidence_count} source{ev.evidence_count === 1 ? "" : "s"}</span>
-                      {ev.current_confidence !== null && <span>{Math.round(ev.current_confidence * 100)}% confidence</span>}
+                      {/* CD3-C: OpportunityV2's current_confidence is built from
+                          real EvidenceEntityLink coverage, not a self-report --
+                          EVIDENCE_COMPOSITE. */}
+                      {ev.current_confidence !== null && <span>{Math.round(ev.current_confidence * 100)}% {MEASUREMENT_LABEL.evidence_composite}</span>}
                       {ev.first_observed_at && <span>Since {ev.first_observed_at.slice(0, 10)}</span>}
                     </div>
                     {ev.source_types.length > 0 && (
