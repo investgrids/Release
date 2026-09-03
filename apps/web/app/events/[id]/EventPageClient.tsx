@@ -21,6 +21,7 @@ import { useIntelligence } from "@/hooks/useIntelligence";
 import { IntelligenceBlock, type IntelligenceObject } from "@/components/intelligence/IntelligenceBlock";
 import { type EvidenceFact } from "@/components/article/EvidenceList";
 import { API_BASE_URL as API } from "@/lib/api";
+import { rippleEdgeDisplay } from "@/lib/rippleEdgeWording";
 import "reactflow/dist/style.css";
 
 const ReactFlow  = dynamic(() => import("reactflow").then(m => m.default),     { ssr: false });
@@ -40,7 +41,7 @@ interface Policy   { id: number; title: string; ministry: string; announcement_d
 interface HistEvt  { id: string; slug?: string; title: string; event_date: string; impact_score: number | null; similarity_score: number | null; reason: string }
 interface NewsItem { id: string; headline: string; source: string; published_at: string; summary: string; url: string }
 interface GNode    { id: string; label: string; type: string; metadata: Record<string, unknown> }
-interface GEdge    { source: string; target: string; relationship: string }
+interface GEdge    { source: string; target: string; relationship: string; evidence_state?: string }
 interface MarketIndex { name: string; ticker: string; value: string; pct_change: number; positive: boolean; change_str: string }
 interface MarketStatus { is_open: boolean; status: string; time_ist: string; date: string }
 interface MarketData   { marketStatus: MarketStatus; marketIndices: MarketIndex[] }
@@ -1242,10 +1243,22 @@ function GraphTab({ data }: { data: EventDetail }) {
     position: { x: 100 + (i % 4) * 200, y: 80 + Math.floor(i / 4) * 140 },
     style: { background: n.type === "event" ? "#6366f1" : n.type === "company" ? "#22c55e" : "#f59e0b", color: "#fff", border: "none", borderRadius: 10, fontSize: 11, padding: "6px 10px" },
   }));
-  const rfEdges = data.graph.edges.map((e, i) => ({
-    id: `e${i}`, source: e.source, target: e.target, label: e.relationship,
-    style: { stroke: "rgb(var(--text-primary) / 0.15)" }, labelStyle: { fill: "#94a3b8", fontSize: 9 },
-  }));
+  // CD3-D (D7) — this graph tab used to render the literal relationship
+  // word ("impacts"/"benefits"/etc.) as an edge label regardless of
+  // evidence_state, the exact same "→ causes" bug class D4 fixed for the
+  // Ripple graph — event_service.py already attaches a real
+  // evidence_state to every edge (CD3-B), it just wasn't reaching this
+  // renderer. Reuses rippleEdgeDisplay() (generic wording logic despite
+  // its filename, not Ripple-specific) rather than duplicating the same
+  // OBSERVED/SUPPORTED/HYPOTHESIZED/UNAVAILABLE decision a second time.
+  const rfEdges = data.graph.edges.map((e, i) => {
+    const rel = rippleEdgeDisplay(e.evidence_state, e.relationship);
+    return {
+      id: `e${i}`, source: e.source, target: e.target, label: rel.label,
+      style: { stroke: "rgb(var(--text-primary) / 0.15)" },
+      labelStyle: { fill: rel.asserts ? "#94a3b8" : "#64748b", fontSize: 9, fontStyle: rel.asserts ? "normal" : "italic" },
+    };
+  });
   return (
     <div className="h-[600px] w-full overflow-hidden rounded-[20px] border border-surface-border/10">
       <ReactFlow nodes={rfNodes} edges={rfEdges} fitView>

@@ -1,12 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { isRenderable, type AuthorizedClaim } from "@/lib/claimAuthorization";
 
 export interface ConfidenceData {
   level:      "Low" | "Medium" | "High" | "Very High";
   score:      number | null;
   reasons:    string[];
   breakdown?: Record<string, number>;
+  /**
+   * CD3-D (D7) — optional and additive: absent on every caller that
+   * predates this field, which keeps rendering exactly as before. A
+   * non-renderable (UNAVAILABLE/malformed) claim forces the same honest
+   * unscored treatment `score === null` already gets, regardless of what
+   * `level`/`score` say. QUALIFIED renders normally but visibly hedged.
+   */
+  claim?: AuthorizedClaim | null;
 }
 
 const LEVEL: Record<string, { bg: string; text: string; border: string; dot: string }> = {
@@ -41,8 +50,10 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
 
   if (!data) return null;
 
+  const claimBlocksRender = data.claim !== undefined && data.claim !== null && !isRenderable(data.claim);
+  const isQualified = !claimBlocksRender && data.claim?.strength === "qualified";
   const style = LEVEL[data.level] ?? LEVEL["Medium"];
-  const hasScore = data.score !== null && data.score !== undefined;
+  const hasScore = !claimBlocksRender && data.score !== null && data.score !== undefined;
 
   return (
     <div className="relative inline-block">
@@ -65,8 +76,8 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
         className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all hover:opacity-90 ${style.bg} ${style.text} ${style.border}`}
       >
         <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-        {data.level}
-        <span className="tabular-nums opacity-70">{hasScore ? `${data.score}%` : "—"}</span>
+        {claimBlocksRender ? "Unscored" : data.level}
+        <span className="tabular-nums opacity-70">{hasScore ? `${isQualified ? "~" : ""}${data.score}%` : "—"}</span>
       </div>
 
       {open && data.reasons.length > 0 && (
@@ -78,7 +89,7 @@ export function ConfidenceBadge({ data }: { data?: ConfidenceData | null }) {
           <div className="mb-2.5">
             <div className="mb-1 flex items-center justify-between text-[10px]">
               <span className="font-semibold text-text-secondary">Confidence Score</span>
-              <span className={`font-bold tabular-nums ${style.text}`}>{hasScore ? `${data.score}%` : "Unscored"}</span>
+              <span className={`font-bold tabular-nums ${style.text}`}>{hasScore ? `${isQualified ? "~" : ""}${data.score}%` : "Unscored"}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-text-primary/[0.06]">
               {hasScore && (

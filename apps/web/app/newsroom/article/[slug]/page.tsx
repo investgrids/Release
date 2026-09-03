@@ -63,8 +63,7 @@ const DEFAULT_TYPE_META = { label: "Market Intelligence", color: "text-text-seco
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 // CompanyAffected/SectorAffected live in ./deriveVerdict.ts (imported above)
-// — page.tsx can't export arbitrary names past Next's route type-checker,
-// and deriveVerdict needs them importable from its own test file.
+// — page.tsx can't export arbitrary names past Next's route type-checker.
 
 interface Opportunity { title: string; description: string; timeframe?: string; risk?: string; }
 interface Risk { title: string; description: string; severity?: string; mitigation?: string; }

@@ -1,9 +1,21 @@
 import type { ReactNode } from "react";
+import { isRenderable, type AuthorizedClaim } from "@/lib/claimAuthorization";
 
 export type ConfidenceLevel = "very-high" | "high" | "medium" | "low" | "unscored";
 
-/** null/undefined means the backend had insufficient evidence to compute a confidence score — never coerce that into "low". */
-export function getConfidenceLevel(score: number | null | undefined): ConfidenceLevel {
+/**
+ * null/undefined means the backend had insufficient evidence to compute
+ * a confidence score — never coerce that into "low".
+ *
+ * CD3-D (D7) — `claim` is optional and additive: omitting it keeps every
+ * existing caller's behavior unchanged. When a caller passes one, a
+ * non-renderable (UNAVAILABLE/malformed) claim forces "unscored"
+ * regardless of what `score` says — the audit's own structural finding
+ * was that a DEGRADED/FALLBACK value rendered identically to a VALID
+ * one here otherwise.
+ */
+export function getConfidenceLevel(score: number | null | undefined, claim?: AuthorizedClaim | null): ConfidenceLevel {
+  if (claim !== undefined && claim !== null && !isRenderable(claim)) return "unscored";
   if (score === null || score === undefined) return "unscored";
   if (score >= 90) return "very-high";
   if (score >= 75) return "high";
@@ -45,6 +57,8 @@ export interface ConfidenceBadgeProps {
   showLabel?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
+  /** CD3-D (D7) — see getConfidenceLevel's own doc comment. Optional, additive. */
+  claim?: AuthorizedClaim | null;
 }
 
 export function ConfidenceBadge({
@@ -53,17 +67,19 @@ export function ConfidenceBadge({
   showLabel = true,
   size = "sm",
   className = "",
+  claim,
 }: ConfidenceBadgeProps) {
-  const level = getConfidenceLevel(score);
+  const level = getConfidenceLevel(score, claim);
   const config = LEVEL_CONFIG[level];
   const unscored = level === "unscored";
+  const isQualified = !unscored && claim?.strength === "qualified";
   const textSize = size === "sm" ? "text-xs" : size === "md" ? "text-sm" : "text-base";
   const padding = size === "sm" ? "px-2 py-0.5" : size === "md" ? "px-2.5 py-1" : "px-3 py-1.5";
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border ${padding} font-semibold ${textSize} ${config.cls} ${className}`}
-      aria-label={unscored ? "AI confidence: insufficient verified data" : `AI confidence: ${config.label} (${score}%)`}
+      aria-label={unscored ? "AI confidence: insufficient verified data" : `AI confidence: ${config.label} (${isQualified ? "estimated " : ""}${score}%)`}
     >
       {showBar && (
         <span className="flex h-1.5 w-12 overflow-hidden rounded-full bg-text-primary/10">
@@ -74,22 +90,23 @@ export function ConfidenceBadge({
         </span>
       )}
       {showLabel && config.label}
-      {!unscored && <span className="opacity-70">{score}%</span>}
+      {!unscored && <span className="opacity-70">{isQualified ? "~" : ""}{score}%</span>}
     </span>
   );
 }
 
-export function ConfidenceMeter({ score }: { score: number | null | undefined }) {
-  const level = getConfidenceLevel(score);
+export function ConfidenceMeter({ score, claim }: { score: number | null | undefined; claim?: AuthorizedClaim | null }) {
+  const level = getConfidenceLevel(score, claim);
   const config = LEVEL_CONFIG[level];
   const unscored = level === "unscored";
+  const isQualified = !unscored && claim?.strength === "qualified";
 
   return (
     <div className="space-y-1.5" aria-label={unscored ? "Confidence meter: insufficient verified data" : `Confidence meter: ${score}%`}>
       <div className="flex items-center justify-between">
         <span className="text-[11px] text-text-muted">AI Confidence</span>
         <span className={`text-[11px] font-bold ${config.cls.split(" ").find(c => c.startsWith("text-"))}`}>
-          {unscored ? "Insufficient verified data" : `${config.label} · ${score}%`}
+          {unscored ? "Insufficient verified data" : `${config.label} · ${isQualified ? "~" : ""}${score}%`}
         </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-text-primary/[0.06]">
