@@ -268,7 +268,15 @@ export async function generateMetadata(
   // the actual source of the leak here, since it's the first fallback,
   // ahead of key_takeaway, when meta_description is empty.
   const safeExecutiveSummary = article.executive_summary && !containsRecommendationLanguage(article.executive_summary) ? article.executive_summary : "";
-  const description = article.meta_description || safeExecutiveSummary || safeKeyTakeaway || "";
+  // Directional-surface reassessment (2026-09-03) — meta_description
+  // itself was never gated here either, on either fallback branch: it's
+  // never scanned by scan_recommendation_language at generation time
+  // (only key_takeaway/opportunities[] are), and this metadata function
+  // used it first, unconditionally. Found via the identical gap on
+  // research/[slug]/page.tsx's own generateMetadata(), same fix applied
+  // here for consistency.
+  const safeMetaDescription = article.meta_description && !containsRecommendationLanguage(article.meta_description) ? article.meta_description : "";
+  const description = safeMetaDescription || safeExecutiveSummary || safeKeyTakeaway || "";
   // Real per-article AI-generated hero images exist for a real subset of
   // articles (served from the backend at /api/media/{id}.jpg) but were
   // never read here — og:image/twitter:image were silently absent even

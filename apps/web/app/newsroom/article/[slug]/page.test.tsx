@@ -318,6 +318,24 @@ describe("Newsroom article page — legacy-history containment patch (2026-09-01
     expect((metadata.twitter as { description?: string } | undefined)?.description ?? "").not.toMatch(/Consider shorting/i);
   });
 
+  it("does not leak an unsafe meta_description itself into meta/og/twitter description (2026-09-03 gap)", async () => {
+    // Real gap: meta_description was the FIRST value tried and was never
+    // gated at all -- only its fallbacks (executive_summary/key_takeaway)
+    // were. Found via the identical bug on research/[slug]/page.tsx.
+    const insight = baseInsight("market_wrap", {
+      key_takeaway: "Grounded, evidence-based summary of the quarter.",
+      meta_description: UNSAFE_TAKEAWAY,
+      executive_summary: "",
+    });
+    mockFetchFor(insight);
+
+    const metadata = await generateMetadata({ params: Promise.resolve({ slug: "test-slug" }) });
+
+    expect(metadata.description ?? "").not.toMatch(/Consider shorting/i);
+    // Falls through to the next safe candidate rather than an empty string.
+    expect(metadata.description).toBe("Grounded, evidence-based summary of the quarter.");
+  });
+
   it("still uses a clean key_takeaway as the meta-description fallback when nothing else is available", async () => {
     const insight = baseInsight("market_wrap", {
       key_takeaway: "Grounded, evidence-based summary of the quarter.",

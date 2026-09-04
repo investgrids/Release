@@ -20,6 +20,21 @@ import { containsRecommendationLanguage } from "@/lib/recommendationLanguage";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
+// Directional-surface reassessment (2026-09-03) — a real leak found
+// AFTER the first version of this page's defense-in-depth fix deployed:
+// the gate only covered the visible body (executive_summary/ai_stance),
+// never generateMetadata()'s <meta name="description">/OpenGraph/Twitter
+// tags or jsonLd.description -- all of which read meta_description
+// directly, unguarded. A real live specimen (gail-vs-ongc) had "GAIL
+// India Ltd is the preferred choice over Oil & Natural Gas Corporation"
+// sitting in every one of those crawlable/shareable surfaces, reachable
+// even by a search engine or a link-preview bot that never renders the
+// page body at all. Same fail-closed, never-rewrite contract as the
+// body gate below -- omit, never sanitize.
+function safeText(text: string | null | undefined): string {
+  return text && !containsRecommendationLanguage(text) ? text : "";
+}
+
 interface EntityAnalysis {
   entity: string; symbol: string; sector: string; thesis: string;
   strengths: string[]; risks: string[]; catalysts: string[];
@@ -86,7 +101,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const url = `${SITE}/research/${slug}`;
   const a = await fetchArticle(slug);
   if (!a) return { title: "Comparison Not Found", alternates: { canonical: url } };
-  const desc = (a.meta_description || a.executive_summary || a.headline).slice(0, 160);
+  const desc = (safeText(a.meta_description) || safeText(a.executive_summary) || a.headline).slice(0, 160);
   return {
     title: a.seo_title || a.headline,
     description: desc,
@@ -113,16 +128,14 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
   // but this stays a real backstop for anything already persisted from
   // before that gate existed — same fail-closed, never-rewrite contract:
   // omit the field entirely rather than showing a "cleaned up" version.
-  const safeExecutiveSummary = article.executive_summary && !containsRecommendationLanguage(article.executive_summary)
-    ? article.executive_summary : "";
-  const safeAiStance = di.decision_framework?.ai_stance && !containsRecommendationLanguage(di.decision_framework.ai_stance)
-    ? di.decision_framework.ai_stance : "";
+  const safeExecutiveSummary = safeText(article.executive_summary);
+  const safeAiStance = safeText(di.decision_framework?.ai_stance);
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: article.headline,
-    description: article.meta_description || article.executive_summary,
+    description: safeText(article.meta_description) || safeExecutiveSummary || article.headline,
     url,
     publisher: { "@type": "Organization", name: "MarketRipple" },
     // SEO fix (deferred from the original audit): named authorship —
