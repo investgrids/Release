@@ -190,20 +190,20 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
               <span className={`text-[12px] font-semibold uppercase ${outlookColor(e.near_term_outlook)}`}>{e.near_term_outlook}</span>
             </div>
             {e.sector && <p className="mt-0.5 text-[11px] text-text-muted">{e.sector}</p>}
-            {e.thesis && <p className="mt-3 text-[13px] leading-relaxed text-text-secondary">{e.thesis}</p>}
-            {e.strengths?.length > 0 && (
+            {safeText(e.thesis) && <p className="mt-3 text-[13px] leading-relaxed text-text-secondary">{safeText(e.thesis)}</p>}
+            {e.strengths?.filter(Boolean).filter(s => !containsRecommendationLanguage(s)).length > 0 && (
               <div className="mt-3">
                 <p className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold mb-1">Strengths</p>
                 <ul className="space-y-1">
-                  {e.strengths.filter(Boolean).map((s, j) => <li key={j} className="text-[12px] text-text-secondary">• {s}</li>)}
+                  {e.strengths.filter(Boolean).filter(s => !containsRecommendationLanguage(s)).map((s, j) => <li key={j} className="text-[12px] text-text-secondary">• {s}</li>)}
                 </ul>
               </div>
             )}
-            {e.risks?.length > 0 && (
+            {e.risks?.filter(Boolean).filter(s => !containsRecommendationLanguage(s)).length > 0 && (
               <div className="mt-3">
                 <p className="text-[10px] uppercase tracking-wider text-rose-400 font-semibold mb-1">Risks</p>
                 <ul className="space-y-1">
-                  {e.risks.filter(Boolean).map((s, j) => <li key={j} className="text-[12px] text-text-secondary">• {s}</li>)}
+                  {e.risks.filter(Boolean).filter(s => !containsRecommendationLanguage(s)).map((s, j) => <li key={j} className="text-[12px] text-text-secondary">• {s}</li>)}
                 </ul>
               </div>
             )}
@@ -244,13 +244,13 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
           <div className="rounded-[16px] border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
             <p className="mb-2 text-[11px] uppercase tracking-wider text-emerald-400 font-semibold">Case For {b.entity}</p>
             <ul className="space-y-1.5">
-              {(di.tradeoff.reasons_to_switch || []).filter(Boolean).map((s, i) => <li key={i} className="text-[12.5px] text-text-secondary">• {s}</li>)}
+              {(di.tradeoff.reasons_to_switch || []).filter(Boolean).filter(s => !containsRecommendationLanguage(s)).map((s, i) => <li key={i} className="text-[12.5px] text-text-secondary">• {s}</li>)}
             </ul>
           </div>
           <div className="rounded-[16px] border border-sky-500/15 bg-sky-500/[0.04] p-4">
             <p className="mb-2 text-[11px] uppercase tracking-wider text-sky-400 font-semibold">Case For {a.entity}</p>
             <ul className="space-y-1.5">
-              {(di.tradeoff.reasons_to_hold || []).filter(Boolean).map((s, i) => <li key={i} className="text-[12.5px] text-text-secondary">• {s}</li>)}
+              {(di.tradeoff.reasons_to_hold || []).filter(Boolean).filter(s => !containsRecommendationLanguage(s)).map((s, i) => <li key={i} className="text-[12.5px] text-text-secondary">• {s}</li>)}
             </ul>
           </div>
         </div>
@@ -261,9 +261,9 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
         <div className="rounded-[16px] border border-violet-500/20 bg-violet-500/[0.04] px-5 py-4">
           <p className="text-[11px] uppercase tracking-wider text-violet-400 font-semibold mb-1.5">Research Framing</p>
           <p className="text-[13.5px] leading-relaxed text-text-primary">{safeAiStance}</p>
-          {di.decision_framework.key_unknowns?.filter(Boolean).length > 0 && (
+          {di.decision_framework.key_unknowns?.filter(Boolean).filter(s => !containsRecommendationLanguage(s)).length > 0 && (
             <p className="mt-2 text-[11.5px] text-text-muted">
-              Key unknowns: {di.decision_framework.key_unknowns.filter(Boolean).join(" · ")}
+              Key unknowns: {di.decision_framework.key_unknowns.filter(Boolean).filter(s => !containsRecommendationLanguage(s)).join(" · ")}
             </p>
           )}
         </div>
