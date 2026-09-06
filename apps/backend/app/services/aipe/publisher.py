@@ -736,6 +736,14 @@ async def run_aipe_cycle() -> None:
             # ── 4. Daily limit check ──────────────────────────────────────────
             daily_count = await count_today_articles(db)
             today_story_ids = await get_today_story_ids(db)
+            # Article V2 Phase P5: records what V1 actually decided for
+            # each triage event's own event_id -- write-only bookkeeping,
+            # never read by any V1 code path, never changes V1 control
+            # flow. Consumed after the loop below by the V2 shadow/canary
+            # dispatch (Event-triggered flow only) so shadow telemetry can
+            # report the real V1 decision alongside V2's own, without
+            # re-deriving it.
+            v1_decisions: dict[str, str] = {}
 
             if daily_count >= _MAX_PER_DAY:
                 log.info("aipe.cycle.daily_limit_reached", count=daily_count)
@@ -764,6 +772,7 @@ async def run_aipe_cycle() -> None:
                     await coverage_mark_skipped_daily_cap(
                         db, event_id=triage_event.get("event_id"),
                     )
+                    v1_decisions[triage_event.get("event_id")] = "skipped_daily_cap"
                     continue
 
                 article_type, story_id, priority = select_article_type(
@@ -789,6 +798,7 @@ async def run_aipe_cycle() -> None:
                         await coverage_mark_skipped_already_generated_today(
                             db, event_id=triage_event.get("event_id"),
                         )
+                    v1_decisions[triage_event.get("event_id")] = f"skipped_{plan_reason_code}"
                     continue
 
                 # Duplicate detection
@@ -811,6 +821,7 @@ async def run_aipe_cycle() -> None:
                         db, event_id=triage_event.get("event_id"), article_id=duplicate.id
                     )
                     log.info("aipe.cycle.updated_duplicate", story_id=story_id)
+                    v1_decisions[triage_event.get("event_id")] = "updated" if updated else "duplicate_no_update"
                 else:
                     # Create new article
                     event_group_id = triage_event.get("event_id") or story_id
@@ -821,6 +832,7 @@ async def run_aipe_cycle() -> None:
                     if article and article.status == "published":
                         daily_count += 1
                         today_story_ids.add(story_id)
+                        v1_decisions[triage_event.get("event_id")] = "created"
                         await coverage_mark_published(
                             db, event_id=triage_event.get("event_id"), article_id=article.id
                         )
@@ -932,12 +944,35 @@ async def run_aipe_cycle() -> None:
                         # above) — just record the failure and safely move
                         # on to the next approved candidate.
                         reason = "generation_failed" if article is None else "validation_failed"
+                        v1_decisions[triage_event.get("event_id")] = reason
                         await coverage_mark_failed(
                             db, event_id=triage_event.get("event_id"), reason=reason,
                         )
 
                 # Rate limit between AI calls
                 await asyncio.sleep(2)
+
+            # ── Article V2 Phase P5: shadow/canary entry point ────────────────
+            # Event-triggered flow ONLY -- the scheduled-article path (5b) and
+            # the continuous-update pass (6) below are explicitly untouched,
+            # matching the owner's own scope line. `approved`/`v1_decisions`
+            # describe exactly the batch V1 just processed above, so shadow
+            # telemetry always reflects the SAME real candidates, not a
+            # separate sample. Wrapped so a V2 bug can never take down the V1
+            # cycle -- V1's own correctness must never depend on V2 shadow
+            # code being bug-free; this only ever logs and moves on.
+            from app.services.article_v2.mode import get_article_pipeline_mode, v2_should_execute
+
+            article_v2_mode = get_article_pipeline_mode()
+            if v2_should_execute(article_v2_mode):
+                from app.services.article_v2.shadow_orchestrator import run_shadow_batch
+
+                try:
+                    await run_shadow_batch(
+                        db, triage_events=approved, v1_decisions=v1_decisions, mode=article_v2_mode,
+                    )
+                except Exception as exc:
+                    log.error("article_v2.shadow_batch_error", mode=article_v2_mode.value, error=str(exc)[:300])
 
             # ── 5b. Scheduled article path (session-triggered, no triage needed) ─
             session = mie_context.get("session", "closed")

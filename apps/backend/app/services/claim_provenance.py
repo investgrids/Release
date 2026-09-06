@@ -50,6 +50,22 @@ class ClaimProvenance(str, Enum):
     # event). Real, but describes the past -- never itself a forecast.
     HISTORICAL_OUTCOME = "historical_outcome"
 
+    # A verified fact drawn directly from a source document or regulatory
+    # filing (e.g. "Company approved a Rs 500 crore capex plan," a real
+    # FinancialFact value) -- distinct from HISTORICAL_OUTCOME, which is
+    # reserved for a measured outcome-OVER-TIME pattern ("shares rose 8%
+    # over the 30 days after a similar event"). A DOCUMENTED_FACT has no
+    # time-series/outcome dimension at all -- it is simply a real fact the
+    # source material states. Added for Article V2's P2 claim-translation
+    # layer (owner correction, 2026-09-04): V2's composer.py claims backed
+    # by real evidence_ids/financial_fact_ids are documented facts, not
+    # outcome measurements, and must not be misfiled as HISTORICAL_OUTCOME
+    # merely because both map to the same public capability today. The
+    # split matters once Market Memory/outcome-learning work needs to tell
+    # "this is a fact from a filing" apart from "this is a learned
+    # historical pattern."
+    DOCUMENTED_FACT = "documented_fact"
+
     # Static exception-path boilerplate (_safe_json_call's fallback dict) --
     # unrelated to the specific entity/event it happens to be attached to.
     FALLBACK = "fallback"
@@ -111,6 +127,10 @@ AUTHORIZATION_BOUNDARY: dict[ClaimProvenance, dict[str, str]] = {
     ClaimProvenance.HISTORICAL_OUTCOME: {
         "may_authorize": "A statement of historical performance (\"rose/fell after this historical event\")",
         "must_not_authorize": "A current or forward-looking forecast",
+    },
+    ClaimProvenance.DOCUMENTED_FACT: {
+        "may_authorize": "A verified fact stated directly by a source document/filing/financial record",
+        "must_not_authorize": "An outcome-over-time pattern, a forecast, or \"Likely Winner\" framing",
     },
     ClaimProvenance.FALLBACK: {
         "may_authorize": "Nothing, unless visibly flagged as fallback/template content",

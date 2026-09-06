@@ -133,7 +133,14 @@ def authorize_direction(
 
     if provenance == ClaimProvenance.PRICE_SIGN:
         return _claim(Capability.OBSERVED_DIRECTION, Strength.AUTHORIZED)
-    if provenance == ClaimProvenance.HISTORICAL_OUTCOME:
+    if provenance in (ClaimProvenance.HISTORICAL_OUTCOME, ClaimProvenance.DOCUMENTED_FACT):
+        # Both are real, verified, past-tense facts -- a measured
+        # outcome-over-time pattern and a documented source fact carry the
+        # same public capability today (HISTORICAL_DESCRIPTION/AUTHORIZED).
+        # They stay distinct ClaimProvenance values because they are NOT
+        # the same kind of evidence (see DOCUMENTED_FACT's own docstring),
+        # which will matter once a future consumer needs to tell them
+        # apart -- this function does not need that distinction yet.
         return _claim(Capability.HISTORICAL_DESCRIPTION, Strength.AUTHORIZED)
     if provenance in (ClaimProvenance.ANALYTICAL_HYPOTHESIS, ClaimProvenance.EVENT_DIRECTION):
         # EVENT_DIRECTION is an event-level LLM read broadcast to every

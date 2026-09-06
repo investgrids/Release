@@ -196,6 +196,30 @@ class Settings(BaseSettings):
     # window the owner specified.
     opportunity_read_source: str = "v1"  # "v1" | "v2"
 
+    # Article V2 Production Integration, Phase P5 (owner design,
+    # 2026-09-06) — the entry-point mode boundary for the Event-triggered
+    # AIPE flow only (comparisons/live_signal are untouched). Raw string
+    # here, same as opportunity_read_source above; the real, fail-closed
+    # parsing (unknown/malformed/missing -> always "v1", never silently
+    # activates V2) lives in app/services/article_v2/mode.py, not here —
+    # that module owns the ArticlePipelineMode enum this string maps to.
+    # v1         : V1 normal, V2 does not execute, V2 never persists.
+    # shadow_v2  : V1 normal, V2 executes for real (C1-C8.5+P1+P2+P4),
+    #              V2 never persists publicly (see mode.py's
+    #              v2_may_persist_publicly() -- the one function that
+    #              answers this, not scattered call-site checks).
+    # canary_v2  : V1 normal for non-canaries, V2 executes; public V2
+    #              persistence for eligible canaries is NOT implemented
+    #              yet (P7's job, evidence-quality-gated) -- behaves
+    #              identically to shadow_v2 until then.
+    # v2         : the full cutover -- NOT implemented by this phase.
+    #              Recognized as a valid config value so the mode enum is
+    #              complete, but nothing in P5 wires the "V1 stops
+    #              publishing this event" behavior the table describes.
+    # Flipping this away from "v1" in production is a separate, later,
+    # explicitly-authorized step -- not a side effect of this default.
+    article_pipeline_mode: str = "v1"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

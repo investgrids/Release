@@ -44,6 +44,7 @@ from app.db.models.company_entity import CompanyEntity, CompanyAlias
 from app.db.models.financial_fact import FinancialFact
 from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
 from app.db.models.evidence_entity_link import EvidenceEntityLink
+from app.db.models.article_v2_shadow_execution import ArticleV2ShadowExecution
 
 __all__ = [
     "Opportunity",
@@ -94,4 +95,5 @@ __all__ = [
     "FinancialFact",
     "MarketRippleScoreSnapshot",
     "EvidenceEntityLink",
+    "ArticleV2ShadowExecution",
 ]
