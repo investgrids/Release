@@ -29,7 +29,7 @@ checked once, raised immediately, never a best-effort partial write.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,6 +41,7 @@ from app.services.article_v2.evidence_set_builder import ArticleEvidenceSet
 from app.services.article_v2.headline_engine import HeadlineResult
 from app.services.article_v2.identity import ArticleIdentity, PublicationResolution
 from app.services.article_v2.publication_translator import translate_composed_article
+from app.services.claim_authorization import AuthorizedClaim, Strength
 
 
 class PublicationRefusal(ValueError):
@@ -55,6 +56,7 @@ class EnforcedComposition:
     composed: ComposedArticle
     dropped_claim_count: int
     omitted_section_names: list[str]
+    authorizations: list[AuthorizedClaim] = field(default_factory=list)
 
 
 def _enforce_all_sections(composed: ComposedArticle, ctx: TranslationContext) -> EnforcedComposition:
@@ -67,10 +69,12 @@ def _enforce_all_sections(composed: ComposedArticle, ctx: TranslationContext) ->
     surviving_claims = []
     dropped_count = 0
     omitted_names: list[str] = []
+    authorizations: list[AuthorizedClaim] = []
 
     for section in composed.sections:
         result = enforce_section_authorization(section, ctx)
         dropped_count += len(result.dropped_claims)
+        authorizations.extend(result.authorizations)
         if result.section is None:
             omitted_names.append(section.name)
             continue
@@ -81,18 +85,50 @@ def _enforce_all_sections(composed: ComposedArticle, ctx: TranslationContext) ->
     enforced = replace(
         composed, sections=surviving_sections, all_claims=surviving_claims, word_count=word_count,
     )
-    return EnforcedComposition(composed=enforced, dropped_claim_count=dropped_count, omitted_section_names=omitted_names)
+    return EnforcedComposition(
+        composed=enforced, dropped_claim_count=dropped_count, omitted_section_names=omitted_names,
+        authorizations=authorizations,
+    )
+
+
+def summarize_authorization(enforced: EnforcedComposition) -> dict:
+    """A JSON-serializable summary of what P2 actually decided for one
+    ComposedArticle -- P6 telemetry's own `p2_authorization_summary`
+    column exists specifically to carry this out of the shadow
+    orchestrator without it having to re-derive CD3 behavior from
+    evidence_ids/headline text alone. Counts only SURVIVING claims'
+    strengths (AUTHORIZED/QUALIFIED) plus the total dropped
+    (UNAVAILABLE) count -- `enforce_section_authorization` never returns
+    an AuthorizedClaim for a dropped claim, so dropped_claim_count is
+    the only available count for that bucket, not a per-claim breakdown."""
+    authorized = sum(1 for a in enforced.authorizations if a.strength == Strength.AUTHORIZED)
+    qualified = sum(1 for a in enforced.authorizations if a.strength == Strength.QUALIFIED)
+    return {
+        "authorized_count": authorized,
+        "qualified_count": qualified,
+        "unavailable_count": enforced.dropped_claim_count,
+        "capabilities_used": sorted({a.capability.value for a in enforced.authorizations}),
+        "sections_omitted": enforced.omitted_section_names,
+    }
+
+
+@dataclass(frozen=True)
+class BuildResult:
+    fields: dict  # IntelligenceArticle constructor kwargs -- never anything else
+    authorization_summary: dict  # see summarize_authorization() -- P6 telemetry only, not a DB field
 
 
 def build_and_validate(
     *, article_id: str, decision: ArticleDecision, evidence_set: ArticleEvidenceSet,
     identity: ArticleIdentity, resolution: PublicationResolution, headline_result: HeadlineResult,
     composed: ComposedArticle, translation_ctx: TranslationContext | None = None,
-) -> dict:
+) -> BuildResult:
     """Runs P2 enforcement, then P1 translation, then the Final
     Publication Validator. Returns the validated `IntelligenceArticle`
-    constructor kwargs on success. Raises `PublicationRefusal` on any
-    failure -- never returns a partially-valid result."""
+    constructor kwargs (plus a P2 authorization summary for telemetry
+    callers -- never persisted as an IntelligenceArticle column) on
+    success. Raises `PublicationRefusal` on any failure -- never returns
+    a partially-valid result."""
     ctx = translation_ctx or TranslationContext()
 
     enforced = _enforce_all_sections(composed, ctx)
@@ -123,7 +159,7 @@ def build_and_validate(
     if not result.fields.get("headline"):
         raise PublicationRefusal("no usable headline -- refusing to publish.")
 
-    return result.fields
+    return BuildResult(fields=result.fields, authorization_summary=summarize_authorization(enforced))
 
 
 async def publish_v2_article(
@@ -138,11 +174,11 @@ async def publish_v2_article(
     `PublicationRefusal` before touching the session at all if the
     Final Publication Validator refuses -- no half-written row on
     failure."""
-    fields = build_and_validate(
+    build_result = build_and_validate(
         article_id=article_id, decision=decision, evidence_set=evidence_set, identity=identity,
         resolution=resolution, headline_result=headline_result, composed=composed, translation_ctx=translation_ctx,
     )
-    article = IntelligenceArticle(**fields)
+    article = IntelligenceArticle(**build_result.fields)
     db.add(article)
     await db.flush()
     return article

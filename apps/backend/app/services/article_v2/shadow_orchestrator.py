@@ -88,6 +88,7 @@ class _PendingCandidate:
     context: object = None
     identity: object = None
     resolution: object = None
+    matched_article_id: str | None = None
 
 
 def _new_record(*, triage_event_id: str | None, symbol: str | None, mode: ArticlePipelineMode) -> ArticleV2ShadowExecution:
@@ -145,6 +146,13 @@ async def _run_stage_one(
     return _PendingCandidate(
         event_id, symbol, v1_decision, record, start_time,
         decision=decision, evidence_set=es, context=ctx, identity=identity,
+        # P6 remediation (2026-09-08): the real matched-article id C1
+        # already resolved (set only when reason_code == "ALREADY_COVERED",
+        # see candidate_gate.py's own CandidateDecision docstring) --
+        # previously dropped here and hardcoded to None at the
+        # resolve_uniqueness() call in stage 2 below, which made every
+        # real UPDATE_EXISTING decision misreport as NO_PUBLICATION.
+        matched_article_id=candidate.matched_article_id,
     )
 
 
@@ -198,7 +206,7 @@ async def run_shadow_batch(
             continue  # already finalized (stopped at C1/C2/C4) in stage 1
         resolution = resolve_uniqueness(
             pc.identity, c4_publication_action=pc.decision.publication_action,
-            c4_matched_article_id=None, known_identities=known_identities,
+            c4_matched_article_id=pc.matched_article_id, known_identities=known_identities,
         )
         pc.resolution = resolution
         pc.record.c5_publication_action = resolution.publication_action
@@ -254,13 +262,14 @@ async def run_shadow_batch(
         pc.record.stage_reached = "COMPOSE"
 
         try:
-            build_and_validate(
+            build_result = build_and_validate(
                 article_id=pc.record.id, decision=pc.decision, evidence_set=pc.evidence_set,
                 identity=pc.identity, resolution=pc.resolution, headline_result=headline_result,
                 composed=composed,
             )
             pc.record.stage_reached = "P4"
             pc.record.p1_translation_status = "ok"
+            pc.record.p2_authorization_summary = build_result.authorization_summary
             pc.record.p4_validation_result = "would_publish"
             pc.record.would_publish = True
         except PublicationRefusal as exc:
