@@ -30,6 +30,7 @@ interface Sentiment { score: number; label: string; retail: string; hni: string;
 interface IPOData {
   ipos: IPO[]; stats: { upcoming: number; ongoing: number; listed: number; avg_listing_gain: number };
   sector_trends: SectorTrend[]; sentiment: Sentiment; ai_insight: string;
+  is_mock?: boolean; data_source?: string;
 }
 
 type MainTab = "dashboard" | "upcoming" | "ongoing" | "listed" | "calendar";
@@ -359,6 +360,33 @@ export function IPOHubContent({ headingLevel = "h1" }: { headingLevel?: "h1" | "
       })
       .catch(() => {});
   }, []);
+
+  // No real NSE/BSE/SEBI IPO data provider is wired up yet (backend
+  // refuses to serve the dev placeholder set in production — see
+  // app/api/ipo.py's own docstring). Rather than render the full
+  // dashboard shell with an all-zero stats bar, a fake-looking
+  // "Bullish"/78 sentiment gauge, and hardcoded insight copy that has
+  // nothing to do with the actual (empty) data, show one honest,
+  // uncluttered state. Never populate cards just to avoid an empty page.
+  if (data?.data_source === "unavailable") {
+    return (
+      <main className="min-w-0 space-y-5 pb-10">
+        <div className="flex items-center gap-2.5 mb-1">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-gradient-to-br from-violet-500/20 to-sky-500/20 border border-surface-border/10 text-violet-600 dark:text-violet-300">
+            <ClipboardList className="h-5 w-5" />
+          </div>
+          <Heading className="text-3xl font-bold tracking-tight text-text-primary">IPO HUB</Heading>
+        </div>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-[24px] border border-surface-border/10 bg-text-primary/[0.02] px-6 py-20 text-center">
+          <ClipboardList className="h-9 w-9 text-text-muted" />
+          <p className="text-base font-semibold text-text-primary">IPO data is currently unavailable</p>
+          <p className="max-w-md text-sm text-text-secondary">
+            Live IPO coverage is being prepared. MarketRipple will only display verified exchange-sourced IPO data.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   const ipos = data?.ipos ?? [];
   const stats = data?.stats ?? { upcoming: 0, ongoing: 0, listed: 0, avg_listing_gain: 0 };
