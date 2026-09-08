@@ -180,8 +180,19 @@ Return JSON only (no extra text):
 
     async def extract_companies(
         self, title: str, text: str
-    ) -> List[Dict[str, Any]]:
-        result, _status = await self._safe_json_call(
+    ) -> tuple[List[Dict[str, Any]], str]:
+        """Event Enrichment R1 (2026-09-08 audit correction): this used to
+        discard _safe_json_call's own integrity_status on the theory that
+        an empty-list fallback is "self-evidently honest." That reasoning
+        was wrong -- an empty list is byte-identical whether the AI
+        genuinely found zero companies (VALID) or this call itself failed
+        and [] is just the designated fallback (FALLBACK). Returning the
+        real status (matching every dict-shaped call site's own existing
+        contract) lets event_pipeline.py's health check tell these apart,
+        instead of a silent stage-4 failure masquerading as legitimate
+        "insufficient evidence" all the way down to a `done`+null-score
+        row that should have been retried."""
+        result, status = await self._safe_json_call(
             system="""You are an Indian equity markets analyst.
 Extract all NSE-listed companies directly affected by this event.
 Return a JSON array only (empty array if none apply):
@@ -192,16 +203,13 @@ Limit to 10 companies maximum.""",
             fallback=[],
             max_tokens=1024,
         )
-        # No tagging needed here -- this call's only fallback is [], which
-        # is already self-evidently honest ("nothing extracted"), unlike
-        # the dict-shaped fallbacks above that manufacture plausible-
-        # looking placeholder content.
-        return result if isinstance(result, list) else []
+        return (result if isinstance(result, list) else []), status
 
     async def extract_sectors(
         self, title: str, text: str
-    ) -> List[Dict[str, Any]]:
-        result, _status = await self._safe_json_call(
+    ) -> tuple[List[Dict[str, Any]], str]:
+        """See extract_companies's docstring -- same R1 correction."""
+        result, status = await self._safe_json_call(
             system="""You are an Indian equity sector analyst.
 Identify sectors most affected by this event.
 Return a JSON array only:
@@ -213,7 +221,7 @@ Return 1-5 most relevant sectors only.""",
             fallback=[],
             max_tokens=512,
         )
-        return result if isinstance(result, list) else []
+        return (result if isinstance(result, list) else []), status
 
     async def generate_timeline(
         self, title: str, text: str, event_type: str

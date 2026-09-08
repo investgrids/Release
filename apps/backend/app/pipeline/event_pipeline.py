@@ -169,10 +169,25 @@ async def run_event_pipeline(event: Event, db: AsyncSession) -> bool:
         # Stage 4 — Extract companies (run concurrently with stage 5)
         await asyncio.sleep(_STAGE_DELAY)
         logger.debug("[Pipeline:%s] extract companies + sectors", eid)
-        companies_raw, sectors_raw = await asyncio.gather(
+        (companies_raw, companies_status), (sectors_raw, sectors_status) = await asyncio.gather(
             ai.extract_companies(title, full_text),
             ai.extract_sectors(title, full_text),
         )
+        # Event Enrichment R1 (2026-09-08 audit): extract_companies/
+        # extract_sectors used to discard their own real integrity_status
+        # (see deepseek_provider.py's own corrected docstring) -- an empty
+        # list result was indistinguishable between "AI genuinely found
+        # nothing" (VALID) and "this call silently failed" (FALLBACK),
+        # letting a stage-4-specific provider failure bypass this
+        # pipeline's only health check (stage 2, above) entirely and
+        # resolve as an honestly-labeled-but-wrong insufficient_data/done
+        # row that should have been retried instead. VALID + [] is still
+        # a legitimate "zero companies/sectors" result and must NOT retry
+        # -- only a real FALLBACK does.
+        if companies_status == IntegrityStatus.FALLBACK.value or sectors_status == IntegrityStatus.FALLBACK.value:
+            raise _AIUnavailable(
+                "extract_companies/extract_sectors returned its fallback -- AI provider unavailable"
+            )
 
         # Stage 5 — Impact analysis (AI's structured read: market_reaction, analysis,
         # and per-entity impact_type/reason text — used for narrative, NOT for the

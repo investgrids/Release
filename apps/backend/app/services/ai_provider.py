@@ -47,19 +47,22 @@ class AIProvider(ABC):
     @abstractmethod
     async def extract_companies(
         self, title: str, text: str
-    ) -> List[Dict[str, Any]]:
+    ) -> tuple[List[Dict[str, Any]], str]:
         """
-        Return list of affected companies:
+        Return (list of affected companies, integrity_status):
         [{symbol, name, impact_type (beneficiary|loser|neutral), reason, impact_score}]
+        integrity_status is measurement_semantics.IntegrityStatus.VALID/FALLBACK.value
+        (Event Enrichment R1, 2026-09-08) -- an empty list alone cannot tell a caller
+        whether the AI genuinely found zero companies or this call itself failed.
         """
         raise NotImplementedError
 
     @abstractmethod
     async def extract_sectors(
         self, title: str, text: str
-    ) -> List[Dict[str, Any]]:
+    ) -> tuple[List[Dict[str, Any]], str]:
         """
-        Return list of affected sectors:
+        Return (list of affected sectors, integrity_status) -- see extract_companies.
         [{sector, impact (positive|negative|neutral), impact_score, reason}]
         """
         raise NotImplementedError
