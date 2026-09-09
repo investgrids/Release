@@ -50,7 +50,41 @@ class EventRepository:
         )
         return result.scalars().first()
 
-    async def get_pending_enrichment(self, limit: int = 10) -> list[Event]:
+    # R2 (2026-09-09 freshness/backlog audit): strict oldest-eligible-first
+    # FIFO across the whole queue guarantees no retry-eligible row starves
+    # forever, but under a large backlog it has the opposite failure mode —
+    # backlog rows always have an earlier created_at than any fresh arrival,
+    # so 100% of a day's fresh events queued behind the entire backlog with
+    # zero same-day coverage (measured live: 5,062 pending, every day's
+    # arrivals from 2026-08-30 onward still ~100% pending 9+ days later).
+    # A 14-day real-arrival replay (events.created_at, prod, read-only)
+    # showed arrivals are bursty batch-injection, not steady (79.8% of
+    # 5-min windows empty, spikes up to 25/window, never sustained past
+    # 10min) — ruling out a naive fixed per-cycle ratio (wastes capacity on
+    # empty windows) in favor of a fresh-first, work-conserving policy with
+    # a bounded backlog floor as insurance against sustained overload (a
+    # stress-replay at demand > total capacity showed a floor of exactly
+    # zero without a guarantee — the same starvation bug this file's
+    # existing ordering was built to prevent, just backlog-side instead of
+    # fresh-side). Three guarantee frequencies were replayed against the
+    # real 14-day trace (every 2/3/4 cycles); N=4 measured strictly best
+    # fresh latency (p50=80min vs 110min at N=2) with zero backlog-drain
+    # difference in the real regime (all three fully drain the real 5,062
+    # backlog in 14 days — fallthrough alone does that work, since real
+    # average demand sits well under total capacity; the reservation is
+    # inert today and only becomes load-bearing under future sustained
+    # overload). None of the three came near a "95% within 1h" aspirational
+    # target (best case 44.7%) — that ceiling comes from burst size vs.
+    # only _BATCH=3 slots/cycle, not from this reservation, and fixing it
+    # would require changing _BATCH or cadence, explicitly out of scope
+    # here. _FRESH_WINDOW_HOURS is a proxy for "not yet attempted," not a
+    # claim that 23h enrichment is acceptable — last_attempt_at isn't
+    # reliably recorded on success, so it can't be used as the queue-state
+    # discriminator without a schema change (not done here).
+    _FRESH_WINDOW_HOURS = 24
+    _BACKLOG_GUARANTEE_EVERY_N_BUCKETS = 4
+
+    async def get_pending_enrichment(self, limit: int = 10, *, now: "datetime | None" = None) -> list[Event]:
         """Free-tier data track, Stage 2 (2026-08-06): now also picks up
         'failed' events and 'processing' events stuck past a stale timeout —
         previously only 'pending' was selected, so a worker crash (or any
@@ -80,27 +114,88 @@ class EventRepository:
         behind a steady stream of newer pending events. Ordering by
         COALESCE(next_retry_at, created_at) ASC instead treats "when this
         row became eligible to run" as one fair FIFO queue, whether that's
-        a pending row's creation time or a failed row's backoff expiry."""
+        a pending row's creation time or a failed row's backoff expiry.
+
+        R2 two-lane split (2026-09-09): lane membership is determined
+        purely by Event.created_at (age) — a retry never promotes an old
+        event into the fresh lane, and never demotes a fresh event into
+        backlog early; within each lane, the exact same
+        COALESCE(next_retry_at, created_at) ASC eligibility/ordering above
+        still applies unchanged. Once every _BACKLOG_GUARANTEE_EVERY_N_BUCKETS
+        wall-clock buckets (derived from `now`, not a persisted counter —
+        restart-safe, but means a genuinely missed bucket has no catch-up:
+        this guarantees one qualifying 5-min bucket every ~20min of
+        wall-clock time, not literally every 4th executed cycle), exactly
+        one eligible backlog row is reserved before fresh is served; every
+        other slot is fresh-first. Always work-conserving in both
+        directions: an unsatisfiable guarantee (no eligible backlog row)
+        falls through to fresh, and any fresh shortfall falls through to
+        backlog — so a quiet fresh day still drains backlog at full
+        capacity, and a sustained fresh flood still can't fully starve
+        backlog. `limit < 1` intentionally bypasses all of this and
+        reproduces the exact single-query pre-R2 behavior (including
+        whatever SQLAlchemy does with a non-positive LIMIT), since no
+        caller relies on lane semantics at a degenerate limit."""
         from datetime import datetime, timedelta, timezone
         from app.pipeline.event_pipeline import _MAX_ENRICHMENT_RETRIES
+        from app.core.config import settings
         from sqlalchemy import func
 
-        now = datetime.now(timezone.utc)
+        now = now or datetime.now(timezone.utc)
         stale_before = now - timedelta(minutes=45)
         eligible_at = func.coalesce(Event.next_retry_at, Event.created_at)
-        result = await self._db.execute(
+        eligibility = or_(
+            Event.enrichment_status == "pending",
+            (Event.enrichment_status == "failed")
+            & (Event.retry_count < _MAX_ENRICHMENT_RETRIES)
+            & or_(Event.next_retry_at.is_(None), Event.next_retry_at <= now),
+            (Event.enrichment_status == "processing") & (Event.updated_at < stale_before),
+        )
+
+        if limit < 1:
+            result = await self._db.execute(
+                select(Event).where(eligibility).order_by(eligible_at.asc()).limit(limit)
+            )
+            return list(result.scalars().all())
+
+        cutoff = now - timedelta(hours=self._FRESH_WINDOW_HOURS)
+        interval_sec = settings.event_enrichment_interval_sec
+        bucket = int(now.timestamp() // interval_sec)
+        force_backlog = (bucket % self._BACKLOG_GUARANTEE_EVERY_N_BUCKETS) == 0
+
+        fresh_result = await self._db.execute(
             select(Event)
-            .where(or_(
-                Event.enrichment_status == "pending",
-                (Event.enrichment_status == "failed")
-                & (Event.retry_count < _MAX_ENRICHMENT_RETRIES)
-                & or_(Event.next_retry_at.is_(None), Event.next_retry_at <= now),
-                (Event.enrichment_status == "processing") & (Event.updated_at < stale_before),
-            ))
+            .where(eligibility, Event.created_at >= cutoff)
             .order_by(eligible_at.asc())
             .limit(limit)
         )
-        return list(result.scalars().all())
+        fresh_rows = list(fresh_result.scalars().all())
+
+        backlog_result = await self._db.execute(
+            select(Event)
+            .where(eligibility, Event.created_at < cutoff)
+            .order_by(eligible_at.asc())
+            .limit(limit)
+        )
+        backlog_rows = list(backlog_result.scalars().all())
+
+        selected: list[Event] = []
+        remaining = limit
+        backlog_offset = 0
+
+        if force_backlog and backlog_rows:
+            selected.append(backlog_rows[0])
+            backlog_offset = 1
+            remaining -= 1
+
+        take_fresh = min(remaining, len(fresh_rows))
+        selected.extend(fresh_rows[:take_fresh])
+        remaining -= take_fresh
+
+        take_backlog = min(remaining, len(backlog_rows) - backlog_offset)
+        selected.extend(backlog_rows[backlog_offset:backlog_offset + take_backlog])
+
+        return selected
 
     async def get_failed_enrichment(self, limit: int = 5) -> list[Event]:
         result = await self._db.execute(
