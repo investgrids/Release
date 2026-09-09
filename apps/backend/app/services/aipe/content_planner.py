@@ -235,6 +235,61 @@ _QUESTION_TEMPLATES_NEUTRAL = [
     "Should {company} Investors Hold or Act? {event_phrase}",
 ]
 
+# Phase-free deterministic fallbacks, used only when _safe_event_phrase
+# can't produce a grammatically-complete clause within budget (see its own
+# docstring for the real incident this exists for). Same leading
+# recommendation-question framing as index 0 of each pool above — that
+# framing is pre-existing, already shipping, and already passes
+# quality_validator.validate()'s scan_recommendation_language() gate — this
+# only replaces the {event_phrase} clause with a fixed, factual, always-
+# grammatical trailer that names no new fact, number, or direction.
+_QUESTION_FALLBACK_POSITIVE = "Should I Buy {company}? What Investors Need To Know"
+_QUESTION_FALLBACK_NEGATIVE = "Should I Sell {company}? What Investors Need To Know"
+_QUESTION_FALLBACK_NEUTRAL = "What Does This Mean For {company}? What Investors Need To Know"
+
+_EVENT_PHRASE_MAX_LEN = 60
+# Real headlines in this app are ~65% clause-structured (see the comment
+# above _QUESTION_TEMPLATES_POSITIVE) -- cutting only at one of these
+# characters, when one exists within budget, preserves a complete clause
+# instead of an arbitrary mid-word/mid-sentence fragment.
+_CLAUSE_BOUNDARY_RE = re.compile(r"[:;—–]")
+_MIN_SAFE_PHRASE_LEN = 15  # a clause shorter than this reads as noise, not a real phrase
+
+
+def _safe_event_phrase(primary_headline: str, max_len: int = _EVENT_PHRASE_MAX_LEN) -> str | None:
+    """Returns a grammatically-complete prefix of primary_headline within
+    max_len chars, or None if no such prefix exists -- the caller must then
+    use a phrase-free fallback template rather than force an incomplete one.
+
+    Real incident (2026-09-09): the previous version did
+    `phrase[:57].rsplit(" ", 1)[0] + "..."` -- an arbitrary character-count
+    cut at the nearest WORD boundary, not a CLAUSE boundary, then papered
+    over the cut with "...". A word boundary says nothing about whether the
+    result is a complete thought. Live, published example: "Should I Buy
+    Tata Steel? Why Crude Oil Volatility and Geopolitical Tensions Are..."
+    -- a real, grammatically incomplete headline that reached production
+    because nothing in quality_validator.validate() checks for sentence
+    completeness (scan_recommendation_language/scan_historical_forecast_
+    collapse check for unsafe CONTENT, not truncation shape; the
+    placeholder check only catches literal unfilled "[...]" brackets).
+    Restricting the cut to a genuine clause boundary (colon/semicolon/dash)
+    guarantees the result reads as a complete thought; returning None when
+    no such boundary exists within budget is the honest alternative to
+    forcing a fragment.
+    """
+    phrase = re.sub(r"\s+", " ", primary_headline).strip()
+    if not phrase:
+        return None
+    if len(phrase) <= max_len:
+        return phrase
+    window = phrase[:max_len]
+    boundaries = list(_CLAUSE_BOUNDARY_RE.finditer(window))
+    if boundaries:
+        candidate = phrase[:boundaries[-1].start()].strip()
+        if len(candidate) >= _MIN_SAFE_PHRASE_LEN:
+            return candidate
+    return None
+
 
 def plan_extra_angles(
     primary_article_type: str,
@@ -319,20 +374,25 @@ def plan_extra_angles(
                 None,
             ))
 
-    event_phrase = re.sub(r"\s+", " ", primary_headline).strip()
-    if len(event_phrase) > 60:
-        event_phrase = event_phrase[:57].rsplit(" ", 1)[0] + "..."
+    event_phrase = _safe_event_phrase(primary_headline)
     for i, c in enumerate(companies[:max_questions]):
         company_name = str(c.get("name") or c["symbol"])
         symbol = str(c["symbol"]).upper()
         impact = str(c.get("impact") or "neutral").lower()
-        pool = (
-            _QUESTION_TEMPLATES_POSITIVE if impact == "positive"
-            else _QUESTION_TEMPLATES_NEGATIVE if impact == "negative"
-            else _QUESTION_TEMPLATES_NEUTRAL
-        )
-        q_template = pool[i % len(pool)]
-        question_text = q_template.format(company=company_name, event_phrase=event_phrase)
+        if impact == "positive":
+            pool, fallback = _QUESTION_TEMPLATES_POSITIVE, _QUESTION_FALLBACK_POSITIVE
+        elif impact == "negative":
+            pool, fallback = _QUESTION_TEMPLATES_NEGATIVE, _QUESTION_FALLBACK_NEGATIVE
+        else:
+            pool, fallback = _QUESTION_TEMPLATES_NEUTRAL, _QUESTION_FALLBACK_NEUTRAL
+        if event_phrase is not None:
+            q_template = pool[i % len(pool)]
+            question_text = q_template.format(company=company_name, event_phrase=event_phrase)
+        else:
+            # No safe (grammatically-complete) event phrase available --
+            # a deterministic factual fallback, never another speculative
+            # attempt at phrasing, per the owner's explicit instruction.
+            question_text = fallback.format(company=company_name)
         q_slug = re.sub(r"[^a-z0-9]+", "-", question_text.lower())[:40].strip("-")
         plans.append((
             "question_intelligence",
