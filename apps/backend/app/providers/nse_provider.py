@@ -61,14 +61,41 @@ _MAX_HEADLINE_LEN = 400
 _SENTENCE_BOUNDARY_RE = re.compile(r"[.!?](?=\s|$)")
 _MIN_SAFE_HEADLINE_LEN = 40  # a sentence-boundary cut shorter than this is unhelpfully thin, not a real title
 
+# Real bug found via the historical-repair inventory pass, 2026-09-10,
+# BEFORE it reached production repair (would also have degraded a small
+# slice of future live titles): the sentence-boundary regex above alone
+# treats a period after a common abbreviation as a real sentence end --
+# confirmed live specimens: "...face value of Re. 1/- each..." was being
+# cut to "...face value of Re." and "...meeting held today i.e. on August
+# 11..." was being cut to "...held today i.e." -- both SHORTER than, and
+# no more complete than, the text they were meant to improve on. This
+# denylist is specific to the real NSE corporate-announcement vocabulary
+# these abbreviations were actually observed in, not a general-purpose
+# English sentence tokenizer.
+_KNOWN_ABBREVIATIONS = {
+    "i.e", "e.g", "rs", "re", "no", "nos", "mr", "mrs", "ms", "dr", "prof",
+    "ltd", "pvt", "co", "corp", "inc", "govt", "dept", "regn", "regd",
+    "addl", "asst", "w.r.t", "p.m", "a.m", "etc", "vs", "u/s", "u/r",
+}
+
+
+def _is_abbreviation_boundary(window: str, period_pos: int) -> bool:
+    """True if the period at `period_pos` in `window` closes a known
+    abbreviation rather than a real sentence."""
+    preceding = window[:period_pos].split()
+    if not preceding:
+        return False
+    return preceding[-1].lower().rstrip(".") in _KNOWN_ABBREVIATIONS
+
 
 def _clip_headline(source_text: str) -> str:
     if len(source_text) <= _MAX_HEADLINE_LEN:
         return source_text
     window = source_text[:_MAX_HEADLINE_LEN]
-    boundaries = list(_SENTENCE_BOUNDARY_RE.finditer(window))
-    if boundaries:
-        candidate = source_text[:boundaries[-1].end()].strip()
+    for m in reversed(list(_SENTENCE_BOUNDARY_RE.finditer(window))):
+        if _is_abbreviation_boundary(window, m.start()):
+            continue
+        candidate = source_text[:m.end()].strip()
         if len(candidate) >= _MIN_SAFE_HEADLINE_LEN:
             return candidate
     # No safe sentence boundary within budget (genuinely long, unbroken
