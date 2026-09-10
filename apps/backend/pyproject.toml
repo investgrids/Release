@@ -50,6 +50,12 @@ dependencies = [
   # Rate limiting
   "slowapi>=0.1.9",
   "limits>=3.6.0",
+
+  # Object storage (CR-0b, 2026-09-10) — S3-compatible client for the
+  # off-volume backup destination (Railway Bucket). Was already present
+  # as an undeclared transitive dependency; declared explicitly now that
+  # real production code (app/db/remote_backup.py) depends on it.
+  "boto3>=1.34.0",
 ]
 
 [project.optional-dependencies]

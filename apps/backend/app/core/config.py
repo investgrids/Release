@@ -137,6 +137,19 @@ class Settings(BaseSettings):
     # ── Finnhub ───────────────────────────────────────────────────────────────
     finnhub_api_key: str = ""
 
+    # ── Backup bucket (CR-0b, 2026-09-10) ──────────────────────────────────────
+    # Off-volume S3-compatible destination (Railway Bucket) for
+    # app/db/remote_backup.py. Unset in any environment without a
+    # provisioned bucket (e.g. local dev) — remote_backup.py treats a
+    # missing access key as "feature off" and skips, same posture as
+    # admin_api_key/finnhub_api_key above; local backups (app/db/backup.py)
+    # are unaffected either way.
+    backup_bucket_endpoint: str = ""
+    backup_bucket_region: str = ""
+    backup_bucket_name: str = ""
+    backup_bucket_access_key_id: str = ""
+    backup_bucket_secret_access_key: str = ""
+
     # ── Fyers (primary market data provider) ──────────────────────────────────
     # Get credentials at https://myapi.fyers.in/dashboard
     # App-level connection — no per-user auth needed.

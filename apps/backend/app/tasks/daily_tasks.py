@@ -526,13 +526,33 @@ async def job_seed_opportunities() -> None:
 
 async def job_backup_database_daily() -> None:
     """Snapshot the database to the persistent volume. Off-peak hour so the
-    (brief) SQLite backup-API lock doesn't compete with live traffic."""
+    (brief) SQLite backup-API lock doesn't compete with live traffic.
+
+    CR-0b (2026-09-10): also runs the independent off-volume backup
+    (app.db.remote_backup) in the same job. The same-volume path above is
+    now routinely skipping (status=insufficient_disk_headroom — the live
+    DB has outgrown what same-volume pruning alone can free, see
+    backup.py's own CR-0 comment), so the remote path is the one actually
+    expected to succeed going forward; it's staged entirely on ephemeral
+    disk and never touches /data, so it runs regardless of the local
+    path's outcome. Each path's own try/except means a failure in either
+    can never affect or crash the other."""
     import asyncio
     from app.db.backup import backup_database
+    from app.db.remote_backup import backup_to_bucket
 
     log.info("job.backup_database.start", kind="daily")
-    result = await asyncio.to_thread(backup_database, "daily")
-    log.info("job.backup_database.done", **result)
+    try:
+        result = await asyncio.to_thread(backup_database, "daily")
+        log.info("job.backup_database.done", **result)
+    except Exception as exc:
+        log.error("job.backup_database.error", kind="daily", error=str(exc))
+
+    try:
+        remote_result = await asyncio.to_thread(backup_to_bucket, "daily")
+        log.info("job.backup_remote.done", **remote_result)
+    except Exception as exc:
+        log.error("job.backup_remote.error", kind="daily", error=str(exc))
 
 
 # ── Startup — one-off restart snapshot (kept: last 3 only) ───────────────────
@@ -540,13 +560,25 @@ async def job_backup_database_daily() -> None:
 async def job_backup_database_boot() -> None:
     """Snapshot the database on process boot — a just-in-case safety net
     around restarts/deploys, not a dated history, so it gets a much shorter
-    retention than the daily backup."""
+    retention than the daily backup. See job_backup_database_daily's own
+    docstring for why this also runs the independent CR-0b off-volume
+    backup in the same job."""
     import asyncio
     from app.db.backup import backup_database
+    from app.db.remote_backup import backup_to_bucket
 
     log.info("job.backup_database.start", kind="boot")
-    result = await asyncio.to_thread(backup_database, "boot")
-    log.info("job.backup_database.done", **result)
+    try:
+        result = await asyncio.to_thread(backup_database, "boot")
+        log.info("job.backup_database.done", **result)
+    except Exception as exc:
+        log.error("job.backup_database.error", kind="boot", error=str(exc))
+
+    try:
+        remote_result = await asyncio.to_thread(backup_to_bucket, "boot")
+        log.info("job.backup_remote.done", **remote_result)
+    except Exception as exc:
+        log.error("job.backup_remote.error", kind="boot", error=str(exc))
 
 
 # ── Startup once — repair evergreen articles contaminated by the ───────────
