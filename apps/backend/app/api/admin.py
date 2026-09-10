@@ -6,6 +6,9 @@ like an unmounted volume before they cause data loss.
 """
 from __future__ import annotations
 
+import json
+import pathlib
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -160,3 +163,110 @@ async def backfill_comparison_content(
 
     await db.commit()
     return {"updated": updated, "skipped": skipped, "total_checked": len(articles)}
+
+
+# ── TEMPORARY — Historical Question-Intelligence Title Remediation ─────────
+# One-off, bounded execution surface for the 62-row title-completeness fix
+# (2026-09-09/10 session). This session has no direct production DB
+# connection (per this whole engagement's established discipline — see
+# feedback_production_write_discipline), so the write must go through a
+# reviewable, auditable endpoint whose own request/response is a captured
+# artifact — not a raw SSH command. Same shape as the
+# admin-protected article retirement endpoint and the 2026-08-09
+# 429-backlog-reset trigger: an explicit, committed, frozen manifest (never
+# a broad WHERE-style query), dry_run defaults True, real writes require
+# dry_run=false explicitly. Meant for removal (together with the manifest
+# loader here, not the manifest file itself) once the repair is confirmed —
+# do not leave a production-DB-write endpoint sitting in the repo for later.
+_TITLE_REPAIR_MANIFEST_PATH = (
+    pathlib.Path(__file__).resolve().parent.parent.parent / "scripts" / "question_title_repair_manifest.json"
+)
+
+
+def _load_title_repair_manifest() -> list[dict]:
+    data = json.loads(_TITLE_REPAIR_MANIFEST_PATH.read_text(encoding="utf-8"))
+    return data["entries"]
+
+
+@router.post("/repair-question-titles", dependencies=[Depends(require_admin_key)])
+async def repair_question_titles(dry_run: bool = True, db: AsyncSession = Depends(get_db)):
+    """Applies the frozen, pre-reviewed manifest of 62 deterministic title
+    repairs for published question_intelligence articles whose headline
+    was truncated into a grammatically incomplete fragment by the
+    since-fixed content_planner.py bug. Each entry's `before` values were
+    captured in the same read-only inventory pass this manifest was
+    generated from -- if a row's CURRENT stored headline no longer matches
+    that snapshot (e.g. a continuous-update pass touched it since), this
+    skips that row rather than blindly overwriting unknown current state,
+    which also makes a repeat call idempotent (already-repaired or
+    already-diverged rows are cleanly skipped, never double-applied or
+    clobbered). Only headline/seo_title/json_ld.headline are ever written;
+    slug, canonical_url, body, evidence, companies_affected, published_at,
+    created_at, and every other column are never touched by this route."""
+    from app.db.models.intelligence_article import IntelligenceArticle
+
+    entries = _load_title_repair_manifest()
+    ids = [e["id"] for e in entries]
+
+    result = await db.execute(select(IntelligenceArticle).where(IntelligenceArticle.id.in_(ids)))
+    articles_by_id = {a.id: a for a in result.scalars().all()}
+
+    report = []
+    updated = 0
+    would_update = 0
+    skipped_missing = 0
+    skipped_state_changed = 0
+
+    for entry in entries:
+        article = articles_by_id.get(entry["id"])
+        if article is None:
+            skipped_missing += 1
+            report.append({"id": entry["id"], "outcome": "skipped_missing"})
+            continue
+
+        current_json_ld_headline = (article.json_ld or {}).get("headline") if isinstance(article.json_ld, dict) else None
+        expected_before = entry["before"]
+        state_matches = (
+            article.headline == expected_before["headline"]
+            and article.seo_title == expected_before["seo_title"]
+            and current_json_ld_headline == expected_before["json_ld_headline"]
+        )
+        if not state_matches:
+            skipped_state_changed += 1
+            report.append({
+                "id": entry["id"], "outcome": "skipped_state_changed",
+                "current_headline": article.headline,
+            })
+            continue
+
+        proposed = entry["proposed"]
+        if dry_run:
+            would_update += 1
+            report.append({
+                "id": entry["id"], "outcome": "would_update",
+                "old_headline": article.headline, "new_headline": proposed["headline"],
+            })
+        else:
+            article.headline = proposed["headline"]
+            article.seo_title = proposed["seo_title"]
+            if isinstance(article.json_ld, dict):
+                article.json_ld = {**article.json_ld, "headline": proposed["json_ld_headline"]}
+            updated += 1
+            report.append({
+                "id": entry["id"], "outcome": "updated",
+                "old_headline": expected_before["headline"], "new_headline": proposed["headline"],
+            })
+
+    if not dry_run and updated:
+        await db.commit()
+
+    return {
+        "dry_run": dry_run,
+        "manifest_size": len(entries),
+        "matched_current_state": len(entries) - skipped_missing - skipped_state_changed,
+        "skipped_missing": skipped_missing,
+        "skipped_state_changed": skipped_state_changed,
+        "would_update": would_update,
+        "updated": updated,
+        "results": report,
+    }

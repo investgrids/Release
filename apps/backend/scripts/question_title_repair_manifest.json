@@ -1,0 +1,947 @@
+{
+  "description": "Historical Question-Intelligence Title Remediation -- frozen manifest, generated 2026-09-09 from a read-only production inventory + direction-consistency dry-run. See project memory / session record for full methodology.",
+  "source_snapshot_time_utc": "2026-09-09T16:53:26.410367+00:00",
+  "repair_count": 62,
+  "unsafe_ids_excluded": [
+    "1eaddebb-0c4b-473c-91c4-dea342dd983d",
+    "f2262c73-32ca-4ea0-b462-737040e51b1c",
+    "5add769c-4cf7-4c6a-aec8-6e62543a841a",
+    "240346c4-0637-48d2-98c6-274fcc89fb6c",
+    "c9a8b103-e87b-485f-ab11-3f2b1b5d4d5b",
+    "2cf0ca44-7836-4fde-ad94-4b20fac5d52e",
+    "2d8e4520-c014-48e7-9247-b3d47c432b84",
+    "35aed749-c66c-4e8f-9ec0-08461ebbb9b7"
+  ],
+  "entries": [
+    {
+      "id": "81f2a595-879c-401d-9afc-2f10e74fa025",
+      "angle_entity": "SBIN",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "Should I Buy SBI? What US Fed Rate Hike Means For Indian Investors, SBI,...",
+        "seo_title": "Should I Buy SBI? What US Fed Rate Hike Means For SBI Investors",
+        "json_ld_headline": "Should I Buy SBI? What US Fed Rate Hike Means For Indian Investors, SBI,..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "f9c98813-256a-41c2-8ae9-13085da969bb",
+      "angle_entity": "HDFCBANK",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "What US Fed Rate Hike Means For Indian Investors, SBI,... — Good or Bad for HDFC Bank Investors?",
+        "seo_title": "What US Fed Rate Hike Means For HDFC Bank, SBI Investors",
+        "json_ld_headline": "What US Fed Rate Hike Means For Indian Investors, SBI,... — Good or Bad for HDFC Bank Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "seo_title": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "d806dfcf-0d4f-4051-8baa-4733a710b0d1",
+      "angle_entity": "NSEI",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "Should I Buy NSEI? What US Fed's Hawkish Pause Means For NSEI, BANKNIFTY...",
+        "seo_title": "What US Fed's Hawkish Pause Means For NSEI, BANKNIFTY Investors",
+        "json_ld_headline": "Should I Buy NSEI? What US Fed's Hawkish Pause Means For NSEI, BANKNIFTY..."
+      },
+      "proposed": {
+        "headline": "Should I Buy NSEI? What Investors Need To Know",
+        "seo_title": "Should I Buy NSEI? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy NSEI? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "4a485873-4b0a-4c60-ae57-bf280c9b0456",
+      "angle_entity": "IOC",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "Should I Buy Indian Oil Corp? How Rising Brent Crude Above ₹90 Affects IOC, HPCL, BPCL...",
+        "seo_title": "Should I Buy IOC? Brent >$90 Impact on IOC, HPCL, BPCL",
+        "json_ld_headline": "Should I Buy Indian Oil Corp? How Rising Brent Crude Above ₹90 Affects IOC, HPCL, BPCL..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Indian Oil Corporation? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Indian Oil Corporation? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Indian Oil Corporation? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "67ba39a0-c23a-4d77-be6e-fee25c0699d9",
+      "angle_entity": "HPCL",
+      "direction_note": "MISMATCH inferred=positive stored=negative",
+      "before": {
+        "headline": "How Rising Brent Crude Above ₹90 Affects IOC, HPCL, BPCL... — Good or Bad for Hindustan Petroleum Investors?",
+        "seo_title": "How Rising Brent Crude Above ₹90 Affects IOC, HPCL, BPCL... — Goo",
+        "json_ld_headline": "How Rising Brent Crude Above ₹90 Affects IOC, HPCL, BPCL... — Good or Bad for Hindustan Petroleum Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Hindustan Petroleum? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Hindustan Petroleum? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Hindustan Petroleum? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "de8caaf5-21cc-454b-b735-9bfd15f263c9",
+      "angle_entity": "SBIN",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "Should I Buy State Bank of India? What RBI's $7 Billion Intervention Means For SBI, HDFC...",
+        "seo_title": "Should I Buy State Bank of India? What RBI's $7 Billion Intervent",
+        "json_ld_headline": "Should I Buy State Bank of India? What RBI's $7 Billion Intervention Means For SBI, HDFC..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "6df218ac-bf7c-4642-a0a7-2a6af5ac7794",
+      "angle_entity": "NSE:SBIN",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "What Fed Chief Warsh's Inflation Decision Means For... — Good or Bad for State Bank of India Investors?",
+        "seo_title": "What Fed Chief Warsh's Inflation Decision Means For... — Good or ",
+        "json_ld_headline": "What Fed Chief Warsh's Inflation Decision Means For... — Good or Bad for State Bank of India Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "8ff7cdd6-1704-4e35-bb0b-96d097e280c6",
+      "angle_entity": "SBIN",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "Should I Buy State Bank of India? What RBI Swap Scheme Means For Indian Banks, Exporters,...",
+        "seo_title": "Should I Buy SBI After RBI's $40.8B FCNR(B) Swap Inflows?",
+        "json_ld_headline": "Should I Buy State Bank of India? What RBI Swap Scheme Means For Indian Banks, Exporters,..."
+      },
+      "proposed": {
+        "headline": "Should I Buy State Bank of India? What Investors Need To Know",
+        "seo_title": "Should I Buy State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "1c9cfe5b-6f87-4e0f-b3fd-2bb8ac74f797",
+      "angle_entity": "HDFCBANK",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "What RBI Swap Scheme Means For Indian Banks, Exporters,... — Good or Bad for HDFC Bank Investors?",
+        "seo_title": "What RBI Swap Scheme Means For HDFC Bank Investors and Exporters?",
+        "json_ld_headline": "What RBI Swap Scheme Means For Indian Banks, Exporters,... — Good or Bad for HDFC Bank Investors?"
+      },
+      "proposed": {
+        "headline": "Should I Buy HDFC Bank? What Investors Need To Know",
+        "seo_title": "Should I Buy HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "f270cc48-7519-4280-b49b-d0f21dc91700",
+      "angle_entity": "SBIN",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "Should I Buy State Bank of India? What RBI's Monetary Policy Means For SBI, Banking Sector...",
+        "seo_title": "Should I Buy SBI? RBI Policy Impact on State Bank of India",
+        "json_ld_headline": "Should I Buy State Bank of India? What RBI's Monetary Policy Means For SBI, Banking Sector..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "dffcde05-f56e-42df-96ae-006a3e9c13e8",
+      "angle_entity": "BAJAJFINSV",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "Should I Buy Bajaj Finance? What RBI Policy Meeting Means For Bajaj Finance, HDFC...",
+        "seo_title": "What RBI Policy Meeting Means For Bajaj Finance Investors",
+        "json_ld_headline": "Should I Buy Bajaj Finance? What RBI Policy Meeting Means For Bajaj Finance, HDFC..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Bajaj Finance? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Bajaj Finance? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Bajaj Finance? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "2e2b358b-e827-4de1-9b86-cc466152c702",
+      "angle_entity": "NSE_HDFCBANK",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "Should I Buy HDFC Bank? How the Sensex and Nifty Rally Boosts Banking, IT & FMCG...",
+        "seo_title": "Should I Buy HDFC Bank? Sensex Rally Impact on Banking, IT, FMCG",
+        "json_ld_headline": "Should I Buy HDFC Bank? How the Sensex and Nifty Rally Boosts Banking, IT & FMCG..."
+      },
+      "proposed": {
+        "headline": "Should I Buy HDFC Bank? What Investors Need To Know",
+        "seo_title": "Should I Buy HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "c0baf48f-d452-4a6c-b2df-a1304c1f0bd5",
+      "angle_entity": "NSE_ICICIBANK",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "How the Sensex and Nifty Rally Boosts Banking, IT & FMCG... — Good or Bad for ICICI Bank Investors?",
+        "seo_title": "How Sensex Rally Impacts ICICI Bank & Banking Stocks",
+        "json_ld_headline": "How the Sensex and Nifty Rally Boosts Banking, IT & FMCG... — Good or Bad for ICICI Bank Investors?"
+      },
+      "proposed": {
+        "headline": "Should I Buy ICICI Bank? What Investors Need To Know",
+        "seo_title": "Should I Buy ICICI Bank? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy ICICI Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "3c516e78-01c3-4617-8f88-237f77ad3965",
+      "angle_entity": "RELIANCE",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What Meesho Block Deal Means For Technology & Retail... — How Should Reliance Industries Investors React?",
+        "seo_title": "What Meesho Block Deal Means For Reliance Investors",
+        "json_ld_headline": "What Meesho Block Deal Means For Technology & Retail... — How Should Reliance Industries Investors React?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Reliance Industries? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Reliance Industries? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Reliance Industries? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "e3926324-0a51-41f9-b1be-c09c499a42d3",
+      "angle_entity": "HDFCBANK",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "Should I Buy HDFC Bank? What RBI's $40B Liquidity Boost Means For HDFC, ICICI,...",
+        "seo_title": "What RBI's $40B Liquidity Boost Means For HDFC Bank Investors",
+        "json_ld_headline": "Should I Buy HDFC Bank? What RBI's $40B Liquidity Boost Means For HDFC, ICICI,..."
+      },
+      "proposed": {
+        "headline": "Should I Buy HDFC Bank? What Investors Need To Know",
+        "seo_title": "Should I Buy HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "d34f091e-9438-47b4-8cc6-c56e97afe5d2",
+      "angle_entity": "ICICIBANK",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "What RBI's $40B Liquidity Boost Means For HDFC, ICICI,... — Good or Bad for ICICI Bank Investors?",
+        "seo_title": "What RBI's $40B Liquidity Boost Means For HDFC, ICICI,... — Good ",
+        "json_ld_headline": "What RBI's $40B Liquidity Boost Means For HDFC, ICICI,... — Good or Bad for ICICI Bank Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For ICICIBANK? What Investors Need To Know",
+        "seo_title": "What Does This Mean For ICICIBANK? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For ICICIBANK? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "152f1de7-f5ce-412f-807e-d8efae44a895",
+      "angle_entity": "PAYTM",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "Should I Sell Paytm? What Paytm's ₹2,002 Cr Block Deal Means For Fintech...",
+        "seo_title": "What Paytm's ₹2,002 Cr Block Deal Means For Fintech Investors",
+        "json_ld_headline": "Should I Sell Paytm? What Paytm's ₹2,002 Cr Block Deal Means For Fintech..."
+      },
+      "proposed": {
+        "headline": "Should I Sell Paytm? What Investors Need To Know",
+        "seo_title": "Should I Sell Paytm? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell Paytm? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "ab0ff528-f4ea-4470-825b-1fb98b26e2aa",
+      "angle_entity": "RELIANCE",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "Should I Buy Reliance Industries? What Brent Crude Drop Means For Auto, Pharma, Infra...",
+        "seo_title": "What Brent Crude Drop Means For Auto, Pharma, Infra Stocks",
+        "json_ld_headline": "Should I Buy Reliance Industries? What Brent Crude Drop Means For Auto, Pharma, Infra..."
+      },
+      "proposed": {
+        "headline": "Should I Buy Reliance Industries? What Investors Need To Know",
+        "seo_title": "Should I Buy Reliance Industries? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy Reliance Industries? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "dc56da88-770c-4408-a2a2-79faad6512b8",
+      "angle_entity": "SBIN",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "Should I Sell State Bank of India? What RBI Holding Rates Means For SBI, HDFC Bank, ICICI...",
+        "seo_title": "Should I Sell State Bank of India? What RBI Holding Rates Means F",
+        "json_ld_headline": "Should I Sell State Bank of India? What RBI Holding Rates Means For SBI, HDFC Bank, ICICI..."
+      },
+      "proposed": {
+        "headline": "Should I Sell State Bank of India? What Investors Need To Know",
+        "seo_title": "Should I Sell State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "d108ccbd-8ebb-46bf-998d-69d7870e45d4",
+      "angle_entity": "HDFCBANK",
+      "direction_note": "MISMATCH inferred=negative stored=neutral",
+      "before": {
+        "headline": "What RBI Holding Rates Means For SBI, HDFC Bank, ICICI... — Is This A Warning Sign for HDFC Bank Investors?",
+        "seo_title": "What RBI's Rate Hold Means For SBI, HDFC Bank Investors",
+        "json_ld_headline": "What RBI Holding Rates Means For SBI, HDFC Bank, ICICI... — Is This A Warning Sign for HDFC Bank Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "seo_title": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "cdf5177a-2b08-4d77-82a9-82c1ef430468",
+      "angle_entity": "SBIN",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What Does This Mean For State Bank of India? What Today's RBI Rate Decision Means For SBI, HDFC Bank,...",
+        "seo_title": "What RBI's Rate Hold Means For SBI, HDFC Bank Investors",
+        "json_ld_headline": "What Does This Mean For State Bank of India? What Today's RBI Rate Decision Means For SBI, HDFC Bank,..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "7bf66d8f-6356-4d04-b62f-597697a91eed",
+      "angle_entity": "HDFCBANK",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What Today's RBI Rate Decision Means For SBI, HDFC Bank,... — How Should HDFC Bank Investors React?",
+        "seo_title": "What RBI Rate Decision Means For HDFC Bank, SBI Investors",
+        "json_ld_headline": "What Today's RBI Rate Decision Means For SBI, HDFC Bank,... — How Should HDFC Bank Investors React?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "seo_title": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "11ff89a3-fd44-43fe-bda9-f43ce5a7c2a8",
+      "angle_entity": "TITAN.NS",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "Should I Sell Titan Company? What Gold Price Hike Means For Jewellery Stocks, Indian...",
+        "seo_title": "Should I Sell Titan? Gold Price Hike Impact on Jewellery Stocks",
+        "json_ld_headline": "Should I Sell Titan Company? What Gold Price Hike Means For Jewellery Stocks, Indian..."
+      },
+      "proposed": {
+        "headline": "Should I Sell Titan Company? What Investors Need To Know",
+        "seo_title": "Should I Sell Titan Company? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell Titan Company? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "d66fd9e1-ec15-49ae-828e-be081b73924c",
+      "angle_entity": "TCS",
+      "direction_note": "MISMATCH inferred=negative stored=neutral",
+      "before": {
+        "headline": "Should I Sell Tata Consultancy Services? What Rupee's 46 Paise Gain Before RBI Policy Means For...",
+        "seo_title": "Should I Sell Tata Consultancy Services? What Rupee's 46 Paise Ga",
+        "json_ld_headline": "Should I Sell Tata Consultancy Services? What Rupee's 46 Paise Gain Before RBI Policy Means For..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Tata Consultancy Services? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Tata Consultancy Services? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Tata Consultancy Services? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "0ea93e64-79d0-46fb-ad94-9771c970c6ce",
+      "angle_entity": "SBIN.NS",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What Does This Mean For SBI? What RBI's New Interest Rate Framework Means For HDFC...",
+        "seo_title": "What RBI Rate Framework Means For SBI, HDFC Bank Investors",
+        "json_ld_headline": "What Does This Mean For SBI? What RBI's New Interest Rate Framework Means For HDFC..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "21ed34f9-4e6c-425f-9551-57c6d36f0e91",
+      "angle_entity": "HDFCBANK.NS",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What Does This Mean For HDFC Bank? What RBI's Liquidity Forecast Means For Indian Stock...",
+        "seo_title": "What RBI Liquidity Peak Means For HDFC Bank & Indian Stocks",
+        "json_ld_headline": "What Does This Mean For HDFC Bank? What RBI's Liquidity Forecast Means For Indian Stock..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "seo_title": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "f993937e-6ba0-4b6b-a6ba-df570f549323",
+      "angle_entity": "OLAELECTRIC",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "Should I Buy Ola Electric Mobility Limited? What Ola Electric's New PLI Incentive Means For EV...",
+        "seo_title": "Should I Buy Ola Electric After PLI Incentive Extension?",
+        "json_ld_headline": "Should I Buy Ola Electric Mobility Limited? What Ola Electric's New PLI Incentive Means For EV..."
+      },
+      "proposed": {
+        "headline": "Should I Buy Ola Electric Mobility Limited? What Investors Need To Know",
+        "seo_title": "Should I Buy Ola Electric Mobility Limited? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy Ola Electric Mobility Limited? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "1ec832d8-269d-4bcc-a804-4fd2cc9faea1",
+      "angle_entity": "ONGC",
+      "direction_note": "MISMATCH inferred=negative stored=neutral",
+      "before": {
+        "headline": "Should I Sell ONGC? What US-Iran War Jitters Mean For ONGC, Reliance, HDFC...",
+        "seo_title": "Should I Sell ONGC? What US-Iran War Jitters Mean For ONGC, Relia",
+        "json_ld_headline": "Should I Sell ONGC? What US-Iran War Jitters Mean For ONGC, Reliance, HDFC..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Oil and Natural Gas Corporation? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Oil and Natural Gas Corporation? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Oil and Natural Gas Corporation? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "f4bfb4ce-8725-4eef-b616-2d947e09b5bb",
+      "angle_entity": "RELIANCE",
+      "direction_note": "MISMATCH inferred=negative stored=neutral",
+      "before": {
+        "headline": "What US-Iran War Jitters Mean For ONGC, Reliance, HDFC... — Is This A Warning Sign for Reliance Industries Investors?",
+        "seo_title": "What US-Iran War Jitters Mean For Reliance Industries Investors",
+        "json_ld_headline": "What US-Iran War Jitters Mean For ONGC, Reliance, HDFC... — Is This A Warning Sign for Reliance Industries Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Reliance Industries? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Reliance Industries? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Reliance Industries? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "919cfb42-47f2-426e-829e-2bbc13052519",
+      "angle_entity": "RELIANCE",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "Should I Buy Reliance Industries? What Jio Platforms IPO Approval Means For RELIANCE,...",
+        "seo_title": "Should I Buy Reliance Industries? What Jio Platforms IPO Approval",
+        "json_ld_headline": "Should I Buy Reliance Industries? What Jio Platforms IPO Approval Means For RELIANCE,..."
+      },
+      "proposed": {
+        "headline": "Should I Buy Reliance Industries? What Investors Need To Know",
+        "seo_title": "Should I Buy Reliance Industries? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy Reliance Industries? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "dbd995ce-5360-44fc-826c-9aa8d6edf371",
+      "angle_entity": "RELIANCE",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What Does This Mean For Reliance Industries? What SEBI’s Regulation 30 Disclosure Means For Investors...",
+        "seo_title": "What Does This Mean For Reliance Industries? What SEBI’s Regulati",
+        "json_ld_headline": "What Does This Mean For Reliance Industries? What SEBI’s Regulation 30 Disclosure Means For Investors..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Reliance Industries? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Reliance Industries? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Reliance Industries? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "31a65a22-4cb3-44dc-bc2d-bc021a08b3e1",
+      "angle_entity": "CLEANMAX",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "What Welspun Living’s Clean Max Stake Means For... — Good or Bad for Clean Max Dhyuthi Investors?",
+        "seo_title": "What Welspun Living’s Clean Max Stake Means For... — Good or Bad ",
+        "json_ld_headline": "What Welspun Living’s Clean Max Stake Means For... — Good or Bad for Clean Max Dhyuthi Investors?"
+      },
+      "proposed": {
+        "headline": "Should I Buy Clean Max Dhyuthi? What Investors Need To Know",
+        "seo_title": "Should I Buy Clean Max Dhyuthi? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy Clean Max Dhyuthi? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "a748b0b9-b4f3-4226-8904-038cb8d065d7",
+      "angle_entity": "SBIN",
+      "direction_note": "MISMATCH inferred=negative stored=neutral",
+      "before": {
+        "headline": "Should I Sell State Bank of India? What RBI’s Record $137B Short Forward Bet Means For...",
+        "seo_title": "Should I Sell State Bank of India? What RBI’s Record $137B Short ",
+        "json_ld_headline": "Should I Sell State Bank of India? What RBI’s Record $137B Short Forward Bet Means For..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "23a3d605-8bc9-4bfd-965f-5d9219b8d88a",
+      "angle_entity": "HDFCBANK",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "What RBI’s Record $137B Short Forward Bet Means For... — Is This A Warning Sign for HDFC Bank Investors?",
+        "seo_title": "What RBI’s Record $137B Short Forward Bet Means For... — Is This ",
+        "json_ld_headline": "What RBI’s Record $137B Short Forward Bet Means For... — Is This A Warning Sign for HDFC Bank Investors?"
+      },
+      "proposed": {
+        "headline": "Should I Sell HDFC Bank? What Investors Need To Know",
+        "seo_title": "Should I Sell HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "a86938a9-f559-40e0-975f-3de32e71b14c",
+      "angle_entity": "MAGELLAN",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "Should I Buy Magellanic Cloud Limited? How Magellanic Cloud's New Government Order Drives...",
+        "seo_title": "Should I Buy Magellanic Cloud Limited? How Magellanic Cloud's New",
+        "json_ld_headline": "Should I Buy Magellanic Cloud Limited? How Magellanic Cloud's New Government Order Drives..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Magellanic Cloud Limited? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Magellanic Cloud Limited? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Magellanic Cloud Limited? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "abbdedb2-0b7f-40a4-9cd1-c889c6cff4dc",
+      "angle_entity": "GAIL",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "How Rising Oil Prices Impact ONGC, GAIL, and Reliance... — Good or Bad for GAIL Investors?",
+        "seo_title": "How Rising Oil Prices Impact ONGC, GAIL, and Reliance... — Good o",
+        "json_ld_headline": "How Rising Oil Prices Impact ONGC, GAIL, and Reliance... — Good or Bad for GAIL Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For GAIL India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For GAIL India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For GAIL India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "6d0a79f3-7823-44c0-825a-e4fbdbab6c3f",
+      "angle_entity": "HDFCBANK",
+      "direction_note": "MISMATCH inferred=negative stored=neutral",
+      "before": {
+        "headline": "What RBI's Rupee Defence at ₹94.97 Means For Nifty Bank... — Is This A Warning Sign for HDFC Bank Investors?",
+        "seo_title": "What RBI's Rupee Defence at ₹94.97 Means For Nifty Bank... — Is T",
+        "json_ld_headline": "What RBI's Rupee Defence at ₹94.97 Means For Nifty Bank... — Is This A Warning Sign for HDFC Bank Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "seo_title": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "d8ed2495-56db-4451-ad9f-46a85d4c411a",
+      "angle_entity": "SBIN",
+      "direction_note": "MISMATCH inferred=negative stored=neutral",
+      "before": {
+        "headline": "Should I Sell State Bank of India? What RBI Rupee Stabilization Means For State Bank, PNB,...",
+        "seo_title": "What RBI Rupee Stabilization Means For State Bank, PNB Investors",
+        "json_ld_headline": "Should I Sell State Bank of India? What RBI Rupee Stabilization Means For State Bank, PNB,..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "5da14db3-1c31-449f-b9c8-66fb1c659066",
+      "angle_entity": "PNB",
+      "direction_note": "MISMATCH inferred=negative stored=neutral",
+      "before": {
+        "headline": "What RBI Rupee Stabilization Means For State Bank, PNB,... — Is This A Warning Sign for Punjab National Bank Investors?",
+        "seo_title": "What RBI Rupee Stabilization Means For State Bank, PNB Investors",
+        "json_ld_headline": "What RBI Rupee Stabilization Means For State Bank, PNB,... — Is This A Warning Sign for Punjab National Bank Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Punjab National Bank? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Punjab National Bank? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Punjab National Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "fdc55244-1385-4c6b-a745-ab666318baf2",
+      "angle_entity": "MEESHO",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "Should I Sell Meesho? What SoftBank's Meesho Block Deal Exit Means For Meesho...",
+        "seo_title": "What SoftBank's Meesho Block Deal Exit Means For Investors",
+        "json_ld_headline": "Should I Sell Meesho? What SoftBank's Meesho Block Deal Exit Means For Meesho..."
+      },
+      "proposed": {
+        "headline": "Should I Sell Meesho? What Investors Need To Know",
+        "seo_title": "Should I Sell Meesho? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell Meesho? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "216da795-6f94-40b5-acf6-7b1666d37267",
+      "angle_entity": "GLAND",
+      "direction_note": "MISMATCH inferred=negative stored=neutral",
+      "before": {
+        "headline": "Should I Sell Gland Pharma? What Global Overnight Moves Mean For Gland Pharma, Auto...",
+        "seo_title": "What Gland Pharma’s Promoter Block Deal Means For Investors",
+        "json_ld_headline": "Should I Sell Gland Pharma? What Global Overnight Moves Mean For Gland Pharma, Auto..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Gland Pharma? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Gland Pharma? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Gland Pharma? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "65b83b28-a7c1-4379-af83-265e8d354d66",
+      "angle_entity": "HINDZINC",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "What Global Overnight Moves Mean For Gland Pharma, Auto... — Good or Bad for Hindustan Zinc Investors?",
+        "seo_title": "What Gland Pharma’s Block Deal Means For Hindustan Zinc Investors",
+        "json_ld_headline": "What Global Overnight Moves Mean For Gland Pharma, Auto... — Good or Bad for Hindustan Zinc Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Hindustan Zinc? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Hindustan Zinc? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Hindustan Zinc? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "e91fc4b2-a922-4bc7-8a79-7bb9c4fa6243",
+      "angle_entity": "MCX",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What Sebi’s Review of Derivative Settlement Prices Means... — How Should Multi Commodity Exchange of India Investors React?",
+        "seo_title": "What Sebi’s Review of Derivative Settlement Prices Means... — How",
+        "json_ld_headline": "What Sebi’s Review of Derivative Settlement Prices Means... — How Should Multi Commodity Exchange of India Investors React?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Multi Commodity Exchange of India? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Multi Commodity Exchange of India? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Multi Commodity Exchange of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "da57dbd9-ef58-4f96-aa53-475cac3933f5",
+      "angle_entity": "TCS",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What Does This Mean For Tata Consultancy Services? What India's Balanced AI Strategy Means For IT,...",
+        "seo_title": "What India's Balanced AI Strategy Means For TCS Investors",
+        "json_ld_headline": "What Does This Mean For Tata Consultancy Services? What India's Balanced AI Strategy Means For IT,..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Tata Consultancy Services? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Tata Consultancy Services? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Tata Consultancy Services? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "6d404d7a-5629-48d9-bf18-bda2a46e441c",
+      "angle_entity": "INFY",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What India's Balanced AI Strategy Means For IT,... — How Should Infosys Investors React?",
+        "seo_title": "What India's Balanced AI Strategy Means For Infosys Investors",
+        "json_ld_headline": "What India's Balanced AI Strategy Means For IT,... — How Should Infosys Investors React?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Infosys? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Infosys? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Infosys? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "7231eb51-4708-4b4e-aa9d-068858ae4618",
+      "angle_entity": "SBIN",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "Should I Sell State Bank of India? What RBI Prop Trading Crackdown Means For SBI, HDFC...",
+        "seo_title": "Should I Sell State Bank of India? What RBI Prop Trading Crackdow",
+        "json_ld_headline": "Should I Sell State Bank of India? What RBI Prop Trading Crackdown Means For SBI, HDFC..."
+      },
+      "proposed": {
+        "headline": "Should I Sell State Bank of India? What Investors Need To Know",
+        "seo_title": "Should I Sell State Bank of India? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell State Bank of India? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "2d921d99-8869-428f-bbb8-a6ff31580ea5",
+      "angle_entity": "PHOENIXLTD",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What Does This Mean For The Phoenix Mills Limited? What NCLT Approval For Subsidiary Merger Means For...",
+        "seo_title": "What NCLT Approval For Subsidiary Merger Means For Phoenix Mills",
+        "json_ld_headline": "What Does This Mean For The Phoenix Mills Limited? What NCLT Approval For Subsidiary Merger Means For..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For The Phoenix Mills Limited? What Investors Need To Know",
+        "seo_title": "What Does This Mean For The Phoenix Mills Limited? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For The Phoenix Mills Limited? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "819f4f31-38cf-4902-b9b7-6ffc087f378a",
+      "angle_entity": "MCX",
+      "direction_note": "MISMATCH inferred=neutral stored=positive",
+      "before": {
+        "headline": "What NSE's ₹30,000 Cr IPO Means For Exchange Sector... — How Should MCX Limited Investors React?",
+        "seo_title": "What NSE's ₹30,000 Cr IPO Means For Exchange Sector... — How Shou",
+        "json_ld_headline": "What NSE's ₹30,000 Cr IPO Means For Exchange Sector... — How Should MCX Limited Investors React?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For MCX Limited? What Investors Need To Know",
+        "seo_title": "What Does This Mean For MCX Limited? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For MCX Limited? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "b50c82ec-bea8-4503-b34f-a6e42df1a13d",
+      "angle_entity": "HINDUNILVR",
+      "direction_note": "MATCH (neutral)",
+      "before": {
+        "headline": "What 7.8% Growth and SEBI CAS Changes Mean For Reliance,... — How Should Hindustan Unilever Investors React?",
+        "seo_title": "What 7.8% Growth and SEBI CAS Changes Mean For HUL Investors",
+        "json_ld_headline": "What 7.8% Growth and SEBI CAS Changes Mean For Reliance,... — How Should Hindustan Unilever Investors React?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Hindustan Unilever? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Hindustan Unilever? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Hindustan Unilever? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "f742d8ad-7108-4861-83fd-6b073622d8f3",
+      "angle_entity": "TATAMOTORS",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "Should I Buy Tata Motors? How Tata Motors-Iveco €3.82bn Tender Offer Changes...",
+        "seo_title": "Should I Buy Tata Motors? How Tata Motors-Iveco €3.82bn Tender Of",
+        "json_ld_headline": "Should I Buy Tata Motors? How Tata Motors-Iveco €3.82bn Tender Offer Changes..."
+      },
+      "proposed": {
+        "headline": "Should I Buy Tata Motors? What Investors Need To Know",
+        "seo_title": "Should I Buy Tata Motors? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy Tata Motors? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "0eb314d3-cad9-4269-9139-feda0f6cb7be",
+      "angle_entity": "HINDPETRO",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "What Rising Crude Oil Prices and US Inflation Mean For... — Is This A Warning Sign for Hindustan Petroleum Corporation Investors?",
+        "seo_title": "What Rising Crude Oil And US Inflation Mean For HINDPETRO",
+        "json_ld_headline": "What Rising Crude Oil Prices and US Inflation Mean For... — Is This A Warning Sign for Hindustan Petroleum Corporation Investors?"
+      },
+      "proposed": {
+        "headline": "Should I Sell Hindustan Petroleum Corporation? What Investors Need To Know",
+        "seo_title": "Should I Sell Hindustan Petroleum Corporation? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell Hindustan Petroleum Corporation? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "e8478bd8-f174-436b-a7b9-a211e2518ff3",
+      "angle_entity": "ICICIBANK",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "Should I Buy ICICI Bank? What Vajiram & Ravi's Record ₹16,000-Crore IPO Means For...",
+        "seo_title": "Should I Buy ICICI Bank? Vajiram & Ravi ₹16,000-Crore IPO Impact",
+        "json_ld_headline": "Should I Buy ICICI Bank? What Vajiram & Ravi's Record ₹16,000-Crore IPO Means For..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For ICICI Bank Limited? What Investors Need To Know",
+        "seo_title": "What Does This Mean For ICICI Bank Limited? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For ICICI Bank Limited? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "9affd55c-e0e8-4074-8447-591c8aee4ef8",
+      "angle_entity": "HDFCBANK",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "What Vajiram & Ravi's Record ₹16,000-Crore IPO Means For... — Good or Bad for HDFC Bank Investors?",
+        "seo_title": "What Vajiram & Ravi's Record ₹16,000-Crore IPO Means For... — Goo",
+        "json_ld_headline": "What Vajiram & Ravi's Record ₹16,000-Crore IPO Means For... — Good or Bad for HDFC Bank Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "seo_title": "What Does This Mean For HDFC Bank? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For HDFC Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "934f5401-8f7e-46ff-928c-16a6cc7c962d",
+      "angle_entity": "RELIANCE",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "Should I Sell Reliance Industries? What US-Iran War And NSE IPO Risks Mean For Financials,...",
+        "seo_title": "Should I Sell Reliance Industries? US-Iran War & NSE IPO Risks",
+        "json_ld_headline": "Should I Sell Reliance Industries? What US-Iran War And NSE IPO Risks Mean For Financials,..."
+      },
+      "proposed": {
+        "headline": "Should I Sell Reliance Industries? What Investors Need To Know",
+        "seo_title": "Should I Sell Reliance Industries? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell Reliance Industries? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "791e6c6d-bcf0-480b-b40a-4fd494b32c35",
+      "angle_entity": "HDFCBANK",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "What US-Iran War And NSE IPO Risks Mean For Financials,... — Is This A Warning Sign for HDFC Bank Investors?",
+        "seo_title": "What US-Iran War And NSE IPO Risks Mean For HDFC Bank Investors",
+        "json_ld_headline": "What US-Iran War And NSE IPO Risks Mean For Financials,... — Is This A Warning Sign for HDFC Bank Investors?"
+      },
+      "proposed": {
+        "headline": "Should I Sell HDFC Bank Limited? What Investors Need To Know",
+        "seo_title": "Should I Sell HDFC Bank Limited? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell HDFC Bank Limited? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "3c848033-2d63-4c74-8c40-e773346aa4c6",
+      "angle_entity": "HAL",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "Should I Buy Hindustan Aeronautics Ltd? What DAC Defence Approval Means For HAL, BEL, And...",
+        "seo_title": "Should I Buy Hindustan Aeronautics Ltd? What DAC Defence Approval",
+        "json_ld_headline": "Should I Buy Hindustan Aeronautics Ltd? What DAC Defence Approval Means For HAL, BEL, And..."
+      },
+      "proposed": {
+        "headline": "Should I Buy Hindustan Aeronautics Ltd? What Investors Need To Know",
+        "seo_title": "Should I Buy Hindustan Aeronautics Ltd? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy Hindustan Aeronautics Ltd? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "64741cd4-bc99-49e7-8e16-f5f0014761c5",
+      "angle_entity": "BEL",
+      "direction_note": "MATCH (positive)",
+      "before": {
+        "headline": "What DAC Defence Approval Means For HAL, BEL, And... — Good or Bad for Bharat Electronics Ltd Investors?",
+        "seo_title": "What DAC Defence Approval Means For BEL Investors: Order Impact",
+        "json_ld_headline": "What DAC Defence Approval Means For HAL, BEL, And... — Good or Bad for Bharat Electronics Ltd Investors?"
+      },
+      "proposed": {
+        "headline": "Should I Buy Bharat Electronics Ltd? What Investors Need To Know",
+        "seo_title": "Should I Buy Bharat Electronics Ltd? What Investors Need To Know",
+        "json_ld_headline": "Should I Buy Bharat Electronics Ltd? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "52156c9a-e1ab-4718-b7d6-cbd6bff51a4e",
+      "angle_entity": "ICICIBANK",
+      "direction_note": "MISMATCH inferred=neutral stored=negative",
+      "before": {
+        "headline": "What RBI's 30-Day VRRR Operation Means For SBI, HDFC... — How Should ICICI Bank Investors React?",
+        "seo_title": "What RBI's 30-Day VRRR Operation Means For ICICI Bank Investors",
+        "json_ld_headline": "What RBI's 30-Day VRRR Operation Means For SBI, HDFC... — How Should ICICI Bank Investors React?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For ICICI Bank? What Investors Need To Know",
+        "seo_title": "What Does This Mean For ICICI Bank? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For ICICI Bank? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "39ff6f16-b555-41b0-a39e-b529b176de8a",
+      "angle_entity": "RELIANCE",
+      "direction_note": "MISMATCH inferred=positive stored=neutral",
+      "before": {
+        "headline": "Should I Buy Reliance Industries? How Jio Platforms IPO Sparks Rally For Telecom, Tech,...",
+        "seo_title": "Should I Buy Reliance Industries? Jio IPO Outlook & Analysis",
+        "json_ld_headline": "Should I Buy Reliance Industries? How Jio Platforms IPO Sparks Rally For Telecom, Tech,..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Reliance Industries? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Reliance Industries? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Reliance Industries? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "3c090c03-04fb-48c9-ac25-14b8cd8beed7",
+      "angle_entity": "TCS",
+      "direction_note": "MISMATCH inferred=positive stored=negative",
+      "before": {
+        "headline": "How Jio Platforms IPO Sparks Rally For Telecom, Tech,... — Good or Bad for Tata Consultancy Services Investors?",
+        "seo_title": "How Jio Platforms IPO Impacts Tata Consultancy Services Investors",
+        "json_ld_headline": "How Jio Platforms IPO Sparks Rally For Telecom, Tech,... — Good or Bad for Tata Consultancy Services Investors?"
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Tata Consultancy Services? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Tata Consultancy Services? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Tata Consultancy Services? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "790c374c-d4bd-42cc-b789-bc7372d73106",
+      "angle_entity": "TATASTEEL",
+      "direction_note": "MISMATCH inferred=positive stored=negative",
+      "before": {
+        "headline": "Should I Buy Tata Steel? Why Crude Oil Volatility and Geopolitical Tensions Are...",
+        "seo_title": "Should I Buy Tata Steel? Why Crude Oil Volatility and Geopolitica",
+        "json_ld_headline": "Should I Buy Tata Steel? Why Crude Oil Volatility and Geopolitical Tensions Are..."
+      },
+      "proposed": {
+        "headline": "What Does This Mean For Tata Steel? What Investors Need To Know",
+        "seo_title": "What Does This Mean For Tata Steel? What Investors Need To Know",
+        "json_ld_headline": "What Does This Mean For Tata Steel? What Investors Need To Know"
+      }
+    },
+    {
+      "id": "3bf614ed-46a1-4084-a61c-2667dd3caad6",
+      "angle_entity": "M&M",
+      "direction_note": "MATCH (negative)",
+      "before": {
+        "headline": "Why Industrial Stocks Face Pressure From Iran War And AI... — Is This A Warning Sign for Mahindra & Mahindra Investors?",
+        "seo_title": "Why Industrial Stocks Face Pressure From Iran War And AI... — Is ",
+        "json_ld_headline": "Why Industrial Stocks Face Pressure From Iran War And AI... — Is This A Warning Sign for Mahindra & Mahindra Investors?"
+      },
+      "proposed": {
+        "headline": "Should I Sell Mahindra & Mahindra? What Investors Need To Know",
+        "seo_title": "Should I Sell Mahindra & Mahindra? What Investors Need To Know",
+        "json_ld_headline": "Should I Sell Mahindra & Mahindra? What Investors Need To Know"
+      }
+    }
+  ]
+}
