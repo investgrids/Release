@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import date, datetime
 
 import httpx
@@ -40,14 +41,41 @@ _HEADERS = {
 # `attchmntText` holds the real, substantive sentence and is what should
 # become the headline/title; `desc`/`subject` is kept only as a fallback
 # for the rare item where attchmntText is empty.
-_MAX_HEADLINE_LEN = 180
+# Real incident (2026-09-10): a live event's title read "Attached herewith
+# the newspaper advertisements pertaining to special window for transfer
+# and dematerialisation (demat) of physical shares published today i.e.
+# September 10, 2026…" -- grammatically incomplete, even though the SAME
+# row's `summary` (source_text[:1000] below) already held the complete
+# sentence ("...2026 in the newspapers."), and Event.title is a
+# String(512) column -- there was never a real storage constraint forcing
+# a cut this tight. The old 180-char cap was well under the length of a
+# typical single-sentence NSE announcement (most of these real specimens
+# run 190-290 chars to complete), so nearly every longer announcement hit
+# the truncation path. Raised to 400 (comfortable margin under the real
+# 512-char column) and, for the rare text that still exceeds it, now cuts
+# at the LAST real sentence boundary within budget rather than a bare
+# word boundary -- same "clause boundary over word boundary" principle as
+# content_planner.py's _safe_event_phrase() fix for question-angle
+# article titles, applied here to the ingestion layer instead.
+_MAX_HEADLINE_LEN = 400
+_SENTENCE_BOUNDARY_RE = re.compile(r"[.!?](?=\s|$)")
+_MIN_SAFE_HEADLINE_LEN = 40  # a sentence-boundary cut shorter than this is unhelpfully thin, not a real title
 
 
 def _clip_headline(source_text: str) -> str:
-    headline = source_text[:_MAX_HEADLINE_LEN]
-    if len(source_text) > _MAX_HEADLINE_LEN:
-        headline = headline.rsplit(" ", 1)[0].rstrip(",.;") + "…"
-    return headline
+    if len(source_text) <= _MAX_HEADLINE_LEN:
+        return source_text
+    window = source_text[:_MAX_HEADLINE_LEN]
+    boundaries = list(_SENTENCE_BOUNDARY_RE.finditer(window))
+    if boundaries:
+        candidate = source_text[:boundaries[-1].end()].strip()
+        if len(candidate) >= _MIN_SAFE_HEADLINE_LEN:
+            return candidate
+    # No safe sentence boundary within budget (genuinely long, unbroken
+    # text) -- fall back to a word-boundary cut with an explicit ellipsis,
+    # honestly signaling truncation rather than forcing a confident-looking
+    # but incomplete sentence.
+    return window.rsplit(" ", 1)[0].rstrip(",.;") + "…"
 
 
 class NSEProvider(BaseProvider):
