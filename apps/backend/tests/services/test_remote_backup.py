@@ -209,6 +209,33 @@ def test_unexpected_exception_is_caught_and_reported_not_raised(isolated_remote_
     assert result["error"] == "unexpected_exception"
 
 
+def test_sqlite_sidecar_files_are_cleaned_up_not_just_the_db_file(isolated_remote_backup_env, monkeypatch):
+    """Real bug found live (2026-09-10): a bare path.unlink() on the .db
+    file alone left orphaned -shm/-wal sidecars behind, because SQLite
+    creates those for any WAL-mode connection opened against the path
+    (even the read-only quick_check connections) -- confirmed on a real
+    production run. Both the local snapshot's and the verify-download's
+    sidecars must be gone after a successful run."""
+    created_paths = []
+    real_mkstemp = remote_backup_module.tempfile.mkstemp
+
+    def _tracking_mkstemp(*a, **kw):
+        fd, name = real_mkstemp(*a, **kw)
+        created_paths.append(name)
+        return fd, name
+
+    monkeypatch.setattr(remote_backup_module.tempfile, "mkstemp", _tracking_mkstemp)
+
+    result = backup_to_bucket(kind="boot")
+    assert result["status"] == "ok"
+
+    for p in created_paths:
+        base = Path(p)
+        assert not base.exists()
+        for suffix in ("-shm", "-wal", "-journal"):
+            assert not base.with_name(base.name + suffix).exists(), f"sidecar {base.name}{suffix} was not cleaned up"
+
+
 def test_daily_and_boot_kinds_use_distinct_object_key_namespaces(isolated_remote_backup_env):
     daily = backup_to_bucket(kind="daily")
     boot = backup_to_bucket(kind="boot")

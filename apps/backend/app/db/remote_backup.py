@@ -99,6 +99,21 @@ def _sqlite_quick_check(path: Path) -> str:
         con.close()
 
 
+def _cleanup_sqlite_file(path: Path) -> None:
+    """Removes the main file plus whatever -shm/-wal/-journal sidecars
+    SQLite created alongside it while a connection had it open (even a
+    read-only quick_check connection creates -shm/-wal in WAL-mode
+    databases) — confirmed live (2026-09-10): a bare path.unlink() alone
+    left orphaned -shm/-wal files behind on every real run, the same
+    class of leak app/db/backup.py's own _prune_old_backups() had to fix
+    for *.tmp-journal siblings. Harmless on ephemeral /tmp (ample space,
+    resets on restart) but incomplete cleanup either way."""
+    path.unlink(missing_ok=True)
+    for suffix in ("-shm", "-wal", "-journal"):
+        sidecar = path.with_name(path.name + suffix)
+        sidecar.unlink(missing_ok=True)
+
+
 def _object_exists(client, bucket: str, key: str) -> bool:
     try:
         client.head_object(Bucket=bucket, Key=key)
@@ -228,7 +243,7 @@ def backup_to_bucket(kind: str = "boot") -> dict:
         }
 
         # Step 11: only delete the local ephemeral snapshot after remote_verified.
-        local_snapshot.unlink(missing_ok=True)
+        _cleanup_sqlite_file(local_snapshot)
         local_snapshot = None
         states["cleanup_complete"] = True
         result["cleanup_complete"] = True
@@ -243,4 +258,4 @@ def backup_to_bucket(kind: str = "boot") -> dict:
         return _fail("unexpected_exception", error=str(exc))
     finally:
         if verify_download is not None:
-            verify_download.unlink(missing_ok=True)
+            _cleanup_sqlite_file(verify_download)
