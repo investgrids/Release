@@ -72,10 +72,16 @@ _MIN_SAFE_HEADLINE_LEN = 40  # a sentence-boundary cut shorter than this is unhe
 # denylist is specific to the real NSE corporate-announcement vocabulary
 # these abbreviations were actually observed in, not a general-purpose
 # English sentence tokenizer.
+#
+# "w.e.f" added 2026-09-10, found by the same inventory pass re-run after
+# the fix above: a real specimen ("...as Other of the company w.e.f.
+# August 21, 2026...") was still being cut short at "w.e.f." -- confirmed
+# quarantined (not silently corrupted) by the classifier's identity-match
+# check, not applied to production before this was found.
 _KNOWN_ABBREVIATIONS = {
     "i.e", "e.g", "rs", "re", "no", "nos", "mr", "mrs", "ms", "dr", "prof",
     "ltd", "pvt", "co", "corp", "inc", "govt", "dept", "regn", "regd",
-    "addl", "asst", "w.r.t", "p.m", "a.m", "etc", "vs", "u/s", "u/r",
+    "addl", "asst", "w.r.t", "w.e.f", "p.m", "a.m", "etc", "vs", "u/s", "u/r",
 }
 
 

@@ -157,6 +157,25 @@ def test_pm_abbreviation_is_not_mistaken_for_a_sentence_end():
     assert not result.endswith("4:00 p.m.")
 
 
+def test_wef_abbreviation_is_not_mistaken_for_a_sentence_end():
+    """Real specimen (nse-ffc452979c) found via the historical-repair
+    inventory re-run, 2026-09-10: 'w.e.f.' was not in the denylist, so the
+    classifier correctly quarantined this row rather than applying a bad
+    cut -- but the underlying gap was real. Confirms the fix."""
+    text = (
+        "IL&FS Investment Managers Limited has informed the Exchange regarding "
+        "Appointment of  M/s CNK & Associates LLP as Other of the company w.e.f. "
+        "August 21, 2026. Appointment  M/s C N K & Associates LLP as the Secretarial "
+        "Auditor of the Company for a term of five consecutive years, in accordance "
+        "with the applicable provisions of the Companies Act, 2013 and the SEBI "
+        "(Listing Obligations and Disclosure Requirements) Regulations, 2015."
+    )
+    assert len(text) > _MAX_HEADLINE_LEN
+    result = _clip_headline(text)
+    assert not result.endswith("company w.e.f.")
+    assert not result.endswith("w.e.f.")
+
+
 def test_multiple_sentences_within_budget_cuts_at_the_last_one_not_the_first():
     s1 = "First sentence here."
     s2 = "Second sentence follows and is also complete."
