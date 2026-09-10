@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import shutil
 import sqlite3
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -28,8 +29,23 @@ from app.core.config import settings
 log = structlog.get_logger(__name__)
 
 _BACKUP_DIR = Path("/data/backups")
-# The Railway volume backing /data is 434MB real (not the 500MB shown in the
-# dashboard). Real production incident, 2026-08-26 (audit: artifacts/
+# The Railway volume backing /data is 879MB real per `df -h` (Railway's own
+# dashboard says 1000MB — same dashboard-vs-real gap this comment has
+# already flagged once before, at a smaller size). CR-0 (2026-09-10):
+# this constant had drifted to a stale 434MB, last set for an even older,
+# smaller volume — never updated as Railway resized it. That drift didn't
+# change _max_backup_slots()'s answer at the time (both values hit the same
+# MIN-retention floor), but it made every capacity calculation in this
+# module wrong, and is corrected here alongside the real root cause of the
+# 2026-09-05+ backup failure loop: _prune_old_backups() only ran AFTER a
+# new backup copy was attempted, so a copy attempt needed live-DB +
+# every existing same-kind backup + the new file simultaneously (~796MB+)
+# — no longer fit once the live DB grew past ~280MB on this volume. Fixed
+# by _make_room_for_new_backup() (called BEFORE the copy, not after) plus
+# a hard pre-copy capacity guard that fails closed rather than attempts a
+# copy unlikely to complete — see backup_database().
+#
+# Real production incident, 2026-08-26 (audit: artifacts/
 # aipe_scheduler_publication_failure_audit.md): the 2026-08-19 fix below
 # hardcoded "4 daily + 1 boot = 5 files (~245MB), ~49MB/backup" — by
 # 2026-08-26 the live DB had grown to ~91MB, so those same 5 slots actually
@@ -44,11 +60,21 @@ _BACKUP_DIR = Path("/data/backups")
 # attention if the VOLUME itself is resized (Railway dashboard only, not
 # exposed via the CLI) or if a slot count of 1 daily / 1 boot regularly
 # stops giving useful history (a real sign the volume itself is now too
-# small for this app's data, not a retention-math problem).
-_VOLUME_TOTAL_BYTES = 434 * 1024 * 1024
+# small for this app's data, not a retention-math problem — see CR-0b,
+# moving the durable backup copy off this volume entirely).
+_VOLUME_TOTAL_BYTES = 879 * 1024 * 1024
 _TARGET_USED_FRACTION = 0.70  # keep steady-state usage under the 75% warn threshold below
 _MIN_DAILY_RETENTION = 1  # always keep at least "yesterday", even on a large/growing DB
 _MIN_BOOT_RETENTION = 1
+
+# CR-0 capacity guard (2026-09-10): a new backup copy must not even be
+# attempted unless free space comfortably exceeds the live DB's own size
+# (the copy's real footprint) by this margin — fails closed rather than
+# risking a mid-copy "disk is full" that the pre-fix ordering bug already
+# proved can happen. 15%: enough real margin for WAL/journal growth during
+# the copy without being so conservative that a backup can never succeed
+# at today's real, tight (~340MB after pruning) headroom.
+_REQUIRED_HEADROOM_FACTOR = 1.15
 
 # Backup volume usage at/above this fraction gets a log.warning on every
 # backup, so a slow refill (e.g. a retention bug) surfaces long before the
@@ -84,6 +110,7 @@ def backup_database(kind: str = "boot") -> dict:
 
     _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc)
+    start = time.monotonic()
     if kind == "daily":
         stamp = now.strftime("%Y%m%d")
         dest = _BACKUP_DIR / f"{_DAILY_PREFIX}{stamp}.db"
@@ -96,6 +123,42 @@ def backup_database(kind: str = "boot") -> dict:
     # zero-byte or truncated file at the real backup path.
     tmp_dest = dest.with_name(dest.name + ".tmp")
 
+    db_size = db_path.stat().st_size
+
+    # CR-0 (2026-09-10): dry-run the pruning first — compute what freeing
+    # this kind's excess backups WOULD yield, and only actually delete
+    # anything if that's enough to comfortably fit the new copy. This
+    # order matters: pruning unconditionally and THEN checking headroom
+    # can leave a worse state than before (old backup gone, new one never
+    # attempted, or attempted and failed for an unrelated reason) with no
+    # benefit — a real regression a naive prune-then-check ordering would
+    # introduce that pruning-only-when-it-would-help avoids. If pruning
+    # wouldn't create enough room, nothing is deleted and this call fails
+    # closed, exactly as it would have before this fix.
+    to_prune, prunable_bytes = _prunable_backups_for_kind(kind)
+    free_now = shutil.disk_usage(_BACKUP_DIR).free
+    hypothetical_free = free_now + prunable_bytes
+    required = int(db_size * _REQUIRED_HEADROOM_FACTOR)
+
+    if hypothetical_free < required:
+        log.error(
+            "backup.insufficient_headroom",
+            kind=kind, free_bytes=free_now, prunable_bytes=prunable_bytes,
+            hypothetical_free_bytes=hypothetical_free, required_bytes=required, db_size_bytes=db_size,
+        )
+        _log_backup_disk_usage()
+        return {
+            "status": "skipped", "reason": "insufficient_disk_headroom", "kind": kind,
+            "free_bytes": free_now, "hypothetical_free_bytes": hypothetical_free,
+            "required_bytes": required, "db_size_bytes": db_size,
+        }
+
+    if to_prune:
+        _make_room_for_new_backup(to_prune)
+        log.info("backup.pruned_to_make_room", kind=kind, freed_paths=[str(p) for p in to_prune])
+
+    free_before = shutil.disk_usage(_BACKUP_DIR).free
+
     try:
         # sqlite3's own backup API checkpoints WAL and copies consistently,
         # unlike a raw file copy racing a concurrent writer.
@@ -106,10 +169,35 @@ def backup_database(kind: str = "boot") -> dict:
         finally:
             dest_conn.close()
             src_conn.close()
-        tmp_dest.rename(dest)
-        size = dest.stat().st_size
-        log.info("backup.completed", path=str(dest), size_bytes=size, kind=kind)
-        result = {"status": "ok", "path": str(dest), "size_bytes": size, "timestamp": stamp, "kind": kind}
+
+        # CR-0 (2026-09-10): integrity-check the freshly-written copy
+        # BEFORE it's renamed into place / reported as a successful
+        # backup — a backup nobody can restore from is worse than no
+        # backup, since it looks fine in a file listing.
+        check_conn = sqlite3.connect(f"file:{tmp_dest}?mode=ro", uri=True)
+        try:
+            quick_check_result = check_conn.execute("PRAGMA quick_check").fetchone()[0]
+        finally:
+            check_conn.close()
+
+        if quick_check_result != "ok":
+            tmp_dest.unlink(missing_ok=True)
+            log.error("backup.integrity_check_failed", kind=kind, result=quick_check_result)
+            result = {"status": "error", "error": f"quick_check failed: {quick_check_result}", "kind": kind}
+        else:
+            tmp_dest.rename(dest)
+            size = dest.stat().st_size
+            duration_sec = round(time.monotonic() - start, 2)
+            free_after = shutil.disk_usage(_BACKUP_DIR).free
+            log.info(
+                "backup.completed", path=str(dest), size_bytes=size, kind=kind,
+                duration_sec=duration_sec, free_before_bytes=free_before, free_after_bytes=free_after,
+            )
+            result = {
+                "status": "ok", "path": str(dest), "size_bytes": size, "timestamp": stamp, "kind": kind,
+                "duration_sec": duration_sec, "quick_check": "ok",
+                "free_before_bytes": free_before, "free_after_bytes": free_after,
+            }
     except Exception as exc:
         tmp_dest.unlink(missing_ok=True)
         log.error("backup.failed", error=str(exc), kind=kind)
@@ -118,7 +206,9 @@ def backup_database(kind: str = "boot") -> dict:
         # Always — a failed copy above must not skip pruning, or a retention
         # bug and a disk-full incident compound each other (this is exactly
         # how the 2026-08-19 volume-full incident happened: an unhandled
-        # copy failure was silently skipping this call every time).
+        # copy failure was silently skipping this call every time). This
+        # remains a safety-net pass over ALL kinds/excess, on top of the
+        # targeted single-kind pre-copy pruning above.
         _prune_old_backups()
         _log_backup_disk_usage()
 
@@ -148,6 +238,38 @@ def _max_backup_slots() -> tuple[int, int]:
     boot_retention = _MIN_BOOT_RETENTION
     daily_retention = max(max_total_slots - boot_retention, _MIN_DAILY_RETENTION)
     return daily_retention, boot_retention
+
+
+def _prunable_backups_for_kind(kind: str) -> tuple[list[Path], int]:
+    """CR-0 (2026-09-10): dry-run companion to _make_room_for_new_backup —
+    computes which of THIS kind's backups would be pruned to reserve one
+    slot for an incoming new backup (down to retention-1), and how many
+    bytes that would free, WITHOUT deleting anything. Never touches the
+    OTHER kind's backups. Callers must check whether freeing this is
+    actually enough before committing to _make_room_for_new_backup — see
+    backup_database()'s capacity guard."""
+    daily_retention, boot_retention = _max_backup_slots()
+    retention = daily_retention if kind == "daily" else boot_retention
+    target = max(retention - 1, 0)
+
+    all_backups = list(_BACKUP_DIR.glob("ig-*.db"))
+    same_kind = sorted(
+        p for p in all_backups
+        if p.name.startswith(_DAILY_PREFIX) == (kind == "daily")
+    )
+    excess = len(same_kind) - target
+    to_remove = same_kind[: max(excess, 0)]
+    freed_bytes = sum(p.stat().st_size for p in to_remove if p.exists())
+    return to_remove, freed_bytes
+
+
+def _make_room_for_new_backup(to_remove: list[Path]) -> None:
+    """Commits the deletion of exactly the paths _prunable_backups_for_kind
+    already identified — split into its own step so the decision of
+    WHETHER to prune (only when it would actually create enough headroom)
+    happens before any file is touched, never after."""
+    for old in to_remove:
+        old.unlink(missing_ok=True)
 
 
 def _prune_old_backups() -> None:

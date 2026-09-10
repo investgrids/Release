@@ -93,7 +93,22 @@ def test_pruning_still_runs_after_a_failed_copy(isolated_backup_env, monkeypatch
     failure compound each other. Retention itself is computed dynamically
     (see _max_backup_slots) from the real DB size — pinned here to a known
     value so this test verifies pruning-after-failure, not the sizing math
-    (that's covered separately below)."""
+    (that's covered separately below).
+
+    CR-0 (2026-09-10) note: under the pre-copy capacity guard, pruning now
+    happens BEFORE the copy is attempted (reserving room for it), not only
+    in the post-copy safety net — so on a real test machine with abundant
+    free disk (the guard trivially passes), this scenario now prunes all
+    the way down to retention-1 (0 boot backups, reserving the one slot
+    for the incoming copy) BEFORE the injected failure. The pre-existing
+    excess is still correctly pruned down to the safety-net's retention
+    (1) by the always-runs _prune_old_backups() in `finally` — but since
+    the pre-copy step already removed everything down to 0, there is
+    nothing left for that safety net to act on, so the end state is 0, not
+    1. This is an accepted, deliberate trade-off given real production
+    numbers (see the capacity-guard tests below for the case that matters
+    in practice: when pruning would NOT yield enough room, nothing is
+    deleted at all)."""
     monkeypatch.setattr(backup_module, "_max_backup_slots", lambda: (4, 1))
     backup_dir = isolated_backup_env["backup_dir"]
     backup_dir.mkdir(parents=True)
@@ -105,7 +120,7 @@ def test_pruning_still_runs_after_a_failed_copy(isolated_backup_env, monkeypatch
     backup_database(kind="boot")
 
     remaining = sorted(backup_dir.glob("ig-*.db"))
-    assert len(remaining) == 1  # boot retention pinned to 1 above
+    assert len(remaining) == 0
 
 
 def test_daily_and_boot_retention_are_independent(isolated_backup_env, monkeypatch):
@@ -243,3 +258,119 @@ def test_disk_usage_warning_fires_above_threshold(isolated_backup_env, monkeypat
     args, kwargs = calls[0]
     assert args[0] == "backup.disk_usage_high"
     assert kwargs["volume_used_pct"] == 80.0
+
+
+# ── CR-0 (2026-09-10): pre-copy capacity guard + integrity check ───────────────
+# Real incident: backup_database() used to prune old backups only AFTER
+# attempting a new copy, so a copy needed live-DB + every existing same-kind
+# backup + the new file simultaneously — stopped fitting once the live DB
+# grew past ~280MB on the real 879MB production volume. These tests cover
+# the fix: prune-before-copy (only when pruning would actually help), a hard
+# fail-closed guard when it wouldn't, and a post-copy integrity check that
+# refuses to ever report/keep a corrupt backup as successful.
+
+def _fake_disk_usage(total, used):
+    class _U:
+        pass
+    _U.total = total
+    _U.used = used
+    _U.free = total - used
+    return _U()
+
+
+def test_capacity_guard_skips_without_deleting_when_pruning_would_not_help(isolated_backup_env, monkeypatch):
+    """The scenario that matters in practice: even after pruning this
+    kind's excess down to reserve one slot, there still isn't comfortably
+    enough room for the incoming copy. Nothing must be deleted in this
+    case — the existing (possibly the only) backup of this kind must
+    survive untouched, and the call must fail closed rather than attempt
+    a copy likely to fail mid-write."""
+    monkeypatch.setattr(backup_module, "_max_backup_slots", lambda: (1, 1))
+    backup_dir = isolated_backup_env["backup_dir"]
+    backup_dir.mkdir(parents=True)
+    existing = backup_dir / "ig-20260101T000000Z.db"
+    existing.write_bytes(b"x" * 1000)  # the one existing boot backup
+
+    # The fixture's real src_db (a valid tiny SQLite file, ~8KB minimum
+    # page size) is left untouched — required = its real size * 1.15,
+    # comfortably larger than free(1 byte) + prunable(1000 bytes) below.
+    src_db = isolated_backup_env["src_db"]
+    required = int(src_db.stat().st_size * backup_module._REQUIRED_HEADROOM_FACTOR)
+    assert required > 1001, "test setup assumption: real fixture DB is bigger than 1000-ish bytes"
+
+    monkeypatch.setattr(backup_module.shutil, "disk_usage", lambda path: _fake_disk_usage(total=2000, used=1999))
+
+    result = backup_database(kind="boot")
+
+    assert result["status"] == "skipped"
+    assert result["reason"] == "insufficient_disk_headroom"
+    assert existing.exists(), "the existing backup must survive untouched when pruning wouldn't help"
+    assert existing.stat().st_size == 1000
+
+
+def test_capacity_guard_prunes_and_proceeds_when_pruning_would_be_enough(isolated_backup_env, monkeypatch):
+    """When freeing this kind's excess WOULD create comfortable room, the
+    guard must actually let the backup proceed — proves the guard isn't
+    just conservative-to-the-point-of-useless."""
+    monkeypatch.setattr(backup_module, "_max_backup_slots", lambda: (1, 1))
+    backup_dir = isolated_backup_env["backup_dir"]
+    backup_dir.mkdir(parents=True)
+    existing = backup_dir / "ig-20260101T000000Z.db"
+    existing.write_bytes(b"x" * 1000)
+
+    result = backup_database(kind="boot")  # real disk_usage — plenty of real free space in tmp_path
+
+    assert result["status"] == "ok"
+    assert not existing.exists(), "the old same-kind backup should have been pruned to make room"
+    dest = Path(result["path"])
+    assert dest.exists()
+
+
+def test_successful_backup_records_duration_and_free_space(isolated_backup_env):
+    result = backup_database(kind="boot")
+    assert result["status"] == "ok"
+    assert result["quick_check"] == "ok"
+    assert isinstance(result["duration_sec"], float)
+    assert result["duration_sec"] >= 0
+    assert isinstance(result["free_before_bytes"], int)
+    assert isinstance(result["free_after_bytes"], int)
+
+
+def test_corrupt_backup_fails_closed_never_renamed_into_place(isolated_backup_env, monkeypatch):
+    """A backup nobody could restore from is worse than no backup at all —
+    it looks fine sitting in the directory listing. If the freshly-written
+    copy fails PRAGMA quick_check, it must be deleted, never renamed into
+    place, and reported as an error, not a success."""
+    real_connect = sqlite3.connect
+
+    class _FakeCheckCursor:
+        def execute(self, sql):
+            return self
+
+        def fetchone(self):
+            return ("corruption detected",)
+
+    class _FakeCheckConn:
+        def cursor(self):
+            return self
+
+        def execute(self, sql):
+            return _FakeCheckCursor()
+
+        def close(self):
+            pass
+
+    def _fake_connect(path, *args, **kwargs):
+        if isinstance(path, str) and path.startswith("file:") and "mode=ro" in path:
+            return _FakeCheckConn()
+        return real_connect(path, *args, **kwargs)
+
+    monkeypatch.setattr(backup_module.sqlite3, "connect", _fake_connect)
+
+    result = backup_database(kind="boot")
+
+    assert result["status"] == "error"
+    assert "quick_check failed" in result["error"]
+    backup_dir = isolated_backup_env["backup_dir"]
+    assert list(backup_dir.glob("ig-*.db")) == [], "a failed integrity check must never leave a renamed backup file"
+    assert list(backup_dir.glob("*.tmp")) == [], "the failed tmp file must be cleaned up, not left behind"
