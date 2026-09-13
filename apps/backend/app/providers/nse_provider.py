@@ -188,7 +188,14 @@ class NSEProvider(BaseProvider):
         CompanyAnnouncement rows had a same-day Event/NewsArticle
         duplicate). Consumers sharing this method's RawItem.id can now
         derive a correlated CompanyAnnouncement id deterministically,
-        closing that specific duplicate class without any fuzzy matching."""
+        closing that specific duplicate class without any fuzzy matching.
+
+        CR-2A (2026-09-13) superseded this as the production call path for
+        company_announcements_service.py — see filter_announcements_only
+        below, which slices the same subset out of an already-fetched
+        fetch_and_normalize() batch instead of a second network call.
+        Left in place (not deleted) so the old independent-fetch behavior
+        stays available for rollback and for direct/manual callers."""
         raw = await self._get(_URL, feed="announcements_via_company_service")
         out: list[RawItem] = []
         for r in raw:
@@ -196,6 +203,17 @@ class NSEProvider(BaseProvider):
             if item and self.validate(item):
                 out.append(item)
         return out
+
+    @staticmethod
+    def filter_announcements_only(items: list[RawItem]) -> list[RawItem]:
+        """CR-2A: slice the base-announcements-only subset out of a batch
+        already produced by fetch_and_normalize() (which also contains
+        board_meeting/corporate_action items) — equivalent output to
+        fetch_announcements_only(), without a second network call. Relies
+        on the explicit `nse_feed_kind` tag every _normalize_* method sets
+        in RawItem.extra (not id-prefix pattern matching, which would be
+        an implicit/fragile substitute for the same information)."""
+        return [i for i in items if i.extra.get("nse_feed_kind") == "announcement"]
 
     def normalize(self, raw: dict) -> RawItem | None:
         kind = raw.get("_kind")
@@ -228,8 +246,15 @@ class NSEProvider(BaseProvider):
             # Carried through so company_announcements_service.py (Phase
             # 5E.2) doesn't need its own independent NSE fetch just to get
             # a human-readable company name — one normalize path, two
-            # consumers.
-            extra={"company_name": raw.get("comp") or raw.get("companyName") or ""},
+            # consumers. nse_feed_kind (CR-2A) lets a consumer slice the
+            # base-announcements-only subset out of a combined fetch_latest()
+            # batch (which also contains board_meeting/corporate_action
+            # items) without a second network call — see
+            # NSEProvider.filter_announcements_only.
+            extra={
+                "company_name": raw.get("comp") or raw.get("companyName") or "",
+                "nse_feed_kind": "announcement",
+            },
         )
 
     def _normalize_board_meeting(self, raw: dict) -> RawItem | None:
@@ -263,6 +288,7 @@ class NSEProvider(BaseProvider):
             companies=[symbol] if symbol else [],
             impact_score=None,  # see RawItem's docstring -- not a real per-event score
             event_type="corporate",
+            extra={"nse_feed_kind": "board_meeting"},
         )
 
     def _normalize_corporate_action(self, raw: dict) -> RawItem | None:
@@ -302,4 +328,5 @@ class NSEProvider(BaseProvider):
             companies=[symbol] if symbol else [],
             impact_score=None,  # see RawItem's docstring -- not a real per-event score
             event_type="corporate",
+            extra={"nse_feed_kind": "corporate_action"},
         )

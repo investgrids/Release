@@ -287,15 +287,28 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         misfire_grace_time=60,
     )
 
-    # ── Company Announcements ingestion — every 30 minutes ───────────────────
-    from app.services.company_announcements_service import ingest_announcements
+    # ── Company Announcements ingestion — CR-2A (2026-09-13): no longer
+    # has its own trigger. job_ingest_news (every 15 min, above) now calls
+    # ingest_announcements() directly with its own already-fetched NSE
+    # items instead of this job independently re-fetching the same NSE
+    # endpoint on its own separate 30-minute schedule. See ingest_tasks.py's
+    # job_ingest_news and company_announcements_service.py's
+    # ingest_announcements docstrings for the full rationale.
+
+    # ── BSE availability health probe — once daily ───────────────────────────
+    # CR-2A: BSE removed from the hot ingestion path entirely (144
+    # guaranteed-fail calls/day eliminated). This is a deliberately
+    # low-frequency, ingestion-free reachability check — see
+    # bse_health_check.py's module docstring. Never retriggers ingestion;
+    # a real recovery is a separate, deliberate decision.
+    from app.services.bse_health_check import check_bse_health
     scheduler.add_job(
-        ingest_announcements,
-        IntervalTrigger(seconds=1800),
-        id="ingest_announcements",
+        check_bse_health,
+        CronTrigger(hour=6, minute=0, timezone=_IST),
+        id="bse_health_check",
         max_instances=1,
         coalesce=True,
-        misfire_grace_time=300,
+        misfire_grace_time=3600,
     )
 
     # ── Market Intelligence Engine refresh — every 5 minutes ─────────────────

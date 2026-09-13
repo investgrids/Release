@@ -18,7 +18,7 @@ from app.db.session import AsyncSessionLocal
 from app.db.models_legacy import NewsArticle
 from app.db.models.event import Event
 from app.db.models.macro_release import MacroRelease
-from app.providers import NSEProvider, BSEProvider, RSSProvider, RBIProvider, PIBProvider, SEBIProvider, FedProvider, RawItem
+from app.providers import NSEProvider, RSSProvider, RBIProvider, PIBProvider, SEBIProvider, FedProvider, RawItem
 from app.repositories.government_policy_repository import GovernmentPolicyRepository
 from app.services.macro_extraction import extract_macro_release
 
@@ -198,32 +198,73 @@ async def _persist_policies(db, items: list[RawItem]) -> int:
     return saved
 
 
-# ── Job: news ingest (NSE + BSE + RSS) — every 15 min ─────────────────────────
+# ── Job: news ingest (NSE + RSS) — every 15 min ───────────────────────────────
+#
+# CR-2A (2026-09-13): BSE removed from this hot path. BSE's announcement
+# API is DEFERRED_BOT_PROTECTED (see bse_provider.py's module docstring
+# for the full investigation) — every call here was a guaranteed HTTP
+# failure, 96 times/day from this job alone. BSE availability is now
+# checked by one isolated daily health probe instead (bse_health_check.py)
+# rather than an ingestion attempt disguised as a check; a real recovery
+# is a deliberate re-enablement decision, not something this job resumes
+# automatically the moment BSE happens to respond.
+#
+# Also now feeds company_announcements_service.ingest_announcements() with
+# this job's own already-fetched NSE items (the announcement-kind subset,
+# via NSEProvider.filter_announcements_only) instead of that function
+# doing its own independent NSE fetch on its own separate 30-minute
+# schedule — one network acquisition, two independent downstream
+# consumers (events/news_articles here, company_announcements there),
+# each in its own DB transaction so a failure in one never blocks the
+# other (ingest_announcements() already wraps its own body in try/except
+# and returns 0 on any failure -- see its docstring).
 
 async def job_ingest_news() -> None:
     t0 = time.perf_counter()
     log.info("job.ingest_news.start")
 
     nse_items = await NSEProvider().fetch_and_normalize()
-    bse_items = await BSEProvider().fetch_and_normalize()
     rss_items = await RSSProvider().fetch_and_normalize()
 
-    all_items = nse_items + bse_items + rss_items
+    all_items = nse_items + rss_items
+    # Sliced from the already-fetched batch BEFORE the Event/NewsArticle
+    # persistence block below, so a failure in that block (caught, not
+    # propagated -- see try/except) can never prevent the
+    # company_announcements consumer from also getting a chance at the
+    # same fetched data. The two consumers must stay independent all the
+    # way down, not just share the network call.
+    nse_announcement_items = NSEProvider.filter_announcements_only(nse_items)
 
-    async with AsyncSessionLocal() as db:
-        new_ids = await _persist_articles(db, all_items)
-        new_id_set = set(new_ids)
+    new_ids: list[str] = []
+    nse_events = 0
+    try:
+        async with AsyncSessionLocal() as db:
+            new_ids = await _persist_articles(db, all_items)
+            new_id_set = set(new_ids)
 
-        nse_events = await _create_events(db, nse_items, new_id_set, "corporate")
-        bse_events = await _create_events(db, bse_items, new_id_set, "corporate")
-        # RSS items do NOT become Events (too generic)
+            nse_events = await _create_events(db, nse_items, new_id_set, "corporate")
+            # RSS items do NOT become Events (too generic)
+    except Exception:
+        log.exception("job.ingest_news.event_persistence_failed")
+
+    from app.services.company_announcements_service import ingest_announcements
+    announcements_saved = 0
+    try:
+        # ingest_announcements() already wraps its own body in try/except
+        # and returns 0 rather than raising (see its docstring) -- this
+        # outer guard is defensive symmetry with the block above, not a
+        # sign that path is expected to raise.
+        announcements_saved = await ingest_announcements(nse_items=nse_announcement_items)
+    except Exception:
+        log.exception("job.ingest_news.announcements_persistence_failed")
 
     elapsed = round((time.perf_counter() - t0) * 1000)
     log.info(
         "job.ingest_news.done",
-        nse=len(nse_items), bse=len(bse_items), rss=len(rss_items),
+        nse=len(nse_items), rss=len(rss_items),
         new_articles=len(new_ids),
-        new_events=nse_events + bse_events,
+        new_events=nse_events,
+        announcements_saved=announcements_saved,
         elapsed_ms=elapsed,
     )
 

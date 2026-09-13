@@ -1,9 +1,16 @@
 """
 Company Announcements Ingestion Service
-Fetches corporate announcements from NSE and BSE, stores them in the DB,
-and optionally AI-enriches high-impact ones.
+Persists NSE corporate announcements to the DB, and optionally
+AI-enriches high-impact ones. BSE is not ingested here — see CR-2A note
+on ingest_announcements() below.
 
-Schedule: every 30 minutes during market hours, every 2 hours otherwise.
+Schedule (CR-2A, 2026-09-13): no longer has its own scheduler entry —
+called directly from job_ingest_news's existing 15-minute NSE fetch (the
+"every 30 minutes during market hours, every 2 hours otherwise" cadence
+this docstring used to describe was never actually implemented as
+market-hours-aware in the scheduler; it was a flat 30-minute interval
+year-round, and no evidence tied that specific number to any downstream
+consumer's freshness requirement).
 
 Phase 5D fix (2026-08-17): this module used to import stdlib `logging`
 and call it with structlog-style keyword arguments (`log.warning("...",
@@ -49,6 +56,26 @@ def _hash(symbol: str, subject: str, date_str: str) -> str:
 
 # ── NSE corporate announcements ────────────────────────────────────────────────
 
+def _raw_item_to_announcement_dict(raw_item) -> dict:
+    """Shared mapping from an already-normalized NSE RawItem (announcement
+    kind) to the dict shape ingest_announcements() persists. Pulled out as
+    its own function (CR-2A) so both the pre-fetched path (job_ingest_news's
+    shared fetch) and the standalone fallback path (_fetch_nse_announcements
+    below) produce byte-identical output."""
+    symbol = (raw_item.companies[0] if raw_item.companies else "").strip().upper()
+    return {
+        "symbol":            symbol,
+        "company_name":      raw_item.extra.get("company_name", ""),
+        "source":            "NSE",
+        "category":          "",
+        "subject":           raw_item.headline[:500],
+        "description":       raw_item.summary[:1000] if raw_item.summary else None,
+        "date_str":          f"{raw_item.published_at} 00:00:00" if raw_item.published_at else "",
+        "attachment_url":    None,
+        "source_record_id":  raw_item.id,  # e.g. "nse-<an_no>" -- shared with Event/NewsArticle
+    }
+
+
 async def _fetch_nse_announcements(limit: int = 50) -> list[dict]:
     """Fetch recent corporate announcements from NSE India.
 
@@ -70,25 +97,21 @@ async def _fetch_nse_announcements(limit: int = 50) -> list[dict]:
     Still never raises — any failure is caught here, recorded to
     source_health, and reported as an empty list, same contract
     _fetch_bse_announcements makes; one source's outage never takes the
-    other's already-fetched data down with it."""
+    other's already-fetched data down with it.
+
+    CR-2A (2026-09-13): this is now only the FALLBACK path, used when
+    ingest_announcements() is called without pre-fetched items (the
+    standalone/manual-trigger case, e.g. POST /api/announcements/ingest).
+    The production scheduled path no longer calls this — job_ingest_news
+    passes its own already-fetched items directly, eliminating the second
+    network call to the same NSE endpoint this function used to make on
+    its own independent 30-minute schedule. Left in place (not deleted)
+    so the standalone call path keeps working and rollback stays easy."""
     start = time.monotonic()
     try:
         from app.providers.nse_provider import NSEProvider
         raw_items = await NSEProvider().fetch_announcements_only()
-        results = []
-        for raw_item in raw_items[:limit]:
-            symbol = (raw_item.companies[0] if raw_item.companies else "").strip().upper()
-            results.append({
-                "symbol":            symbol,
-                "company_name":      raw_item.extra.get("company_name", ""),
-                "source":            "NSE",
-                "category":          "",
-                "subject":           raw_item.headline[:500],
-                "description":       raw_item.summary[:1000] if raw_item.summary else None,
-                "date_str":          f"{raw_item.published_at} 00:00:00" if raw_item.published_at else "",
-                "attachment_url":    None,
-                "source_record_id":  raw_item.id,  # e.g. "nse-<an_no>" -- shared with Event/NewsArticle
-            })
+        results = [_raw_item_to_announcement_dict(r) for r in raw_items[:limit]]
         source_health.record_fetch(
             "NSE", success=True, event_count=len(results), latency_ms=(time.monotonic() - start) * 1000,
         )
@@ -203,8 +226,25 @@ def _score_announcement(subject: str, category: str) -> tuple[int, str, bool]:
 
 # ── DB persistence ─────────────────────────────────────────────────────────────
 
-async def ingest_announcements() -> int:
-    """Fetch announcements from NSE+BSE, deduplicate, persist to DB. Returns count saved."""
+async def ingest_announcements(nse_items: Optional[list] = None) -> int:
+    """Deduplicate and persist NSE corporate announcements to DB. Returns
+    count saved.
+
+    CR-2A (2026-09-13): BSE removed from this hot path entirely —
+    DEFERRED_BOT_PROTECTED (see bse_provider.py), every call guaranteed to
+    fail, contributing pure waste on this function's own schedule. BSE
+    availability is now checked by one isolated daily health probe
+    instead (see bse_health_check.py) — a real recovery would be a
+    deliberate re-enablement decision, not automatically resumed here.
+
+    `nse_items` lets a caller pass already-fetched RawItem objects (their
+    `nse_feed_kind` extra pre-filtered to "announcement") instead of this
+    function fetching NSE itself — job_ingest_news's shared 15-minute
+    fetch does this, eliminating the second independent NSE network call
+    this function used to make on its own 30-minute schedule. When
+    `nse_items` is None (the standalone/manual-trigger call path, e.g.
+    POST /api/announcements/ingest), this fetches on its own via
+    _fetch_nse_announcements(), unchanged from before."""
     global _last_run
     now = time.time()
     if now - _last_run < _MIN_INTERVAL:
@@ -216,9 +256,10 @@ async def ingest_announcements() -> int:
         from app.db.models.company_announcements import CompanyAnnouncement
         import uuid
 
-        nse_items = await _fetch_nse_announcements()
-        bse_items = _fetch_bse_announcements()
-        raw = nse_items + bse_items
+        if nse_items is None:
+            raw = await _fetch_nse_announcements()
+        else:
+            raw = [_raw_item_to_announcement_dict(i) for i in nse_items]
         if not raw:
             return 0
 

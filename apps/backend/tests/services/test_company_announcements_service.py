@@ -9,11 +9,13 @@ expression crashed and discarded NSE's already-successfully-fetched
 data too. Confirmed against the real dev DB before the fix: the
 company_announcements table had zero rows, ever.
 
-These tests prove the three scenarios the fix must handle, per the
-explicit spec this phase was scoped against:
-  1. NSE success + BSE failure -> NSE announcements persist.
-  2. NSE failure + BSE success -> BSE announcements persist.
-  3. Both fail -> zero rows, no crash, explicit source-health state.
+CR-2A (2026-09-13) removed BSE from this module's hot path entirely (see
+that section below) — the mixed NSE/BSE scenarios this file originally
+covered no longer apply to ingest_announcements() itself, though
+_fetch_bse_announcements() (the standalone function) is kept and still
+tested, since bse_health_check.py's daily probe design intentionally
+does NOT reuse it (a probe must never call .json() blindly the way this
+function's contract requires).
 """
 from __future__ import annotations
 
@@ -51,15 +53,6 @@ def _fake_nse_item(symbol: str) -> dict:
     }
 
 
-def _fake_bse_item(scrip_cd: str) -> dict:
-    return {
-        "symbol": scrip_cd, "company_name": "Some BSE Co", "source": "BSE",
-        "category": "General", "subject": f"Test BSE announcement {scrip_cd}",
-        "description": None, "date_str": datetime.now(timezone.utc).strftime("%d-%b-%Y %H:%M:%S"),
-        "attachment_url": None,
-    }
-
-
 @pytest.mark.asyncio
 async def test_nse_success_bse_failure_still_persists_nse():
     prefix = f"TESTNSE{uuid.uuid4().hex[:6].upper()}"
@@ -78,29 +71,81 @@ async def test_nse_success_bse_failure_still_persists_nse():
 
 
 @pytest.mark.asyncio
-async def test_nse_failure_bse_success_still_persists_bse():
-    prefix = f"TESTBSE{uuid.uuid4().hex[:6].upper()}"
+async def test_nse_failure_returns_zero_no_crash():
+    """CR-2A (2026-09-13): BSE is no longer part of ingest_announcements
+    at all -- superseded by test_bse_is_never_fetched_by_ingest_announcements
+    below, which proves BSE is categorically absent from this path now,
+    not merely a failure among sources."""
+    _reset_module_state()
+    with patch.object(cas, "_fetch_nse_announcements", AsyncMock(return_value=[])):
+        saved = await cas.ingest_announcements()  # must not raise
+    assert saved == 0
+
+
+@pytest.mark.asyncio
+async def test_bse_is_never_fetched_by_ingest_announcements():
+    """CR-2A: BSE removed from this hot path entirely -- DEFERRED_BOT_
+    PROTECTED, every call was a guaranteed failure (144/day combined with
+    job_ingest_news). Availability is now checked only by the isolated
+    daily bse_health_check probe, never from here."""
     _reset_module_state()
     with patch.object(cas, "_fetch_nse_announcements", AsyncMock(return_value=[])), \
-         patch.object(cas, "_fetch_bse_announcements", return_value=[_fake_bse_item(prefix)]):
-        saved = await cas.ingest_announcements()
+         patch.object(cas, "_fetch_bse_announcements") as bse_mock:
+        await cas.ingest_announcements()
+    bse_mock.assert_not_called()
+
+
+# ── CR-2A: shared-fetch (pre-fetched nse_items) path ────────────────────────
+
+@pytest.mark.asyncio
+async def test_prefetched_nse_items_are_persisted_without_a_second_fetch():
+    """job_ingest_news's shared-fetch call path: when nse_items is passed
+    in, ingest_announcements() must persist from it directly and must
+    NOT call _fetch_nse_announcements() (which would be a second,
+    redundant NSE network call -- the exact waste CR-2A eliminates)."""
+    prefix = f"TESTSHARE{uuid.uuid4().hex[:6].upper()}"
+    shared_id = f"nse-{uuid.uuid4().hex[:10]}"
+    raw_item = RawItem(
+        id=shared_id, headline=f"Test announcement for {prefix}", summary="",
+        source="NSE", published_at="2026-09-13", companies=[prefix],
+        impact_score=None, event_type="corporate",
+        extra={"company_name": f"{prefix} Ltd", "nse_feed_kind": "announcement"},
+    )
+    _reset_module_state()
+    with patch.object(cas, "_fetch_nse_announcements", AsyncMock()) as fetch_mock:
+        saved = await cas.ingest_announcements(nse_items=[raw_item])
+    fetch_mock.assert_not_called()
     assert saved == 1
 
     async with AsyncSessionLocal() as db:
-        rows = (await db.execute(select(CompanyAnnouncement).where(CompanyAnnouncement.symbol == prefix))).scalars().all()
-    assert len(rows) == 1
-    assert rows[0].source == "BSE"
+        row = await db.get(CompanyAnnouncement, f"ann_{shared_id}")
+    assert row is not None
+    assert row.symbol == prefix
+    assert row.company_name == f"{prefix} Ltd"
 
     await _cleanup(prefix)
 
 
 @pytest.mark.asyncio
-async def test_both_fail_returns_zero_no_crash():
-    _reset_module_state()
-    with patch.object(cas, "_fetch_nse_announcements", AsyncMock(return_value=[])), \
-         patch.object(cas, "_fetch_bse_announcements", return_value=[]):
-        saved = await cas.ingest_announcements()  # must not raise
-    assert saved == 0
+async def test_prefetched_and_fallback_paths_produce_identical_dict_shape():
+    """The pre-fetched path (job_ingest_news) and the standalone fallback
+    path (_fetch_nse_announcements, still used by the manual-trigger API)
+    must map the same RawItem to byte-identical dicts -- proves
+    _raw_item_to_announcement_dict is genuinely shared, not two
+    independently-drifting implementations."""
+    raw_item = RawItem(
+        id="nse-shapecheck", headline="Shape check headline", summary="Shape check summary",
+        source="NSE", published_at="2026-09-13", companies=["SHAPECHK"],
+        impact_score=None, event_type="corporate",
+        extra={"company_name": "Shape Check Ltd", "nse_feed_kind": "announcement"},
+    )
+    via_shared_helper = cas._raw_item_to_announcement_dict(raw_item)
+
+    with patch("app.providers.nse_provider.NSEProvider.fetch_announcements_only",
+               AsyncMock(return_value=[raw_item])):
+        via_fallback = await cas._fetch_nse_announcements()
+
+    assert via_fallback == [via_shared_helper]
 
 
 # ── Phase 5E.2: NSE ingestion is unified through NSEProvider ────────────────
