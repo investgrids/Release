@@ -716,7 +716,8 @@ async def run_aipe_cycle() -> None:
 
     _STATS["running"] = True
     _STATS["scheduler_status"] = "running"
-    _STATS["last_run"] = datetime.now(timezone.utc).isoformat()
+    _cycle_start_dt = datetime.now(timezone.utc)
+    _STATS["last_run"] = _cycle_start_dt.isoformat()
     _cycle_start = time.monotonic()
 
     try:
@@ -827,6 +828,28 @@ async def run_aipe_cycle() -> None:
                         story_id=story_id, article_type=article_type, matched_article_id=duplicate.id,
                     )
                 else:
+                    # P7 Candidate Ownership Arbitration (2026-09-13):
+                    # only checked here, in the "V1 found no duplicate,
+                    # about to create" branch -- arbitration never
+                    # touches V1's own update path. Gated by its own
+                    # separate flag (never article_pipeline_mode) --
+                    # defaults False, must stay False in production
+                    # until the real V2 write path exists (see
+                    # ownership_arbitration.py's own module docstring).
+                    if settings.article_v2_canary_ownership_enabled:
+                        from app.services.article_v2.ownership_arbitration import should_withhold_for_v2_canary
+                        withhold = await should_withhold_for_v2_canary(
+                            db, triage_event_id=triage_event.get("event_id"),
+                            ev_tier=ev_tier, cycle_start_time=_cycle_start_dt,
+                        )
+                        if withhold.should_withhold:
+                            log.info(
+                                "aipe.cycle.withheld_for_v2_canary",
+                                event_id=triage_event.get("event_id"), reason=withhold.reason,
+                            )
+                            v1_decisions[triage_event.get("event_id")] = V1Decision(decision="withheld_for_v2_canary")
+                            continue
+
                     # Create new article
                     event_group_id = triage_event.get("event_id") or story_id
                     article = await _publish_new_article(

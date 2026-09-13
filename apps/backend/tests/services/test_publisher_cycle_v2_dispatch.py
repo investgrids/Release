@@ -123,3 +123,24 @@ async def test_v1_decisions_records_a_daily_cap_skip():
     shadow_mock.assert_called_once()
     _, kwargs = shadow_mock.call_args
     assert kwargs["v1_decisions"][event_id].decision == "skipped_daily_cap"
+
+
+@pytest.mark.asyncio
+async def test_ownership_arbitration_defaults_off_and_is_never_invoked():
+    """P7 Candidate Ownership Arbitration (2026-09-13): the flag must
+    default False, and with it False, should_withhold_for_v2_canary must
+    never even be called -- V1's create-new path stays byte-identical to
+    pre-P7 behavior, not merely "arbitration says no" every time."""
+    assert settings.article_v2_canary_ownership_enabled is False, \
+        "article_v2_canary_ownership_enabled must default False -- there is no real V2 write path yet"
+
+    settings.article_pipeline_mode = "shadow_v2"
+    event_id = "evt-dispatch-arbitration-off"
+    stack, publish_mock = _run_with_mocks([_triage_event(event_id)], AsyncMock(return_value=_fake_article(event_id)))
+    with stack, \
+         patch("app.services.article_v2.shadow_orchestrator.run_shadow_batch", new_callable=AsyncMock), \
+         patch("app.services.article_v2.ownership_arbitration.should_withhold_for_v2_canary", new_callable=AsyncMock) as arbitration_mock:
+        await publisher.run_aipe_cycle()
+
+    arbitration_mock.assert_not_called()
+    publish_mock.assert_called_once()  # V1 created normally, nothing withheld

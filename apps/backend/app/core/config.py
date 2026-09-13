@@ -233,6 +233,18 @@ class Settings(BaseSettings):
     # explicitly-authorized step -- not a side effect of this default.
     article_pipeline_mode: str = "v1"
 
+    # P7 Candidate Ownership Arbitration (2026-09-13) -- distinct from
+    # article_pipeline_mode on purpose: mode decides whether V2 runs at
+    # all, this decides whether V1 may temporarily withhold a High-tier
+    # candidate for V2 to attempt. Defaults False and MUST stay False in
+    # production for this patch -- there is no real V2 public-write path
+    # yet (see app/services/article_v2/publisher.py's own structural
+    # persistence boundary), so enabling this today would only make V1
+    # skip a High event for one cycle with zero product benefit.
+    # Enabling it is a separate, later, explicitly-authorized step tied
+    # to the real-write checkpoint, not a side effect of this default.
+    article_v2_canary_ownership_enabled: bool = False
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
