@@ -57,8 +57,18 @@ class ArticleV2ShadowExecution(Base):
     c4_publication_action = Column(String(16), nullable=True)  # CREATE | UPDATE_EXISTING | NONE
 
     # ── C5 ───────────────────────────────────────────────────────────────
-    c5_publication_action = Column(String(16), nullable=True)  # CREATE_NEW | UPDATE_EXISTING | NO_PUBLICATION
+    c5_publication_action = Column(String(16), nullable=True)  # CREATE_NEW | UPDATE_EXISTING | NO_PUBLICATION -- C5's OWN raw view, unmodified by the collision gate below
     identity_key = Column(String(256), nullable=True, index=True)
+
+    # ── V1<->V2 Collision Gate (2026-09-13) ──────────────────────────────
+    # Only evaluated when c5_publication_action == CREATE_NEW -- see
+    # app/services/article_v2/collision_gate.py. Separates the gate's
+    # OUTCOME from HOW ownership was determined, so canary review can
+    # tell "trusted V1's own decision" apart from "found via an
+    # independent DB lookup" apart from "refused, ownership unprovable."
+    collision_gate_outcome = Column(String(24), nullable=True)  # not_evaluated | no_collision | resolved_existing | ambiguous -- "resolved_existing" is 17 chars, VARCHAR(16) would have silently truncated it under a stricter backend than SQLite
+    collision_match_basis = Column(String(24), nullable=True)  # null | v1_decision | duplicate_lookup | multiple_owners
+    collision_owner_article_id = Column(String, nullable=True)  # the incumbent IntelligenceArticle.id when outcome == resolved_existing
 
     # ── C8.1 tier ────────────────────────────────────────────────────────
     c8_tier = Column(String(16), nullable=True)  # ARTICLE | EVENT_ONLY | REJECT

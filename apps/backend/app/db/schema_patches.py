@@ -93,6 +93,12 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("opportunities_v2", "slug", "VARCHAR(200)"),
     ("opportunities_v2", "score_breakdown", "JSON"),
     ("opportunities_v2", "contradictions", "JSON DEFAULT '[]'"),
+    # V1<->V2 Collision Gate (2026-09-13) — article_v2_shadow_executions
+    # already existed (collecting P6-A/P6-B telemetry) before these
+    # columns did.
+    ("article_v2_shadow_executions", "collision_gate_outcome", "VARCHAR(24)"),  # "resolved_existing" is 17 chars -- VARCHAR(16) would silently truncate under a stricter backend than SQLite
+    ("article_v2_shadow_executions", "collision_match_basis", "VARCHAR(24)"),
+    ("article_v2_shadow_executions", "collision_owner_article_id", "VARCHAR"),
 ]
 
 

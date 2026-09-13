@@ -28,6 +28,7 @@ from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.raw_evidence import RawEvidence
 from app.db.models.source_registry import Source
 from app.db.session import AsyncSessionLocal
+from app.services.article_v2.collision_gate import V1Decision
 from app.services.article_v2.mode import ArticlePipelineMode
 from app.services.article_v2.shadow_orchestrator import run_shadow_batch
 
@@ -99,7 +100,7 @@ async def test_unresolved_entity_skips_at_c1_and_is_recorded():
     async with AsyncSessionLocal() as db:
         records = await run_shadow_batch(
             db, triage_events=[(_triage_event(event_id, "Some real-sounding headline", [symbol]), "approved")],
-            v1_decisions={event_id: "created"}, mode=ArticlePipelineMode.SHADOW_V2,
+            v1_decisions={event_id: V1Decision(decision="created")}, mode=ArticlePipelineMode.SHADOW_V2,
         )
     try:
         assert len(records) == 1
@@ -144,7 +145,7 @@ async def test_full_pipeline_reaches_would_publish_true_and_creates_no_public_ar
         async with AsyncSessionLocal() as db:
             records = await run_shadow_batch(
                 db, triage_events=[(_triage_event(event_id, title, [symbol]), "approved")],
-                v1_decisions={event_id: "created"}, mode=ArticlePipelineMode.SHADOW_V2,
+                v1_decisions={event_id: V1Decision(decision="created")}, mode=ArticlePipelineMode.SHADOW_V2,
             )
 
         assert len(records) == 1

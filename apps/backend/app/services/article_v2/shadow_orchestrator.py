@@ -60,6 +60,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.article_v2_shadow_execution import ArticleV2ShadowExecution
 from app.services.article_v2.candidate_gate import SKIP as C1_SKIP
 from app.services.article_v2.candidate_gate import evaluate_candidate
+from app.services.article_v2.collision_gate import (
+    AMBIGUOUS, NOT_EVALUATED, NO_COLLISION, RESOLVED_EXISTING, V1Decision, check_collision,
+)
 from app.services.article_v2.composer import ComposerRefusal, compose_article
 from app.services.article_v2.context_builder import build_context
 from app.services.article_v2.decision_engine import FACTUAL_UPDATE, FULL_ARTICLE, decide
@@ -80,7 +83,7 @@ class _PendingCandidate:
     accumulator local to one batch run, not a public dataclass."""
     triage_event_id: str | None
     symbol: str | None
-    v1_decision: str
+    v1_decision: V1Decision
     record: ArticleV2ShadowExecution
     start_time: float
     decision: object = None
@@ -89,6 +92,7 @@ class _PendingCandidate:
     identity: object = None
     resolution: object = None
     matched_article_id: str | None = None
+    event_headline: str = ""
 
 
 def _new_record(*, triage_event_id: str | None, symbol: str | None, mode: ArticlePipelineMode) -> ArticleV2ShadowExecution:
@@ -100,12 +104,12 @@ def _new_record(*, triage_event_id: str | None, symbol: str | None, mode: Articl
 
 async def _run_stage_one(
     db: AsyncSession, *, symbol: str, event_headline: str, event_id: str | None,
-    v1_decision: str, mode: ArticlePipelineMode, start_time: float,
+    v1_decision: V1Decision, mode: ArticlePipelineMode, start_time: float,
 ) -> _PendingCandidate:
     """C1 -> C2 -> C3 -> C4 -> C5 -> C8.1 tier, for one triage event.
     Stops and finalizes the record the moment any stage says no."""
     record = _new_record(triage_event_id=event_id, symbol=symbol, mode=mode)
-    record.v1_publication_decision = v1_decision
+    record.v1_publication_decision = v1_decision.decision
     record.stage_reached = "C1"
 
     candidate = await evaluate_candidate(db, symbol=symbol, event_headline=event_headline, event_id=event_id)
@@ -115,7 +119,7 @@ async def _run_stage_one(
     if candidate.outcome == C1_SKIP:
         record.rejection_reason = f"C1 SKIP: {candidate.reason_detail}"
         record.execution_time_ms = (time.monotonic() - start_time) * 1000
-        return _PendingCandidate(event_id, symbol, v1_decision, record, start_time)
+        return _PendingCandidate(event_id, symbol, v1_decision, record, start_time, event_headline=event_headline)
 
     es = await build_evidence_set(db, symbol=symbol, event_headline=event_headline, event_id=event_id)
     record.stage_reached = "C2"
@@ -124,7 +128,7 @@ async def _run_stage_one(
     if es.primary_evidence is None:
         record.rejection_reason = "C2: no usable primary evidence"
         record.execution_time_ms = (time.monotonic() - start_time) * 1000
-        return _PendingCandidate(event_id, symbol, v1_decision, record, start_time)
+        return _PendingCandidate(event_id, symbol, v1_decision, record, start_time, event_headline=event_headline)
 
     ctx = await build_context(db, es)
     record.stage_reached = "C3"
@@ -137,7 +141,7 @@ async def _run_stage_one(
     if decision.content_type not in (FULL_ARTICLE, FACTUAL_UPDATE):
         record.rejection_reason = f"C4: content_type={decision.content_type}"
         record.execution_time_ms = (time.monotonic() - start_time) * 1000
-        return _PendingCandidate(event_id, symbol, v1_decision, record, start_time)
+        return _PendingCandidate(event_id, symbol, v1_decision, record, start_time, event_headline=event_headline)
 
     identity = compute_identity(es)
     record.stage_reached = "C5"
@@ -153,21 +157,29 @@ async def _run_stage_one(
         # resolve_uniqueness() call in stage 2 below, which made every
         # real UPDATE_EXISTING decision misreport as NO_PUBLICATION.
         matched_article_id=candidate.matched_article_id,
+        event_headline=event_headline,
     )
 
 
 async def run_shadow_batch(
-    db: AsyncSession, *, triage_events: list[dict], v1_decisions: dict[str, str], mode: ArticlePipelineMode,
+    db: AsyncSession, *, triage_events: list[dict], v1_decisions: dict[str, V1Decision], mode: ArticlePipelineMode,
+    mie_context: dict | None = None,
 ) -> list[ArticleV2ShadowExecution]:
     """The one real entry point. `triage_events` is the SAME `approved`
     list `run_aipe_cycle()` already computed for this cycle -- shadow
     telemetry always describes the identical candidates V1 is looking at
     in this same cycle, never a separately-sampled batch.
-    `v1_decisions` maps `event_id -> "created"|"updated"|"duplicate_no_update"|
-    "skipped_<reason>"`, filled in by the caller's own existing V1 loop
-    (this module never re-derives what V1 did -- it trusts the caller's
-    real, already-known outcome). Persists (adds + commits) one
-    `ArticleV2ShadowExecution` row per triage event and returns them.
+    `v1_decisions` maps `event_id -> V1Decision` (decision label plus,
+    when V1 reached one, the real story_id/article_type/matched or
+    created article id it used -- see collision_gate.py's V1Decision),
+    filled in by the caller's own existing V1 loop (this module never
+    re-derives what V1 did -- it trusts the caller's real, already-known
+    outcome). `mie_context` is only used as a fallback input to
+    content_planner.select_article_type() for the rare case where V1
+    never reached an ownership decision for this exact event (skipped/
+    failed) -- see the collision gate call in stage 2 below. Persists
+    (adds + commits) one `ArticleV2ShadowExecution` row per triage event
+    and returns them.
     """
     known_identities: dict[str, str] = {}
     known_headlines: dict[str, str] = {}
@@ -177,16 +189,16 @@ async def run_shadow_batch(
         tickers = triage_event.get("tickers") or []
         event_id = triage_event.get("event_id")
         headline = triage_event.get("headline") or ""
-        v1_decision = v1_decisions.get(event_id, "unknown")
+        v1_decision = v1_decisions.get(event_id) or V1Decision(decision="unknown")
         start_time = time.monotonic()
 
         if not tickers:
             record = _new_record(triage_event_id=event_id, symbol=None, mode=mode)
-            record.v1_publication_decision = v1_decision
+            record.v1_publication_decision = v1_decision.decision
             record.stage_reached = "C1"
             record.rejection_reason = "no tickers on this triage event -- V2 requires a real symbol"
             record.execution_time_ms = (time.monotonic() - start_time) * 1000
-            pending.append(_PendingCandidate(event_id, None, v1_decision, record, start_time))
+            pending.append(_PendingCandidate(event_id, None, v1_decision, record, start_time, event_headline=headline))
             continue
 
         symbol = tickers[0]
@@ -209,12 +221,63 @@ async def run_shadow_batch(
             c4_matched_article_id=pc.matched_article_id, known_identities=known_identities,
         )
         pc.resolution = resolution
+        # c5_publication_action always records C5's OWN raw view, even
+        # when the collision gate below overrides it -- diagnostic value
+        # (what would C5 alone have said) is separate from the gate's
+        # corrected effective_action used for the rest of this pipeline.
         pc.record.c5_publication_action = resolution.publication_action
+
+        effective_action = resolution.publication_action
+        effective_matched_id = resolution.matched_article_id
+        effective_reason = resolution.reason
+        pc.record.collision_gate_outcome = NOT_EVALUATED
+        pc.record.collision_match_basis = None
+        pc.record.collision_owner_article_id = None
+
         if resolution.publication_action == CREATE_NEW:
+            # V1<->V2 collision gate (owner design, 2026-09-13): the
+            # audit found C5's own resolve_uniqueness() collision check
+            # is purely in-memory/intra-batch -- it has zero visibility
+            # into V1's own prior/same-cycle writes. Under the locked
+            # execution model (V1 commits first, V2 runs synchronously
+            # after, same cycle), a V1 "created" decision is the
+            # strongest possible ownership evidence and must convert
+            # this candidate to UPDATE_EXISTING, not leave it CREATE_NEW.
+            fallback_story_id = fallback_article_type = None
+            if pc.v1_decision.decision not in ("created", "updated", "duplicate_no_update"):
+                # V1 never reached ownership for this exact event (skipped/
+                # failed/no entry) -- only then derive the same inputs V1
+                # itself would, via the same function V1 calls.
+                from app.services.aipe.content_planner import select_article_type
+                triage_event_stub = {"event_id": pc.triage_event_id, "headline": pc.event_headline}
+                fallback_article_type, fallback_story_id, _ = select_article_type(triage_event_stub, mie_context)
+
+            collision = await check_collision(
+                db, event_id=pc.triage_event_id, headline=pc.event_headline,
+                v1_decision=pc.v1_decision,
+                fallback_story_id=fallback_story_id, fallback_article_type=fallback_article_type,
+            )
+            pc.record.collision_gate_outcome = collision.outcome
+            pc.record.collision_match_basis = collision.match_basis
+            pc.record.collision_owner_article_id = collision.collision_owner_article_id
+
+            if collision.outcome == RESOLVED_EXISTING:
+                effective_action = UPDATE_EXISTING
+                effective_matched_id = collision.collision_owner_article_id
+                effective_reason = f"collision_gate: resolved via {collision.match_basis} -> {collision.collision_owner_article_id}"
+            elif collision.outcome == AMBIGUOUS:
+                effective_action = "NO_PUBLICATION"
+                effective_reason = f"collision_gate: ambiguous ({collision.match_basis}) -- ownership not provable"
+            # NO_COLLISION: effective_action/effective_matched_id/effective_reason
+            # stay as resolve_uniqueness()'s own CREATE_NEW -- only NOW, after
+            # the gate has cleared it, does this identity get claimed.
+
+        if effective_action == CREATE_NEW:
             known_identities[pc.identity.identity_key] = pc.record.id
-        if resolution.publication_action not in (CREATE_NEW, UPDATE_EXISTING):
+        pc.matched_article_id = effective_matched_id
+        if effective_action not in (CREATE_NEW, UPDATE_EXISTING):
             pc.record.stage_reached = "C5"
-            pc.record.rejection_reason = f"C5: {resolution.reason}"
+            pc.record.rejection_reason = f"C5: {effective_reason}"
             pc.record.execution_time_ms = (time.monotonic() - pc.start_time) * 1000
             continue
 

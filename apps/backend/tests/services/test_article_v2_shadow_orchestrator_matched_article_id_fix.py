@@ -41,6 +41,7 @@ from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.raw_evidence import RawEvidence
 from app.db.models.source_registry import Source
 from app.db.session import AsyncSessionLocal
+from app.services.article_v2.collision_gate import V1Decision
 from app.services.article_v2.identity import CREATE_NEW, NO_PUBLICATION, UPDATE_EXISTING, resolve_uniqueness
 from app.services.article_v2.mode import ArticlePipelineMode
 from app.services.article_v2.shadow_orchestrator import run_shadow_batch
@@ -134,7 +135,7 @@ async def test_create_candidate_unaffected_by_the_fix(monkeypatch):
         async with AsyncSessionLocal() as db:
             records = await run_shadow_batch(
                 db, triage_events=[(_triage_event(event_id, title, [symbol]), "approved")],
-                v1_decisions={event_id: "created"}, mode=ArticlePipelineMode.SHADOW_V2,
+                v1_decisions={event_id: V1Decision(decision="created")}, mode=ArticlePipelineMode.SHADOW_V2,
             )
         r = records[0]
         assert r.c1_outcome == "CANDIDATE"  # no existing coverage -- genuinely new
@@ -186,7 +187,7 @@ async def test_update_existing_with_real_matched_article_id_reaches_p4(monkeypat
         async with AsyncSessionLocal() as db:
             records = await run_shadow_batch(
                 db, triage_events=[(_triage_event(event_id, title, [symbol]), "approved")],
-                v1_decisions={event_id: "updated"}, mode=ArticlePipelineMode.SHADOW_V2,
+                v1_decisions={event_id: V1Decision(decision="updated", matched_article_id=existing_article_id)}, mode=ArticlePipelineMode.SHADOW_V2,
             )
         r = records[0]
         # C1 must have found the real existing coverage via trigger_event_id.
@@ -258,7 +259,7 @@ async def test_p2_authorization_summary_persisted_on_would_publish(monkeypatch):
         async with AsyncSessionLocal() as db:
             records = await run_shadow_batch(
                 db, triage_events=[(_triage_event(event_id, title, [symbol]), "approved")],
-                v1_decisions={event_id: "created"}, mode=ArticlePipelineMode.SHADOW_V2,
+                v1_decisions={event_id: V1Decision(decision="created")}, mode=ArticlePipelineMode.SHADOW_V2,
             )
         r = records[0]
         assert r.would_publish is True
@@ -318,7 +319,7 @@ async def test_update_existing_path_still_creates_no_public_article(monkeypatch)
         async with AsyncSessionLocal() as db:
             records = await run_shadow_batch(
                 db, triage_events=[(_triage_event(event_id, title, [symbol]), "approved")],
-                v1_decisions={event_id: "updated"}, mode=ArticlePipelineMode.SHADOW_V2,
+                v1_decisions={event_id: V1Decision(decision="updated", matched_article_id=existing_article_id)}, mode=ArticlePipelineMode.SHADOW_V2,
             )
         r = records[0]
         assert r.c5_publication_action == UPDATE_EXISTING

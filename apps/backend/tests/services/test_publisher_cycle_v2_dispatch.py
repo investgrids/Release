@@ -81,7 +81,8 @@ async def test_shadow_v2_mode_calls_the_orchestrator_with_the_same_approved_batc
     shadow_mock.assert_called_once()
     _, kwargs = shadow_mock.call_args
     assert [t for t, _ in kwargs["triage_events"]] == triage_events
-    assert kwargs["v1_decisions"][event_id] == "created"
+    assert kwargs["v1_decisions"][event_id].decision == "created"
+    assert kwargs["v1_decisions"][event_id].created_article_id == f"art-{event_id}"
     assert kwargs["mode"].value == "shadow_v2"
 
 
@@ -121,4 +122,4 @@ async def test_v1_decisions_records_a_daily_cap_skip():
 
     shadow_mock.assert_called_once()
     _, kwargs = shadow_mock.call_args
-    assert kwargs["v1_decisions"][event_id] == "skipped_daily_cap"
+    assert kwargs["v1_decisions"][event_id].decision == "skipped_daily_cap"
