@@ -94,11 +94,69 @@ async def _score_theme(theme: str, tickers: list[str]) -> dict:
     }
 
 
-async def run_theme_scoring() -> None:
-    """Score all themes and upsert into theme_state. Called by APScheduler every 10 min."""
-    from app.db.session import AsyncSessionLocal
+def _theme_state_row_to_payload_fields(row) -> dict:
+    """Same field set _score_theme() produces, read back from a ThemeState
+    row -- keeps the off-hours cache-refresh payload byte-shape-identical
+    to the live-generated one (see run_theme_scoring's off-hours branch).
+    Deliberately excludes ThemeState.top_events, which _score_theme()
+    never populates either."""
+    return {
+        "score": row.score,
+        "price_signal": row.price_signal,
+        "news_signal": row.news_signal,
+        "news_count_24h": row.news_count_24h,
+        "top_stocks": row.top_stocks,
+        "momentum": row.momentum,
+    }
+
+
+async def _refresh_themes_cache_from_last_known(db) -> None:
+    """CR-3 (2026-09-13) off-hours path: rebuilds and re-caches
+    market:themes:ranked from the DB's current ThemeState rows -- no
+    yfinance calls, no EventTriage query, no DB write. Called every 10
+    minutes same as the live path so the Redis key is continuously
+    refreshed and can never expire mid-weekend, without recomputing
+    anything. Same public schema/ranking as the live path -- see
+    _theme_state_row_to_payload_fields."""
     from app.db.models.intelligence import ThemeState
     from sqlalchemy import select
+
+    rows = (await db.execute(select(ThemeState))).scalars().all()
+    ranked = sorted(rows, key=lambda r: r.score, reverse=True)
+
+    try:
+        from app.core.redis import cache_set
+        await cache_set("market:themes:ranked", [
+            {"theme": r.theme, **_theme_state_row_to_payload_fields(r)} for r in ranked
+        ], 700)
+    except Exception:
+        pass
+
+
+async def run_theme_scoring() -> None:
+    """Score all themes and upsert into theme_state. Called by APScheduler
+    every 10 min.
+
+    CR-3 (2026-09-13): the expensive path (48 yfinance calls + an
+    EventTriage query, 6,912 calls/day at the unconditional 10-min
+    cadence) only runs while Indian equities are actually open
+    (_market_session()=="live") -- outside that window a fetch just
+    reconfirms the same frozen last-close price, pure waste. Off-hours,
+    this still runs every 10 min but takes the cheap DB-rebuild-and-recache
+    path instead (_refresh_themes_cache_from_last_known) so
+    market:themes:ranked never goes stale/expired, and ThemeState.updated_at
+    is deliberately left untouched -- it should honestly reflect the last
+    REAL computation, not get bumped by a cycle that computed nothing new."""
+    from app.db.session import AsyncSessionLocal
+    from app.db.models.intelligence import ThemeState
+    from app.services.intelligence.engine import _market_session
+    from sqlalchemy import select
+
+    if _market_session() != "live":
+        async with AsyncSessionLocal() as db:
+            await _refresh_themes_cache_from_last_known(db)
+        log.info("theme_worker.skip_offhours_cache_refreshed")
+        return
 
     log.info("theme_worker.start")
     results: list[tuple[str, dict]] = []

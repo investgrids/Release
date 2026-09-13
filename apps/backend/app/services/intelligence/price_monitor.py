@@ -16,15 +16,40 @@ from uuid import uuid4
 
 log = structlog.get_logger(__name__)
 
+# CR-3 (2026-09-13): session_class governs whether each instrument's
+# threshold-loop fetch is gated by NSE trading hours. "nse" instruments
+# (NIFTY/BANKNIFTY/VIX) only trade 9:15-15:30 IST weekdays -- a fetch
+# outside that window just reconfirms the same frozen last-close price,
+# a real, measured 2,160/day of pure waste. "weekday_continuous"
+# (USDINR/BRENT) trade far more broadly (forex/global commodities,
+# effectively ~24/5) -- deliberately NOT modeling their exact real
+# trading sessions/holidays here (that would turn a bounded cost fix
+# into market-calendar infrastructure); the locked, narrow rule is just
+# "skip on Sat/Sun, keep the existing unconditional 2-min cadence every
+# weekday" -- removes the clearest weekend waste (2,880 calls/week)
+# without touching weekday behavior at all. See run_price_monitor_cycle's
+# _should_fetch_instrument for the exact predicate.
 _INSTRUMENTS = {
-    "NIFTY":     {"ticker": "^NSEI",     "name": "Nifty 50",    "threshold_pct": 0.75},
-    "BANKNIFTY": {"ticker": "^NSEBANK",  "name": "Bank Nifty",  "threshold_pct": 1.0},
-    "USDINR":    {"ticker": "USDINR=X",  "name": "USD/INR",     "threshold_pct": 0.3},
-    "BRENT":     {"ticker": "BZ=F",      "name": "Brent Crude", "threshold_pct": 1.5},
-    "VIX":       {"ticker": "^INDIAVIX", "name": "India VIX",   "threshold_pct": 5.0},
+    "NIFTY":     {"ticker": "^NSEI",     "name": "Nifty 50",    "threshold_pct": 0.75, "session_class": "nse"},
+    "BANKNIFTY": {"ticker": "^NSEBANK",  "name": "Bank Nifty",  "threshold_pct": 1.0,  "session_class": "nse"},
+    "USDINR":    {"ticker": "USDINR=X",  "name": "USD/INR",     "threshold_pct": 0.3,  "session_class": "weekday_continuous"},
+    "BRENT":     {"ticker": "BZ=F",      "name": "Brent Crude", "threshold_pct": 1.5,  "session_class": "weekday_continuous"},
+    "VIX":       {"ticker": "^INDIAVIX", "name": "India VIX",   "threshold_pct": 5.0,  "session_class": "nse"},
 }
 
 _last_prices: dict[str, float] = {}
+
+
+def _should_fetch_instrument(session_class: str, market_session: str) -> bool:
+    """market_session is _market_session()'s own return value ("weekend",
+    "pre_market", "live", "post_market") -- computed once per cycle by
+    the caller, not per-instrument, so all 5 instruments in one tick
+    agree on the same session snapshot."""
+    if session_class == "nse":
+        return market_session == "live"
+    if session_class == "weekday_continuous":
+        return market_session != "weekend"
+    return True  # unknown class: fail open, never silently stop polling
 
 
 def _fetch_price_sync(ticker: str) -> float | None:
@@ -276,7 +301,12 @@ async def run_price_monitor_cycle() -> None:
     bus = get_event_bus()
     loop = asyncio.get_event_loop()
 
+    from app.services.intelligence.engine import _market_session
+    current_session = _market_session()
+
     for key, cfg in _INSTRUMENTS.items():
+        if not _should_fetch_instrument(cfg["session_class"], current_session):
+            continue
         try:
             price = await loop.run_in_executor(None, _fetch_price_sync, cfg["ticker"])
             if price is None:
