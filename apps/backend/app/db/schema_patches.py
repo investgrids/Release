@@ -102,6 +102,10 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     # P7 Real-Write (2026-09-14) — article_v2_canary_withholds already
     # existed (P7 Ownership Arbitration) before this column did.
     ("article_v2_canary_withholds", "published_article_id", "VARCHAR"),
+    # P7 Single Production Canary correction (2026-09-14) — the
+    # attempt-budget invariant, independent of published_article_id
+    # above (see the model's own docstring for why the two are separate).
+    ("article_v2_canary_withholds", "attempted", "BOOLEAN DEFAULT 0 NOT NULL"),
 ]
 
 
@@ -148,6 +152,24 @@ async def apply_schema_patches(conn: AsyncConnection) -> None:
         ))
     except Exception as exc:
         log.warning("schema_patch.index_skipped", index="ux_article_v2_canary_withholds_one_published_v2", error=str(exc)[:200])
+
+    # P7 Single Production Canary correction (2026-09-14): the SEPARATE
+    # attempt-budget invariant -- at most one row may ever hold
+    # attempted=1, regardless of that row's eventual outcome. Without
+    # this, a candidate whose fresh rerun declines pre-commit (evidence
+    # changed, collision appeared, validator refused) would never
+    # consume the outcome='published_v2' budget above, letting a LATER
+    # cycle withhold and attempt a second candidate while both
+    # activation flags stayed on. Only meaningful once the `attempted`
+    # column exists (that column patch runs first, above); a no-op on
+    # re-run via IF NOT EXISTS.
+    try:
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_article_v2_canary_withholds_one_attempt_ever "
+            "ON article_v2_canary_withholds (attempted) WHERE attempted = 1"
+        ))
+    except Exception as exc:
+        log.warning("schema_patch.index_skipped", index="ux_article_v2_canary_withholds_one_attempt_ever", error=str(exc)[:200])
 
 
 _EVENT_CHILD_TABLE_DDL: dict[str, str] = {

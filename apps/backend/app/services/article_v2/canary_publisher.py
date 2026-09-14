@@ -38,7 +38,37 @@ explicitly-authorized human checkpoint: "authorize exactly one
 High-tier V2 canonical article in production?" Not a side effect of
 deploying this file.
 
-## The lifetime budget: exactly one, DB-enforced, atomic WITH the article
+## Two independent budgets, not one (P7 Single Production Canary
+   activation review, 2026-09-14)
+
+A real gap in an earlier version of this module: the publish-budget
+invariant below guarantees at most one ARTICLE ever commits, but it
+does nothing to stop a SECOND CANDIDATE from being attempted in a later
+cycle if the first one's fresh rerun simply declines pre-commit
+(evidence changed, C5 stopped being CREATE_NEW, a collision appeared,
+the Final Publication Validator refused). The lifetime budget stays
+unused in that case, so both activation flags being left on would let
+the system keep trying candidate after candidate until one finally
+succeeds -- "one article ever" was enforced; "one attempt ever" was
+not, and an operator racing a Railway redeploy to flip the write flag
+off after observing a decline is a timing control, not a structural
+guarantee.
+
+Fixed with a SECOND, independent DB invariant: `attempted` (its own
+partial unique index, `WHERE attempted=1`) is claimed atomically the
+MOMENT a candidate enters this function -- before the tier re-check,
+before the expensive rerun, before anything else. It is monotonic and
+never un-set. The first candidate to claim it permanently closes the
+real canary path for every other candidate, forever, regardless of
+whether that first candidate goes on to publish, decline, or fail. The
+two invariants are independently provable: attempt-budget (`attempted`)
+bounds how many candidates may ever EXECUTE the real canary path;
+publish-budget (`outcome='published_v2'`) bounds how many of those
+executions may ever COMMIT an article. A correctly-functioning system
+can never consume the second without having already consumed the
+first.
+
+## The publish budget: exactly one, DB-enforced, atomic WITH the article
 
 The budget is not a counter -- it's "does any article_v2_canary_
 withholds row already have outcome='published_v2'". A plain
@@ -155,9 +185,25 @@ async def _lifetime_budget_consumed(db: AsyncSession) -> bool:
     A plain existence check -- the actual race-proof invariant is the
     partial unique index on outcome itself; this is just the cheap
     early-exit that avoids attempting a rerun that would be refused
-    anyway."""
+    anyway. Kept as a second, independent safety net alongside
+    _attempt_budget_consumed below -- in a correctly-functioning system
+    this can never fire without the attempt-budget claim having already
+    fired first, but it costs nothing to check both."""
     row = (await db.execute(
         select(ArticleV2CanaryWithhold.id).where(ArticleV2CanaryWithhold.outcome == "published_v2")
+    )).scalar_one_or_none()
+    return row is not None
+
+
+async def _attempt_budget_consumed(db: AsyncSession) -> bool:
+    """True once any candidate has ever entered the real canary
+    execution path, regardless of what happened to it. A plain
+    existence check -- the actual race-proof invariant is the partial
+    unique index on `attempted` itself; this is just the cheap
+    early-exit that avoids even the ATTEMPT of a claim commit when the
+    budget is obviously already gone."""
+    row = (await db.execute(
+        select(ArticleV2CanaryWithhold.id).where(ArticleV2CanaryWithhold.attempted.is_(True))
     )).scalar_one_or_none()
     return row is not None
 
@@ -235,12 +281,39 @@ async def attempt_canary_publish(
     withhold_row = (await db.execute(
         select(ArticleV2CanaryWithhold).where(ArticleV2CanaryWithhold.triage_event_id == event_id)
     )).scalar_one_or_none()
-    if withhold_row is None or withhold_row.outcome is not None:
+    if withhold_row is None or withhold_row.outcome is not None or withhold_row.attempted:
         # Re-verification of "was actually withheld this cycle, not yet
         # attempted" -- should be structurally impossible to reach this
         # function otherwise, but never trust the caller alone for the
         # one action that can create a real public article.
         return CanaryPublishResult(False, "no fresh, unattempted withhold row for this event")
+
+    # ── Attempt-budget claim -- BEFORE the expensive rerun, and before
+    # even the tier re-check below. This is the fix for a real gap: the
+    # outcome='published_v2' index only stops a SECOND ARTICLE from
+    # committing -- it does nothing if this candidate's rerun simply
+    # declines pre-commit (evidence changed, collision appeared, the
+    # validator refused). Without a separate claim here, a later cycle
+    # could withhold and attempt a second candidate while both
+    # activation flags stayed on, since the publish-budget was never
+    # touched by the first candidate's decline. Claiming `attempted`
+    # atomically, this early, means the FIRST candidate to reach this
+    # function -- regardless of what happens to it next -- permanently
+    # closes the real canary path for every other candidate, forever.
+    if await _attempt_budget_consumed(db):
+        return CanaryPublishResult(False, "global canary attempt budget already consumed by another candidate")
+    withhold_row.attempted = True
+    db.add(withhold_row)
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Another candidate's commit won the race between our cheap
+        # check above and this one. Fail closed: no second candidate
+        # ever enters the real rerun, regardless of how the race
+        # happened.
+        await db.rollback()
+        log.error("article_v2.canary_attempt_budget_race_lost", event_id=event_id)
+        return CanaryPublishResult(False, "global canary attempt budget claimed by a concurrent commit")
 
     if ev_tier != "High":
         return await _fail(db, withhold_row, "ineligible: ev_tier is not High (never Critical)")

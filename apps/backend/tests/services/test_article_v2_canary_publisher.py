@@ -233,6 +233,105 @@ async def test_lifetime_budget_already_consumed_declines_before_any_rerun(monkey
 
 
 @pytest.mark.asyncio
+async def test_a_declined_candidate_still_consumes_the_attempt_budget(monkeypatch):
+    """The exact gap this correction closes: candidate A's fresh rerun
+    declines pre-commit (never gets near the publish-budget index at
+    all), but that must STILL permanently close the real canary path --
+    candidate B must be declined immediately, without running a single
+    pipeline stage, regardless of what happened to A."""
+    event_a = f"evt-{_tag()}"
+    event_b = f"evt-{_tag()}"
+    await _seed_withhold(event_id=event_a)
+    await _seed_withhold(event_id=event_b)
+    publish_mock = _patch_all_succeeding(monkeypatch)
+    monkeypatch.setattr(cp, "evaluate_candidate", AsyncMock(return_value=_FakeCandidate(outcome=C1_SKIP, reason_detail="entity vanished")))
+    try:
+        async with AsyncSessionLocal() as db:
+            result_a = await cp.attempt_canary_publish(
+                db, triage_event=_triage_event(event_a, "FAKEA", "headline"), ev_tier="High", mie_context={},
+            )
+        assert result_a.published is False
+        assert "C1 SKIP" in result_a.reason  # A genuinely declined, never published
+
+        async with AsyncSessionLocal() as db:
+            row_a = (await db.execute(select(ArticleV2CanaryWithhold).where(ArticleV2CanaryWithhold.triage_event_id == event_a))).scalar_one()
+            assert row_a.attempted is True, "A's decline must still have claimed the attempt budget"
+            assert row_a.outcome == "shadow_not_qualified"
+
+        evaluate_candidate_calls_before_b = cp.evaluate_candidate.await_count
+        async with AsyncSessionLocal() as db:
+            result_b = await cp.attempt_canary_publish(
+                db, triage_event=_triage_event(event_b, "FAKEB", "headline"), ev_tier="High", mie_context={},
+            )
+        assert result_b.published is False
+        assert "attempt budget already consumed" in result_b.reason
+        assert cp.evaluate_candidate.await_count == evaluate_candidate_calls_before_b, \
+            "B must be declined before even C1 runs -- the attempt budget check must be the very first gate"
+        publish_mock.assert_not_called()
+
+        async with AsyncSessionLocal() as db:
+            row_b = (await db.execute(select(ArticleV2CanaryWithhold).where(ArticleV2CanaryWithhold.triage_event_id == event_b))).scalar_one()
+            assert row_b.attempted is False, "B never claimed the budget -- A already held it"
+            assert row_b.outcome is None
+    finally:
+        await _cleanup(event_ids=[event_a, event_b])
+
+
+@pytest.mark.asyncio
+async def test_racing_attempt_claims_share_one_atomic_commit_before_the_rerun():
+    """The attempt-budget analog of the publish-budget race test:
+    constructs the race deterministically (two sessions each stage the
+    attempted=True claim, committed in controlled order) rather than
+    relying on real SQLite concurrency timing. Proves the loser's claim
+    is rejected at the DB level, independent of anything about outcome
+    or published_article_id."""
+    event_a = f"evt-{_tag()}"
+    event_b = f"evt-{_tag()}"
+    await _seed_withhold(event_id=event_a)
+    await _seed_withhold(event_id=event_b)
+    try:
+        async with AsyncSessionLocal() as db:
+            row_a = (await db.execute(select(ArticleV2CanaryWithhold).where(ArticleV2CanaryWithhold.triage_event_id == event_a))).scalar_one()
+            row_a.attempted = True
+            db.add(row_a)
+            await db.commit()
+
+        async with AsyncSessionLocal() as db:
+            row_b = (await db.execute(select(ArticleV2CanaryWithhold).where(ArticleV2CanaryWithhold.triage_event_id == event_b))).scalar_one()
+            row_b.attempted = True
+            db.add(row_b)
+            with pytest.raises(IntegrityError):
+                await db.commit()
+            await db.rollback()
+
+        async with AsyncSessionLocal() as db:
+            fresh_a = (await db.execute(select(ArticleV2CanaryWithhold).where(ArticleV2CanaryWithhold.triage_event_id == event_a))).scalar_one()
+            fresh_b = (await db.execute(select(ArticleV2CanaryWithhold).where(ArticleV2CanaryWithhold.triage_event_id == event_b))).scalar_one()
+            assert fresh_a.attempted is True
+            assert fresh_b.attempted is False, "the loser's claim must not have persisted"
+    finally:
+        await _cleanup(event_ids=[event_a, event_b])
+
+
+@pytest.mark.asyncio
+async def test_attempt_budget_consumed_reflects_the_real_invariant():
+    event_id = f"evt-{_tag()}"
+    await _seed_withhold(event_id=event_id)
+    try:
+        async with AsyncSessionLocal() as db:
+            assert await cp._attempt_budget_consumed(db) is False
+        async with AsyncSessionLocal() as db:
+            row = (await db.execute(select(ArticleV2CanaryWithhold).where(ArticleV2CanaryWithhold.triage_event_id == event_id))).scalar_one()
+            row.attempted = True
+            db.add(row)
+            await db.commit()
+        async with AsyncSessionLocal() as db:
+            assert await cp._attempt_budget_consumed(db) is True
+    finally:
+        await _cleanup(event_ids=[event_id])
+
+
+@pytest.mark.asyncio
 async def test_no_ticker_declines(monkeypatch):
     event_id = f"evt-{_tag()}"
     await _seed_withhold(event_id=event_id)
