@@ -91,6 +91,10 @@ class TestDispositions:
         assert f["opportunities"] == []
         assert f["risks"] == []
         assert f["historical_events"] == []
+        # what_to_watch_next is empty here only because this fixture has
+        # no what_to_watch section (no scheduled-date evidence) -- it is
+        # NOT a hardcoded-empty V1-only concept anymore, see
+        # TestKeyFactsAndWhatToWatch below for the populated case.
         assert f["what_to_watch_next"] == []
         assert f["faqs"] == []
         assert f["angle"] == "primary"
@@ -170,6 +174,130 @@ class TestDeterministicComposition:
         slug2 = build_slug("RELIANCE Wins Rs 500 Crore Order", "art-bbbb2222")
         assert slug1 != slug2
         assert slug1.startswith("reliance-wins-rs-500-crore-order-")
+
+
+class TestKeyFactsAndWhatToWatch:
+    """Article V2-F1 Data Contract Completion (2026-09-14): key_facts and
+    what_to_watch_next used to be discarded/hardcoded-empty even when
+    composer.py had already produced real, structured data for them."""
+
+    def test_financial_fact_and_market_reaction_survive_into_key_facts(self):
+        ev1_id = str(uuid.uuid4())
+        evidence_set = _evidence_set(ev1_id)
+        identity = _identity()
+        fact_claim = ComposedClaim(
+            text="Revenue: Rs 500 crore (as of FY27 Q1)", claim_type="FACT", financial_fact_ids=["REVENUE"],
+            structured_value={"kind": "financial_fact", "label": "Revenue", "value": "Rs 500 crore", "period": "FY27 Q1", "metric_code": "REVENUE"},
+        )
+        reaction_claim = ComposedClaim(
+            text="RELIANCE shares gained 2.40% on the day this was reported (close).", claim_type="FACT",
+            structured_value={"kind": "market_reaction", "label": "Market reaction", "value": "+2.40%", "period": "observed"},
+        )
+        verified_context = ComposedSection(
+            name="verified_context", text=f"{fact_claim.text} {reaction_claim.text}", claims=[fact_claim, reaction_claim],
+        )
+        composed = _composed(what_happened_text="A real fact.", ev1_id=ev1_id, extra_sections=[verified_context])
+        result = translate_composed_article(
+            article_id="art-1", decision=_decision(evidence_set), evidence_set=evidence_set, identity=identity,
+            resolution=_resolution(identity), headline_result=_headline(), composed=composed,
+        )
+        key_facts = result.fields["key_facts"]
+        assert {"kind": "financial_fact", "label": "Revenue", "value": "Rs 500 crore", "period": "FY27 Q1", "metric_code": "REVENUE"} in key_facts
+        assert {"kind": "market_reaction", "label": "Market reaction", "value": "+2.40%", "period": "observed"} in key_facts
+        assert len(key_facts) == 2
+
+    def test_a_dropped_claim_never_produces_a_key_fact(self):
+        """translate_composed_article() receives the ALREADY-P2-enforced
+        composed article -- a claim P2 dropped simply isn't present in
+        composed.sections by the time this runs. Simulated here by a
+        verified_context section that only has ONE surviving claim,
+        proving key_facts reflects exactly what's present, nothing more."""
+        ev1_id = str(uuid.uuid4())
+        evidence_set = _evidence_set(ev1_id)
+        identity = _identity()
+        surviving_claim = ComposedClaim(
+            text="Revenue: Rs 500 crore (as of FY27 Q1)", claim_type="FACT", financial_fact_ids=["REVENUE"],
+            structured_value={"kind": "financial_fact", "label": "Revenue", "value": "Rs 500 crore", "period": "FY27 Q1", "metric_code": "REVENUE"},
+        )
+        verified_context = ComposedSection(name="verified_context", text=surviving_claim.text, claims=[surviving_claim])
+        composed = _composed(what_happened_text="A real fact.", ev1_id=ev1_id, extra_sections=[verified_context])
+        result = translate_composed_article(
+            article_id="art-1", decision=_decision(evidence_set), evidence_set=evidence_set, identity=identity,
+            resolution=_resolution(identity), headline_result=_headline(), composed=composed,
+        )
+        assert len(result.fields["key_facts"]) == 1
+
+    def test_prose_only_claims_never_produce_a_key_fact(self):
+        """what_happened/why_it_matters claims have no structured_value
+        -- key_facts must stay empty when nothing structured was
+        composed, never invented from prose."""
+        ev1_id = str(uuid.uuid4())
+        evidence_set = _evidence_set(ev1_id)
+        identity = _identity()
+        composed = _composed(what_happened_text="A real fact with no numbers.", ev1_id=ev1_id)
+        result = translate_composed_article(
+            article_id="art-1", decision=_decision(evidence_set), evidence_set=evidence_set, identity=identity,
+            resolution=_resolution(identity), headline_result=_headline(), composed=composed,
+        )
+        assert result.fields["key_facts"] == []
+
+    def test_what_to_watch_section_is_extracted_not_discarded(self):
+        ev1_id = str(uuid.uuid4())
+        evidence_set = _evidence_set(ev1_id)
+        identity = _identity()
+        watch_text = "RELIANCE has a real, already-scheduled date of September 20, 2026 related to this development."
+        watch_claim = ComposedClaim(text=watch_text, claim_type="FACT", evidence_ids=[ev1_id])
+        what_to_watch = ComposedSection(name="what_to_watch", text=watch_text, claims=[watch_claim])
+        composed = _composed(what_happened_text="A real fact.", ev1_id=ev1_id, extra_sections=[what_to_watch])
+        result = translate_composed_article(
+            article_id="art-1", decision=_decision(evidence_set), evidence_set=evidence_set, identity=identity,
+            resolution=_resolution(identity), headline_result=_headline(), composed=composed,
+        )
+        assert result.fields["what_to_watch_next"] == [watch_text]
+
+    def test_no_what_to_watch_section_stays_empty(self):
+        ev1_id = str(uuid.uuid4())
+        evidence_set = _evidence_set(ev1_id)
+        identity = _identity()
+        composed = _composed(what_happened_text="A real fact.", ev1_id=ev1_id)
+        result = translate_composed_article(
+            article_id="art-1", decision=_decision(evidence_set), evidence_set=evidence_set, identity=identity,
+            resolution=_resolution(identity), headline_result=_headline(), composed=composed,
+        )
+        assert result.fields["what_to_watch_next"] == []
+
+
+class TestSourcesCarryAnEvidenceIdentifier:
+    def test_sources_include_a_traceable_evidence_id(self):
+        ev1_id = str(uuid.uuid4())
+        evidence_set = _evidence_set(ev1_id)
+        identity = _identity()
+        composed = _composed(what_happened_text="A real fact about ev1.", ev1_id=ev1_id)
+        result = translate_composed_article(
+            article_id="art-1", decision=_decision(evidence_set), evidence_set=evidence_set, identity=identity,
+            resolution=_resolution(identity), headline_result=_headline(), composed=composed,
+        )
+        assert result.fields["sources"][0]["evidence_id"] == ev1_id
+
+
+class TestSeoMetadata:
+    def test_canonical_url_and_json_ld_are_populated_not_none(self):
+        """The real gap this closes: a V2 article used to persist with
+        canonical_url=None/json_ld=None -- no <script type="application/
+        ld+json"> would ever render for it."""
+        ev1_id = str(uuid.uuid4())
+        evidence_set = _evidence_set(ev1_id)
+        identity = _identity()
+        composed = _composed(what_happened_text="A real fact.", ev1_id=ev1_id)
+        result = translate_composed_article(
+            article_id="art-1", decision=_decision(evidence_set), evidence_set=evidence_set, identity=identity,
+            resolution=_resolution(identity), headline_result=_headline(), composed=composed,
+        )
+        assert result.fields["canonical_url"] is not None
+        assert "/newsroom/article/" in result.fields["canonical_url"]
+        assert result.fields["json_ld"] is not None
+        assert result.fields["json_ld"]["headline"] == composed.headline
+        assert result.fields["json_ld"]["@type"] == "NewsArticle"
 
 
 class TestScanViolationRefusal:

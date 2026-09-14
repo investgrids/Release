@@ -83,6 +83,15 @@ class IntelligenceArticle(Base):
     what_to_watch_next   = Column(JSON, nullable=False, default=list)
     faqs                 = Column(JSON, nullable=False, default=list)
     sources              = Column(JSON, nullable=False, default=list)
+    # Article V2-F1 Data Contract Completion (2026-09-14): structured,
+    # verified numeric facts -- real financial metrics (Warehouse-backed
+    # FinancialFact, via C3 context_builder) and observed market reaction
+    # (a real price move, never a causal/directional claim about it).
+    # [{"kind": "financial_fact"|"market_reaction", "label": ..., "value":
+    # ..., "period": ..., ...}]. V1 does not populate this column (no
+    # equivalent V1 concept); left at the schema default ([]) for every
+    # existing V1 row.
+    key_facts            = Column(JSON, nullable=False, default=list)
 
     # ── SEO Intelligence (Phase 3) — deterministic, derived from the
     # article's own real companies/sectors, never LLM-generated ───────────────

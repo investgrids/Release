@@ -30,10 +30,12 @@ checked once, raised immediately, never a best-effort partial write.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.intelligence_article import IntelligenceArticle
+from app.services.aipe.seo_metadata import ArticleJsonLdInput, build_article_json_ld
 from app.services.article_v2.claim_translation import TranslationContext, enforce_section_authorization
 from app.services.article_v2.composer import ComposedArticle
 from app.services.article_v2.decision_engine import ArticleDecision
@@ -187,12 +189,37 @@ async def publish_v2_article(
     untouched would persist a real, collision-protected row that is
     still completely invisible to the public site. This stays the one
     place a real IntelligenceArticle is constructed; canary_publisher.py
-    does not construct one itself."""
+    does not construct one itself.
+
+    JSON-LD publication-boundary sync (Article V2-F1, 2026-09-14,
+    generalized after owner review): translate_composed_article() (P1)
+    cannot know the eventual real publication timestamp -- it runs
+    before any caller decides the actual commit moment, so its own
+    json_ld carries a translation-time placeholder datePublished/
+    dateModified. Rather than make every future caller of this function
+    remember to correct that (the canary today, a later controlled V2
+    rollout tomorrow -- a caller that forgets would silently persist a
+    stale datePublished), this function itself rebuilds json_ld here,
+    generically, whenever the EFFECTIVE fields (after field_overrides)
+    actually mark the row status="published" -- using the effective
+    published_at, not P1's placeholder. A caller that never sets
+    status="published" (a test, shadow's own validation-only path via
+    build_and_validate directly, a future draft-preview path) leaves
+    P1's own placeholder untouched, since there is no real publication
+    moment to synchronize against yet."""
     build_result = build_and_validate(
         article_id=article_id, decision=decision, evidence_set=evidence_set, identity=identity,
         resolution=resolution, headline_result=headline_result, composed=composed, translation_ctx=translation_ctx,
     )
     fields = {**build_result.fields, **(field_overrides or {})}
+
+    if fields.get("status") == "published":
+        effective_published_at = fields.get("published_at") or datetime.now(timezone.utc)
+        fields["json_ld"] = build_article_json_ld(ArticleJsonLdInput(
+            headline=fields["headline"], slug=fields["slug"], article_type=fields["article_type"],
+            meta_description=fields.get("meta_description"), published_at=effective_published_at,
+        ))
+
     article = IntelligenceArticle(**fields)
     db.add(article)
     await db.flush()

@@ -195,6 +195,21 @@ class ComposedClaim:
     evidence_ids: list[str] = field(default_factory=list)
     financial_fact_ids: list[str] = field(default_factory=list)
     validation_status: str = "VERIFIED"  # "VERIFIED" | "REJECTED" -- reserved for a future per-claim re-check
+    # Article V2-F1 Data Contract Completion (2026-09-14): the SAME real
+    # value this claim's prose text already describes, carried alongside
+    # it as structured data rather than left for a downstream consumer to
+    # regex back out of prose. Purely additive -- claim_translation.py's
+    # enforce_section_authorization() only ever keeps or drops whole
+    # ComposedClaim objects, never reconstructs one field-by-field, so
+    # this survives P2 enforcement automatically: a claim that keeps its
+    # structured_value is exactly the claim P2 judged safe to publish,
+    # and one that gets dropped takes its structured_value with it. This
+    # is what makes P1's key-facts extraction (translate_composed_article)
+    # authorization-respecting without needing to re-derive "did this
+    # claim survive" by any fragile means (text matching, id lookups
+    # against the original context bundle). None for any claim that has
+    # no natural structured shape (what_happened/why_it_matters prose).
+    structured_value: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -325,14 +340,29 @@ def _compose_context_section(
         for f in context.financial_context:
             period = f"FY{f.fiscal_year}" + (f" Q{f.fiscal_quarter}" if f.fiscal_quarter else "")
             text = f"{f.metric_name}: {_format_value(f.value, f.unit)} (as of {period})"
+            structured_value = {
+                "kind": "financial_fact", "label": f.metric_name, "value": _format_value(f.value, f.unit),
+                "period": period, "metric_code": f.metric_code,
+            }
             if f.prior_period_value is not None and f.prior_period_label:
                 text += f", versus {_format_value(f.prior_period_value, f.unit)} in {f.prior_period_label}"
-            claims.append(ComposedClaim(text=text, claim_type="FACT", financial_fact_ids=[f.metric_code]))
+                structured_value["prior_value"] = _format_value(f.prior_period_value, f.unit)
+                structured_value["prior_period"] = f.prior_period_label
+            claims.append(ComposedClaim(
+                text=text, claim_type="FACT", financial_fact_ids=[f.metric_code], structured_value=structured_value,
+            ))
         if context.market_reaction:
             mr = context.market_reaction
             direction = "gained" if mr.price_move_pct >= 0 else "declined"
+            sign = "+" if mr.price_move_pct >= 0 else "-"
             text = f"{evidence_set.symbol} shares {direction} {abs(mr.price_move_pct):.2f}% on the day this was reported ({mr.note})"
-            claims.append(ComposedClaim(text=text, claim_type="FACT"))
+            claims.append(ComposedClaim(
+                text=text, claim_type="FACT",
+                structured_value={
+                    "kind": "market_reaction", "label": "Market reaction",
+                    "value": f"{sign}{abs(mr.price_move_pct):.2f}%", "period": "observed",
+                },
+            ))
     if not claims:
         return None
     text = " ".join(c.text for c in claims)

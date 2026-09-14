@@ -389,6 +389,73 @@ async def test_factual_update_is_concise_and_has_key_sections():
     assert article.word_count < 150
 
 
+# ── structured_value propagation (Article V2-F1, 2026-09-14) ───────────
+# Real financial facts / market reaction already flowed into prose here;
+# they now ALSO carry the same real value as structured data on the
+# claim itself, so P1 can extract genuine Key Numbers without regex-
+# parsing prose. Purely additive -- these tests prove the existing
+# prose-composition behavior is unchanged AND the new field is correct.
+
+@pytest.mark.asyncio
+async def test_financial_fact_claim_carries_a_matching_structured_value():
+    es = _evidence_set("CANBK", "CANARA BANK has informed the Exchange about Board Meeting to consider Fund raising")
+    identity = compute_identity(es)
+    context = ArticleContextBundle(
+        entity_id=es.entity_id, symbol=es.symbol, event_id=es.event_id, event_headline=es.event_headline,
+        status=AVAILABLE, financial_context=[_fact("cet1_ratio", 0.1197)],
+    )
+    article = await compose_article(_decision(es, FACTUAL_UPDATE), es, context, identity, _resolution(identity), _headline())
+    context_section = next(s for s in article.sections if s.name in ("key_details", "verified_context"))
+    fact_claims = [c for c in context_section.claims if c.financial_fact_ids]
+    assert len(fact_claims) == 1
+    sv = fact_claims[0].structured_value
+    assert sv is not None
+    assert sv["kind"] == "financial_fact"
+    assert sv["metric_code"] == "cet1_ratio"
+    assert sv["value"] == "11.97%"
+    # The structured value's own numbers must match what's actually in
+    # the prose -- never a second, independently-derived figure.
+    assert sv["value"] in context_section.text
+
+
+@pytest.mark.asyncio
+async def test_market_reaction_claim_carries_a_matching_structured_value():
+    es = _evidence_set("CANBK", "CANARA BANK has informed the Exchange about a real corporate action")
+    identity = compute_identity(es)
+    context = ArticleContextBundle(
+        entity_id=es.entity_id, symbol=es.symbol, event_id=es.event_id, event_headline=es.event_headline,
+        status=AVAILABLE, market_reaction=MarketReaction(price_move_pct=2.4, note="temporal correlation only"),
+    )
+    article = await compose_article(_decision(es, FACTUAL_UPDATE), es, context, identity, _resolution(identity), _headline())
+    context_section = next(s for s in article.sections if s.name in ("key_details", "verified_context"))
+    reaction_claims = [c for c in context_section.claims if c.structured_value and c.structured_value.get("kind") == "market_reaction"]
+    assert len(reaction_claims) == 1
+    assert reaction_claims[0].structured_value == {"kind": "market_reaction", "label": "Market reaction", "value": "+2.40%", "period": "observed"}
+
+
+@pytest.mark.asyncio
+async def test_negative_market_reaction_gets_a_minus_sign_not_a_bare_number():
+    es = _evidence_set("CANBK", "CANARA BANK has informed the Exchange about a real corporate action")
+    identity = compute_identity(es)
+    context = ArticleContextBundle(
+        entity_id=es.entity_id, symbol=es.symbol, event_id=es.event_id, event_headline=es.event_headline,
+        status=AVAILABLE, market_reaction=MarketReaction(price_move_pct=-3.1, note="temporal correlation only"),
+    )
+    article = await compose_article(_decision(es, FACTUAL_UPDATE), es, context, identity, _resolution(identity), _headline())
+    context_section = next(s for s in article.sections if s.name in ("key_details", "verified_context"))
+    reaction_claim = next(c for c in context_section.claims if c.structured_value and c.structured_value.get("kind") == "market_reaction")
+    assert reaction_claim.structured_value["value"] == "-3.10%"
+
+
+@pytest.mark.asyncio
+async def test_prose_only_claims_have_no_structured_value():
+    es = _evidence_set("CANBK", "CANARA BANK has informed the Exchange about Board Meeting to consider Fund raising")
+    identity = compute_identity(es)
+    article = await compose_article(_decision(es, FACTUAL_UPDATE), es, None, identity, _resolution(identity), _headline())
+    what_happened = next(s for s in article.sections if s.name == "what_happened")
+    assert all(c.structured_value is None for c in what_happened.claims)
+
+
 # ── Real, live LLM integration proof ────────────────────────────────────
 
 @pytest.mark.asyncio

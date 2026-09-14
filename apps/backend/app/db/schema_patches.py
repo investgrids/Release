@@ -106,6 +106,12 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     # attempt-budget invariant, independent of published_article_id
     # above (see the model's own docstring for why the two are separate).
     ("article_v2_canary_withholds", "attempted", "BOOLEAN DEFAULT 0 NOT NULL"),
+    # Article V2-F1 Data Contract Completion (2026-09-14) —
+    # intelligence_articles already existed (V1's own production table)
+    # before this column did. DEFAULT '[]' so every existing V1 row
+    # backfills to the same empty value the ORM's own Python-side default
+    # already produces for a fresh insert.
+    ("intelligence_articles", "key_facts", "JSON DEFAULT '[]'"),
 ]
 
 

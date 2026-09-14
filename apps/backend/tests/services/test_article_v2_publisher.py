@@ -166,6 +166,72 @@ async def test_publish_v2_article_field_overrides_apply_on_top_of_p1_defaults():
 
 
 @pytest.mark.asyncio
+async def test_publish_v2_article_syncs_json_ld_to_the_effective_published_at():
+    """Article V2-F1 correction (owner review, 2026-09-14): the
+    invariant belongs at the generic publication boundary, not in any
+    one caller (canary_publisher.py originally special-cased this --
+    moved here so no FUTURE caller of publish_v2_article() can forget
+    it and persist a stale datePublished). Whenever field_overrides
+    marks the effective status "published", json_ld must be rebuilt
+    from the EFFECTIVE published_at, never P1's own translation-time
+    placeholder."""
+    symbol = "TESTPUB1C"
+    ev1_id = str(uuid.uuid4())
+    article_id = f"test-v2-pub-{uuid.uuid4()}"
+    evidence_set = _evidence_set(ev1_id, symbol=symbol)
+    identity = _identity(symbol)
+    composed = _composed(
+        what_happened_text=f"On 5 September 2026, {symbol} Industries Ltd filed a Rs 500 crore order win.",
+        ev1_id=ev1_id, headline=f"{symbol} Wins Rs 500 Crore Order",
+    )
+    effective_published_at = datetime(2026, 9, 20, 8, 30, tzinfo=timezone.utc)
+    try:
+        async with AsyncSessionLocal() as db:
+            article = await publish_v2_article(
+                db, article_id=article_id, decision=_decision(evidence_set), evidence_set=evidence_set,
+                identity=identity, resolution=_resolution(identity), headline_result=_headline(composed.headline),
+                composed=composed,
+                field_overrides={"status": "published", "lifecycle_status": "published", "published_at": effective_published_at},
+            )
+            assert article.json_ld["datePublished"] == effective_published_at.isoformat()
+            assert article.json_ld["dateModified"] == effective_published_at.isoformat()
+            assert article.json_ld["headline"] == article.headline
+            await db.commit()
+    finally:
+        await _cleanup([article_id])
+
+
+@pytest.mark.asyncio
+async def test_publish_v2_article_leaves_p1_placeholder_json_ld_when_not_published():
+    """The other half of the same invariant: a caller that never sets
+    status="published" (shadow's own validation-only build_and_validate
+    path, or simply omitting field_overrides) must NOT have json_ld
+    rewritten -- there is no real publication moment to synchronize
+    against yet, so P1's own translation-time value stands."""
+    symbol = "TESTPUB1D"
+    ev1_id = str(uuid.uuid4())
+    article_id = f"test-v2-pub-{uuid.uuid4()}"
+    evidence_set = _evidence_set(ev1_id, symbol=symbol)
+    identity = _identity(symbol)
+    composed = _composed(
+        what_happened_text=f"On 5 September 2026, {symbol} Industries Ltd filed a Rs 500 crore order win.",
+        ev1_id=ev1_id, headline=f"{symbol} Wins Rs 500 Crore Order",
+    )
+    try:
+        async with AsyncSessionLocal() as db:
+            article = await publish_v2_article(
+                db, article_id=article_id, decision=_decision(evidence_set), evidence_set=evidence_set,
+                identity=identity, resolution=_resolution(identity), headline_result=_headline(composed.headline),
+                composed=composed,
+            )
+            assert article.status == "draft"
+            assert article.json_ld is not None  # P1's own placeholder, still present
+            await db.commit()
+    finally:
+        await _cleanup([article_id])
+
+
+@pytest.mark.asyncio
 async def test_publish_v2_article_refuses_closed_on_degraded_integrity_never_writes_a_row():
     symbol = "TESTPUB2"
     ev1_id = str(uuid.uuid4())

@@ -374,6 +374,14 @@ async def attempt_canary_publish(
     try:
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
+        # json_ld.datePublished synchronization with the real commit-time
+        # timestamp is now a generic publish_v2_article() responsibility
+        # (Article V2-F1, owner review 2026-09-14) -- it rebuilds json_ld
+        # itself whenever the effective status is "published", using the
+        # effective published_at. This module only needs to supply the
+        # real timestamp via field_overrides, exactly like status/
+        # lifecycle_status; it has no special knowledge of how SEO
+        # metadata gets synchronized.
         article = await publish_v2_article(
             db, article_id=article_id, decision=decision, evidence_set=es, identity=identity,
             resolution=resolution, headline_result=headline_result, composed=composed,

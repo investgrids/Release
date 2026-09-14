@@ -257,58 +257,21 @@ async def _publish_new_article(
     now = datetime.now(timezone.utc)
     article_id = str(uuid.uuid4())
     slug = article_data.get("slug", article_id)
-    # settings.frontend_url MUST be the real production domain
-    # (https://www.marketripple.in) — see config.py's docstring on this
-    # field for the incident this comment references. The "/insights/{slug}"
-    # path below is deliberately NOT what the real frontend serves either:
-    # /insights/:slug 301-redirects to /newsroom/article/:slug (see
-    # next.config.ts's "AI Newsroom consolidation" redirects) — canonical
-    # URLs and JSON-LD mainEntityOfPage must point at the FINAL destination,
-    # never a URL that immediately redirects.
-    site_url = (settings.frontend_url or "https://www.marketripple.in").rstrip("/")
-    article_path = f"/newsroom/article/{slug}"
-
-    # NewsArticle (a schema.org subtype of Article) is Google's own
-    # distinction for timely reporting on a current event vs. general
-    # content — this app already draws the identical line for the Google
-    # News sitemap (news-sitemap.xml/route.ts sources from the same
-    # article corpus but is inherently time-bound). The three genuinely
-    # evergreen types are the exception; everything else is reporting on
-    # something that happened today, which NewsArticle is the correct,
-    # more specific type for.
-    schema_type = "Article" if article_type in ("educational_intelligence", "comparison_intelligence", "historical_intelligence") else "NewsArticle"
-
-    # Build JSON-LD (Article/NewsArticle + FAQPage if FAQs present)
-    json_ld: dict[str, Any] = {
-        "@context": "https://schema.org",
-        "@type": schema_type,
-        "headline": article_data.get("headline", ""),
-        "description": article_data.get("meta_description", ""),
-        "datePublished": now.isoformat(),
-        "dateModified": now.isoformat(),
-        "author": {"@type": "Organization", "name": "MarketRipple AI Intelligence Engine"},
-        "publisher": {"@type": "Organization", "name": "MarketRipple"},
-        "mainEntityOfPage": f"{site_url}{article_path}",
-        "breadcrumb": {
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "MarketRipple", "item": site_url},
-                {"@type": "ListItem", "position": 2, "name": "Newsroom", "item": f"{site_url}/newsroom"},
-                {"@type": "ListItem", "position": 3, "name": article_data.get("headline", ""), "item": f"{site_url}{article_path}"},
-            ],
-        },
-    }
     faqs = article_data.get("faqs") or []
-    if faqs:
-        json_ld["@type"] = [schema_type, "FAQPage"]
-        json_ld["mainEntity"] = [
-            {
-                "@type": "Question",
-                "name": f.get("question", ""),
-                "acceptedAnswer": {"@type": "Answer", "text": f.get("answer", "")},
-            }
-            for f in faqs[:5]
-        ]
+
+    # Article V2-F1 Data Contract Completion (2026-09-14): canonical_url
+    # and JSON-LD now come from the one shared builder both this (V1's
+    # main article path) and article_v2/publication_translator.py (V2)
+    # use -- "don't make a fourth implementation." See seo_metadata.py's
+    # own module docstring for exactly which V1 call sites were and
+    # weren't migrated in this pass, and build_canonical_url's own
+    # docstring for why the path must be the FINAL, non-redirecting one.
+    from app.services.aipe.seo_metadata import ArticleJsonLdInput, build_article_json_ld, build_canonical_url
+    canonical_url = build_canonical_url(slug)
+    json_ld = build_article_json_ld(ArticleJsonLdInput(
+        headline=article_data.get("headline", ""), slug=slug, article_type=article_type,
+        meta_description=article_data.get("meta_description"), published_at=now, updated_at=now, faqs=faqs,
+    ))
 
     # Build internal links. Symbols are resolved through normalize_symbol
     # (AI Newsroom redesign, 2026-08-10) rather than a bare .upper() — the
@@ -426,7 +389,7 @@ async def _publish_new_article(
         # SEO
         seo_title=article_data.get("seo_title"),
         meta_description=article_data.get("meta_description"),
-        canonical_url=f"{site_url}{article_path}",
+        canonical_url=canonical_url,
         json_ld=json_ld,
         # Context
         market_context=market_ctx,
