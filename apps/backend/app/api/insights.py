@@ -265,6 +265,11 @@ def _detail_row(a: IntelligenceArticle, hero_image_url: str | None = None) -> di
         "historical_events":   a.historical_events,
         "ripple_effect":       a.ripple_effect,
         "what_to_watch_next":  a.what_to_watch_next,
+        # Article V2-F1 (2026-09-14) added this column but never wired it
+        # into the read path -- the frontend's Key Numbers section reads
+        # article.key_facts and would silently render nothing forever
+        # without this (caught by Article V2-F3's real end-to-end check).
+        "key_facts":           a.key_facts,
         "faqs":                a.faqs,
         "sources":             a.sources,
         "internal_links":      a.internal_links,

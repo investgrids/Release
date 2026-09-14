@@ -579,3 +579,162 @@ describe("Newsroom article page — Article V2-F2 Public Article Experience (202
     expect(screen.queryByText("AI Opinion Evolution")).not.toBeInTheDocument();
   });
 });
+
+describe("Newsroom article page — Article V2-F3 End-to-End Release Gate (2026-09-14)", () => {
+  // These fixtures mirror the EXACT field names/values the real backend
+  // pipeline produced in the matching backend specimen
+  // (apps/backend/tests/services/test_article_v2_release_gate_end_to_end.py
+  // ::test_full_article_specimen_survives_backend_to_api_to_frontend_contract) --
+  // proving this page's assumed shape and the real
+  // translate_composed_article()/publish_v2_article()/GET-/api/insights/{slug}
+  // output actually agree, not just that a hand-typed F2 fixture renders.
+  function fullArticleSpecimen(overrides: Record<string, unknown> = {}) {
+    return baseInsight("company_intelligence", {
+      headline: "RGATE1 Wins Rs 500 Crore Order",
+      key_takeaway: "This order materially expands RGATE1's order book.",
+      why_it_matters: "This order materially expands RGATE1's order book.",
+      what_happened: "On 14 September 2026, RGATE1 Industries Ltd won a Rs 500 crore order.",
+      companies_affected: [{ name: "RGATE1 Industries Ltd", symbol: "RGATE1" }],
+      sectors_affected: [],
+      opportunities: [],
+      risks: [],
+      historical_events: [],
+      ripple_effect: [],
+      what_to_watch_next: ["A board meeting is scheduled for 30 September 2026 to consider fund raising."],
+      faqs: [],
+      sources: [
+        { title: "RGATE1 wins Rs 500 crore order", source_type: "nse", source_url: null, published_at: "2026-09-14T09:00:00Z", evidence_id: "ev-primary" },
+        { title: "RGATE1 Q2 results filing", source_type: "nse", source_url: null, published_at: "2026-09-14T09:00:00Z", evidence_id: "ev-supporting" },
+      ],
+      key_facts: [
+        { kind: "financial_fact", label: "Revenue", value: "Rs 500 crore", period: "FY26 Q2", metric_code: "REVENUE", prior_value: "Rs 420 crore", prior_period: "FY25 Q2" },
+        { kind: "market_reaction", label: "Market reaction", value: "+3.25%", period: "observed" },
+      ],
+      canonical_url: "https://www.marketripple.in/newsroom/article/rgate1-wins-rs-500-crore-order-abc123",
+      json_ld: {
+        "@context": "https://schema.org", "@type": "NewsArticle",
+        headline: "RGATE1 Wins Rs 500 Crore Order",
+        datePublished: "2026-09-20T08:30:00+00:00", dateModified: "2026-09-20T08:30:00+00:00",
+      },
+      update_history: [],
+      update_count: 0,
+      parent_event_group_id: null,
+      angle: "primary",
+      angle_entity: null,
+      ...overrides,
+    });
+  }
+
+  // Mirrors the backend's thin/EVENT_ONLY-shaped specimen
+  // (test_thin_specimen_publishes_and_reads_back_without_fabricated_placeholders):
+  // only what_happened + one source, everything else genuinely empty.
+  function thinSpecimen(overrides: Record<string, unknown> = {}) {
+    return baseInsight("company_intelligence", {
+      headline: "RGATE2 Files Board Meeting Notice",
+      key_takeaway: "On 14 September 2026, RGATE2 Industries Ltd filed a board meeting notice.",
+      why_it_matters: undefined,
+      what_happened: "On 14 September 2026, RGATE2 Industries Ltd filed a board meeting notice.",
+      companies_affected: [{ name: "RGATE2 Industries Ltd", symbol: "RGATE2" }],
+      sectors_affected: [],
+      opportunities: [],
+      risks: [],
+      historical_events: [],
+      ripple_effect: [],
+      what_to_watch_next: [],
+      faqs: [],
+      sources: [
+        { title: "RGATE2 board meeting notice", source_type: "nse", source_url: null, published_at: "2026-09-14T09:00:00Z", evidence_id: "ev-primary-2" },
+      ],
+      key_facts: [],
+      update_history: [],
+      update_count: 0,
+      parent_event_group_id: null,
+      angle: "primary",
+      angle_entity: null,
+      ...overrides,
+    });
+  }
+
+  it("full specimen: key_facts render as Key Numbers with financial fact + market reaction, including prior-period comparison", async () => {
+    const insight = fullArticleSpecimen();
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("Key Numbers")).toBeInTheDocument();
+    expect(screen.getByText("Revenue")).toBeInTheDocument();
+    expect(screen.getByText("Rs 500 crore")).toBeInTheDocument();
+    expect(screen.getByText(/vs Rs 420 crore \(FY25 Q2\)/)).toBeInTheDocument();
+    expect(screen.getByText("Market reaction")).toBeInTheDocument();
+    expect(screen.getByText("+3.25%")).toBeInTheDocument();
+  });
+
+  it("full specimen: what_to_watch_next survives end-to-end and renders under What to Watch Next", async () => {
+    const insight = fullArticleSpecimen();
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("What to Watch Next")).toBeInTheDocument();
+    expect(screen.getByText("A board meeting is scheduled for 30 September 2026 to consider fund raising.")).toBeInTheDocument();
+  });
+
+  it("full specimen: both structured sources render as plain text, with no external link for either", async () => {
+    const insight = fullArticleSpecimen();
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    const s1 = screen.getByText("RGATE1 wins Rs 500 crore order");
+    const s2 = screen.getByText("RGATE1 Q2 results filing");
+    expect(s1).toBeInTheDocument();
+    expect(s2).toBeInTheDocument();
+    expect(s1.closest("a")).toBeNull();
+    expect(s2.closest("a")).toBeNull();
+  });
+
+  it("full specimen: canonical metadata and JSON-LD survive the full path", async () => {
+    const insight = fullArticleSpecimen();
+    mockFetchFor(insight);
+
+    const { container } = render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    const script = container.querySelector('script[type="application/ld+json"]');
+    expect(script).not.toBeNull();
+    expect(script?.innerHTML ?? "").toContain("RGATE1 Wins Rs 500 Crore Order");
+    expect(script?.innerHTML ?? "").toContain("2026-09-20T08:30:00");
+  });
+
+  it("full specimen: Timeline/Opinion Evolution stay absent and the takeaway is a single surface", async () => {
+    const insight = fullArticleSpecimen();
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.queryByText("Intelligence Timeline")).not.toBeInTheDocument();
+    expect(screen.queryByText("AI Opinion Evolution")).not.toBeInTheDocument();
+    expect(screen.getAllByText("This order materially expands RGATE1's order book.").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("thin specimen: publishes end-to-end with no fabricated placeholders — absent sections simply disappear", async () => {
+    const insight = thinSpecimen();
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getAllByText(/RGATE2 Industries Ltd filed a board meeting notice/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Key Numbers")).not.toBeInTheDocument();
+    expect(screen.queryByText("What to Watch Next")).not.toBeInTheDocument();
+    expect(screen.queryByText("Investment Opportunities")).not.toBeInTheDocument();
+    expect(screen.getByText("RGATE2 board meeting notice")).toBeInTheDocument();
+  });
+
+  it("thin specimen: EvidenceList still shows real substance (one source, a real published date) without a filler shell", async () => {
+    const insight = thinSpecimen();
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("Evidence")).toBeInTheDocument();
+  });
+});
