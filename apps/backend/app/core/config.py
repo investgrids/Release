@@ -245,6 +245,22 @@ class Settings(BaseSettings):
     # to the real-write checkpoint, not a side effect of this default.
     article_v2_canary_ownership_enabled: bool = False
 
+    # P7 Real-Write / Canary Activation (2026-09-14) -- a SECOND,
+    # independent flag, deliberately not folded into the one above.
+    # article_v2_canary_ownership_enabled controls whether V1 may
+    # temporarily withhold a High-tier candidate; this one controls
+    # whether that withheld candidate may actually result in a real,
+    # public IntelligenceArticle row. Both must be True before
+    # canary_publisher.py's write path can ever run -- this preserves
+    # the distinction between "V1 may yield" and "V2 may actually
+    # persist publicly" as two separate, separately-revocable
+    # authorizations. Defaults False and must stay False in production
+    # until the owner's explicit canary-activation checkpoint (see
+    # app/services/article_v2/canary_publisher.py's own module
+    # docstring) -- this patch builds and deploys the real-write
+    # machinery DORMANT, activation is a later, separate decision.
+    article_v2_canary_public_write_enabled: bool = False
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

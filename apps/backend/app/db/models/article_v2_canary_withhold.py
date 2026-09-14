@@ -15,21 +15,23 @@ the DB level regardless), the caller fails closed: V1 retains
 ownership rather than creating a second arbitration record for the
 same event.
 
-`outcome` is deliberately never "converted"/"published_v2" in this
-patch -- V2 has no real public-write path yet (see
-app/services/article_v2/shadow_orchestrator.py's own structural
-persistence boundary; app/services/article_v2/publisher.py's
-publish_v2_article() is the only real write path, and nothing in this
-patch calls it). "shadow_qualified" means V2's shadow re-evaluation
-this cycle again reached would_publish=True -- proof the mechanism
-worked, not proof anything was actually published. A later, separate,
-explicitly-authorized real-write patch owns "published_v2"/"converted".
+"shadow_qualified" means V2's shadow re-evaluation this cycle again
+reached would_publish=True -- proof the mechanism worked, not proof
+anything was actually published. "published_v2" (P7 Real-Write,
+2026-09-14) means canary_publisher.py's own fresh rerun ALSO reached
+NO_COLLISION/P4 and a real IntelligenceArticle was committed --
+`published_article_id` then points at it. Both
+article_v2_canary_ownership_enabled and the separate
+article_v2_canary_public_write_enabled default False; "published_v2"
+can only ever be written once both are True, a separate, later,
+explicitly-authorized activation checkpoint, not a side effect of this
+patch shipping.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Index, JSON, String
+from sqlalchemy import Column, DateTime, Index, JSON, String, text
 
 from app.db.base import Base
 
@@ -57,10 +59,35 @@ class ArticleV2CanaryWithhold(Base):
 
     # not_evaluated (default, never actually stored -- see below) |
     # shadow_qualified | shadow_not_qualified | shadow_failed |
-    # published_v2 (reserved for the later real-write patch, never set here)
+    # published_v2
     outcome = Column(String(24), nullable=True)
+
+    # P7 Real-Write (2026-09-14): the durable pointer from this audit row
+    # to the exact IntelligenceArticle it authorized, set only once
+    # outcome == "published_v2". Never set for any other outcome value.
+    # Reconciliation after a post-commit crash (see canary_publisher.py)
+    # backfills this from the real, already-committed article rather
+    # than inferring it from shadow-execution lineage.
+    published_article_id = Column(String, nullable=True)
 
     __table_args__ = (
         # The real invariant: at most one withhold, ever, per event.
         Index("ux_article_v2_canary_withholds_triage_event_id", "triage_event_id", unique=True),
+        # P7 Real-Write (2026-09-14): the real lifetime-budget invariant
+        # -- "prefer DB-level protection if practical, don't overengineer
+        # distributed locking" (same precedent as
+        # weekend_intelligence.py's ux_weekend_snapshot_current_per_target).
+        # A partial unique index on a single fixed value means AT MOST ONE
+        # row can ever hold outcome="published_v2", enforced atomically by
+        # the DB at commit time -- closes the theoretical two-worker
+        # check-then-write race a plain "does a published_v2 row already
+        # exist?" query cannot close on its own, without a new table or a
+        # bespoke locking mechanism.
+        Index(
+            "ux_article_v2_canary_withholds_one_published_v2",
+            "outcome",
+            unique=True,
+            sqlite_where=text("outcome = 'published_v2'"),
+            postgresql_where=text("outcome = 'published_v2'"),
+        ),
     )

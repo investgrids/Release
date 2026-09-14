@@ -99,6 +99,9 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("article_v2_shadow_executions", "collision_gate_outcome", "VARCHAR(24)"),  # "resolved_existing" is 17 chars -- VARCHAR(16) would silently truncate under a stricter backend than SQLite
     ("article_v2_shadow_executions", "collision_match_basis", "VARCHAR(24)"),
     ("article_v2_shadow_executions", "collision_owner_article_id", "VARCHAR"),
+    # P7 Real-Write (2026-09-14) — article_v2_canary_withholds already
+    # existed (P7 Ownership Arbitration) before this column did.
+    ("article_v2_canary_withholds", "published_article_id", "VARCHAR"),
 ]
 
 
@@ -131,6 +134,20 @@ async def apply_schema_patches(conn: AsyncConnection) -> None:
         ))
     except Exception as exc:
         log.warning("schema_patch.index_skipped", index="ux_market_snapshots_close_per_day", error=str(exc)[:200])
+
+    # P7 Real-Write lifetime-budget invariant (2026-09-14): at most one
+    # article_v2_canary_withholds row may ever hold outcome='published_v2'
+    # -- DB-enforced so a check-then-write race can never produce two real
+    # V2 canary publications, without a new table or a bespoke lock. Only
+    # meaningful once published_article_id exists on a fresh DB (that
+    # column patch runs first, above); a no-op on re-run via IF NOT EXISTS.
+    try:
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_article_v2_canary_withholds_one_published_v2 "
+            "ON article_v2_canary_withholds (outcome) WHERE outcome = 'published_v2'"
+        ))
+    except Exception as exc:
+        log.warning("schema_patch.index_skipped", index="ux_article_v2_canary_withholds_one_published_v2", error=str(exc)[:200])
 
 
 _EVENT_CHILD_TABLE_DDL: dict[str, str] = {

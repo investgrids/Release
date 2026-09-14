@@ -746,6 +746,12 @@ async def run_aipe_cycle() -> None:
             # re-deriving it.
             from app.services.article_v2.collision_gate import V1Decision
             v1_decisions: dict[str, V1Decision] = {}
+            # P7 Real-Write (2026-09-14): captured alongside the withhold
+            # decision itself so canary_publisher.py's fresh rerun never
+            # has to re-fetch or re-derive the triage event/tier it's
+            # about to attempt -- it gets the exact same values V1 just
+            # computed, as (triage_event, ev_tier) pairs.
+            withheld_this_cycle: list[tuple[dict, str]] = []
 
             if daily_count >= _MAX_PER_DAY:
                 log.info("aipe.cycle.daily_limit_reached", count=daily_count)
@@ -848,6 +854,7 @@ async def run_aipe_cycle() -> None:
                                 event_id=triage_event.get("event_id"), reason=withhold.reason,
                             )
                             v1_decisions[triage_event.get("event_id")] = V1Decision(decision="withheld_for_v2_canary")
+                            withheld_this_cycle.append((triage_event, ev_tier))
                             continue
 
                     # Create new article
@@ -1010,6 +1017,30 @@ async def run_aipe_cycle() -> None:
                     )
                 except Exception as exc:
                     log.error("article_v2.shadow_batch_error", mode=article_v2_mode.value, error=str(exc)[:300])
+
+            # P7 Real-Write (2026-09-14): reconciliation runs whenever
+            # ownership arbitration is active, independent of the public-
+            # write flag (it only ever repairs bookkeeping for an article
+            # that demonstrably already exists -- never writes a new
+            # one). The actual canary attempt additionally requires the
+            # separate public-write flag, and only for the first event
+            # withheld this cycle (the lifetime budget is one, so
+            # attempting more than one per cycle is never useful).
+            if settings.article_v2_canary_ownership_enabled:
+                try:
+                    from app.services.article_v2.canary_publisher import (
+                        attempt_canary_publish, reconcile_stale_canary_withholds,
+                    )
+                    await reconcile_stale_canary_withholds(db)
+                    if settings.article_v2_canary_public_write_enabled and withheld_this_cycle:
+                        candidate_event, candidate_tier = withheld_this_cycle[0]
+                        await attempt_canary_publish(
+                            db, triage_event=candidate_event, ev_tier=candidate_tier, mie_context=mie_context,
+                        )
+                except Exception as exc:
+                    # Same discipline as the shadow batch above -- a V2
+                    # canary bug must never take down the V1 cycle.
+                    log.error("article_v2.canary_publish_cycle_error", error=str(exc)[:300])
 
             # ── 5b. Scheduled article path (session-triggered, no triage needed) ─
             session = mie_context.get("session", "closed")

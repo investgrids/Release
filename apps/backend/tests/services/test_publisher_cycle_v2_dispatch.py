@@ -23,6 +23,14 @@ def _triage_event(event_id: str, headline: str = "Some headline") -> dict:
     return {"event_id": event_id, "headline": headline, "urgency": 8, "importance": 7, "sectors": [], "themes": [], "tickers": []}
 
 
+def _high_tier_triage_event(event_id: str, headline: str = "Some headline") -> dict:
+    # coverage_classify(8, 8, ...) empirically resolves to "High" -- see
+    # test_both_canary_flags_on_attempts_publish_for_the_withheld_event's
+    # own need for a real High-tier event, distinct from _triage_event's
+    # (8, 7) pair which resolves to "Medium".
+    return {"event_id": event_id, "headline": headline, "urgency": 8, "importance": 8, "sectors": [], "themes": [], "tickers": []}
+
+
 def _run_with_mocks(triage_events, publish_side_effect):
     stack = ExitStack()
     stack.enter_context(patch("app.services.aipe.publisher.get_mie_context", new_callable=AsyncMock, return_value={"session": "closed", "themes": [], "mood": "neutral", "story": "", "story_hash": "x"}))
@@ -144,3 +152,108 @@ async def test_ownership_arbitration_defaults_off_and_is_never_invoked():
 
     arbitration_mock.assert_not_called()
     publish_mock.assert_called_once()  # V1 created normally, nothing withheld
+
+
+@pytest.mark.asyncio
+async def test_canary_public_write_defaults_off_reconciles_but_never_attempts_publish():
+    """P7 Real-Write (2026-09-14): article_v2_canary_public_write_enabled
+    must default False. With ownership arbitration on (a withhold DOES
+    happen) but public-write off, reconciliation still runs (it only
+    ever repairs bookkeeping for an article that already exists -- safe
+    regardless), but attempt_canary_publish must never be called."""
+    assert settings.article_v2_canary_public_write_enabled is False, \
+        "article_v2_canary_public_write_enabled must default False -- no production activation from this patch"
+
+    from app.services.article_v2.ownership_arbitration import WithholdDecision
+
+    settings.article_pipeline_mode = "shadow_v2"
+    settings.article_v2_canary_ownership_enabled = True
+    event_id = "evt-dispatch-canary-write-off"
+    stack, publish_mock = _run_with_mocks([_triage_event(event_id)], AsyncMock(return_value=_fake_article(event_id)))
+    try:
+        with stack, \
+             patch("app.services.article_v2.shadow_orchestrator.run_shadow_batch", new_callable=AsyncMock), \
+             patch(
+                 "app.services.article_v2.ownership_arbitration.should_withhold_for_v2_canary",
+                 new_callable=AsyncMock, return_value=WithholdDecision(True, "eligible"),
+             ), \
+             patch(
+                 "app.services.article_v2.canary_publisher.reconcile_stale_canary_withholds",
+                 new_callable=AsyncMock,
+             ) as reconcile_mock, \
+             patch(
+                 "app.services.article_v2.canary_publisher.attempt_canary_publish",
+                 new_callable=AsyncMock,
+             ) as attempt_mock:
+            await publisher.run_aipe_cycle()
+
+        reconcile_mock.assert_called_once()
+        attempt_mock.assert_not_called()
+        publish_mock.assert_not_called()  # V1 correctly withheld, never created directly
+    finally:
+        settings.article_v2_canary_ownership_enabled = False
+
+
+@pytest.mark.asyncio
+async def test_both_canary_flags_on_attempts_publish_for_the_withheld_event():
+    """With both flags on and a real withhold this cycle, the canary
+    publisher must be invoked for exactly that event -- the one path
+    this whole two-flag design exists to eventually allow."""
+    from app.services.article_v2.ownership_arbitration import WithholdDecision
+
+    settings.article_pipeline_mode = "shadow_v2"
+    settings.article_v2_canary_ownership_enabled = True
+    settings.article_v2_canary_public_write_enabled = True
+    event_id = "evt-dispatch-canary-write-on"
+    stack, publish_mock = _run_with_mocks([_high_tier_triage_event(event_id)], AsyncMock(return_value=_fake_article(event_id)))
+    try:
+        with stack, \
+             patch("app.services.article_v2.shadow_orchestrator.run_shadow_batch", new_callable=AsyncMock), \
+             patch(
+                 "app.services.article_v2.ownership_arbitration.should_withhold_for_v2_canary",
+                 new_callable=AsyncMock, return_value=WithholdDecision(True, "eligible"),
+             ), \
+             patch(
+                 "app.services.article_v2.canary_publisher.reconcile_stale_canary_withholds",
+                 new_callable=AsyncMock,
+             ), \
+             patch(
+                 "app.services.article_v2.canary_publisher.attempt_canary_publish",
+                 new_callable=AsyncMock,
+             ) as attempt_mock:
+            await publisher.run_aipe_cycle()
+
+        attempt_mock.assert_called_once()
+        _, kwargs = attempt_mock.call_args
+        assert kwargs["triage_event"]["event_id"] == event_id
+        assert kwargs["ev_tier"] == "High"
+        publish_mock.assert_not_called()  # V1 correctly withheld, never created directly
+    finally:
+        settings.article_v2_canary_ownership_enabled = False
+        settings.article_v2_canary_public_write_enabled = False
+
+
+@pytest.mark.asyncio
+async def test_a_canary_publish_exception_never_crashes_the_v1_cycle():
+    from app.services.article_v2.ownership_arbitration import WithholdDecision
+
+    settings.article_pipeline_mode = "shadow_v2"
+    settings.article_v2_canary_ownership_enabled = True
+    settings.article_v2_canary_public_write_enabled = True
+    event_id = "evt-dispatch-canary-crash"
+    stack, publish_mock = _run_with_mocks([_triage_event(event_id)], AsyncMock(return_value=_fake_article(event_id)))
+    try:
+        with stack, \
+             patch("app.services.article_v2.shadow_orchestrator.run_shadow_batch", new_callable=AsyncMock), \
+             patch(
+                 "app.services.article_v2.ownership_arbitration.should_withhold_for_v2_canary",
+                 new_callable=AsyncMock, return_value=WithholdDecision(True, "eligible"),
+             ), \
+             patch(
+                 "app.services.article_v2.canary_publisher.reconcile_stale_canary_withholds",
+                 new_callable=AsyncMock, side_effect=RuntimeError("boom"),
+             ):
+            await publisher.run_aipe_cycle()  # must not raise
+    finally:
+        settings.article_v2_canary_ownership_enabled = False
+        settings.article_v2_canary_public_write_enabled = False

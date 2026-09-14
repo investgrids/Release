@@ -166,6 +166,7 @@ async def publish_v2_article(
     db: AsyncSession, *, article_id: str, decision: ArticleDecision, evidence_set: ArticleEvidenceSet,
     identity: ArticleIdentity, resolution: PublicationResolution, headline_result: HeadlineResult,
     composed: ComposedArticle, translation_ctx: TranslationContext | None = None,
+    field_overrides: dict | None = None,
 ) -> IntelligenceArticle:
     """The one real write path. Adds and flushes a new `IntelligenceArticle`
     against the given session -- does NOT commit. The caller owns the
@@ -173,12 +174,26 @@ async def publish_v2_article(
     real production commit only once P5/P6/P7 authorize it). Raises
     `PublicationRefusal` before touching the session at all if the
     Final Publication Validator refuses -- no half-written row on
-    failure."""
+    failure.
+
+    field_overrides (P7 Real-Write, 2026-09-14): applied on top of
+    build_and_validate()'s own fields, never in place of them --
+    translate_composed_article()'s defaults are status="draft"/
+    lifecycle_status="generated" (correct for a validation-only build;
+    P5/P6 never wanted a public row). A real canary publish MUST pass
+    field_overrides={"status": "published", "published_at": ...}
+    explicitly -- every public read path in app/api/insights.py filters
+    IntelligenceArticle.status == "published", so leaving the defaults
+    untouched would persist a real, collision-protected row that is
+    still completely invisible to the public site. This stays the one
+    place a real IntelligenceArticle is constructed; canary_publisher.py
+    does not construct one itself."""
     build_result = build_and_validate(
         article_id=article_id, decision=decision, evidence_set=evidence_set, identity=identity,
         resolution=resolution, headline_result=headline_result, composed=composed, translation_ctx=translation_ctx,
     )
-    article = IntelligenceArticle(**build_result.fields)
+    fields = {**build_result.fields, **(field_overrides or {})}
+    article = IntelligenceArticle(**fields)
     db.add(article)
     await db.flush()
     return article

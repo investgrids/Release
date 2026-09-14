@@ -124,6 +124,48 @@ async def test_publish_v2_article_persists_a_real_row_and_never_activates_anythi
 
 
 @pytest.mark.asyncio
+async def test_publish_v2_article_field_overrides_apply_on_top_of_p1_defaults():
+    """P7 Real-Write (2026-09-14): the canary publisher must be able to
+    explicitly override P1's status="draft"/lifecycle_status="generated"
+    defaults -- every public read path filters status=="published", so
+    a real canary write left at the P1 default would be persisted,
+    collision-protected, and completely invisible to the public site.
+    field_overrides is the mechanism; this proves it actually lands on
+    the constructed row and leaves every other field untouched."""
+    symbol = "TESTPUB1B"
+    ev1_id = str(uuid.uuid4())
+    article_id = f"test-v2-pub-{uuid.uuid4()}"
+    evidence_set = _evidence_set(ev1_id, symbol=symbol)
+    identity = _identity(symbol)
+    composed = _composed(
+        what_happened_text=f"On 5 September 2026, {symbol} Industries Ltd filed a Rs 500 crore order win.",
+        ev1_id=ev1_id, headline=f"{symbol} Wins Rs 500 Crore Order",
+    )
+    published_at = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
+    try:
+        async with AsyncSessionLocal() as db:
+            article = await publish_v2_article(
+                db, article_id=article_id, decision=_decision(evidence_set), evidence_set=evidence_set,
+                identity=identity, resolution=_resolution(identity), headline_result=_headline(composed.headline),
+                composed=composed,
+                field_overrides={"status": "published", "lifecycle_status": "published", "published_at": published_at},
+            )
+            assert article.status == "published"
+            assert article.lifecycle_status == "published"
+            assert article.published_at == published_at
+            # Untouched by the override -- proves it's a merge, not a replace.
+            assert article.trigger_type == "article_v2_pipeline"
+            assert article.headline == f"{symbol} Wins Rs 500 Crore Order"
+            await db.commit()
+
+        async with AsyncSessionLocal() as db:
+            row = (await db.execute(select(IntelligenceArticle).where(IntelligenceArticle.id == article_id))).scalar_one()
+            assert row.status == "published"
+    finally:
+        await _cleanup([article_id])
+
+
+@pytest.mark.asyncio
 async def test_publish_v2_article_refuses_closed_on_degraded_integrity_never_writes_a_row():
     symbol = "TESTPUB2"
     ev1_id = str(uuid.uuid4())
