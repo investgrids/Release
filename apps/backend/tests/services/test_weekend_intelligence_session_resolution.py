@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from app.services.weekend_intelligence.session_resolution import (
+    _classify_session,
     is_weekday_trading_day,
     last_trading_date,
     next_trading_date,
@@ -98,3 +99,32 @@ def test_no_arg_call_defers_to_real_market_session(monkeypatch):
     monkeypatch.setattr("app.services.intelligence.engine._market_session", _fake_market_session)
     resolve_opening_prediction_session()
     assert called["hit"] is True
+
+
+# ── Holiday-aware resolution (2026-09-14 fix) ──────────────────────────────
+# 2026-09-14 = Monday, Ganesh Chaturthi (real, verified NSE/BSE holiday) --
+# the real case that surfaced this gap. 2026-09-11 = Friday, 2026-09-15 =
+# Tuesday: the two adjacent real trading days.
+
+def test_a_real_holiday_is_not_a_weekday_trading_day():
+    assert is_weekday_trading_day(date(2026, 9, 14)) is False
+
+
+def test_last_trading_date_skips_a_monday_holiday():
+    # Reference = the holiday Tuesday's morning; last trading day must be
+    # the Friday before, not the holiday Monday itself.
+    assert last_trading_date(date(2026, 9, 15)) == date(2026, 9, 11)
+
+
+def test_next_trading_date_skips_a_monday_holiday():
+    # Reference = the Sunday before; next trading day must be Tuesday,
+    # not the holiday Monday.
+    assert next_trading_date(date(2026, 9, 13)) == date(2026, 9, 15)
+
+
+def test_classify_session_mirror_treats_a_holiday_as_weekend():
+    assert _classify_session(datetime(2026, 9, 14, 12, 0)) == "weekend"
+
+
+def test_resolve_opening_prediction_session_targets_next_day_on_a_holiday():
+    assert resolve_opening_prediction_session(datetime(2026, 9, 14, 12, 0)) == "2026-09-15"

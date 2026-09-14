@@ -13,25 +13,23 @@ Reuses engine.py's _IST timezone constant (the same one _market_session
 already uses) rather than redefining IST — no new session implementation,
 per the brief's explicit instruction to reuse the existing convention.
 
-KNOWN LIMITATION (tracked, not solved here — same gap Phase 1A's
-docstrings already flag): there is no real NSE/BSE trading-holiday
-calendar anywhere in this codebase (confirmed dead:
-app/providers/economic_calendar_provider.py is never called;
-app/db/seed.py's CalendarEvent data is hardcoded and skipped in
-production — see WEEKEND_INTELLIGENCE_PHASE1_ARCHITECTURE.md §19). A
-market holiday on a weekday is currently resolved as if it were a normal
-trading day.
+HOLIDAY-AWARE (2026-09-14): now backed by app.services.market_calendar's
+verified 2026 NSE/BSE holiday list, the calendar this docstring used to
+say didn't exist yet. That module returns False for any year not yet
+populated, so this degrades to the old weekday-only behavior outside
+2026 rather than guessing.
 """
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
 from app.services.intelligence.engine import _IST
+from app.services.market_calendar import is_nse_trading_holiday
 
 
 def is_weekday_trading_day(d: date) -> bool:
-    """Monday=0 ... Sunday=6. Not holiday-aware — see module docstring."""
-    return d.weekday() < 5
+    """Monday=0 ... Sunday=6, minus verified NSE/BSE holidays."""
+    return d.weekday() < 5 and not is_nse_trading_holiday(d)
 
 
 def last_trading_date(reference: date | None = None) -> date:
@@ -80,7 +78,7 @@ _MARKET_CLOSE_MIN = 15 * 60 + 30
 
 
 def _classify_session(now_ist: datetime) -> str:
-    if now_ist.weekday() >= 5:
+    if now_ist.weekday() >= 5 or is_nse_trading_holiday(now_ist.date()):
         return "weekend"
     mins = now_ist.hour * 60 + now_ist.minute
     if mins < _PRE_MARKET_CUTOFF_MIN:

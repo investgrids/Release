@@ -452,7 +452,8 @@ async def market_session():
     total = now.hour * 60 + now.minute
     dow   = now.weekday()
 
-    if dow >= 5:
+    from app.services.market_calendar import is_nse_trading_holiday
+    if dow >= 5 or is_nse_trading_holiday(now.date()):
         session = "weekend"
     elif total < 9 * 60:
         session = "pre_market"

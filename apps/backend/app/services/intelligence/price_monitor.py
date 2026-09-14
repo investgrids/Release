@@ -29,6 +29,18 @@ log = structlog.get_logger(__name__)
 # weekday" -- removes the clearest weekend waste (2,880 calls/week)
 # without touching weekday behavior at all. See run_price_monitor_cycle's
 # _should_fetch_instrument for the exact predicate.
+#
+# 2026-09-14 correction: _market_session() became holiday-aware (it now
+# also reports "weekend" on a real NSE/BSE equity holiday, e.g. Ganesh
+# Chaturthi) so the "nse" branch correctly treats a holiday like a
+# closed market. "weekday_continuous" must NOT inherit that -- BRENT is
+# a global commodity and USDINR trades on its own currency-market
+# calendar, neither governed by NSE equity holidays (NSE's own notice
+# for 2026-09-14 confirms equity/F&O/currency cash markets closed but
+# commodity markets resuming an evening session). That branch is
+# therefore gated on a separate, literal Sat/Sun signal
+# (_is_calendar_weekend(), never holiday-aware) instead of the
+# holiday-aware session value.
 _INSTRUMENTS = {
     "NIFTY":     {"ticker": "^NSEI",     "name": "Nifty 50",    "threshold_pct": 0.75, "session_class": "nse"},
     "BANKNIFTY": {"ticker": "^NSEBANK",  "name": "Bank Nifty",  "threshold_pct": 1.0,  "session_class": "nse"},
@@ -40,15 +52,37 @@ _INSTRUMENTS = {
 _last_prices: dict[str, float] = {}
 
 
-def _should_fetch_instrument(session_class: str, market_session: str) -> bool:
+def _is_calendar_weekend() -> bool:
+    """Literal Sat/Sun check, deliberately never holiday-aware -- see
+    _should_fetch_instrument's docstring for why weekday_continuous
+    instruments (BRENT/USDINR) must not inherit NSE equity-holiday
+    closures. A separate function (not inlined at the call site) so
+    tests can mock it exactly like _market_session, independent of
+    whatever the real calendar date happens to be on the day tests run."""
+    from app.services.intelligence.engine import _IST
+    return datetime.now(_IST).weekday() >= 5
+
+
+def _should_fetch_instrument(session_class: str, market_session: str, is_calendar_weekend: bool) -> bool:
     """market_session is _market_session()'s own return value ("weekend",
     "pre_market", "live", "post_market") -- computed once per cycle by
     the caller, not per-instrument, so all 5 instruments in one tick
-    agree on the same session snapshot."""
+    agree on the same session snapshot.
+
+    market_session is holiday-aware (2026-09-14 fix, app.services.
+    market_calendar): it also reports "weekend" on a real NSE/BSE
+    equity-segment holiday, which is exactly right for the "nse" branch
+    below. It is deliberately NOT used for "weekday_continuous" --
+    BRENT (a global commodity) and USDINR are not governed by NSE
+    equity holidays (e.g. 2026-09-14 Ganesh Chaturthi: equity/F&O/
+    currency cash markets closed, but commodity markets resume their
+    evening session from 5 PM), so that branch keeps its own original,
+    separate is_calendar_weekend signal (literal Sat/Sun only, never
+    holiday-aware) rather than inheriting NSE holiday closures."""
     if session_class == "nse":
         return market_session == "live"
     if session_class == "weekday_continuous":
-        return market_session != "weekend"
+        return not is_calendar_weekend
     return True  # unknown class: fail open, never silently stop polling
 
 
@@ -303,9 +337,10 @@ async def run_price_monitor_cycle() -> None:
 
     from app.services.intelligence.engine import _market_session
     current_session = _market_session()
+    is_calendar_weekend = _is_calendar_weekend()
 
     for key, cfg in _INSTRUMENTS.items():
-        if not _should_fetch_instrument(cfg["session_class"], current_session):
+        if not _should_fetch_instrument(cfg["session_class"], current_session, is_calendar_weekend):
             continue
         try:
             price = await loop.run_in_executor(None, _fetch_price_sync, cfg["ticker"])

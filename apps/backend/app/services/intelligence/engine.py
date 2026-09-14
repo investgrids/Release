@@ -39,6 +39,14 @@ def _market_session(at: datetime | None = None) -> str:
     dow  = now.weekday()        # 0=Monday … 6=Sunday
     if dow >= 5:
         return "weekend"
+    from app.services.market_calendar import is_nse_trading_holiday
+    if is_nse_trading_holiday(now.date()):
+        # A holiday isn't literally a weekend, but every existing caller
+        # (is_market_open, price_monitor's session gating, the frontend's
+        # isWeekendSession()) already treats "weekend" as the one value
+        # meaning "market is genuinely not trading" -- reusing it here is
+        # the smallest fix, not a new session vocabulary.
+        return "weekend"
     if mins < 9 * 60 + 15:
         return "pre_market"
     if mins <= 15 * 60 + 30:
