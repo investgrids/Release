@@ -16,7 +16,7 @@ import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { StickyShareBar } from "@/components/StickyShareBar";
 import { HeroImage } from "@/components/HeroImage";
 import { EvidenceList, type EvidenceFact } from "@/components/article/EvidenceList";
-import { CompanyImpactTable } from "@/components/article/CompanyImpactTable";
+import { CompanyImpactTable, type CompanyImpactRow } from "@/components/article/CompanyImpactTable";
 import { ExploreNext } from "@/components/article/ExploreNext";
 import { type CompanyAffected, type SectorAffected } from "./deriveVerdict";
 
@@ -79,6 +79,38 @@ interface UpdateEntry {
   previous_takeaway?: string | null; new_takeaway?: string | null; confidence?: number;
 }
 
+// Article V2-F2 (2026-09-14): sources now come in two real shapes --
+// V1's legacy plain string, and V2's richer structured object (title/
+// source_type/source_url/published_at/evidence_id -- see
+// publication_translator.py::_sources_from_claims). Both must render
+// safely; an unknown object was previously interpolated directly as
+// {s}, which React throws on ("Objects are not valid as a React
+// child") -- the real crash risk the F1/F2 audit found.
+interface SourceObject {
+  title: string; source_type?: string | null; source_url?: string | null;
+  published_at?: string | null; evidence_id?: string | null;
+}
+type SourceItem = string | SourceObject;
+
+// Plain text only, never a clickable href -- this app never links users
+// off-site to a third-party source (standing convention: attribution is
+// text-only), regardless of whether source_url happens to be present.
+function sourceLabel(s: SourceItem): string {
+  return typeof s === "string" ? s : s.title;
+}
+
+// Article V2-F1's own structured Key Facts -- real, Warehouse-verified
+// financial metrics and observed market reaction, never a claimed
+// impact direction (see composer.py's structured_value / publication_
+// translator.py's _compose_key_facts). "kind" distinguishes the two
+// real producers today; period is a plain qualifier ("FY27 Q1" or
+// "observed"), never an interpretation.
+interface KeyFact {
+  kind: "financial_fact" | "market_reaction" | string;
+  label: string; value: string; period?: string;
+  metric_code?: string; prior_value?: string; prior_period?: string;
+}
+
 interface InsightDetail {
   id: string; slug: string; article_type: string;
   hero_image_url?: string | null;
@@ -93,7 +125,8 @@ interface InsightDetail {
   ripple_effect: RippleLink[];
   what_to_watch_next: string[];
   faqs: Faq[];
-  sources: string[];
+  sources: SourceItem[];
+  key_facts?: KeyFact[];
   related_companies: RelatedCompany[];
   related_themes: RelatedTheme[];
   related_articles: RelatedArticle[];
@@ -192,19 +225,6 @@ async function fetchQuotes(symbols: string[]): Promise<Record<string, Quote>> {
   } catch {
     return {};
   }
-}
-
-// Legacy-history containment patch (2026-09-01): u.reason was assumed
-// safe (a meta-description of why an update happened, e.g. "Market
-// narrative updated: Bullish"), but a real pre-CD2 article proved that
-// assumption wrong — its stored reason was literally "Auto moved -2.2%
-// today | Market narrative updated: Cautious ...", the exact unrelated-
-// sector-contamination shape continuous_updater.py's CD2 fix addresses
-// going forward, just already persisted. Gated the same way as
-// key_takeaway: omit the unsafe text, fall back to a generic label,
-// never rewrite it into something that merely sounds safer.
-function safeReason(reason: string): string {
-  return containsRecommendationLanguage(reason) ? "Article updated" : reason;
 }
 
 function fmtDate(iso?: string) {
@@ -363,8 +383,8 @@ export default async function ArticlePage(
   const relatedThemes = article.related_themes ?? [];
   const relatedArticles = article.related_articles ?? [];
   const sources = article.sources ?? [];
+  const keyFacts = article.key_facts ?? [];
   const questionSiblings = relatedArticles.filter(r => r.angle === "question");
-  const updateHistory = article.update_history ?? [];
   const status = deriveEventStatus(article);
   const StatusIcon = status.icon;
 
@@ -565,6 +585,32 @@ export default async function ArticlePage(
           </section>
         )}
 
+        {/* Article V2-F1/F2: structured, Warehouse-verified financial
+            facts and observed market reaction -- real numbers, never a
+            claimed impact direction ("Market reaction: +2.4%", never
+            "positive impact"). Renders only the facts that actually
+            survived P2 authorization; an absent/empty key_facts means
+            this section simply doesn't exist, never a placeholder. */}
+        {keyFacts.length > 0 && (
+          <section className="mb-8">
+            <Eyebrow icon={Database}>Key Numbers</Eyebrow>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {keyFacts.map((f, i) => (
+                <Card key={i} className="p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-text-muted">{f.label}</p>
+                  <p className="mt-1 text-[18px] font-black tabular-nums text-text-primary">{f.value}</p>
+                  {(f.period || f.prior_value) && (
+                    <p className="mt-1 text-[11px] text-text-muted">
+                      {f.period}
+                      {f.prior_value && f.prior_period ? ` · vs ${f.prior_value} (${f.prior_period})` : ""}
+                    </p>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
         {(sectors.length > 0 || rippleLinks.length > 0) && (
           <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {sectors.length > 0 && (
@@ -624,7 +670,7 @@ export default async function ArticlePage(
         {companies.length > 0 && (
           <section className="mb-8">
             <Eyebrow icon={Building2}>Company Impact</Eyebrow>
-            <CompanyImpactTable companies={companies as { symbol: string; name: string; impact: "positive" | "negative" | "neutral"; reason?: string; timeframe?: string }[]} quotes={quotes} showImpact={false} />
+            <CompanyImpactTable companies={companies as CompanyImpactRow[]} quotes={quotes} showImpact={false} />
           </section>
         )}
 
@@ -670,117 +716,50 @@ export default async function ArticlePage(
 
         {/* ══════════════════════ TIER 3 — DEEPER INTELLIGENCE ══════════════════════ */}
 
-        {(historical.length > 0 || updateHistory.length > 0) && (
-          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {historical.length > 0 && (
-              <section>
-                <Eyebrow icon={Database}>Historical Intelligence</Eyebrow>
-                <Card className="p-5">
-                  <div className="space-y-2.5">
-                    {historical.map((h, i) => (
-                      <div key={i} className="flex items-start justify-between gap-3 text-[13px]">
-                        <div>
-                          <span className="text-text-secondary">{h.event}</span>
-                          {h.category && <span className="ml-2 text-[10px] uppercase tracking-wider text-text-muted">{h.category}</span>}
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2 text-text-muted">
-                          <span>{h.date}</span>
-                          {h.outcome != null && (
-                            <span className={h.outcome >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                              {h.outcome >= 0 ? "+" : ""}{h.outcome}%
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {positiveOutcomeRate != null && (
-                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
-                      <span className="text-[22px] font-black text-emerald-600 dark:text-emerald-400">{positiveOutcomeRate}%</span>
-                      <span className="text-[12px] leading-5 text-text-secondary">
-                        of {measuredOutcomes.length} similar historical events saw a positive outcome
-                      </span>
-                    </div>
-                  )}
-                </Card>
-              </section>
-            )}
+        {/* Article V2-F2 (2026-09-14): Intelligence Timeline and AI
+            Opinion Evolution removed outright, per owner decision --
+            the 2026-09-06 retirement decision for both was recorded but
+            never actually implemented in code (confirmed by the Final
+            Product Completion audit: both sections were still live,
+            still tested, while "Story Updates" -- their intended
+            replacement -- didn't exist anywhere in the repo). Story
+            Updates is explicitly NOT built here either; that is a
+            separate, later feature once real material-update/version
+            semantics exist, not a same-patch swap. Removing Timeline
+            also removes the only OTHER place safeKeyTakeaway was
+            displayed, so the "30-Second Answer" above is now the single
+            takeaway surface on this page. */}
 
-            {updateHistory.length > 0 && (
-              <section>
-                <Eyebrow icon={Activity}>Intelligence Timeline</Eyebrow>
-                <div className="space-y-0">
-                  <div className="relative pl-6 pb-5">
-                    <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-sky-500" />
-                    <span className="absolute left-[5px] top-4 bottom-0 w-px bg-text-primary/10" />
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-300">
-                      {fmtDate(article.created_at || article.published_at)}
-                    </p>
-                    <p className="text-[13px] font-semibold text-text-primary">Article Published</p>
-                    {/* Legacy-history containment patch (2026-09-01): same
-                        gate as the 30-Second Answer above — this is the
-                        same field, just re-displayed here. */}
-                    {safeKeyTakeaway && (
-                      <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{safeKeyTakeaway}</p>
-                    )}
-                  </div>
-                  {/* P0-CD1: the version-over-version confidence % delta is
-                      suppressed along with every other public confidence
-                      percentage on this page — same P0-C provenance gap.
-                      Legacy-history patch: new_takeaway free text dropped
-                      entirely (metadata only — date/version/reason); u.reason
-                      itself also gated (see safeReason) — proven live that
-                      it can carry the same unrelated-sector-contamination
-                      shape CD2's continuous_updater.py fix addresses going
-                      forward, just already persisted for this article. */}
-                  {updateHistory.map((u, i) => {
-                    return (
-                      <div key={i} className="relative pl-6 pb-5">
-                        <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-emerald-500" />
-                        {i < updateHistory.length - 1 && <span className="absolute left-[5px] top-4 bottom-0 w-px bg-text-primary/10" />}
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">{fmtDate(u.at)} · v{u.version}</p>
-                        <p className="text-[13px] font-semibold text-text-primary">{safeReason(u.reason)}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-          </div>
-        )}
-
-        {updateHistory.length > 0 && (
+        {historical.length > 0 && (
           <section className="mb-8">
-            <Eyebrow icon={Brain}>AI Opinion Evolution</Eyebrow>
-            {/* Legacy-history containment patch (2026-09-01): this section
-                used to replay the article's own stored opinion-evolution
-                free text (previous_takeaway/new_takeaway/summary) verbatim
-                — a real, confirmed leak path for pre-CD2 recommendation
-                language that CD1's structural suppression elsewhere on
-                this page never touched (this exact article's "Consider
-                shorting over-valued circuit-climbed names..." was still
-                visible here across multiple versions). Simplified to
-                metadata only, per owner instruction — timestamps and the
-                same safe update_reason used in Intelligence Timeline above,
-                never the generated conclusion text. */}
+            <Eyebrow icon={Database}>Historical Intelligence</Eyebrow>
             <Card className="p-5">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
-                  <p className="text-[12px] font-semibold text-text-primary">Original</p>
-                  <p className="text-[11px] text-text-muted">{fmtDate(article.created_at || article.published_at)}</p>
-                </div>
-                {updateHistory.map((u, i) => (
-                  <div key={i} className={`ml-4 flex items-center justify-between rounded-xl border p-3.5 ${i === updateHistory.length - 1 ? "border-emerald-200 dark:border-emerald-500/15 bg-emerald-50 dark:bg-emerald-500/[0.04]" : "border-surface-border/6 bg-text-primary/[0.02]"}`}>
-                    <div className="min-w-0">
-                      <p className={`text-[12px] font-semibold ${i === updateHistory.length - 1 ? "text-emerald-700 dark:text-emerald-400" : "text-text-primary"}`}>
-                        {i === updateHistory.length - 1 ? "Current" : `Updated (v${u.version})`}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-text-muted line-clamp-1">{safeReason(u.reason)}</p>
+              <div className="space-y-2.5">
+                {historical.map((h, i) => (
+                  <div key={i} className="flex items-start justify-between gap-3 text-[13px]">
+                    <div>
+                      <span className="text-text-secondary">{h.event}</span>
+                      {h.category && <span className="ml-2 text-[10px] uppercase tracking-wider text-text-muted">{h.category}</span>}
                     </div>
-                    <p className="shrink-0 pl-3 text-[11px] text-text-muted">{fmtDate(u.at)}</p>
+                    <div className="flex shrink-0 items-center gap-2 text-text-muted">
+                      <span>{h.date}</span>
+                      {h.outcome != null && (
+                        <span className={h.outcome >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                          {h.outcome >= 0 ? "+" : ""}{h.outcome}%
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
+              {positiveOutcomeRate != null && (
+                <div className="mt-4 flex items-center gap-3 rounded-xl border border-surface-border/6 bg-text-primary/[0.02] p-3.5">
+                  <span className="text-[22px] font-black text-emerald-600 dark:text-emerald-400">{positiveOutcomeRate}%</span>
+                  <span className="text-[12px] leading-5 text-text-secondary">
+                    of {measuredOutcomes.length} similar historical events saw a positive outcome
+                  </span>
+                </div>
+              )}
             </Card>
           </section>
         )}
@@ -853,9 +832,18 @@ export default async function ArticlePage(
               <Database className="h-3 w-3 text-text-muted" /> Sources Used
             </p>
             <div className="flex flex-wrap gap-1.5">
+              {/* Article V2-F2 (2026-09-14): the real crash risk the
+                  audit found -- V2's sources are structured objects, not
+                  plain strings, and interpolating an unknown object
+                  directly as {s} is a React child-type error. sourceLabel
+                  handles both shapes. Plain text only, never a clickable
+                  href -- this app never links users off-site to a
+                  third-party source (attribution is text-only, by
+                  standing convention), regardless of whether a real
+                  source_url happens to be available. */}
               {sources.map((s, i) => (
                 <span key={i} className="rounded-full border border-surface-border/10 bg-text-primary/[0.02] px-2.5 py-1 text-[11px] text-text-secondary">
-                  {s}
+                  {sourceLabel(s)}
                 </span>
               ))}
             </div>

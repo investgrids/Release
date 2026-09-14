@@ -17,7 +17,11 @@ export interface EvidenceFact {
 }
 
 export interface EvidenceListProps {
-  sources: string[];
+  // Article V2-F2 (2026-09-14): only the count is used here (V1's
+  // legacy string[] and V2's richer structured-object[] both have a
+  // real .length) -- the actual per-source rendering with dual-shape
+  // support lives in the page's own "Sources Used" section below.
+  sources: unknown[];
   facts: EvidenceFact[];
   interpretations: EvidenceFact[];
   confidenceScore?: number | null;
@@ -35,6 +39,17 @@ export interface EvidenceListProps {
 }
 
 export function EvidenceList({ sources, facts, interpretations, confidenceScore, historicalCount, storyVersion, showConfidence = true }: EvidenceListProps) {
+  // Article V2-F2 (2026-09-14): this was the one section on the page
+  // that rendered unconditionally, unlike every other section here --
+  // for a V2 article (no historical_events, no derived interpretations,
+  // and a small/zero sources count), that showed a thin, non-empty-
+  // looking "Sources: N / Historical Data: 0 events" shell with nothing
+  // substantive inside it. Self-guards exactly like ExploreNext's own
+  // `if (cards.length === 0) return null` precedent: disappear when
+  // there is genuinely nothing to show, rather than show an empty card.
+  const hasSubstance = sources.length > 0 || facts.length > 0 || interpretations.length > 0 || historicalCount > 0;
+  if (!hasSubstance) return null;
+
   const itemCount = (showConfidence ? 1 : 0) + 2 + (storyVersion != null ? 1 : 0);
   const gridColsClass = itemCount >= 4 ? "sm:grid-cols-4" : itemCount === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
   return (

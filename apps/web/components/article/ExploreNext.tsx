@@ -18,7 +18,10 @@ import { truncateForQuery } from "@/lib/text";
 // /historical, /ripple, /opportunity-radar, /newsroom/daily-brief, and
 // /intelligence, none of which this task is scoped to touch.
 
-export interface ExploreCompany { name: string; symbol: string | null; impact: "positive" | "negative" | "neutral"; reason?: string }
+// impact is optional (Article V2-F2, 2026-09-14) -- never actually read
+// by this component's own logic, and V2's companies_affected is
+// deliberately just {symbol, name} (see deriveVerdict.ts's own comment).
+export interface ExploreCompany { name: string; symbol: string | null; impact?: "positive" | "negative" | "neutral"; reason?: string }
 export interface ExploreSector { name: string; impact?: string }
 export interface ExploreRelatedCompany { symbol: string; name: string; link: string }
 export interface ExploreRelatedTheme { theme: string; link: string }

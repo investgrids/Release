@@ -246,7 +246,15 @@ describe("Newsroom article page — legacy-history containment patch (2026-09-01
     expect(screen.getAllByText("Grounded, evidence-based summary of the quarter.").length).toBeGreaterThan(0);
   });
 
-  it("never renders update_history free text (previous_takeaway/new_takeaway/summary) in Intelligence Timeline or AI Opinion Evolution", async () => {
+  it("never renders update_history free text anywhere — Intelligence Timeline and AI Opinion Evolution are removed entirely (Article V2-F2, 2026-09-14)", async () => {
+    // Article V2 Final Product Completion audit (2026-09-14) found the
+    // 2026-09-06 retirement decision for both sections was recorded but
+    // never implemented — both were still live, still tested, while
+    // "Story Updates" (their intended replacement) existed nowhere in
+    // the repo. F2 removes both outright rather than building Story
+    // Updates prematurely. This test now proves the STRONGER guarantee:
+    // update_history's reason/summary/takeaway fields have no display
+    // surface left on this page at all, safe or not — not merely gated.
     const insight = baseInsight("market_wrap", {
       key_takeaway: UNSAFE_TAKEAWAY,
       update_history: [
@@ -268,22 +276,23 @@ describe("Newsroom article page — legacy-history containment patch (2026-09-01
 
     expect(screen.queryByText(/Consider shorting/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Auto moved -2\.2%/i)).not.toBeInTheDocument();
-    // The safe meta-description (why the update happened) still renders —
-    // once in Intelligence Timeline, once in AI Opinion Evolution.
-    expect(screen.getAllByText("Market narrative updated: Bearish").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("2 high-urgency development(s)").length).toBeGreaterThan(0);
-    // AI Opinion Evolution is metadata-only now — "Current"/"Updated
-    // (vN)" labels, not the replayed opinion text.
-    expect(screen.getByText("Current")).toBeInTheDocument();
+    // The sections themselves are gone, not merely their unsafe content.
+    expect(screen.queryByText("Intelligence Timeline")).not.toBeInTheDocument();
+    expect(screen.queryByText("AI Opinion Evolution")).not.toBeInTheDocument();
+    // Their own safe meta-descriptions (previously re-displayed twice)
+    // are gone too — there is no surface left to show them on.
+    expect(screen.queryByText("Market narrative updated: Bearish")).not.toBeInTheDocument();
+    expect(screen.queryByText("2 high-urgency development(s)")).not.toBeInTheDocument();
+    expect(screen.queryByText("Current")).not.toBeInTheDocument();
   });
 
-  it("gates u.reason itself, not just new_takeaway/summary — real bug: reason can carry the same contamination", async () => {
-    // The real gap this test locks in: u.reason was assumed to be a safe
-    // meta-description ("Market narrative updated: X"), but a real
-    // article's stored reason was literally "Auto moved -2.2% today |
-    // Market narrative updated: Cautious..." — the exact unrelated-sector
-    // contamination shape, just inside the field this patch's first pass
-    // treated as always-safe.
+  it("update_history's own reason field has no remaining display surface, safe or contaminated (Article V2-F2)", async () => {
+    // Real historical bug this test family locked in: u.reason was
+    // assumed to be a safe meta-description, but a real article's
+    // stored reason carried the same recommendation-language
+    // contamination as the free-text fields. Now moot at the
+    // presentation layer -- Intelligence Timeline (the only renderer of
+    // u.reason) is gone, so this is a stronger guarantee than gating.
     const CONTAMINATED_REASON = "Auto moved -2.2% today | Market narrative updated: Cautious Bear. | Consider shorting over-valued names.";
     const insight = baseInsight("market_wrap", {
       key_takeaway: "Grounded, clean takeaway.",
@@ -297,10 +306,7 @@ describe("Newsroom article page — legacy-history containment patch (2026-09-01
 
     expect(screen.queryByText(/Auto moved/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Consider shorting/i)).not.toBeInTheDocument();
-    // Falls back to a generic, safe label instead of omitting the line
-    // entirely — still shows the "something happened" without the
-    // contaminated specifics.
-    expect(screen.getAllByText("Article updated").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Intelligence Timeline")).not.toBeInTheDocument();
   });
 
   it("does not leak an unsafe key_takeaway into the page's meta description / og:description / twitter:description", async () => {
@@ -347,5 +353,229 @@ describe("Newsroom article page — legacy-history containment patch (2026-09-01
     const metadata = await generateMetadata({ params: Promise.resolve({ slug: "test-slug" }) });
 
     expect(metadata.description).toBe("Grounded, evidence-based summary of the quarter.");
+  });
+});
+
+describe("Newsroom article page — Article V2-F2 Public Article Experience (2026-09-14)", () => {
+  // A minimal, realistic V2 article: one company (no impact/reason/
+  // timeframe — see publication_translator.py's own field disposition),
+  // structured sources, key_facts, a real what_to_watch entry, no
+  // opportunities/risks/historical_events/faqs/ripple_effect/sectors,
+  // no update_history, no angle_entity fan-out.
+  function v2Insight(overrides: Record<string, unknown> = {}) {
+    return baseInsight("company_intelligence", {
+      companies_affected: [{ name: "Test Co", symbol: "TESTCO" }],
+      sectors_affected: [],
+      opportunities: [],
+      risks: [],
+      historical_events: [],
+      ripple_effect: [],
+      what_to_watch_next: [],
+      faqs: [],
+      sources: [
+        { title: "A real NSE filing", source_type: "nse", source_url: "https://nse.example/filing", published_at: "2026-09-14T09:00:00Z", evidence_id: "ev-1" },
+      ],
+      key_facts: [],
+      update_history: [],
+      update_count: 0,
+      parent_event_group_id: null,
+      angle: "primary",
+      angle_entity: null,
+      ...overrides,
+    });
+  }
+
+  it("renders V2's structured source objects without crashing", async () => {
+    const insight = v2Insight();
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("A real NSE filing")).toBeInTheDocument();
+  });
+
+  it("still renders V1's legacy plain-string sources unchanged", async () => {
+    const insight = v2Insight({ sources: ["Reuters", "Economic Times"] });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("Reuters")).toBeInTheDocument();
+    expect(screen.getByText("Economic Times")).toBeInTheDocument();
+  });
+
+  it("renders no clickable link for a structured source, even with a real source_url", async () => {
+    // Standing rule: this app never links users off-site to a third-party
+    // source. A real, legitimate source_url must not become an <a href>.
+    const insight = v2Insight();
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    const sourceEl = screen.getByText("A real NSE filing");
+    expect(sourceEl.closest("a")).toBeNull();
+  });
+
+  it("shows no EvidenceList card when there is nothing substantive (V2's typical empty shape)", async () => {
+    // Real gap the audit found: EvidenceList rendered unconditionally,
+    // showing a thin "Sources: 0 / Historical Data: 0 events" shell.
+    // published_at is deliberately unset here too -- a real article
+    // always has one, and it legitimately becomes a "Published: <date>"
+    // fact (real, useful, not the bug), so isolating the true
+    // zero-substance case requires removing it explicitly, not just
+    // zeroing sources/historical/risks/watch.
+    const insight = v2Insight({ sources: [], published_at: undefined, update_count: 0, last_updated: undefined });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.queryByText("Evidence")).not.toBeInTheDocument();
+    expect(screen.queryByText("Historical Data")).not.toBeInTheDocument();
+  });
+
+  it("renders key_facts as Key Numbers, with financial facts and observed market reaction", async () => {
+    const insight = v2Insight({
+      key_facts: [
+        { kind: "financial_fact", label: "Revenue", value: "Rs 500 crore", period: "FY27 Q1", metric_code: "REVENUE" },
+        { kind: "market_reaction", label: "Market reaction", value: "+2.40%", period: "observed" },
+      ],
+    });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("Key Numbers")).toBeInTheDocument();
+    expect(screen.getByText("Revenue")).toBeInTheDocument();
+    expect(screen.getByText("Rs 500 crore")).toBeInTheDocument();
+    expect(screen.getByText("Market reaction")).toBeInTheDocument();
+    expect(screen.getByText("+2.40%")).toBeInTheDocument();
+  });
+
+  it("shows no Key Numbers section at all when key_facts is empty — no filler card", async () => {
+    const insight = v2Insight({ key_facts: [] });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.queryByText("Key Numbers")).not.toBeInTheDocument();
+  });
+
+  it("renders observed market reaction as a plain observation, never a claimed impact direction", async () => {
+    // The exact CD3 semantics the owner locked: "+2.40%" is a real,
+    // observed fact; it must never be paired with words claiming a
+    // positive/negative impact interpretation of that number.
+    const insight = v2Insight({
+      key_facts: [{ kind: "market_reaction", label: "Market reaction", value: "+2.40%", period: "observed" }],
+    });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("+2.40%")).toBeInTheDocument();
+    expect(screen.queryByText(/positive impact/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/negative impact/i)).not.toBeInTheDocument();
+  });
+
+  it("renders What to Watch Next only when present, with no fallback text", async () => {
+    const withWatch = v2Insight({ what_to_watch_next: ["A real, already-scheduled date of September 20, 2026."] });
+    mockFetchFor(withWatch);
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+    expect(screen.getByText("What to Watch Next")).toBeInTheDocument();
+    // Appears twice by design (its own section plus EvidenceList's
+    // derived "AI Interpretation" bullet) — same established pattern as
+    // every other multi-surface field on this page (see e.g. "Rate
+    // sensitivity" below).
+    expect(screen.getAllByText(/September 20, 2026/).length).toBeGreaterThan(0);
+  });
+
+  it("shows no What to Watch Next section when empty — no synthetic fallback block", async () => {
+    const insight = v2Insight({ what_to_watch_next: [] });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.queryByText("What to Watch Next")).not.toBeInTheDocument();
+  });
+
+  it("shows the Company Impact table without em-dash placeholders when reason/timeframe are absent (V2 shape)", async () => {
+    const insight = v2Insight();
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("TESTCO")).toBeInTheDocument();
+    // Why/Expected Horizon column headers must not appear at all when no
+    // company in the set has real data for them -- not shown as "—".
+    expect(screen.queryByText("Why")).not.toBeInTheDocument();
+    expect(screen.queryByText("Expected Horizon")).not.toBeInTheDocument();
+  });
+
+  it("still shows Why/Expected Horizon columns for a real V1 batch that has that data", async () => {
+    const insight = v2Insight({
+      companies_affected: [
+        { name: "HDFC Bank", symbol: "HDFCBANK", impact: "positive", reason: "A real, grounded reason.", timeframe: "short" },
+      ],
+    });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("Why")).toBeInTheDocument();
+    expect(screen.getByText("A real, grounded reason.")).toBeInTheDocument();
+  });
+
+  it("shows only one takeaway surface on the page (30-Second Answer, now that Intelligence Timeline is removed)", async () => {
+    const insight = v2Insight({ key_takeaway: "A single, grounded takeaway." });
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByText("30-Second Answer")).toBeInTheDocument();
+    expect(screen.getAllByText("A single, grounded takeaway.").length).toBe(1);
+  });
+
+  it("emits the JSON-LD <script> tag for a V2 article using the backend-provided json_ld", async () => {
+    const insight = v2Insight({
+      json_ld: {
+        "@context": "https://schema.org", "@type": "NewsArticle",
+        headline: "Test Headline For Containment Coverage",
+        datePublished: "2026-09-14T09:00:00Z", dateModified: "2026-09-14T09:00:00Z",
+      },
+    });
+    mockFetchFor(insight);
+
+    const { container } = render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    const script = container.querySelector('script[type="application/ld+json"]');
+    expect(script).not.toBeNull();
+    expect(script?.innerHTML ?? "").toContain("NewsArticle");
+  });
+
+  it("renders no JSON-LD script when the backend provides none (e.g. a legacy row predating this field)", async () => {
+    const insight = v2Insight({ json_ld: undefined });
+    mockFetchFor(insight);
+
+    const { container } = render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(container.querySelector('script[type="application/ld+json"]')).toBeNull();
+  });
+
+  it("a real V1 article (multiple companies, sectors, risks, historical events, faqs, update_history) still renders every section correctly — full backward compatibility", async () => {
+    const insight = baseInsight("market_wrap"); // the full, rich V1 fixture used throughout this file
+    mockFetchFor(insight);
+
+    render(await ArticlePage({ params: Promise.resolve({ slug: "test-slug" }) }));
+
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(screen.getByText("HDFCBANK")).toBeInTheDocument();
+    expect(screen.getByText("Why")).toBeInTheDocument();
+    expect(screen.getByText("Expected Horizon")).toBeInTheDocument();
+    expect(screen.getAllByText("Rate sensitivity").length).toBeGreaterThan(0);
+    expect(screen.getByText("+4.2%")).toBeInTheDocument();
+    expect(screen.getByText("Reuters")).toBeInTheDocument();
+    expect(screen.getByText("Evidence")).toBeInTheDocument();
+    // Removed sections must not reappear for V1 either.
+    expect(screen.queryByText("Intelligence Timeline")).not.toBeInTheDocument();
+    expect(screen.queryByText("AI Opinion Evolution")).not.toBeInTheDocument();
   });
 });

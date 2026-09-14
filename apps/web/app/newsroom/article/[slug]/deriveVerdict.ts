@@ -16,5 +16,10 @@
 // -- an unhedged buy/sell-shaped stance with no capability/authorization
 // awareness at all would have been the single worst violation of
 // everything CD3-D exists to prevent.
-export interface CompanyAffected { name: string; symbol: string | null; impact: "positive" | "negative" | "neutral"; reason?: string; timeframe?: string; }
+// Article V2-F2 (2026-09-14): `impact` is now optional -- V2's own
+// companies_affected is deliberately just {symbol, name} (see
+// publication_translator.py's own comment on why: manufacturing an
+// impact/reason/timeframe the pipeline was never authorized to claim
+// would be worse than simply not having one). V1 still always sets it.
+export interface CompanyAffected { name: string; symbol: string | null; impact?: "positive" | "negative" | "neutral"; reason?: string; timeframe?: string; }
 export interface SectorAffected { name: string; impact?: "positive" | "negative" | "neutral"; magnitude?: "high" | "medium" | "low"; reason?: string; }

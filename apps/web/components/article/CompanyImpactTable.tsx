@@ -10,7 +10,7 @@ import Link from "next/link";
 export interface CompanyImpactRow {
   symbol: string;
   name: string;
-  impact: "positive" | "negative" | "neutral";
+  impact?: "positive" | "negative" | "neutral";
   reason?: string;
   timeframe?: string;
 }
@@ -71,8 +71,31 @@ function cellCls(isFirstCol: boolean, isLastCol: boolean, isLastRow: boolean, ex
 // is real, grounded, and stays. Underlying data is untouched — this is a
 // presentation-layer suppression, reversible by flipping the prop back
 // once P0-D's semantic-typing repair (impact.basis/evidence_ids) lands.
+// Article V2-F2 (2026-09-14): a V2 company has no reason/timeframe at
+// all (not falsy-but-present, genuinely absent from the API response --
+// see deriveVerdict.ts's own comment on why). Rendering "—" for every
+// row in that case would be a placeholder pretending a richer claim
+// exists where none was ever authorized. Columns are hidden per-column
+// (the shared grid needs one decision for the whole table, not per-row)
+// based on whether ANY row actually has real data for it -- a genuine
+// V1 batch (every row populated) is unaffected; a V2 batch (no row
+// populated) loses the column entirely instead of showing all dashes.
 export function CompanyImpactTable({ companies, quotes, showImpact = true }: { companies: CompanyImpactRow[]; quotes: Record<string, Quote>; showImpact?: boolean }) {
+  const hasReason = companies.some(c => c.reason);
+  const hasTimeframe = companies.some(c => c.timeframe);
+  const showAiImpact = showImpact && companies.some(c => c.impact);
   const headerCls = "border-b border-surface-border/6 bg-text-primary/[0.02] py-2.5 text-[9px] font-bold uppercase tracking-widest text-text-muted";
+  // Inline style, not a Tailwind arbitrary-value class -- the column set
+  // is now dynamic (3 independent booleans, not the original fixed
+  // showImpact-only ternary), and Tailwind's JIT scanner can only see
+  // class strings that are fully literal at build time, not ones
+  // assembled at runtime.
+  const gridTemplateColumns = [
+    "minmax(0,200px)", "auto",
+    ...(showAiImpact ? ["auto"] : []),
+    ...(hasReason ? ["minmax(0,380px)"] : []),
+    ...(hasTimeframe ? ["auto"] : []),
+  ].join(" ");
   return (
     <div className="overflow-hidden rounded-2xl border border-surface-border/7 bg-text-primary/[0.02]">
       {/* Why was the sole `fr` track (2fr) with everything else `auto` — on
@@ -84,23 +107,24 @@ export function CompanyImpactTable({ companies, quotes, showImpact = true }: { c
           unconstrained fraction so the row sizes to its actual content —
           Why still grows for longer reasons and wraps rather than
           truncating, it just no longer over-claims empty space. */}
-      <div className={`grid items-center gap-x-3 ${showImpact ? "grid-cols-[minmax(0,200px)_auto_auto_minmax(0,380px)_auto]" : "grid-cols-[minmax(0,200px)_auto_minmax(0,380px)_auto]"}`}>
+      <div className="grid items-center gap-x-3" style={{ gridTemplateColumns }}>
         <span className={`${headerCls} pl-4`}>Company</span>
         <span className={`${headerCls} text-right`}>Price</span>
-        {showImpact && <span className={headerCls}>AI Impact</span>}
-        <span className={headerCls}>Why</span>
-        <span className={`${headerCls} pr-4 text-right`}>Expected Horizon</span>
+        {showAiImpact && <span className={headerCls}>AI Impact</span>}
+        {hasReason && <span className={headerCls}>Why</span>}
+        {hasTimeframe && <span className={`${headerCls} pr-4 text-right`}>Expected Horizon</span>}
 
         {companies.map((c, i) => {
           const q = quotes[c.symbol];
           const isLastRow = i === companies.length - 1;
+          const isLastCol = !hasTimeframe;
           return (
             <Fragment key={i}>
               <div className={cellCls(true, false, isLastRow, "min-w-0")}>
                 <Link href={`/companies/${c.symbol}`} className="block text-[13px] font-bold text-sky-700 dark:text-sky-300 hover:text-sky-800 dark:hover:text-sky-200 transition">{c.symbol}</Link>
                 <span className="truncate text-[11px] text-text-muted">{c.name}</span>
               </div>
-              <div className={cellCls(false, false, isLastRow, "shrink-0 text-right")}>
+              <div className={cellCls(false, isLastCol && !hasReason && !showAiImpact, isLastRow, "shrink-0 text-right")}>
                 {q ? (
                   <>
                     <p className="text-[12px] font-bold tabular-nums text-text-primary">₹{q.price_str}</p>
@@ -110,7 +134,7 @@ export function CompanyImpactTable({ companies, quotes, showImpact = true }: { c
                   <span className="text-[11px] text-text-muted">—</span>
                 )}
               </div>
-              {showImpact && (
+              {showAiImpact && c.impact && (
                 <div className={cellCls(false, false, isLastRow, "shrink-0")}>
                   <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${IMPACT_STYLE[c.impact] ?? IMPACT_STYLE.neutral}`}>
                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${IMPACT_DOT[c.impact] ?? IMPACT_DOT.neutral}`} />
@@ -118,12 +142,16 @@ export function CompanyImpactTable({ companies, quotes, showImpact = true }: { c
                   </span>
                 </div>
               )}
-              <div className={cellCls(false, false, isLastRow, "min-w-0 text-[12px] leading-5 text-text-secondary")}>
-                {c.reason || "—"}
-              </div>
-              <div className={cellCls(false, true, isLastRow, "shrink-0 text-right text-[11px] text-text-muted")}>
-                {c.timeframe ? (HORIZON_LABEL[c.timeframe] ?? c.timeframe) : "—"}
-              </div>
+              {hasReason && (
+                <div className={cellCls(false, isLastCol && !hasTimeframe, isLastRow, "min-w-0 text-[12px] leading-5 text-text-secondary")}>
+                  {c.reason || ""}
+                </div>
+              )}
+              {hasTimeframe && (
+                <div className={cellCls(false, true, isLastRow, "shrink-0 text-right text-[11px] text-text-muted")}>
+                  {c.timeframe ? (HORIZON_LABEL[c.timeframe] ?? c.timeframe) : ""}
+                </div>
+              )}
             </Fragment>
           );
         })}
