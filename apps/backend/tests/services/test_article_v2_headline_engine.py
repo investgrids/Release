@@ -17,7 +17,7 @@ import pytest
 import app.services.article_v2.headline_engine as headline_engine_module
 from app.services.article_v2.context_builder import ArticleContextBundle, ContextFinancialFact, MarketReaction, NONE_STATUS
 from app.services.article_v2.evidence_set_builder import ArticleEvidenceSet
-from app.services.article_v2.headline_engine import ValidationOutcome, generate_headline
+from app.services.article_v2.headline_engine import ValidationOutcome, generate_headline, _check_malformed_structure
 from app.services.article_v2.identity import compute_identity
 from app.services.warehouse.read_service import LinkedEvidence
 
@@ -103,6 +103,59 @@ async def test_clickbait_predictive_language_is_rejected(monkeypatch):
     result = await generate_headline(es, None, identity, other_accepted_headlines={})
     assert result.status == ValidationOutcome.FALLBACK
     assert any("clickbait" in n for n in result.validation_notes)
+
+
+@pytest.mark.asyncio
+async def test_sunshine_malformed_headline_regression_is_rejected_then_falls_back(monkeypatch):
+    """Article V2-HQ1 regression specimen (owner-locked, 2026-09-15): the
+    real headline P7-O1's first live withhold produced -- an empty
+    clause immediately after the dash -- which passed every check that
+    existed before this gate (numeric grounding, entity mention,
+    clickbait, subject hijack, near-duplication all pass it trivially)."""
+    es = _es("SUNSHINE", "Sunshine Pictures Limited has submitted to the Exchange, the financial results for the period ended Jun 30, 2026.")
+    identity = compute_identity(es)
+    malformed = '{"headline": "Sunshine Pictures Limited \\u2014 , the financial results for the period ended Jun 30, 2026."}'
+    _mock_llm(monkeypatch, [malformed] * 2)
+    result = await generate_headline(es, None, identity, other_accepted_headlines={})
+    assert result.status in (ValidationOutcome.FALLBACK, ValidationOutcome.BLOCKED)
+    assert any("malformed structure" in n for n in result.validation_notes)
+    # Never repaired and shipped -- either a clean deterministic fallback,
+    # or (if that's also malformed) blocked outright. Never the malformed
+    # LLM text itself.
+    if result.h1 is not None:
+        assert "— ," not in result.h1
+
+
+@pytest.mark.asyncio
+async def test_retry_succeeds_after_malformed_first_attempt(monkeypatch):
+    es = _es("ABC", "ABC has informed the Exchange regarding a press release: real order worth Rs 800 crore won")
+    identity = compute_identity(es)
+    _mock_llm(monkeypatch, [
+        '{"headline": "ABC — , wins a real order"}',        # attempt 1: malformed (empty clause after dash)
+        '{"headline": "ABC wins Rs 800 crore order"}',      # attempt 2: clean
+    ])
+    result = await generate_headline(es, None, identity, other_accepted_headlines={})
+    assert result.status == ValidationOutcome.OK
+    assert result.attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_headline_blocked_when_even_the_deterministic_fallback_is_malformed(monkeypatch):
+    """Owner's exact required failure behavior: malformed -> retry ->
+    validate again -> if STILL malformed (deterministic fallback
+    included), the candidate cannot publish. h1=None so compose_article's
+    existing "no usable headline" guard refuses it -- never a
+    string-repaired headline shipped instead."""
+    es = _es("ABC", "ABC has informed the Exchange regarding a press release: real acquisition announcement")
+    identity = compute_identity(es)
+    _mock_llm(monkeypatch, ['{"headline": "ABC — , announces something"}'] * 2)
+    monkeypatch.setattr(headline_engine_module, "_build_deterministic_headline", lambda es, identity: "ABC — , a malformed deterministic fallback")
+    result = await generate_headline(es, None, identity, other_accepted_headlines={})
+    assert result.status == ValidationOutcome.BLOCKED
+    assert result.h1 is None
+    assert result.seo_title is None
+    assert result.social_title is None
+    assert any("fallback also malformed" in n for n in result.validation_notes)
 
 
 @pytest.mark.asyncio
@@ -264,6 +317,65 @@ def test_truncate_at_word_boundary_never_cuts_mid_word():
 def test_truncate_at_word_boundary_returns_short_text_unchanged():
     from app.services.article_v2.headline_engine import _truncate_at_word_boundary
     assert _truncate_at_word_boundary("short text", 110) == "short text"
+
+
+# ── Article V2-HQ1 -- Final Headline Quality Gate (2026-09-15) ──────────
+# Deterministic structural checks only, direct unit tests against the
+# pure function -- no LLM/mocking needed. Both the real regression
+# specimen and enough clean real-world headline shapes to prove this
+# never flags ordinary punctuation (decimals, hyphenated year ranges,
+# colons, periods, percentages).
+
+def test_malformed_structure_catches_the_real_sunshine_regression_specimen():
+    h = "Sunshine Pictures Limited — , the financial results for the period ended Jun 30, 2026."
+    result = _check_malformed_structure(h)
+    assert result is not None
+    assert "broken punctuation boundary" in result
+
+
+def test_malformed_structure_catches_empty_clause_after_colon():
+    assert _check_malformed_structure("ABC Ltd: , announces results") is not None
+
+
+def test_malformed_structure_catches_repeated_dash_artifact():
+    # Caught by the broken-separator check (a dash immediately followed
+    # by another dash is itself an empty-clause boundary) -- which
+    # category flags it doesn't matter, only that it's flagged.
+    result = _check_malformed_structure("TCS Q2 FY26 -- Results Beat Estimates")
+    assert result is not None
+
+
+def test_malformed_structure_catches_repeated_comma_artifact():
+    assert _check_malformed_structure("ABC wins order,, doubling backlog") is not None
+
+
+def test_malformed_structure_catches_dangling_trailing_separator():
+    result = _check_malformed_structure("Sunshine Pictures Limited —")
+    assert result is not None
+    assert "dangling trailing separator" in result
+
+
+def test_malformed_structure_catches_dangling_trailing_word():
+    result = _check_malformed_structure("ABC Ltd signs a major deal for")
+    assert result is not None
+    assert "dangling trailing conjunction" in result
+
+
+def test_malformed_structure_catches_empty_headline():
+    assert _check_malformed_structure("   ") is not None
+
+
+@pytest.mark.parametrize("headline", [
+    "TCS Q2 FY26 Results: Net Profit Up 5%",
+    "Reliance Industries — Q1 Results Beat Estimates",
+    "SUNSHINE shares fell 18.11% on filing day",
+    "ABC Ltd reports FY2025-26 guidance raised",
+    "Sunshine Pictures Limited submits un-audited financial results for period ended June 30, 2026",
+    "ABC Ltd. wins Rs 800 crore order.",
+    "H1-H2 performance review shows steady growth",
+])
+def test_malformed_structure_never_flags_ordinary_real_headline_shapes(headline):
+    assert _check_malformed_structure(headline) is None
 
 
 # ── C8.5 hardening: regulatory-preamble-safe topic extraction ──────────

@@ -401,6 +401,11 @@ class ValidationOutcome:
     OK = "OK"
     FALLBACK = "FALLBACK"
     OMITTED = "OMITTED"
+    # Article V2-HQ1 (2026-09-15): even the deterministic fallback failed
+    # structural validation -- see _check_malformed_structure. Distinct
+    # from OMITTED (no evidence to headline at all): here there WAS
+    # evidence, generation ran, but nothing produced was publishable.
+    BLOCKED = "BLOCKED"
 
 
 @dataclass(frozen=True)
@@ -514,6 +519,70 @@ def _check_entity_mentioned(headline: str, evidence_set: ArticleEvidenceSet) -> 
     return False
 
 
+# Article V2-HQ1 -- Final Headline Quality Gate (owner design, 2026-09-15).
+#
+# Found via a real production specimen: P7-O1's first live withhold
+# (Sunshine Pictures Limited, 2026-09-15) generated the headline
+# "Sunshine Pictures Limited — , the financial results for the period
+# ended Jun 30, 2026." -- an empty clause immediately after the dash --
+# and it sailed through every existing check below (numeric grounding,
+# entity mention, clickbait, subject hijack, near-duplication) because
+# none of them inspect punctuation/structure at all. A fresh rerun of
+# the same real evidence did NOT reproduce the malformed text (the LLM
+# is nondeterministic), which only confirms the gap is real: nothing in
+# this pipeline would have caught it if it HAD reproduced, or ever
+# recurs for a different candidate.
+#
+# Deliberately narrow, deterministic, structural-only -- never a
+# subjective judgment of whether a headline is interesting, compelling,
+# or SEO-good (owner's explicit instruction: that would just be a second,
+# hidden scoring system). Four failure classes only:
+#   1. broken punctuation boundary / empty clause around a separator
+#      ("— ,", ": .", "— —")
+#   2. repeated punctuation artifacts ("--", ",,", "??")
+#   3. a dangling trailing separator ("Company —", "Company:")
+#   4. a dangling trailing conjunction/preposition/article ("...results for")
+_BROKEN_SEPARATOR_RE = re.compile(r"[-–—:]\s*[,.;:\-–—]")
+_REPEATED_PUNCTUATION_RE = re.compile(r"[,.;:!?]{2,}|[-–—]{2,}")
+_DANGLING_TRAILING_SEPARATORS = "-–—:,;"
+_DANGLING_TRAILING_WORDS = {
+    "and", "or", "but", "of", "to", "with", "for", "in", "on", "at", "by", "as",
+    "the", "a", "an", "from", "into", "about", "after", "before", "during",
+    "under", "over", "than", "that", "which", "who", "is", "are", "was", "were",
+    "be", "been", "its", "their", "vs", "amid", "via",
+}
+
+
+def _check_malformed_structure(headline: str) -> str | None:
+    """Returns a description of the first structural defect found, or
+    None if the headline is structurally sound. Never repairs the text
+    -- the caller retries generation or, if the fallback is ALSO
+    malformed, refuses to publish (see generate_headline's own
+    docstring/return path)."""
+    h = headline.strip()
+    if not h:
+        return "empty headline"
+
+    m = _BROKEN_SEPARATOR_RE.search(h)
+    if m:
+        return f"broken punctuation boundary / empty clause around separator: {m.group()!r}"
+
+    m2 = _REPEATED_PUNCTUATION_RE.search(h)
+    if m2:
+        return f"repeated punctuation artifact: {m2.group()!r}"
+
+    stripped = h.rstrip("\"'”’")
+    if stripped and stripped[-1] in _DANGLING_TRAILING_SEPARATORS:
+        return f"dangling trailing separator: {stripped[-1]!r}"
+
+    words = h.split()
+    last_word = re.sub(r"[^\w']", "", words[-1]).lower() if words else ""
+    if last_word in _DANGLING_TRAILING_WORDS:
+        return f"dangling trailing conjunction/preposition/article: {last_word!r}"
+
+    return None
+
+
 def _check_clickbait(headline: str) -> str | None:
     h = headline.lower()
     for phrase in _CLICKBAIT_DENYLIST:
@@ -579,9 +648,22 @@ async def generate_headline(
         except Exception as exc:
             base = _build_deterministic_headline(evidence_set, identity)
             fallback, dedup_notes = _disambiguate_fallback(base, evidence_set, identity, other_accepted_headlines)
+            fallback_malformed = _check_malformed_structure(fallback)
+            notes = [f"generation_failed: {str(exc)[:150]}", *dedup_notes]
+            if fallback_malformed:
+                # Article V2-HQ1: never publish a known-malformed headline,
+                # deterministic fallback included -- string-repairing it
+                # would be exactly the "hidden fix" the owner ruled out.
+                # h1=None makes compose_article() refuse via its existing
+                # "no usable headline" guard -- no new plumbing needed.
+                notes.append(f"fallback also malformed: {fallback_malformed}")
+                return HeadlineResult(
+                    h1=None, seo_title=None, social_title=None, status=ValidationOutcome.BLOCKED,
+                    attempts=attempt, validation_notes=notes,
+                )
             return HeadlineResult(
                 h1=fallback, seo_title=fallback, social_title=fallback, status=ValidationOutcome.FALLBACK,
-                attempts=attempt, validation_notes=[f"generation_failed: {str(exc)[:150]}", *dedup_notes],
+                attempts=attempt, validation_notes=notes,
             )
 
         headline = _parse_response(raw) if raw else None
@@ -590,6 +672,10 @@ async def generate_headline(
             continue
 
         notes: list[str] = []
+
+        malformed = _check_malformed_structure(headline)
+        if malformed:
+            notes.append(f"malformed structure: {malformed}")
 
         numeric_ok, numeric_errors = validate_numeric_claims(headline, allowed)
         if not numeric_ok:
@@ -624,9 +710,20 @@ async def generate_headline(
 
     base = _build_deterministic_headline(evidence_set, identity)
     fallback, dedup_notes = _disambiguate_fallback(base, evidence_set, identity, other_accepted_headlines)
+    notes = (retry_notes or []) + dedup_notes
+    fallback_malformed = _check_malformed_structure(fallback)
+    if fallback_malformed:
+        # Every LLM attempt was malformed/invalid AND the deterministic
+        # fallback is ALSO malformed -- per owner instruction, this
+        # candidate cannot publish. Never repair the text and ship it.
+        notes.append(f"fallback also malformed: {fallback_malformed}")
+        return HeadlineResult(
+            h1=None, seo_title=None, social_title=None, status=ValidationOutcome.BLOCKED,
+            attempts=_MAX_ATTEMPTS, validation_notes=notes,
+        )
     return HeadlineResult(
         h1=fallback, seo_title=fallback, social_title=fallback, status=ValidationOutcome.FALLBACK,
-        attempts=_MAX_ATTEMPTS, validation_notes=(retry_notes or []) + dedup_notes,
+        attempts=_MAX_ATTEMPTS, validation_notes=notes,
     )
 
 
