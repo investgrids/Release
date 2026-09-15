@@ -75,7 +75,7 @@ async def get_opportunity_detail(
         logger.warning("radar.verdict_fail", exc=str(exc)[:160])
 
     try:
-        detail.primary_event = max(detail.events, key=lambda e: e.importance) if detail.events else None
+        detail.primary_event = await oi.select_primary_event(db, detail.events)
     except Exception as exc:
         logger.warning("radar.primary_event_fail", exc=str(exc)[:160])
 

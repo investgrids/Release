@@ -4,12 +4,23 @@ Confidence → Timeline → Catalysts → Historical Similarity → Investment
 Verdict chain. Three genuinely new pieces; everything else in that chain
 was already real data sitting unused or unlinked:
 
-  - primary_event   — OpportunityEvent already links every opportunity to
-                       its real originating events (opportunity_events
-                       table); this just picks the highest-importance one
-                       and exposes its real event_id so it's clickable
-                       through to /events/{id} — the SAME Unified Event
-                       Intelligence Engine detail page, not a duplicate.
+  - primary_event   — OpportunityEvent links every opportunity to the
+                       NewsArticle ids it was generated from, but that
+                       column has no DB-enforced FK and is never existence-
+                       checked against the real `events` table (Opportunity
+                       `primary_event` Integrity Audit, 2026-09-15: 79.6% of
+                       real production opportunities had a dangling
+                       top-ranked event — RSS-sourced articles are
+                       deliberately never promoted to a real Event at
+                       ingestion, see ingest_tasks.py's own "RSS items do
+                       NOT become Events" comment, and only a narrow
+                       Critical/High-tier triage bridge closes some of that
+                       gap). `select_primary_event()` below picks the
+                       highest-importance event among only the ones that
+                       actually resolve to a real Event, so /events/{id} is
+                       never a dead link — never a fix to the write-time
+                       contract itself, which is separate future work
+                       (Opportunity PE-2).
   - ripple graph     — OpportunityGraphNode/Edge already exist, real,
                        populated by the pipeline (verified live: a real
                        opportunity->sector/company star graph) — just never
@@ -31,6 +42,46 @@ was already real data sitting unused or unlinked:
                        opportunity's sectors.
 """
 from __future__ import annotations
+
+
+async def select_primary_event(db, events: list) -> object | None:
+    """Opportunity PE-1 — Public Link Integrity (2026-09-15). `events` is
+    `OpportunityDetailResponse.events` (each a real OpportunityEvent row's
+    event_id/importance/title/etc, EventSchema-shaped) -- a write-time
+    snapshot with no DB-enforced FK to `events.id` and no existence check
+    at write time (see this module's own docstring for the audit that
+    found 79.6% of real opportunities dangling here).
+
+    One batched existence query (never N queries), checked against BOTH
+    Event.id and Event.slug -- matching EventService.get_event_detail's
+    own id-then-slug resolution, so an event_id that only resolves via
+    slug still counts. Returns the highest-importance event among ONLY
+    the ones that actually resolve; None when nothing does. Never
+    substitutes the underlying NewsArticle route, never synthesizes an
+    Event, never returns the dangling top-ranked row just because it
+    ranks highest -- missing evidence means the Triggering Event surface
+    disappears, the same discipline this app already applies elsewhere,
+    not a special case invented here."""
+    if not events:
+        return None
+    ids = {e.event_id for e in events if e.event_id}
+    if not ids:
+        return None
+
+    from sqlalchemy import or_, select
+    from app.db.models.event import Event
+
+    result = await db.execute(
+        select(Event.id, Event.slug).where(or_(Event.id.in_(ids), Event.slug.in_(ids)))
+    )
+    valid: set[str] = set()
+    for eid, slug in result.all():
+        valid.add(eid)
+        if slug:
+            valid.add(slug)
+
+    resolvable = [e for e in events if e.event_id in valid]
+    return max(resolvable, key=lambda e: e.importance) if resolvable else None
 
 
 def compute_investment_verdict(opportunity_score: float, confidence: float, risk_level: str, trend: str) -> dict:
