@@ -66,6 +66,16 @@ class TestDocumentedFactNeverHistoricalOutcome:
         assert result.strength == Strength.UNAVAILABLE
 
 
+def _market_observation_claim(*, instrument="SUNSHINE", observed_at="2026-09-15T14:47:17+00:00", change_pct=-18.11, claim_type="FACT") -> ComposedClaim:
+    mo = None
+    if instrument or observed_at or change_pct is not None:
+        mo = {"instrument": instrument, "observed_at": observed_at, "change_pct": change_pct}
+    return ComposedClaim(
+        text="SUNSHINE shares declined 18.11% on the day this was reported (temporal correlation only).",
+        claim_type=claim_type, market_observation=mo,
+    )
+
+
 class TestPriceSignRequiresRealProof:
     def test_is_real_market_observation_is_never_satisfied_by_shape_alone(self):
         # A FACT claim with financial_fact_ids that LOOKS like it could be
@@ -76,6 +86,66 @@ class TestPriceSignRequiresRealProof:
         result = authorize_composed_claim(claim, TranslationContext())
         # Falls through to DOCUMENTED_FACT, never OBSERVED_DIRECTION.
         assert result.capability == Capability.HISTORICAL_DESCRIPTION
+
+    # ── Article V2-MR2 (2026-09-15): the Sunshine specimen closed this
+    # gap -- a real, live-quote-verified price move was previously
+    # authorized UNAVAILABLE purely for lack of proof to check, despite
+    # the underlying measurement being genuine. ──────────────────────────
+
+    def test_genuinely_authorized_observed_measurement_reaches_observed_direction(self):
+        """The Sunshine regression specimen: real instrument, real
+        observed_at, real change_pct -- must now authorize as
+        OBSERVED_DIRECTION, never HISTORICAL_DESCRIPTION or UNAVAILABLE."""
+        claim = _market_observation_claim()
+        assert is_real_market_observation(claim) is True
+        result = authorize_composed_claim(claim, TranslationContext())
+        assert result.strength == Strength.AUTHORIZED
+        assert result.capability == Capability.OBSERVED_DIRECTION
+
+    def test_missing_market_observation_entirely_is_unavailable(self):
+        """No proof at all (the pre-MR2 shape) -- still falls through to
+        the generic FACT-with-no-ids rule, exactly as before."""
+        claim = ComposedClaim(text="SUNSHINE shares declined 18.11%.", claim_type="FACT", market_observation=None)
+        assert is_real_market_observation(claim) is False
+        result = authorize_composed_claim(claim, TranslationContext())
+        assert result.strength == Strength.UNAVAILABLE
+        assert "no evidence_ids/financial_fact_ids" in (result.reason or "")
+
+    def test_degraded_provenance_missing_observed_at_is_unavailable(self):
+        claim = _market_observation_claim(observed_at=None)
+        assert is_real_market_observation(claim) is False
+        result = authorize_composed_claim(claim, TranslationContext())
+        assert result.strength == Strength.UNAVAILABLE
+
+    def test_degraded_provenance_missing_instrument_is_unavailable(self):
+        claim = _market_observation_claim(instrument=None)
+        assert is_real_market_observation(claim) is False
+
+    def test_degraded_provenance_missing_change_pct_is_unavailable(self):
+        claim = _market_observation_claim(change_pct=None)
+        assert is_real_market_observation(claim) is False
+
+    def test_mismatched_claim_type_never_reaches_observed_direction(self):
+        """Real proof attached to an INTERPRETATION-typed claim (a shape
+        composer.py never actually produces, but must still fail closed)
+        -- an observed price move is never an interpretation, and
+        interpretive/causal prose must never borrow FACT-only proof to
+        get authorized. Falls to QUALIFIED/ANALYTICAL_HYPOTHESIS, the
+        same as any other interpretation -- never OBSERVED_DIRECTION."""
+        claim = _market_observation_claim(claim_type="INTERPRETATION")
+        assert is_real_market_observation(claim) is False
+        result = authorize_composed_claim(claim, TranslationContext())
+        assert result.capability == Capability.ANALYTICAL_HYPOTHESIS
+        assert result.strength == Strength.QUALIFIED
+
+    def test_non_valid_integrity_still_overrides_a_real_market_observation(self):
+        """Correction #2 still holds after MR2: integrity is checked
+        first, unconditionally, even for a claim that would otherwise
+        authorize as OBSERVED_DIRECTION."""
+        claim = _market_observation_claim()
+        result = authorize_composed_claim(claim, TranslationContext(integrity_status=IntegrityStatus.DEGRADED))
+        assert result.strength == Strength.UNAVAILABLE
+        assert result.capability == Capability.EVIDENCE_QUALITY
 
 
 class TestInterpretationAlwaysQualified:

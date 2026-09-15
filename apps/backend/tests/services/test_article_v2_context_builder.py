@@ -218,6 +218,34 @@ async def test_market_reaction_included_within_window_omitted_outside_it():
 
 
 @pytest.mark.asyncio
+async def test_market_reaction_carries_real_instrument_and_observed_at(monkeypatch):
+    """Article V2-MR2 (2026-09-15): the real proof fields that let this
+    observation actually authorize via OBSERVED_DIRECTION (see
+    claim_translation.py) must be populated from the SAME real bundle
+    the price move itself comes from, never fabricated separately."""
+    import app.services.article_v2.context_builder as context_builder_module
+    from app.services.warehouse.article_evidence_bundle import ArticleEvidenceBundle
+
+    symbol = f"T{_tag()}"
+    es = _evidence_set(symbol, f"{symbol} has informed the Exchange regarding a real event", days_ago=0)
+    real_built_at = datetime.now(timezone.utc)
+
+    async def fake_bundle(db, raw_symbol, **kwargs):
+        return ArticleEvidenceBundle(
+            resolved=True, entity_id=es.entity_id, symbol=symbol, company_name="Test Co",
+            price_move_pct=-18.11, built_at=real_built_at,
+        )
+
+    monkeypatch.setattr(context_builder_module, "build_article_evidence_bundle", fake_bundle)
+    async with AsyncSessionLocal() as db:
+        result = await build_context(db, es)
+    assert result.market_reaction is not None
+    assert result.market_reaction.instrument == symbol
+    assert result.market_reaction.observed_at == real_built_at
+    assert result.market_reaction.price_move_pct == -18.11
+
+
+@pytest.mark.asyncio
 async def test_prior_period_trend_is_attached_when_a_real_prior_value_exists():
     symbol = f"T{_tag()}"
     try:

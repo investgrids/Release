@@ -448,6 +448,45 @@ async def test_negative_market_reaction_gets_a_minus_sign_not_a_bare_number():
 
 
 @pytest.mark.asyncio
+async def test_market_reaction_carries_real_proof_when_instrument_and_observed_at_are_present():
+    """Article V2-MR2 (2026-09-15): the claim's market_observation field
+    -- separate from structured_value -- is what lets it actually
+    authorize via OBSERVED_DIRECTION (see claim_translation.py). Only
+    populated when both real fields are present."""
+    es = _evidence_set("SUNSHINE", "Sunshine Pictures Limited has submitted to the Exchange, the financial results")
+    identity = compute_identity(es)
+    observed_at = datetime(2026, 9, 15, 14, 47, 18, tzinfo=timezone.utc)
+    context = ArticleContextBundle(
+        entity_id=es.entity_id, symbol=es.symbol, event_id=es.event_id, event_headline=es.event_headline,
+        status=AVAILABLE,
+        market_reaction=MarketReaction(price_move_pct=-18.11, note="temporal correlation only", instrument="SUNSHINE", observed_at=observed_at),
+    )
+    article = await compose_article(_decision(es, FACTUAL_UPDATE), es, context, identity, _resolution(identity), _headline())
+    context_section = next(s for s in article.sections if s.name in ("key_details", "verified_context"))
+    reaction_claim = next(c for c in context_section.claims if c.structured_value and c.structured_value.get("kind") == "market_reaction")
+    assert reaction_claim.market_observation == {
+        "instrument": "SUNSHINE", "observed_at": observed_at.isoformat(), "change_pct": -18.11,
+    }
+
+
+@pytest.mark.asyncio
+async def test_market_reaction_has_no_proof_when_instrument_or_observed_at_are_missing():
+    """Defensive: never fabricate proof for an older/degraded
+    MarketReaction that lacks the new fields -- falls back to the
+    pre-MR2 shape (market_observation=None), never a partially-fake proof."""
+    es = _evidence_set("CANBK", "CANARA BANK has informed the Exchange about a real corporate action")
+    identity = compute_identity(es)
+    context = ArticleContextBundle(
+        entity_id=es.entity_id, symbol=es.symbol, event_id=es.event_id, event_headline=es.event_headline,
+        status=AVAILABLE, market_reaction=MarketReaction(price_move_pct=2.4, note="temporal correlation only"),
+    )
+    article = await compose_article(_decision(es, FACTUAL_UPDATE), es, context, identity, _resolution(identity), _headline())
+    context_section = next(s for s in article.sections if s.name in ("key_details", "verified_context"))
+    reaction_claim = next(c for c in context_section.claims if c.structured_value and c.structured_value.get("kind") == "market_reaction")
+    assert reaction_claim.market_observation is None
+
+
+@pytest.mark.asyncio
 async def test_prose_only_claims_have_no_structured_value():
     es = _evidence_set("CANBK", "CANARA BANK has informed the Exchange about Board Meeting to consider Fund raising")
     identity = compute_identity(es)

@@ -132,6 +132,18 @@ class ContextFinancialFact:
 class MarketReaction:
     price_move_pct: float
     note: str  # always states "temporal, not causal" explicitly
+    # Article V2-MR2 (2026-09-15): real structured proof, added so this
+    # observation can actually reach claim_translation.py's own
+    # is_real_market_observation() check -- see that module's docstring
+    # for the gap this closes (MR1 trace: a genuine, quote-fetched price
+    # move was being dropped by P2 for lack of any proof to check,
+    # despite the underlying measurement itself being real). `instrument`
+    # is the same resolved symbol used everywhere else in this pipeline;
+    # `observed_at` is the real moment build_article_evidence_bundle's
+    # live quote fetch ran (its own `built_at`), never a synthetic or
+    # backdated timestamp.
+    instrument: str | None = None
+    observed_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -285,6 +297,8 @@ async def build_context(db: AsyncSession, evidence_set: ArticleEvidenceSet) -> A
                         "temporal correlation only: the stock moved this much on the day this development "
                         "was reported -- this is NOT a claim that the development caused the move"
                     ),
+                    instrument=bundle.symbol or evidence_set.symbol,
+                    observed_at=bundle.built_at,
                 )
 
     if financial_context and market_reaction is not None:

@@ -30,23 +30,34 @@ of second, drifting authorization path CD3-D exists to prevent.
    never rejected outright either -- ANALYTICAL_HYPOTHESIS/QUALIFIED,
    matching authorize_direction()'s own treatment of an analytical read.
 
-## Why PRICE_SIGN never actually fires here today
+## PRICE_SIGN / OBSERVED_DIRECTION -- Article V2-MR2 (2026-09-15)
 
-C6 (composer.py) never emits a claim ABOUT a price move with claim_type
-FACT and evidence_ids/financial_fact_ids pointing at real market-
-observation data -- the one price-move sentence _compose_context_section
-builds is composed directly into `verified_context`/`key_details` text,
-not routed through a ComposedClaim with a `market_reaction` reference at
-all (composer.py's own `MarketReaction` claim is appended to `claims`
-with `claim_type="FACT"` but no `evidence_ids`/`financial_fact_ids` --
-see `_compose_context_section`). So `is_real_market_observation()` below
-is a real, honest check against a shape V2 does not currently produce --
-not a dead function, but a guard against a FUTURE composer change
-silently smuggling a price claim through the FACT/evidence_ids path
-without ever being real OBSERVED_DIRECTION-worthy proof. If C6 is ever
-extended to attach real structured market-observation data to a claim,
-this is where that gets a real authorization path -- not by loosening
-the DOCUMENTED_FACT branch below.
+Originally `is_real_market_observation()` always returned False: C6
+appended its market-reaction claim with `claim_type="FACT"` but no
+`evidence_ids`/`financial_fact_ids`, so a real, live-quote-verified
+price move fell through to the generic "FACT but no proof" branch and
+was silently dropped -- found via a real production specimen (P7-O1's
+first live withhold, Sunshine Pictures, 2026-09-15: a genuine, verified
+-18.11% same-day move was authorized as UNAVAILABLE purely because
+nothing propagated its proof past `context_builder.py`'s own
+`MarketReaction`, which at the time only carried `price_move_pct`/
+`note`). Traced end to end (MR1) and confirmed: not an integrity issue,
+not prose contamination (the claim's own text was already careful and
+explicitly non-causal) -- a pure proof-propagation gap between C3 and
+P2.
+
+MR2 closed it at the source, not by loosening this check:
+`MarketReaction` now also carries `instrument`/`observed_at` (the real
+resolved symbol and the real moment `build_article_evidence_bundle`'s
+live quote fetch ran), composer.py attaches them to the claim as
+`market_observation` (a field deliberately separate from
+`evidence_ids`/`financial_fact_ids` -- see `ComposedClaim`'s own
+docstring), and `is_real_market_observation()` below checks THAT field
+for real presence. Still never inferred from `evidence_ids`/
+`financial_fact_ids` being non-empty, from `claim.text`, or from a
+section name -- and still requires `claim_type == "FACT"`, so an
+INTERPRETATION-typed claim can never reach OBSERVED_DIRECTION even if
+some future caller mistakenly attached `market_observation` to one.
 
 ## Section-level enforcement — concatenated prose vs. holistic prose
 
@@ -103,15 +114,21 @@ class TranslationContext:
 
 
 def is_real_market_observation(claim: ComposedClaim) -> bool:
-    """Real, structured proof of an actual market observation --
-    deliberately NOT satisfied by `claim.evidence_ids`/
-    `claim.financial_fact_ids` being non-empty, a `claim.text` substring
-    match, or any section-name check. As of this writing nothing in
-    composer.py attaches this kind of structured market-observation data
-    to a ComposedClaim (see this module's own docstring) -- this always
-    returns False today, which is the correct, honest answer, not a
-    placeholder to be "completed" by loosening the check."""
-    return False
+    """Article V2-MR2 (2026-09-15): real, structured proof of an actual
+    market observation -- an instrument, an observation timestamp, and a
+    real change_pct, all present on `claim.market_observation` (composer.py's
+    own dedicated field for this, never `evidence_ids`/`financial_fact_ids`,
+    never a `claim.text` substring match, never a section-name check).
+    Also requires `claim_type == "FACT"` -- an observed price move is
+    never an interpretation, so an INTERPRETATION-typed claim can never
+    reach OBSERVED_DIRECTION through this path even if it somehow carried
+    a `market_observation` value."""
+    if claim.claim_type != "FACT":
+        return False
+    mo = claim.market_observation
+    if not mo:
+        return False
+    return bool(mo.get("instrument")) and bool(mo.get("observed_at")) and mo.get("change_pct") is not None
 
 
 def authorize_composed_claim(claim: ComposedClaim, ctx: TranslationContext) -> AuthorizedClaim:

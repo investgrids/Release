@@ -210,6 +210,18 @@ class ComposedClaim:
     # against the original context bundle). None for any claim that has
     # no natural structured shape (what_happened/why_it_matters prose).
     structured_value: dict | None = None
+    # Article V2-MR2 (2026-09-15): real, structured proof of an actual
+    # market observation -- {"instrument": <resolved symbol>,
+    # "observed_at": <real datetime the live quote was fetched>,
+    # "change_pct": <float>} -- never inferred from evidence_ids/
+    # financial_fact_ids being non-empty or from claim.text (see
+    # claim_translation.py's is_real_market_observation(), which is the
+    # ONLY thing that reads this field). Deliberately separate from
+    # evidence_ids/financial_fact_ids: those name a document/registry
+    # reference, this names a live measurement's own real proof. None
+    # for every claim except the one composer.py builds directly from
+    # context.market_reaction.
+    market_observation: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -356,12 +368,23 @@ def _compose_context_section(
             direction = "gained" if mr.price_move_pct >= 0 else "declined"
             sign = "+" if mr.price_move_pct >= 0 else "-"
             text = f"{evidence_set.symbol} shares {direction} {abs(mr.price_move_pct):.2f}% on the day this was reported ({mr.note})"
+            # Article V2-MR2 (2026-09-15): real proof, only when both real
+            # fields are actually present (defensive -- never fabricate
+            # instrument/observed_at if an older/degraded MarketReaction
+            # somehow lacks them; falls through to the pre-MR2 UNAVAILABLE
+            # path in that case, exactly as before).
+            market_observation = None
+            if mr.instrument and mr.observed_at:
+                market_observation = {
+                    "instrument": mr.instrument, "observed_at": mr.observed_at.isoformat(), "change_pct": mr.price_move_pct,
+                }
             claims.append(ComposedClaim(
                 text=text, claim_type="FACT",
                 structured_value={
                     "kind": "market_reaction", "label": "Market reaction",
                     "value": f"{sign}{abs(mr.price_move_pct):.2f}%", "period": "observed",
                 },
+                market_observation=market_observation,
             ))
     if not claims:
         return None
