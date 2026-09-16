@@ -42,7 +42,7 @@ from app.services.article_v2.decision_engine import CREATE, FACTUAL_UPDATE, Arti
 from app.services.article_v2.evidence_set_builder import COHERENT, ArticleEvidenceSet
 from app.services.article_v2.headline_engine import HeadlineResult, ValidationOutcome
 from app.services.article_v2.identity import CREATE_NEW, ArticleIdentity, PublicationResolution
-from app.services.article_v2.publisher import publish_v2_article
+from app.services.article_v2.publisher import PublicationRefusal, publish_v2_article
 from app.services.warehouse.read_service import LinkedEvidence
 
 client = TestClient(app)
@@ -205,7 +205,20 @@ async def test_full_article_specimen_survives_backend_to_api_to_frontend_contrac
 
 
 @pytest.mark.asyncio
-async def test_thin_specimen_publishes_and_reads_back_without_fabricated_placeholders():
+async def test_thin_specimen_with_no_structured_fact_is_now_refused_by_sg1():
+    """Article V2-SG1 (2026-09-16, added after this test's original F3
+    pass): this exact specimen -- a board meeting notice restating the
+    triggering filing with no structured fact behind it -- is precisely
+    the C3R-diagnosed pattern (real production examples: GLAND, JSWINFRA)
+    that must now be REFUSED rather than published. This test's original
+    intent ("a thin specimen still publishes cleanly, no fabricated
+    placeholders") is superseded by the owner's later, deliberate policy
+    change: article eligibility must reflect the evidence MarketRipple
+    actually possesses, not just C8's own substantiveness call. See
+    test_thin_but_sg1_sufficient_specimen_still_publishes_without_fabrication
+    below for the still-true half of the original claim -- a thin
+    specimen CAN still publish cleanly, but only once it carries at
+    least one real structured fact."""
     symbol = "RGATE2"
     ev_primary = str(uuid.uuid4())
     article_id = f"test-v2-gate-{uuid.uuid4()}"
@@ -233,6 +246,51 @@ async def test_thin_specimen_publishes_and_reads_back_without_fabricated_placeho
     )
 
     try:
+        with pytest.raises(PublicationRefusal, match="SG1"):
+            await _publish(composed=composed, evidence_set=evidence_set, article_id=article_id, published_at=published_at)
+    finally:
+        await _cleanup(article_id)
+
+
+@pytest.mark.asyncio
+async def test_thin_but_sg1_sufficient_specimen_still_publishes_without_fabrication():
+    """The still-true half of the original F3 claim: a specimen with
+    almost nothing else -- no what_to_watch, no risks/opportunities, one
+    source -- still publishes cleanly with genuinely empty fields (never
+    a fabricated placeholder), as long as it carries at least one real
+    structured fact (SG1's actual bar). Thin is fine; ungrounded is not."""
+    symbol = "RGATE3"
+    ev_primary = str(uuid.uuid4())
+    article_id = f"test-v2-gate-{uuid.uuid4()}"
+    published_at = datetime(2026, 9, 21, 10, 0, tzinfo=timezone.utc)
+
+    evidence_set = ArticleEvidenceSet(
+        entity_id=f"cmp_{symbol.lower()}", symbol=symbol, event_id="evt-gate-3",
+        event_headline=f"{symbol} quarterly results",
+        status=COHERENT,
+        primary_evidence=_evidence(f"{symbol} quarterly results", ev_primary, source_type="nse"),
+        supporting_evidence=[], company_name=f"{symbol} Industries Ltd",
+    )
+
+    what_happened = ComposedSection(
+        name="what_happened",
+        text=f"On 14 September 2026, {symbol} Industries Ltd filed quarterly results.",
+        claims=[ComposedClaim(text=f"On 14 September 2026, {symbol} Industries Ltd filed quarterly results.", claim_type="FACT", evidence_ids=[ev_primary])],
+    )
+    fact_claim = ComposedClaim(
+        text="Revenue: Rs 200 crore.", claim_type="FACT", financial_fact_ids=["REVENUE"],
+        structured_value={"kind": "financial_fact", "label": "Revenue", "value": "Rs 200 crore", "period": "FY26 Q2", "metric_code": "REVENUE"},
+    )
+    key_details = ComposedSection(name="key_details", text=fact_claim.text, claims=[fact_claim])
+    source_updated = ComposedSection(name="source_updated", text="Source: an NSE regulatory filing.", claims=[])
+    sections = [what_happened, key_details, source_updated]
+    composed = ComposedArticle(
+        content_type=FACTUAL_UPDATE, headline=f"{symbol} Reports Rs 200 Crore Revenue",
+        sections=sections, all_claims=[c for s in sections for c in s.claims],
+        llm_status="not_used", llm_attempts=0, word_count=sum(len(s.text.split()) for s in sections),
+    )
+
+    try:
         article = await _publish(composed=composed, evidence_set=evidence_set, article_id=article_id, published_at=published_at)
         slug = article.slug
 
@@ -240,20 +298,15 @@ async def test_thin_specimen_publishes_and_reads_back_without_fabricated_placeho
         assert resp.status_code == 200
         body = resp.json()
 
-        # No fabrication for sections composer.py had nothing real to say
-        # about -- empty lists, never a placeholder claim.
-        assert body["key_facts"] == []
+        assert body["key_facts"] == [
+            {"kind": "financial_fact", "label": "Revenue", "value": "Rs 200 crore", "period": "FY26 Q2", "metric_code": "REVENUE"},
+        ]
+        # Still genuinely empty, never fabricated, for everything else.
         assert body["what_to_watch_next"] == []
         assert body["risks"] == []
         assert body["opportunities"] == []
         assert body["historical_events"] == []
-
         assert len(body["sources"]) == 1
-        assert body["sources"][0]["evidence_id"] == ev_primary
-
-        assert body["headline"] == composed.headline
-        assert body["what_happened"]
-        # why_it_matters was never composed for this thin specimen.
         assert not body.get("why_it_matters")
     finally:
         await _cleanup(article_id)

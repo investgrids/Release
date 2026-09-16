@@ -24,6 +24,7 @@ import app.services.article_v2.headline_engine as headline_engine_module
 from app.db.models.article_v2_shadow_execution import ArticleV2ShadowExecution
 from app.db.models.company_entity import CompanyAlias, CompanyEntity
 from app.db.models.evidence_entity_link import EvidenceEntityLink
+from app.db.models.financial_fact import FinancialFact
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.raw_evidence import RawEvidence
 from app.db.models.source_registry import Source
@@ -60,7 +61,17 @@ async def _seed_evidence(db, *, entity_id: str, source_id: str, title: str, days
     return doc_id
 
 
-async def _cleanup(entity_ids=(), evidence_ids=(), source_ids=(), shadow_ids=()):
+async def _seed_fact(db, *, symbol: str, metric_code: str, metric_name: str, value: float, unit: str,
+                      fiscal_year: int, fiscal_quarter: int | None, quality_status: str = "OK"):
+    db.add(FinancialFact(
+        symbol=symbol, metric_code=metric_code, metric_name=metric_name, value=value, unit=unit,
+        fiscal_year=fiscal_year, fiscal_quarter=fiscal_quarter, period_type="Quarterly" if fiscal_quarter else "Annual",
+        consolidation_scope="Non-Consolidated", source_provider="NSE",
+        extraction_status="POPULATED", quality_status=quality_status,
+    ))
+
+
+async def _cleanup(entity_ids=(), evidence_ids=(), source_ids=(), shadow_ids=(), symbols=()):
     async with AsyncSessionLocal() as db:
         await db.execute(delete(ArticleV2ShadowExecution).where(ArticleV2ShadowExecution.id.in_(shadow_ids)))
         await db.execute(delete(EvidenceEntityLink).where(EvidenceEntityLink.raw_evidence_id.in_(evidence_ids)))
@@ -68,6 +79,7 @@ async def _cleanup(entity_ids=(), evidence_ids=(), source_ids=(), shadow_ids=())
         await db.execute(delete(CompanyAlias).where(CompanyAlias.entity_id.in_(entity_ids)))
         await db.execute(delete(CompanyEntity).where(CompanyEntity.entity_id.in_(entity_ids)))
         await db.execute(delete(Source).where(Source.id.in_(source_ids)))
+        await db.execute(delete(FinancialFact).where(FinancialFact.symbol.in_(symbols)))
         await db.commit()
 
 
@@ -134,6 +146,16 @@ async def test_full_pipeline_reaches_would_publish_true_and_creates_no_public_ar
         await _seed_source(db, source_id)
         await _seed_entity(db, symbol, entity_id)
         evidence_ids.append(await _seed_evidence(db, entity_id=entity_id, source_id=source_id, title=title))
+        # Article V2-SG1 (2026-09-16): a real financial fact, so this
+        # candidate has genuine structured grounding beyond the
+        # triggering filing and legitimately reaches would_publish=True
+        # under SG1 -- this test's own point is the shadow-mode
+        # never-writes-a-public-row structural guarantee, not SG1 itself
+        # (see test_article_v2_publisher_sg1.py for that).
+        # "advances" is a real member of _FAMILY_METRIC_ALLOWLIST["ORDER_CONTRACT"]
+        # (context_builder.py) -- financial_context is BANKING_V1-scoped
+        # today, so an invented non-banking metric code would never match.
+        await _seed_fact(db, symbol=symbol, metric_code="advances", metric_name="Advances", value=500.0, unit="inr", fiscal_year=2026, fiscal_quarter=2)
         await db.commit()
 
     try:
@@ -172,5 +194,5 @@ async def test_full_pipeline_reaches_would_publish_true_and_creates_no_public_ar
     finally:
         await _cleanup(
             entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id],
-            shadow_ids=[r.id for r in records],
+            shadow_ids=[r.id for r in records], symbols=[symbol],
         )

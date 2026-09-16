@@ -73,8 +73,18 @@ def _headline(text: str) -> HeadlineResult:
 def _composed(*, what_happened_text: str, ev1_id: str, headline: str) -> ComposedArticle:
     claim = ComposedClaim(text=what_happened_text, claim_type="FACT", evidence_ids=[ev1_id])
     what_happened = ComposedSection(name="what_happened", text=what_happened_text, claims=[claim])
+    # Article V2-SG1 (2026-09-16): a real structured fact, so these
+    # persistence/field-override/json_ld tests satisfy the sufficiency
+    # gate on their own merits and keep testing what they're actually
+    # about -- not accidentally blocked by an orthogonal concern. SG1's
+    # own tests (test_article_v2_publisher_sg1.py) cover the gate itself.
+    fact_claim = ComposedClaim(
+        text="Order value: Rs 500 crore.", claim_type="FACT", financial_fact_ids=["ORDER_VALUE"],
+        structured_value={"kind": "financial_fact", "label": "Order value", "value": "Rs 500 crore", "period": "FY26 Q2", "metric_code": "ORDER_VALUE"},
+    )
+    key_details = ComposedSection(name="key_details", text=fact_claim.text, claims=[fact_claim])
     source_updated = ComposedSection(name="source_updated", text="Source: an NSE regulatory filing.", claims=[])
-    sections = [what_happened, source_updated]
+    sections = [what_happened, key_details, source_updated]
     all_claims = [c for s in sections for c in s.claims]
     return ComposedArticle(
         content_type=FACTUAL_UPDATE, headline=headline, sections=sections, all_claims=all_claims,

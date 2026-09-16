@@ -161,6 +161,38 @@ def build_and_validate(
     if not result.fields.get("headline"):
         raise PublicationRefusal("no usable headline -- refusing to publish.")
 
+    # Article V2-SG1 -- Public Article Sufficiency Gate (owner design,
+    # 2026-09-16). C3R traced two real, C8-ARTICLE, evidently-substantive
+    # acquisitions (GLAND, JSWINFRA) all the way through Warehouse and
+    # found genuinely nothing beyond NSE's own one-line filing subject --
+    # zero FinancialFact rows for either symbol, no deal-specific facts
+    # anywhere in MarketRipple (the real detail almost certainly sits
+    # inside an unparsed PDF attachment, an ingestion-depth gap, not a
+    # C3/CD3 defect). C8's own tier judgment is deliberately left
+    # untouched by this check -- a shadow/telemetry row still records
+    # c8_tier=ARTICLE, exactly the audit trail the owner wants ("C8:
+    # ARTICLE / highly substantive event; SG1: insufficient grounded
+    # article depth; public outcome: EVENT_ONLY", never C8 redefined to
+    # claim the event itself wasn't substantive).
+    #
+    # Deliberately ONE deterministic signal, not a score: `key_facts` is
+    # already the exact union of authorized financial facts and an
+    # authorized market observation (F1's structured_value + P2's real
+    # authorization, MR2's own fix included) -- the only two structured,
+    # verified-beyond-the-triggering-filing signals this pipeline
+    # produces today. Evidence COUNT is deliberately never used as a
+    # substitute (SHIPROCKET: 14 evidence items, zero key_facts, zero
+    # differentiated content -- volume is not depth). "Sufficiently rich
+    # independent evidence" and "verified deal/transaction facts" stay
+    # unimplemented, honestly, until a real structured source for either
+    # exists (see the NSE Filing Intelligence / Deep Filing Evidence
+    # roadmap item) -- not approximated by a proxy that isn't real.
+    if not result.fields.get("key_facts"):
+        raise PublicationRefusal(
+            "SG1: no grounded fact (verified financial fact or an authorized market observation) survived "
+            "beyond the triggering filing -- insufficient article depth regardless of C8's own tier classification."
+        )
+
     return BuildResult(fields=result.fields, authorization_summary=summarize_authorization(enforced))
 
 

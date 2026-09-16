@@ -615,6 +615,20 @@ async def test_real_pipeline_end_to_end_reaches_a_real_committed_public_article(
         await _seed_source(db, source_id)
         await _seed_entity(db, symbol, entity_id)
         evidence_ids.append(await _seed_evidence(db, entity_id=entity_id, source_id=source_id, title=title))
+        # Article V2-SG1 (2026-09-16): real structured grounding, so this
+        # candidate legitimately clears the sufficiency gate -- this
+        # test's own point is the real end-to-end write path, not SG1
+        # itself (see test_article_v2_publisher_sg1.py for that).
+        # "advances" is a real member of _FAMILY_METRIC_ALLOWLIST["ORDER_CONTRACT"]
+        # (context_builder.py) -- financial_context is BANKING_V1-scoped
+        # today, so an invented non-banking metric code would never match.
+        from app.db.models.financial_fact import FinancialFact
+        db.add(FinancialFact(
+            symbol=symbol, metric_code="advances", metric_name="Advances", value=500.0, unit="inr",
+            fiscal_year=2026, fiscal_quarter=2, period_type="Quarterly",
+            consolidation_scope="Non-Consolidated", source_provider="NSE",
+            extraction_status="POPULATED", quality_status="OK",
+        ))
         await db.commit()
 
     try:
@@ -640,11 +654,13 @@ async def test_real_pipeline_end_to_end_reaches_a_real_committed_public_article(
         cleanup_ids = [article_id] if article_id else []
         await _cleanup(event_ids=[event_id], article_ids=cleanup_ids)
         async with AsyncSessionLocal() as db:
+            from app.db.models.financial_fact import FinancialFact
             await db.execute(delete(EvidenceEntityLink).where(EvidenceEntityLink.raw_evidence_id.in_(evidence_ids)))
             await db.execute(delete(RawEvidence).where(RawEvidence.id.in_(evidence_ids)))
             await db.execute(delete(CompanyAlias).where(CompanyAlias.entity_id == entity_id))
             await db.execute(delete(CompanyEntity).where(CompanyEntity.entity_id == entity_id))
             await db.execute(delete(Source).where(Source.id == source_id))
+            await db.execute(delete(FinancialFact).where(FinancialFact.symbol == symbol))
             await db.commit()
 
 

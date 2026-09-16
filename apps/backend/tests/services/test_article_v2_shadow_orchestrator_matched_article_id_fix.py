@@ -37,6 +37,7 @@ import app.services.article_v2.headline_engine as headline_engine_module
 from app.db.models.article_v2_shadow_execution import ArticleV2ShadowExecution
 from app.db.models.company_entity import CompanyAlias, CompanyEntity
 from app.db.models.evidence_entity_link import EvidenceEntityLink
+from app.db.models.financial_fact import FinancialFact
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.models.raw_evidence import RawEvidence
 from app.db.models.source_registry import Source
@@ -90,8 +91,25 @@ async def _seed_existing_article(db, *, article_id: str, trigger_event_id: str, 
     ))
 
 
-async def _cleanup(entity_ids=(), evidence_ids=(), source_ids=(), shadow_ids=(), article_ids=()):
+async def _seed_fact(db, *, symbol: str, metric_code: str = "advances", metric_name: str = "Advances", value: float = 500.0):
+    # Article V2-SG1 (2026-09-16): "advances" is a real member of
+    # _FAMILY_METRIC_ALLOWLIST["ORDER_CONTRACT"] (context_builder.py) --
+    # financial_context is BANKING_V1-scoped today, so this specific
+    # metric_code is what actually makes it non-empty for these
+    # ORDER_CONTRACT-shaped fixtures, giving them real grounded depth to
+    # clear the sufficiency gate -- these tests are about the matched-
+    # article-id fix, not SG1 itself (see test_article_v2_publisher_sg1.py).
+    db.add(FinancialFact(
+        symbol=symbol, metric_code=metric_code, metric_name=metric_name, value=value, unit="inr",
+        fiscal_year=2026, fiscal_quarter=2, period_type="Quarterly",
+        consolidation_scope="Non-Consolidated", source_provider="NSE",
+        extraction_status="POPULATED", quality_status="OK",
+    ))
+
+
+async def _cleanup(entity_ids=(), evidence_ids=(), source_ids=(), shadow_ids=(), article_ids=(), symbols=()):
     async with AsyncSessionLocal() as db:
+        await db.execute(delete(FinancialFact).where(FinancialFact.symbol.in_(symbols)))
         await db.execute(delete(ArticleV2ShadowExecution).where(ArticleV2ShadowExecution.id.in_(shadow_ids)))
         await db.execute(delete(IntelligenceArticle).where(IntelligenceArticle.id.in_(article_ids)))
         await db.execute(delete(EvidenceEntityLink).where(EvidenceEntityLink.raw_evidence_id.in_(evidence_ids)))
@@ -129,6 +147,7 @@ async def test_create_candidate_unaffected_by_the_fix(monkeypatch):
         await _seed_source(db, source_id)
         await _seed_entity(db, symbol, entity_id)
         evidence_ids.append(await _seed_evidence(db, entity_id=entity_id, source_id=source_id, title=title))
+        await _seed_fact(db, symbol=symbol)
         await db.commit()
 
     try:
@@ -143,7 +162,7 @@ async def test_create_candidate_unaffected_by_the_fix(monkeypatch):
         assert r.would_publish is True
         assert r.p4_validation_result == "would_publish"
     finally:
-        await _cleanup(entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id], shadow_ids=[r.id for r in records])
+        await _cleanup(entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id], shadow_ids=[r.id for r in records], symbols=[symbol])
 
 
 # ── 2. UPDATE_EXISTING + real matched_article_id: ID survives end to end ───
@@ -181,6 +200,7 @@ async def test_update_existing_with_real_matched_article_id_reaches_p4(monkeypat
             db, article_id=existing_article_id, trigger_event_id=event_id, symbol=symbol,
             headline=f"{symbol} announces railway order",
         )
+        await _seed_fact(db, symbol=symbol)
         await db.commit()
 
     try:
@@ -203,7 +223,7 @@ async def test_update_existing_with_real_matched_article_id_reaches_p4(monkeypat
     finally:
         await _cleanup(
             entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id],
-            shadow_ids=[r.id for r in records], article_ids=[existing_article_id],
+            shadow_ids=[r.id for r in records], article_ids=[existing_article_id], symbols=[symbol],
         )
 
 
@@ -253,6 +273,7 @@ async def test_p2_authorization_summary_persisted_on_would_publish(monkeypatch):
         await _seed_source(db, source_id)
         await _seed_entity(db, symbol, entity_id)
         evidence_ids.append(await _seed_evidence(db, entity_id=entity_id, source_id=source_id, title=title))
+        await _seed_fact(db, symbol=symbol)
         await db.commit()
 
     try:
@@ -275,7 +296,7 @@ async def test_p2_authorization_summary_persisted_on_would_publish(monkeypatch):
             stored = (await db.execute(select(ArticleV2ShadowExecution).where(ArticleV2ShadowExecution.id == r.id))).scalar_one()
         assert stored.p2_authorization_summary["authorized_count"] >= 1
     finally:
-        await _cleanup(entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id], shadow_ids=[r.id for r in records])
+        await _cleanup(entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id], shadow_ids=[r.id for r in records], symbols=[symbol])
 
 
 # ── 5. Still zero public IntelligenceArticle writes, even for UPDATE_EXISTING ─
@@ -309,6 +330,7 @@ async def test_update_existing_path_still_creates_no_public_article(monkeypatch)
             db, article_id=existing_article_id, trigger_event_id=event_id, symbol=symbol,
             headline=f"{symbol} announces railway order",
         )
+        await _seed_fact(db, symbol=symbol)
         await db.commit()
 
     try:
@@ -332,5 +354,5 @@ async def test_update_existing_path_still_creates_no_public_article(monkeypatch)
     finally:
         await _cleanup(
             entity_ids=[entity_id], evidence_ids=evidence_ids, source_ids=[source_id],
-            shadow_ids=[r.id for r in records], article_ids=[existing_article_id],
+            shadow_ids=[r.id for r in records], article_ids=[existing_article_id], symbols=[symbol],
         )
