@@ -312,7 +312,20 @@ def _build_deterministic_headline(evidence_set: ArticleEvidenceSet, identity: Ar
         topic = _extract_topic(primary_title)
         if not topic:
             stripped = _BOILERPLATE_STRIP_RE.sub("", primary_title or "", count=1)
-            stripped = re.sub(r"^\s*(regarding|about)\s*", "", stripped, flags=re.IGNORECASE).strip()
+            # HQ2 (owner design, 2026-09-17): _BOILERPLATE_STRIP_RE only
+            # strips through "...the Exchange" -- it does not know what
+            # connects the preamble to the real topic. NSE's own
+            # "financial results submission" template uses a THIRD real
+            # shape neither "regarding X" nor "about X" cover: a bare
+            # comma continuation ("...has submitted to the Exchange, the
+            # financial results for..."). Left unstripped, that comma
+            # survived into the assembled headline as "Company — ,
+            # topic" -- the exact malformed separator HQ1 exists to
+            # catch (the real SUNSHINE case that motivated HQ1 in the
+            # first place). Scoped to exactly this boundary: strip an
+            # optional leading comma the same way "regarding"/"about"
+            # already are, never a general punctuation cleanup.
+            stripped = re.sub(r"^\s*,?\s*(regarding|about)?\s*", "", stripped, flags=re.IGNORECASE).strip()
             topic = _truncate_at_word_boundary(stripped, _MAX_TOPIC_LEN) or "a recent regulatory filing"
 
     headline = f"{company} — {topic}"

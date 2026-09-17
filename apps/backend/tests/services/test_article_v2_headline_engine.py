@@ -533,3 +533,82 @@ def test_finalize_batch_uniqueness_never_compares_same_identity_against_itself()
     candidates = [(identity, "Canara Bank board to consider fund raising")]
     result = finalize_batch_uniqueness(candidates)
     assert result[identity.identity_key].kept is True
+
+
+# ── HQ2: comma-continuation boilerplate normalization ──────────────────
+#
+# Real production incident (SUNSHINE, nse-58efd351d6, 2026-09-16/17):
+# NSE's own "financial results submission" filing template uses a THIRD
+# preamble->topic connector shape _BOILERPLATE_STRIP_RE's caller never
+# handled -- neither "about X" nor "regarding X", but a bare comma
+# continuation ("...has submitted to the Exchange, the financial
+# results for..."). The stray leading comma survived into the
+# assembled headline as "Company — , topic", which HQ1 correctly
+# rejected as a broken punctuation boundary -- but before HQ1 existed,
+# this exact defect is what let the malformed headline publish in the
+# first place (the incident that motivated HQ1). This is the permanent
+# regression fixture for the real title.
+
+def test_sunshine_comma_continuation_regression_produces_a_valid_fallback():
+    from app.services.article_v2.headline_engine import _build_deterministic_headline, _check_malformed_structure
+
+    es = _es(
+        "SUNSHINE",
+        "Sunshine Pictures Limited has submitted to the Exchange, the financial results for the period ended Jun 30, 2026.",
+    )
+    identity = compute_identity(es)
+    headline = _build_deterministic_headline(es, identity)
+
+    assert "— ," not in headline
+    assert _check_malformed_structure(headline) is None
+    assert headline.startswith("Sunshine Pictures Limited —")
+    assert "the financial results" in headline.lower()
+
+
+def test_existing_regarding_shape_is_unchanged_by_the_comma_fix():
+    """This real shape is actually intercepted earlier, by _extract_topic's
+    own 'regarding' pattern (with its AGM compression) -- it never
+    reaches the boilerplate-strip line this fix touches at all. Locked
+    in here as a regression guard confirming the fix left it alone."""
+    from app.services.article_v2.headline_engine import _build_deterministic_headline
+
+    es = _es("ABC", "ABC Limited has informed the Exchange regarding Notice of Annual General Meeting to be held on September 20, 2026")
+    identity = compute_identity(es)
+    headline = _build_deterministic_headline(es, identity)
+    assert headline == "ABC Limited — AGM on September 20, 2026"
+
+
+def test_existing_about_shape_is_unchanged_by_the_comma_fix():
+    """Same as above -- intercepted earlier by _extract_topic's own
+    'about' pattern, never reaches the boilerplate-strip line."""
+    from app.services.article_v2.headline_engine import _build_deterministic_headline
+
+    es = _es("ABC", "ABC Limited has informed the Exchange about Board Meeting to be held on September 20, 2026")
+    identity = compute_identity(es)
+    headline = _build_deterministic_headline(es, identity)
+    assert headline == "ABC Limited — board meeting on September 20, 2026"
+
+
+def test_boilerplate_strip_shape_with_no_comma_and_no_connector_is_unchanged():
+    """A residual that has neither a leading comma nor 'about'/'regarding'
+    (e.g. NSE's 'informs the Exchange of X' shape) must pass through
+    exactly as before -- this fix only touches the comma boundary."""
+    from app.services.article_v2.headline_engine import _build_deterministic_headline
+
+    es = _es("XYZ", "XYZ Limited informs the Exchange of a scheduled maintenance window on September 20, 2026")
+    identity = compute_identity(es)
+    headline = _build_deterministic_headline(es, identity)
+    assert "— ," not in headline
+    assert headline.startswith("XYZ Limited — of a scheduled maintenance window")
+
+
+def test_genuinely_malformed_fallback_is_still_rejected_not_silently_repaired():
+    """A residual that is malformed for a reason OTHER than the comma-
+    continuation shape (e.g. a dangling trailing separator) must still
+    be caught by HQ1 -- this fix narrowly targets one specific boundary,
+    it must not become a general punctuation cleanup that hides other
+    real defects."""
+    from app.services.article_v2 import headline_engine as he
+
+    assert he._check_malformed_structure("ABC Limited — ,") is not None
+    assert he._check_malformed_structure("ABC Limited — Update on -") is not None
