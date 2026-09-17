@@ -46,6 +46,7 @@ from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
 from app.db.models.evidence_entity_link import EvidenceEntityLink
 from app.db.models.article_v2_shadow_execution import ArticleV2ShadowExecution
 from app.db.models.article_v2_canary_withhold import ArticleV2CanaryWithhold
+from app.db.models.source_document import SourceDocument
 
 __all__ = [
     "Opportunity",
@@ -98,4 +99,5 @@ __all__ = [
     "EvidenceEntityLink",
     "ArticleV2ShadowExecution",
     "ArticleV2CanaryWithhold",
+    "SourceDocument",
 ]
