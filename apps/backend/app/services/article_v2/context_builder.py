@@ -80,7 +80,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.financial_fact import EXTRACTION_POPULATED, FinancialFact
 from app.services.article_v2.evidence_set_builder import ArticleEvidenceSet
 from app.services.warehouse.article_evidence_bundle import build_article_evidence_bundle
-from app.services.warehouse.read_service import _FINANCIAL_EXCLUDED_QUALITY, get_verified_financial_context
+from app.services.warehouse.read_service import (
+    _FINANCIAL_EXCLUDED_QUALITY, VerifiedTransactionFact, get_verified_financial_context,
+    get_verified_transaction_facts,
+)
 
 AVAILABLE = "AVAILABLE"
 PARTIAL = "PARTIAL"
@@ -156,6 +159,15 @@ class ArticleContextBundle:
     matched_event_families: list[str] = field(default_factory=list)
     financial_context: list[ContextFinancialFact] = field(default_factory=list)
     market_reaction: MarketReaction | None = None
+    # Deep Filing Evidence Phase 1C-I (2026-09-17): real, POPULATED
+    # TransactionFact rows already extracted from the triggering
+    # evidence's own SourceDocument (see warehouse/read_service.py's
+    # get_verified_transaction_facts -- NOT_FOUND rows are excluded at
+    # the read itself, never filtered here). Empty whenever no
+    # extraction has run for this evidence yet, or none of the known
+    # fields could be established -- never a reason to degrade status
+    # below what financial_context/market_reaction already earned.
+    transaction_facts: list[VerifiedTransactionFact] = field(default_factory=list)
     omitted_reasons: list[str] = field(default_factory=list)
 
 
@@ -301,9 +313,20 @@ async def build_context(db: AsyncSession, evidence_set: ArticleEvidenceSet) -> A
                     observed_at=bundle.built_at,
                 )
 
+    # -- Transaction facts, read-only (extraction is frozen/out of scope
+    # for this integration; this only reads what already exists) --
+    transaction_facts: list[VerifiedTransactionFact] = []
+    if evidence_set.primary_evidence.raw_evidence_id:
+        transaction_facts = await get_verified_transaction_facts(db, evidence_set.primary_evidence.raw_evidence_id)
+        if not transaction_facts:
+            omitted.append(
+                "no POPULATED TransactionFact rows for this evidence's SourceDocument -- either no "
+                "extraction has run against it yet, or none of the known fields could be established"
+            )
+
     if financial_context and market_reaction is not None:
         status = AVAILABLE
-    elif financial_context or market_reaction is not None:
+    elif financial_context or market_reaction is not None or transaction_facts:
         status = PARTIAL
     else:
         status = NONE_STATUS
@@ -312,5 +335,5 @@ async def build_context(db: AsyncSession, evidence_set: ArticleEvidenceSet) -> A
         entity_id=evidence_set.entity_id, symbol=evidence_set.symbol, event_id=evidence_set.event_id,
         event_headline=evidence_set.event_headline, status=status,
         matched_event_families=families, financial_context=financial_context,
-        market_reaction=market_reaction, omitted_reasons=omitted,
+        market_reaction=market_reaction, transaction_facts=transaction_facts, omitted_reasons=omitted,
     )

@@ -176,21 +176,26 @@ def build_and_validate(
     # claim the event itself wasn't substantive).
     #
     # Deliberately ONE deterministic signal, not a score: `key_facts` is
-    # already the exact union of authorized financial facts and an
-    # authorized market observation (F1's structured_value + P2's real
-    # authorization, MR2's own fix included) -- the only two structured,
-    # verified-beyond-the-triggering-filing signals this pipeline
-    # produces today. Evidence COUNT is deliberately never used as a
-    # substitute (SHIPROCKET: 14 evidence items, zero key_facts, zero
-    # differentiated content -- volume is not depth). "Sufficiently rich
-    # independent evidence" and "verified deal/transaction facts" stay
-    # unimplemented, honestly, until a real structured source for either
-    # exists (see the NSE Filing Intelligence / Deep Filing Evidence
-    # roadmap item) -- not approximated by a proxy that isn't real.
+    # already the exact union of every authorized structured fact this
+    # pipeline can produce (F1's structured_value + P2's real
+    # authorization) -- financial facts, an authorized market
+    # observation (MR2), and now an authorized TransactionFact (Deep
+    # Filing Evidence Phase 1C-I, 2026-09-17). This check needed NO code
+    # change to generalize: _compose_key_facts() already collects every
+    # surviving claim's structured_value regardless of "kind", and a
+    # transaction_fact claim only survives P2 enforcement (reaches
+    # `composed.sections` here at all) once claim_translation.py's
+    # is_real_transaction_fact() has authorized it -- so this check was
+    # already counting TransactionFact the moment CD3 started
+    # authorizing it, never merely because a TransactionFact DB row
+    # exists. Evidence COUNT is deliberately never used as a substitute
+    # (SHIPROCKET: 14 evidence items, zero key_facts, zero differentiated
+    # content -- volume is not depth).
     if not result.fields.get("key_facts"):
         raise PublicationRefusal(
-            "SG1: no grounded fact (verified financial fact or an authorized market observation) survived "
-            "beyond the triggering filing -- insufficient article depth regardless of C8's own tier classification."
+            "SG1: no grounded fact (verified financial fact, an authorized market observation, or an "
+            "authorized transaction fact) survived beyond the triggering filing -- insufficient article "
+            "depth regardless of C8's own tier classification."
         )
 
     return BuildResult(fields=result.fields, authorization_summary=summarize_authorization(enforced))

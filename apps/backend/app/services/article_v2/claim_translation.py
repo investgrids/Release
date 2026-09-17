@@ -113,6 +113,33 @@ class TranslationContext:
     integrity_status: IntegrityStatus = IntegrityStatus.VALID
 
 
+def is_real_transaction_fact(claim: ComposedClaim) -> bool:
+    """Deep Filing Evidence Phase 1C-I (2026-09-17): real, structured
+    proof of one POPULATED TransactionFact -- checked on `claim.
+    transaction_fact` (composer.py's own dedicated field for this, never
+    `evidence_ids`/`financial_fact_ids`, never a `claim.text` substring
+    match). Requires `claim_type == "FACT"`, a real value (text or
+    numeric), and the full provenance chain (source_document_id, a real
+    page_number, a non-empty source_span_text) -- a TransactionFact
+    lacking any of these is not proof this module accepts, regardless of
+    what its field_code claims. `extraction_status` must be exactly
+    POPULATED: a NOT_FOUND row must never reach this function as
+    positive evidence in the first place (get_verified_transaction_facts
+    already excludes it at the read), but this checks it explicitly
+    anyway as a fail-closed backstop, matching this module's own
+    "never trust an upstream invariant silently" discipline."""
+    if claim.claim_type != "FACT":
+        return False
+    tf = claim.transaction_fact
+    if not tf:
+        return False
+    if tf.get("extraction_status") != "POPULATED":
+        return False
+    has_value = tf.get("value_text") is not None or tf.get("value_numeric") is not None
+    has_provenance = bool(tf.get("source_document_id")) and tf.get("page_number") is not None and bool(tf.get("source_span_text"))
+    return has_value and has_provenance
+
+
 def is_real_market_observation(claim: ComposedClaim) -> bool:
     """Article V2-MR2 (2026-09-15): real, structured proof of an actual
     market observation -- an instrument, an observation timestamp, and a
@@ -161,6 +188,18 @@ def authorize_composed_claim(claim: ComposedClaim, ctx: TranslationContext) -> A
     # non-empty or from claim.text/section name.
     if is_real_market_observation(claim):
         return AuthorizedClaim(capability=Capability.OBSERVED_DIRECTION, strength=Strength.AUTHORIZED)
+
+    # 3.5. A real, provenance-complete TransactionFact -- HISTORICAL_
+    # DESCRIPTION, the same capability an evidence_ids/financial_fact_ids
+    # -backed document fact already gets (a filing-derived structured
+    # fact IS exactly that kind of fact). Authorizes only the narrow
+    # factual proposition composer.py's own template states ("the filing
+    # states a stake of 51%") -- never "major acquisition" or any other
+    # characterization the fact itself doesn't prove; that judgment is
+    # composer.py's phrasing responsibility, not something this
+    # authorization step can widen or narrow after the fact.
+    if is_real_transaction_fact(claim):
+        return AuthorizedClaim(capability=Capability.HISTORICAL_DESCRIPTION, strength=Strength.AUTHORIZED)
 
     # 4. A verified source/document fact -- DOCUMENTED_FACT, never
     # HISTORICAL_OUTCOME (see claim_provenance.py's own docstring).

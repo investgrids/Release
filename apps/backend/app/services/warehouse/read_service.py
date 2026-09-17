@@ -42,6 +42,7 @@ from app.db.models.market_observation import MarketObservation
 # created by a one-off script) but broke the isolated pytest DB, which
 # only ever sees models actually imported before collection finishes.
 from app.db.models.financial_fact import EXTRACTION_POPULATED, FinancialFact
+from app.db.models.transaction_fact import POPULATED as TRANSACTION_FACT_POPULATED, TransactionFact
 
 # A row older than this is not treated as "current" by get_latest_market_
 # observations's own freshness flag -- roughly 3x the real 15-minute capture
@@ -261,3 +262,53 @@ async def get_verified_financial_context(db: AsyncSession, symbol: str) -> Verif
         as_of = f"FY{newest.fiscal_year}Q{newest.fiscal_quarter}" if newest.fiscal_quarter else f"FY{newest.fiscal_year}"
 
     return VerifiedFinancialContext(symbol=symbol.upper(), facts=facts, as_of=as_of)
+
+
+@dataclass(frozen=True)
+class VerifiedTransactionFact:
+    """One POPULATED TransactionFact row, with the full provenance chain
+    a downstream consumer needs to point back to the exact document/page/
+    span that proves it -- never a flattened string. A NOT_FOUND row is
+    never returned by this function at all (see get_verified_transaction_
+    facts's own docstring); this type has no way to represent one, by
+    construction, so a caller can never mistake "field not found" for a
+    real fact."""
+    field_code: str
+    field_name: str
+    value_text: str | None
+    value_numeric: float | None
+    unit: str | None
+    raw_evidence_id: str
+    source_document_id: str
+    page_number: int | None
+    source_span_text: str | None
+    extraction_method: str
+    extraction_method_version: str
+
+
+async def get_verified_transaction_facts(db: AsyncSession, raw_evidence_id: str) -> list[VerifiedTransactionFact]:
+    """Deep Filing Evidence Phase 1C-I (owner design, 2026-09-17). The
+    real, POPULATED TransactionFact rows extracted from the one
+    SourceDocument attached to this exact RawEvidence row -- NOT_FOUND
+    rows are excluded at the query itself, never filtered by a caller
+    who might forget to check extraction_status. Reads only; never calls
+    the extractor (frozen during this integration) and never triggers a
+    fetch -- a raw_evidence_id with no TransactionFact rows yet (no
+    extraction has run against it) returns a real, honest empty list,
+    same "no fallback, no fabricated placeholder" discipline every other
+    function in this module already follows."""
+    rows = (await db.execute(
+        select(TransactionFact).where(
+            TransactionFact.raw_evidence_id == raw_evidence_id,
+            TransactionFact.extraction_status == TRANSACTION_FACT_POPULATED,
+        )
+    )).scalars().all()
+    return [
+        VerifiedTransactionFact(
+            field_code=r.field_code, field_name=r.field_name, value_text=r.value_text, value_numeric=r.value_numeric,
+            unit=r.unit, raw_evidence_id=r.raw_evidence_id, source_document_id=r.source_document_id,
+            page_number=r.page_number, source_span_text=r.source_span_text,
+            extraction_method=r.extraction_method, extraction_method_version=r.extraction_method_version,
+        )
+        for r in rows
+    ]

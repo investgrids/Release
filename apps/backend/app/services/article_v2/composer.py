@@ -119,6 +119,9 @@ from app.services.article_v2.decision_engine import ArticleDecision
 from app.services.article_v2.evidence_set_builder import ArticleEvidenceSet
 from app.services.article_v2.headline_engine import HeadlineResult
 from app.services.article_v2.identity import NO_PUBLICATION, ArticleIdentity, PublicationResolution
+from app.db.models.transaction_fact import (
+    CONSIDERATION_AMOUNT, CONSIDERATION_TYPE, STAKE_PERCENTAGE, TARGET_ENTITY_NAME,
+)
 from app.services.warehouse.numeric_validation import build_allowed_values, validate_numeric_claims
 
 log = structlog.get_logger(__name__)
@@ -222,6 +225,20 @@ class ComposedClaim:
     # for every claim except the one composer.py builds directly from
     # context.market_reaction.
     market_observation: dict | None = None
+    # Deep Filing Evidence Phase 1C-I (2026-09-17): real, structured
+    # proof of one POPULATED TransactionFact -- {"field_code", "value_text"
+    # or "value_numeric", "unit", "raw_evidence_id", "source_document_id",
+    # "page_number", "source_span_text", "extraction_method",
+    # "extraction_method_version"} -- never inferred from evidence_ids/
+    # financial_fact_ids, never from claim.text (see claim_translation.py's
+    # is_real_transaction_fact(), the ONLY thing that reads this field).
+    # Deliberately separate from market_observation: a filing-derived
+    # fact (a stated stake %, a stated consideration) is not a live
+    # market measurement, and mixing the two proof shapes would blur
+    # exactly the "observation vs. document fact" distinction CD3 relies
+    # on. None for every claim except the ones composer.py builds
+    # directly from context.transaction_facts.
+    transaction_fact: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -279,6 +296,52 @@ def _format_value(value: float, unit: str) -> str:
     if unit == "inr":
         return f"Rs {value / 1e7:,.0f} crore"
     return str(value)
+
+
+# Deep Filing Evidence Phase 1C-I: deliberately narrow, hedged phrasing --
+# "the filing states X", never an editorial characterization ("a major
+# acquisition", "strategically important") the underlying fact does not
+# itself prove. TransactionFact's own value_numeric conventions differ
+# from ContextFinancialFact's (stake_percentage is already a whole
+# percentage, e.g. 51.0, not a 0-1 fraction), so this gets its own
+# formatter rather than reusing _format_value -- a real defect found by
+# inspecting the actual composed payload during integration, not a
+# hypothetical: _format_value's crore-only, zero-decimal-place INR
+# formatting is correct for FinancialFact's own real values (bank
+# balance-sheet metrics are always many hundreds/thousands of crore) but
+# a real ZODIAC transaction consideration of Rs 1,00,000 rounds to "Rs 0
+# crore" through it -- a misleading understatement to zero, not a
+# rounding nicety. _format_transaction_fact_amount below picks the
+# right magnitude (crore/lakh/plain rupees) and keeps two decimal
+# places at crore/lakh scale so a real filed figure (e.g. "31.80 crore")
+# is never rounded into a different-looking number.
+_TRANSACTION_FACT_TEXT_TEMPLATES = {
+    TARGET_ENTITY_NAME: 'The filing names "{value}" as the target entity.',
+    STAKE_PERCENTAGE: "The filing states a stake of {value}.",
+    CONSIDERATION_TYPE: "The filing states the consideration is {value}.",
+    CONSIDERATION_AMOUNT: "The filing states a consideration amount of {value}.",
+}
+_CONSIDERATION_TYPE_LABELS = {"CASH": "cash", "SHARE_SWAP": "a share exchange"}
+_CRORE = 1_00_00_000
+_LAKH = 1_00_000
+
+
+def _format_transaction_fact_amount(value: float) -> str:
+    if value >= _CRORE:
+        return f"Rs {value / _CRORE:,.2f} crore"
+    if value >= _LAKH:
+        return f"Rs {value / _LAKH:,.2f} lakh"
+    return f"Rs {value:,.0f}"
+
+
+def _format_transaction_fact_value(f) -> str:
+    if f.field_code == STAKE_PERCENTAGE and f.value_numeric is not None:
+        return f"{f.value_numeric:g}%"
+    if f.field_code == CONSIDERATION_AMOUNT and f.value_numeric is not None:
+        return _format_transaction_fact_amount(f.value_numeric)
+    if f.field_code == CONSIDERATION_TYPE:
+        return _CONSIDERATION_TYPE_LABELS.get(f.value_text or "", f.value_text or "")
+    return f.value_text or ""
 
 
 def _extract_scheduled_date(text: str) -> str | None:
@@ -385,6 +448,45 @@ def _compose_context_section(
                     "value": f"{sign}{abs(mr.price_move_pct):.2f}%", "period": "observed",
                 },
                 market_observation=market_observation,
+            ))
+        for tf in context.transaction_facts:
+            template = _TRANSACTION_FACT_TEXT_TEMPLATES.get(tf.field_code)
+            if not template:
+                continue  # an unrecognized field_code is never composed into prose -- fail closed, not a guess
+            value = _format_transaction_fact_value(tf)
+            if not value:
+                continue
+            text = template.format(value=value)
+            claims.append(ComposedClaim(
+                text=text, claim_type="FACT",
+                structured_value={
+                    "kind": "transaction_fact", "label": tf.field_name,
+                    # "value" is the human-formatted display string (matches
+                    # financial_fact/market_reaction's own existing
+                    # structured_value convention). value_numeric/value_text/
+                    # unit are the SAME normalized fact the extractor itself
+                    # produced, carried alongside the formatted string
+                    # rather than only inside it -- a future consumer reads
+                    # the real number directly and never has to parse
+                    # "Rs 31.80 crore" back into 318009491.0.
+                    "value": value, "value_numeric": tf.value_numeric, "value_text": tf.value_text, "unit": tf.unit,
+                    "field_code": tf.field_code, "source_document_id": tf.source_document_id,
+                    "page": tf.page_number,
+                },
+                # Real, structured proof -- see claim_translation.py's
+                # is_real_transaction_fact(), the only reader of this
+                # field. extraction_status is always POPULATED here:
+                # get_verified_transaction_facts() never returns anything
+                # else, but the field is still named explicitly rather
+                # than assumed, matching market_observation's own
+                # defensive style above.
+                transaction_fact={
+                    "field_code": tf.field_code, "value_text": tf.value_text, "value_numeric": tf.value_numeric,
+                    "unit": tf.unit, "raw_evidence_id": tf.raw_evidence_id,
+                    "source_document_id": tf.source_document_id, "page_number": tf.page_number,
+                    "source_span_text": tf.source_span_text, "extraction_method": tf.extraction_method,
+                    "extraction_method_version": tf.extraction_method_version, "extraction_status": "POPULATED",
+                },
             ))
     if not claims:
         return None
