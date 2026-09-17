@@ -47,6 +47,7 @@ from app.db.models.evidence_entity_link import EvidenceEntityLink
 from app.db.models.article_v2_shadow_execution import ArticleV2ShadowExecution
 from app.db.models.article_v2_canary_withhold import ArticleV2CanaryWithhold
 from app.db.models.source_document import SourceDocument
+from app.db.models.transaction_fact import TransactionFact
 
 __all__ = [
     "Opportunity",
@@ -100,4 +101,5 @@ __all__ = [
     "ArticleV2ShadowExecution",
     "ArticleV2CanaryWithhold",
     "SourceDocument",
+    "TransactionFact",
 ]
