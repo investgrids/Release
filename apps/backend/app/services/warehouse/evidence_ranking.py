@@ -72,6 +72,22 @@ _WEIGHT_SUBSTANTIVENESS = 0.6
 _WEIGHT_RELEVANCE = 0.4
 
 
+def _aware(dt: datetime | None) -> datetime:
+    """MR-TZ1 (owner decision, 2026-09-16). SQLite round-trips a DateTime
+    column as timezone-naive even when it was written aware (the same
+    footgun documented elsewhere in this project) -- at least one real
+    RawEvidence row's `published_at` comes back naive while this sort
+    key's own `datetime.min` fallback is aware, and Python refuses to
+    compare naive against aware. Reattaches UTC to a naive value rather
+    than reinterpreting it in some other zone, matching the project's
+    existing per-module `_aware()` convention (e.g.
+    aipe/company_score_engine.py) rather than a scattered inline
+    conversion."""
+    if dt is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def _subject_substantiveness(title: str | None) -> tuple[float, str]:
     if not title:
         return _SCORE_UNKNOWN, "no title text to classify"
@@ -118,5 +134,5 @@ def rank_evidence(evidence: list[LinkedEvidence], query_context: str | None = No
 
         ranked.append(RankedEvidence(evidence=e, score=round(total, 4), reasons=reasons))
 
-    ranked.sort(key=lambda r: (r.score, r.evidence.published_at or datetime.min.replace(tzinfo=timezone.utc)), reverse=True)
+    ranked.sort(key=lambda r: (r.score, _aware(r.evidence.published_at)), reverse=True)
     return ranked

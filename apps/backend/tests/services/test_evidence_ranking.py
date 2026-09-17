@@ -66,3 +66,30 @@ def test_missing_title_never_crashes_and_scores_neutral():
     ev = _ev(None, now)
     ranked = rank_evidence([ev])
     assert ranked[0].score == 0.5
+
+
+def test_mixed_naive_and_aware_published_at_does_not_crash_the_sort():
+    # MR-TZ1 real regression (ZODIAC, nse-4021315061, 2026-09-16): SQLite
+    # round-trips a DateTime column as naive even when written aware, so
+    # one linked evidence row's published_at can be naive while another's
+    # (or the sort key's own datetime.min fallback) is aware. Before the
+    # fix this raised "can't compare offset-naive and offset-aware
+    # datetimes" and suppressed the entire market-reaction context for
+    # the candidate, not just the one malformed row.
+    naive_recent = datetime(2026, 9, 15, 14, 19, 3)  # no tzinfo, same shape as the real ZODIAC row
+    aware_older = datetime(2026, 9, 14, 10, 0, 0, tzinfo=timezone.utc)
+
+    naive_ev = _ev("Company has informed the Exchange about a routine matter with no recognized phrase", naive_recent, raw_evidence_id="naive")
+    aware_ev = _ev("Company has informed the Exchange about a routine matter with no recognized phrase", aware_older, raw_evidence_id="aware")
+
+    ranked = rank_evidence([aware_ev, naive_ev])  # order matters: aware item first exercises the tuple comparison both ways
+    assert [r.evidence.raw_evidence_id for r in ranked] == ["naive", "aware"]
+
+
+def test_missing_published_at_still_sorts_via_the_aware_min_fallback():
+    now = datetime.now(timezone.utc)
+    dated = _ev("Company has informed the Exchange about a routine matter with no recognized phrase", now, raw_evidence_id="dated")
+    undated = _ev("Company has informed the Exchange about a routine matter with no recognized phrase", None, raw_evidence_id="undated")
+
+    ranked = rank_evidence([undated, dated])
+    assert [r.evidence.raw_evidence_id for r in ranked] == ["dated", "undated"]
