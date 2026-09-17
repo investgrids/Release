@@ -181,3 +181,54 @@ def test_no_primary_evidence_is_rejected():
     )
     result = classify_publication_tier(_decision(es), es, None)
     assert result.tier == REJECT
+
+
+# ── Article V2-C8-P1 (2026-09-16) -- clarification-request procedural
+# correction. ES1's real 50-candidate audit found 15/50 ARTICLE
+# candidates were the exact same NSE template, company swapped: "The
+# Exchange has/had sought clarification from X for the quarter ended...".
+
+def test_real_wewin_clarification_request_template_is_event_only():
+    """The exact real specimen (WE WIN LIMITED, ES1 audit) -- a request
+    FROM the exchange TO the company, about routine Regulation 33
+    quarterly-filing timing, never M&A-flavored in any of the 15 real
+    instances this rule is built from."""
+    es = _es("WEWIN", "The Exchange had sought clarification from WE WIN LIMITED for the quarter ended 30-Jun-2026 with respect to Regulation 33 of the SEBI (Listing Obligations and Disclosure Requirements) Regulations, 2015. On basis of above the Company was required to clarify the following: -1. Consolidated Financial Results not submitted The response of the Company is enclosed.")
+    result = classify_publication_tier(_decision(es), es, None)
+    assert result.tier == EVENT_ONLY
+    assert "PROCEDURAL_CLARIFICATION_REQUEST" in result.reason_codes
+
+
+def test_clarification_request_is_event_only_even_with_the_word_has_sought_present_variant():
+    es = _es("GHCL", "The Exchange has sought clarification from GHCL Limited for the quarter ended 30-Jun-2026 with respect to Regulation 33.")
+    result = classify_publication_tier(_decision(es), es, None)
+    assert result.tier == EVENT_ONLY
+    assert "PROCEDURAL_CLARIFICATION_REQUEST" in result.reason_codes
+
+
+def test_clarification_request_override_beats_an_otherwise_high_substantiveness_match():
+    """The override is unconditional (same "mechanical, not editorial"
+    precedent as _DEGENERATE_SUBJECT_RE) -- even if the same text
+    happens to also mention a high-substantiveness word, a genuine
+    exchange-initiated clarification REQUEST stays EVENT_ONLY. None of
+    the 15 real specimens this rule is built from were ever M&A-flavored,
+    and this proves the override actually takes precedence rather than
+    coincidentally never firing."""
+    es = _es("TESTCO", "The Exchange has sought clarification from Test Co Limited regarding an acquisition mentioned in a prior filing.")
+    result = classify_publication_tier(_decision(es), es, None)
+    assert result.tier == EVENT_ONLY
+    assert "PROCEDURAL_CLARIFICATION_REQUEST" in result.reason_codes
+
+
+def test_a_company_initiated_clarification_response_is_evaluated_normally():
+    """The carve-out: a genuine response, with the COMPANY as the
+    grammatical subject rather than the Exchange, does not match this
+    narrow pattern and is evaluated by the rest of this classifier as
+    usual -- exactly the distinction the owner required (request !=
+    response). This specimen escalates to ARTICLE on its own real
+    acquisition-language merits, proving the override didn't
+    accidentally widen to catch every "clarification" mention."""
+    es = _es("TESTCO", "Test Co Limited submits clarification regarding the acquisition of a wholly-owned subsidiary announced last week.")
+    result = classify_publication_tier(_decision(es), es, None)
+    assert result.tier == ARTICLE
+    assert "HIGH_SUBSTANTIVENESS_MATCH" in result.reason_codes

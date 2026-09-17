@@ -124,6 +124,26 @@ def _matches_supplementary_high_signal(text: str) -> bool:
 # data-quality shape without inventing a name to fill the gap.
 _DEGENERATE_SUBJECT_RE = re.compile(r"\bundefined\b|\bof\s{2,}as\b", re.IGNORECASE)
 
+# Article V2-C8-P1 (owner design, 2026-09-16). ES1's 50-candidate real
+# production audit found 15/50 ARTICLE candidates were the exact same
+# NSE-generated template, company name swapped: "The Exchange has/had
+# sought clarification from X for the quarter ended..." -- a REQUEST
+# FROM the exchange TO the company, always about routine quarterly-
+# filing-timing compliance (Regulation 33), never M&A-flavored in any
+# of the 15 real specimens found. Deliberately narrow and anchored to
+# the exact demonstrated NSE auto-template phrasing, not a general
+# "clarification" keyword ban -- a genuine company-initiated response
+# ("X Limited submits clarification regarding...", company as the
+# grammatical subject) does NOT match this pattern and is evaluated
+# normally by the rest of this classifier, exactly as it should be: a
+# clarification REQUEST is procedural; what a company's RESPONSE
+# actually contains may not be. Checked first, unconditionally, same
+# "mechanical, not editorial" precedent as _DEGENERATE_SUBJECT_RE above
+# -- every one of the 15 real specimens was a routine compliance matter
+# with no counter-example of a substantive one in the 50-candidate
+# sample this rule is built from.
+_CLARIFICATION_REQUEST_RE = re.compile(r"\bthe exchange (has|had) sought clarification from\b", re.IGNORECASE)
+
 
 @dataclass(frozen=True)
 class PublicationTierResult:
@@ -154,6 +174,9 @@ def classify_publication_tier(
 
     if not primary_title:
         return PublicationTierResult(REJECT, ["NO_PRIMARY_TEXT"])
+
+    if _CLARIFICATION_REQUEST_RE.search(primary_title):
+        return PublicationTierResult(EVENT_ONLY, ["PROCEDURAL_CLARIFICATION_REQUEST"])
 
     substantiveness_text = _effective_substantiveness_text(primary_title)
     is_high_substantive = (
