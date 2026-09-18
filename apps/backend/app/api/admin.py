@@ -260,3 +260,110 @@ async def dfe_prod1_populate(
         results.append(result)
 
     return {"dry_run": dry_run, "manifest_size": len(entries), "results": results}
+
+
+# ── TEMPORARY -- Deep Filing Evidence Production Phase DFE-PROD-1: shadow ──
+# run (owner-authorized, 2026-09-18). Runs the real Article V2 pipeline
+# (C3 context -> C5.3 headline -> C6 composition -> P1/P2/SG1 validation)
+# against the already-persisted, named 7-candidate manifest, for
+# comparison against local revalidation results. NEVER calls
+# publish_v2_article -- no IntelligenceArticle row is ever created by this
+# endpoint, real or draft. Both P7 flags (article_v2_canary_ownership_
+# enabled, article_v2_canary_public_write_enabled) remain False throughout;
+# this endpoint doesn't read or depend on either -- it is structurally
+# incapable of a public write regardless of their value, since it never
+# imports or calls the one function that would perform one.
+#
+# Real, live LLM calls happen here (headline generation, Why It Matters)
+# -- a genuine external side effect (cost, provider rate-limit usage), but
+# never a database write beyond composer.py's/publisher.py's own normal,
+# already-reviewed in-memory computation. Meant for removal once shadow
+# verification is confirmed against production, same as the population
+# endpoint above.
+@router.post("/dfe-prod1-shadow-run", dependencies=[Depends(require_admin_key)])
+async def dfe_prod1_shadow_run(
+    labels: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Builds a real ArticleEvidenceSet for each named candidate from its
+    already-persisted RawEvidence, runs it through the real C3/C5.3/C6/P1/
+    P2/SG1 pipeline, and returns the full composed result -- headline,
+    What Happened, Why It Matters, key facts, SG1 outcome, and every
+    surviving claim's type (FACT/INTERPRETATION). Never publishes."""
+    from sqlalchemy import select as sa_select
+
+    from app.db.models.raw_evidence import RawEvidence
+    from app.services.article_v2.composer import compose_article
+    from app.services.article_v2.context_builder import build_context
+    from app.services.article_v2.decision_engine import CREATE, FULL_ARTICLE, ArticleDecision
+    from app.services.article_v2.evidence_set_builder import COHERENT, ArticleEvidenceSet
+    from app.services.article_v2.headline_engine import generate_headline
+    from app.services.article_v2.identity import CREATE_NEW, PublicationResolution, compute_identity
+    from app.services.article_v2.publisher import PublicationRefusal, build_and_validate
+    from app.services.warehouse.read_service import LinkedEvidence
+
+    entries = _load_dfe_prod1_manifest()
+    if labels:
+        wanted = {l.strip() for l in labels.split(",") if l.strip()}
+        entries = [e for e in entries if e["label"] in wanted]
+
+    results = []
+    for entry in entries:
+        result: dict = {"label": entry["label"], "raw_evidence_id": entry["raw_evidence_id"]}
+        raw = (await db.execute(
+            sa_select(RawEvidence).where(RawEvidence.id == entry["raw_evidence_id"])
+        )).scalar_one_or_none()
+        if raw is None:
+            result["error"] = "raw_evidence_not_found -- run dfe-prod1-populate first"
+            results.append(result)
+            continue
+
+        symbol = entry["symbol"]
+        evidence = LinkedEvidence(
+            raw_evidence_id=raw.id, title=entry["title"], source_type="nse",
+            published_at=raw.observed_at, source_url=entry["url"],
+            relationship_type="subject", resolution_method="source_symbol", link_confidence=None,
+        )
+        es = ArticleEvidenceSet(
+            entity_id=f"cmp_{symbol.lower()}", symbol=symbol, event_id="evt1", event_headline=entry["title"],
+            status=COHERENT, primary_evidence=evidence, supporting_evidence=[], company_name=f"{symbol} Limited",
+        )
+        identity = compute_identity(es)
+        ctx = await build_context(db, es)
+        result["context_status"] = ctx.status
+        result["context_omitted_reasons"] = ctx.omitted_reasons
+
+        resolution = PublicationResolution(
+            identity=identity, publication_action=CREATE_NEW, matched_identity_key=None,
+            matched_article_id=None, reason="dfe-prod1-shadow-run",
+        )
+        headline_result = await generate_headline(es, ctx, identity, other_accepted_headlines={})
+        result["headline_status"] = headline_result.status
+        result["headline"] = headline_result.h1
+
+        decision = ArticleDecision(
+            entity_id=es.entity_id, symbol=es.symbol, event_id=es.event_id, event_headline=es.event_headline,
+            content_type=FULL_ARTICLE, publication_action=CREATE,
+        )
+        composed = await compose_article(decision, es, ctx, identity, resolution, headline_result)
+        result["llm_status"] = composed.llm_status
+        result["all_claim_types"] = sorted({c.claim_type for c in composed.all_claims})
+
+        try:
+            build_result = build_and_validate(
+                article_id=f"shadow-{entry['label'].lower()}", decision=decision, evidence_set=es, identity=identity,
+                resolution=resolution, headline_result=headline_result, composed=composed,
+            )
+            result["sg1_result"] = "PASSED"
+            fields = build_result.fields
+            result["final_headline"] = fields.get("headline")
+            result["what_happened"] = fields.get("what_happened")
+            result["why_it_matters"] = fields.get("why_it_matters")
+            result["key_facts"] = fields.get("key_facts")
+        except PublicationRefusal as exc:
+            result["sg1_result"] = "REFUSED"
+            result["sg1_reason"] = str(exc)
+
+        results.append(result)
+
+    return {"manifest_size": len(entries), "results": results}
