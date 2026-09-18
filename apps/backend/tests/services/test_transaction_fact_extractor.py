@@ -82,7 +82,9 @@ from app.db.models.transaction_fact import (
     TARGET_ENTITY_NAME, TransactionFact,
 )
 from app.db.session import AsyncSessionLocal
-from app.services.warehouse.transaction_fact_extractor import extract_transaction_facts, persist_transaction_facts
+from app.services.warehouse.transaction_fact_extractor import (
+    _TABLE_ANCHORS, _span_after, extract_transaction_facts, persist_transaction_facts,
+)
 
 ZODIAC_PAGE_1 = (
     " \n \n Date: September 15, 2026 \n \nTo, \nBSE Limited                                                                       "
@@ -359,6 +361,37 @@ INDIACEM_PAGE_2 = (
     "h) Cost of acquisition and / or the price at \nwhich the shares are acquired \n"
     "Equity investment of upto Rs. 14,06,27,240/- \n(Rupees Fourteen Crore Six Lakh Twenty -Seven \nThousand Two Hundred Forty Only)   \n"
     "i) Percentage of shareholding  / control \nacquired and / or no. of shares acquired \n26% \n"
+)
+
+# Phase 1C-R3 (2026-09-18): the real, frozen text of MUTHOOTFIN's real
+# filing (fetched from production during DFE-PROD-1 dry-run
+# qualification -- a genuinely unseen specimen, not a development
+# cohort member). Uses letter-PERIOD field numbering ("a.", "b.", "c."),
+# a real shape distinct from every other fixture's "1." or "a)" -- the
+# structural adversary this phase's fix targets. Deliberately kept as
+# the REAL multi-field page (not just field a. in isolation): the
+# dangerous text is field b.'s own real answer, which genuinely
+# restates the target's name ("Asia Asset Finance PLC is a listed Sri
+# Lankan subsidiary of Muthoot Finance Limited") before naming the real
+# ACQUIRER, Muthoot Finance Limited -- the exact real sentence that
+# contaminated the pre-R3 over-extended span.
+MUTHOOTFIN_PAGE_2 = (
+    " \n \nAnnexure A \n \na. Name of the Target Entity \n \n                          \nAsia Asset Finance PLC \n \n"
+    "Website: https://www.asiaassetfinance.com \n \nb. Whether the acquisition would fall \nwithin related party "
+    "transaction(s) and \nwhether the promoter/ promoter group/ \ngroup companies have any interest in the \n"
+    "entity being acquired? If yes,  nature of \ninterest and details thereof and whether \nthe same is done at "
+    "“arm’s \nlength”; \nAsia Asset Finance PLC is a listed Sri Lankan \nsubsidiary of Muthoot Finance "
+    "Limited.  \n \nSome of the Directors of Muthoot Finance Limited \nare directors on the Board of Muthoot Money "
+    "\nLimited. \nc. Industry  to  which  the  entity  being \nacquired belongs; \nLicensed Financed Company \n"
+    "d. \nObjects and impact of acquisition \n(including but not limited to, disclosure \nof reasons for acquisition "
+    "of target entity, \nif its business is outside the main line of \nbusiness of the listed entity); \n"
+    "To increase capital structure of the Subsidiary \ne. \nBrief details of any governmental or \nregulatory "
+    "approvals required for the \nacquisition; \nCentral Bank and Colombo stock exchange \napprovals were obtained "
+    "in Sri Lanka \nf. Indicative time period for completion of \nthe acquisition; \nN A \ng. \nConsideration - "
+    "whether cash \nconsideration or share swap or any other \nform and details of the same; \nCash \n"
+    "h. Cost of acquisition and/or the price at \nwhich the shares are acquired; \nLKR 33.30 per share, aggregating "
+    "to LKR \n1,09,65,84,451 (approximately ₹31,80,09,491 / \nINR 31.80 Crores) \ni. \n \nPercentage of "
+    "shareholding / control \nacquired and / or number of shares \nacquired; \n \n \n32,930,464 \n"
 )
 
 
@@ -764,6 +797,54 @@ def test_gujenergy_target_entity_name_still_not_found_after_targetfact_r1():
     f = fields[TARGET_ENTITY_NAME]
     assert f.extraction_status == NOT_FOUND
     assert f.value_text is None
+
+
+# ── Phase 1C-R3: structural field-boundary integrity ────────────────────
+# (owner design, 2026-09-18) -- a real, previously-undiscovered defect
+# found during production dry-run qualification (MUTHOOTFIN, a
+# genuinely unseen specimen). The real defect was NOT in TargetFact R1's
+# corporate-suffix regex -- it was that field a.'s scoped span never
+# found its true boundary (MUTHOOTFIN uses letter-PERIOD numbering,
+# "a."/"b."/"c.", a fourth real shape _NUMBERED_ITEM_RE didn't
+# recognize) and bled straight through field b.'s entire real answer,
+# which happens to name the ACQUIRER ("...Muthoot Finance Limited") at
+# its own tail. Any downstream regex, however conservative, operating
+# on an under-scoped span is unsafe -- these tests prove the structural
+# property directly (the span itself is clean), not merely that the
+# correct value happens to win a regex match.
+
+def test_muthootfin_target_entity_span_terminates_before_field_b_begins():
+    """The structural proof: field a.'s own scoped span (the exact text
+    _try_table_field's TARGET_ENTITY_NAME branch is allowed to search)
+    must not contain field b.'s real answer at all -- "Muthoot Finance
+    Limited" (the acquirer's own name, stated only in field b.) must be
+    structurally unreachable from field a.'s span, not merely absent
+    from the field's own final captured value."""
+    anchor = _TABLE_ANCHORS[TARGET_ENTITY_NAME]
+    span, _ = _span_after(MUTHOOTFIN_PAGE_2, anchor)
+    assert "Muthoot Finance Limited" not in span
+    assert "Asia Asset Finance PLC" in span
+
+
+def test_muthootfin_target_entity_name_is_asia_asset_finance_plc():
+    """With the boundary fixed, target extraction resolves to the real,
+    bare-stated target name -- proving "PLC" as a real corporate suffix
+    only matters once the span is correctly scoped (this test would have
+    passed even before R3 added "PLC" to the suffix vocabulary, IF the
+    span had already been correctly bounded -- both fixes are required
+    together, exactly as the boundary-first ordering intends)."""
+    fields = _by_field(extract_transaction_facts([MUTHOOTFIN_PAGE_2]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == POPULATED
+    assert f.value_text == "Asia Asset Finance PLC"
+
+
+def test_muthootfin_consideration_still_correct_after_r3():
+    """Confirms R3's boundary/suffix change didn't disturb the other
+    fields already correctly extracted from this same real specimen."""
+    fields = _by_field(extract_transaction_facts([MUTHOOTFIN_PAGE_2]))
+    assert fields[CONSIDERATION_TYPE].value_text == "CASH"
+    assert fields[CONSIDERATION_AMOUNT].value_numeric == 318009491.0
 
 
 def test_rs_prefix_is_recognized_same_as_the_rupee_symbol():

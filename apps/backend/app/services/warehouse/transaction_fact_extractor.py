@@ -114,12 +114,41 @@ _METHOD_PROSE_STAKE_TARGET = "prose_stake_and_target_phrase"
 #     match fails -- covers the real DALBHARAT/HMVL/GREENLAM/UTLSOLAR/
 #     HERANBA/INDIACEM cohort, all previously NOT_FOUND despite a real,
 #     well-formed answer being present.
-_EXTRACTOR_VERSION = "1.2"
+#
+# 1.3 -- Phase 1C-R3 (owner design, 2026-09-18): MUTHOOTFIN regression,
+#   found during production dry-run qualification (a genuinely unseen
+#   real specimen, not a development cohort member). MUTHOOTFIN's real
+#   table uses letter-PERIOD field numbering ("a.", "b.", "c."), a
+#   fourth real shape _NUMBERED_ITEM_RE didn't recognize (it only knew
+#   "1.", "a)", and bare-number-plus-capitalized-word). Field a.'s span
+#   never found its true boundary and bled straight through field b.'s
+#   entire answer; TargetFact R1's fallback then matched a corporate
+#   suffix at the FAR end of that over-extended span -- the ACQUIRER's
+#   own name ("...Muthoot Finance Limited"), embedded in field b.'s
+#   unrelated related-party disclosure -- instead of the real target
+#   ("Asia Asset Finance PLC"), stated bare at the true start of field
+#   a.'s answer. This was a structural boundary-integrity defect, not a
+#   TargetFact R1 regex-precision defect: an under-scoped span makes
+#   ANY downstream regex, however conservative, operate on invalid
+#   evidence. Fixed by recognizing the demonstrated letter-period
+#   boundary shape in _NUMBERED_ITEM_RE -- field a. now correctly ends
+#   before field b. begins. "PLC" is added to the target corporate-
+#   suffix vocabulary only AFTER this boundary fix, per the real
+#   demonstrated MUTHOOTFIN answer -- adding it first, with the span
+#   bug still live, would have let this one specimen pass while leaving
+#   the dangerous span-bleed mechanism intact for any other letter-
+#   period-numbered filing.
+_EXTRACTOR_VERSION = "1.3"
 
 _NUMBERED_ITEM_RE = re.compile(
     r"\n\s*(?:"
     r"\d{1,2}\.\s{1,3}"        # "1.  ", "9.  " (ZODIAC/GLAND/JSWINFRA/BSL/QMSMEDI shape)
     r"|[a-j]\)\s+"             # "a) ", "g) " (AUROPHARMA/IBULLSLTD/RBA shape)
+    r"|[a-j]\.\s{1,3}"         # "a.  ", "b.  " (R3: MUTHOOTFIN shape -- letter + period, not paren;
+                               # same 1-3-space bound as the numbered-with-period alternative above,
+                               # never the unbounded \s+ the paren alternative uses, so this doesn't
+                               # also start matching an unrelated lowercase letter followed by a
+                               # period deep inside a run of prose whitespace)
     r"|\d{1,2}\s+[A-Z][a-z]"   # "7 Nature", "8 Cost" (JUNIPER shape -- number, no period, capitalized word)
     r")"
 )
@@ -165,7 +194,7 @@ _TABLE_NAME_RE = re.compile(r"Name:\s*([^\n]+)", re.IGNORECASE)
 # field's own already-scoped table span instead of a stake-percentage-
 # anchored prose phrase. Never widens scope beyond that span; only
 # tried when _TABLE_NAME_RE's stricter, already-correct match fails.
-_TABLE_NAME_FALLBACK_RE = re.compile(r"([A-Z][A-Za-z0-9&.,'\s]{2,100}?(?:Private\s+Limited|Limited|Ltd\.?|LLP))")
+_TABLE_NAME_FALLBACK_RE = re.compile(r"([A-Z][A-Za-z0-9&.,'\s]{2,100}?(?:Private\s+Limited|Limited|Ltd\.?|LLP|PLC))")
 
 # The one concrete sub-label demonstrated to lack a natural character-
 # class boundary (no colon) before the real name, so it would otherwise
