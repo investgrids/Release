@@ -122,7 +122,7 @@ from app.services.article_v2.identity import NO_PUBLICATION, ArticleIdentity, Pu
 from app.db.models.transaction_fact import (
     CONSIDERATION_AMOUNT, CONSIDERATION_TYPE, STAKE_PERCENTAGE, TARGET_ENTITY_NAME,
 )
-from app.services.warehouse.numeric_validation import build_allowed_values, validate_numeric_claims
+from app.services.warehouse.numeric_validation import AllowedValue, build_allowed_values, validate_numeric_claims
 
 log = structlog.get_logger(__name__)
 
@@ -170,8 +170,13 @@ _WHY_IT_MATTERS_SYSTEM_PROMPT = (
     "estimate anything else. Every number you write must match, in the same or an "
     "equivalent format, a number given to you exactly -- never invent or convert one. "
     "You may explain why a verified fact matters (for example, why a capital ratio is "
-    "relevant to a fundraising decision) using only reasoning the given facts directly "
-    "support. If a price move is given, state it only as a fact that occurred on the "
+    "relevant to a fundraising decision, or what a stated stake percentage or "
+    "consideration amount means for the transaction) using only reasoning the given "
+    "facts directly support. A transaction fact (e.g. a stated stake percentage or "
+    "consideration amount) proves the transaction's own size or structure -- it does "
+    "NOT by itself prove the deal is significant, transformational, earnings-accretive, "
+    "strategically beneficial, or likely to affect the share price; never claim any of "
+    "that unless a separate given fact directly supports it. If a price move is given, state it only as a fact that occurred on the "
     "same day as the development -- NEVER as something the development caused, and "
     "NEVER attribute intent, sentiment, or a reaction to investors (no \"investors "
     "welcomed\", no \"sending shares up\", no \"in response to\"). Never predict a "
@@ -282,6 +287,33 @@ class _BundleShim:
         self.financial_context = _FinancialContextShim(context.financial_context) if context else None
 
 
+def _transaction_fact_allowed_values(context: ArticleContextBundle | None) -> list:
+    """Article V2 Assembly A3 (owner design, 2026-09-17): the exact same
+    gap headline_engine.py's own numeric allow-list needed closing for
+    A2, found here via a real live revalidation run -- the LLM correctly
+    wrote a Why It Matters sentence citing ZODIAC's real 100% stake and
+    Rs 1.00 lakh consideration, and it was rejected as an "unsupported
+    number" purely because build_allowed_values()'s financial_context
+    path never learns about TransactionFacts at all. Kept separate
+    rather than routed through _BundleShim/_FinancialContextShim for the
+    same reason as headline_engine.py's own copy: TransactionFact.
+    stake_percentage is already a whole number (100.0 means 100%), not
+    FinancialFact's own 0-1-fraction convention that unit='pct' implies
+    there."""
+    allowed: list = []
+    for tf in (context.transaction_facts if context else []):
+        if tf.field_code == STAKE_PERCENTAGE and tf.value_numeric is not None:
+            allowed.append(AllowedValue(
+                value=tf.value_numeric, kind="percent", tolerance=0.05, source=f"TransactionFact:{tf.field_code}",
+            ))
+        elif tf.field_code == CONSIDERATION_AMOUNT and tf.value_numeric is not None:
+            tol = max(abs(tf.value_numeric) * 0.015, 1e5)
+            allowed.append(AllowedValue(
+                value=tf.value_numeric, kind="currency_inr", tolerance=tol, source=f"TransactionFact:{tf.field_code}",
+            ))
+    return allowed
+
+
 def _company_name(evidence_set: ArticleEvidenceSet) -> str:
     return resolve_company_name(
         verified_company_name=evidence_set.company_name,
@@ -386,14 +418,61 @@ def _parse_json_response(raw: str) -> dict | None:
 
 # ── Deterministic sections (no LLM, ever) ───────────────────────────────
 
-def _compose_what_happened(evidence_set: ArticleEvidenceSet) -> ComposedSection:
+# Article V2 Assembly A1 (owner design, 2026-09-17): narrative wording
+# for What Happened's transaction-fact clauses, deliberately DIFFERENT
+# from Key Facts' own "The filing states X" phrasing (composer.py's
+# _TRANSACTION_FACT_TEXT_TEMPLATES above) -- What Happened is the
+# narrative rendering of the same underlying facts; Key Facts remains
+# the separate, auditable structured list. Each clause is its own
+# independent claim (matching the "concatenated section" pattern
+# what_happened already uses), so CD3 can drop any one of them without
+# rewriting the rest -- never a single hand-built sentence that would
+# need bespoke re-flowing logic per missing-field combination.
+_WHAT_HAPPENED_TRANSACTION_TEMPLATES = {
+    TARGET_ENTITY_NAME: "The transaction involves {value}.",
+    STAKE_PERCENTAGE: "{company} is acquiring a stake of {value}.",
+    CONSIDERATION_TYPE: "The consideration is {value}.",
+    CONSIDERATION_AMOUNT: "The filing values the transaction at {value}.",
+}
+
+
+def _compose_what_happened(evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None) -> ComposedSection:
+    """The base sentence (identifying the real filing) is unconditional
+    and unchanged from before A1 -- every existing candidate with zero
+    TransactionFacts gets EXACTLY the prior behavior. When real,
+    POPULATED TransactionFacts exist in context, one additional narrow
+    claim is appended per fact -- missing fields simply never produce a
+    clause, never a placeholder. Every added claim carries the same
+    transaction_fact proof key_facts already relies on, so CD3
+    authorizes/drops each one independently and What Happened can never
+    say more than Key Facts is separately allowed to prove."""
     primary = evidence_set.primary_evidence
     date_str = primary.published_at.strftime("%d %B %Y") if primary.published_at else "an unspecified date"
     source_label = _SOURCE_LABELS.get(primary.source_type, f"a {primary.source_type} source")
     company = _company_name(evidence_set)
-    text = f'On {date_str}, {company} was the subject of {source_label}: "{primary.title}"'
-    claim = ComposedClaim(text=text, claim_type="FACT", evidence_ids=[primary.raw_evidence_id])
-    return ComposedSection(name="what_happened", text=text, claims=[claim])
+    base_text = f'On {date_str}, {company} was the subject of {source_label}: "{primary.title}"'
+    claims = [ComposedClaim(text=base_text, claim_type="FACT", evidence_ids=[primary.raw_evidence_id])]
+
+    for tf in (context.transaction_facts if context else []):
+        template = _WHAT_HAPPENED_TRANSACTION_TEMPLATES.get(tf.field_code)
+        if not template:
+            continue
+        value = _format_transaction_fact_value(tf)
+        if not value:
+            continue
+        claims.append(ComposedClaim(
+            text=template.format(value=value, company=company), claim_type="FACT",
+            transaction_fact={
+                "field_code": tf.field_code, "value_text": tf.value_text, "value_numeric": tf.value_numeric,
+                "unit": tf.unit, "raw_evidence_id": tf.raw_evidence_id,
+                "source_document_id": tf.source_document_id, "page_number": tf.page_number,
+                "source_span_text": tf.source_span_text, "extraction_method": tf.extraction_method,
+                "extraction_method_version": tf.extraction_method_version, "extraction_status": "POPULATED",
+            },
+        ))
+
+    text = " ".join(c.text for c in claims)
+    return ComposedSection(name="what_happened", text=text, claims=claims)
 
 
 def _compose_context_section(
@@ -520,13 +599,23 @@ def _compose_source_updated(evidence_set: ArticleEvidenceSet) -> ComposedSection
 
 def _should_attempt_why_it_matters(context: ArticleContextBundle | None) -> bool:
     """Only attempt the LLM call when there is real grounded material to
-    reason from -- financial context or a market reaction. This is a
-    deterministic gate, not a hope that the model declines gracefully on
-    thin input; it's how "no-context article doesn't invent a Why It
-    Matters section" is actually guaranteed rather than merely likely."""
+    reason from -- financial context, a market reaction, or (Assembly
+    A3, 2026-09-17) a real TransactionFact. This is a deterministic
+    gate, not a hope that the model declines gracefully on thin input;
+    it's how "no-context article doesn't invent a Why It Matters
+    section" is actually guaranteed rather than merely likely.
+
+    Eligibility is NOT permission to invent significance: a real
+    TransactionFact proves transaction size/structure, never that a
+    deal is "transformational", earnings-accretive, or likely to move
+    the stock. The system prompt (_WHY_IT_MATTERS_SYSTEM_PROMPT) already
+    forbids exactly that, and CD3 (claim_translation.py) independently
+    still authorizes or omits every individual claim the model
+    produces -- this gate only decides whether the LLM call happens at
+    all, it does not weaken what survives afterward."""
     if context is None:
         return False
-    return bool(context.financial_context) or context.market_reaction is not None
+    return bool(context.financial_context) or context.market_reaction is not None or bool(context.transaction_facts)
 
 
 def _has_synthesizable_depth(evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None) -> bool:
@@ -580,6 +669,16 @@ def _build_why_it_matters_prompt(
             period = f"FY{f.fiscal_year}" + (f" Q{f.fiscal_quarter}" if f.fiscal_quarter else "")
             lines.append(f"  [FACT:{f.metric_code}] {f.metric_name} = {_format_value(f.value, f.unit)} (as of {period})")
 
+    if context and context.transaction_facts:
+        lines.append(
+            "\nVERIFIED TRANSACTION FACTS FROM THE FILING (use exactly as given -- each proves "
+            "only its own stated value, never the deal's overall significance):"
+        )
+        for tf in context.transaction_facts:
+            value = _format_transaction_fact_value(tf)
+            if value:
+                lines.append(f"  [FACT:tf_{tf.field_code}] {tf.field_name} = {value}")
+
     lines.append(
         "\nDo not use any number not listed above. Do not attribute intent, sentiment, or "
         "causation to the price move. Do not predict a future outcome."
@@ -593,6 +692,7 @@ def _build_llm_claims(
     raw_claims: list, evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None,
 ) -> list[ComposedClaim]:
     fact_codes = {f.metric_code for f in (context.financial_context if context else [])}
+    tf_by_code = {tf.field_code: tf for tf in (context.transaction_facts if context else [])}
     all_evidence = [evidence_set.primary_evidence] + list(evidence_set.supporting_evidence)
     ev_by_short = {e.raw_evidence_id[:8]: e.raw_evidence_id for e in all_evidence if e}
     claims: list[ComposedClaim] = []
@@ -605,8 +705,24 @@ def _build_llm_claims(
         claim_type = rc.get("type") if rc.get("type") in ("FACT", "INTERPRETATION") else "INTERPRETATION"
         evidence_ids: list[str] = []
         financial_fact_ids: list[str] = []
+        transaction_fact: dict | None = None
         for ref in rc.get("evidence_refs") or []:
             ref = str(ref)
+            m = re.search(r"FACT:tf_([a-zA-Z0-9_]+)", ref)
+            if m and m.group(1) in tf_by_code:
+                # Same proof-dict shape as _compose_context_section /
+                # _compose_what_happened -- claim_translation.py's
+                # is_real_transaction_fact() is the only reader and does
+                # not care which composer produced it.
+                tf = tf_by_code[m.group(1)]
+                transaction_fact = {
+                    "field_code": tf.field_code, "value_text": tf.value_text, "value_numeric": tf.value_numeric,
+                    "unit": tf.unit, "raw_evidence_id": tf.raw_evidence_id,
+                    "source_document_id": tf.source_document_id, "page_number": tf.page_number,
+                    "source_span_text": tf.source_span_text, "extraction_method": tf.extraction_method,
+                    "extraction_method_version": tf.extraction_method_version, "extraction_status": "POPULATED",
+                }
+                continue
             m = re.search(r"FACT:([a-zA-Z0-9_]+)", ref)
             if m and m.group(1) in fact_codes:
                 financial_fact_ids.append(m.group(1))
@@ -614,7 +730,10 @@ def _build_llm_claims(
             m = re.search(r"EVIDENCE:([a-fA-F0-9]+)", ref)
             if m and m.group(1) in ev_by_short:
                 evidence_ids.append(ev_by_short[m.group(1)])
-        claims.append(ComposedClaim(text=text, claim_type=claim_type, evidence_ids=evidence_ids, financial_fact_ids=financial_fact_ids))
+        claims.append(ComposedClaim(
+            text=text, claim_type=claim_type, evidence_ids=evidence_ids, financial_fact_ids=financial_fact_ids,
+            transaction_fact=transaction_fact,
+        ))
     return claims
 
 
@@ -626,6 +745,7 @@ async def _generate_why_it_matters(
 
     shim = _BundleShim(context)
     allowed = build_allowed_values(shim, [evidence_set.primary_evidence] + list(evidence_set.supporting_evidence))
+    allowed += _transaction_fact_allowed_values(context)
 
     retry_notes: list[str] | None = None
     for attempt in range(1, _MAX_ATTEMPTS + 1):
@@ -687,7 +807,7 @@ async def compose_article(
     sections: list[ComposedSection] = []
     all_claims: list[ComposedClaim] = []
 
-    what_happened = _compose_what_happened(evidence_set)
+    what_happened = _compose_what_happened(evidence_set, context)
     sections.append(what_happened)
     all_claims += what_happened.claims
 

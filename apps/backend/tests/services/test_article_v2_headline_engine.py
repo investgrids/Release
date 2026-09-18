@@ -149,7 +149,7 @@ async def test_headline_blocked_when_even_the_deterministic_fallback_is_malforme
     es = _es("ABC", "ABC has informed the Exchange regarding a press release: real acquisition announcement")
     identity = compute_identity(es)
     _mock_llm(monkeypatch, ['{"headline": "ABC — , announces something"}'] * 2)
-    monkeypatch.setattr(headline_engine_module, "_build_deterministic_headline", lambda es, identity: "ABC — , a malformed deterministic fallback")
+    monkeypatch.setattr(headline_engine_module, "_build_deterministic_headline", lambda es, identity, context=None: "ABC — , a malformed deterministic fallback")
     result = await generate_headline(es, None, identity, other_accepted_headlines={})
     assert result.status == ValidationOutcome.BLOCKED
     assert result.h1 is None

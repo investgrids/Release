@@ -209,9 +209,16 @@ async def test_zodiac_transaction_facts_flow_through_to_the_published_payload_wi
             # hypothetical edge case).
             assert by_field[CONSIDERATION_AMOUNT]["value"] == "Rs 1.00 lakh"
 
-            # Full provenance chain retained for every fact, not flattened
+            # Full provenance chain retained for every fact, not flattened.
+            # 8, not 4: Article V2 Assembly A1 (2026-09-17) made
+            # what_happened fact-aware, so each of the 4 real populated
+            # facts now produces its OWN transaction_fact-bearing claim in
+            # BOTH sections -- key_facts (the auditable structured list)
+            # AND what_happened (its narrative rendering) -- each with its
+            # own independent CD3 authorization, never a single fact
+            # silently duplicated without provenance.
             tf_claims = [c for s in composed.sections for c in s.claims if c.transaction_fact]
-            assert len(tf_claims) == 4
+            assert len(tf_claims) == 8
             for c in tf_claims:
                 tf = c.transaction_fact
                 assert tf["source_document_id"] == doc_id

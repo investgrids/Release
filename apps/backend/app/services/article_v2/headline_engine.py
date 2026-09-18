@@ -39,6 +39,9 @@ from app.services.article_v2.identity import ArticleIdentity
 from app.services.warehouse.numeric_validation import (
     AllowedValue, build_allowed_values, extract_numeric_claims, validate_numeric_claims,
 )
+from app.db.models.transaction_fact import (
+    CONSIDERATION_AMOUNT, CONSIDERATION_TYPE, STAKE_PERCENTAGE, TARGET_ENTITY_NAME,
+)
 
 _MAX_ATTEMPTS = 2
 
@@ -282,7 +285,102 @@ def _format_numeric_anchor(anchor: str) -> str | None:
     return None
 
 
-def _build_deterministic_headline(evidence_set: ArticleEvidenceSet, identity: ArticleIdentity) -> str:
+# Article V2 Assembly A2 (owner design, 2026-09-17): value formatting
+# duplicated from composer.py's own _format_transaction_fact_value /
+# _format_transaction_fact_amount rather than imported -- composer.py
+# already imports FROM this module (HeadlineResult), so importing back
+# would be circular. Both copies read the SAME real fields
+# (field_code/value_numeric/value_text/unit) off the SAME
+# get_verified_transaction_facts() records; kept in sync by hand, not a
+# shared abstraction, since duplicating ~10 lines is cheaper than a
+# refactor for a bounded launch-blocker fix.
+_CRORE = 1_00_00_000
+_LAKH = 1_00_000
+_CONSIDERATION_TYPE_LABELS = {"CASH": "cash", "SHARE_SWAP": "a share exchange"}
+
+
+def _format_transaction_fact_amount(value: float) -> str:
+    if value >= _CRORE:
+        return f"Rs {value / _CRORE:,.2f} crore"
+    if value >= _LAKH:
+        return f"Rs {value / _LAKH:,.2f} lakh"
+    return f"Rs {value:,.0f}"
+
+
+def _format_transaction_fact_value(f) -> str:
+    if f.field_code == STAKE_PERCENTAGE and f.value_numeric is not None:
+        return f"{f.value_numeric:g}%"
+    if f.field_code == CONSIDERATION_AMOUNT and f.value_numeric is not None:
+        return _format_transaction_fact_amount(f.value_numeric)
+    if f.field_code == CONSIDERATION_TYPE:
+        return _CONSIDERATION_TYPE_LABELS.get(f.value_text or "", f.value_text or "")
+    return f.value_text or ""
+
+
+def _build_transaction_fact_topic(context: ArticleContextBundle | None) -> str | None:
+    """Article V2 Assembly A2 (owner design, 2026-09-17): the direct fix
+    for the JUNIPER/MUTHOOTFIN real revalidation finding -- a real,
+    provenance-backed Rs 248 crore cash acquisition fact existed, yet
+    the deterministic fallback (the ONLY headline a provider failure
+    leaves behind) produced the generic, uninformative "JUNIPER Limited
+    — Acquisition". A provider failure must not destroy known
+    information the system has already authorized.
+
+    Deterministic priority -- target entity (+ stake, if both real)
+    outranks stake alone, which outranks consideration alone; never
+    fabricates a field that wasn't actually extracted. Tries the
+    richest combination first and falls back to a shorter one if it
+    would not fit the shared topic length budget, rather than word-
+    truncating a long combined clause mid-sentence -- "don't force
+    every available fact into the title" per the owner's own
+    instruction."""
+    tf_by_code = {tf.field_code: tf for tf in (context.transaction_facts if context else [])}
+    target = tf_by_code.get(TARGET_ENTITY_NAME)
+    stake = tf_by_code.get(STAKE_PERCENTAGE)
+    ctype = tf_by_code.get(CONSIDERATION_TYPE)
+    camount = tf_by_code.get(CONSIDERATION_AMOUNT)
+
+    target_val = _format_transaction_fact_value(target) if target else ""
+    stake_val = _format_transaction_fact_value(stake) if stake else ""
+    ctype_val = _format_transaction_fact_value(ctype) if ctype else ""
+    camount_val = _format_transaction_fact_value(camount) if camount else ""
+
+    if not any([target_val, stake_val, ctype_val, camount_val]):
+        return None
+
+    if stake_val and target_val:
+        subject = f"{stake_val} stake in {target_val}"
+    elif target_val:
+        subject = target_val
+    elif stake_val:
+        subject = f"{stake_val} stake"
+    else:
+        subject = ""
+
+    if camount_val:
+        consideration, joiner = camount_val, "for"
+    elif ctype_val:
+        consideration, joiner = f"a {ctype_val} deal", "in"
+    else:
+        consideration, joiner = "", ""
+
+    candidates = []
+    if subject and consideration:
+        candidates.append(f"Acquisition of {subject} {joiner} {consideration}")
+    if subject:
+        candidates.append(f"Acquisition of {subject}")
+    if consideration:
+        candidates.append(f"Acquisition {joiner} {consideration}")
+
+    for candidate in candidates:
+        if len(candidate) <= _MAX_TOPIC_LEN:
+            return candidate
+    return _truncate_at_word_boundary(candidates[-1], _MAX_TOPIC_LEN) if candidates else None
+
+
+def _build_deterministic_headline(
+    evidence_set: ArticleEvidenceSet, identity: ArticleIdentity, context: ArticleContextBundle | None = None,
+) -> str:
     """A real, boilerplate-free headline built entirely from the
     evidence's own text -- never the raw, truncated NSE announcement.
 
@@ -327,6 +425,17 @@ def _build_deterministic_headline(evidence_set: ArticleEvidenceSet, identity: Ar
             # already are, never a general punctuation cleanup.
             stripped = re.sub(r"^\s*,?\s*(regarding|about)?\s*", "", stripped, flags=re.IGNORECASE).strip()
             topic = _truncate_at_word_boundary(stripped, _MAX_TOPIC_LEN) or "a recent regulatory filing"
+
+    # Article V2 Assembly A2 (owner design, 2026-09-17): when a real,
+    # authorized TransactionFact exists, it replaces whatever the plain
+    # title-text extraction above produced -- structured, provenance-
+    # backed facts outrank a generic word lifted from filing boilerplate
+    # ("Acquisition"). Never additive: this is a replacement, not an
+    # appendage, so the result stays a single coherent clause rather
+    # than two topics awkwardly concatenated.
+    tf_topic = _build_transaction_fact_topic(context)
+    if tf_topic:
+        topic = tf_topic
 
     headline = f"{company} — {topic}"
     if not re.search(r"\d{4}", topic):  # topic doesn't already carry a real date
@@ -462,6 +571,33 @@ def _format_fact_value(metric_code: str, value: float, unit: str) -> str:
     return str(value)
 
 
+def _transaction_fact_allowed_values(context: ArticleContextBundle | None) -> list[AllowedValue]:
+    """Article V2 Assembly A2 (owner design, 2026-09-17): kept separate
+    from build_allowed_values()'s own financial_context path rather than
+    routed through _BundleShim/_FinancialContextShim -- that path
+    assumes a unit='pct' value is a 0-1 fraction (FinancialFact's own
+    storage convention, multiplied by 100 to get real percent), but
+    TransactionFact.stake_percentage is already a whole number (100.0
+    means 100%, per get_verified_transaction_facts()'s real output).
+    Bending it to fit the shared shim would silently validate the wrong
+    number (10,000% instead of 100%) the first time a headline actually
+    cited a real stake. consideration_amount is already raw rupees, same
+    convention _inr_allowed() expects, so only the tolerance formula is
+    duplicated here, not the unit-scaling assumption."""
+    allowed: list[AllowedValue] = []
+    for tf in (context.transaction_facts if context else []):
+        if tf.field_code == STAKE_PERCENTAGE and tf.value_numeric is not None:
+            allowed.append(AllowedValue(
+                value=tf.value_numeric, kind="percent", tolerance=0.05, source=f"TransactionFact:{tf.field_code}",
+            ))
+        elif tf.field_code == CONSIDERATION_AMOUNT and tf.value_numeric is not None:
+            tol = max(abs(tf.value_numeric) * 0.015, 1e5)
+            allowed.append(AllowedValue(
+                value=tf.value_numeric, kind="currency_inr", tolerance=tol, source=f"TransactionFact:{tf.field_code}",
+            ))
+    return allowed
+
+
 def _build_prompt(
     evidence_set: ArticleEvidenceSet, context: ArticleContextBundle | None, retry_errors: list[str] | None,
 ) -> str:
@@ -493,6 +629,13 @@ def _build_prompt(
 
     if context and context.market_reaction:
         lines.append(f"\nREAL MARKET REACTION: {context.market_reaction.price_move_pct:+.2f}% ({context.market_reaction.note})")
+
+    if context and context.transaction_facts:
+        lines.append("\nVERIFIED TRANSACTION FACTS FROM THE FILING (use exactly as given if relevant):")
+        for tf in context.transaction_facts:
+            value = _format_transaction_fact_value(tf)
+            if value:
+                lines.append(f"  {tf.field_name} = {value}")
 
     lines.append("\nWrite ONE headline. Do not use any number not shown above. No predictions, no hype.")
 
@@ -652,6 +795,7 @@ async def generate_headline(
 
     shim = _BundleShim(context)
     allowed = build_allowed_values(shim, [evidence_set.primary_evidence] + list(evidence_set.supporting_evidence))
+    allowed += _transaction_fact_allowed_values(context)
 
     retry_notes: list[str] | None = None
     for attempt in range(1, _MAX_ATTEMPTS + 1):
@@ -659,7 +803,7 @@ async def generate_headline(
         try:
             raw = await _call_with_fallback(prompt, system=_SYSTEM_PROMPT, max_tokens=120, priority="background")
         except Exception as exc:
-            base = _build_deterministic_headline(evidence_set, identity)
+            base = _build_deterministic_headline(evidence_set, identity, context)
             fallback, dedup_notes = _disambiguate_fallback(base, evidence_set, identity, other_accepted_headlines)
             fallback_malformed = _check_malformed_structure(fallback)
             notes = [f"generation_failed: {str(exc)[:150]}", *dedup_notes]
@@ -721,7 +865,7 @@ async def generate_headline(
 
         retry_notes = notes
 
-    base = _build_deterministic_headline(evidence_set, identity)
+    base = _build_deterministic_headline(evidence_set, identity, context)
     fallback, dedup_notes = _disambiguate_fallback(base, evidence_set, identity, other_accepted_headlines)
     notes = (retry_notes or []) + dedup_notes
     fallback_malformed = _check_malformed_structure(fallback)
