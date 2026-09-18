@@ -160,3 +160,68 @@ async def backfill_comparison_content(
 
     await db.commit()
     return {"updated": updated, "skipped": skipped, "total_checked": len(articles)}
+
+
+# ── TEMPORARY -- P7-C1 ownership-only observation status (owner-authorized,
+# 2026-09-18). A durable cloud-scheduled routine polls this hourly to watch
+# for the first naturally-qualifying candidate `should_withhold_for_v2_canary`
+# withholds, beyond the one known historical specimen (nse-58efd351d6,
+# Sunshine, 2026-09-15). Read-only -- no db.commit() anywhere in this
+# function, nothing here can ever change a flag, predicate, or row. The
+# cloud sandbox that calls this has no Railway CLI/SSH access at all, so a
+# small HTTP surface (gated by the same X-Admin-Key check every other admin
+# route already uses) is the narrowest way to give it a look, without
+# handing it any Railway-level credential. Meant for removal once P7-C1
+# ownership-only observation concludes (either a real specimen is found and
+# reviewed, or the owner decides to stop watching).
+_P7_BASELINE_TRIAGE_EVENT_ID = "nse-58efd351d6"
+
+
+@router.get("/p7-withhold-status", dependencies=[Depends(require_admin_key)])
+async def p7_withhold_status(db: AsyncSession = Depends(get_db)):
+    """Reports the live effective P7 flag state (read directly from this
+    process's own settings, not re-parsed from `railway variables` output --
+    the authoritative answer to "did the config actually take effect") plus
+    whether any article_v2_canary_withholds row exists beyond the known
+    historical baseline. If one does, also reports its complete trace and
+    whether it has ever been attempted or resulted in a real published
+    article -- everything a human needs to make the public-write decision,
+    with zero write capability in this function itself."""
+    from app.core.config import settings
+    from app.db.models.article_v2_canary_withhold import ArticleV2CanaryWithhold
+    from app.db.models.intelligence_article import IntelligenceArticle
+
+    result: dict = {
+        "article_v2_canary_ownership_enabled": settings.article_v2_canary_ownership_enabled,
+        "article_v2_canary_public_write_enabled": settings.article_v2_canary_public_write_enabled,
+    }
+
+    rows = (await db.execute(
+        select(ArticleV2CanaryWithhold)
+        .where(ArticleV2CanaryWithhold.triage_event_id != _P7_BASELINE_TRIAGE_EVENT_ID)
+        .order_by(ArticleV2CanaryWithhold.withheld_at.asc())
+    )).scalars().all()
+
+    result["new_specimen_found"] = len(rows) > 0
+    result["new_specimen_count"] = len(rows)
+    if not rows:
+        return result
+
+    specimens = []
+    for row in rows:
+        published_articles = (await db.execute(
+            select(IntelligenceArticle.id)
+            .where(IntelligenceArticle.trigger_type == "article_v2_pipeline")
+            .where(IntelligenceArticle.trigger_event_id == row.triage_event_id)
+        )).scalars().all()
+        specimens.append({
+            "triage_event_id": row.triage_event_id,
+            "withheld_at": row.withheld_at,
+            "attempted": row.attempted,
+            "outcome": row.outcome,
+            "published_article_id": row.published_article_id,
+            "reason_predicates": row.reason_predicates,
+            "public_v2_articles_for_this_event": published_articles,
+        })
+    result["specimens"] = specimens
+    return result
