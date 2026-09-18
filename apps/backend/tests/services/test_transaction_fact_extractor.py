@@ -42,6 +42,29 @@ the literal words "share swap" anywhere in its own answer text. This
 is the proof R1 didn't just bias consideration_type toward CASH --
 generalizing to a real, differently-worded genuine SHARE_SWAP case is
 still correctly detected.
+
+Phase 1C-R2 + TargetFact R1 (owner design, 2026-09-18) add real, frozen
+fixtures from the Assembly V2 fresh-cohort audit (2026-09-18, a
+genuinely unseen cohort -- none of these specimens were used to build
+or tune the original extractor):
+
+GUJENERGY: a real filing that CRASHED extract_transaction_facts() with
+an unhandled ValueError -- a shareholder tax-cost note whose "Cost of
+acquisition" phrase (used generically, not as a real transaction table)
+has no numbered item after it, so its span runs to the end of the page
+and genuinely contains "...their respective shareholders, pursuant
+to...". The incidental "rs," substring (the tail of "shareholders"
+immediately followed by a comma) was misread as a currency token with
+an empty numeric capture. Must never crash; must resolve NOT_FOUND.
+
+DALBHARAT, GREENLAM, UTLSOLAR, INDIACEM: real target_entity_name
+answers stated bare, with no "Name:" sub-label at all -- 4 of the 6
+real misses the audit found, and the dominant recurring shape.
+
+HMVL: a real target_entity_name answer with a "Target Entity" sub-label
+(no colon) immediately before the name -- without a natural character-
+class boundary, a naive corporate-suffix fallback would sweep the
+sub-label itself into the captured name.
 """
 from __future__ import annotations
 
@@ -232,6 +255,147 @@ IBULLSLTD_PAGE_3 = (
 )
 
 
+# TargetFact R1 (2026-09-18): real Annexure pages, verbatim, from the
+# Assembly V2 fresh-cohort audit -- each demonstrates one of the two
+# recurring real shapes _TABLE_NAME_FALLBACK_RE covers (bare corporate
+# name, or a short sub-label with no colon before it).
+DALBHARAT_PAGE_2 = (
+    " \n \nAnnexure \n \nSr. \nNo. \nParticular Details \na)  Name of the target entity, details in brief such \n"
+    "as size, turnover etc.; \nAMPL Green City Solutions Private Limited \n \n \nb)  Whether the acquisition would fall within \n"
+    "related party transaction(s) and whether the \npromoter/ promoter group/ group companies \n"
+    "have any interest in the entity being acquired? \nIf yes, nature of interest and details thereof \n"
+    "and whether the same is done at “arm’s \nlength”; \nThe acquisition will not fall within related party \n"
+    "transaction and the promoter/ promoter group \ncompanies have no interest in the proposed \nacquisition. \n"
+    "g)  Nature of consideration - whether cash \nconsideration or share swap and details of the \nsame; \nCash Consideration \n"
+    "h)  Cost of acquisition or the price at which the \nshares are acquired; \n10,000 equity shares of face value Rs. 10/- each, at par. \n"
+    "i)  Percentage of shareholding / control acquired \nand/or number of shares acquired; \n100% \n"
+)
+
+HMVL_PAGE_2 = (
+    "(Annexure) \n \nInformation as required under Regulation 30 of SEBI (Listing Obligations and Disclosure Requirements) \n"
+    "Regulations, 2015 \n \n S.No Particulars Information \na) Name of the target entity, details in  brief such as \n"
+    "size, turnover etc. \nTarget Entity \nAssetgro Fintech Private Limited \n(“StockGro”)                         \n"
+    "Last 3 years’ turnover of StockGro \nFY26: Rs. 231.10 Crore \nFY25: Rs. 125.51 Crore \nFY24 : Rs. 99 Crore \n"
+    "g) Consideration – whether cash  consideration or \nshare swap and details of the same \n"
+    "Conversion of OCDs into equity shares "
+)
+HMVL_PAGE_3 = (
+    "h) Cost of acquisition and/or the price at which  the \nshares are acquired \n"
+    "Conversion of 8,708 OCDs into 16,02,011 equity shares \namounting to Rs. 85.00 Crore \n"
+    "i) Percentage of shareholding / control acquired and \n/ or number of                shares acquired \n"
+    "2.48% of equity share capital of StockGro pursuant to \nconversion of 8,708 OCDs. \n"
+)
+
+GREENLAM_PAGE_2 = (
+    " \n  \nAnnexure  \n \nSl . \nNo. \nParticulars Details \na.  Name of the target entity, \ndetails in  brief such as size, \n"
+    "turnover etc. \nBhadla Minigrid Solar 4 Private Limited  (Bhadla Minigrid) \nis a company incorporated in India on 31.01.2025. Bhadla \n"
+    "Minigrid was incorporated to carry on, inter-alia, the business \nof renewable energy and  generation of electrical power by \n"
+    "conventional and non -conventional methods, in the field of \nRenewable Energy.  \n"
+    "g.  Nature of consideration – \nwhether cash consideration or \nshare swap or  any other form \n"
+    "and details of the same \nCash consideration \n"
+    "h.  Cost of acquisition and/or the \nprice at  which the shares are \nacquired \n \n"
+    "Rs. 2,06,50,010 in aggregate for  acquisition of 20,65,001 \nequity shares of Rs. 10/- each. "
+)
+GREENLAM_PAGE_3 = (
+    " \n  \n \nSl . \nNo. \nParticulars Details \ni.  Percentage of shareholding / \ncontrol acquired and / or \n"
+    "number of shares acquired. \n \n26%. \n"
+)
+
+UTLSOLAR_PAGE_2 = (
+    " \n \nAnnexure-A \nThe details, as required under the SEBI (Listing Obligations and Disclosure Requirements) \n"
+    "Regulations, 2015 read with SEBI Master Circular bearing reference no. HO/49/14/14(7)2025- \n"
+    "CFD-POD2/1/3762/2026 dated January 30, 2026, are as under: \n S. No. Details Particulars \n"
+    "1. Name of the target entity, details in brief \nsuch as size, turnover etc. \nZayo Energy Private Limited ( “ZEPL”) \n"
+    "(CIN: U27320DL2022PTC399031) is a \nprivate limited company incorporated under \nthe provisions of the Companies Act, 2013 \n"
+    "having its registered Office at Plot No 4, \nRoad No 5, G/F Jai Dev Park, East Punjabi \nBagh, West Delhi, India, 110026. \n"
+    "7. Nature of consideration - whether cash \nconsideration or share swap and details of \nthe same. \nCash consideration \n"
+    "8. Cost of acquisition or the price at which the \nshares are acquired. \nThe Company intends to invest Rs.  \n"
+    "5,00,57,469/- (Rupees Five Crore Fifty -\nSeven Thousand Four Hundred and Sixty -\nNine only)  by subscribing 833 Compulsory \n"
+    "Convertible Debentures (“CCDs”) at a value \nof Rs. 60,093 (including  Face Value of Rs. \n10 and premium 60,083) \n"
+)
+
+HERANBA_PAGE_2 = (
+    " \nAnnexures - I \nThe details of acquisition/ investment pursuant to allotment of equity shares as required under \n"
+    "Regulation 30 read with the SEBI Master Circular  SEBYHO/CFD/PoD2/CIR/P/0155 dated \n"
+    "January 30, 2026. \nSr. \nNo.  \nParticulars  Description  \n1. Name of the target entity, details in \n"
+    "brief such as size, turnover etc. \nName of Entity : Mikusu India Private \nLimited, wholly owned subsidiary of the \nCompany. \n"
+)
+HERANBA_PAGE_3 = (
+    " \n7. Consideration - whether cash  \nconsideration or share swap or any \nother form and details of the same \n \nCash \n"
+    "8. Cost of acquisition and/or the price at \nwhich the shares are acquired \n"
+    "Rs.24,95,00,000/- (Rupees Twenty-Four Crores \nNinety-Five Lakhs Only), of which \n"
+    "Rs.12,47,50,000/- has been paid towards \napplication and allotment money. \n"
+    "9. Percentage of shareholding / control \nacquired and / or number of shares \nacquired \n"
+    "There will be no change in the shareholding \nstructure. Mikusu India Private Limited shall \ncontinue to remain a wholly owned subsidiary \n"
+    "of the Company and the Company shall \ncontinue to hold 100% of the equity share \ncapital of Mikusu India Private Limited. \n"
+)
+
+# TargetFact R1 validation (owner instruction, 2026-09-18): fetched
+# AFTER the fix was written, from a genuinely unseen fresh-validation
+# cohort (NEPHROPLUS, VERTOZ, GUJTHEM, WELINV, SHANTIGOLD, RGL --
+# none used to diagnose or build the fix). NEPHROPLUS is the cleanest
+# direct proof: a real, bare (no sub-label) target answer the new
+# fallback -- not the pre-existing "Name:" pattern -- is what resolves
+# it (VERTOZ/SHANTIGOLD/RGL in this same validation cohort all used the
+# pre-existing "Name:" pattern instead, already covered before this
+# fix; GUJTHEM/WELINV genuinely lack a Reg 30 Annexure table at all --
+# correctly stay NOT_FOUND, out of this fix's demonstrated scope).
+NEPHROPLUS_PAGE_2 = (
+    " \n \nANNEXURE I \n \nSr. \nNo Particulars Description \n1. Name of the target entity, details in \n"
+    "brief such as size, turnover etc. \nDialysis Center Almaty LLP (“ Target Entity”), a \n"
+    "limited liability partnership incorporated under \nthe laws of the Republic of Kazakhstan. The \n"
+    "Target Entity is engaged in the business of \nproviding dialysis services through its dialysis \n"
+    "centres in Kazakhstan. Last audited turnover of \nthe Target Entity is KZT 527.44 million (approx. \n₹10.93 crore). \n"
+    "2. Whether the acquisition would fall \nwithin related party transaction(s) \n"
+    "and whether the promoter/promoter \ngroup/group companies have any \ninterest in the entity being acquired? \n"
+    "If yes, nature of interest and details \nthereof and whether the same is \ndone at “arm’s length”. \n"
+    "The acquisition does not constitute a related \nparty transaction. \n"
+)
+
+INDIACEM_PAGE_2 = (
+    " \n \nE: investor.indiacements@adityabirla.com \n \nAnnexure A \n \nSr \nNo \nParticulars Details \n"
+    "a) Name of the Target Entity, details in \nbrief such as size, turnover etc \nAmplus TN One Energy Private Limited \n"
+    "g) Consideration - whether cash \nconsideration or share sw ap or any \nother form and details of the same \nCash consideration \n"
+    "h) Cost of acquisition and / or the price at \nwhich the shares are acquired \n"
+    "Equity investment of upto Rs. 14,06,27,240/- \n(Rupees Fourteen Crore Six Lakh Twenty -Seven \nThousand Two Hundred Forty Only)   \n"
+    "i) Percentage of shareholding  / control \nacquired and / or no. of shares acquired \n26% \n"
+)
+
+
+# Phase 1C-R2 (2026-09-18): the real, frozen text of GUJENERGY's real
+# filing that crashed extract_transaction_facts() with an unhandled
+# ValueError during the Assembly V2 fresh-cohort audit (2026-09-18) --
+# fetched once from NSE's archive, embedded here verbatim. A generic
+# shareholder tax-cost note, not a real transaction table: its "Cost of
+# acquisition" phrase has no numbered item after it, so the field's own
+# scoped span runs all the way to the end of the page and genuinely
+# contains "...their respective shareholders, pursuant to..." -- the
+# real prose that produced the incidental "rs," false currency match
+# this phase's fix targets.
+GUJENERGY_PAGE_1 = (
+    " \n GUJARAT ENERGY LIMITED (Erstwhile Gujarat Gas Limited)  Corporate Office: Office No. 4 & 5, Ground Floor, "
+    "IT Tower -2, Infocity, Gandhinagar – 382009 Gujarat  Registered Office: Gujarat Energy Bhavan, Behind Udyog "
+    "Bhavan, Sector- 11, Gandhinagar, Gujarat – 382010 Tel.: +91-79-66701001 Website: www.gujarat-energy.com, "
+    "CIN: L40200GJ2012SGC069118  \nGEL/SEC/2026/1617                                              5th September, "
+    "2026  BSE Limited, Phiroze Jeejeebhoy Tower, Dalal Street, Mumbai  Company Code: BSE - 539336 National Stock "
+    "Exchange of India Ltd, Exchange Plaza, 5th Floor, Plot No. C/1, G Block, Bandra Kurla Complex, Bandra (East), "
+    "Mumbai  Company Code: NSE - GUJENERGY  Sub.: Apportionment of cost of acquisition of Shares of Gujarat Energy "
+    "Limited (Erstwhile Gujarat Gas Limited) and GSPL Transmission Limited as per the provisions of Section 73 of "
+    "the Income-Tax Act, 2025 (corresponding to Sections 49(2C) and 49(2D) of the Income-Tax Act, 1961)  Ref.: "
+    "Composite Scheme of Amalgamation and Arrangement amongst Gujarat State Petroleum Corporation Limited "
+    "(“GSPC”/ “Transferor Company 1”), Gujarat State Petronet Limited (“GSPL”/ "
+    "“Transferor Company 2”), GSPC Energy Limited (“GSPC Energy”/ “Transferor Company 3”), "
+    "Gujarat Gas Limited (now Gujarat Energy Limited) (“GEL”/ “Transferee Company”/ “Demerged "
+    "Company”/“The Company”) and GSPL Transmission Limited (“GTL”/ “Resulting "
+    "Company”) and their respective shareholders, pursuant to Sections 230-232 and other applicable provisions "
+    "of the Companies Act, 2013 (the “Scheme”)  Respected Sir/Madam,  Please find enclosed communication "
+    "for the attention of the shareholders of the Company for apportionment of cost of acquisition of Equity Shares "
+    "of the Company and Resulting Company.  The above communication is being hosted on the website of the Company "
+    "at www.gujarat-energy.com.  You are requested to take the above information on record.  Thanking you,   "
+    "For, Gujarat Energy Limited    Sandeep Dave  Company Secretary  Enclosed: As above    "
+)
+
+
 def _by_field(candidates):
     return {c.field_code: c for c in candidates}
 
@@ -390,6 +554,216 @@ def test_ibullsltd_genuine_share_swap_is_detected_without_the_literal_words_shar
 def test_ibullsltd_stake_percentage_still_correct_after_r1():
     fields = _by_field(extract_transaction_facts([IBULLSLTD_PAGE_2, IBULLSLTD_PAGE_3]))
     assert fields[STAKE_PERCENTAGE].value_numeric == 70.0
+
+
+def test_ibullsltd_target_entity_name_a_real_pre_existing_untested_gap_closed_by_targetfact_r1():
+    """IBULLSLTD's real answer states the target's name bare, with no
+    'Name:' sub-label -- this was silently NOT_FOUND before TargetFact
+    R1 (2026-09-18), never asserted by any test until now. A genuine,
+    additional real specimen the R1 fix generalizes to beyond the 6 it
+    was directly diagnosed from."""
+    fields = _by_field(extract_transaction_facts([IBULLSLTD_PAGE_2, IBULLSLTD_PAGE_3]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == POPULATED
+    assert f.value_text == "Fintech Cloud Private Limited"
+
+
+# ── Phase 1C-R2 regression: GUJENERGY currency-parser crash safety ──────
+# (owner design, 2026-09-18) -- a real, previously-undiscovered defect
+# found by the Assembly V2 fresh-cohort audit, NOT the original 4/10
+# extractor-development specimens: GUJENERGY's real filing crashed
+# extract_transaction_facts() with an unhandled ValueError, taking down
+# extraction of every field for the whole document, not just
+# consideration_amount. Root cause: _CURRENCY_AMOUNT_RE had no lexical
+# boundary before "Rs", so it matched the bare tail of an ordinary word
+# ("...shareholde|rs, ...") with a capture group containing nothing but
+# a comma; _is_safe_currency_match's R1 comma heuristic ("," in
+# group(1)) was satisfied by that bare comma; _parse_currency_amount
+# then called float("") and raised. Fixed at three independent layers
+# (regex lexical boundary + digit-anchored capture group +
+# _parse_currency_amount's own never-raise validation) -- this section
+# proves all three, plus that R1's own fixes (JUNIPER, MAITHANALL, the
+# clean decimal-crore contrast) still hold.
+
+def test_gujenergy_consideration_amount_never_crashes_and_reports_not_found():
+    """The permanent regression proof: this real filing must never
+    raise, and since it genuinely states no transaction consideration
+    anywhere (it's a shareholder tax-cost note, not an acquisition
+    table), every field must cleanly resolve to NOT_FOUND -- not a
+    fabricated amount, not an exception."""
+    fields = _by_field(extract_transaction_facts([GUJENERGY_PAGE_1]))
+    assert fields[CONSIDERATION_AMOUNT].extraction_status == NOT_FOUND
+    assert fields[CONSIDERATION_AMOUNT].value_numeric is None
+    assert fields[TARGET_ENTITY_NAME].extraction_status == NOT_FOUND
+    assert fields[STAKE_PERCENTAGE].extraction_status == NOT_FOUND
+    assert fields[CONSIDERATION_TYPE].extraction_status == NOT_FOUND
+
+
+def test_arbitrary_prose_punctuation_is_never_interpretable_as_a_monetary_amount():
+    """Generalizes the real GUJENERGY defect beyond that one document:
+    ANY 'Cost of acquisition' span whose unbounded remainder (no
+    numbered item follows it, so the span runs to the end of the text)
+    happens to contain an ordinary word ending in 'rs' immediately
+    followed by a comma -- 'shareholders,', 'directors,', 'years,' are
+    all real, unremarkable English -- must never be read as a currency
+    figure, regardless of which specific word produces it."""
+    fields = _by_field(extract_transaction_facts([
+        "Cost of acquisition of shares, pursuant to a scheme approved by the Board of Directors, "
+        "will be communicated to shareholders in due course."
+    ]))
+    f = fields[CONSIDERATION_AMOUNT]
+    assert f.extraction_status == NOT_FOUND
+    assert f.value_numeric is None
+
+
+def test_parse_currency_amount_never_raises_on_a_malformed_match_defense_in_depth():
+    """Owner's explicit defense-in-depth requirement: even if a future
+    change to _CURRENCY_AMOUNT_RE ever again allowed a punctuation-only
+    capture, _parse_currency_amount itself must decline (None), never
+    raise. Constructed with a deliberately permissive throwaway regex --
+    never the module's own (now-hardened) _CURRENCY_AMOUNT_RE, which can
+    no longer produce this shape at all -- to test this layer in true
+    isolation from the upstream fix."""
+    import re as _re
+    from app.services.warehouse.transaction_fact_extractor import _parse_currency_amount
+    fake_match = _re.compile(r"(,)()").search(",")
+    assert _parse_currency_amount(fake_match) is None
+
+
+# The permanent JUNIPER, MAITHANALL, and clean-decimal-crore R1
+# fixtures already in this file (test_juniper_consideration_amount_is_
+# the_real_crore_value_never_the_unrelated_248,
+# test_bare_number_with_no_comma_and_no_clean_magnitude_word_is_not_
+# found_never_a_naked_number, and
+# test_clean_decimal_crore_amount_is_still_extractable_the_same_figure_
+# corruption_free below) are untouched and run alongside these R2 tests
+# in the same suite -- their continued passing IS the proof R2 cannot
+# reopen what R1 fixed; no need to duplicate them under new names.
+
+
+# ── TargetFact R1: bare/short-sub-label target names ────────────────────
+# (owner design, 2026-09-18) -- a read-only classification of the 6 real
+# target_entity_name NOT_FOUND misses from the Assembly V2 fresh cohort
+# found ONE recurring root cause, not six unrelated shapes: the answer
+# is stated either bare (4/6) or after a short sub-label with no colon
+# (1/6, HMVL) -- never the "Name:" convention _TABLE_NAME_RE alone
+# covers. All 6 real specimens below, plus the pre-existing IBULLSLTD
+# fixture (an untested gap this same fix closes), are the permanent
+# regression proof.
+
+def test_dalbharat_target_entity_name_bare_no_sublabel():
+    fields = _by_field(extract_transaction_facts([DALBHARAT_PAGE_2]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == POPULATED
+    assert f.value_text == "AMPL Green City Solutions Private Limited"
+
+
+def test_hmvl_target_entity_name_strips_the_target_entity_sublabel():
+    """The one demonstrated case where a naive corporate-suffix search
+    would sweep a short sub-label ('Target Entity', no colon) into the
+    captured name -- must resolve to the real name alone."""
+    fields = _by_field(extract_transaction_facts([HMVL_PAGE_2, HMVL_PAGE_3]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == POPULATED
+    assert f.value_text == "Assetgro Fintech Private Limited"
+    assert "target entity" not in f.value_text.lower()
+
+
+def test_hmvl_stake_and_consideration_amount_still_correct():
+    """Confirms TargetFact R1's target-only change didn't disturb the
+    other fields already correctly extracted from this same real
+    specimen (stake_percentage/consideration_amount were part of the
+    fresh-cohort audit's real, already-verified output)."""
+    fields = _by_field(extract_transaction_facts([HMVL_PAGE_2, HMVL_PAGE_3]))
+    assert fields[STAKE_PERCENTAGE].value_numeric == 2.48
+    assert fields[CONSIDERATION_AMOUNT].value_numeric == 850000000.0
+
+
+def test_greenlam_target_entity_name_bare_no_sublabel():
+    fields = _by_field(extract_transaction_facts([GREENLAM_PAGE_2, GREENLAM_PAGE_3]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == POPULATED
+    assert f.value_text == "Bhadla Minigrid Solar 4 Private Limited"
+
+
+def test_utlsolar_target_entity_name_bare_no_sublabel():
+    fields = _by_field(extract_transaction_facts([UTLSOLAR_PAGE_2]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == POPULATED
+    assert f.value_text == "Zayo Energy Private Limited"
+
+
+def test_heranba_target_entity_name_name_of_entity_sublabel_already_self_resolves():
+    """A different real sub-label ('Name of Entity :') that already
+    resolves correctly WITHOUT needing the sub-label-stripping fix --
+    the colon falls outside the corporate-name character class, so the
+    match naturally restarts right after it, the same way ZODIAC's own
+    'Name:' already does via _TABLE_NAME_RE."""
+    fields = _by_field(extract_transaction_facts([HERANBA_PAGE_2, HERANBA_PAGE_3]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == POPULATED
+    assert f.value_text == "Mikusu India Private Limited"
+
+
+def test_nephroplus_target_entity_name_bare_no_sublabel_genuinely_unseen_validation():
+    """TargetFact R1's own fresh-validation proof (owner instruction):
+    fetched from a cohort assembled AFTER the fix was written, never
+    used to diagnose or tune it. A real bare-answer target name ending
+    in LLP (not Private Limited/Limited, the two suffixes every other
+    fixture in this file happens to use) -- also confirms the fallback
+    doesn't stop at the trailing parenthetical '(\"Target Entity\")'
+    short-form definition that immediately follows the real name here."""
+    fields = _by_field(extract_transaction_facts([NEPHROPLUS_PAGE_2]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == POPULATED
+    assert f.value_text == "Dialysis Center Almaty LLP"
+
+
+def test_indiacem_target_entity_name_bare_no_sublabel():
+    fields = _by_field(extract_transaction_facts([INDIACEM_PAGE_2]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == POPULATED
+    assert f.value_text == "Amplus TN One Energy Private Limited"
+
+
+def test_targetfact_r1_fallback_never_fires_when_no_real_answer_exists():
+    """Negative control: a table whose target-entity label exists but
+    whose answer genuinely has no corporate-suffix name at all must
+    stay NOT_FOUND -- the fallback requires a real corporate suffix, it
+    does not lower the bar to 'any capitalized phrase'."""
+    fields = _by_field(extract_transaction_facts([
+        "a) Name of the target entity, details in brief such as size, turnover etc.; "
+        "Not applicable as no acquisition of control/ shares/ voting rights is being contemplated. "
+        "b) Whether the acquisition would fall within related party transaction(s); No."
+    ]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == NOT_FOUND
+    assert f.value_text is None
+
+
+def test_targetfact_r1_does_not_reopen_juniper_no_target_stated():
+    """JUNIPER's real filing states no target at all ('Not Applicable as
+    no acquisition of control/ shares/ voting rights is being
+    contemplated') on a page this fixture set doesn't even include the
+    target-entity label for -- must remain NOT_FOUND, never a false
+    match against 'Juniper Hotels Limited' (the FILER's own name,
+    appearing in the page header, not the answer)."""
+    fields = _by_field(extract_transaction_facts([JUNIPER_PAGE_4, JUNIPER_PAGE_7_PRESS_RELEASE]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == NOT_FOUND
+    assert f.value_text is None
+
+
+def test_gujenergy_target_entity_name_still_not_found_after_targetfact_r1():
+    """GUJENERGY genuinely never states a target entity at all (it's a
+    shareholder tax-cost note, not an acquisition table) -- must stay
+    NOT_FOUND after TargetFact R1 exactly as it did after R2, never a
+    false match against one of the many real company names mentioned in
+    its own recital clause (GSPC, GSPL, GSPC Energy, GTL, etc.)."""
+    fields = _by_field(extract_transaction_facts([GUJENERGY_PAGE_1]))
+    f = fields[TARGET_ENTITY_NAME]
+    assert f.extraction_status == NOT_FOUND
+    assert f.value_text is None
 
 
 def test_rs_prefix_is_recognized_same_as_the_rupee_symbol():

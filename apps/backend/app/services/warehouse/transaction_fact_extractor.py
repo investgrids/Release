@@ -100,7 +100,21 @@ _METHOD_PROSE_STAKE_TARGET = "prose_stake_and_target_phrase"
 #     failure mode -- a correctly-scoped match failed on "Rs." and
 #     the old fallback then found an unrelated "₹248" on a later
 #     press-release annexure page).
-_EXTRACTOR_VERSION = "1.1"
+#
+# 1.2 -- Phase 1C-R2 + TargetFact R1 (owner design, 2026-09-18):
+#   - CONSIDERATION_AMOUNT currency matching now requires a lexical
+#     boundary before "Rs" and a real leading digit in the captured
+#     amount (see _CURRENCY_AMOUNT_RE/_is_safe_currency_match/
+#     _parse_currency_amount above) -- fixes the real GUJENERGY crash
+#     (an incidental "...shareholde|rs," substring was previously
+#     misread as a currency token with an empty numeric capture).
+#   - TARGET_ENTITY_NAME now also recognizes a bare or short-sub-label
+#     corporate name (no literal "Name:" prefix required) via
+#     _TABLE_NAME_FALLBACK_RE, tried only when the original "Name:"
+#     match fails -- covers the real DALBHARAT/HMVL/GREENLAM/UTLSOLAR/
+#     HERANBA/INDIACEM cohort, all previously NOT_FOUND despite a real,
+#     well-formed answer being present.
+_EXTRACTOR_VERSION = "1.2"
 
 _NUMBERED_ITEM_RE = re.compile(
     r"\n\s*(?:"
@@ -128,6 +142,39 @@ _TABLE_ANCHORS = {
 _LABEL_END_RE = re.compile(r"of\s*\n?\s*the\s*\n?\s*same\b", re.IGNORECASE)
 
 _TABLE_NAME_RE = re.compile(r"Name:\s*([^\n]+)", re.IGNORECASE)
+
+# TargetFact R1 (owner design, 2026-09-18): a read-only Target Entity
+# Coverage Audit of the 6 real target_entity_name NOT_FOUND misses from
+# the Assembly V2 fresh-cohort audit (DALBHARAT, HMVL, GREENLAM,
+# UTLSOLAR, HERANBA, INDIACEM) found exactly ONE recurring root cause,
+# not six unrelated shapes: _TABLE_NAME_RE's literal "Name:" sub-label
+# is over-fit to ZODIAC's specific answer-rendering convention. Every
+# miss's real table answer instead states the corporate name either
+# bare (no sub-label at all -- DALBHARAT/GREENLAM/UTLSOLAR/INDIACEM,
+# 4/6) or after a short generic sub-label with no colon
+# ("Target Entity" -- HMVL). ("Name of Entity :" -- HERANBA -- already
+# self-resolves correctly with this same fallback: the colon is outside
+# the character class below, so the match naturally starts fresh at the
+# real name right after it, exactly like ZODIAC's own "Name:" already
+# does via _TABLE_NAME_RE.)
+#
+# This fallback reuses _PROSE_STAKE_TARGET_RE's own exact corporate-
+# suffix character class and length bound verbatim -- the same
+# discipline that strategy already enforces (a real corporate suffix
+# required, never a bare word), applied here to the TARGET_ENTITY_NAME
+# field's own already-scoped table span instead of a stake-percentage-
+# anchored prose phrase. Never widens scope beyond that span; only
+# tried when _TABLE_NAME_RE's stricter, already-correct match fails.
+_TABLE_NAME_FALLBACK_RE = re.compile(r"([A-Z][A-Za-z0-9&.,'\s]{2,100}?(?:Private\s+Limited|Limited|Ltd\.?|LLP))")
+
+# The one concrete sub-label demonstrated to lack a natural character-
+# class boundary (no colon) before the real name, so it would otherwise
+# be swept into the fallback match above (HMVL: "Target Entity \n
+# Assetgro Fintech Private Limited"). Stripped from the FRONT of an
+# already-matched candidate, never from the span itself -- narrowly
+# scoped to this one demonstrated real label wording, not a general
+# label-stripping heuristic.
+_TARGET_KNOWN_SUBLABEL_PREFIX_RE = re.compile(r"^Target\s+Entity\s*", re.IGNORECASE)
 _PERCENT_RE = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*%")
 _CASH_RE = re.compile(r"\bcash\b", re.IGNORECASE)
 _SHARE_SWAP_RE = re.compile(r"\bshare\s*swap\b", re.IGNORECASE)
@@ -140,13 +187,43 @@ _ISSUANCE_SHARES_RE = re.compile(r"\bissuance\s+of\b[\s\S]{0,80}?\bequity\s+shar
 # "₹" or "Rs." (both real, demonstrated), optionally followed by a real
 # demonstrated Indian magnitude word -- never a bare naked number with
 # no currency marker at all.
-_CURRENCY_AMOUNT_RE = re.compile(r"(?:₹|Rs\.?)\s?([\d,]+(?:\.\d+)?)\s*(crore|lakh)?", re.IGNORECASE)
+#
+# Phase 1C-R2 (owner design, 2026-09-18): GUJENERGY regression -- real
+# prose ("...their respective shareholders, pursuant to...") contains
+# the bare substring "rs," (the tail of "shareholders" immediately
+# followed by a comma). Without a lexical boundary before "Rs", that
+# substring itself matched as a currency token, and the old capture
+# group `[\d,]+` allowed the "match" to consist of nothing but that one
+# comma -- a captured amount with zero digits. `\b` before "Rs" (never
+# needed before "₹", which is already a non-word character no real word
+# can absorb) requires a real word boundary immediately before the
+# currency marker, so "shareholde|rs," never qualifies (both sides of
+# that "r" are word characters). Requiring the capture group to START
+# with a digit (`\d[\d,]*` instead of `[\d,]+`) is the second, redundant
+# layer -- even if a future boundary-adjacent regression reopened a
+# similar false match, a group that cannot be all-punctuation can never
+# again produce an empty numeric string.
+_CURRENCY_AMOUNT_RE = re.compile(r"(?:₹|\bRs\.?)\s?(\d[\d,]*(?:\.\d+)?)\s*(crore|lakh)?", re.IGNORECASE)
 _CRORE_MULTIPLIER = 1_00_00_000  # 1 crore = 10,000,000
 _LAKH_MULTIPLIER = 1_00_000      # 1 lakh = 100,000
 
 
-def _parse_currency_amount(match: re.Match) -> float:
-    base = float(match.group(1).replace(",", ""))
+def _parse_currency_amount(match: re.Match) -> float | None:
+    """Phase 1C-R2 (2026-09-18): defense-in-depth, never raises. Even
+    with the regex/`_is_safe_currency_match` hardening above, this
+    function independently refuses to convert anything that is not
+    cleanly all-digits-with-an-optional-decimal-point once commas are
+    stripped -- a malformed currency candidate returns None (the caller
+    treats that exactly like NOT_FOUND) rather than letting a bare
+    ValueError from `float()` propagate up and abort extraction of
+    every OTHER field in the same document, which is precisely what the
+    real GUJENERGY specimen did before this fix. Scoped narrowly to
+    invalid currency-match parsing -- this is not a general
+    try/except-everything net."""
+    raw = match.group(1).replace(",", "")
+    if not re.fullmatch(r"\d+(?:\.\d+)?", raw):
+        return None
+    base = float(raw)
     magnitude = (match.group(2) or "").lower()
     if magnitude == "crore":
         return base * _CRORE_MULTIPLIER
@@ -168,7 +245,14 @@ def _is_safe_currency_match(match: re.Match) -> bool:
     is what catches MAITHANALL's real OCR-corrupted "Rs. 113.3? Crore"
     (a stray "?" breaks the magnitude-word match, and the bare "113.3"
     is off by a factor of 10 million from the real 113.3 CRORE) --
-    correctly declining rather than silently repairing the corruption."""
+    correctly declining rather than silently repairing the corruption.
+
+    R2 (2026-09-18): the capture group is now guaranteed (by the regex
+    itself) to start with a real digit, so a GUJENERGY-shaped bare-
+    comma match can no longer reach this function at all -- this
+    docstring addendum records that the comma/magnitude heuristic below
+    was never itself wrong, the input reaching it just wasn't validated
+    yet."""
     has_comma = "," in match.group(1)
     has_magnitude = bool(match.group(2))
     return has_comma or has_magnitude
@@ -226,6 +310,18 @@ def _try_table_field(pages: list[str], field_code: str) -> TransactionFactCandid
                     field_code, _FIELD_NAMES[field_code], POPULATED, _METHOD_TABLE,
                     value_text=m.group(1).strip(), page_number=page_num, source_span_text=span.strip()[:500],
                 )
+            # TargetFact R1: no "Name:" sub-label present -- try the
+            # bare/short-sub-label corporate-name shape instead (see the
+            # fallback's own definition above for the real demonstrated
+            # cases this covers).
+            m2 = _TABLE_NAME_FALLBACK_RE.search(span)
+            if m2:
+                name = _TARGET_KNOWN_SUBLABEL_PREFIX_RE.sub("", m2.group(1).strip())
+                name = re.sub(r"\s+", " ", name).strip()
+                return TransactionFactCandidate(
+                    field_code, _FIELD_NAMES[field_code], POPULATED, _METHOD_TABLE,
+                    value_text=name, page_number=page_num, source_span_text=span.strip()[:500],
+                )
         elif field_code == STAKE_PERCENTAGE:
             m = _PERCENT_RE.search(span)
             if m:
@@ -258,11 +354,18 @@ def _try_table_field(pages: list[str], field_code: str) -> TransactionFactCandid
         elif field_code == CONSIDERATION_AMOUNT:
             m = _CURRENCY_AMOUNT_RE.search(span)
             if m and _is_safe_currency_match(m):
-                return TransactionFactCandidate(
-                    field_code, _FIELD_NAMES[field_code], POPULATED, _METHOD_TABLE,
-                    value_numeric=_parse_currency_amount(m), unit="inr",
-                    page_number=page_num, source_span_text=span.strip()[:500],
-                )
+                amount = _parse_currency_amount(m)
+                # R2: _parse_currency_amount's own defense-in-depth can
+                # still decline (None) even after a match passes the
+                # regex + _is_safe_currency_match gates -- falls through
+                # to NOT_FOUND below exactly like any other declined
+                # match, never a partially-built POPULATED candidate.
+                if amount is not None:
+                    return TransactionFactCandidate(
+                        field_code, _FIELD_NAMES[field_code], POPULATED, _METHOD_TABLE,
+                        value_numeric=amount, unit="inr",
+                        page_number=page_num, source_span_text=span.strip()[:500],
+                    )
             # R1: a recognized field whose value notation this extractor
             # doesn't support (e.g. USD, or a format the currency regex
             # doesn't match, or a number _is_safe_currency_match declined)
