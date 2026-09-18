@@ -50,7 +50,20 @@ _MAX_PAGES = 50                 # real specimens sampled were 1-7 pages; generou
 _TIMEOUT_SECONDS = 25
 _PDF_MAGIC = b"%PDF-"
 _MIN_REAL_TEXT_CHARS = 40       # below this, a "successfully parsed" PDF is treated as carrying no real text (scanned/image), not a genuine short document
-_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; InvestGridsBot/1.0)"}
+
+# DFE-NET2 (owner design, 2026-09-18): a real, confirmed production defect --
+# NSE's archive host silently stalls (never a clean 4xx/5xx, just a full
+# _TIMEOUT_SECONDS-long hang) any request whose User-Agent self-identifies
+# as a bot ("InvestGridsBot/1.0"). Confirmed directly against production
+# during the DFE-PROD-1 qualification run: the identical request, same host,
+# same container, same network path, with ONLY the User-Agent changed to a
+# real browser's, returned the correct PDF bytes in under a second. One
+# deterministic request profile -- no header rotation, no impersonation
+# framework, no retry storm, no NSE-specific bypass machinery. Every other
+# safety limit in this module (_MAX_BYTES, _MAX_PAGES, _TIMEOUT_SECONDS,
+# MIME/PDF-signature validation) is unchanged; this fixes only the one
+# demonstrated compatibility issue, nothing else.
+_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 
 
 def _extraction_method_version() -> str:

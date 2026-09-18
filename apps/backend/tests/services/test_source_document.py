@@ -136,6 +136,56 @@ async def test_http_error_status_is_recorded_as_fetch_failed():
             await _cleanup([raw_evidence_id])
 
 
+# ── DFE-NET2: NSE-compatible fetch identity (owner design, 2026-09-18) ──
+# A real, confirmed production defect: NSE's archive host silently stalls
+# any request whose User-Agent self-identifies as a bot
+# ("InvestGridsBot/1.0") until _TIMEOUT_SECONDS expires -- never a clean
+# 4xx/5xx. The identical request with a real browser User-Agent, same
+# host, same production container, returned correct bytes in under a
+# second. Fixed to one deterministic browser-like request profile -- no
+# rotation, no impersonation framework, no retry logic, no NSE-specific
+# bypass machinery.
+
+@pytest.mark.asyncio
+async def test_request_identity_is_a_real_browser_user_agent_never_a_bot_label():
+    """Regression lock for the request contract itself -- so a future
+    'cleanup' can't quietly revert this back to a bot-labeled UA and
+    silently reintroduce the real NSE stall this fix closes. Asserts the
+    actual header httpx.AsyncClient was constructed with, not just that
+    fetch succeeded."""
+    async with AsyncSessionLocal() as db:
+        raw_evidence_id = await _seed_raw_evidence(db, "test:ua-contract")
+        try:
+            blank = _blank_pdf_bytes(1)
+            with patch("httpx.AsyncClient", return_value=_mock_client(chunks=[blank])) as mock_client_cls:
+                await sd.fetch_source_document(db, raw_evidence_id=raw_evidence_id, url="https://example.test/x.pdf")
+            _, kwargs = mock_client_cls.call_args
+            user_agent = kwargs["headers"]["User-Agent"]
+            assert "InvestGridsBot" not in user_agent
+            assert "Mozilla" in user_agent and "Chrome" in user_agent
+        finally:
+            await _cleanup([raw_evidence_id])
+
+
+@pytest.mark.asyncio
+async def test_a_real_timeout_still_produces_fetch_failed_after_the_ua_change():
+    """The exact real failure mode observed against NSE before this fix
+    (httpx.ReadTimeout, not a clean error status) -- changing the request
+    identity must never turn a genuine network failure into a fabricated
+    successful SourceDocument."""
+    async with AsyncSessionLocal() as db:
+        raw_evidence_id = await _seed_raw_evidence(db, "test:ua-timeout")
+        try:
+            import httpx
+            with patch("httpx.AsyncClient", return_value=_mock_client(stream_raises=httpx.ReadTimeout("The read operation timed out"))):
+                doc = await sd.fetch_source_document(db, raw_evidence_id=raw_evidence_id, url="https://example.test/slow.pdf")
+            assert doc.extraction_status == FETCH_FAILED
+            assert doc.content_hash is None
+            assert doc.page_texts_json is None
+        finally:
+            await _cleanup([raw_evidence_id])
+
+
 @pytest.mark.asyncio
 async def test_non_pdf_bytes_are_rejected_as_unsupported_mime_never_parsed():
     """MIME validation is on the real byte signature, never the server's

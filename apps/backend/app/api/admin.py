@@ -204,6 +204,7 @@ def _load_dfe_prod1_manifest() -> list[dict]:
 @router.post("/dfe-prod1-populate", dependencies=[Depends(require_admin_key)])
 async def dfe_prod1_populate(
     dry_run: bool = True,
+    labels: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Runs the real Deep Filing Evidence pipeline (SourceDocument capture
@@ -211,12 +212,22 @@ async def dfe_prod1_populate(
     named 7-candidate manifest only. See module comment above for the full
     safety contract. Returns full per-candidate provenance -- extraction
     status, content hash, page count, every extracted field's status/value,
-    and (when dry_run=false) how many TransactionFact rows were persisted."""
+    and (when dry_run=false) how many TransactionFact rows were persisted.
+
+    `labels` (owner instruction, 2026-09-18): an optional comma-separated
+    subset of the manifest's own `label` values (e.g. "ZODIAC" or
+    "ZODIAC,GUJENERGY") for staged, one-candidate-at-a-time qualification
+    -- still only ever selects FROM the fixed manifest, never accepts an
+    arbitrary raw_evidence_id/URL the caller supplies. Omit for the full
+    manifest."""
     from app.db.models.source_document import EXTRACTED
     from app.services.warehouse.source_document import fetch_source_document
     from app.services.warehouse.transaction_fact_extractor import extract_transaction_facts, persist_transaction_facts
 
     entries = _load_dfe_prod1_manifest()
+    if labels:
+        wanted = {l.strip() for l in labels.split(",") if l.strip()}
+        entries = [e for e in entries if e["label"] in wanted]
     results = []
     for entry in entries:
         result: dict = {"label": entry["label"], "raw_evidence_id": entry["raw_evidence_id"]}
