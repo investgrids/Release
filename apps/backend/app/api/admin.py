@@ -6,6 +6,9 @@ like an unmounted volume before they cause data loss.
 """
 from __future__ import annotations
 
+import json
+import pathlib
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -160,3 +163,89 @@ async def backfill_comparison_content(
 
     await db.commit()
     return {"updated": updated, "skipped": skipped, "total_checked": len(articles)}
+
+
+# ── TEMPORARY -- Deep Filing Evidence Production Phase DFE-PROD-1 ──────────
+# One-off, bounded population of the 7 named candidates the owner explicitly
+# authorized on 2026-09-18 (see scripts/dfe_prod1_population_candidates.json
+# for the full manifest + per-candidate rationale -- deliberately containing
+# positive, partial-evidence, R1-normalization, second-cohort, fail-closed,
+# and TargetFact-R1 cases, never a broad query). Per
+# feedback_production_write_discipline, this goes through a reviewable,
+# auditable endpoint rather than raw SSH -- this session has no direct
+# production DB connection.
+#
+# Calls the real, already-deployed application functions verbatim
+# (fetch_source_document, extract_transaction_facts,
+# persist_transaction_facts) -- never reimplements their logic here.
+#
+# fetch_source_document() always commits its own SourceDocument row by
+# design (a SourceDocument is an immutable evidence capture, not a value
+# under repair the way the NSE-title-repair precedent's Event.title was)
+# and is already idempotent by content_hash -- refetching the same URL for
+# the same raw_evidence_id returns the EXISTING row rather than duplicating
+# it. persist_transaction_facts() is likewise idempotent, upserting by
+# (source_document_id, field_code). dry_run therefore does not gate the
+# fetch step; it gates only whether the real extraction result is actually
+# persisted as TransactionFact rows -- a real, deliberate difference from
+# the title-repair precedent, not an oversight.
+#
+# Meant for removal (endpoint + manifest-loading helper, not the manifest
+# data file) once population is confirmed against production.
+_DFE_PROD1_MANIFEST_PATH = (
+    pathlib.Path(__file__).resolve().parent.parent.parent / "scripts" / "dfe_prod1_population_candidates.json"
+)
+
+
+def _load_dfe_prod1_manifest() -> list[dict]:
+    return json.loads(_DFE_PROD1_MANIFEST_PATH.read_text(encoding="utf-8"))["entries"]
+
+
+@router.post("/dfe-prod1-populate", dependencies=[Depends(require_admin_key)])
+async def dfe_prod1_populate(
+    dry_run: bool = True,
+    db: AsyncSession = Depends(get_db),
+):
+    """Runs the real Deep Filing Evidence pipeline (SourceDocument capture
+    -> TransactionFact extraction -> persistence) against the frozen,
+    named 7-candidate manifest only. See module comment above for the full
+    safety contract. Returns full per-candidate provenance -- extraction
+    status, content hash, page count, every extracted field's status/value,
+    and (when dry_run=false) how many TransactionFact rows were persisted."""
+    from app.db.models.source_document import EXTRACTED
+    from app.services.warehouse.source_document import fetch_source_document
+    from app.services.warehouse.transaction_fact_extractor import extract_transaction_facts, persist_transaction_facts
+
+    entries = _load_dfe_prod1_manifest()
+    results = []
+    for entry in entries:
+        result: dict = {"label": entry["label"], "raw_evidence_id": entry["raw_evidence_id"]}
+        doc = await fetch_source_document(db, raw_evidence_id=entry["raw_evidence_id"], url=entry["url"])
+        result["source_document_id"] = doc.id
+        result["extraction_status"] = doc.extraction_status
+        result["content_hash"] = doc.content_hash
+        result["page_count"] = doc.page_count
+        if doc.extraction_status != EXTRACTED:
+            results.append(result)
+            continue
+
+        pages = json.loads(doc.page_texts_json)
+        try:
+            candidates = extract_transaction_facts(pages)
+        except Exception as exc:
+            result["extraction_crash"] = f"{type(exc).__name__}: {exc}"
+            results.append(result)
+            continue
+
+        result["transaction_facts"] = [
+            {"field": c.field_code, "status": c.extraction_status, "value_text": c.value_text, "value_numeric": c.value_numeric}
+            for c in candidates
+        ]
+        if not dry_run:
+            persisted = await persist_transaction_facts(
+                db, source_document_id=doc.id, raw_evidence_id=entry["raw_evidence_id"], candidates=candidates,
+            )
+            result["persisted_count"] = len(persisted)
+        results.append(result)
+
+    return {"dry_run": dry_run, "manifest_size": len(entries), "results": results}

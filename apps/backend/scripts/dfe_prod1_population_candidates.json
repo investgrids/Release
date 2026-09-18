@@ -1,0 +1,68 @@
+{
+  "note": "Deep Filing Evidence production phase DFE-PROD-1 (owner-authorized, 2026-09-18). Frozen, named candidate set -- deliberately containing positive, partial, normalization, second-cohort, and fail-closed cases. Never expanded via a broad WHERE query.",
+  "entries": [
+    {
+      "label": "ZODIAC",
+      "raw_evidence_id": "61aed356-7ac5-4466-9d2c-a11445222224",
+      "evidence_key": "nse:nse-106780553",
+      "symbol": "ZODIAC",
+      "title": "Zodiac Energy Limited has informed the Exchange about Acquisition-Incorporation of Wholly Owned Subsidiary",
+      "url": "https://nsearchives.nseindia.com/corporate/ZODIAC_15092026141846_Reg_30_Final.pdf",
+      "why": "Positive case -- fully structured SEBI Reg 30 annexure table, all 4 fields real and POPULATED (target/stake/consideration type/amount)."
+    },
+    {
+      "label": "PRIMO",
+      "raw_evidence_id": "3a9d61d5-3037-4ca0-9835-0d53318810d6",
+      "evidence_key": "nse:nse-106782061",
+      "symbol": "PRIMO",
+      "title": "Primo Chemicals Limited has informed the Exchange regarding 'Update on acquisition of Balance 51%Equity Stake in Flow Tech Chemicals Private Limited.'.",
+      "url": "https://nsearchives.nseindia.com/corporate/PRIMO607_16092026172328_Intimation_of_acquisitionofflowtech16092026.pdf",
+      "why": "Partial-evidence case -- target/stake real, consideration genuinely never stated in the filing; must stay absent, never inferred."
+    },
+    {
+      "label": "JUNIPER",
+      "raw_evidence_id": "6d58b914-53c1-4e72-a9fb-6f679ed9306e",
+      "evidence_key": "nse:nse-106781791",
+      "symbol": "JUNIPER",
+      "title": "Juniper Hotels Limited has informed the Exchange about Acquisition",
+      "url": "https://nsearchives.nseindia.com/corporate/9930371292_16092026151352_JHL-lettersigned.pdf",
+      "why": "R1 normalization case -- real Rs 2,48,00,00,000 consideration amount must resolve correctly, never the unrelated bare 248 the pre-R1 extractor produced."
+    },
+    {
+      "label": "MUTHOOTFIN",
+      "raw_evidence_id": "80667a01-3106-4a31-ae86-c3d48d53f998",
+      "evidence_key": "nse:nse-106776737",
+      "symbol": "MUTHOOTFIN",
+      "title": "Muthoot Finance Limited has informed the Exchange about Acquisition",
+      "url": "https://nsearchives.nseindia.com/corporate/MUTHOOTFIN_09092026180915_MFIN_Reg_30_AAF_Right_issue_SD.pdf",
+      "why": "Second-cohort case -- proves the pipeline isn't limited to the original development population."
+    },
+    {
+      "label": "GUJENERGY",
+      "raw_evidence_id": "4425c0f9-ca41-44a0-aaf3-7031b3fa3e5d",
+      "evidence_key": "nse:nse-106771676",
+      "symbol": "GUJENERGY",
+      "title": "GUJARAT ENERGY LIMITED has informed the Exchange about General Updates - General Guidance Note to the Shareholders on apportionment of cost of acquisition of Equity Shares of the Company and Resulting Company",
+      "url": "https://nsearchives.nseindia.com/corporate/GUJGASLTD_05092026193209_1617SECCostApportinti05092026.pdf",
+      "why": "Fail-closed case -- the real Phase 1C-R2 crash fixture. Production must reproduce the safe outcome: no crash, no fabricated monetary fact, all 4 fields NOT_FOUND, SG1 refusal."
+    },
+    {
+      "label": "HERANBA",
+      "raw_evidence_id": "6d45145b-644f-4862-acc2-1c2f69ebf7c4",
+      "evidence_key": "nse:nse-106768575",
+      "symbol": "HERANBA",
+      "title": "Heranba Industries Limited has informed the Exchange about the updates on acquisition",
+      "url": "https://nsearchives.nseindia.com/corporate/HERANBA_03092026183749_Approval_of_Investment_HIL_Final_to_Upload.pdf",
+      "why": "TargetFact R1 case -- target_entity_name was NOT_FOUND before the fix (bare-answer table shape), now resolves to Mikusu India Private Limited."
+    },
+    {
+      "label": "DALBHARAT",
+      "raw_evidence_id": "3332a7aa-3717-4c24-8811-161032ba7e83",
+      "evidence_key": "nse:nse-106783734",
+      "symbol": "DALBHARAT",
+      "title": "Dalmia Bharat Limited has informed the Exchange about Acquisition",
+      "url": "https://nsearchives.nseindia.com/corporate/DALBHARAT_17092026222819_DBL_SEintimation_Acquisition_17092026.pdf",
+      "why": "TargetFact R1 case -- another bare-answer target-name miss now fixed, and the one specimen in this whole engagement where the live LLM headline path actually succeeded."
+    }
+  ]
+}
