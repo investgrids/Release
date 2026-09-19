@@ -4,7 +4,7 @@ AI service — multi-provider free-tier AI with automatic fallback.
 Provider chain (empirically-reliable-first, auto-skips exhausted providers —
 see _call_with_fallback for the 2026-07-26 reordering rationale):
   1. Groq high-quality — gpt-oss-120b/20b, 1,000 req/day each
-  2. Groq fast         — qwen3.6-27b/compound/compound-mini/gpt-oss-safeguard-20b
+  2. Groq fast         — qwen3.8-27b/compound/compound-mini/gpt-oss-safeguard-20b
   3. OpenRouter large  — 550B, 120B, 31B free models (account-wide cap:
                          1,000 req/day once $10+ in credits is on file, tight
                          free-tier daily cap otherwise — NOT per-model, see
@@ -481,6 +481,17 @@ _GEMINI_MODELS = [
 # chat model at all (just openai/gpt-oss-*, qwen/qwen3.6-27b, groq/compound*,
 # allam-2-7b, prompt-guard, and whisper). Removed; no direct replacement
 # exists in this account's catalog, so the tier is just the two real models.
+#
+# 2026-09-19 P0 incident: qwen/qwen3.6-27b (used in the FAST tier below)
+# was ALSO renamed/retired by Groq — live catalog probe that day shows
+# qwen/qwen3.8-27b in its place, confirmed via GET .../v1/models against
+# the real production key. This was the direct cause of a platform-wide
+# LLM capacity incident: with this slot 404ing, Groq FAST's compound/
+# compound-mini already at their 250/day quota, Mistral returning 402
+# (subscription/billing, not a code issue), and OpenRouter's free daily
+# quota already exhausted, only the two real models in THIS tier plus
+# Gemini were left to absorb all platform LLM demand (AIPE + AI Search
+# combined), pushing AI Search's own success rate down to ~19.5% that day.
 _GROQ_HIGH = [
     "openai/gpt-oss-120b",                       # 1,000 req/day — highest quality on Groq
     "openai/gpt-oss-20b",                        # 1,000 req/day — solid mid-tier
@@ -492,9 +503,12 @@ _GROQ_HIGH = [
 # llama-3.3-70b-versatile above (same live probe). Replaced the lost volume
 # backstop with gpt-oss-safeguard-20b (confirmed real and working via live
 # probe) — a safety-tuned reasoning variant. See _GROQ_REASONING_EFFORT
-# below for how its (and qwen3.6-27b's) reasoning overhead is tamed.
+# below for how its (and qwen3.8-27b's) reasoning overhead is tamed.
+#
+# 2026-09-19: qwen/qwen3.6-27b -> qwen/qwen3.8-27b (Groq renamed it again;
+# see the _GROQ_HIGH comment above for the P0 incident this caused).
 _GROQ_FAST = [
-    "qwen/qwen3.6-27b",           # 1,000 req/day — mid quality
+    "qwen/qwen3.8-27b",           # 1,000 req/day — mid quality
     "groq/compound-mini",         # 250 req/day   — Groq native
     "groq/compound",              # 250 req/day   — Groq native larger
     "openai/gpt-oss-safeguard-20b", # reasoning model — see _GROQ_REASONING_EFFORT
@@ -512,13 +526,18 @@ _GROQ_FAST = [
 #     truncated mid-string, with default effort; the identical call with
 #     "low" finished naturally (finish_reason="stop", reasoning_tokens=36
 #     of 1100) with a complete, valid answer.
-#   - qwen/qwen3.6-27b: the opposite problem — its reasoning is NOT
-#     separated, it's inlined directly in `content` as a literal
-#     <think>...</think> block (see _strip_reasoning above, which handles
-#     this defensively regardless), and it only accepts "none"/"default"
-#     ("low" is a 400 "must be one of none or default"). "none" suppresses
-#     the <think> block at the source — confirmed: content="OK" directly,
-#     vs. "default" reproducing the exact <think> leak.
+#   - qwen/qwen3.6-27b (2026-08-22 probe): the opposite problem — its
+#     reasoning was NOT separated, it was inlined directly in `content` as
+#     a literal <think>...</think> block (see _strip_reasoning above, which
+#     handles this defensively regardless), and it only accepted "none"/
+#     "default" ("low" was a 400 "must be one of none or default"). "none"
+#     suppressed the <think> block at the source.
+#   - qwen/qwen3.8-27b (2026-09-19 re-probe, after Groq renamed the model —
+#     see the P0 incident note near _GROQ_HIGH): behaves better than 3.6 —
+#     content="OK" comes through clean with "none", "low" (reasoning now in
+#     its own separate field, Harmony-style), AND even with the param
+#     omitted entirely. Kept "none" for consistency/minimal diff rather
+#     than because "low"/omitted are now unsafe.
 #   - groq/compound / groq/compound-mini: do NOT support this parameter at
 #     all — sending it in ANY value is a 400 "reasoning_effort is not
 #     supported with this model". Deliberately absent from this dict; the
@@ -527,7 +546,7 @@ _GROQ_REASONING_EFFORT: dict[str, str] = {
     "openai/gpt-oss-120b": "low",
     "openai/gpt-oss-20b": "low",
     "openai/gpt-oss-safeguard-20b": "low",
-    "qwen/qwen3.6-27b": "none",
+    "qwen/qwen3.8-27b": "none",
 }
 
 # Cerebras and Cloudflare Workers AI tiers were REMOVED from the active
@@ -817,7 +836,7 @@ async def _call_with_fallback(
     headroom). Cerebras and Cloudflare removed 2026-08-30 — see the module
     docstring's 2026-08-30 note for why:
       1. Groq high-quality models      — 120B/20B (1,000 req/day each) — most reliable in testing
-      2. Groq fast models              — qwen3.6-27b/compound/compound-mini/gpt-oss-safeguard-20b (high-volume workhorse)
+      2. Groq fast models              — qwen3.8-27b/compound/compound-mini/gpt-oss-safeguard-20b (high-volume workhorse)
       3. OpenRouter large free models  — 550B/120B/31B (best nominal quality, ~50/day each, but 429s fast)
       4. Mistral La Plateforme
       5. Gemini                        — 1,500 req/day, the demonstrated production workhorse
