@@ -20,7 +20,6 @@ import {
 
 // Recharts split into its own lazy chunk (2026-08 performance audit) — see
 // OpportunityCharts.tsx's own header comment for why.
-const ScoreHistoryChart      = dynamic(() => import("./OpportunityCharts").then(m => m.ScoreHistoryChart),      { ssr: false });
 const SectorDistributionDonut = dynamic(() => import("./OpportunityCharts").then(m => m.SectorDistributionDonut), { ssr: false });
 
 // Re-export types only (erased at compile time, safe from any module) —
@@ -62,21 +61,6 @@ const CHIP_COLORS = [
   "bg-amber-500/20 text-amber-700 dark:text-amber-200 border-amber-500/25",
   "bg-rose-500/20 text-rose-700 dark:text-rose-200 border-rose-500/25",
 ];
-
-// Returns [] (not a fabricated flat/synthetic line) when there's no real
-// score to build a trend around — Score History should come from
-// app/services/score_history_service.py once this page is wired to it;
-// until then, a null score means no chart, not an invented one.
-function buildScoreHistory(score: number | null): { month: string; value: number }[] {
-  if (score === null || score === undefined) return [];
-  const months = ["Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-  const n = 6;
-  const start = Math.max(30, score - 40);
-  return Array.from({ length: n }, (_, i) => ({
-    month: months[i % months.length],
-    value: Math.round(start + (i / (n - 1)) * (score - start)),
-  }));
-}
 
 function StatCard({ label, value, sub, valueClass = "text-text-primary", title }: { label: string; value: string; sub?: string; valueClass?: string; title?: string }) {
   return (
@@ -171,19 +155,13 @@ export default function RadarDetailPage({ params, initialDetail, initialRelated 
 
 // ── V1 legacy renderer — unchanged from before the split, just extracted
 // into its own component and no longer responsible for fetching. ──────────
-function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
+export function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
   detail: OpportunityDetail; id: string; hasInitialDetail: boolean; initialRelated?: Record<string, any> | null;
 }) {
-  const [period, setPeriod] = useState("All");
   const initialDetail = hasInitialDetail;
   const d = detail;
   const score = d.opportunity_score !== null && d.opportunity_score !== undefined ? Math.round(d.opportunity_score) : null;
   const confidence = d.confidence !== null && d.confidence !== undefined ? Math.round(d.confidence * 100) : null;
-  const scoreHistory = buildScoreHistory(score);
-  const historySliced = period === "3M" ? scoreHistory.slice(-3)
-    : period === "6M" ? scoreHistory.slice(-6)
-    : period === "1M" ? scoreHistory.slice(-1)
-    : scoreHistory;
 
   const ai = d.ai_summary;
   const metrics = d.metrics;
@@ -299,40 +277,28 @@ function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialRelated 
             <OpportunityRippleGraph nodes={d.graph_nodes} edges={d.graph_edges} />
           )}
 
-          {/* Why + Score chart */}
-          <div className="grid grid-cols-[1fr_1.3fr] gap-5">
-            <SectionCard title="Why this opportunity exists">
-              <p className="mb-4 text-[13px] leading-6 text-text-secondary">{d.summary}</p>
-              {bullets.length > 0 && (
-                <ul className="space-y-2">
-                  {bullets.map((b, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary">
-                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400"/>
-                      {b}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </SectionCard>
-
-            <SectionCard title="Opportunity Score Over Time">
-              <div className="mb-3 flex justify-end gap-1">
-                {(["1M","3M","6M","All"] as const).map(p => (
-                  <button key={p} onClick={() => setPeriod(p)}
-                    className={`rounded px-2 py-0.5 text-[10px] font-medium transition ${p === period ? "bg-text-primary/10 text-text-primary" : "text-text-muted hover:text-text-secondary"}`}>
-                    {p}
-                  </button>
+          {/* Why this opportunity exists. A real "Opportunity Score Over
+              Time" section used to sit alongside this (2-col grid) — removed
+              (2026-09-19 integrity fix): buildScoreHistory() fabricated a
+              synthetic 6-month interpolated line from a single current
+              score (fake month labels, an invented start point), which is
+              exactly the kind of fabricated-to-look-complete content this
+              product must never show. No persisted score-history data
+              source exists yet, so the honest state is to omit the section
+              entirely rather than render an empty placeholder chart. */}
+          <SectionCard title="Why this opportunity exists">
+            <p className="mb-4 text-[13px] leading-6 text-text-secondary">{d.summary}</p>
+            {bullets.length > 0 && (
+              <ul className="space-y-2">
+                {bullets.map((b, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[12px] text-text-secondary">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400"/>
+                    {b}
+                  </li>
                 ))}
-              </div>
-              <div className="h-[200px]">
-                {historySliced.length > 0 ? (
-                  <ScoreHistoryChart historySliced={historySliced} />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-[12px] text-text-muted">No score history available yet.</div>
-                )}
-              </div>
-            </SectionCard>
-          </div>
+              </ul>
+            )}
+          </SectionCard>
 
           {/* Beneficiaries + Sectors */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_180px]">
