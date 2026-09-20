@@ -707,10 +707,13 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
                 </div>
               </div>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <StatCard label="Opportunity Strength" value={strength !== null ? `${strength}` : "—"} sub={strength !== null ? "/ 100" : "Unscored"} valueClass="text-sky-400"/>
-              <StatCard label="Evidence Count"        value={String(d.evidence_count)}/>
-              <StatCard label="Direction"             value={dir.label} valueClass={dir.className}/>
+            {/* 2026-09-20 canary review fix: the "Opportunity Strength"
+                StatCard removed -- the same number was already shown once,
+                prominently, in the round hero badge above. Two cards left
+                (not padded back to three with a fabricated metric). */}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <StatCard label="Evidence Count" value={String(d.evidence_count)}/>
+              <StatCard label="Direction"      value={dir.label} valueClass={dir.className}/>
             </div>
             {narrativeBanner && (
               <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">{narrativeBanner}</p>
@@ -852,8 +855,17 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
             </SectionCard>
           )}
 
+          {/* 2026-09-20 canary review fix: `takeaway` and `path` removed.
+              This page already shows its own real title (H1 above), its
+              own real narrative ("Why this opportunity exists"), and its
+              own real breadcrumb (top of page) -- GuidanceConfig's own
+              interface comment already documents the correct pattern here
+              ("omit it when the page already shows its own Key Takeaway
+              elsewhere"). Keeping both would silently re-render the title
+              a second time (path's own steps included it) and a paraphrased
+              second summary, which is exactly the duplicate-title/
+              duplicate-summary/second-breadcrumb defect the review found. */}
           <NextSteps config={{
-            takeaway: `${d.title} has strength ${strength ?? "—"}/100 across ${d.sectors_themes.join(", ") || "the affected sectors"}, with ${d.companies_connected.length} companies graph-confirmed.`,
             primary: {
               label: `Ask AI about ${d.title}`,
               why: "Get a full investment analysis grounded in the real linked evidence.",
@@ -884,16 +896,21 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
                 ],
               },
             ],
-            path: [d.sectors_themes[0] ?? "Sector", d.title, "Opportunity", "Investment Decision"],
           }} />
         </div>
 
         {/* ── RIGHT SIDEBAR ────────────────────────────────────────────── */}
         <aside className="space-y-4 lg:sticky lg:top-[84px]">
           <SectionCard title="Status">
+            {/* 2026-09-20 canary review fix: candidate_status/narrative_status
+                removed -- both are internal pipeline terminology
+                (candidate_status is in fact constant "formed" for every
+                real row today, carrying zero information; narrative_status
+                jargon like "generated" means nothing to a reader, and the
+                one state that IS user-relevant -- pending/failed capacity --
+                already surfaces as narrativeBanner above, in plain
+                language). Only real, honest, plain dates remain here. */}
             <div className="space-y-2 text-[12px]">
-              <div className="flex justify-between"><span className="text-text-muted">Candidate status</span><span className="text-text-primary">{d.candidate_status}</span></div>
-              <div className="flex justify-between"><span className="text-text-muted">Narrative status</span><span className="text-text-primary">{d.narrative_status}</span></div>
               <div className="flex justify-between"><span className="text-text-muted">Created</span><span className="text-text-primary">{d.created_at.slice(0, 10)}</span></div>
               <div className="flex justify-between"><span className="text-text-muted">Updated</span><span className="text-text-primary">{d.updated_at.slice(0, 10)}</span></div>
             </div>

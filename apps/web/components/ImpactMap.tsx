@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import { cleanText, isRealSymbol } from "@/lib/text";
 import type {
   RippleV2, SupportingEvidenceV2, CompanyConnectedV2,
@@ -46,9 +46,11 @@ const DIRECTION_LABEL: Record<EdgeDirection, string> = {
   benefits: "Positive", hurts: "Negative", influences: "Neutral",
 };
 const DIRECTION_CLASS: Record<EdgeDirection, string> = {
-  benefits: "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
-  hurts: "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-300",
-  influences: "border-surface-border/15 bg-surface-border/5 text-text-secondary",
+  benefits: "border-emerald-500/30 bg-emerald-500/12 text-emerald-700 dark:text-emerald-300",
+  hurts: "border-rose-500/30 bg-rose-500/12 text-rose-700 dark:text-rose-300",
+  // 2026-09-20 canary review fix: raised from /15+/5 -- read as washed-out,
+  // low-contrast on the live canary review.
+  influences: "border-surface-border/25 bg-surface-border/10 text-text-primary",
 };
 
 function isEdgeDirection(v: string): v is EdgeDirection {
@@ -116,16 +118,26 @@ export function ImpactMap({ ripple, supportingEvidence, companiesConnected }: {
 
   return (
     <div className="rounded-[20px] border border-surface-border/10 bg-text-primary/[0.03] p-5">
-      <h3 className="mb-4 text-[13px] font-semibold text-text-primary">Evidence-Backed Impact Map</h3>
+      <h3 className="text-[13px] font-semibold text-text-primary">Evidence-Backed Impact Map</h3>
+      {/* 2026-09-20 canary review fix: a per-catalyst direction (e.g.
+          "Benefits") is that ONE development's own real graph edge --
+          independent of, and can legitimately differ from, the
+          opportunity's overall thesis direction shown in the hero above
+          (a majority-vote across every linked development). Shown side by
+          side with zero context read as an unexplained contradiction on
+          the live canary review -- this line makes the distinction explicit. */}
+      <p className="mt-1 mb-4 text-[11px] leading-4 text-text-muted">
+        Each row shows one real linked development's own direct effect — this can differ from the opportunity's overall thesis direction above.
+      </p>
 
-      {/* Desktop: compact three-column flow. Mobile: stacked cards
-          (same markup, grid collapses to 1 column via the responsive
-          class below -- no separate mobile-only component needed). */}
+      {/* Desktop: compact three-column flow with a directional chevron
+          between each stage. Mobile: stacked cards (chevrons hidden --
+          vertical order already reads as a flow). */}
       <div className="space-y-3">
         {rows.map((row) => (
           <div
             key={row.developmentId}
-            className="grid grid-cols-1 gap-3 rounded-xl border border-surface-border/7 bg-text-primary/[0.02] p-3.5 md:grid-cols-[1.3fr_1fr_1fr]"
+            className="grid grid-cols-1 gap-3 rounded-xl border border-surface-border/7 bg-text-primary/[0.02] p-3.5 md:grid-cols-[1.2fr_auto_0.9fr_auto_0.9fr] md:items-center"
           >
             {/* Catalyst */}
             <div className="min-w-0">
@@ -136,6 +148,8 @@ export function ImpactMap({ ripple, supportingEvidence, companiesConnected }: {
                 {row.sourceTypes.length > 0 && ` · ${row.sourceTypes.join(", ")}`}
               </p>
             </div>
+
+            <ChevronRight className="hidden h-4 w-4 shrink-0 text-text-muted/50 md:block" aria-hidden="true" />
 
             {/* Sector impact */}
             <div className="min-w-0">
@@ -152,6 +166,8 @@ export function ImpactMap({ ripple, supportingEvidence, companiesConnected }: {
                 </div>
               )}
             </div>
+
+            <ChevronRight className="hidden h-4 w-4 shrink-0 text-text-muted/50 md:block" aria-hidden="true" />
 
             {/* Company impact */}
             <div className="min-w-0">
