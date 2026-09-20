@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isHighConviction } from "./page";
+import { isHighConviction } from "./radarLogic";
 
 describe("isHighConviction — V2-compatibility fix (2026-09-20)", () => {
   it("qualifies a V1 item with both a high score and a real high confidence", () => {
