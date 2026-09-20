@@ -54,13 +54,64 @@ see _call_with_fallback for the 2026-07-26 reordering rationale):
   prediction's AI layer, the event-classification pipeline, etc.) onto
   their generic canned fallback text on nearly every request.
 
-Each model that returns HTTP 429 (rate-limited) is remembered in _EXHAUSTED
-and skipped on future calls for a cooldown window (_EXHAUSTED_COOLDOWN_S) —
-long enough to ride out a per-minute throttle without hammering it, short
-enough that a model isn't permanently dead for the rest of the process from
-one transient 429.
+Each (provider, model) pair that fails is remembered in _EXHAUSTED and
+skipped on future calls until its cooldown window elapses -- keyed by
+provider *and* model, not model alone, since the same model id string can
+appear behind more than one provider/base_url and a real outage on one
+must never suppress the (unrelated) other. Provider-aware reliability fix
+(2026-09-20, real production finding, revised 2026-09-20 after review): a
+single flat 120s cooldown for every failure type conflated "will very
+likely work again in a minute" (429, temporary quota) with "will never
+work again until a human or a code change fixes it" (402 billing/
+subscription blocked, 404 invalid or deprecated model id) -- the latter
+two got retried, and re-failed, every 120s forever, burning one wasted
+round-trip per model per window indefinitely (confirmed live: Mistral's
+402 billing block during the 2026-09-19 AI Search capacity incident).
+Failures are now classified and given a duration that matches how likely
+-- and how soon -- they can actually resolve:
+  429 (quota exhausted)     — respects the provider's own reset header
+                               when present, supporting delta-seconds,
+                               absolute Unix seconds/milliseconds, an
+                               HTTP-date, and Groq's compact duration
+                               strings ("5m46s") -- see
+                               _parse_retry_after. Capped at
+                               _MAX_RETRY_AFTER_S (24h — OpenRouter's
+                               real daily-quota resets can be ~11h out;
+                               a 1h cap defeated the header entirely).
+                               Falls back to _COOLDOWN_S["rate_limit"]
+                               (120s) only when no usable header is sent.
+  402 (billing/subscription) — needs a human to fix, but must not block
+                               verifying a fix same-day: a short,
+                               reason-specific cooldown (see
+                               _COOLDOWN_S["billing"]), plus
+                               _clear_exhaustion(provider, model) as an
+                               explicit, provider/model-scoped escape
+                               hatch for operational verification (e.g.
+                               confirming a restored subscription)
+                               without waiting out even that cooldown.
+  401 / 403 (auth/config)    — a bad, expired, or under-permissioned key;
+                               needs a human/config fix, not a retry —
+                               the same short cooldown that used to apply
+                               here (30s) just added noise against a key
+                               that cannot self-heal.
+  404 (invalid/deprecated)   — needs a code change (a renamed/retired
+                               model id); the longest cooldown, since no
+                               amount of retrying within this process can
+                               ever fix it.
+  5xx / timeout (transient)  — the shortest cooldown; these are the
+                               failures most likely to have already
+                               self-resolved by the next attempt.
+See _COOLDOWN_S below for the exact durations.
+
+HTTP timeout is connect/read-split (_HTTP_TIMEOUT), not a single blanket
+value: a short connect timeout lets a genuinely unreachable host fail
+fast without waiting out a long read timeout, while the read timeout
+itself stays at its original, unshortened value so a slower (but live)
+reasoning-model response is never truncated by a latency-bounding change
+that was really aimed at dead connections, not slow-but-working ones.
 """
 import asyncio
+import email.utils
 import re
 import time
 import httpx
@@ -100,18 +151,178 @@ _NVIDIA_PATH  = "/chat/completions"   # appended to settings.nvidia_base_url
 # getting retried (and re-429'd) every cooldown window, which costs one
 # wasted round-trip per model per window — negligible next to the alternative
 # of the whole chain going dark.
-_EXHAUSTED: dict[str, float] = {}   # model -> monotonic time it was marked exhausted
-_EXHAUSTED_COOLDOWN_S = 120.0
+@dataclass
+class _ExhaustionEntry:
+    expires_at: float   # time.monotonic() timestamp
+    reason: str         # "rate_limit" | "billing" | "auth_error" | "not_found" | "server_error"
 
 
-def _is_exhausted(model: str) -> bool:
-    marked_at = _EXHAUSTED.get(model)
-    if marked_at is None:
+# Per-reason cooldown durations. A 429 defaults here but is overridden per-call
+# when the provider sends a usable reset header (see _parse_retry_after). 404
+# (invalid/deprecated model) and 401/403 (bad key/permissions) cannot self-heal
+# within this process -- both need a human or a code change -- so they get
+# long cooldowns to stop burning a wasted round-trip on every fallback-chain
+# call. 402 (billing) also needs a human, but is kept short enough that a
+# same-day fix can be noticed without operator intervention (see also
+# _clear_exhaustion for an explicit, immediate escape hatch). 5xx/timeouts are
+# transient and likely to clear fast.
+_COOLDOWN_S = {
+    "rate_limit": 120.0,
+    "billing": 45 * 60.0,
+    "auth_error": 6 * 3600.0,
+    "not_found": 24 * 3600.0,
+    "server_error": 30.0,
+}
+# Safety ceiling on a provider-supplied reset value. OpenRouter's real daily
+# free-tier quota reset can be observed ~11h out — a 1h cap (the original
+# value here) silently defeated that header and fell back to retrying hourly
+# against a quota that wasn't resetting for another 10 hours. 24h comfortably
+# covers any real daily-reset window while still bounding a malformed/absurd
+# header value.
+_MAX_RETRY_AFTER_S = 24 * 3600.0
+
+# HTTP timeout, split connect vs read rather than one blanket value. A short
+# connect timeout lets a genuinely unreachable host (dead DNS, refused
+# connection, network partition) fail fast instead of waiting out a long read
+# timeout it was never going to use. The read timeout is left at its original
+# value (unshortened) — a slower but live reasoning-model response must not
+# be truncated by a latency fix that was really aimed at dead connections.
+_HTTP_CONNECT_TIMEOUT_S = 5.0
+_HTTP_READ_TIMEOUT_S = 30.0
+_HTTP_TIMEOUT = httpx.Timeout(
+    connect=_HTTP_CONNECT_TIMEOUT_S, read=_HTTP_READ_TIMEOUT_S, write=10.0, pool=5.0,
+)
+
+_EXHAUSTED: dict[tuple[str, str], _ExhaustionEntry] = {}   # (provider, model) -> entry
+
+_PROVIDER_BY_URL = {
+    _OR_URL: "openrouter", _GROQ_URL: "groq",
+    _GEMINI_URL: "gemini", _MISTRAL_URL: "mistral",
+}
+
+
+def _provider_name_for_url(base_url: str) -> str:
+    return _PROVIDER_BY_URL.get(base_url, "unknown")
+
+
+# Groq sends compact duration strings on some rate-limit headers, e.g.
+# "5m46s", "2h", "45s" — optional hours/minutes/seconds components, at least
+# one of which must be present.
+_DURATION_STRING_RE = re.compile(
+    r"^(?:(?P<hours>\d+)h)?(?:(?P<minutes>\d+)m)?(?:(?P<seconds>\d+(?:\.\d+)?)s)?$"
+)
+
+
+def _parse_duration_string(raw: str) -> float | None:
+    match = _DURATION_STRING_RE.match(raw)
+    if not match or not any(match.groups()):
+        return None
+    hours = float(match.group("hours") or 0)
+    minutes = float(match.group("minutes") or 0)
+    seconds = float(match.group("seconds") or 0)
+    return hours * 3600.0 + minutes * 60.0 + seconds
+
+
+def _resolve_numeric_reset(value: float) -> float:
+    """Disambiguate a bare numeric reset value by magnitude: RFC 9110
+    Retry-After is delta-seconds, but several providers (e.g. OpenRouter)
+    send an absolute Unix timestamp instead, in seconds or milliseconds.
+    A delta-seconds value for any real cooldown is always far below 1e9;
+    a seconds-since-epoch timestamp for any current date is always above
+    it, and a milliseconds-since-epoch timestamp is always above 1e12."""
+    now = datetime.now(timezone.utc).timestamp()
+    if value > 1e12:
+        return (value / 1000.0) - now
+    if value > 1e9:
+        return value - now
+    return value
+
+
+def _parse_single_reset_value(raw: str) -> float | None:
+    """Parse one header's raw value into unclamped seconds-from-now. Tries,
+    in order: a Groq-style compact duration string ("5m46s"), a bare number
+    (relative delta-seconds, or an absolute Unix timestamp in
+    seconds/milliseconds — see _resolve_numeric_reset), and an RFC 9110
+    HTTP-date. Returns None if the value matches none of these shapes."""
+    duration = _parse_duration_string(raw)
+    if duration is not None:
+        return duration
+
+    try:
+        numeric = float(raw)
+    except ValueError:
+        numeric = None
+    if numeric is not None:
+        return _resolve_numeric_reset(numeric)
+
+    try:
+        dt = email.utils.parsedate_to_datetime(raw)
+    except (TypeError, ValueError):
+        dt = None
+    if dt is not None:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return (dt - datetime.now(timezone.utc)).total_seconds()
+    return None
+
+
+def _parse_retry_after(headers) -> float | None:
+    """Parse a provider's rate-limit reset headers into seconds-to-wait,
+    checked in priority order: Retry-After, then x-ratelimit-reset-requests,
+    then x-ratelimit-reset. The first header that parses to a strictly
+    positive (still-in-the-future) value wins outright and is returned
+    immediately — a later header is never even considered once one wins.
+
+    A header that's present but malformed, or that parses successfully to
+    a non-positive value (negative, zero, or an already-past timestamp),
+    does NOT win and does NOT stop the search — it must not mask a later
+    header's genuinely usable value. It's kept only as a last-resort
+    fallback (clamped to 0.0, meaning "ready now") in case no header ever
+    produces a usable positive number. Returns None only if every present
+    header was entirely unparseable."""
+    fallback = None
+    for name in ("retry-after", "x-ratelimit-reset-requests", "x-ratelimit-reset"):
+        raw = headers.get(name)
+        if not raw:
+            continue
+        parsed = _parse_single_reset_value(raw.strip())
+        if parsed is None:
+            continue
+        clamped = max(0.0, min(parsed, _MAX_RETRY_AFTER_S))
+        if clamped > 0:
+            return clamped
+        if fallback is None:
+            fallback = clamped
+    return fallback
+
+
+def _mark_exhausted(provider: str, model: str, reason: str, cooldown_s: float | None = None) -> None:
+    duration = cooldown_s if cooldown_s is not None else _COOLDOWN_S[reason]
+    _EXHAUSTED[(provider, model)] = _ExhaustionEntry(expires_at=time.monotonic() + duration, reason=reason)
+
+
+def _is_exhausted(provider: str, model: str) -> bool:
+    key = (provider, model)
+    entry = _EXHAUSTED.get(key)
+    if entry is None:
         return False
-    if time.monotonic() - marked_at >= _EXHAUSTED_COOLDOWN_S:
-        _EXHAUSTED.pop(model, None)
+    if time.monotonic() >= entry.expires_at:
+        _EXHAUSTED.pop(key, None)
         return False
     return True
+
+
+def _clear_exhaustion(provider: str, model: str | None = None) -> int:
+    """Operator escape hatch for verifying a fix out-of-band (e.g. after
+    restoring a provider's billing/subscription) without waiting out its
+    cooldown. Scoped to one provider, optionally one specific model within
+    it — never clears the whole table, so this can't accidentally wipe an
+    unrelated cooldown that's still legitimately protecting the chain.
+    Returns the number of entries removed."""
+    keys = [k for k in _EXHAUSTED if k[0] == provider and (model is None or k[1] == model)]
+    for k in keys:
+        _EXHAUSTED.pop(k, None)
+    return len(keys)
 
 
 # ── Per-tier priority-aware concurrency control ─────────────────────────────
@@ -630,8 +841,10 @@ async def _call_provider(
     failure_log: list[dict] | None = None,
 ) -> str:
     """Generic OpenAI-compatible call. Returns '' on any failure or rate-limit.
-    Marks the model as exhausted in _EXHAUSTED on HTTP 429 so future calls skip
-    it until the cooldown window elapses (see _EXHAUSTED_COOLDOWN_S above).
+    Classifies failures (429/402/401/403/404/5xx/timeout) and marks the
+    (provider, model) pair exhausted in _EXHAUSTED with a reason-appropriate
+    cooldown so future calls skip it until that window elapses (see
+    _COOLDOWN_S above).
 
     failure_log is optional and additive — when a caller passes a list, every
     skipped/failed attempt appends a structured {model, reason} record to it;
@@ -639,13 +852,10 @@ async def _call_provider(
     before. Built for triage_worker.py's fallback-visibility logging (see
     that module's docstring) without touching this function's actual
     fallback/retry behavior."""
-    _PROVIDER_BY_URL_EARLY = {
-        _OR_URL: "openrouter", _GROQ_URL: "groq",
-        _GEMINI_URL: "gemini", _MISTRAL_URL: "mistral",
-    }
-    if _is_exhausted(model):
+    provider_name = _provider_name_for_url(base_url)
+    if _is_exhausted(provider_name, model):
         if failure_log is not None:
-            failure_log.append({"model": model, "provider": _PROVIDER_BY_URL_EARLY.get(base_url, "unknown"), "reason": "already_exhausted"})
+            failure_log.append({"model": model, "provider": provider_name, "reason": "already_exhausted"})
         return ""
 
     messages = []
@@ -665,30 +875,54 @@ async def _call_provider(
     }
     if base_url == _GROQ_URL and model in _GROQ_REASONING_EFFORT:
         payload["reasoning_effort"] = _GROQ_REASONING_EFFORT[model]
-    _PROVIDER_BY_URL = {
-        _OR_URL: "openrouter", _GROQ_URL: "groq",
-        _GEMINI_URL: "gemini", _MISTRAL_URL: "mistral",
-    }
-    provider_name = _PROVIDER_BY_URL.get(base_url, "unknown")
 
     _AI_USAGE["calls_total"] += 1
     _AI_USAGE["last_call_at"] = datetime.now(timezone.utc).isoformat()
     _t0 = time.monotonic()
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
             r = await client.post(base_url, json=payload, headers=headers)
             if r.status_code == 429:
-                _EXHAUSTED[model] = time.monotonic()
-                log.warning("ai.exhausted", model=model, status=429, cooldown_s=_EXHAUSTED_COOLDOWN_S)
+                retry_after = _parse_retry_after(r.headers)
+                _mark_exhausted(provider_name, model, "rate_limit", cooldown_s=retry_after)
+                log.warning("ai.exhausted", model=model, provider=provider_name, status=429, reason="rate_limit",
+                            cooldown_s=retry_after if retry_after is not None else _COOLDOWN_S["rate_limit"],
+                            retry_after_header=retry_after is not None)
                 _AI_USAGE["calls_failed"] += 1
                 if failure_log is not None:
                     failure_log.append({"model": model, "provider": provider_name, "reason": "429"})
                 return ""
-            if r.status_code in (402, 503, 529):
-                log.warning("ai.rate_limited", model=model, status=r.status_code)
+            if r.status_code == 402:
+                _mark_exhausted(provider_name, model, "billing")
+                log.warning("ai.exhausted", model=model, provider=provider_name, status=402, reason="billing",
+                            cooldown_s=_COOLDOWN_S["billing"])
                 _AI_USAGE["calls_failed"] += 1
                 if failure_log is not None:
-                    failure_log.append({"model": model, "provider": provider_name, "reason": f"rate_limited_{r.status_code}"})
+                    failure_log.append({"model": model, "provider": provider_name, "reason": "402"})
+                return ""
+            if r.status_code in (401, 403):
+                _mark_exhausted(provider_name, model, "auth_error")
+                log.warning("ai.exhausted", model=model, provider=provider_name, status=r.status_code, reason="auth_error",
+                            cooldown_s=_COOLDOWN_S["auth_error"])
+                _AI_USAGE["calls_failed"] += 1
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": provider_name, "reason": f"auth_error_{r.status_code}"})
+                return ""
+            if r.status_code == 404:
+                _mark_exhausted(provider_name, model, "not_found")
+                log.warning("ai.exhausted", model=model, provider=provider_name, status=404, reason="not_found",
+                            cooldown_s=_COOLDOWN_S["not_found"])
+                _AI_USAGE["calls_failed"] += 1
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": provider_name, "reason": "404"})
+                return ""
+            if r.status_code >= 500:
+                _mark_exhausted(provider_name, model, "server_error")
+                log.warning("ai.exhausted", model=model, provider=provider_name, status=r.status_code, reason="server_error",
+                            cooldown_s=_COOLDOWN_S["server_error"])
+                _AI_USAGE["calls_failed"] += 1
+                if failure_log is not None:
+                    failure_log.append({"model": model, "provider": provider_name, "reason": f"server_error_{r.status_code}"})
                 return ""
             r.raise_for_status()
             data = r.json()
@@ -708,11 +942,18 @@ async def _call_provider(
                 _AI_USAGE["tokens_total"] += usage["total_tokens"]
             return _strip_reasoning(content.strip()) if content else ""
     except Exception as exc:
-        log.warning("ai.exception", model=model, exc=str(exc)[:120])
+        is_timeout = isinstance(exc, httpx.TimeoutException) or "timeout" in str(exc).lower()
+        # Anything landing here (timeout, connection failure, an unhandled
+        # HTTP status from raise_for_status, a malformed response body) is
+        # treated as transient — same short cooldown as an explicit 5xx, so a
+        # single hung/broken provider can't be re-hit on every subsequent
+        # fallback-chain call within the window.
+        _mark_exhausted(provider_name, model, "server_error")
+        log.warning("ai.exception", model=model, provider=provider_name, exc=str(exc)[:120], is_timeout=is_timeout,
+                    cooldown_s=_COOLDOWN_S["server_error"])
         _AI_USAGE["calls_failed"] += 1
         _AI_USAGE["last_error_at"] = datetime.now(timezone.utc).isoformat()
         _AI_USAGE["last_error"] = str(exc)[:200]
-        is_timeout = isinstance(exc, httpx.TimeoutException) or "timeout" in str(exc).lower()
         if is_timeout:
             _AI_USAGE["timeouts"] += 1
         if failure_log is not None:
@@ -826,8 +1067,8 @@ async def _call_with_fallback(
     """
     Try providers in *empirical reliability* order until one returns a
     non-empty response — not just nominal "quality", but what's actually been
-    observed to work. Models that recently returned 429 are skipped instantly
-    until their cooldown window elapses (see _EXHAUSTED_COOLDOWN_S).
+    observed to work. Models that recently failed are skipped instantly until
+    their reason-specific cooldown window elapses (see _COOLDOWN_S).
 
     Chain (reordered 2026-07-26 after live benchmark testing showed OpenRouter's
     free models 429 almost immediately under any sustained load, while Groq
@@ -857,7 +1098,7 @@ async def _call_with_fallback(
         async with _tier_slot("groq-hq", priority) as acquired:
             if acquired:
                 for model in _GROQ_HIGH:
-                    if _is_exhausted(model):
+                    if _is_exhausted("groq", model):
                         if failure_log is not None:
                             failure_log.append({"model": model, "provider": "groq-hq", "reason": "already_exhausted"})
                         continue
@@ -874,7 +1115,7 @@ async def _call_with_fallback(
         async with _tier_slot("groq-fast", priority) as acquired:
             if acquired:
                 for model in _GROQ_FAST:
-                    if _is_exhausted(model):
+                    if _is_exhausted("groq", model):
                         if failure_log is not None:
                             failure_log.append({"model": model, "provider": "groq-fast", "reason": "already_exhausted"})
                         continue
@@ -888,7 +1129,7 @@ async def _call_with_fallback(
         async with _tier_slot("openrouter-hq", priority) as acquired:
             if acquired:
                 for model in _OR_HIGH_QUALITY:
-                    if _is_exhausted(model):
+                    if _is_exhausted("openrouter", model):
                         if failure_log is not None:
                             failure_log.append({"model": model, "provider": "openrouter-hq", "reason": "already_exhausted"})
                         continue
@@ -902,7 +1143,7 @@ async def _call_with_fallback(
         async with _tier_slot("mistral", priority) as acquired:
             if acquired:
                 for model in _MISTRAL_MODELS:
-                    if _is_exhausted(model):
+                    if _is_exhausted("mistral", model):
                         if failure_log is not None:
                             failure_log.append({"model": model, "provider": "mistral", "reason": "already_exhausted"})
                         continue
@@ -916,7 +1157,7 @@ async def _call_with_fallback(
         async with _tier_slot("gemini", priority) as acquired:
             if acquired:
                 for model in _GEMINI_MODELS:
-                    if _is_exhausted(model):
+                    if _is_exhausted("gemini", model):
                         if failure_log is not None:
                             failure_log.append({"model": model, "provider": "gemini", "reason": "already_exhausted"})
                         continue
@@ -930,7 +1171,7 @@ async def _call_with_fallback(
         async with _tier_slot("openrouter-small", priority) as acquired:
             if acquired:
                 for model in _OR_SMALL:
-                    if _is_exhausted(model):
+                    if _is_exhausted("openrouter", model):
                         if failure_log is not None:
                             failure_log.append({"model": model, "provider": "openrouter-small", "reason": "already_exhausted"})
                         continue
