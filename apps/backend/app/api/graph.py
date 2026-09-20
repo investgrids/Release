@@ -75,9 +75,16 @@ def _yf_sparkline(ticker: str, points: int = 8) -> list[float]:
         return []
 
 
-@router.get("/full")
+@router.get("/full", dependencies=[Depends(require_admin_key)])
 async def get_full_graph():
-    """All nodes + edges for graph visualisation. Cached 5 min."""
+    """All nodes + edges -- admin-key-gated (2026-09-20, step 4/4 of the
+    egress remediation). No public consumer remains: a full grep audit
+    confirmed the only two real HTTP callers (app/graph/page.tsx and
+    IntelligenceGraph.tsx's live-poll refresh) were moved to the bounded
+    /default-subgraph and /subgraph/{id} endpoints in the prior two
+    deploys, and production HTTP logs confirmed zero real (non-manual)
+    requests to this route after that move. Kept for internal/admin
+    tooling rather than removed outright. Cached 5 min."""
     from app.services.intelligence_graph_service import get_full_graph
     return await get_full_graph()
 
