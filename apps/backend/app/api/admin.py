@@ -240,9 +240,27 @@ async def p7_withhold_status(db: AsyncSession = Depends(get_db)):
 # multi-row update. Meant for removal once the single-canary review
 # concludes (either kept public as the first real promoted row, or
 # reverted after review).
+#
+# Item 7 enforcement (2026-09-20): this is the ONE real write path to
+# public_status="public" in the whole codebase (confirmed by a full grep
+# audit -- orchestration.py only ever sets "shadow" at creation), so
+# gating it here is sufficient to close the promotion-eligibility gate
+# everywhere. evaluate_promotion_eligibility() runs BEFORE the guarded
+# UPDATE and makes no database write of its own; a rejection returns a
+# machine-readable reason and touches nothing -- no row mutation, no
+# narrative rewrite/delete, no score/identity/candidate_status/
+# narrative_status change.
 @router.post("/opportunity-v2-canary-promote", dependencies=[Depends(require_admin_key)])
 async def opportunity_v2_canary_promote(opportunity_id: str, db: AsyncSession = Depends(get_db)):
     from app.db.models.opportunity_v2 import OpportunityV2
+    from app.services.opportunity_v2.promotion_gate import evaluate_promotion_eligibility
+
+    eligibility = await evaluate_promotion_eligibility(db, opportunity_id)
+    if not eligibility.allowed:
+        raise HTTPException(
+            status_code=422,
+            detail={"reason": eligibility.reason, "evaluated": eligibility.evaluated},
+        )
 
     result = await db.execute(
         update(OpportunityV2)
