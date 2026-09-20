@@ -6,8 +6,8 @@ like an unmounted volume before they cause data loss.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_admin_key
@@ -225,3 +225,61 @@ async def p7_withhold_status(db: AsyncSession = Depends(get_db)):
         })
     result["specimens"] = specimens
     return result
+
+
+# ── TEMPORARY -- Opportunity V2 one-row public canary (owner-authorized,
+# 2026-09-20). Promotes exactly one pre-selected, pre-verified OpportunityV2
+# row out of shadow while `settings.opportunity_read_source` stays "v1" --
+# the read-source flag governs which engine's LIST/detail data actually
+# serves users; this canary is reachable only via its own real V2 slug
+# (radar.py's dual-lookup route), never surfaced on any V1 list/hub
+# surface. Each endpoint does an exact primary-key UPDATE guarded by the
+# CURRENT public_status in the WHERE clause, inside one transaction,
+# and refuses to report success unless exactly one row was affected --
+# never a blind "public_status = X" write with no guard, never a
+# multi-row update. Meant for removal once the single-canary review
+# concludes (either kept public as the first real promoted row, or
+# reverted after review).
+@router.post("/opportunity-v2-canary-promote", dependencies=[Depends(require_admin_key)])
+async def opportunity_v2_canary_promote(opportunity_id: str, db: AsyncSession = Depends(get_db)):
+    from app.db.models.opportunity_v2 import OpportunityV2
+
+    result = await db.execute(
+        update(OpportunityV2)
+        .where(OpportunityV2.id == opportunity_id, OpportunityV2.public_status == "shadow")
+        .values(public_status="public")
+    )
+    if result.rowcount != 1:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Expected exactly 1 row affected (id matched a shadow row), got {result.rowcount}. No change made.",
+        )
+    await db.commit()
+
+    row = (await db.execute(select(OpportunityV2).where(OpportunityV2.id == opportunity_id))).scalar_one()
+    return {
+        "id": row.id, "slug": row.slug, "public_status": row.public_status,
+        "current_title": row.current_title, "updated_at": row.updated_at,
+    }
+
+
+@router.post("/opportunity-v2-canary-revert", dependencies=[Depends(require_admin_key)])
+async def opportunity_v2_canary_revert(opportunity_id: str, db: AsyncSession = Depends(get_db)):
+    from app.db.models.opportunity_v2 import OpportunityV2
+
+    result = await db.execute(
+        update(OpportunityV2)
+        .where(OpportunityV2.id == opportunity_id, OpportunityV2.public_status == "public")
+        .values(public_status="shadow")
+    )
+    if result.rowcount != 1:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Expected exactly 1 row affected (id matched a public row), got {result.rowcount}. No change made.",
+        )
+    await db.commit()
+
+    row = (await db.execute(select(OpportunityV2).where(OpportunityV2.id == opportunity_id))).scalar_one()
+    return {"id": row.id, "slug": row.slug, "public_status": row.public_status}
