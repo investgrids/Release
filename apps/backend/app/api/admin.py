@@ -6,13 +6,18 @@ like an unmounted volume before they cause data loss.
 """
 from __future__ import annotations
 
+import hashlib
+
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_admin_key
 from app.db.session import get_db
 
+log = structlog.get_logger(__name__)
 router = APIRouter()
 
 
@@ -301,3 +306,157 @@ async def opportunity_v2_canary_revert(opportunity_id: str, db: AsyncSession = D
 
     row = (await db.execute(select(OpportunityV2).where(OpportunityV2.id == opportunity_id))).scalar_one()
     return {"id": row.id, "slug": row.slug, "public_status": row.public_status}
+
+
+# ── Editorial override (2026-09-20) ─────────────────────────────────────────
+# A canary/editorial safety valve, not the scalable fix for narrative
+# overreach -- that needs an evidence-bounded generation strategy in the
+# pipeline itself (see opportunity_v2.py's own column comment and
+# read_service.py's _effective_title/_effective_summary, the only two
+# functions every public read goes through). This is the ONE write path
+# for editorial_title/editorial_summary/editorial_reason/
+# editorial_updated_at in the whole codebase -- generated_title/
+# generated_summary (current_title/current_summary) are never touched here,
+# so the original AI output stays fully auditable regardless of how many
+# times an override is set or cleared.
+#
+# Deliberately restricted to public_status="shadow" rows: this exists to
+# let a human sign off on a strictly-evidence-traceable title/summary
+# BEFORE a candidate is ever promoted, not to silently rewrite something
+# already live. Promotion itself still goes through
+# opportunity-v2-canary-promote above and its own promotion_gate check --
+# nothing here changes public_status.
+
+
+def _generated_content_hash(row) -> str:
+    return hashlib.sha256(f"{row.current_title or ''}\n{row.current_summary or ''}".encode("utf-8")).hexdigest()
+
+
+def _editorial_content_hash(title: str, summary: str) -> str:
+    return hashlib.sha256(f"{title}\n{summary}".encode("utf-8")).hexdigest()
+
+
+class EditorialOverrideRequest(BaseModel):
+    title: str
+    summary: str
+    reason: str
+    expected_generated_hash: str
+
+
+class EditorialClearRequest(BaseModel):
+    reason: str
+    expected_generated_hash: str
+
+
+@router.post("/opportunity-v2-editorial-override", dependencies=[Depends(require_admin_key)])
+async def opportunity_v2_editorial_override(
+    opportunity_id: str, body: EditorialOverrideRequest, db: AsyncSession = Depends(get_db),
+):
+    from datetime import datetime, timezone
+    from app.db.models.opportunity_v2 import OpportunityV2
+
+    if not body.reason.strip():
+        raise HTTPException(status_code=422, detail={"reason": "reason_required"})
+
+    row = (await db.execute(select(OpportunityV2).where(OpportunityV2.id == opportunity_id))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail={"reason": "not_found"})
+
+    if row.public_status != "shadow":
+        raise HTTPException(status_code=422, detail={"reason": "not_shadow", "public_status": row.public_status})
+
+    actual_hash = _generated_content_hash(row)
+    if actual_hash != body.expected_generated_hash:
+        raise HTTPException(
+            status_code=409,
+            detail={"reason": "stale_generated_hash", "expected": body.expected_generated_hash, "actual": actual_hash},
+        )
+
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        update(OpportunityV2)
+        .where(OpportunityV2.id == opportunity_id, OpportunityV2.public_status == "shadow")
+        .values(
+            editorial_title=body.title, editorial_summary=body.summary,
+            editorial_reason=body.reason, editorial_updated_at=now,
+        )
+    )
+    if result.rowcount != 1:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"Expected exactly 1 row affected (id matched a shadow row), got {result.rowcount}. No change made.",
+        )
+    await db.commit()
+
+    row = (await db.execute(select(OpportunityV2).where(OpportunityV2.id == opportunity_id))).scalar_one()
+    log.info(
+        "opportunity_v2.editorial_override.applied",
+        opportunity_id=opportunity_id, reason=body.reason,
+        generated_content_hash=actual_hash,
+        editorial_content_hash=_editorial_content_hash(body.title, body.summary),
+    )
+    from app.services.opportunity_v2.read_service import _effective_title, _effective_summary
+    return {
+        "id": row.id, "slug": row.slug, "public_status": row.public_status,
+        "editorial_title": row.editorial_title, "editorial_summary": row.editorial_summary,
+        "editorial_reason": row.editorial_reason, "editorial_updated_at": row.editorial_updated_at,
+        "effective_title": _effective_title(row), "effective_summary": _effective_summary(row),
+    }
+
+
+@router.post("/opportunity-v2-editorial-clear", dependencies=[Depends(require_admin_key)])
+async def opportunity_v2_editorial_clear(
+    opportunity_id: str, body: EditorialClearRequest, db: AsyncSession = Depends(get_db),
+):
+    from datetime import datetime, timezone
+    from app.db.models.opportunity_v2 import OpportunityV2
+
+    if not body.reason.strip():
+        raise HTTPException(status_code=422, detail={"reason": "reason_required"})
+
+    row = (await db.execute(select(OpportunityV2).where(OpportunityV2.id == opportunity_id))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail={"reason": "not_found"})
+
+    if row.public_status != "shadow":
+        raise HTTPException(status_code=422, detail={"reason": "not_shadow", "public_status": row.public_status})
+
+    actual_hash = _generated_content_hash(row)
+    if actual_hash != body.expected_generated_hash:
+        raise HTTPException(
+            status_code=409,
+            detail={"reason": "stale_generated_hash", "expected": body.expected_generated_hash, "actual": actual_hash},
+        )
+
+    before_editorial_hash = (
+        _editorial_content_hash(row.editorial_title, row.editorial_summary)
+        if row.editorial_title is not None or row.editorial_summary is not None
+        else None
+    )
+
+    # Idempotent by design -- clearing an already-cleared row is a
+    # successful no-op (rowcount 0 here means nothing needed to change,
+    # not an error), matching DELETE-style idempotency rather than
+    # requiring an override to currently exist.
+    await db.execute(
+        update(OpportunityV2)
+        .where(OpportunityV2.id == opportunity_id, OpportunityV2.public_status == "shadow")
+        .values(editorial_title=None, editorial_summary=None, editorial_reason=None, editorial_updated_at=None)
+    )
+    await db.commit()
+
+    row = (await db.execute(select(OpportunityV2).where(OpportunityV2.id == opportunity_id))).scalar_one()
+    log.info(
+        "opportunity_v2.editorial_override.cleared",
+        opportunity_id=opportunity_id, reason=body.reason,
+        generated_content_hash=actual_hash,
+        editorial_content_hash_before=before_editorial_hash,
+    )
+    from app.services.opportunity_v2.read_service import _effective_title, _effective_summary
+    return {
+        "id": row.id, "slug": row.slug, "public_status": row.public_status,
+        "editorial_title": row.editorial_title, "editorial_summary": row.editorial_summary,
+        "editorial_reason": row.editorial_reason, "editorial_updated_at": row.editorial_updated_at,
+        "effective_title": _effective_title(row), "effective_summary": _effective_summary(row),
+    }

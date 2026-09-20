@@ -136,6 +136,21 @@ class OpportunityV2(Base):
     created_at                       = Column(DateTime(timezone=True), nullable=False, default=_now)
     updated_at                        = Column(DateTime(timezone=True), nullable=False, default=_now)  # bumped on every merge
 
+    # Editorial override (2026-09-20) — a canary/editorial safety valve, not
+    # the long-term fix for narrative overreach (that needs an
+    # evidence-bounded generation strategy in the pipeline itself). Lets a
+    # human-reviewed, strictly-evidence-traceable title/summary take
+    # precedence over the generated ones WITHOUT overwriting or discarding
+    # generated_title/generated_summary — see read_service.py's
+    # _effective_title/_effective_summary for the actual precedence and
+    # app/api/admin.py's opportunity-v2-editorial-override/-clear endpoints
+    # for the only write path. All four null together (the common case) or
+    # populated together (never partially set) by that endpoint.
+    editorial_title                     = Column(String(500), nullable=True)
+    editorial_summary                   = Column(Text, nullable=True)
+    editorial_reason                    = Column(Text, nullable=True)
+    editorial_updated_at                = Column(DateTime(timezone=True), nullable=True)
+
     __table_args__ = (
         Index("ix_ov2_thesis", "thesis_anchor", "thesis_direction"),
         Index("ix_ov2_status_updated", "status", "updated_at"),

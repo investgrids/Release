@@ -152,6 +152,25 @@ class OpportunityV2DetailResponse(BaseModel):
     updated_at: str
 
 
+# ── Editorial override precedence (2026-09-20) ──────────────────────────────
+# A canary/editorial safety valve (see OpportunityV2's own column comment
+# and app/api/admin.py's opportunity-v2-editorial-override/-clear endpoints
+# for the only write path) -- every public read of title/summary must go
+# through these two functions so the precedence is identical everywhere,
+# not re-implemented per call site with a chance of drifting.
+
+def _effective_title(opp: OpportunityV2) -> str:
+    if opp.editorial_title:
+        return opp.editorial_title
+    return opp.current_title or opp.formation_title or opp.thesis_anchor
+
+
+def _effective_summary(opp: OpportunityV2) -> Optional[str]:
+    if opp.editorial_summary:
+        return opp.editorial_summary
+    return opp.current_summary if opp.narrative_status == "generated" else None
+
+
 # ── Assembly ─────────────────────────────────────────────────────────────────
 
 async def _fetch_linked_developments(db: AsyncSession, opportunity_id: str) -> list[Development]:
@@ -332,7 +351,7 @@ async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[Opp
             current_title=opp.current_title, current_score=opp.current_score,
         )
 
-    why_this_exists = opp.current_summary if opp.narrative_status == "generated" else None
+    why_this_exists = _effective_summary(opp)
 
     # V2-A contract alignment, 2026-08-24 — the response had no top-level
     # display title at all (only formation_title/current_title inside
@@ -342,8 +361,9 @@ async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[Opp
     # itself already documents (opportunity_v2.py's own column comment) and
     # orchestration.py already uses for slug_base — never a fabricated
     # string, and identical to what this opportunity would already fall
-    # back to elsewhere in the codebase.
-    title = opp.current_title or opp.formation_title or opp.thesis_anchor
+    # back to elsewhere in the codebase. Editorial override (2026-09-20)
+    # takes precedence over that whole chain when present.
+    title = _effective_title(opp)
 
     companies_connected = await _build_companies_connected(db, opp)
     ripple = await _build_ripple(opp.thesis_anchor, developments)
@@ -411,7 +431,7 @@ async def list_public_opportunities_v2(db: AsyncSession, page: int = 1, page_siz
     items = [
         OpportunityV2ListItem(
             id=o.id, slug=o.slug,
-            title=o.current_title or o.formation_title or o.thesis_anchor,
+            title=_effective_title(o),
             current_strength=o.current_score, sectors_themes=o.sectors or [],
             updated_at=o.updated_at.isoformat(),
         )
@@ -454,8 +474,8 @@ async def list_public_opportunities_v2_by_sector_or_theme(db: AsyncSession, term
     return [
         {
             "id": o.id, "slug": o.slug,
-            "title": o.current_title or o.formation_title or o.thesis_anchor,
-            "summary": o.current_summary if o.narrative_status == "generated" else None,
+            "title": _effective_title(o),
+            "summary": _effective_summary(o),
             "current_strength": o.current_score, "direction": o.thesis_direction,
             "sectors": o.sectors or [],
         }
@@ -485,7 +505,7 @@ async def list_public_opportunities_v2_for_company(db: AsyncSession, symbol: str
     return [
         {
             "id": o.id,
-            "title": o.current_title or o.formation_title or o.thesis_anchor,
+            "title": _effective_title(o),
             "href": f"/opportunity-radar/{o.slug}",
             "score": o.current_score,
         }

@@ -112,6 +112,15 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     # backfills to the same empty value the ORM's own Python-side default
     # already produces for a fresh insert.
     ("intelligence_articles", "key_facts", "JSON DEFAULT '[]'"),
+    # Editorial override (2026-09-20) — opportunities_v2 already existed
+    # (873 real shadow rows) before these columns did. All nullable, no
+    # default needed: null means "no override, use the generated content"
+    # for every existing row, which is exactly the correct read for rows
+    # that predate this mechanism.
+    ("opportunities_v2", "editorial_title", "VARCHAR(500)"),
+    ("opportunities_v2", "editorial_summary", "TEXT"),
+    ("opportunities_v2", "editorial_reason", "TEXT"),
+    ("opportunities_v2", "editorial_updated_at", "DATETIME"),
 ]
 
 
