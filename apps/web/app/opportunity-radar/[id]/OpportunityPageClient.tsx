@@ -7,7 +7,7 @@ import { fixMojibake, truncateForQuery } from "@/lib/text";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { RelatedContent } from "@/components/RelatedContent";
 import { NextSteps } from "@/components/NextSteps";
-import { OpportunityRippleGraph } from "@/components/OpportunityRippleGraph";
+import { ImpactMap } from "@/components/ImpactMap";
 import Link from "next/link";
 import { Lightbulb, Building2, AlertTriangle, Ban, Check, Zap, CalendarClock, History, Gauge } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
@@ -271,11 +271,22 @@ export function LegacyOpportunityDetail({ detail, id, hasInitialDetail, initialR
             </Link>
           )}
 
-          {/* ── Step 2: Ripple Analysis — real OpportunityGraphNode/Edge
-              data (pipeline-populated, previously never rendered). ──────── */}
-          {d.graph_nodes.length > 0 && (
-            <OpportunityRippleGraph nodes={d.graph_nodes} edges={d.graph_edges} />
-          )}
+          {/* V1's bubble/node "Ripple Analysis" graph removed (2026-09-20
+              UX integrity fix, owner review): oversized canvas, toy-like
+              colored bubbles/halos, clipped labels, no hierarchy between
+              sectors/companies, every edge visually identical, no real
+              direction/strength/evidence/impact meaning conveyed — not a
+              restyle candidate, a replacement. V1's graph_nodes/graph_edges
+              were already flagged as a fabricated "fake star topology" in
+              the V2 promotion plan (see Batch B's explicitly-excluded list)
+              and never got a real Impact Map equivalent for V1's data shape
+              (OpportunityGraphNode/Edge carry no real edge_type/direction
+              semantics the way V2's graph does) -- removed outright rather
+              than kept as a known-misleading visualization. See
+              V2OpportunityDetail's ImpactMap below for the real,
+              evidence-backed replacement, which only exists where the real
+              V2 contract (ripple.edges' real benefits/hurts/influences
+              direction) actually supports it. */}
 
           {/* Why this opportunity exists. A real "Opportunity Score Over
               Time" section used to sit alongside this (2-col grid) — removed
@@ -649,8 +660,6 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
   const strength = d.current_strength !== null && d.current_strength !== undefined ? Math.round(d.current_strength) : null;
   const dir = directionMeta(d.direction);
   const narrativeBanner = narrativeStatusLabel(d.narrative_status);
-  const rippleNodes = d.ripple.nodes.map(n => ({ node_id: n.id, label: n.label, node_type: n.node_type }));
-  const rippleEdges = d.ripple.edges.map(e => ({ source: e.source, target: e.target, relationship: e.edge_type }));
   const topCompanies = d.companies_connected.slice(0, 2);
 
   return (
@@ -708,14 +717,12 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
             )}
           </SectionCard>
 
-          {/* Ripple — union of every linked Development's real 1-hop graph
-              neighborhood (read_service.py's _build_ripple), rooted on the
-              real thesis anchor when it's part of that union. Empty for a
-              raw_company:/raw_dev: opportunity with no graph-linked
-              Developments — correct, not a manufactured star. */}
-          {rippleNodes.length > 0 && (
-            <OpportunityRippleGraph nodes={rippleNodes} edges={rippleEdges} centerId={d.ripple.anchor ?? undefined} />
-          )}
+          {/* Evidence-Backed Impact Map (2026-09-20, replaces the bubble/
+              node graph entirely — see ImpactMap.tsx's own header comment
+              for the full rationale and real edge-vocabulary this is built
+              from). Renders nothing when no evidence-backed relationship
+              exists — never an empty placeholder. */}
+          <ImpactMap ripple={d.ripple} supportingEvidence={d.supporting_evidence} companiesConnected={d.companies_connected} />
 
           {/* Why this exists */}
           <SectionCard title="Why this opportunity exists">

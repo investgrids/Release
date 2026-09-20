@@ -8,7 +8,6 @@ import { LegacyOpportunityDetail, type OpportunityDetail } from "./OpportunityPa
 vi.mock("@/components/TrackPageVisit", () => ({ TrackPageVisit: () => null }));
 vi.mock("@/components/RelatedContent", () => ({ RelatedContent: () => null }));
 vi.mock("@/components/NextSteps", () => ({ NextSteps: () => null }));
-vi.mock("@/components/OpportunityRippleGraph", () => ({ OpportunityRippleGraph: () => null }));
 
 function baseV1Detail(overrides: Partial<OpportunityDetail> = {}): OpportunityDetail {
   return {
