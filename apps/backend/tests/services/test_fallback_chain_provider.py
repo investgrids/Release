@@ -37,6 +37,21 @@ from app.services.measurement_semantics import IntegrityStatus
 _CLASSIFY_FALLBACK_BASE = {"category": "macro", "confidence": 0.7, "subcategory": "general"}
 
 
+@pytest.fixture(autouse=True)
+def fresh_exhaustion_state(monkeypatch):
+    """These tests fully mock _call_provider to exercise
+    FallbackChainAIProvider's delegation and tier-fallback ordering
+    deterministically -- they must not be at the mercy of real
+    ai_service._EXHAUSTED state left over from live-network tests
+    elsewhere in the suite (this dev environment's free-tier keys are
+    frequently already exhausted; since 2026-09-20's provider-aware
+    cooldown fix, that state can now legitimately persist for up to 24h,
+    long enough to starve every mocked tier's _is_exhausted gate for the
+    rest of a single pytest run). Same isolation pattern as
+    test_ai_service_cooldowns.py and test_ai_service_nvidia.py."""
+    monkeypatch.setattr(ai_service, "_EXHAUSTED", {})
+
+
 async def _cleanup(*ids: str) -> None:
     async with AsyncSessionLocal() as db:
         await db.execute(delete(Event).where(Event.id.in_(ids)))
