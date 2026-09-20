@@ -29,9 +29,18 @@ from app.core.config import settings
 log = structlog.get_logger(__name__)
 
 _BACKUP_DIR = Path("/data/backups")
-# The Railway volume backing /data is 879MB real per `df -h` (Railway's own
-# dashboard says 1000MB — same dashboard-vs-real gap this comment has
-# already flagged once before, at a smaller size). CR-0 (2026-09-10):
+# CR-2 (2026-09-20): resized from 1GB to 5GB the same day as the volume's
+# near-exhaustion incident (real free space hit 6.7MB before that day's
+# cleanup+resize) — this constant is EXACTLY the kind of value the CR-0
+# comment below warns goes stale on every resize; updated here to the
+# real post-resize total (4685873152 bytes / ~4.4GB usable, confirmed via
+# `df -h` and the app's own backup.disk_usage log line at the time of the
+# resize), not Railway's dashboard-reported 5000MB provisioned figure —
+# same real-vs-provisioned gap this comment has flagged twice before now.
+#
+# The Railway volume backing /data was previously 879MB real per `df -h`
+# (Railway's own dashboard said 1000MB — the first instance of that same
+# dashboard-vs-real gap). CR-0 (2026-09-10):
 # this constant had drifted to a stale 434MB, last set for an even older,
 # smaller volume — never updated as Railway resized it. That drift didn't
 # change _max_backup_slots()'s answer at the time (both values hit the same
@@ -62,7 +71,7 @@ _BACKUP_DIR = Path("/data/backups")
 # stops giving useful history (a real sign the volume itself is now too
 # small for this app's data, not a retention-math problem — see CR-0b,
 # moving the durable backup copy off this volume entirely).
-_VOLUME_TOTAL_BYTES = 879 * 1024 * 1024
+_VOLUME_TOTAL_BYTES = 4685873152
 _TARGET_USED_FRACTION = 0.70  # keep steady-state usage under the 75% warn threshold below
 _MIN_DAILY_RETENTION = 1  # always keep at least "yesterday", even on a large/growing DB
 _MIN_BOOT_RETENTION = 1
@@ -76,11 +85,15 @@ _MIN_BOOT_RETENTION = 1
 # at today's real, tight (~340MB after pruning) headroom.
 _REQUIRED_HEADROOM_FACTOR = 1.15
 
-# Backup volume usage at/above this fraction gets a log.warning on every
-# backup, so a slow refill (e.g. a retention bug) surfaces long before the
-# disk actually fills — instead of only being visible once writes start
-# failing.
-_DISK_WARN_THRESHOLD = 0.75
+# CR-2 (2026-09-20): two-tier capacity alert, set after the volume was
+# expanded to 5GB following the 2026-09-20 near-exhaustion incident (real
+# free space hit 6.7MB / 0.76% before that day's cleanup+resize). 70% is
+# an early warning with runway left to act calmly; 90% is the threshold
+# the same incident's own post-mortem set as "act now" — both fire on
+# every backup, not just once, so a slow refill stays visible the whole
+# time it's happening rather than only at the moment it crosses the line.
+_DISK_WARN_THRESHOLD = 0.70
+_DISK_URGENT_THRESHOLD = 0.90
 
 _DAILY_PREFIX = "ig-daily-"
 
@@ -346,11 +359,19 @@ def _log_backup_disk_usage() -> None:
         volume_free_bytes=usage.free,
         volume_used_pct=round(used_pct * 100, 1),
     )
-    if used_pct >= _DISK_WARN_THRESHOLD:
+    if used_pct >= _DISK_URGENT_THRESHOLD:
+        log.error(
+            "backup.disk_usage_urgent",
+            volume_used_pct=round(used_pct * 100, 1),
+            volume_free_bytes=usage.free,
+            threshold_pct=round(_DISK_URGENT_THRESHOLD * 100, 1),
+        )
+    elif used_pct >= _DISK_WARN_THRESHOLD:
         log.warning(
             "backup.disk_usage_high",
             volume_used_pct=round(used_pct * 100, 1),
             volume_free_bytes=usage.free,
+            threshold_pct=round(_DISK_WARN_THRESHOLD * 100, 1),
         )
 
 

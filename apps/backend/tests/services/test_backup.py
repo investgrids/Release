@@ -252,7 +252,7 @@ def test_disk_usage_warning_fires_above_threshold(isolated_backup_env, monkeypat
 
     class _FakeUsage:
         total = 1000
-        used = 800  # 80% — above the 75% warn threshold
+        used = 800  # 80% — above the 70% warn threshold, below the 90% urgent one
         free = 200
 
     monkeypatch.setattr(backup_module.shutil, "disk_usage", lambda path: _FakeUsage())
@@ -264,6 +264,34 @@ def test_disk_usage_warning_fires_above_threshold(isolated_backup_env, monkeypat
     args, kwargs = calls[0]
     assert args[0] == "backup.disk_usage_high"
     assert kwargs["volume_used_pct"] == 80.0
+    assert kwargs["volume_free_bytes"] == 200, "alert must include absolute free space, not just the percentage"
+
+
+def test_disk_usage_urgent_fires_at_90_percent_not_just_warning(isolated_backup_env, monkeypatch):
+    """CR-2 (2026-09-20): the 2026-09-20 near-exhaustion incident's own
+    post-mortem set 90% as the 'act now' line, distinct from the 70%
+    early-warning one — must be its own log.error tier, not folded into
+    the same warning as 70-89%."""
+    warn_calls = []
+    error_calls = []
+
+    class _FakeUsage:
+        total = 1000
+        used = 950  # 95% — above the 90% urgent threshold
+        free = 50
+
+    monkeypatch.setattr(backup_module.shutil, "disk_usage", lambda path: _FakeUsage())
+    monkeypatch.setattr(backup_module.log, "warning", lambda *a, **kw: warn_calls.append((a, kw)))
+    monkeypatch.setattr(backup_module.log, "error", lambda *a, **kw: error_calls.append((a, kw)))
+
+    backup_module._log_backup_disk_usage()
+
+    assert warn_calls == [], "at 90%+ only the urgent alert should fire, not also the 70% warning"
+    assert len(error_calls) == 1
+    args, kwargs = error_calls[0]
+    assert args[0] == "backup.disk_usage_urgent"
+    assert kwargs["volume_used_pct"] == 95.0
+    assert kwargs["volume_free_bytes"] == 50, "alert must include absolute free space, not just the percentage"
 
 
 # ── CR-0 (2026-09-10): pre-copy capacity guard + integrity check ───────────────
