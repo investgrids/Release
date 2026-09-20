@@ -36,7 +36,7 @@ function Styles() {
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface RawNode { id:string; node_type:string; label:string; ticker?:string; description?:string; }
 interface RawEdge { id:string; source:string; target:string; edge_type:string; weight:number; confidence:number; lag_days?:number; }
-interface GData    { nodes:RawNode[]; edges:RawEdge[]; }
+interface GData    { nodes:RawNode[]; edges:RawEdge[]; center_id?:string|null; }
 interface RippleImpact { node:RawNode; depth:number; impact_direction:"positive"|"negative"|"uncertain"; accumulated_weight:number; }
 interface RippleResult { source:RawNode; change:string; total_impacted:number; impacts:RippleImpact[]; }
 interface LivePrice { price:number; change:number; pct:number; positive:boolean; ticker:string; }
@@ -126,11 +126,20 @@ function deg(nodes:RawNode[], edges:RawEdge[]): Record<string,number> {
   edges.forEach(e=>{d[e.source]=(d[e.source]??0)+1;d[e.target]=(d[e.target]??0)+1;});
   return d;
 }
-function pickCenter(nodes:RawNode[], edges:RawEdge[]): string {
+export function pickCenter(nodes:RawNode[], edges:RawEdge[]): string {
+  // Deterministic tie-break by id (2026-09-20) -- matches the backend's
+  // own get_default_subgraph()/_pick_default_center, which this mirrors
+  // for the local (already-bounded) client-side data this operates on.
+  // Without it, Array.sort's stability only made ties look deterministic
+  // by accident of whatever order `nodes` happened to be in.
   const d=deg(nodes,edges);
   const pool=nodes.filter(n=>(d[n.id]??0)>=2);
   const arr=pool.length?pool:nodes;
-  return[...arr].sort((a,b)=>((RANK[b.node_type]??0)*12+(d[b.id]??0))-((RANK[a.node_type]??0)*12+(d[a.id]??0)))[0]?.id??"";
+  return[...arr].sort((a,b)=>{
+    const sa=(RANK[a.node_type]??0)*12+(d[a.id]??0);
+    const sb=(RANK[b.node_type]??0)*12+(d[b.id]??0);
+    return sb!==sa ? sb-sa : (a.id<b.id?-1:a.id>b.id?1:0);
+  })[0]?.id??"";
 }
 function bfs(startId:string, edges:RawEdge[]): Set<string> {
   const s=new Set([startId]);const q=[startId];
@@ -934,7 +943,17 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
   const [chatMessages,setChatMessages]=useState<ConvoMsg[]>([]);
   const [chatLoading,setChatLoading]=useState(false);
 
+  // In-flight guard (2026-09-20) -- prevents a slow /live or refresh
+  // round-trip from overlapping with the NEXT 30s tick, which could
+  // otherwise fire a second full request cycle (including the bounded
+  // refresh below) before the first one has even resolved.
+  const fetchLiveInFlight=useRef(false);
+  const centerIdRef=useRef(centerId);
+  centerIdRef.current=centerId;
+
   const fetchLive=useCallback(async()=>{
+    if(fetchLiveInFlight.current)return;
+    fetchLiveInFlight.current=true;
     try{
       const res=await fetch(`${API}/api/graph/live`,{signal:AbortSignal.timeout(12000)});
       if(!res.ok)throw new Error("not ok");
@@ -942,23 +961,32 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
       setLiveData(data);
       setLiveStatus("live");
       setLastUpdated(data.updated_at);
-      // Detect topology change → refetch full graph
+      // Detect topology change → refresh just the CURRENT neighborhood,
+      // never the entire graph (2026-09-20 egress fix -- this used to
+      // fetch /api/graph/full, an 8.34MB unbounded dump, on essentially
+      // every topology change given continuous ingestion, then
+      // unconditionally replace whatever curated view the user had open
+      // with that entire dump). Preserves the user's current center: if
+      // they've recentered elsewhere, this refreshes THAT neighborhood,
+      // not the original page-load one.
       const topoKey=`${data.topology.node_count}:${data.topology.edge_count}`;
-      if(prevTopoRef.current&&prevTopoRef.current!==topoKey){
-        const gr=await fetch(`${API}/api/graph/full`,{signal:AbortSignal.timeout(12000)});
+      if(prevTopoRef.current&&prevTopoRef.current!==topoKey&&centerIdRef.current){
+        const gr=await fetch(`${API}/api/graph/subgraph/${encodeURIComponent(centerIdRef.current)}?hops=2`,{signal:AbortSignal.timeout(12000)});
         if(gr.ok){
-          const newGraph:GData=await gr.json();
-          if(newGraph.nodes.length>=gData.nodes.length){
-            setGData(newGraph);
+          const refreshed:GData=await gr.json();
+          if(refreshed.nodes.length>=4){
+            setGData(refreshed);
           }
         }
       }
       prevTopoRef.current=topoKey;
     }catch{
       setLiveStatus("offline");
+    }finally{
+      fetchLiveInFlight.current=false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[gData.nodes.length]);
+  },[]);
 
   useEffect(()=>{
     fetchLive();
@@ -987,10 +1015,16 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
     setChatLoading(false);
   },[gData,centerId,selectedNode]);
 
-  // Init center
+  // Init center -- prefers the server-computed center_id (deterministic,
+  // 2026-09-20's default-subgraph endpoint) when the initial fetch
+  // provided one, only falling back to the local pickCenter heuristic
+  // when it didn't (e.g. a snapshot restored via goBack, which carries
+  // no center_id of its own).
   useEffect(()=>{
     if(gData.nodes.length&&!centerId){
-      const c=pickCenter(gData.nodes,gData.edges);
+      const c=(gData.center_id&&gData.nodes.some(n=>n.id===gData.center_id))
+        ? gData.center_id
+        : pickCenter(gData.nodes,gData.edges);
       setCenterId(c);
       setSelectedNode(gData.nodes.find(n=>n.id===c)??null);
     }

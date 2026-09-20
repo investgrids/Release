@@ -9,43 +9,21 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
-
-const TYPE_RANK: Record<string, number> = { event: 4, policy: 3, theme: 2, commodity: 1 };
-
-interface RawNode  { id: string; node_type: string; }
-interface RawEdge  { source: string; target: string; }
-
+// Real production egress finding (2026-09-20): this used to fetch the
+// ENTIRE intelligence graph (8.34MB) purely to compute a center node
+// client-side, then discard it in ~97% of real cases in favor of a
+// 232KB bounded subgraph. The backend now computes the same
+// deterministic center choice server-side (against the same cached full
+// graph, at zero extra DB/compute cost) via /api/graph/default-subgraph
+// and returns only the bounded result -- one request instead of two,
+// and the full graph is never transferred to the client at all.
 async function fetchGraph() {
   try {
-    const fullRes = await fetch(`${API}/api/graph/full`, { next: { revalidate: 300 } });
-    if (!fullRes.ok) return null;
-    const full = await fullRes.json() as { nodes: RawNode[]; edges: RawEdge[] };
-    if (!full.nodes.length) return null;
-
-    const deg: Record<string, number> = {};
-    for (const n of full.nodes) deg[n.id] = 0;
-    for (const e of full.edges) {
-      deg[e.source] = (deg[e.source] ?? 0) + 1;
-      deg[e.target] = (deg[e.target] ?? 0) + 1;
-    }
-
-    const pool = full.nodes.filter(n => (deg[n.id] ?? 0) >= 2);
-    const candidates = pool.length > 0 ? pool : full.nodes;
-    const center = [...candidates].sort((a, b) =>
-      ((TYPE_RANK[b.node_type] ?? 0) * 12 + (deg[b.id] ?? 0)) -
-      ((TYPE_RANK[a.node_type] ?? 0) * 12 + (deg[a.id] ?? 0))
-    )[0];
-    if (!center) return full;
-
-    const subRes = await fetch(
-      `${API}/api/graph/subgraph/${encodeURIComponent(center.id)}?hops=2`,
-      { next: { revalidate: 300 } }
-    );
-    if (subRes.ok) {
-      const sub = await subRes.json() as { nodes: unknown[]; edges: unknown[] };
-      if (sub.nodes.length >= 5) return sub;
-    }
-    return full;
+    const res = await fetch(`${API}/api/graph/default-subgraph?hops=2`, { next: { revalidate: 300 } });
+    if (!res.ok) return null;
+    const data = await res.json() as { nodes: unknown[]; edges: unknown[]; center_id: string | null };
+    if (!data.nodes?.length) return null;
+    return data;
   } catch {
     return null;
   }
