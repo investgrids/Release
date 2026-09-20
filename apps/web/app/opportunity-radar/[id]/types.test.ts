@@ -26,7 +26,7 @@ function v2Detail(): OpportunityV2Detail {
     why_this_exists: "Real reason.", what_changed: null,
     companies_connected: [], sectors_themes: ["Banking"],
     ripple: { anchor: "company:testco", nodes: [], edges: [] },
-    supporting_evidence: [], contradictions_risks: [],
+    supporting_evidence: [], development_impacts: [], contradictions_risks: [],
     created_at: "2026-08-24T00:00:00Z", updated_at: "2026-08-24T00:00:00Z",
   };
 }

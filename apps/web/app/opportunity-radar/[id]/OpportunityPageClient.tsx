@@ -725,7 +725,7 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
               for the full rationale and real edge-vocabulary this is built
               from). Renders nothing when no evidence-backed relationship
               exists — never an empty placeholder. */}
-          <ImpactMap ripple={d.ripple} supportingEvidence={d.supporting_evidence} companiesConnected={d.companies_connected} />
+          <ImpactMap developmentImpacts={d.development_impacts} />
 
           {/* Why this exists */}
           <SectionCard title="Why this opportunity exists">

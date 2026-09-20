@@ -70,6 +70,23 @@ export interface WhatChangedV2 {
   current_title: string | null; current_score: number | null;
 }
 
+// Per-Development sector/company attribution (2026-09-20, canary review
+// fix) — a first-class, server-computed field. `sector`/`company_impacts`
+// on a given row are ONLY the real graph nodes THAT development has a
+// real outgoing edge to (read_service.py::_build_development_impacts) —
+// never a pooled union reconstructed client-side from the (still present,
+// unchanged) `ripple` field below.
+export interface SectorImpactV2 { sector: string; direction: string; }
+export interface CompanyImpactV2 {
+  symbol: string; company_name: string; direction: string;
+  confirms_thesis: boolean; contradicts_thesis: boolean;
+}
+export interface DevelopmentImpactV2 {
+  development_id: string; canonical_title: string; evidence_count: number;
+  first_observed_at: string | null; source_types: string[];
+  sector_impacts: SectorImpactV2[]; company_impacts: CompanyImpactV2[];
+}
+
 export interface OpportunityV2Detail {
   id: string; slug: string; title: string;
   thesis_anchor: string; direction: ThesisDirection;
@@ -78,7 +95,8 @@ export interface OpportunityV2Detail {
   public_status: string;
   why_this_exists: string | null; what_changed: WhatChangedV2 | null;
   companies_connected: CompanyConnectedV2[]; sectors_themes: string[]; ripple: RippleV2;
-  supporting_evidence: SupportingEvidenceV2[]; contradictions_risks: string[];
+  supporting_evidence: SupportingEvidenceV2[]; development_impacts: DevelopmentImpactV2[];
+  contradictions_risks: string[];
   created_at: string; updated_at: string;
 }
 

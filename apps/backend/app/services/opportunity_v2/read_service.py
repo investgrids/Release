@@ -78,6 +78,43 @@ class RippleSchema(BaseModel):
     edges: list[RippleEdgeSchema] = []
 
 
+class SectorImpactSchema(BaseModel):
+    sector: str
+    direction: str    # benefits | hurts | influences -- real IGEdge.edge_type, never invented
+
+
+class CompanyImpactSchema(BaseModel):
+    symbol: str
+    company_name: str = ""
+    direction: str                       # benefits | hurts | influences -- real IGEdge.edge_type
+    confirms_thesis: bool = False        # from the SAME persisted score_breakdown signal used elsewhere
+    contradicts_thesis: bool = False
+
+
+class DevelopmentImpactSchema(BaseModel):
+    """V2 Promotion, canary review fix (2026-09-20) -- one row per linked
+    Development, exposing ONLY the sectors/companies THAT Development has
+    a real graph edge to. Previously this per-Development attribution was
+    reconstructed client-side by filtering the pooled `ripple` field by
+    edge.source; that worked (edges never lose their real source/target),
+    but left the read CONTRACT itself only exposing a pooled union, with
+    correct per-Development attribution as an implicit frontend trick
+    rather than a first-class, tested field any consumer could rely on.
+    This is purely a read-time computation over the same already-fetched
+    ripple/supporting_evidence/companies_connected data -- no new DB
+    query, no change to persisted score_breakdown/sectors/companies, no
+    change to scoring or coherence. `ripple`/`supporting_evidence`/
+    `companies_connected` all remain in the response unchanged, for
+    backward compatibility with any existing consumer."""
+    development_id: str
+    canonical_title: str
+    evidence_count: int
+    first_observed_at: Optional[str] = None
+    source_types: list[str] = []
+    sector_impacts: list[SectorImpactSchema] = []
+    company_impacts: list[CompanyImpactSchema] = []
+
+
 class WhatChangedSchema(BaseModel):
     formation_title: Optional[str] = None
     formation_score: Optional[float] = None
@@ -105,6 +142,10 @@ class OpportunityV2DetailResponse(BaseModel):
     sectors_themes: list[str] = []
     ripple: RippleSchema = RippleSchema()
     supporting_evidence: list[SupportingEvidenceSchema] = []
+    # Per-Development sector/company attribution (2026-09-20) -- additive,
+    # see DevelopmentImpactSchema's own docstring. `ripple`/
+    # `supporting_evidence`/`companies_connected` above are unchanged.
+    development_impacts: list[DevelopmentImpactSchema] = []
     contradictions_risks: list[str] = []
 
     created_at: str
@@ -206,6 +247,67 @@ async def _build_ripple(thesis_anchor: str, developments: list[Development]) -> 
     )
 
 
+def _build_development_impacts(
+    ripple: RippleSchema,
+    supporting_evidence: list[SupportingEvidenceSchema],
+    companies_connected: list[CompanyConnectedSchema],
+) -> list[DevelopmentImpactSchema]:
+    """Pure, read-time-only derivation over already-fetched data -- no DB
+    access. One row per linked Development; a row's sector/company
+    impacts are ONLY the real graph nodes that Development's own
+    `development:{id}` node has a real outgoing edge to (never a pooled
+    union across other members). Mirrors graph_link.py's real write-time
+    vocabulary exactly: edges only ever flow development -> {company,
+    sector, theme, policy}, EXCEPT the reversed policy -> development
+    "triggered_by" edge, which is deliberately excluded here since that's
+    a different relationship shape (a policy causing this development),
+    not an outgoing impact of it. A Development with no real graph
+    presence (no ig_node_id, or its node not in the union) or zero real
+    outgoing sector/company edges produces no row -- never an empty
+    placeholder row."""
+    nodes_by_id = {n.id: n for n in ripple.nodes}
+    company_by_symbol = {c.symbol: c for c in companies_connected}
+
+    rows: list[DevelopmentImpactSchema] = []
+    for dev in supporting_evidence:
+        dev_node_id = f"development:{dev.development_id}"
+        if dev_node_id not in nodes_by_id:
+            continue
+
+        sector_impacts: list[SectorImpactSchema] = []
+        company_impacts: list[CompanyImpactSchema] = []
+        for edge in ripple.edges:
+            if edge.source != dev_node_id:
+                continue
+            target = nodes_by_id.get(edge.target)
+            if target is None:
+                continue
+            if target.node_type == "sector":
+                sector_impacts.append(SectorImpactSchema(sector=target.label, direction=edge.edge_type))
+            elif target.node_type == "company" and target.ticker:
+                real = company_by_symbol.get(target.ticker)
+                company_impacts.append(CompanyImpactSchema(
+                    symbol=target.ticker,
+                    company_name=real.company_name if real else target.label,
+                    direction=edge.edge_type,
+                    confirms_thesis=real.confirms_thesis if real else False,
+                    contradicts_thesis=real.contradicts_thesis if real else False,
+                ))
+
+        if not sector_impacts and not company_impacts:
+            continue
+        rows.append(DevelopmentImpactSchema(
+            development_id=dev.development_id,
+            canonical_title=dev.canonical_title,
+            evidence_count=dev.evidence_count,
+            first_observed_at=dev.first_observed_at,
+            source_types=dev.source_types,
+            sector_impacts=sector_impacts,
+            company_impacts=company_impacts,
+        ))
+    return rows
+
+
 async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[OpportunityV2DetailResponse]:
     # Sitemap Truth Audit, 2026-08-24 — this lookup had no public_status
     # filter at all, meaning any shadow-status (unpublished) opportunity
@@ -243,6 +345,10 @@ async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[Opp
     # back to elsewhere in the codebase.
     title = opp.current_title or opp.formation_title or opp.thesis_anchor
 
+    companies_connected = await _build_companies_connected(db, opp)
+    ripple = await _build_ripple(opp.thesis_anchor, developments)
+    supporting_evidence = await _build_supporting_evidence(db, developments)
+
     return OpportunityV2DetailResponse(
         id=opp.id,
         slug=opp.slug,
@@ -256,10 +362,11 @@ async def get_opportunity_v2_detail(db: AsyncSession, slug: str) -> Optional[Opp
         public_status=opp.public_status,
         why_this_exists=why_this_exists,
         what_changed=what_changed,
-        companies_connected=await _build_companies_connected(db, opp),
+        companies_connected=companies_connected,
         sectors_themes=opp.sectors,
-        ripple=await _build_ripple(opp.thesis_anchor, developments),
-        supporting_evidence=await _build_supporting_evidence(db, developments),
+        ripple=ripple,
+        supporting_evidence=supporting_evidence,
+        development_impacts=_build_development_impacts(ripple, supporting_evidence, companies_connected),
         contradictions_risks=opp.contradictions or [],
         created_at=opp.created_at.isoformat(),
         updated_at=opp.updated_at.isoformat(),
