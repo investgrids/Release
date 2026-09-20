@@ -14,31 +14,48 @@ import { NextRequest, NextResponse } from "next/server";
  * 300` fetch cache (page.tsx) had no forced-clear path — real production
  * finding: reverting a canary left its page fully visible with its old
  * (already-rejected) content for well over 5 minutes, past its own
- * documented revalidate window, with no sign of self-clearing. `kind`
- * selects which path set to invalidate, since the two content types are
- * revalidated differently (article's own listing pages vs. the radar
- * list).
+ * documented revalidate window, with no sign of self-clearing.
+ *
+ * Hardened the same day (real security review, not a hypothetical):
+ * - auth moves from a JSON body field to a request header
+ *   (X-Revalidate-Secret) -- a secret has no business living next to
+ *   ordinary request data or ending up logged as part of a body dump.
+ * - the caller never supplies a raw path. `kind` selects a fixed
+ *   server-side template (exactly the two routes this app actually
+ *   needs to bust: /newsroom/article/{slug} and /opportunity-radar/
+ *   {slug}) and `slug` is validated against a strict allowlist pattern
+ *   before being interpolated into it -- structurally impossible to
+ *   target an arbitrary path or escape the template via `../`, an
+ *   encoded slash, or any other traversal attempt, because there is no
+ *   code path that ever treats client input as a path itself.
  *
  * Best-effort on the caller's side by design — a missed call just means
  * the page catches up at its next natural revalidation, not a broken
  * state, so this doesn't need retries or a queue of its own.
  */
+const _SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 export async function POST(req: NextRequest) {
   const secret = process.env.REVALIDATE_SECRET;
   if (!secret) {
     return NextResponse.json({ error: "revalidation not configured" }, { status: 503 });
   }
 
-  const body = await req.json().catch(() => null);
-  const slug = body?.slug;
-  if (typeof slug !== "string" || !slug) {
-    return NextResponse.json({ error: "slug required" }, { status: 400 });
-  }
-  if (body?.secret !== secret) {
+  const provided = req.headers.get("x-revalidate-secret");
+  if (!provided || provided !== secret) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const kind = body?.kind === "opportunity_v2" ? "opportunity_v2" : "article";
+  const body = await req.json().catch(() => null);
+  const slug = body?.slug;
+  const kind = body?.kind;
+
+  if (kind !== "opportunity_v2" && kind !== "article") {
+    return NextResponse.json({ error: "kind must be 'opportunity_v2' or 'article'" }, { status: 400 });
+  }
+  if (typeof slug !== "string" || !_SLUG_RE.test(slug)) {
+    return NextResponse.json({ error: "slug must match ^[a-z0-9]+(-[a-z0-9]+)*$" }, { status: 400 });
+  }
 
   if (kind === "opportunity_v2") {
     revalidatePath(`/opportunity-radar/${slug}`);

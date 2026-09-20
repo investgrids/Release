@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 import structlog
 from sqlalchemy import select
 
-from app.core.config import settings
 from app.db.models.generated_media import GeneratedMedia
 from app.db.models.intelligence_article import IntelligenceArticle
 from app.db.session import AsyncSessionLocal
@@ -46,17 +45,8 @@ async def _notify_frontend(slug: str) -> None:
     fallback immediately, without waiting for the page's normal cache
     window or a redeploy. Best-effort: a missed revalidation just means the
     page catches up at its next natural revalidate, not a broken state."""
-    if not settings.frontend_url or not settings.revalidate_secret:
-        return
-    try:
-        import httpx
-        async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(
-                f"{settings.frontend_url}/api/revalidate",
-                json={"slug": slug, "secret": settings.revalidate_secret},
-            )
-    except Exception as exc:
-        log.debug("media.revalidate_notify_failed", slug=slug, error=str(exc)[:150])
+    from app.services.frontend_revalidate import notify_frontend_revalidate
+    await notify_frontend_revalidate(slug, kind="article")
 
 
 async def run_image_generation_cycle() -> None:

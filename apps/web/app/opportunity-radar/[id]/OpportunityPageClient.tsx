@@ -4,6 +4,7 @@ import { useState, useEffect, use, useRef } from "react";
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { fixMojibake, truncateForQuery } from "@/lib/text";
+import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { RelatedContent } from "@/components/RelatedContent";
 import { NextSteps } from "@/components/NextSteps";
@@ -662,15 +663,22 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
   const narrativeBanner = narrativeStatusLabel(d.narrative_status);
   const topCompanies = d.companies_connected.slice(0, 2);
 
+  // Real production bug (2026-09-20, found live during the Adani V2
+  // canary review): this page had its own local breadcrumb div (showing
+  // the correct d.title) AND was also relying on the root layout's global
+  // <Breadcrumbs> auto-derived fallback, which humanizes the raw URL
+  // SLUG instead — re-surfacing already-rejected interpretive title
+  // language (e.g. "Execution Catalyst") that an editorial override had
+  // specifically replaced. The two together rendered as a duplicate
+  // breadcrumb trail, one correct and one wrong. Fixed the same way
+  // RipplePageClient.tsx/EventPageClient.tsx already solve this: feed the
+  // real title to the global breadcrumb via the override channel instead
+  // of rendering a second, local one.
+  useBreadcrumbOverride([{ label: "Opportunity Radar", href: "/opportunity-radar" }, { label: d.title }]);
+
   return (
     <div className="min-w-0 pb-12">
       <TrackPageVisit type="story" id={String(d.id)} title={d.title} subtitle={strength !== null ? `Strength ${strength}` : "Unscored"} href={`/opportunity-radar/${d.slug ?? d.id}`} />
-      {/* Breadcrumb */}
-      <div className="mb-5 flex items-center gap-2 text-[12px] text-text-muted">
-        <Link href="/opportunity-radar" className="hover:text-text-secondary transition">Opportunity Radar</Link>
-        <span>›</span>
-        <span className="text-text-secondary">{d.title}</span>
-      </div>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_280px]">
         {/* ── MAIN ─────────────────────────────────────────────────────── */}

@@ -281,6 +281,9 @@ async def opportunity_v2_canary_promote(opportunity_id: str, db: AsyncSession = 
     await db.commit()
 
     row = (await db.execute(select(OpportunityV2).where(OpportunityV2.id == opportunity_id))).scalar_one()
+    if row.slug:
+        from app.services.frontend_revalidate import notify_frontend_revalidate
+        await notify_frontend_revalidate(row.slug, kind="opportunity_v2")
     return {
         "id": row.id, "slug": row.slug, "public_status": row.public_status,
         "current_title": row.current_title, "updated_at": row.updated_at,
@@ -305,6 +308,9 @@ async def opportunity_v2_canary_revert(opportunity_id: str, db: AsyncSession = D
     await db.commit()
 
     row = (await db.execute(select(OpportunityV2).where(OpportunityV2.id == opportunity_id))).scalar_one()
+    if row.slug:
+        from app.services.frontend_revalidate import notify_frontend_revalidate
+        await notify_frontend_revalidate(row.slug, kind="opportunity_v2")
     return {"id": row.id, "slug": row.slug, "public_status": row.public_status}
 
 
