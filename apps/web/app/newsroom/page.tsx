@@ -277,7 +277,10 @@ export default async function NewsroomHomePage() {
                     {themes.map((t) => (
                       <tr key={t.id} className="transition hover:bg-text-primary/[0.03]">
                         <td className="px-4 py-2.5">
-                          <Link href={`/newsroom/themes/${t.slug}`} className="font-semibold text-text-primary hover:text-sky-600 dark:text-sky-300">
+                          {/* Batch G, 2026-09-20 -- links straight to the real
+                              V1 canonical instead of /newsroom/themes/{slug},
+                              which now just 308-redirects here anyway. */}
+                          <Link href={`/opportunity-radar/${t.id}`} className="font-semibold text-text-primary hover:text-sky-600 dark:text-sky-300">
                             {cleanText(t.title)}
                           </Link>
                         </td>

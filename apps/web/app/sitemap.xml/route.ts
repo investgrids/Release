@@ -51,19 +51,19 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     { url: `${base}/events`,                     lastModified: now, changeFrequency: "hourly", priority: 0.95 },
     { url: `${base}/companies`,                  lastModified: now, changeFrequency: "daily",  priority: 0.9 },
     { url: `${base}/news`,                       lastModified: now, changeFrequency: "hourly", priority: 0.85 },
-    // Real destination, not /themes — that path 301-redirects here (see
-    // next.config.ts's "AI Newsroom consolidation" redirects). A sitemap
-    // listing a redirecting URL is a confirmed Search Console warning
-    // ("Page with redirect") and wastes crawl budget every cycle.
-    //
-    // SEO P1-P2, 2026-08-24 — /newsroom/themes itself used to be listed
-    // here too, at the same priority. It's a confirmed duplicate of this
-    // exact page (same /api/radar/ data) and was just set to
-    // robots: { index: false, follow: true } with its canonical pointed
-    // here — submitting a noindex page in the sitemap is a real Search
-    // Console "Excluded by 'noindex' tag" warning, so it's removed rather
-    // than listed twice under two different URLs.
     { url: `${base}/opportunity-radar`,          lastModified: now, changeFrequency: "daily",  priority: 0.85 },
+    // Batch G rewrite, 2026-09-20 — /newsroom/themes was excluded here from
+    // SEO P1-P2 (2026-08-24) through this rewrite: it re-listed the exact
+    // same /api/radar/ data /opportunity-radar already lists, noindexed
+    // with its canonical pointed there. It's now a genuine, separate hub
+    // (real theme_intelligence articles, not duplicated Opportunity data),
+    // real robots:index, self-canonical — a real indexable page belongs in
+    // the sitemap like every other hub above. Its legacy
+    // /newsroom/themes/{slug} detail URLs are NOT listed here (never were)
+    // — those are pure 308 redirects to their real /opportunity-radar/{id}
+    // canonical, and a sitemap listing a redirecting URL is a confirmed
+    // Search Console "Page with redirect" warning.
+    { url: `${base}/newsroom/themes`,            lastModified: now, changeFrequency: "daily",  priority: 0.8 },
     { url: `${base}/ripple`,                     lastModified: now, changeFrequency: "daily",  priority: 0.8 },
     { url: `${base}/ai-search`,                  lastModified: now, changeFrequency: "daily",  priority: 0.8 },
     // Real destination, not /research — that path now redirects to this
