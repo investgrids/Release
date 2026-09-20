@@ -16,7 +16,13 @@ from pathlib import Path
 import pytest
 
 import app.db.backup as backup_module
-from app.db.backup import backup_database, last_backup_info
+from app.db.backup import (
+    backup_database,
+    boot_backup_recently_verified,
+    cleanup_local_copy,
+    last_backup_info,
+    record_boot_backup_verified,
+)
 
 
 @pytest.fixture
@@ -374,3 +380,110 @@ def test_corrupt_backup_fails_closed_never_renamed_into_place(isolated_backup_en
     backup_dir = isolated_backup_env["backup_dir"]
     assert list(backup_dir.glob("ig-*.db")) == [], "a failed integrity check must never leave a renamed backup file"
     assert list(backup_dir.glob("*.tmp")) == [], "the failed tmp file must be cleaned up, not left behind"
+
+
+def test_orphaned_tmp_shm_and_tmp_wal_siblings_are_cleaned_up(isolated_backup_env):
+    """CR-1 (2026-09-20): sqlite3's backup API, writing into a WAL-mode
+    .tmp destination, can leave .tmp-shm/.tmp-wal siblings behind that the
+    rename-into-place step never touches (it only renames the main file) —
+    a live, currently-active leak on production found alongside the
+    already-fixed *.tmp-journal case above, not just a historical one."""
+    backup_dir = isolated_backup_env["backup_dir"]
+    backup_dir.mkdir(parents=True)
+    (backup_dir / "ig-20260101T000000Z.db.tmp-shm").write_bytes(b"x" * 32768)
+    (backup_dir / "ig-20260101T000000Z.db.tmp-wal").write_bytes(b"")
+
+    backup_module._prune_old_backups()
+
+    assert list(backup_dir.glob("*.tmp-shm")) == []
+    assert list(backup_dir.glob("*.tmp-wal")) == []
+
+
+# ── CR-1 (2026-09-20): local-copy cleanup after remote verification ────────
+# Real incident: a boot backup's same-volume local copy previously had no
+# cleanup path except the NEXT restart's pre-copy pruning — during a
+# volume-resize dashboard session, 3 restarts in under 5 minutes each left
+# a ~400MB local copy behind. cleanup_local_copy() lets the caller (see
+# job_backup_database_boot in daily_tasks.py) free it immediately once the
+# remote copy is confirmed verified, and boot_backup_recently_verified()
+# rate-limits repeated cycles when restarts happen in quick succession.
+
+def test_cleanup_local_copy_removes_main_file_and_all_sidecars(isolated_backup_env):
+    backup_dir = isolated_backup_env["backup_dir"]
+    backup_dir.mkdir(parents=True)
+    main = backup_dir / "ig-20260101T000000Z.db"
+    main.write_bytes(b"data")
+    for suffix in ("-shm", "-wal", "-journal"):
+        (backup_dir / f"{main.name}{suffix}").write_bytes(b"x")
+
+    result = cleanup_local_copy(main)
+
+    assert result["status"] == "ok"
+    assert len(result["removed"]) == 4
+    assert list(backup_dir.glob("ig-20260101T000000Z.db*")) == []
+
+
+def test_cleanup_local_copy_is_idempotent_on_missing_sidecars(isolated_backup_env):
+    backup_dir = isolated_backup_env["backup_dir"]
+    backup_dir.mkdir(parents=True)
+    main = backup_dir / "ig-20260101T000000Z.db"
+    main.write_bytes(b"data")
+    # No -shm/-wal/-journal siblings exist for this one — must not error.
+
+    result = cleanup_local_copy(main)
+
+    assert result["status"] == "ok"
+    assert result["removed"] == [str(main)]
+
+
+def test_cleanup_local_copy_reports_failure_on_interrupted_deletion(isolated_backup_env, monkeypatch):
+    """Interrupted cleanup: something (permissions, a concurrent process)
+    prevents deletion partway through. Must report status=error and log
+    it, never raise out of the caller and never silently claim success."""
+    backup_dir = isolated_backup_env["backup_dir"]
+    backup_dir.mkdir(parents=True)
+    main = backup_dir / "ig-20260101T000000Z.db"
+    main.write_bytes(b"data")
+    (main.with_name(main.name + "-wal")).write_bytes(b"x")
+
+    real_unlink = Path.unlink
+
+    def _fail_on_wal(self, *a, **kw):
+        if self.name.endswith("-wal"):
+            raise OSError("simulated: file busy")
+        return real_unlink(self, *a, **kw)
+
+    monkeypatch.setattr(Path, "unlink", _fail_on_wal)
+
+    result = cleanup_local_copy(main)
+
+    assert result["status"] == "error"
+    assert "simulated" in result["error"]
+
+
+def test_boot_backup_not_recently_verified_when_no_marker_exists(isolated_backup_env):
+    assert boot_backup_recently_verified() is False
+
+
+def test_record_and_check_boot_backup_verified_within_window(isolated_backup_env):
+    backup_dir = isolated_backup_env["backup_dir"]
+    backup_dir.mkdir(parents=True)
+
+    record_boot_backup_verified()
+
+    assert boot_backup_recently_verified() is True
+
+
+def test_boot_backup_verified_marker_expires_after_rate_limit_window(isolated_backup_env, monkeypatch):
+    import os
+    import time
+
+    backup_dir = isolated_backup_env["backup_dir"]
+    backup_dir.mkdir(parents=True)
+    record_boot_backup_verified()
+
+    marker = backup_module._BOOT_VERIFIED_MARKER
+    old = time.time() - (backup_module._BOOT_RATE_LIMIT_SECONDS + 1)
+    os.utime(marker, (old, old))
+
+    assert boot_backup_recently_verified() is False

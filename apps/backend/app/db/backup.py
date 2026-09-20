@@ -84,6 +84,26 @@ _DISK_WARN_THRESHOLD = 0.75
 
 _DAILY_PREFIX = "ig-daily-"
 
+# CR-1 (2026-09-20): a "boot" backup that's already been remote-verified
+# (app.db.remote_backup) has no further local-redundancy value -- unlike
+# "daily", which intentionally keeps dated history, "boot" is a
+# just-in-case restart snapshot with retention=1, so its sole local copy
+# previously sat on the tightest, most precious storage until the NEXT
+# restart triggered pre-copy pruning (see _prunable_backups_for_kind) --
+# potentially indefinitely if restarts are infrequent. Real incident: a
+# volume-resize dashboard session caused 3 restarts in under 5 minutes,
+# each leaving a ~400MB local staging copy that would otherwise have sat
+# there until a 4th restart. Fixed by having the caller (daily_tasks.py's
+# job_backup_database_boot) delete the local copy immediately once the
+# remote upload is confirmed verified -- see cleanup_local_copy() and
+# record_boot_backup_verified() below.
+_BOOT_VERIFIED_MARKER = _BACKUP_DIR / ".last_boot_backup_verified_at"
+# Suppresses repeated full (copy + upload + verify) cycles when restarts
+# happen in rapid succession (e.g. a dashboard volume edit bouncing the
+# container repeatedly) -- 10 minutes comfortably exceeds a normal
+# deploy's boot time while still catching any genuinely-spaced restart.
+_BOOT_RATE_LIMIT_SECONDS = 600
+
 
 def _sqlite_path() -> Optional[Path]:
     url = make_url(settings.database_url)
@@ -280,7 +300,7 @@ def _prune_old_backups() -> None:
     # 2026-08-31 disk-recovery incident (production had accumulated ~80
     # of these, dating back to 2026-08-18, because "*.tmp" never matched
     # "*.tmp-journal"). Individually tiny, but unbounded until this fix.
-    for pattern in ("*.tmp", "*.tmp-journal"):
+    for pattern in ("*.tmp", "*.tmp-journal", "*.tmp-shm", "*.tmp-wal"):
         for tmp in _BACKUP_DIR.glob(pattern):
             tmp.unlink(missing_ok=True)
 
@@ -352,3 +372,54 @@ def last_backup_info() -> Optional[dict]:
         "count": len(backups),
         "kind": "daily" if latest.name.startswith(_DAILY_PREFIX) else "boot",
     }
+
+
+def cleanup_local_copy(path: str | Path) -> dict:
+    """CR-1 (2026-09-20): deletes a same-volume backup's main file plus its
+    -shm/-wal/-journal sidecars, once the caller has independently confirmed
+    (via app.db.remote_backup's remote_verified flag) that the same data is
+    already durably stored off-volume. Never called on a backup whose
+    remote upload/verification failed or hasn't been attempted — a failed
+    remote leg means the local copy is retained deliberately, not cleaned.
+
+    Logs success/failure explicitly rather than letting a caller infer it
+    from a return value alone, matching remote_backup.py's own telemetry
+    convention (states recorded, never inferred from "didn't raise")."""
+    p = Path(path)
+    try:
+        removed = []
+        if p.exists():
+            p.unlink()
+            removed.append(str(p))
+        for suffix in ("-shm", "-wal", "-journal"):
+            sidecar = p.with_name(p.name + suffix)
+            if sidecar.exists():
+                sidecar.unlink()
+                removed.append(str(sidecar))
+        log.info("backup.local_cleanup.done", path=str(p), removed=removed)
+        return {"status": "ok", "path": str(p), "removed": removed}
+    except OSError as exc:
+        log.error("backup.local_cleanup.failed", path=str(p), error=str(exc))
+        return {"status": "error", "path": str(p), "error": str(exc)}
+
+
+def boot_backup_recently_verified() -> bool:
+    """Rate-limit gate for job_backup_database_boot: true if a boot backup
+    was remote-verified within _BOOT_RATE_LIMIT_SECONDS, so a burst of
+    restarts in quick succession (e.g. a Railway dashboard volume edit
+    bouncing the container repeatedly, the real incident this was built
+    for) doesn't repeat a full same-volume-copy + remote-upload +
+    verification cycle every single time."""
+    try:
+        mtime = _BOOT_VERIFIED_MARKER.stat().st_mtime
+    except FileNotFoundError:
+        return False
+    return (time.time() - mtime) < _BOOT_RATE_LIMIT_SECONDS
+
+
+def record_boot_backup_verified() -> None:
+    """Called only after a boot backup's remote copy is confirmed
+    verified — marks 'now' as the last known-good boot backup time for
+    boot_backup_recently_verified() to check on the next restart."""
+    _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    _BOOT_VERIFIED_MARKER.write_text(datetime.now(timezone.utc).isoformat())

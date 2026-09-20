@@ -562,15 +562,35 @@ async def job_backup_database_boot() -> None:
     around restarts/deploys, not a dated history, so it gets a much shorter
     retention than the daily backup. See job_backup_database_daily's own
     docstring for why this also runs the independent CR-0b off-volume
-    backup in the same job."""
+    backup in the same job.
+
+    CR-1 (2026-09-20): the same-volume local copy this creates has no
+    further redundancy value once the remote copy below is confirmed
+    verified, so it's deleted immediately rather than left to sit until
+    the NEXT restart's pre-copy pruning (previously its only cleanup
+    path — real incident: 3 restarts in under 5 minutes during a volume
+    resize each left a ~400MB local copy behind). A rate-limit guard
+    skips the whole cycle if a boot backup was verified very recently,
+    so a burst of restarts doesn't repeat the full copy+upload+verify
+    cost every single time."""
     import asyncio
-    from app.db.backup import backup_database
+    from app.db.backup import (
+        backup_database,
+        boot_backup_recently_verified,
+        cleanup_local_copy,
+        record_boot_backup_verified,
+    )
     from app.db.remote_backup import backup_to_bucket
 
+    if boot_backup_recently_verified():
+        log.info("job.backup_database.rate_limited", kind="boot")
+        return
+
     log.info("job.backup_database.start", kind="boot")
+    local_result: dict = {}
     try:
-        result = await asyncio.to_thread(backup_database, "boot")
-        log.info("job.backup_database.done", **result)
+        local_result = await asyncio.to_thread(backup_database, "boot")
+        log.info("job.backup_database.done", **local_result)
     except Exception as exc:
         log.error("job.backup_database.error", kind="boot", error=str(exc))
 
@@ -579,6 +599,22 @@ async def job_backup_database_boot() -> None:
         log.info("job.backup_remote.done", **remote_result)
     except Exception as exc:
         log.error("job.backup_remote.error", kind="boot", error=str(exc))
+        remote_result = {"status": "error", "error": str(exc)}
+
+    local_path = local_result.get("path")
+    if not local_path:
+        return  # local copy never existed (skipped/failed) — nothing to reconcile
+
+    if remote_result.get("status") == "ok" and remote_result.get("remote_verified") is True:
+        cleanup_result = cleanup_local_copy(local_path)
+        if cleanup_result["status"] == "ok":
+            record_boot_backup_verified()
+    else:
+        log.info(
+            "job.backup_database.local_copy_retained",
+            kind="boot", path=local_path,
+            reason="remote backup not verified", remote_status=remote_result.get("status"),
+        )
 
 
 # ── Startup once — repair evergreen articles contaminated by the ───────────
