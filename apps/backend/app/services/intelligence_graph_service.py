@@ -165,6 +165,167 @@ async def get_subgraph(node_id: str, hops: int = 2) -> dict:
     }
 
 
+# ── Default (bounded) subgraph ───────────────────────────────────────────────
+# Real production finding (2026-09-20, egress investigation): the /graph
+# page's ONLY reason to ever fetch the full graph was to pick a "center"
+# node client-side, then almost always immediately discard the full
+# response in favor of a small bounded subgraph around that center
+# (confirmed live: 8.34MB fetched, 232KB actually rendered, a 97.4%
+# waste). This computes the exact same center choice SERVER-SIDE, against
+# the graph already held in Redis (get_full_graph() -- zero extra DB/
+# compute cost over what /full already pays), and returns only the
+# bounded result. /full itself is untouched by this addition.
+
+_TYPE_RANK: dict[str, int] = {"event": 4, "policy": 3, "theme": 2, "commodity": 1}
+
+# Ceiling enforced IN the traversal below, not just checked after the
+# fact and rejected -- a request for the default view must always
+# succeed with *something* deterministic and connected, never error out
+# just because the real graph grew past these numbers. Sized comfortably
+# above the real 2026-09-20 baseline (412 nodes/415 edges/232KB at the
+# real center) so ordinary graph growth doesn't immediately start
+# truncating, while still bounding the pathological case (a single node
+# with thousands of direct neighbors).
+_DEFAULT_MAX_NODES = 600
+_DEFAULT_MAX_EDGES = 900
+_DEFAULT_MAX_BYTES = 1_000_000
+
+
+def _center_sort_key(node: dict, deg: dict[str, int]) -> tuple[int, str]:
+    # Highest (type-rank*12 + degree) first; ties broken by node id
+    # ascending. The id tiebreak is the actual fix here -- the prior
+    # frontend-side Array.sort had no tiebreak at all and only looked
+    # deterministic by accident of whatever order the backend's DB query
+    # happened to return nodes in (no ORDER BY on that SELECT), which is
+    # not a real guarantee across requests/deploys/row updates.
+    score = _TYPE_RANK.get(node["node_type"], 0) * 12 + deg.get(node["id"], 0)
+    return (-score, node["id"])
+
+
+def _pick_default_center(nodes: list[dict], deg: dict[str, int]) -> dict:
+    pool = [n for n in nodes if deg.get(n["id"], 0) >= 2]
+    candidates = pool if pool else nodes
+    return sorted(candidates, key=lambda n: _center_sort_key(n, deg))[0]
+
+
+def _bounded_bfs(
+    nodes_map: dict[str, dict], edges_by_id: dict[str, dict], adj: dict[str, list[dict]],
+    center_id: str, hops: int, max_nodes: int, max_edges: int,
+) -> tuple[list[dict], list[dict]]:
+    """Deterministic BFS (neighbor lists pre-sorted by edge id) up to `hops`,
+    hard-capped at max_nodes/max_edges DURING traversal -- never builds an
+    unbounded set first and trims after. Every included node was
+    discovered via an edge from an already-included node, so the result
+    is always connected to center_id by construction, at any truncation
+    point."""
+    included_ids = [center_id]
+    included_set = {center_id}
+    included_edge_ids: list[str] = []
+    included_edge_set: set[str] = set()
+    frontier = [center_id]
+    for _ in range(hops):
+        if len(included_ids) >= max_nodes or len(included_edge_ids) >= max_edges:
+            break
+        next_frontier: list[str] = []
+        for nid in frontier:
+            for e in adj.get(nid, []):
+                if e["id"] in included_edge_set or len(included_edge_ids) >= max_edges:
+                    continue
+                nbr = e["target"]
+                is_new_node = nbr not in included_set
+                if is_new_node and len(included_ids) >= max_nodes:
+                    continue
+                included_edge_set.add(e["id"])
+                included_edge_ids.append(e["id"])
+                if is_new_node:
+                    included_ids.append(nbr)
+                    included_set.add(nbr)
+                    next_frontier.append(nbr)
+        frontier = next_frontier
+    nodes_out = [nodes_map[nid] for nid in included_ids if nid in nodes_map]
+    edges_out = [edges_by_id[eid] for eid in included_edge_ids if eid in edges_by_id]
+    return nodes_out, edges_out
+
+
+def _shrink_to_byte_budget(nodes_out: list[dict], edges_out: list[dict], max_bytes: int) -> tuple[list[dict], list[dict]]:
+    """Last-resort byte-ceiling safety net, independent of the node/edge
+    count caps above -- guards the (today, real-data-confirmed absent)
+    case of unusually large individual fields. Binary search over the
+    already-deterministic nodes_out prefix (nodes_out[0] is always
+    center_id) keeps this deterministic too; center_id alone is the
+    guaranteed floor."""
+    if len(json.dumps({"nodes": nodes_out, "edges": edges_out}, default=str)) <= max_bytes:
+        return nodes_out, edges_out
+    lo, hi = 1, len(nodes_out)
+    best_nodes, best_edges = nodes_out[:1], []
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        trial_nodes = nodes_out[:mid]
+        trial_ids = {n["id"] for n in trial_nodes}
+        trial_edges = [e for e in edges_out if e["source"] in trial_ids and e["target"] in trial_ids]
+        size = len(json.dumps({"nodes": trial_nodes, "edges": trial_edges}, default=str))
+        if size <= max_bytes:
+            best_nodes, best_edges = trial_nodes, trial_edges
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return best_nodes, best_edges
+
+
+async def get_default_subgraph(max_hops: int = 2) -> dict:
+    graph = await get_full_graph()
+    nodes = graph["nodes"]
+    edges = graph["edges"]
+    if not nodes:
+        return {"nodes": [], "edges": [], "center_id": None}
+
+    deg: dict[str, int] = {n["id"]: 0 for n in nodes}
+    for e in edges:
+        deg[e["source"]] = deg.get(e["source"], 0) + 1
+        deg[e["target"]] = deg.get(e["target"], 0) + 1
+
+    center_id = _pick_default_center(nodes, deg)["id"]
+
+    nodes_map = {n["id"]: n for n in nodes}
+    edges_by_id = {e["id"]: e for e in edges}
+    adj: dict[str, list[dict]] = {}
+    for e in edges:
+        adj.setdefault(e["source"], []).append(e)
+        adj.setdefault(e["target"], []).append({**e, "source": e["target"], "target": e["source"]})
+    for lst in adj.values():
+        lst.sort(key=lambda e: e["id"])
+
+    # Try the full requested hop depth first; only fall back to a
+    # complete (not partially-truncated) 1-hop neighborhood if that
+    # doesn't fit -- a clean full 1-hop view reads better than an
+    # arbitrarily-truncated partial 2-hop one for the common case.
+    #
+    # _bounded_bfs always internally caps at whatever max_nodes/max_edges
+    # it's given, so calling it with the REAL ceiling can never itself
+    # signal "this would have been bigger" -- the result always satisfies
+    # <= ceiling by construction, which would make this fallback dead
+    # code. So the check here first measures the TRUE (unbounded) size of
+    # each hop depth -- cheap, since it's the same in-memory traversal
+    # just given a cap larger than the graph could ever fill -- and only
+    # re-runs with the real ceiling (producing an actual truncation) once
+    # even a complete 1-hop neighborhood doesn't fit.
+    unbounded_cap = len(nodes) + 1
+    for hops in (max_hops, 1):
+        true_nodes, true_edges = _bounded_bfs(nodes_map, edges_by_id, adj, center_id, hops, unbounded_cap, unbounded_cap)
+        if len(true_nodes) <= _DEFAULT_MAX_NODES and len(true_edges) <= _DEFAULT_MAX_EDGES:
+            nodes_out, edges_out = _shrink_to_byte_budget(true_nodes, true_edges, _DEFAULT_MAX_BYTES)
+            return {"nodes": nodes_out, "edges": edges_out, "center_id": center_id}
+        if hops == 1:
+            # Even a complete 1-hop neighborhood doesn't fit (a single hub
+            # node with more direct neighbors than the ceiling) -- this is
+            # where real, deterministic, connected-by-construction
+            # truncation actually happens.
+            nodes_out, edges_out = _bounded_bfs(nodes_map, edges_by_id, adj, center_id, 1, _DEFAULT_MAX_NODES, _DEFAULT_MAX_EDGES)
+            nodes_out, edges_out = _shrink_to_byte_budget(nodes_out, edges_out, _DEFAULT_MAX_BYTES)
+            return {"nodes": nodes_out, "edges": edges_out, "center_id": center_id}
+    return {"nodes": [nodes_map[center_id]], "edges": [], "center_id": center_id}
+
+
 # ── Ripple analysis ───────────────────────────────────────────────────────────
 
 async def ripple_from_node(

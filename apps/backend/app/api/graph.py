@@ -82,6 +82,17 @@ async def get_full_graph():
     return await get_full_graph()
 
 
+@router.get("/default-subgraph")
+async def get_default_subgraph_endpoint(hops: int = Query(2, ge=1, le=4)):
+    """Deterministic, size-bounded default view for the /graph page --
+    picks the same center a client used to compute for itself after
+    fetching the entire graph, then returns only that node's bounded
+    neighborhood. See intelligence_graph_service.get_default_subgraph's
+    own docstring for the real production egress finding this replaces."""
+    from app.services.intelligence_graph_service import get_default_subgraph
+    return await get_default_subgraph(max_hops=hops)
+
+
 @router.get("/subgraph/{node_id:path}")
 async def get_subgraph(node_id: str, hops: int = Query(2, ge=1, le=4)):
     """N-hop undirected neighbourhood around a node."""
