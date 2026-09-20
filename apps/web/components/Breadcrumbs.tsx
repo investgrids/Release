@@ -146,13 +146,17 @@ function autoCrumbs(pathname: string): Crumb[] {
   return crumbs;
 }
 
-export function Breadcrumbs({ items, siteUrl }: { items?: Crumb[]; siteUrl?: string }) {
-  const pathname = usePathname();
-  // Hooks must run unconditionally, before the early-return below.
-  const overrideCtx = useContext(BreadcrumbOverrideContext);
-  if (!pathname || pathname === "/") return null;
+// Routes that render their OWN server-side breadcrumb directly in their
+// page.tsx (real title/canonical known at server-render time, no
+// client-only override timing gap) — the global auto-derived one below
+// must stay out of the way entirely on these, or the page would ship two
+// competing BreadcrumbList schemas. Excludes the bare index route itself
+// (e.g. exactly "/opportunity-radar", no trailing segment) since that one
+// has no per-item title to get wrong and still wants the normal
+// auto-derived crumb.
+const SERVER_RENDERED_BREADCRUMB_ROUTES = [/^\/opportunity-radar\/[^/]+$/];
 
-  const crumbs = items ?? overrideCtx?.override ?? autoCrumbs(pathname);
+function crumbsToJsx(crumbs: Crumb[], siteUrl?: string): ReactNode {
   if (crumbs.length === 0) return null;
 
   // NEXT_PUBLIC_ vars are inlined at build time — identical on server and
@@ -204,4 +208,31 @@ export function Breadcrumbs({ items, siteUrl }: { items?: Crumb[]; siteUrl?: str
       </nav>
     </>
   );
+}
+
+export function Breadcrumbs({ items, siteUrl }: { items?: Crumb[]; siteUrl?: string }) {
+  const pathname = usePathname();
+  // Hooks must run unconditionally, before the early-return below.
+  const overrideCtx = useContext(BreadcrumbOverrideContext);
+  if (!pathname || pathname === "/") return null;
+  if (SERVER_RENDERED_BREADCRUMB_ROUTES.some(re => re.test(pathname))) return null;
+
+  const crumbs = items ?? overrideCtx?.override ?? autoCrumbs(pathname);
+  return crumbsToJsx(crumbs, siteUrl);
+}
+
+// Drop-in for a SERVER page/component that already knows its real crumb
+// trail at render time (2026-09-20, real production finding: a V2
+// opportunity's editorial-override title only ever reached the visible
+// breadcrumb AFTER client hydration via useBreadcrumbOverride, so the
+// initial server-rendered HTML/JSON-LD -- what a crawler or "view
+// source" actually sees -- kept showing the raw humanized URL slug,
+// including already-rejected interpretive title language a human editor
+// had specifically removed). No hooks, no context, nothing that only
+// resolves post-mount -- `items` is real from the very first byte of the
+// response. Pair with a SERVER_RENDERED_BREADCRUMB_ROUTES entry for the
+// route so the global auto-derived <Breadcrumbs/> steps aside instead of
+// emitting a second, competing BreadcrumbList.
+export function StaticBreadcrumbs({ items, siteUrl }: { items: Crumb[]; siteUrl?: string }) {
+  return crumbsToJsx(items, siteUrl);
 }

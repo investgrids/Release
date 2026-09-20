@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import { safeJsonLd } from "@/lib/text";
+import { StaticBreadcrumbs } from "@/components/Breadcrumbs";
 import RadarDetailPage from "./OpportunityPageClient";
 import { isV2Detail, type AnyOpportunityDetail } from "./types";
 
@@ -133,6 +134,14 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
 
   return (
     <>
+      {/* Server-rendered breadcrumb (2026-09-20) — real title known here,
+          at server-render time, for both V1 (numeric id) and V2 (slug,
+          override-resolved or not) alike, so the initial HTML/JSON-LD is
+          correct from the first byte rather than only after client
+          hydration. Breadcrumbs.tsx's global auto-derived one is
+          suppressed for this exact route pattern so this is the only
+          BreadcrumbList the page ever emits. */}
+      <StaticBreadcrumbs items={[{ label: "Opportunity Radar", href: "/opportunity-radar" }, { label: title }]} />
       {/* JSON.stringify (not safeJsonLd) previously left "<" unescaped —
           same stored-XSS class already fixed on the article/signal/
           research pages. */}

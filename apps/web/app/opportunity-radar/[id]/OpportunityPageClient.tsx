@@ -4,7 +4,6 @@ import { useState, useEffect, use, useRef } from "react";
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { fixMojibake, truncateForQuery } from "@/lib/text";
-import { useBreadcrumbOverride } from "@/components/Breadcrumbs";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { RelatedContent } from "@/components/RelatedContent";
 import { NextSteps } from "@/components/NextSteps";
@@ -664,17 +663,18 @@ function V2OpportunityDetail({ detail, id, hasInitialDetail, initialRelated }: {
   const topCompanies = d.companies_connected.slice(0, 2);
 
   // Real production bug (2026-09-20, found live during the Adani V2
-  // canary review): this page had its own local breadcrumb div (showing
-  // the correct d.title) AND was also relying on the root layout's global
-  // <Breadcrumbs> auto-derived fallback, which humanizes the raw URL
-  // SLUG instead — re-surfacing already-rejected interpretive title
-  // language (e.g. "Execution Catalyst") that an editorial override had
-  // specifically replaced. The two together rendered as a duplicate
-  // breadcrumb trail, one correct and one wrong. Fixed the same way
-  // RipplePageClient.tsx/EventPageClient.tsx already solve this: feed the
-  // real title to the global breadcrumb via the override channel instead
-  // of rendering a second, local one.
-  useBreadcrumbOverride([{ label: "Opportunity Radar", href: "/opportunity-radar" }, { label: d.title }]);
+  // canary review): this page had its own local breadcrumb div AND was
+  // also relying on the root layout's global <Breadcrumbs> auto-derived
+  // fallback, which humanizes the raw URL SLUG instead — re-surfacing
+  // already-rejected interpretive title language (e.g. "Execution
+  // Catalyst") an editorial override had specifically replaced. A
+  // client-side useBreadcrumbOverride fixed the hydrated DOM but not the
+  // initial server-rendered HTML/JSON-LD a crawler actually sees — the
+  // real fix is server-side: page.tsx now renders <StaticBreadcrumbs>
+  // directly (real title known at server-render time) and the global
+  // <Breadcrumbs> steps aside entirely for this route
+  // (SERVER_RENDERED_BREADCRUMB_ROUTES in Breadcrumbs.tsx), so there is
+  // exactly one BreadcrumbList and no client-only override needed here.
 
   return (
     <div className="min-w-0 pb-12">
