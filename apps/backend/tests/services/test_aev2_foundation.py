@@ -211,14 +211,20 @@ def test_gate_is_only_ever_invoked_on_generated_prose_fields_not_evidence():
     about what was published, not this platform's own advisory language,
     and must never be run through this gate. assemble.py must never call
     the gate with a field_kind that implies scanning an immutable source
-    title."""
+    title.
+
+    Build 1 (2026-09-21) refactored the direct language_gate.gate("...")
+    call sites behind a shared _build_singular_field(field_kind, ...)
+    helper — this now scans for literal field_kind strings passed into
+    EITHER call form, since _build_singular_field forwards its first arg
+    straight into gate()."""
     import inspect
     import re
     from app.services.ai_search.aev2 import assemble as assemble_mod
 
     source = inspect.getsource(assemble_mod)
-    calls = re.findall(r'language_gate\.gate\(\s*"([^"]+)"', source)
-    assert calls, "expected at least one language_gate.gate(...) call in assemble.py"
+    calls = re.findall(r'(?:language_gate\.gate|_build_singular_field)\(\s*"([^"]+)"', source)
+    assert calls, "expected at least one gate-invoking call with a literal field_kind in assemble.py"
     assert all(kind not in ("evidence", "source_title") for kind in calls)
 
 

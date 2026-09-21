@@ -24,6 +24,20 @@ built; AEV2's assemble_aev2) is what "both presenters receive the same
 immutable CoreAnswer" means concretely — not two independent re-reads of
 a mutable dict that could diverge.
 
+Deliberate exclusion (Build 1, 2026-09-21): CoreAnswer carries no
+rating, direction, top_picks, suitable_for, opportunity_score, risk_level,
+engine_verdict, or scenarios field — investment_verdict's advisory/
+recommendation-shaped sub-fields are not projected here at all. This is
+the strongest form of "AEV2 has no verdict/scenario/suitability/top-pick
+concepts": AEV2 cannot reference what CoreAnswer never exposes, so the
+constraint holds at the type level, not just by assemble.py's own
+discipline. `horizon` below is the one investment_verdict field that
+does cross this boundary — a timeframe classification ("1-3 months") is
+a factual bucket, not a recommendation, and time_horizon.primary_horizon
+needs it. `risks` (free-text risk analysis from answer.risks) is kept
+for the same reason; investment_verdict.risks (paired with catalysts,
+ratings-adjacent) is not.
+
 Frozen-but-shallow caveat (review finding, 2026-09-21 second pass): a
 `@dataclass(frozen=True)` only blocks reassigning a FIELD
 (`core.bottom_line = x` raises) — it does nothing to stop a presenter
@@ -64,6 +78,22 @@ class CoreAnswer:
     confidence_score: float | None = None
     confidence_level: str = "unscored"
     source_attribution: tuple[str, ...] = field(default_factory=tuple)
+    what_happened: str = ""
+    why_it_happened: str = ""
+    immediate_impact: str = ""
+    medium_term: str = ""
+    long_term: str = ""
+    # investment_verdict.horizon only — see the class docstring's
+    # "Deliberate exclusion" note for why nothing else from
+    # investment_verdict is projected onto CoreAnswer.
+    horizon: str | None = None
+    # Read-only passthrough of postprocess.compute_confidence_breakdown's
+    # already-computed 6-part breakdown (evidence_quality/
+    # market_confirmation/historical_similarity/data_freshness/
+    # reasoning_confidence/final_confidence) — AEV2's own confidence
+    # score reuses these existing signals (see aev2/confidence.py) rather
+    # than recomputing anything; this is that shared source of truth.
+    confidence_breakdown: dict = field(default_factory=dict)
 
 
 def from_v3_response(v3_response: dict | None) -> CoreAnswer:
@@ -95,4 +125,11 @@ def from_v3_response(v3_response: dict | None) -> CoreAnswer:
         confidence_score=answer.get("confidence"),
         confidence_level=answer.get("confidence_level") or "unscored",
         source_attribution=tuple(copy.deepcopy(v3_response.get("source_attribution") or [])),
+        what_happened=answer.get("what_happened") or "",
+        why_it_happened=answer.get("why_it_happened") or "",
+        immediate_impact=answer.get("immediate_impact") or "",
+        medium_term=answer.get("medium_term") or "",
+        long_term=answer.get("long_term") or "",
+        horizon=(v3_response.get("investment_verdict") or {}).get("horizon") or None,
+        confidence_breakdown=copy.deepcopy(v3_response.get("confidence_breakdown") or {}),
     )

@@ -54,6 +54,7 @@ _HOLD_PATTERN = re.compile(r"\bhold\b", re.IGNORECASE)
 # just states plainly that the generated text didn't pass the check.
 FALLBACK_TEXT = {
     "direct_conclusion": "A direct conclusion could not be shown for this query because the generated text did not pass the research-language check.",
+    "what_happened": "A summary of what happened could not be shown because the generated text did not pass the research-language check.",
     "why_it_matters": "An analysis could not be shown for this query because the generated text did not pass the research-language check.",
     "risk": "A risk statement could not be shown because the generated text did not pass the research-language check.",
     "invalidates_if": "An invalidation condition could not be shown because the generated text did not pass the research-language check.",
