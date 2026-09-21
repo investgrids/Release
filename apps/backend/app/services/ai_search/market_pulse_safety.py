@@ -15,36 +15,26 @@ market_pulse.py::_build_market_pulse_prompt's JSON template) — never the
 real, deterministic data sitting alongside them (index values, company
 names, tickers, prices, dates, verified_drivers) which are facts about
 the market, not this platform's own advisory language.
+
+Uses advisory_language.py's shared, context-aware scan() — Market
+Pulse's own prompt has no "never say Buy/Sell/Hold" instruction at all
+(it isn't built on specialists/base.py's research_framing_rules — a
+separate prompt entirely), making this arguably MORE exposed than the
+main specialists, not less. Context-aware hold matters especially here:
+Market Pulse legitimately narrates real monetary-policy and corporate
+events ("RBI held rates", "the company will hold its AGM") that a bare
+"hold" ban would have wrongly degraded.
 """
 from __future__ import annotations
 
-import re
-
 import structlog
 
-from app.services.aipe.recommendation_language import find_violations
+from app.services.ai_search.advisory_language import scan as _scan
 
 log = structlog.get_logger(__name__)
 
-# Same AEV2-established addition (aev2/language_gate.py) — the shared
-# recommendation_language.py pattern list has no bare "hold" check
-# (Article V2 never needed one). Market Pulse's own prompt has no
-# "never say Buy/Sell/Hold" instruction at all (it isn't built on
-# specialists/base.py's research_framing_rules — a separate prompt
-# entirely), making this arguably MORE exposed, not less.
-_HOLD_PATTERN = re.compile(r"\bhold\b", re.IGNORECASE)
-
 _SCALAR_FIELDS = ("market_summary", "sector_narrative", "ai_conclusion", "what_to_watch_summary")
 _MOVER_GROUPS = ("top_gainers", "top_losers")
-
-
-def _scan(text: str) -> list[str]:
-    if not text:
-        return []
-    hits = list(find_violations(text))
-    if _HOLD_PATTERN.search(text):
-        hits.append("hold")
-    return hits
 
 
 def find_market_pulse_violation(result: dict) -> str | None:

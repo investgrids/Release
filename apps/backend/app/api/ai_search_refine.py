@@ -58,8 +58,7 @@ async def refine_ai_search(
     the frontend's job in that case is to re-run the full search, not to
     have this endpoint quietly paper over missing evidence."""
     from app.services.ai_search import cache as cache_mod
-    from app.services.ai_search import safety_gate
-    from app.services.ai_search.degraded_shape import empty_investment_verdict
+    from app.services.ai_search import refine_safety
     from app.services.ai_search.specialists import refine as refine_specialist
     from app.services.ai_search import validation as validation_mod
 
@@ -84,25 +83,18 @@ async def refine_ai_search(
     if not was_degraded:
         parsed, _report = validation_mod.validate_and_repair(parsed)
 
-        # Same deterministic recommendation-language safety net every
-        # /api/ai/search* route runs through (see response_finalize.py /
-        # safety_gate.py's own docstring on the real incident this
-        # closes) — found missing here in the 2026-09-21 intent audit.
-        # refine's own flat output already has decision_engine_v2.why and
-        # ai_conclusion.investor_action_note at the exact paths
-        # find_v3_safety_violation already knows how to check; no new
-        # scanning surface needed, just wiring this path through it too.
-        violated_field = safety_gate.find_v3_safety_violation(parsed)
+        # Exhaustive deterministic recommendation-language safety net —
+        # every free-text location refine's own output can carry (see
+        # refine_safety.py's own docstring: 9 locations across 3
+        # response keys, not just the 2 most obviously "conclusion-
+        # shaped" ones a narrower first pass checked). Found missing
+        # entirely in the 2026-09-21 intent audit; the narrower version
+        # was itself found incomplete in the very next review pass.
+        violated_field = refine_safety.find_refine_violation(parsed)
         if violated_field:
-            log.warning(
-                "ai_search_v3.refine.recommendation_language_violation",
-                field=violated_field, violation_code="recommendation_language_pattern_match",
-            )
+            refine_safety.log_refine_violation(violated_field)
             was_degraded = True
-            parsed = {
-                "investment_verdict": empty_investment_verdict(),
-                "decision_engine_v2": {}, "ai_conclusion": {},
-            }
+            parsed = refine_safety.build_refine_degraded_response()
     latency_ms = round((time.monotonic() - _t0) * 1000, 1)
 
     from app.services.ai_service import _AI_USAGE

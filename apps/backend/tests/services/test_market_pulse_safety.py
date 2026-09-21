@@ -7,6 +7,7 @@ fixed field paths don't exist on Market Pulse's response shape.
 """
 from __future__ import annotations
 
+import pytest
 import structlog.testing
 
 from app.services.ai_search import market_pulse_safety
@@ -68,9 +69,34 @@ def test_advisory_language_in_what_to_watch_summary_is_caught():
     assert market_pulse_safety.find_market_pulse_violation(result) == "what_to_watch_summary"
 
 
-def test_bare_hold_is_caught_even_though_shared_pattern_list_lacks_it():
+def test_advisory_hold_is_caught_even_though_shared_pattern_list_lacks_it():
     result = _pulse_with(ai_conclusion="Investors should hold their current positions.")
     assert market_pulse_safety.find_market_pulse_violation(result) == "ai_conclusion"
+
+
+# ── Context-aware hold: Market Pulse legitimately narrates real
+# monetary-policy and corporate events using the same word ─────────────────
+
+@pytest.mark.parametrize("field", ["market_summary", "sector_narrative", "ai_conclusion", "what_to_watch_summary"])
+@pytest.mark.parametrize("text", [
+    "The RBI decided to hold rates steady at its latest policy meeting.",
+    "Nifty and Sensex are expected to hold steady in early trade.",
+    "The company will hold its AGM next week to discuss the merger.",
+])
+def test_factual_hold_usage_never_flags_market_pulse(field, text):
+    result = _pulse_with(**{field: text})
+    assert market_pulse_safety.find_market_pulse_violation(result) is None
+
+
+@pytest.mark.parametrize("field", ["market_summary", "sector_narrative", "ai_conclusion", "what_to_watch_summary"])
+@pytest.mark.parametrize("text", [
+    "Investors should hold their current positions given the volatility.",
+    "Continue holding banking stocks through the earnings season.",
+    "This sector remains a hold heading into results.",
+])
+def test_advisory_hold_usage_flags_market_pulse(field, text):
+    result = _pulse_with(**{field: text})
+    assert market_pulse_safety.find_market_pulse_violation(result) == field
 
 
 def test_advisory_language_in_a_gainer_narrative_is_caught():

@@ -11,18 +11,20 @@ gate is the deterministic backstop, applied to every AEV2 field that
 carries generated prose, after parsing and before assembly, regardless
 of whether the prompt was followed.
 
-Reuses app.services.aipe.recommendation_language's proven, already-tested
-pattern list (find_violations()) rather than inventing a second one —
-same adversarial-case guarantees (buy vs buyback, short vs short-term)
-that module already carries test coverage for. Adds exactly one AEV2-only
-pattern on top: a bare "hold" check. recommendation_language.py's own
-list has no such pattern (Article V2's opportunities[]/key_takeaway
-fields didn't need one) — but AEV2 must also never say "Hold", matching
-the original ai_search prompt-level instruction
-(specialists/base.py::research_framing_rules: "never say Buy, Sell,
-Hold..."). Word-boundary safe by construction: \\bhold\\b does not match
-"shareholding" (no boundary between "e" and "h" in that word), tested
-explicitly below.
+Reuses advisory_language.py's shared scan() (2026-09-21, third pass —
+previously duplicated its own bare "hold" check independently, one of
+three near-identical copies found in review alongside safety_gate.py and
+market_pulse_safety.py; all three now derive from the one shared,
+context-aware implementation). That module wraps
+app.services.aipe.recommendation_language's proven, already-tested
+pattern list (find_violations()) — same adversarial-case guarantees (buy
+vs buyback, short vs short-term) — plus a context-aware "hold" check:
+AEV2 must never say "Hold" as a recommendation (matching the original
+ai_search prompt-level instruction, specialists/base.py::
+research_framing_rules: "never say Buy, Sell, Hold..."), but a bare-word
+ban would also degrade a legitimate mention of the RBI holding rates or
+a company holding its AGM — see advisory_language.py's own docstring for
+the adversarial cases this is built against.
 
 Fields this gate is required to cover (spec): the direct conclusion, why-
 it-matters analysis, risks/invalidation text, and follow-up question
@@ -40,14 +42,9 @@ never surfaced anywhere past this gate, not even in a sanitized form.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
-from app.services.aipe.recommendation_language import find_violations
-
-# AEV2-only addition — see module docstring for why this isn't in the
-# shared recommendation_language.py pattern list.
-_HOLD_PATTERN = re.compile(r"\bhold\b", re.IGNORECASE)
+from app.services.ai_search.advisory_language import scan as _shared_scan
 
 # One fallback per field kind — honest, not a filler platitude. Never
 # claims a specific reason (that would itself be an unverified claim);
@@ -71,15 +68,12 @@ class GateResult:
 
 
 def scan(text: str) -> list[str]:
-    """Every violation found in `text`, combining the shared, proven
-    pattern list with AEV2's one additional bare-"hold" check. Never
-    called on an immutable source title (see module docstring)."""
-    if not text:
-        return []
-    hits = list(find_violations(text))
-    if _HOLD_PATTERN.search(text):
-        hits.append("hold")
-    return hits
+    """Thin wrapper over advisory_language.scan() — kept as its own named
+    function here (rather than importing that one directly at call sites)
+    so AEV2 code has one stable, AEV2-scoped entry point regardless of
+    where the shared implementation lives. Never called on an immutable
+    source title (see module docstring)."""
+    return _shared_scan(text)
 
 
 def gate(field_kind: str, text: str) -> GateResult:

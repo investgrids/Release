@@ -12,6 +12,15 @@ not have protected anyone, since AEV2 correctly stays off until its own
 build is complete — this module is deliberately independent of AEV2 and
 protects every real serving route today, on the existing V3 contract.
 
+Import-level independence, not just behavioral (review, 2026-09-21 third
+pass): this module originally imported its scan() from aev2.language_gate
+— meaning loading safety_gate.py transitively required the unfinished
+aev2/ package to exist at all, contradicting its own "deliberately
+independent of AEV2" claim above and blocking this module from being
+deployed as a standalone production hotfix. Now imports from
+advisory_language.py, a neutral shared module with no aev2/ dependency —
+see that module's own docstring for the full context.
+
     cached/fresh V3 core -> this gate -> honest degraded response
     on violation -> optional AEV2 assembly -> serialize
 
@@ -26,7 +35,7 @@ from __future__ import annotations
 
 import structlog
 
-from app.services.ai_search.aev2.language_gate import scan
+from app.services.ai_search.advisory_language import scan
 from app.services.ai_search.degraded_shape import build_degraded_shape
 
 log = structlog.get_logger(__name__)
