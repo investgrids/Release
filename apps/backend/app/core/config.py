@@ -209,6 +209,22 @@ class Settings(BaseSettings):
     # window the owner specified.
     opportunity_read_source: str = "v1"  # "v1" | "v2"
 
+    # Answer Experience V2 (AEV2) — evidence-first AI Search redesign,
+    # approved spec 2026-09-21 (design closed, Rev. 3 + errata). Raw
+    # string here, same convention as opportunity_read_source/
+    # article_pipeline_mode above — the real, fail-closed parsing (any
+    # value other than the 4 recognized strings resolves to "off", never
+    # an accidental activation) lives in
+    # app/services/ai_search/aev2/mode.py, not here.
+    # off     : answer_experience_v2 is never computed or returned.
+    # shadow  : computed and logged (sanitized telemetry only) on every
+    #           request; never serialized into the client response.
+    # canary  : computed and returned, but ONLY to a request carrying the
+    #           existing admin-key gate — no user accounts to scope a
+    #           cohort by, so this reuses that already-proven mechanism.
+    # public  : computed and returned to every request.
+    ai_search_aev2_mode: str = "off"  # "off" | "shadow" | "canary" | "public"
+
     # Article V2 Production Integration, Phase P5 (owner design,
     # 2026-09-06) — the entry-point mode boundary for the Event-triggered
     # AIPE flow only (comparisons/live_signal are untouched). Raw string

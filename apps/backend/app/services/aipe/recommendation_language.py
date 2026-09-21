@@ -88,6 +88,17 @@ def _find_violations(text: str) -> list[str]:
     return [m.group(0) for pat in _PATTERNS if (m := pat.search(text))]
 
 
+def find_violations(text: str) -> list[str]:
+    """Public entry point over the same pattern list `_find_violations`
+    uses — for callers outside this module's own field-aware scan (e.g.
+    AEV2's language gate, app/services/ai_search/aev2/language_gate.py)
+    that need the raw scanner applied to their own field set, not this
+    module's Article-V2-specific opportunities[]/key_takeaway mapping.
+    Same patterns, same adversarial-case guarantees (buy vs buyback,
+    short vs short-term) — one pattern list shared, never duplicated."""
+    return _find_violations(text)
+
+
 def scan_recommendation_language(article: dict[str, Any]) -> list[str]:
     """Scan the high-risk fields of a generated article for MarketRipple-
     authored recommendation language. Returns a list of violation strings

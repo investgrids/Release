@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -114,6 +114,7 @@ async def ai_search_v3(
     request: Request,
     body: SearchRequest,
     db: AsyncSession = Depends(get_db),
+    x_admin_key: str | None = Header(default=None),
 ):
     """Non-streaming V3 pipeline endpoint — canonical JSON adapter. `/search`
     above is now a thin compatibility wrapper over this same core (6G
@@ -152,6 +153,24 @@ async def ai_search_v3(
     # analytics, not billing. None on a cache hit — no live LLM call happened.
     from app.services.ai_service import _AI_USAGE
     provider = None if was_cached else _AI_USAGE.get("last_provider")
+
+    # AEV2 (Answer Experience V2) — computed strictly AFTER cache
+    # retrieval above, from whichever `result` was resolved (cache hit or
+    # fresh). Never mutates `result`; a new dict is built only when the
+    # mode actually allows returning it to this specific caller, so the
+    # object cached_mod.set_response stored (deep inside run_ai_search_v3)
+    # never gains this key. See aev2/assemble.py and aev2/mode.py.
+    from app.core.security import has_valid_admin_key
+    from app.services.ai_search.aev2.assemble import assemble_aev2
+    from app.services.ai_search.aev2.mode import get_aev2_mode, should_assemble, should_return_to_client
+
+    aev2_mode = get_aev2_mode()
+    if should_assemble(aev2_mode):
+        aev2_value = assemble_aev2(query, result, mode=aev2_mode)
+        if aev2_value is not None and should_return_to_client(
+            aev2_mode, has_valid_admin_key=has_valid_admin_key(x_admin_key),
+        ):
+            result = {**result, "answer_experience_v2": aev2_value}
 
     return SearchResponseV3(
         query=query, cached=was_cached, result=result,
