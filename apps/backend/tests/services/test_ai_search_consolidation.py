@@ -39,9 +39,11 @@ isolation).
 from __future__ import annotations
 
 import ast
+import copy
 import re
 from pathlib import Path
 
+import pytest
 import structlog.testing
 
 from app.services.ai_search import pipeline, safety_gate
@@ -489,3 +491,97 @@ def test_configured_telemetry_key_emits_normally_with_a_real_hash(monkeypatch):
     assert len(events) == 1
     assert events[0]["query_hash"] not in ("", "telemetry-key-unconfigured")
     assert len(events[0]["query_hash"]) == 16
+
+
+# ── Internal-only attribution plumbing never reaches a public caller ──────
+# (review, 2026-09-21: "announcements" — surfaced into the V3 response dict
+# purely so CoreAnswer/AEV2's citation validator can attribute claims to
+# CompanyAnnouncement rows — was never part of V3's public contract before
+# AEV2 existed, and must not become part of it now, on ANY route, cached or
+# fresh, regardless of AEV2 mode.)
+
+def _v3_response_with_announcements(**overrides) -> dict:
+    base = {
+        "answer": {"bottom_line": "Reliance Industries reported strong results.", "summary": "ok"},
+        "response_id": "r1", "companies": [{"symbol": "RELIANCE", "name": "Reliance Industries Ltd"}],
+        "related_events": [], "news": [], "policies": [],
+        "announcements": [{"id": "a1", "symbol": "RELIANCE", "subject": "Board approves capex plan"}],
+    }
+    base.update(overrides)
+    return base
+
+
+@pytest.mark.parametrize("mode", ["off", "shadow", "canary", "public"])
+def test_finalize_strips_announcements_for_every_aev2_mode(monkeypatch, mode):
+    from app.core.config import settings
+    from app.services.ai_search.aev2 import mode as mode_mod
+
+    monkeypatch.setattr(settings, "ai_search_aev2_mode", mode)
+    monkeypatch.setattr(mode_mod, "AEV2_BUILD_COMPLETE", True)
+    monkeypatch.setattr(settings, "admin_api_key", "real-secret")
+
+    result = finalize_v3_response(
+        "q", _v3_response_with_announcements(), x_admin_key="real-secret", was_cached=True,
+    )
+    assert "announcements" not in result
+    if "answer_experience_v2" in result:
+        assert "announcements" not in result["answer_experience_v2"]
+
+
+def test_finalize_strips_announcements_on_a_cache_hit():
+    """was_cached=True must not change the stripping behavior — the
+    cached object itself may carry internal fields; the response handed
+    back to THIS caller must never carry them regardless."""
+    result = finalize_v3_response("q", _v3_response_with_announcements(), was_cached=True)
+    assert "announcements" not in result
+
+
+def test_finalize_never_mutates_the_cached_object_while_stripping():
+    """The dict sitting in cache_mod._CACHE must still carry
+    announcements after finalize_v3_response runs on it — stripping
+    builds a new dict for the OUTGOING response, it never edits the
+    cached one in place."""
+    cached = _v3_response_with_announcements()
+    before = copy.deepcopy(cached)
+    finalize_v3_response("q", cached, was_cached=True)
+    assert cached == before
+    assert "announcements" in cached
+
+
+def test_core_answer_still_receives_announcements_despite_stripping(monkeypatch):
+    """The whole point of putting announcements in the internal dict at
+    all — CoreAnswer, and therefore AEV2's citation validator, must still
+    see them even though the public result never does."""
+    from app.core.config import settings
+    from app.services.ai_search.aev2 import mode as mode_mod
+
+    monkeypatch.setattr(settings, "ai_search_aev2_mode", "public")
+    monkeypatch.setattr(mode_mod, "AEV2_BUILD_COMPLETE", True)
+
+    captured: dict = {}
+    real_assemble = __import__(
+        "app.services.ai_search.aev2.assemble", fromlist=["assemble_aev2"],
+    ).assemble_aev2
+
+    def spy_assemble(core, *, mode):
+        captured["core"] = core
+        return real_assemble(core, mode=mode)
+
+    monkeypatch.setattr("app.services.ai_search.response_finalize.assemble_aev2", spy_assemble)
+
+    result = finalize_v3_response("q", _v3_response_with_announcements(), was_cached=True)
+
+    assert captured["core"].announcements == ({"id": "a1", "symbol": "RELIANCE", "subject": "Board approves capex plan"},)
+    assert "announcements" not in result
+
+
+def test_aev2_off_public_result_unaffected_by_internal_announcement_plumbing():
+    """The exact regression this review named: AEV2=off must return
+    byte-identical output to what V3's public contract looked like
+    before announcements existed at all — i.e. the same dict with
+    exactly the internal-only key removed, nothing else different."""
+    v3_response = _v3_response_with_announcements()
+    prior_public_shape = {k: v for k, v in v3_response.items() if k != "announcements"}
+
+    result = finalize_v3_response("q", dict(v3_response), was_cached=True)
+    assert result == prior_public_shape

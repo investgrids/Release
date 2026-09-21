@@ -11,7 +11,19 @@ learning engine:
     -> CoreAnswer.from_v3_response (one immutable projection)
     -> optional AEV2 assembly, reading only the CoreAnswer
     -> prediction recording (fresh + clean only — see below)
+    -> strip internal-only attribution plumbing (see below)
     -> return the V3 dict presenter (unchanged), optionally + AEV2's
+
+Internal-only field stripping (2026-09-21, review): pipeline.py's
+response dict carries an "announcements" key (CompanyAnnouncement rows,
+added so CoreAnswer/AEV2's citation validator can attribute claims to
+them) that was never part of V3's public contract before AEV2 existed.
+It must never reach an actual HTTP caller, cached or fresh, regardless
+of AEV2 mode — this function is the one place downstream of both cache
+retrieval AND CoreAnswer construction, so it's the only correct place to
+strip it: late enough that CoreAnswer has already read it (AEV2 still
+gets its attribution data), early enough that no route-specific
+serialization step could accidentally let it through unstripped.
 
 Prediction recording (2026-09-21): moved here from pipeline.py's
 _assemble_response, which fired store_search_predictions
@@ -56,6 +68,19 @@ from app.services.ai_search import safety_gate
 from app.services.ai_search.aev2.assemble import assemble_aev2
 from app.services.ai_search.aev2.mode import get_aev2_mode, should_assemble, should_return_to_client
 from app.services.ai_search.core_answer import from_v3_response
+
+# Internal-only fields CoreAnswer is allowed to read from `result` that
+# must never be serialized to an actual HTTP caller — see this module's
+# docstring. A set, not a single name, so a future internal-only
+# addition (e.g. a second attribution source) has one obvious place to
+# register rather than a new ad hoc strip somewhere else.
+_INTERNAL_ONLY_FIELDS = frozenset({"announcements"})
+
+
+def _strip_internal_only_fields(result: dict) -> dict:
+    if not any(k in result for k in _INTERNAL_ONLY_FIELDS):
+        return result
+    return {k: v for k, v in result.items() if k not in _INTERNAL_ONLY_FIELDS}
 
 
 def finalize_v3_response(
@@ -122,4 +147,7 @@ def finalize_v3_response(
             name="prediction-store-v3",
         )
 
-    return result
+    # ── 5. Strip internal-only attribution plumbing — the one point
+    # every route and every cache-hit/fresh/mode combination passes
+    # through before a response is actually returned. ──────────────────
+    return _strip_internal_only_fields(result)
