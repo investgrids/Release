@@ -225,6 +225,18 @@ class Settings(BaseSettings):
     # public  : computed and returned to every request.
     ai_search_aev2_mode: str = "off"  # "off" | "shadow" | "canary" | "public"
 
+    # Dedicated telemetry-hashing secret (review finding, 2026-09-21): a
+    # plain SHA-256 of the query text is reversible by dictionary/rainbow
+    # lookup for common queries, so AEV2 shadow/canary/public telemetry
+    # hashes the query with HMAC-SHA256 keyed by this value instead —
+    # deliberately a SEPARATE secret from admin_api_key (a compromised
+    # telemetry key must never also compromise the admin-write surface,
+    # and vice versa). Empty by default; app/services/ai_search/aev2/
+    # telemetry.py fails closed (a fixed placeholder, never a silent
+    # plain-SHA-256 fallback) when this is unset, rather than quietly
+    # reintroducing the exact privacy gap this field exists to close.
+    aev2_telemetry_key: str = ""
+
     # Article V2 Production Integration, Phase P5 (owner design,
     # 2026-09-06) — the entry-point mode boundary for the Event-triggered
     # AIPE flow only (comparisons/live_signal are untouched). Raw string

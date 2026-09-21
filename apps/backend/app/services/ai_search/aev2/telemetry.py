@@ -1,33 +1,68 @@
 """
-Sanitized AEV2 telemetry (errata §10, item 8 + item 10, 2026-09-21).
+Sanitized AEV2 telemetry (errata §10, item 8 + item 10, 2026-09-21;
+hashing hardened after review, 2026-09-21).
 
 Never stores or logs the raw query text, the LLM's generated prose, or
-any other prompt content — only an opaque hash of the query, pass/fail
-flags per check, failure_reason codes, stage timings, and confidence
-component values. Emitted via structlog, matching this codebase's
-existing `ai_search_v3.*`/`ai.*` structured-log convention — no new
-storage mechanism introduced here. Retention is inherited from whatever
-already governs this process's logs (Railway's own log retention) —
-ordinary log-retention discipline, not a special exception built for this
-feature; RETENTION_DAYS below documents the intended window rather than
-enforcing it in code, since no dedicated telemetry store/schema was asked
-for as part of this foundation slice.
+any other prompt content — only an opaque, keyed hash of the query,
+pass/fail flags per check, failure_reason codes, stage timings, and
+confidence component values. Emitted via structlog, matching this
+codebase's existing `ai_search_v3.*`/`ai.*` structured-log convention —
+no new storage mechanism introduced here.
+
+Review finding: a PLAIN SHA-256 of the query text is not private — common
+queries ("Should I invest in HDFC Bank?") are trivially recovered by
+dictionary/rainbow-table lookup, since the input space of real user
+queries is small and guessable. hash_query() below is HMAC-SHA256 keyed
+by settings.aev2_telemetry_key — a dedicated secret, deliberately never
+admin_api_key (a compromised telemetry key must never also compromise the
+admin-write surface, and vice versa). If that key is unset, hash_query()
+returns a fixed placeholder rather than silently falling back to plain
+SHA-256 — fail closed, never quietly reintroduce the exact gap this
+change exists to close.
+
+RETENTION: 30 days is the intended window (ordinary log-retention
+discipline, not a special exception built for this feature) but nothing
+in this module enforces it — no dedicated telemetry store/schema was
+asked for as part of this foundation slice, so retention/purge is
+whatever the underlying log sink (Railway's own log retention, or any
+downstream aggregator) is actually configured to. Before AI_SEARCH_AEV2_
+MODE is ever set to "shadow" (or beyond) in a real environment, someone
+must confirm that sink's real retention setting matches this window —
+that is an operational verification step, not something this module can
+prove from application code alone.
 """
 from __future__ import annotations
 
 import hashlib
+import hmac
 
 import structlog
+
+from app.core.config import settings
 
 log = structlog.get_logger(__name__)
 
 RETENTION_DAYS = 30
 
+_UNCONFIGURED_PLACEHOLDER = "telemetry-key-unconfigured"
+_warned_unconfigured = False
+
 
 def hash_query(query: str) -> str:
-    """Opaque, non-reversible identifier for correlating telemetry rows
-    about the same query without ever storing the query text itself."""
-    return hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
+    """Opaque identifier for correlating telemetry rows about the same
+    query without ever storing the query text itself. HMAC-SHA256 keyed
+    by a dedicated secret — never a bare hash, which dictionary/rainbow-
+    table attacks defeat for a small, guessable query space. Returns a
+    fixed, non-identifying placeholder (logged once) if no key is
+    configured, rather than falling back to an insecure bare hash."""
+    global _warned_unconfigured
+    key = settings.aev2_telemetry_key
+    if not key:
+        if not _warned_unconfigured:
+            log.warning("ai_search.aev2_telemetry_key_unconfigured")
+            _warned_unconfigured = True
+        return _UNCONFIGURED_PLACEHOLDER
+    return hmac.new(key.encode("utf-8"), query.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
 
 
 def emit_assembly_success(

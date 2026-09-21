@@ -26,6 +26,7 @@ from app.services.ai_search.aev2.mode import (
     should_emit_telemetry,
     should_return_to_client,
 )
+from app.services.ai_search.core_answer import from_v3_response
 
 
 # ── Mode resolution — fail-closed, never a stronger mode than configured ────
@@ -61,14 +62,57 @@ def test_should_assemble_true_for_every_mode_except_off():
 def test_should_return_to_client_matrix():
     # off: never assembled, so never returned (should_assemble already False)
     assert should_return_to_client(AEV2Mode.OFF, has_valid_admin_key=True) is False
-    # shadow: never returned, regardless of admin key
+    # shadow: never returned, regardless of admin key — unaffected by the
+    # readiness latch either way, since shadow never returns anyway.
     assert should_return_to_client(AEV2Mode.SHADOW, has_valid_admin_key=True) is False
     assert should_return_to_client(AEV2Mode.SHADOW, has_valid_admin_key=False) is False
-    # canary: returned only with a valid admin key
-    assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=True) is True
-    assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=False) is False
-    # public: always returned
-    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=False) is True
+    # canary/public: with the real, current AEV2_BUILD_COMPLETE=False latch,
+    # BOTH are always False regardless of admin key — see the dedicated
+    # readiness-latch tests below for the full proof this can't be
+    # bypassed via AI_SEARCH_AEV2_MODE alone.
+    assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=True) is False
+    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=True) is False
+
+
+# ── Readiness latch — canary/public fail closed until Build 1 is done ──────
+
+def test_build_complete_is_false_today():
+    """The foundation slice only populates direct_conclusion — this must
+    stay False until a later, deliberate commit finishes response
+    restructuring and citation resolution."""
+    from app.services.ai_search.aev2 import mode as mode_mod
+    assert mode_mod.AEV2_BUILD_COMPLETE is False
+
+
+def test_canary_and_public_fail_closed_regardless_of_admin_key_while_build_incomplete():
+    for has_key in (True, False):
+        assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=has_key) is False
+        assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=has_key) is False
+
+
+def test_readiness_latch_is_the_actual_gate_not_incidental(monkeypatch):
+    """Proves should_return_to_client's canary/public=False behavior
+    really is driven by AEV2_BUILD_COMPLETE (not some other coincidental
+    condition) by flipping the module-level constant directly — the only
+    way this constant can change is a code edit + a new commit, never an
+    environment variable."""
+    from app.services.ai_search.aev2 import mode as mode_mod
+    monkeypatch.setattr(mode_mod, "AEV2_BUILD_COMPLETE", True)
+    assert mode_mod.should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=False) is True
+    assert mode_mod.should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=True) is True
+    assert mode_mod.should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=False) is False
+
+
+def test_readiness_latch_cannot_be_bypassed_by_an_env_var_typo(monkeypatch):
+    """The exact scenario the review flagged: someone sets
+    AI_SEARCH_AEV2_MODE to a valid-looking value expecting AEV2 to go
+    live. Even set to "public" outright (not a typo — the real value),
+    should_return_to_client must still refuse, because that decision was
+    never wired through settings/env vars at all."""
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "ai_search_aev2_mode", "public")
+    assert get_aev2_mode() == AEV2Mode.PUBLIC  # the mode itself DOES parse correctly...
+    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=True) is False  # ...but never returns
 
 
 def test_should_emit_telemetry_false_only_for_off():
@@ -182,27 +226,38 @@ def test_gate_is_only_ever_invoked_on_generated_prose_fields_not_evidence():
 
 def test_assemble_aev2_returns_none_when_mode_is_off():
     v3_response = {"answer": {"bottom_line": "some real conclusion"}, "response_id": "r1"}
-    assert assemble_aev2("q", v3_response, mode=AEV2Mode.OFF) is None
+    assert assemble_aev2(from_v3_response(v3_response), mode=AEV2Mode.OFF) is None
 
 
 def test_assemble_aev2_never_mutates_the_input_v3_response():
     v3_response = {"answer": {"bottom_line": "HDFC Bank reported strong results."}, "response_id": "r1"}
     before = dict(v3_response)  # shallow snapshot for comparison
-    assemble_aev2("q", v3_response, mode=AEV2Mode.PUBLIC)
+    assemble_aev2(from_v3_response(v3_response), mode=AEV2Mode.PUBLIC)
     assert v3_response == before
     assert "answer_experience_v2" not in v3_response
 
 
 def test_assemble_aev2_direct_conclusion_passes_through_clean_bottom_line():
     v3_response = {"answer": {"bottom_line": "HDFC Bank reported strong results."}, "response_id": "r1"}
-    result = assemble_aev2("q", v3_response, mode=AEV2Mode.PUBLIC)
+    result = assemble_aev2(from_v3_response(v3_response), mode=AEV2Mode.PUBLIC)
     assert result["direct_conclusion"]["text"] == "HDFC Bank reported strong results."
 
 
 def test_assemble_aev2_direct_conclusion_fails_closed_on_advisory_language():
     v3_response = {"answer": {"bottom_line": "HDFC Bank remains a solid buy candidate."}, "response_id": "r1"}
-    result = assemble_aev2("q", v3_response, mode=AEV2Mode.PUBLIC)
+    result = assemble_aev2(from_v3_response(v3_response), mode=AEV2Mode.PUBLIC)
     assert result["direct_conclusion"]["text"] == language_gate.FALLBACK_TEXT["direct_conclusion"]
+
+
+def test_assemble_aev2_never_mutates_the_core_answer_it_is_given():
+    """CoreAnswer is frozen, so mutation isn't just undocumented — it's a
+    dataclasses.FrozenInstanceError. This test proves assemble_aev2 never
+    even attempts one (e.g. via object.__setattr__)."""
+    core = from_v3_response({"answer": {"bottom_line": "Real conclusion."}, "response_id": "r1"})
+    before = core
+    assemble_aev2(core, mode=AEV2Mode.PUBLIC)
+    assert core == before
+    assert core is before
 
 
 def test_a_simulated_cache_hit_never_gains_answer_experience_v2_on_the_cached_object():
@@ -216,7 +271,7 @@ def test_a_simulated_cache_hit_never_gains_answer_experience_v2_on_the_cached_ob
 
     # First "request" — cache hit, mode PUBLIC, should get a copy with AEV2 attached.
     result = fake_cache_store["q"]
-    aev2_value = assemble_aev2("q", result, mode=AEV2Mode.PUBLIC)
+    aev2_value = assemble_aev2(from_v3_response(result), mode=AEV2Mode.PUBLIC)
     response_1 = {**result, "answer_experience_v2": aev2_value}
     assert "answer_experience_v2" in response_1
 
@@ -228,7 +283,7 @@ def test_a_simulated_cache_hit_never_gains_answer_experience_v2_on_the_cached_ob
     # time (simulating a flag flip) — must not see AEV2 leak through
     # from the previous request just because it's the same cached dict.
     result_2 = fake_cache_store["q"]
-    aev2_value_2 = assemble_aev2("q", result_2, mode=AEV2Mode.OFF)
+    aev2_value_2 = assemble_aev2(from_v3_response(result_2), mode=AEV2Mode.OFF)
     assert aev2_value_2 is None
     assert "answer_experience_v2" not in result_2
 

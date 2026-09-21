@@ -17,6 +17,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_search import cache as cache_mod
+from app.services.ai_search.degraded_shape import build_degraded_shape
 from app.services.ai_search import entities as entities_mod
 from app.services.ai_search import evidence as evidence_mod
 from app.services.ai_search import followups as followups_mod
@@ -444,48 +445,12 @@ def _build_degraded_response(
         "Full AI analysis wasn't available for this query — showing the real evidence "
         "found, with no generated conclusion, confidence score, or outlook."
     )
-    return {
-        "query": query, "response_id": response_id, "schema_version": SCHEMA_VERSION,
-        "specialist": specialist_kind,
-        "degraded_reason": degraded_reason,
-        "synthesis_incomplete": True,
-        "answer": {
-            "summary": summary, "bottom_line": summary,
-            "what_happened": "", "why_it_happened": "", "immediate_impact": "",
-            "medium_term": "", "long_term": "", "what_priced_in": "",
-            "risks": [], "opportunities": [],
-            "confidence": None, "confidence_level": "unscored",
-            "sentiment": "neutral", "sources_count": sources_count,
-        },
-        "key_drivers": [], "insights": [], "companies": [], "sectors": [],
-        "related_events": related_events, "news": [], "policies": [],
-        "timeline": [], "historical_comparison": [], "ripple_chain": [],
-        "scenarios": {}, "monitoring": {"items": []},
-        "follow_up_questions": [],
-        "investment_verdict": {
-            "rating": "Not Applicable", "direction": "neutral", "confidence": None,
-            "horizon": None, "top_picks": [], "risks": [], "catalysts": [],
-            "opportunity_score": None, "risk_level": "", "suitable_for": "",
-            "engine_verdict": None,
-        },
-        "market_chart": {"labels": [], "series": []},
-        "graph": {"nodes": [], "edges": []},
-        "citations": [],
-        "decision_intelligence": None,
-        "confidence_data": {"level": "unscored", "score": None, "reasons": [], "breakdown": {}, "caveats": []},
-        "decision_engine_v2": {},
-        "timeline_intelligence": {}, "opportunity_risk_matrix": {}, "ai_conclusion": {},
-        "evidence_score": {
-            "stars": None, "checklist": {},
-            "source_count": sources_count, "development_count": sources_count,
-            "corroborating_source_count": sources_count,
-        },
-        "confidence_breakdown": {"final_confidence": None, "level": "unscored"},
-        "source_attribution": [f"event:{e.get('id')}" for e in related_events if e.get("id")],
-        "validation": {"repairs": [], "omissions": [], "contradiction_flagged": False},
-        "market_impact_horizons": {}, "what_to_monitor": [], "ai_reasoning_methods": [],
-        "follow_up_groups": [],
-    }
+    return build_degraded_shape(
+        query=query, response_id=response_id, schema_version=SCHEMA_VERSION,
+        specialist_kind=specialist_kind, degraded_reason=degraded_reason, summary=summary,
+        related_events=related_events, sources_count=sources_count,
+        source_attribution=[f"event:{e.get('id')}" for e in related_events if e.get("id")],
+    )
 
 
 async def _assemble_response(

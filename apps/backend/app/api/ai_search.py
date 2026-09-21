@@ -92,6 +92,9 @@ async def ai_search(
     else:
         ai_search_stats.record_success(latency_ms)
 
+    from app.services.ai_search.response_finalize import finalize_v3_response
+    result = finalize_v3_response(query, result)
+
     return SearchResponse(query=query, cached=was_cached, result=result)
 
 
@@ -154,23 +157,12 @@ async def ai_search_v3(
     from app.services.ai_service import _AI_USAGE
     provider = None if was_cached else _AI_USAGE.get("last_provider")
 
-    # AEV2 (Answer Experience V2) — computed strictly AFTER cache
-    # retrieval above, from whichever `result` was resolved (cache hit or
-    # fresh). Never mutates `result`; a new dict is built only when the
-    # mode actually allows returning it to this specific caller, so the
-    # object cached_mod.set_response stored (deep inside run_ai_search_v3)
-    # never gains this key. See aev2/assemble.py and aev2/mode.py.
-    from app.core.security import has_valid_admin_key
-    from app.services.ai_search.aev2.assemble import assemble_aev2
-    from app.services.ai_search.aev2.mode import get_aev2_mode, should_assemble, should_return_to_client
-
-    aev2_mode = get_aev2_mode()
-    if should_assemble(aev2_mode):
-        aev2_value = assemble_aev2(query, result, mode=aev2_mode)
-        if aev2_value is not None and should_return_to_client(
-            aev2_mode, has_valid_admin_key=has_valid_admin_key(x_admin_key),
-        ):
-            result = {**result, "answer_experience_v2": aev2_value}
+    # Deterministic recommendation-language safety net (unconditional)
+    # + optional AEV2 assembly — both run strictly AFTER cache retrieval
+    # above, from whichever `result` was resolved (cache hit or fresh).
+    # Never mutates `result` in place — see response_finalize.py.
+    from app.services.ai_search.response_finalize import finalize_v3_response
+    result = finalize_v3_response(query, result, x_admin_key=x_admin_key)
 
     return SearchResponseV3(
         query=query, cached=was_cached, result=result,
@@ -238,6 +230,15 @@ async def ai_search_stream(
                         ai_search_stats.record_success(latency_ms)
                     from app.services.ai_service import _AI_USAGE
                     provider = None if was_cached else _AI_USAGE.get("last_provider")
+                    # Same safety-gate + optional-AEV2 pipeline every route
+                    # runs its response through — see response_finalize.py.
+                    # x_admin_key is structurally None here: EventSource
+                    # (the browser API this route is built for) supports no
+                    # custom request headers at all, so canary mode is
+                    # simply unreachable from this route — the correct,
+                    # safe default, not a gap to work around.
+                    from app.services.ai_search.response_finalize import finalize_v3_response
+                    payload = finalize_v3_response(query, payload)
                     envelope = {
                         "result": payload,
                         "cached": was_cached,

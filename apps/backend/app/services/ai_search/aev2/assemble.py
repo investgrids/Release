@@ -1,21 +1,20 @@
 """
-AEV2 assembly — the cache-safe integration point (spec §"Implementation
-contract", errata operational criteria).
+AEV2 assembly — a deterministic PRESENTER over the one canonical
+CoreAnswer (see app/services/ai_search/core_answer.py), never a second
+reasoning pipeline. Architecture decision (2026-09-21): this module must
+never call an LLM, retrieve evidence, resolve entities, run a fallback
+chain, or maintain its own degraded-response logic — every one of those
+already happened once, upstream, to produce the CoreAnswer this function
+reads from.
 
-Called with the FINAL V3 response dict — after `run_ai_search_v3` has
-already resolved a cache hit or a fresh computation, in
-app/api/ai_search.py — never the object passed into
-cache_mod.set_response, and never mutated in place here or by the caller
-(the caller must build a new dict via `{**v3_response, ...}` when
-attaching this function's result, never assign into `v3_response`
-directly). This is what "assemble AEV2 only after cache retrieval" means
-structurally: a cached V3 core response replayed on a later cache hit is
-bit-for-bit identical to a fresh computation, and AEV2 is computed fresh
-by this function on every call regardless of how the caller obtained
-`v3_response`.
+Takes a `CoreAnswer` — the same frozen, immutable object the V3 dict
+presenter's own fields were themselves read from — never a raw response
+dict, so there is no way for this presenter to diverge from what the
+other presenter shows for the same request. Never mutates the CoreAnswer
+(the type is frozen, so this is enforced, not just documented).
 
 Foundation-slice scope: only `direct_conclusion` carries real content — a
-fail-closed pass-through of `answer.bottom_line` through the
+fail-closed pass-through of `core.bottom_line` through the
 recommendation-language gate. Every other field is the schema's honest
 empty default; see schema.py's own docstring for what's deferred to the
 next slice (response restructuring and citations).
@@ -33,24 +32,24 @@ import structlog
 
 from app.services.ai_search.aev2 import language_gate, schema, telemetry
 from app.services.ai_search.aev2.mode import AEV2Mode
+from app.services.ai_search.core_answer import CoreAnswer
 
 log = structlog.get_logger(__name__)
 
 
-def assemble_aev2(query: str, v3_response: dict, *, mode: AEV2Mode) -> dict | None:
+def assemble_aev2(core: CoreAnswer, *, mode: AEV2Mode) -> dict | None:
     """Returns a freshly-built answer_experience_v2 dict, or None if
     `mode` is OFF (assembly never runs — see mode.should_assemble) or if
-    assembly raised (telemetered, then degraded to None). Never mutates
-    `v3_response`; only reads from it."""
+    assembly raised (telemetered, then degraded to None). Reads only from
+    `core`; never mutates it, never re-derives entities/evidence, never
+    calls a provider."""
     if mode == AEV2Mode.OFF:
         return None
 
     _t0 = time.monotonic()
     stage_ms: dict[str, float] = {}
     try:
-        answer = (v3_response or {}).get("answer") or {}
-        bottom_line = answer.get("bottom_line") or ""
-        gated = language_gate.gate("direct_conclusion", bottom_line)
+        gated = language_gate.gate("direct_conclusion", core.bottom_line)
         stage_ms["language_gate_ms"] = round((time.monotonic() - _t0) * 1000, 1)
 
         response = schema.build_response(
@@ -60,14 +59,14 @@ def assemble_aev2(query: str, v3_response: dict, *, mode: AEV2Mode) -> dict | No
         stage_ms["failed_after_ms"] = round((time.monotonic() - _t0) * 1000, 1)
         log.warning("ai_search.aev2_assembly_exception", exc=str(exc)[:160])
         telemetry.emit_assembly_failed(
-            query=query, mode=mode.value, failure_reason="assembly_exception", stage_ms=stage_ms,
+            query=core.query, mode=mode.value, failure_reason="assembly_exception", stage_ms=stage_ms,
         )
         return None
 
     telemetry.emit_assembly_success(
-        query=query,
+        query=core.query,
         mode=mode.value,
-        response_id=(v3_response or {}).get("response_id"),
+        response_id=core.response_id,
         had_language_violation=gated.had_violation,
         is_fallback=gated.had_violation,
         stage_ms=stage_ms,
