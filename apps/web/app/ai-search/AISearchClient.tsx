@@ -116,7 +116,7 @@ interface OpportunityRiskMatrix {
   risk: { high?: string[]; medium?: string[]; low?: string[] };
 }
 
-interface SearchResult {
+export interface SearchResult {
   type?: "search";
   query: string; synthesis_incomplete?: boolean; answer: AnswerSection; key_drivers: KeyDriver[]; insights: Insight[];
   companies: Company[]; sectors: Sector[]; related_events: RelatedEvent[];
@@ -887,7 +887,7 @@ function ResultReveal({ result }: { result: SearchResult }) {
   );
 }
 
-function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }: {
+export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }: {
   result: SearchResult;
   onFollowUp: (q: string) => void;
   resultTime: Date;
@@ -1110,11 +1110,15 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       )}
 
       {/* ── 1. Research Outlook ───────────────────────────────────────────────── */}
-      <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-surface-border/7 bg-text-primary/[0.03]"}`}>
+      {/* Fail-closed degraded-mode fix (2026-09-21): a synthesis_incomplete
+          response must never show a verdict/confidence/horizon/risk/
+          suitability at all — not even styled as "degraded". This whole
+          section is hidden, not decorated, when synthesis failed. */}
+      {!result.synthesis_incomplete && (
+      <div className="rounded-[20px] border p-5 border-surface-border/7 bg-text-primary/[0.03]">
         <div className="flex items-center gap-2 mb-4">
           <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-0.5 text-[10px] font-bold text-violet-600 dark:text-violet-300 uppercase tracking-wider">Research Outlook</span>
           <span className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-0.5 text-[10px] font-medium text-text-secondary">Not investment advice</span>
-          {result.synthesis_incomplete && <DegradedBadge/>}
         </div>
 
         <div className="flex items-center gap-4 mb-3">
@@ -1190,6 +1194,7 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           </div>
         )}
       </div>
+      )}
 
       {/* ── 2. Executive Summary ──────────────────────────────────────────────── */}
       <div className={`rounded-[20px] border p-5 ${result.synthesis_incomplete ? DEGRADED_CARD_CLS : "border-violet-500/20 bg-gradient-to-br from-violet-500/[0.06] to-transparent"}`}>
@@ -1610,7 +1615,9 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       </div>
 
       {/* ── 10. Scenarios: Bull / Base / Bear ─────────────────────────────────── */}
-      {scenarios && !scenarios.degraded && (scenarios.bull || scenarios.base || scenarios.bear) && (
+      {/* Fail-closed: never shown on a degraded response — see Research
+          Outlook's gate above for the same rationale. */}
+      {!result.synthesis_incomplete && scenarios && !scenarios.degraded && (scenarios.bull || scenarios.base || scenarios.bear) && (
         <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
           <p className="text-[15px] font-semibold text-text-primary mb-4">Scenarios</p>
           <div className="grid grid-cols-3 gap-3">
@@ -1632,6 +1639,11 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
       )}
 
       {/* ── 11. Risks & Counterarguments + What To Monitor + AI Reasoning ────── */}
+      {/* Fail-closed: none of these three cards is real analysis of a
+          failed-synthesis response — hidden entirely, not shown with an
+          honest-sounding "none found" placeholder that still implies the
+          rest of the page's analysis is trustworthy. */}
+      {!result.synthesis_incomplete && (
       <div className="grid grid-cols-3 gap-4">
 
         {/* Risks & Counterarguments */}
@@ -1702,6 +1714,7 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
           </div>
         </div>
       </div>
+      )}
 
       {/* ── 12. Related Actions ───────────────────────────────────────────────
           Navigates elsewhere on MarketRipple (company pages, the compare
@@ -1832,7 +1845,7 @@ function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }
 }
 
 // ── Right Sidebar ──────────────────────────────────────────────────────────────
-function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }: {
+export function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }: {
   result: SearchResult | null;
   onAction: (type: string) => void;
   onReopenSearch: (query: string) => void;
@@ -1944,8 +1957,11 @@ function RightSidebar({ result, onAction, onReopenSearch, activeQuery, session }
         )}
       </div>
 
-      {/* Investment Watch — merged Monitoring Dashboard + Verdict Change Explainer (Phase 2B) */}
-      <InvestmentWatchPanel subject={result?.watch_subject} />
+      {/* Investment Watch — merged Monitoring Dashboard + Verdict Change Explainer (Phase 2B).
+          Fail-closed: hidden entirely on a degraded (synthesis_incomplete) response —
+          the tracked verdict history it shows would sit right next to an admitted
+          synthesis failure otherwise, implying a verdict exists when none does. */}
+      {!result?.synthesis_incomplete && <InvestmentWatchPanel subject={result?.watch_subject} />}
 
       {/* Current Research — this browser session's own accumulated state (Phase 1.7) */}
       <ResearchWorkspace
