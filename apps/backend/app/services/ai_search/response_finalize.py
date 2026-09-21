@@ -14,6 +14,23 @@ learning engine:
     -> strip internal-only attribution plumbing (see below)
     -> return the V3 dict presenter (unchanged), optionally + AEV2's
 
+Market Pulse (2026-09-21, intent audit + Phase 1 fix): Market Pulse
+short-circuits _run_v3_steps with a STRUCTURALLY DIFFERENT response
+shape ({"type": "market_pulse", "market_summary": str, ...} — no
+`answer`/`companies`/`investment_verdict`), but every route still calls
+this same finalize_v3_response on whatever _run_v3_steps yields. Before
+this fix, that meant Market Pulse's own generated prose (market_summary/
+sector_narrative/ai_conclusion/what_to_watch_summary/mover narratives)
+passed through completely unscanned — safety_gate.py's fixed field paths
+don't exist on this shape, so find_v3_safety_violation silently found
+nothing to check. This function now detects that shape first and routes
+it through market_pulse_safety.py's own field-aware check instead — a
+parallel, Market-Pulse-specific safety net, not a stretch of the
+SearchResult-specific one. CoreAnswer/AEV2/prediction-recording are all
+SearchResult concepts (confirmed inapplicable by the same audit: from_
+v3_response reads keys this shape doesn't have) and are skipped entirely
+for this shape, not silently run on empty data.
+
 Internal-only field stripping (2026-09-21, review): pipeline.py's
 response dict carries an "announcements" key (CompanyAnnouncement rows,
 added so CoreAnswer/AEV2's citation validator can attribute claims to
@@ -64,7 +81,7 @@ from __future__ import annotations
 
 import asyncio
 
-from app.services.ai_search import safety_gate
+from app.services.ai_search import market_pulse_safety, safety_gate
 from app.services.ai_search.aev2.assemble import assemble_aev2
 from app.services.ai_search.aev2.mode import get_aev2_mode, should_assemble, should_return_to_client
 from app.services.ai_search.core_answer import from_v3_response
@@ -99,6 +116,17 @@ def finalize_v3_response(
     prediction for an answer already recorded the first time it was
     computed."""
     if result is None:
+        return result
+
+    # ── 0. Market Pulse — a structurally different shape, never a
+    # SearchResult. Its own safety net; no CoreAnswer, no AEV2, no
+    # prediction recording (none of those apply to this shape at all —
+    # see module docstring). Returns here, never falls through to the
+    # SearchResult-specific steps below. ────────────────────────────────
+    if result.get("type") == "market_pulse":
+        violated = market_pulse_safety.find_market_pulse_violation(result)
+        if violated:
+            result = market_pulse_safety.build_market_pulse_degraded_response(result, violated)
         return result
 
     # ── 1. Deterministic recommendation-language safety net — runs

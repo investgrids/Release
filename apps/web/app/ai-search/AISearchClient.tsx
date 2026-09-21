@@ -182,7 +182,7 @@ interface PulseScores {
   opportunity_score: number | null; risk_score: number;
   market_confidence: MarketConfidenceScore; catalyst_score: number;
 }
-interface MarketPulseResult {
+export interface MarketPulseResult {
   type: "market_pulse"; query: string; synthesis_incomplete: boolean; generated_at: string | null;
   market_status: { is_open?: boolean; status?: string; time_ist?: string; date?: string };
   indices: PulseIndex[]; market_mood: string | null; market_direction: string | null;
@@ -644,7 +644,7 @@ function DegradedBadge() {
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-300">
       <AlertTriangle className="h-2.5 w-2.5"/>
-      Generic Analysis
+      Analysis unavailable
     </span>
   );
 }
@@ -683,12 +683,145 @@ function PulseMoverCard({ m }: { m: PulseMover }) {
         </span>
       )}
       <p className="mb-2 text-[9px] uppercase tracking-wider text-text-muted">Evidence Strength <span className="tabular-nums text-text-muted">{Math.round(m.evidence_strength)}%</span></p>
-      <p className="text-[11.5px] leading-5 text-text-secondary">{m.narrative}</p>
+      {/* Phase 1 fix (2026-09-21): conditionally rendered — a gate
+          violation clears `narrative` to "" (market_pulse_safety.py)
+          rather than removing the mover entirely (its real price/ticker/
+          verified_drivers data is still shown); an unconditional <p> here
+          would have rendered a visible empty line instead of just
+          omitting the sentence. */}
+      {m.narrative && <p className="text-[11.5px] leading-5 text-text-secondary">{m.narrative}</p>}
     </div>
   );
 }
 
-function MarketPulseResults({ result }: { result: MarketPulseResult }) {
+// ── Market Pulse — dedicated degraded renderer ──────────────────────────────
+// Phase 1 fix (2026-09-21 intent audit finding 2): mirrors DegradedSearchAnswer's
+// architecture exactly — one early return, one self-contained tree, rather than
+// scattered per-section conditionals inside MarketPulseResults (which is what
+// SearchResults used to do, before that pattern already let two fabrication
+// leaks through — see DegradedSearchAnswer's own docstring). Shows only real,
+// deterministic data (indices, sector %, mover prices/verified_drivers,
+// scheduled calendar items) — no market_summary/sector_narrative/ai_conclusion/
+// what_to_watch_summary text, no Market Confidence/Catalyst Score chips (both
+// could read as analytical certainty about content that wasn't generated,
+// even though they're computed independently of the failed narrative call).
+function DegradedMarketPulse({ result }: { result: MarketPulseResult }) {
+  return (
+    <div className="space-y-4 pb-36" data-testid="degraded-market-pulse">
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] px-5 py-4">
+        <p className="text-[10px] uppercase tracking-widest text-text-muted mb-1.5">Market Pulse</p>
+        <h1 className="text-[18px] font-bold text-text-primary leading-snug">{result.query}</h1>
+        <p className="mt-1 text-[11px] text-text-muted">
+          {result.market_status?.status ? `Market ${result.market_status.status.replace("_", " ")}` : ""}
+          {result.market_status?.time_ist ? ` · ${result.market_status.time_ist} IST` : ""}
+        </p>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-[16px] border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
+        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400"/>
+        <p className="text-[12.5px] leading-5 text-amber-700/90 dark:text-amber-200/90">
+          <span className="font-semibold text-amber-600 dark:text-amber-300">AI narrative couldn&apos;t be generated for this query.</span>{" "}
+          Every number below is still real, live market data — only the written explanations are unavailable right now.
+        </p>
+      </div>
+
+      {result.indices.length > 0 && (
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-text-primary mb-3">Market Indices</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {result.indices.map(idx => (
+              <div key={idx.ticker} className="rounded-[12px] border border-surface-border/6 bg-text-primary/[0.02] px-3 py-2">
+                <p className="text-[9px] uppercase tracking-wider text-text-muted">{idx.name}</p>
+                <p className="text-[12px] font-bold text-text-primary">{idx.value}</p>
+                <p className={`text-[10px] font-semibold ${idx.positive ? "text-emerald-400" : "text-rose-400"}`}>{idx.change}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(result.leading_sectors.length > 0 || result.lagging_sectors.length > 0) && (
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-text-primary mb-3">Sector Rotation</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-[9px] uppercase tracking-wider text-emerald-400 font-semibold mb-1.5">Leading</p>
+              <div className="space-y-1.5">
+                {result.leading_sectors.map(s => (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5">
+                    <span className="text-[11px] font-semibold text-text-primary">{s.name}</span>
+                    <span className={`text-[11px] font-black tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[9px] uppercase tracking-wider text-rose-400 font-semibold mb-1.5">Lagging</p>
+              <div className="space-y-1.5">
+                {result.lagging_sectors.map(s => (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-2.5 py-1.5">
+                    <span className="text-[11px] font-semibold text-text-primary">{s.name}</span>
+                    <span className={`text-[11px] font-black tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(result.top_gainers.length > 0 || result.top_losers.length > 0) && (
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-text-primary mb-3">Top Movers</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            {result.top_gainers.map(m => <PulseMoverCard key={m.ticker} m={m}/>)}
+          </div>
+          {result.top_losers.length > 0 && (
+            <>
+              <p className="text-[11px] uppercase tracking-wider text-text-muted font-semibold mb-2 mt-4">Losers</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {result.top_losers.map(m => <PulseMoverCard key={m.ticker} m={m}/>)}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {result.what_to_watch_next.length > 0 && (
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[13px] font-semibold text-text-primary mb-3">What to Watch Next</p>
+          <div className="space-y-2">
+            {result.what_to_watch_next.map(w => (
+              <div key={w.id} className="flex items-start gap-3 rounded-lg border border-surface-border/4 bg-text-primary/[0.02] px-3 py-2">
+                <Clock className="h-3.5 w-3.5 shrink-0 mt-0.5 text-text-muted"/>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-text-primary">{w.title}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-text-muted">{w.category}</span>
+                  </div>
+                  <p className="text-[10px] text-text-muted">{w.date}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <AIDisclaimer/>
+    </div>
+  );
+}
+
+export function MarketPulseResults({ result }: { result: MarketPulseResult }) {
+  // Dedicated top-level early return for a degraded Market Pulse response
+  // — see DegradedMarketPulse's own docstring. Must come before any of the
+  // scattered per-section conditionals below, which stay in place as
+  // harmless dead code for the non-degraded path (same precedent as
+  // SearchResults/DegradedSearchAnswer).
+  if (result.synthesis_incomplete) {
+    return <DegradedMarketPulse result={result} />;
+  }
+
   const moodColor = /bull/i.test(result.market_mood || "") ? "text-emerald-400"
     : /bear/i.test(result.market_mood || "") ? "text-rose-400" : "text-amber-400";
 

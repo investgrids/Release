@@ -26,6 +26,20 @@ guesses.
 from __future__ import annotations
 
 
+def empty_investment_verdict() -> dict:
+    """The one honest-empty investment_verdict shape every degraded path
+    uses — including /api/ai/search/refine's own degraded response
+    (ai_search_refine.py), which returns only investment_verdict/
+    decision_engine_v2/ai_conclusion, not this module's full response
+    shape, but must still agree on what "no verdict" looks like."""
+    return {
+        "rating": "Not Applicable", "direction": "neutral", "confidence": None,
+        "horizon": None, "top_picks": [], "risks": [], "catalysts": [],
+        "opportunity_score": None, "risk_level": "", "suitable_for": "",
+        "engine_verdict": None,
+    }
+
+
 def build_degraded_shape(
     *,
     query: str,
@@ -71,12 +85,7 @@ def build_degraded_shape(
         "timeline": [], "historical_comparison": [], "ripple_chain": [],
         "scenarios": {}, "monitoring": {"items": []},
         "follow_up_questions": [], "follow_up_groups": [],
-        "investment_verdict": {
-            "rating": "Not Applicable", "direction": "neutral", "confidence": None,
-            "horizon": None, "top_picks": [], "risks": [], "catalysts": [],
-            "opportunity_score": None, "risk_level": "", "suitable_for": "",
-            "engine_verdict": None,
-        },
+        "investment_verdict": empty_investment_verdict(),
         "market_chart": {"labels": [], "series": []},
         "graph": {"nodes": [], "edges": []},
         "citations": citations if citations is not None else [],
