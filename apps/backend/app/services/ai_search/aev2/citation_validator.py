@@ -1,30 +1,55 @@
 """
 Claim-level evidence references + fail-closed validation for AEV2
-(Build 1, 2026-09-21).
+(Build 1, 2026-09-21; hardened in review, 2026-09-21 second pass).
 
 Every AEV2 text field (direct_conclusion, what_happened, why_it_matters)
-carries `evidence_refs` pointing into one shared `evidence[]` catalog
-built once per response from CoreAnswer's already-retrieved
-related_events/news/policies — never a new retrieval, never a new
-provider call. A field's generated text is only used if it passes ALL of:
+carries `evidence_refs` — NOT the whole evidence[] catalog attached
+blindly, but the output of `deterministic_claim_evidence_refs()` below,
+the one real deterministic relationship this codebase has today: an
+event's own structured `companies` field (set at ingestion) naming one
+of CoreAnswer's own resolved companies. This mirrors pipeline.py's
+`_filter_events_to_entities` matching rule exactly (duplicated here,
+not imported — aev2/ must not import from ai_search.pipeline; see the
+package-wide import-scan test). News/policy rows carry no company field
+today (the same known gap _filter_events_to_entities's own docstring
+names), so they are never attributed to a specific claim here — they
+still appear in the full evidence[] catalog for transparency, just
+uncited by any field, which is the honest state of what this codebase
+can actually prove today, not an invented link. If zero companies
+resolved, or none of the retrieved events are company-linked,
+evidence_refs is genuinely empty — not padded with unrelated catalog
+entries to look more complete than it is.
+
+A field's generated text is only used if it passes ALL of:
 
   1. every evidence_ref it cites actually exists in the catalog
   2. every number in its text is backed by matching text somewhere in
-     the evidence it cites (see numbers_supported)
-  3. every company-like token in its text is one CoreAnswer already
-     resolved/validated (see entities_supported) — not a name the
-     specialist introduced that was never actually evidenced
+     the SPECIFIC evidence it cites (not the whole catalog, and not
+     some other source elsewhere in the response) — see
+     numbers_supported
+  3. every company-like token in its text is either one of CoreAnswer's
+     own resolved companies (by symbol or a word from its name) OR
+     appears literally in the cited evidence text itself — see
+     entities_supported
 
 Any failure removes the claim (assemble.py falls back to that field's
 honest empty/fallback shape) — this module never repairs, rewrites, or
 partially trusts a claim; it only says yes or no.
 
-Deliberately conservative on (3): financial text is full of legitimate
-all-caps acronyms (RBI, GDP, IPO...) that are not company symbols and
-must not be flagged as unsupported entities. _KNOWN_ACRONYMS is a
-curated allowlist, not an attempt at real NER — this is Build 1's
-heuristic, expected to be extended as real false positives are found in
-review, not a claim of completeness.
+Review correction (2026-09-21, second pass): the first draft had two
+real gaps, both fixed here:
+  - entities_supported returned a VACUOUS PASS when zero companies had
+    resolved — exactly the situation where an unsupported company claim
+    is riskiest (nothing was ever verified, so anything the specialist
+    names is unearned). It is no longer vacuous: with nothing resolved,
+    an all-caps company-like token must still appear in the cited
+    evidence text itself to pass, or the claim fails.
+  - _KNOWN_ACRONYMS was a blanket global trust list (RBI, GDP, IPO...)
+    applied regardless of context. Removed entirely. An acronym-shaped
+    token now passes only when it is one of CoreAnswer's own resolved
+    companies, OR it appears literally in the evidence text actually
+    cited for that claim — never on the strength of being a "well-known"
+    word alone.
 """
 from __future__ import annotations
 
@@ -34,14 +59,7 @@ from dataclasses import dataclass, field
 from app.services.ai_search.core_answer import CoreAnswer
 
 _NUMBER_RE = re.compile(r"\d{1,3}(?:,\d{2,3})+(?:\.\d+)?|\d+\.\d+|\d{2,}")
-
-_KNOWN_ACRONYMS = {
-    "RBI", "SEBI", "NSE", "BSE", "GDP", "GST", "IPO", "FII", "DII", "CPI", "WPI",
-    "EPS", "YOY", "QOQ", "ROE", "ROCE", "EBITDA", "PE", "PB", "IT", "US", "UK", "EU",
-    "FY", "H1", "H2", "Q1", "Q2", "Q3", "Q4", "CEO", "CFO", "COO", "MD", "PSU",
-    "NBFC", "AUM", "NPA", "CAGR", "FDI", "FPI", "RTC", "PPA", "MW", "GW", "KWH",
-    "USD", "INR", "IT", "PSU", "MSME", "GDPR", "SOP", "AGM", "EGM", "SME",
-}
+_SYMBOL_TOKEN_RE = re.compile(r"\b[A-Z]{3,10}\b")
 
 
 def build_evidence_catalog(core: CoreAnswer) -> list[dict]:
@@ -49,7 +67,10 @@ def build_evidence_catalog(core: CoreAnswer) -> list[dict]:
     CoreAnswer — pure re-formatting, zero new retrieval. Titles are
     immutable source text (already validated upstream by
     validation.py's own checks) and are never scanned by the language
-    gate or altered here."""
+    gate or altered here. This is the full, transparent catalog shown
+    in the response's evidence[] field — NOT what any single claim's
+    evidence_refs is limited to; see deterministic_claim_evidence_refs
+    for that narrower, per-claim relationship."""
     catalog: list[dict] = []
     for e in core.related_events:
         eid = e.get("id")
@@ -84,6 +105,36 @@ def build_evidence_catalog(core: CoreAnswer) -> list[dict]:
     return catalog
 
 
+def _event_company_symbols(event: dict) -> set[str]:
+    return {
+        (c.get("symbol") or "").upper()
+        for c in (event.get("companies") or [])
+        if isinstance(c, dict) and c.get("symbol")
+    }
+
+
+def deterministic_claim_evidence_refs(core: CoreAnswer) -> list[str]:
+    """The genuinely deterministic evidence<->claim relationship: an
+    event whose own structured `companies` field names one of
+    CoreAnswer's resolved companies. Never positional (first-N events),
+    never "attach everything", never text-similarity-based — a real
+    ingestion-time field match or nothing. Returns [] when core.companies
+    is empty or no retrieved event is company-linked; an empty result is
+    the honest answer in that case, not a fallback to attaching
+    unrelated evidence."""
+    wanted = {(c.get("symbol") or "").upper() for c in core.companies if c.get("symbol")}
+    if not wanted:
+        return []
+    refs = []
+    for e in core.related_events:
+        eid = e.get("id")
+        if eid is None:
+            continue
+        if _event_company_symbols(e) & wanted:
+            refs.append(f"event:{eid}")
+    return refs
+
+
 def _normalize_numbers(text: str) -> str:
     return (text or "").replace(",", "")
 
@@ -100,15 +151,14 @@ def extract_numbers(text: str) -> list[str]:
 
 def numbers_supported(text: str, supporting_text: str) -> bool:
     """Every number in `text` must appear, digit-for-digit after
-    stripping thousands separators, somewhere in `supporting_text`
-    (the concatenated titles of the evidence this field actually
-    cites). A number with no match is treated as unsupported —
-    fail-closed, not "probably fine."""
+    stripping thousands separators, somewhere in `supporting_text` — the
+    concatenated titles of ONLY the evidence this specific claim cites
+    (deterministic_claim_evidence_refs's output), never the whole
+    catalog and never a different field's own evidence. A number that is
+    real but sits in some OTHER, uncited source is still unsupported for
+    THIS claim — fail-closed, not "it's true somewhere.\""""
     normalized_support = _normalize_numbers(supporting_text)
     return all(num in normalized_support for num in extract_numbers(text))
-
-
-_SYMBOL_TOKEN_RE = re.compile(r"\b[A-Z]{3,10}\b")
 
 
 def recognized_name_tokens(companies: tuple[dict, ...]) -> set[str]:
@@ -128,28 +178,26 @@ def recognized_name_tokens(companies: tuple[dict, ...]) -> set[str]:
     return tokens
 
 
-def entities_supported(text: str, recognized_symbols: set[str], name_tokens: set[str] | None = None) -> bool:
-    """Any bare all-caps token that looks like a stock symbol but is
-    neither a known non-company acronym nor traceable to one of
-    CoreAnswer's own resolved companies (by symbol or by a word from its
-    name) is treated as an entity the specialist introduced without
-    evidence. See module docstring for why this is deliberately
-    conservative (allowlist, not real NER).
-
-    Vacuous pass when NEITHER recognized_symbols nor name_tokens has
-    anything in it (e.g. a macro/sector query that resolved zero
-    companies) — there is nothing concrete to compare against, so this
-    check is skipped rather than rejecting every all-caps token in the
-    text; numbers_supported and evidence_ref validity still apply."""
+def entities_supported(
+    text: str, recognized_symbols: set[str], name_tokens: set[str] | None, supporting_text: str,
+) -> bool:
+    """Any bare all-caps token that looks like a stock symbol or
+    acronym must be traceable to something concrete: one of CoreAnswer's
+    own resolved companies (by symbol or a word from its name), OR
+    literal presence in the evidence text actually cited for this claim.
+    There is NO third path — no global "well-known acronym" allowlist,
+    and NO vacuous pass when nothing resolved. A query that resolved
+    zero companies is exactly where an unsupported company mention is
+    riskiest, so it gets the strictest check, not a skip: every
+    candidate token must appear in the cited evidence text itself."""
     if not text:
         return True
     name_tokens = name_tokens or set()
-    if not recognized_symbols and not name_tokens:
-        return True
+    supporting_upper = (supporting_text or "").upper()
     for token in _SYMBOL_TOKEN_RE.findall(text):
-        if token in _KNOWN_ACRONYMS:
-            continue
         if token in recognized_symbols or token in name_tokens:
+            continue
+        if token in supporting_upper:
             continue
         return False
     return True
@@ -170,10 +218,9 @@ def validate_claim(
     name_tokens: set[str] | None = None,
 ) -> ClaimValidation:
     """The one entry point assemble.py calls for every candidate field.
-    `supporting_text` is the concatenated titles of exactly the evidence
-    items `evidence_refs` names (not the whole catalog) — a number is
-    only "supported" by the evidence actually cited for THIS claim, not
-    by evidence backing some other field in the same response."""
+    `supporting_text` must be the concatenated titles of exactly
+    `evidence_refs` (deterministic_claim_evidence_refs's output for this
+    claim) — never the whole catalog, never a blanket attachment."""
     reasons: list[str] = []
     for ref in evidence_refs:
         if ref not in catalog_ids:
@@ -181,6 +228,6 @@ def validate_claim(
             break
     if not numbers_supported(text, supporting_text):
         reasons.append("unsupported_number")
-    if not entities_supported(text, recognized_symbols, name_tokens):
+    if not entities_supported(text, recognized_symbols, name_tokens, supporting_text):
         reasons.append("unsupported_entity")
     return ClaimValidation(valid=not reasons, reasons=reasons)

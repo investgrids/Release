@@ -244,7 +244,14 @@ def test_assemble_aev2_never_mutates_the_input_v3_response():
 
 
 def test_assemble_aev2_direct_conclusion_passes_through_clean_bottom_line():
-    v3_response = {"answer": {"bottom_line": "HDFC Bank reported strong results."}, "response_id": "r1"}
+    # Companies must be resolved for "HDFC Bank" to pass entity
+    # validation post-2026-09-21-review (no vacuous pass when nothing is
+    # resolved) — see test_aev2_build1_restructuring.py for that
+    # invariant's own dedicated coverage.
+    v3_response = {
+        "answer": {"bottom_line": "HDFC Bank reported strong results."}, "response_id": "r1",
+        "companies": [{"symbol": "HDFCBANK", "name": "HDFC Bank Ltd"}],
+    }
     result = assemble_aev2(from_v3_response(v3_response), mode=AEV2Mode.PUBLIC)
     assert result["direct_conclusion"]["text"] == "HDFC Bank reported strong results."
 

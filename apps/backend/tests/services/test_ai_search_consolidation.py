@@ -166,7 +166,13 @@ def test_finalize_builds_aev2_from_a_core_answer_matching_the_returned_v3_dict(m
 
     monkeypatch.setattr("app.services.ai_search.response_finalize.assemble_aev2", spy_assemble)
 
-    v3_response = {"answer": {"bottom_line": "HDFC Bank reported strong results."}, "response_id": "r1"}
+    # Companies must be resolved for "HDFC Bank" to pass entity
+    # validation post-2026-09-21-review (no vacuous pass when nothing is
+    # resolved).
+    v3_response = {
+        "answer": {"bottom_line": "HDFC Bank reported strong results."}, "response_id": "r1",
+        "companies": [{"symbol": "HDFCBANK", "name": "HDFC Bank Ltd"}],
+    }
     result = finalize_v3_response("q", dict(v3_response), was_cached=True)
 
     assert captured["core"] == from_v3_response(v3_response)

@@ -7,8 +7,9 @@ chain, or maintain its own degraded-response logic — every one of those
 already happened once, upstream, to produce the CoreAnswer this function
 reads from.
 
-Build 1 (2026-09-21): populates every deterministic restructuring field
-the approved spec defines, from CoreAnswer alone:
+Build 1 (2026-09-21, hardened in review's second pass same day):
+populates every deterministic restructuring field the approved spec
+defines, from CoreAnswer alone:
   - direct_conclusion / what_happened / why_it_matters — CoreAnswer's own
     already-generated text (bottom_line/what_happened/why_it_happened),
     through the shared recommendation-language gate AND the citation
@@ -16,27 +17,45 @@ the approved spec defines, from CoreAnswer alone:
     match) — a violation of either drops the claim to its honest
     fallback/empty shape. Zero regeneration: a rejected claim is never
     reworded or retried, only replaced with a fixed string or omitted.
+    evidence_refs for these fields is citation_validator.
+    deterministic_claim_evidence_refs(core)'s output — the one real
+    company<->event structured-field relationship this codebase has —
+    NEVER the whole evidence catalog attached indiscriminately. It can
+    be, and often honestly is, empty.
   - companies_affected — deterministic, live-price-movement grouping
     (price_movement.py), not the specialist's own impact_type judgment.
   - time_horizon — primary_horizon is CoreAnswer.horizon (a timeframe
     bucket, not a recommendation); timeline_phases are CoreAnswer's own
-    immediate/medium/long-term text, each independently gated+validated,
-    dropped (not replaced with a fallback) on failure.
+    immediate/medium/long-term text, each independently gated+validated
+    against the SAME deterministic claim evidence, dropped (not
+    replaced with a fallback) on failure.
   - risks_and_invalidation.risks — CoreAnswer's own risk-analysis
     strings, each independently gated+validated. invalidates_if/
     watch_for have no CoreAnswer source yet — left honestly empty rather
     than invented.
   - related_intelligence.events — CoreAnswer.related_events reformatted;
-    opportunities/ripple have no CoreAnswer source yet (would require a
-    new retrieval this module is not allowed to make) — left empty/None.
-  - confidence — the four-component AEV2 score (confidence.py), built
-    entirely from already-computed signals.
+    id/title/date only, deliberately no url/link/route field (Slice 3's
+    canonical route-builder doesn't exist yet — see this function's own
+    "no links" note below). opportunities/ripple have no CoreAnswer
+    source yet (would require a new retrieval this module is not
+    allowed to make) — left empty/None.
+  - confidence — the CLOSED-SPEC four-component score (confidence.py):
+    0.35 evidence_quality + 0.25 market_confirmation +
+    0.25 historical_similarity + 0.15 data_freshness, all reused
+    verbatim from postprocess.py's already-computed breakdown.
 
 Deliberately absent, by design, not oversight: verdict, scenarios,
 suitability, and top-pick concepts. CoreAnswer itself carries none of
 investment_verdict's advisory sub-fields (see its own docstring), so
 there is nothing here to accidentally surface even if a future edit
 tried to.
+
+No links yet (review requirement, 2026-09-21): related_intelligence.
+events entries carry only id/title/date — no url/link/href/path key —
+until Slice 3's canonical route-builder and route-existence tests exist.
+The readiness latch (AEV2_BUILD_COMPLETE=False) already keeps this
+whole response off canary/public regardless; this is a second, belt-
+and-braces boundary at the data shape itself.
 """
 from __future__ import annotations
 
@@ -54,30 +73,30 @@ log = structlog.get_logger(__name__)
 
 
 def _build_singular_field(
-    field_kind: str, raw_text: str, catalog_ids: list[str], supporting_text: str,
-    recognized_symbols: set[str], name_tokens: set[str],
+    field_kind: str, raw_text: str, claim_refs: list[str], catalog_ids: set[str],
+    claim_supporting_text: str, recognized_symbols: set[str], name_tokens: set[str],
 ) -> tuple[str, list[str], bool]:
     """Returns (final_text, evidence_refs, had_violation) for a field
-    that must always carry SOME text — real (attributed to the whole
-    evidence catalog gathered for this query, the only claim-to-evidence
-    granularity V3's current output supports) or the field's fixed
-    fallback string on any violation."""
+    that must always carry SOME text — real, with evidence_refs limited
+    to `claim_refs` (deterministic_claim_evidence_refs's output, which
+    may be empty), or the field's fixed fallback string (evidence_refs
+    always [] on a fallback) on any violation."""
     gated = language_gate.gate(field_kind, raw_text)
     if gated.had_violation:
         return gated.text, [], True
     if not raw_text:
         return "", [], False
     claim = citation_validator.validate_claim(
-        raw_text, catalog_ids, set(catalog_ids), recognized_symbols, supporting_text, name_tokens,
+        raw_text, claim_refs, catalog_ids, recognized_symbols, claim_supporting_text, name_tokens,
     )
     if not claim.valid:
         fallback = language_gate.FALLBACK_TEXT.get(field_kind, language_gate.FALLBACK_TEXT["why_it_matters"])
         return fallback, [], True
-    return raw_text, catalog_ids, False
+    return raw_text, claim_refs, False
 
 
 def _build_list_field_texts(
-    texts: list[str], catalog_ids: list[str], supporting_text: str,
+    texts: list[str], claim_refs: list[str], catalog_ids: set[str], claim_supporting_text: str,
     recognized_symbols: set[str], name_tokens: set[str],
 ) -> list[str]:
     """For list-shaped fields (risks, timeline phases) — an invalid
@@ -89,7 +108,7 @@ def _build_list_field_texts(
         if not text or language_gate.scan(text):
             continue
         claim = citation_validator.validate_claim(
-            text, catalog_ids, set(catalog_ids), recognized_symbols, supporting_text, name_tokens,
+            text, claim_refs, catalog_ids, recognized_symbols, claim_supporting_text, name_tokens,
         )
         if not claim.valid:
             continue
@@ -110,8 +129,18 @@ def assemble_aev2(core: CoreAnswer, *, mode: AEV2Mode) -> dict | None:
     stage_ms: dict[str, float] = {}
     try:
         catalog = citation_validator.build_evidence_catalog(core)
-        catalog_ids = [c["id"] for c in catalog]
-        supporting_text = " ".join(c["title"] for c in catalog if c.get("title"))
+        catalog_by_id = {c["id"]: c for c in catalog}
+        catalog_ids = set(catalog_by_id)
+
+        # The one deterministic per-claim relationship this codebase has
+        # — see citation_validator's module docstring. Deliberately NOT
+        # `list(catalog_ids)`: that would be exactly the "blanket
+        # attachment of every source" the 2026-09-21 review rejected.
+        claim_refs = citation_validator.deterministic_claim_evidence_refs(core)
+        claim_supporting_text = " ".join(
+            catalog_by_id[r]["title"] for r in claim_refs if r in catalog_by_id and catalog_by_id[r].get("title")
+        )
+
         recognized_symbols = {
             (c.get("symbol") or "").upper() for c in core.companies if c.get("symbol")
         }
@@ -122,17 +151,20 @@ def assemble_aev2(core: CoreAnswer, *, mode: AEV2Mode) -> dict | None:
         any_violation = False
 
         dc_text, dc_refs, dc_violation = _build_singular_field(
-            "direct_conclusion", core.bottom_line, catalog_ids, supporting_text, recognized_symbols, name_tokens,
+            "direct_conclusion", core.bottom_line, claim_refs, catalog_ids,
+            claim_supporting_text, recognized_symbols, name_tokens,
         )
         any_violation = any_violation or dc_violation
 
         wh_text, wh_refs, wh_violation = _build_singular_field(
-            "what_happened", core.what_happened, catalog_ids, supporting_text, recognized_symbols, name_tokens,
+            "what_happened", core.what_happened, claim_refs, catalog_ids,
+            claim_supporting_text, recognized_symbols, name_tokens,
         )
         any_violation = any_violation or wh_violation
 
         wim_text, wim_refs, wim_violation = _build_singular_field(
-            "why_it_matters", core.why_it_happened, catalog_ids, supporting_text, recognized_symbols, name_tokens,
+            "why_it_matters", core.why_it_happened, claim_refs, catalog_ids,
+            claim_supporting_text, recognized_symbols, name_tokens,
         )
         any_violation = any_violation or wim_violation
 
@@ -147,21 +179,27 @@ def assemble_aev2(core: CoreAnswer, *, mode: AEV2Mode) -> dict | None:
             ("medium_term", core.medium_term),
             ("long_term", core.long_term),
         ):
-            kept = _build_list_field_texts([text], catalog_ids, supporting_text, recognized_symbols, name_tokens)
+            kept = _build_list_field_texts(
+                [text], claim_refs, catalog_ids, claim_supporting_text, recognized_symbols, name_tokens,
+            )
             if kept:
                 timeline_phases.append({"phase": phase, "text": kept[0]})
 
-        risks = _build_list_field_texts(list(core.risks), catalog_ids, supporting_text, recognized_symbols, name_tokens)
+        risks = _build_list_field_texts(
+            list(core.risks), claim_refs, catalog_ids, claim_supporting_text, recognized_symbols, name_tokens,
+        )
 
         # Reuses the same catalog entries built above, rather than
         # re-deriving event shape a second time from core.related_events
         # — one source of truth for "what an event citation looks like."
+        # id/title/date ONLY — no url/link/href/path key; see module
+        # docstring's "No links yet" note.
         related_events = [
             {"id": c["id"], "title": c["title"], "date": c["date"]}
             for c in catalog if c["type"] == "event"
         ]
 
-        confidence = compute_aev2_confidence(core, price_movement)
+        confidence = compute_aev2_confidence(core)
         stage_ms["restructuring_ms"] = round((time.monotonic() - _t_stage) * 1000, 1)
 
         response = schema.build_response(
