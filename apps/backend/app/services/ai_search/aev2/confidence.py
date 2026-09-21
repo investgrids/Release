@@ -34,24 +34,33 @@ Component meanings (for a future UI to render honestly, not spin):
                             predictions turned out to be.
   - data_freshness:        how recent the underlying news/events are.
 
-Missing-component behavior: compute_confidence_breakdown normally
-produces all 4 together in one call, so partial availability is not a
-realistic runtime state today — but this module still handles it
-explicitly (defensive, not assumed): a component is included only when
-its value is not None; the weights of whichever components ARE present
-are renormalized to sum to 1.0 (so a 2-of-4 case is still a proper
-weighted average, not silently divided by the full 1.0). Zero
-components present -> unscored, never a fabricated number.
+Missing-component behavior (corrected in review, 2026-09-21 third pass:
+the FIRST correction — renormalizing weights across whatever components
+were present — was itself wrong and is reverted here). The closed
+errata is explicit: a missing component contributes ZERO, weights are
+NEVER renormalized. Renormalizing lets sparse evidence masquerade as a
+fully-confident score — e.g. evidence_quality=100 with the other 3
+components missing must score 0.35 * 100 = 35.0, not 100.0 (which
+renormalizing across "the one component we have" would have produced).
+A component is included in `components_available` when its value is
+not None, but its WEIGHT is applied against the fixed 0.35/0.25/0.25/
+0.15 table regardless of what else is present — a missing component is
+arithmetically a zero contribution, not an absent term in a rescaled
+sum. All 4 missing -> unscored (None), never a numeric zero that could
+be misread as "very low confidence" rather than "not computed at all".
+Rounded once, server-side, to one decimal — never re-rounded by a
+caller.
 
 The 4 components are each already bounded to [0, 100] by postprocess.py
-before this module ever sees them; a weighted average (weights summing
-to 1.0) of bounded values is itself bounded within
-[min(components), max(components)] subset of [0, 100] — the final score
-can never exceed the best individual component, let alone 100, and
-never drops below the worst one. See
-test_aev2_confidence_matches_approved_formula.py for the fixture-based
-proof of this and the distribution comparison against V3's own blended
-final_confidence.
+before this module ever sees them, and the fixed weights sum to 1.0 —
+so a response with EVERY component present is bounded within
+[min(components), max(components)] subset of [0, 100]. A response
+missing one or more components is NOT bound by that same range by
+design (that is the whole point of this correction): its score is
+capped by the sum of the weights of whatever IS present times 100, and
+must read low precisely because coverage is incomplete, not because the
+formula is broken. See test_aev2_build1_restructuring.py's sparse-input
+tests for the fixture-based proof.
 """
 from __future__ import annotations
 
@@ -85,8 +94,10 @@ def compute_aev2_confidence(core: CoreAnswer) -> dict:
     if not available:
         return {"score": None, "level": "unscored", "components_available": []}
 
-    weight_sum = sum(_WEIGHTS[name] for name in available)
-    score = round(sum(value * _WEIGHTS[name] for name, value in available.items()) / weight_sum, 1)
+    # Fixed weights, NEVER renormalized — a missing component contributes
+    # exactly zero, not "redistributed" among the components that are
+    # present. See module docstring for why renormalizing was wrong.
+    score = round(sum(value * _WEIGHTS[name] for name, value in available.items()), 1)
     return {
         "score": score,
         "level": _score_to_level(score),

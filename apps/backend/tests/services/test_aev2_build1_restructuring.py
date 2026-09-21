@@ -144,6 +144,50 @@ def test_evidence_catalog_includes_both_event_and_news():
     assert ids == {"event:e1", "news:n1"}
 
 
+# ── CompanyAnnouncement coverage (per-symbol, already-approved link) ───────
+
+LINKED_ANNOUNCEMENT = {
+    "id": "a1", "symbol": "RELIANCE", "subject": "Reliance Industries board approves 2,500 MW power project",
+    "announcement_date": "2026-09-16",
+}
+
+
+def test_announcement_included_in_evidence_catalog():
+    core = _core(announcements=[dict(LINKED_ANNOUNCEMENT)])
+    result = assemble_aev2(core, mode=AEV2Mode.PUBLIC)
+    ids = {e["id"] for e in result["evidence"]}
+    assert "announcement:a1" in ids
+
+
+def test_announcement_contributes_to_deterministic_claim_refs_via_direct_symbol():
+    """CompanyAnnouncement rows carry a direct `symbol` column — an even
+    more unambiguous match than events' companies list."""
+    core = _core(related_events=[], news=[], announcements=[dict(LINKED_ANNOUNCEMENT)])
+    refs = citation_validator.deterministic_claim_evidence_refs(core)
+    assert refs == ["announcement:a1"]
+
+
+def test_announcement_for_a_different_company_is_not_cited():
+    other_company_announcement = {"id": "a2", "symbol": "TATAMOTORS", "subject": "Tata Motors reports results"}
+    core = _core(related_events=[], news=[], announcements=[other_company_announcement])
+    refs = citation_validator.deterministic_claim_evidence_refs(core)
+    assert refs == []
+
+
+def test_end_to_end_claim_supported_by_a_cited_announcement_number():
+    core = _core(
+        related_events=[], news=[], announcements=[dict(LINKED_ANNOUNCEMENT)],
+        answer={
+            "bottom_line": "Reliance's board approved a 2,500 MW power project.",
+            "summary": "ok", "what_happened": "", "why_it_happened": "", "immediate_impact": "",
+            "medium_term": "", "long_term": "", "risks": [],
+        },
+    )
+    result = assemble_aev2(core, mode=AEV2Mode.PUBLIC)
+    assert result["direct_conclusion"]["text"] == "Reliance's board approved a 2,500 MW power project."
+    assert result["direct_conclusion"]["evidence_refs"] == ["announcement:a1"]
+
+
 # ── Verdict/scenario/suitability/top-pick concepts are absent everywhere ───
 
 def _flatten_keys(obj) -> set[str]:
@@ -230,19 +274,56 @@ def test_confidence_unscored_when_no_signal_available():
     assert result == {"score": None, "level": "unscored", "components_available": []}
 
 
-def test_confidence_partial_components_renormalizes_weights():
-    """Only evidence_quality(0.35) and data_freshness(0.15) available —
-    the weighted average must use ONLY those two weights, renormalized
-    to sum to 1.0, not divided by the full 1.0 (which would silently
-    understate the score whenever a component is genuinely missing)."""
+def test_confidence_missing_components_contribute_zero_never_renormalized():
+    """The closed errata's exact example: evidence_quality=100 with the
+    other 3 missing must score 0.35 * 100 = 35.0, NOT 100.0. A missing
+    component contributes zero — it is never redistributed onto the
+    weights of whatever IS present."""
+    core = from_v3_response({
+        "answer": {"bottom_line": "x"},
+        "confidence_breakdown": {"evidence_quality": 100.0},
+    })
+    result = compute_aev2_confidence(core)
+    assert result["score"] == 35.0
+    assert result["components_available"] == ["evidence_quality"]
+
+
+def test_confidence_two_missing_components_still_fixed_weight():
+    """evidence_quality(0.35) and data_freshness(0.15) present — must be
+    0.35*80 + 0.15*40, the fixed-weight sum, NOT that sum divided by
+    (0.35+0.15) as a renormalized average would compute."""
     core = from_v3_response({
         "answer": {"bottom_line": "x"},
         "confidence_breakdown": {"evidence_quality": 80.0, "data_freshness": 40.0},
     })
     result = compute_aev2_confidence(core)
-    expected = round((0.35 * 80.0 + 0.15 * 40.0) / (0.35 + 0.15), 1)
+    expected = round(0.35 * 80.0 + 0.15 * 40.0, 1)  # = 34.0, not 66.7
     assert result["score"] == expected
+    assert result["score"] != round((0.35 * 80.0 + 0.15 * 40.0) / (0.35 + 0.15), 1), (
+        "score must not match what renormalizing across only the present weights would produce"
+    )
     assert result["components_available"] == ["data_freshness", "evidence_quality"]
+
+
+def test_sparse_evidence_cannot_receive_a_fully_confident_score():
+    """A single perfect component (100) must never map to a "Very
+    High"/near-100 level just because it's the only one available —
+    sparse coverage must read as sparse, not as strong."""
+    core = from_v3_response({
+        "answer": {"bottom_line": "x"},
+        "confidence_breakdown": {"market_confirmation": 100.0},
+    })
+    result = compute_aev2_confidence(core)
+    assert result["score"] == 25.0  # 0.25 * 100
+    assert result["level"] not in ("Very High", "High")
+
+
+def test_all_four_missing_is_unscored_not_a_misleading_zero():
+    core = from_v3_response({"answer": {"bottom_line": "x"}, "confidence_breakdown": {}})
+    result = compute_aev2_confidence(core)
+    assert result["score"] is None
+    assert result["level"] == "unscored"
+    assert result["components_available"] == []
 
 
 def test_confidence_score_bounded_by_min_and_max_component_never_exceeds_best():

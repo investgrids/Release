@@ -85,6 +85,35 @@ function degradedHdfcResult() {
   });
 }
 
+// Real production example reproduced locally (2026-09-21): a degraded
+// response for "I hold Manappuram Finance. Should I switch to Natco
+// Pharma?" still leaked a "Reasoning: Synthesized from available market
+// data." claim (AITransparencyPanel, rendered unconditionally) and a full
+// "Why This Confidence Score" breakdown (ConfidenceBreakdownPanel, also
+// unconditional) — both computed from data that objectively showed no
+// synthesis had happened, sitting right below the honest degraded banner.
+// This is the fixture that motivated DegradedSearchAnswer's dedicated
+// top-level early return, replacing the scattered per-section checks that
+// had already let this leak (and the earlier HDFC one above) through.
+function manappuramNatcoDegradedResult() {
+  return baseResult({
+    query: "I hold Manappuram Finance. Should I switch to Natco Pharma?",
+    synthesis_incomplete: true,
+    degraded_reason: "capacity",
+    answer: {
+      summary: "There isn't enough freshly generated analysis to answer “I hold Manappuram Finance. Should I switch to Natco Pharma?” with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      bottom_line: "There isn't enough freshly generated analysis to answer “I hold Manappuram Finance. Should I switch to Natco Pharma?” with confidence right now — the underlying event and news data is available below, but the synthesis step didn't complete. Try rephrasing the question or checking back shortly.",
+      what_happened: "", why_it_happened: "", immediate_impact: "", medium_term: "",
+      long_term: "", what_priced_in: "", risks: [], opportunities: [],
+      confidence: null, confidence_level: "unscored", sentiment: "neutral", sources_count: 0,
+    },
+    related_events: [], news: [], policies: [],
+    confidence_data: { level: "unscored", score: null, reasons: [], breakdown: {}, caveats: [] },
+    confidence_breakdown: { evidence_quality: 0, market_confirmation: 0, historical_similarity: 0, data_freshness: 0, reasoning_confidence: 0, final_confidence: null, level: "unscored" },
+    watch_subject: null,
+  });
+}
+
 function successfulResult() {
   return baseResult({
     synthesis_incomplete: false,
@@ -189,6 +218,56 @@ describe("Degraded response — fail-closed frontend gate", () => {
     result.answer.sources_count = 0;
     expect(() => renderResults(result)).not.toThrow();
     expect(screen.getByText(/synthesis step didn't complete/i)).toBeInTheDocument();
+  });
+});
+
+describe("Manappuram/Natco regression — DegradedSearchAnswer dedicated early return", () => {
+  // The two real leaks this fixture reproduced live, both from components
+  // that used to render unconditionally regardless of synthesis_incomplete.
+  it("never renders the AITransparencyPanel's fabricated reasoning claim", () => {
+    renderResults(manappuramNatcoDegradedResult());
+    expect(screen.queryByText(/Synthesized from available market data/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("AI Generated")).not.toBeInTheDocument();
+    expect(screen.queryByText("View Methodology")).not.toBeInTheDocument();
+  });
+
+  it("never renders the ConfidenceBreakdownPanel's component-by-component score", () => {
+    renderResults(manappuramNatcoDegradedResult());
+    expect(screen.queryByText("Why This Confidence Score")).not.toBeInTheDocument();
+    expect(screen.queryByText("Evidence Quality")).not.toBeInTheDocument();
+    expect(screen.queryByText("Market Confirmation")).not.toBeInTheDocument();
+    expect(screen.queryByText("Historical Match")).not.toBeInTheDocument();
+    expect(screen.queryByText("Data Freshness")).not.toBeInTheDocument();
+  });
+
+  it("renders through the dedicated DegradedSearchAnswer component, not the normal tree", () => {
+    const { container } = renderResults(manappuramNatcoDegradedResult());
+    expect(container.querySelector('[data-testid="degraded-search-answer"]')).toBeInTheDocument();
+  });
+
+  it("still shows the honest degraded banner and the query itself", () => {
+    renderResults(manappuramNatcoDegradedResult());
+    expect(screen.getByText(/Full AI analysis wasn.t available for this query/i)).toBeInTheDocument();
+    expect(screen.getByText("I hold Manappuram Finance. Should I switch to Natco Pharma?")).toBeInTheDocument();
+    expect(screen.getByText(/synthesis step didn't complete/i)).toBeInTheDocument();
+  });
+
+  it("shows real events when present, honestly framed as retrieved (not analyzed)", () => {
+    const result = manappuramNatcoDegradedResult();
+    result.related_events = [{
+      id: "evt-manappuram-1", slug: "evt-manappuram-1",
+      title: "Manappuram Finance reports Q2 gold loan AUM growth",
+      date: "Sep 19, 2026", impact_score: 55, confidence: 60, category: "Market",
+    }];
+    renderResults(result);
+    expect(screen.getByText("Manappuram Finance reports Q2 gold loan AUM growth")).toBeInTheDocument();
+    expect(screen.getByText(/events, news, and sources below are real/i)).toBeInTheDocument();
+  });
+
+  it("sidebar Research Outlook widget does not leak a verdict on a degraded response", () => {
+    render(<RightSidebarHarness result={manappuramNatcoDegradedResult()} />);
+    expect(screen.queryByText("Not Applicable")).not.toBeInTheDocument();
+    expect(screen.getByText("Analysis unavailable")).toBeInTheDocument();
   });
 });
 

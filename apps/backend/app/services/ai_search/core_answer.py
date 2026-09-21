@@ -74,6 +74,12 @@ class CoreAnswer:
     related_events: tuple[dict, ...] = field(default_factory=tuple)
     news: tuple[dict, ...] = field(default_factory=tuple)
     policies: tuple[dict, ...] = field(default_factory=tuple)
+    # CompanyAnnouncement rows (NSE/BSE, per-symbol query — see
+    # evidence.py's get_recent_announcements(sym, ...) call). Added
+    # 2026-09-21 for AEV2 citation coverage; each row carries its own
+    # `symbol` column directly, an even more direct company link than
+    # events' `companies` list.
+    announcements: tuple[dict, ...] = field(default_factory=tuple)
     risks: tuple[str, ...] = field(default_factory=tuple)
     confidence_score: float | None = None
     confidence_level: str = "unscored"
@@ -121,6 +127,7 @@ def from_v3_response(v3_response: dict | None) -> CoreAnswer:
         related_events=tuple(copy.deepcopy(v3_response.get("related_events") or [])),
         news=tuple(copy.deepcopy(v3_response.get("news") or [])),
         policies=tuple(copy.deepcopy(v3_response.get("policies") or [])),
+        announcements=tuple(copy.deepcopy(v3_response.get("announcements") or [])),
         risks=tuple(copy.deepcopy(answer.get("risks") or [])),
         confidence_score=answer.get("confidence"),
         confidence_level=answer.get("confidence_level") or "unscored",

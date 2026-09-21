@@ -17,6 +17,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_search import cache as cache_mod
+from app.services.ai_search.company_matching import filter_events_to_companies
 from app.services.ai_search.degraded_shape import build_degraded_shape
 from app.services.ai_search import entities as entities_mod
 from app.services.ai_search import evidence as evidence_mod
@@ -397,20 +398,11 @@ async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict |
 
 
 def _filter_events_to_entities(events: list[dict], symbols: list[str]) -> list[dict]:
-    """Only events whose own structured `companies` field (set at ingestion,
-    ~93% coverage — see retrieval.py's _search_events) names one of the
-    query's resolved symbols. The one real, deterministic company<->event
-    link this pipeline has — never a text/keyword match, and never applied
-    to news/policy rows, which carry no company field at all today."""
-    if not symbols:
-        return []
-    wanted = {s.upper() for s in symbols}
-    out = []
-    for e in events:
-        tagged = {(c.get("symbol") or "").upper() for c in (e.get("companies") or []) if isinstance(c, dict)}
-        if tagged & wanted:
-            out.append(e)
-    return out
+    """Thin wrapper over the shared, deterministic company<->event
+    matching rule (company_matching.py) — extracted there (2026-09-21
+    review) so AEV2's citation validator can reuse the exact same rule
+    instead of maintaining its own copy that could silently drift."""
+    return filter_events_to_companies(events, symbols)
 
 
 def _build_degraded_response(
@@ -640,6 +632,13 @@ async def _assemble_response(
         "related_events": evidence.events[:6],
         "news": evidence.news[:6],
         "policies": evidence.policies[:4],
+        # Additive (2026-09-21, AEV2 citation-coverage extension): the
+        # already-approved per-symbol CompanyAnnouncement relationship
+        # (evidence.collect() fetches these via get_recent_announcements
+        # (sym, ...) — a direct symbol query, not a keyword match). Never
+        # read by V2/V3's own existing rendering, so this cannot change
+        # V3's existing output; AEV2 uses it for claim evidence coverage.
+        "announcements": evidence.announcements[:6],
         "timeline": ai.get("timeline", []),
         "historical_comparison": evidence.similar_historical,
         "ripple_chain": ripple_chain,

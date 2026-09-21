@@ -887,6 +887,113 @@ function ResultReveal({ result }: { result: SearchResult }) {
   );
 }
 
+// ── Degraded answer — dedicated top-level renderer ──────────────────────────
+// Review finding (2026-09-21): the scattered per-section `synthesis_incomplete`
+// checks throughout SearchResults (below) already let TWO fabrication leaks
+// through after the original P1 fix (commit 8414bf0) — ConfidenceBreakdownPanel
+// and AITransparencyPanel were both rendered unconditionally, showing a
+// "Why This Confidence Score" breakdown and a "Reasoning: Synthesized from
+// available market data" claim on a response where the specialist call never
+// produced any real synthesis at all (reproduced live: "I hold Manappuram
+// Finance. Should I switch to Natco Pharma?"). A scattered-wrapper approach
+// is provably not durable — a new section added later, or an existing one
+// missed, silently reintroduces the same class of bug.
+//
+// This component is the fix: SearchResults checks synthesis_incomplete ONCE,
+// at the very top (see below), and if true renders ONLY this — a fully
+// separate, self-contained tree that never imports ConfidenceBreakdownPanel,
+// AITransparencyPanel, the hero panel, scenarios, or any other component that
+// presents generated analysis. It shows exactly what the P1 degraded response
+// actually contains: the query itself, the honest generic summary, and the
+// real events/news/policies that were retrieved (matching the banner's own
+// promise — "the events, news, and sources below are real"). Nothing here can
+// leak a future successful-path addition, because this tree never renders
+// any of that code at all.
+function DegradedSearchAnswer({ result, resultTime, onFollowUp }: {
+  result: SearchResult;
+  resultTime: Date;
+  onFollowUp: (q: string) => void;
+}) {
+  const minAgo = Math.max(1, Math.round((Date.now() - resultTime.getTime()) / 60000));
+  const events = result.related_events ?? [];
+  const news = result.news ?? [];
+  const policies = result.policies ?? [];
+  const hasEvidence = events.length > 0 || news.length > 0 || policies.length > 0;
+
+  return (
+    <div className="space-y-4 pb-36" data-testid="degraded-search-answer">
+      {/* ── Query Header — same honest header every response gets ───────────── */}
+      <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] px-5 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-text-muted mb-1.5">Search Answer</p>
+            <h1 className="text-[18px] font-bold text-text-primary leading-snug">{result.query}</h1>
+            <p className="mt-1 text-[11px] text-text-muted">
+              Generated {minAgo} min ago
+              <span className="mx-1.5 text-text-muted">·</span>
+              AI Model: MarketRipple Intelligence (v2.7)
+            </p>
+          </div>
+          <button onClick={() => onFollowUp("")}
+            className="flex items-center gap-1.5 rounded-[12px] border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[12px] font-medium text-text-secondary hover:bg-text-primary/[0.08] transition shrink-0 mt-0.5">
+            <Plus className="h-3.5 w-3.5"/>
+            New Search
+          </button>
+        </div>
+      </div>
+
+      {/* ── Degraded notice — the one claim this entire view makes ──────────── */}
+      <div className="flex items-start gap-3 rounded-[16px] border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
+        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400"/>
+        <p className="text-[12.5px] leading-5 text-amber-700/90 dark:text-amber-200/90">
+          <span className="font-semibold text-amber-600 dark:text-amber-300">Full AI analysis wasn&apos;t available for this query.</span>{" "}
+          {hasEvidence
+            ? "The events, news, and sources below are real and were retrieved for this query — but the AI reasoning, scenarios, and verdict couldn't be generated right now. Try again shortly, or rephrase your question."
+            : "No AI reasoning, scenarios, verdict, or matching evidence could be generated for this query right now. Try again shortly, or rephrase your question."}
+        </p>
+      </div>
+
+      {/* ── Executive Summary — the honest generic message only; never a
+          verdict, confidence score, horizon, or scenario ───────────────────── */}
+      <div className={`rounded-[20px] border p-5 ${DEGRADED_CARD_CLS}`}>
+        <div className="flex items-center gap-2 mb-2">
+          <p className="text-[11px] uppercase tracking-wider text-violet-400 font-semibold">Executive Summary</p>
+          <DegradedBadge/>
+        </div>
+        <p className="text-[14px] text-text-primary leading-relaxed">
+          {result.answer?.bottom_line || result.answer?.summary || "No direct answer could be generated for this query."}
+        </p>
+      </div>
+
+      {/* ── Real evidence — exactly what the banner above promises, nothing
+          more: no confidence breakdown, no AI reasoning claim, no methodology
+          badge — those all imply a synthesis step that didn't happen. ──────── */}
+      {hasEvidence && (
+        <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
+          <p className="text-[15px] font-semibold text-text-primary mb-3">Real Events &amp; Sources Found</p>
+          <div className="space-y-2">
+            {events.slice(0, 6).map((e, i) => (
+              <p key={`e-${i}`} className="text-[12px] text-text-secondary leading-snug">
+                {e.slug || e.id ? (
+                  <Link href={`/events/${e.slug || e.id}` as any} className="hover:text-violet-600 dark:hover:text-violet-300 transition">{e.title}</Link>
+                ) : e.title}
+              </p>
+            ))}
+            {news.slice(0, 6).map((n, i) => (
+              <p key={`n-${i}`} className="text-[12px] text-text-secondary leading-snug">{n.headline}</p>
+            ))}
+            {policies.slice(0, 4).map((p, i) => (
+              <p key={`p-${i}`} className="text-[12px] text-text-secondary leading-snug">{p.title}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <AIDisclaimer />
+    </div>
+  );
+}
+
 export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRefined }: {
   result: SearchResult;
   onFollowUp: (q: string) => void;
@@ -897,6 +1004,17 @@ export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRe
   const [showMore, setShowMore] = useState(false);
   const [saved, setSaved] = useState(false);
   const [activeRippleNode, setActiveRippleNode] = useState<string | null>(null);
+
+  // Dedicated top-level early return for a degraded (synthesis_incomplete)
+  // response — see DegradedSearchAnswer's own docstring for why this
+  // replaced the scattered per-section conditionals below (which had
+  // already let two separate fabrication leaks through). Must come after
+  // the hooks above (React requires hooks to run unconditionally, in the
+  // same order, every render) but before everything else in this
+  // function, none of which is safe to compute from a degraded response.
+  if (result.synthesis_incomplete) {
+    return <DegradedSearchAnswer result={result} resultTime={resultTime} onFollowUp={onFollowUp} />;
+  }
 
   const { answer, key_drivers, companies: rawCompanies, sectors, related_events, news, policies,
           investment_verdict, historical_comparison,
@@ -1910,7 +2028,16 @@ export function RightSidebar({ result, onAction, onReopenSearch, activeQuery, se
           <p className="text-[13px] font-semibold text-text-primary">Research Outlook</p>
         </div>
 
-        {result ? (
+        {/* Fail-closed (2026-09-21, review finding): this widget is a
+            second, independent implementation of "show the verdict" from
+            the main content's own Research Outlook section — which
+            already correctly hides itself entirely on a degraded response
+            (see SearchResults/DegradedSearchAnswer). This one didn't, so
+            it kept showing investment_verdict.rating ("Not Applicable")
+            plus a gauge right next to an admitted synthesis failure,
+            implying an outlook existed when none did. Now treated
+            identically to "no result yet". */}
+        {result && !result.synthesis_incomplete ? (
           <>
             {/* Top row: Overall View + Risk */}
             <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1952,7 +2079,9 @@ export function RightSidebar({ result, onAction, onReopenSearch, activeQuery, se
         ) : (
           <div className="flex flex-col items-center justify-center my-6 gap-2">
             <BigGauge score={null} size={120}/>
-            <p className="text-[10px] uppercase tracking-wider text-text-muted">Awaiting Analysis</p>
+            <p className="text-[10px] uppercase tracking-wider text-text-muted">
+              {result?.synthesis_incomplete ? "Analysis unavailable" : "Awaiting Analysis"}
+            </p>
           </div>
         )}
       </div>

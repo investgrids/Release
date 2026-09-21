@@ -5,20 +5,35 @@ Claim-level evidence references + fail-closed validation for AEV2
 Every AEV2 text field (direct_conclusion, what_happened, why_it_matters)
 carries `evidence_refs` — NOT the whole evidence[] catalog attached
 blindly, but the output of `deterministic_claim_evidence_refs()` below,
-the one real deterministic relationship this codebase has today: an
-event's own structured `companies` field (set at ingestion) naming one
-of CoreAnswer's own resolved companies. This mirrors pipeline.py's
-`_filter_events_to_entities` matching rule exactly (duplicated here,
-not imported — aev2/ must not import from ai_search.pipeline; see the
-package-wide import-scan test). News/policy rows carry no company field
-today (the same known gap _filter_events_to_entities's own docstring
-names), so they are never attributed to a specific claim here — they
-still appear in the full evidence[] catalog for transparency, just
-uncited by any field, which is the honest state of what this codebase
-can actually prove today, not an invented link. If zero companies
-resolved, or none of the retrieved events are company-linked,
-evidence_refs is genuinely empty — not padded with unrelated catalog
-entries to look more complete than it is.
+built from the two genuinely deterministic relationships this codebase
+has today, both imported from the shared company_matching.py (never
+duplicated — see that module's own docstring for why pipeline.py's
+degraded-response builder and this validator must use the identical
+rule):
+  - an event's own structured `companies` field naming one of
+    CoreAnswer's resolved companies (company_matching.
+    filter_events_to_companies)
+  - a CompanyAnnouncement row's own `symbol` column — an even more
+    direct, per-symbol-queried relationship (company_matching.
+    filter_announcements_to_companies) — see core_answer.py's
+    `announcements` field for where this enters CoreAnswer.
+News/policy rows carry no company field today (a known coverage gap,
+not an oversight), so they are never attributed to a specific claim
+here — they still appear in the full evidence[] catalog for
+transparency, just uncited by any field, which is the honest state of
+what this codebase can actually prove today, not an invented link. If
+zero companies resolved, or none of the retrieved events/announcements
+are company-linked, evidence_refs is genuinely empty — not padded with
+unrelated catalog entries to look more complete than it is.
+
+Coverage limitation (acknowledged, not silently accepted): sector,
+policy, and general/macro queries typically resolve zero companies, so
+they will frequently fall back to empty evidence_refs and (via
+entities_supported's strict check) more fallback text than a company-
+specific query. That is an acceptable state while AEV2_BUILD_COMPLETE
+is False, but it must be MEASURED — not just theorized — before any
+canary eligibility decision; see the fallback-rate telemetry this
+module's callers should track once shadow mode is authorized.
 
 A field's generated text is only used if it passes ALL of:
 
@@ -56,6 +71,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from app.services.ai_search.company_matching import (
+    filter_announcements_to_companies,
+    filter_events_to_companies,
+)
 from app.services.ai_search.core_answer import CoreAnswer
 
 _NUMBER_RE = re.compile(r"\d{1,3}(?:,\d{2,3})+(?:\.\d+)?|\d+\.\d+|\d{2,}")
@@ -102,36 +121,42 @@ def build_evidence_catalog(core: CoreAnswer) -> list[dict]:
             "title": p.get("title") or "",
             "date": p.get("date") or None,
         })
+    for a in core.announcements:
+        aid = a.get("id")
+        if aid is None:
+            continue
+        catalog.append({
+            "id": f"announcement:{aid}",
+            "type": "announcement",
+            "title": a.get("subject") or "",
+            "date": a.get("announcement_date") or None,
+        })
     return catalog
 
 
-def _event_company_symbols(event: dict) -> set[str]:
-    return {
-        (c.get("symbol") or "").upper()
-        for c in (event.get("companies") or [])
-        if isinstance(c, dict) and c.get("symbol")
-    }
-
-
 def deterministic_claim_evidence_refs(core: CoreAnswer) -> list[str]:
-    """The genuinely deterministic evidence<->claim relationship: an
-    event whose own structured `companies` field names one of
-    CoreAnswer's resolved companies. Never positional (first-N events),
-    never "attach everything", never text-similarity-based — a real
-    ingestion-time field match or nothing. Returns [] when core.companies
-    is empty or no retrieved event is company-linked; an empty result is
-    the honest answer in that case, not a fallback to attaching
-    unrelated evidence."""
+    """The genuinely deterministic evidence<->claim relationships,
+    both imported from company_matching.py (never duplicated):
+      - an event whose own structured `companies` field names one of
+        CoreAnswer's resolved companies
+      - a CompanyAnnouncement row whose own `symbol` column names one
+    Never positional (first-N items), never "attach everything", never
+    text-similarity-based — a real, ingestion-time field match or
+    nothing. Returns [] when core.companies is empty or nothing
+    retrieved is company-linked; an empty result is the honest answer in
+    that case, not a fallback to attaching unrelated evidence."""
     wanted = {(c.get("symbol") or "").upper() for c in core.companies if c.get("symbol")}
     if not wanted:
         return []
     refs = []
-    for e in core.related_events:
+    for e in filter_events_to_companies(list(core.related_events), wanted):
         eid = e.get("id")
-        if eid is None:
-            continue
-        if _event_company_symbols(e) & wanted:
+        if eid is not None:
             refs.append(f"event:{eid}")
+    for a in filter_announcements_to_companies(list(core.announcements), wanted):
+        aid = a.get("id")
+        if aid is not None:
+            refs.append(f"announcement:{aid}")
     return refs
 
 
