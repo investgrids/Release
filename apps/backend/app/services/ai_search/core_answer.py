@@ -23,9 +23,26 @@ CoreAnswer instance to two different presenters (V3's own dict, already
 built; AEV2's assemble_aev2) is what "both presenters receive the same
 immutable CoreAnswer" means concretely — not two independent re-reads of
 a mutable dict that could diverge.
+
+Frozen-but-shallow caveat (review finding, 2026-09-21 second pass): a
+`@dataclass(frozen=True)` only blocks reassigning a FIELD
+(`core.bottom_line = x` raises) — it does nothing to stop a presenter
+from reaching into a nested dict a tuple field holds and mutating THAT
+in place (`core.companies[0]["symbol"] = "x"` would succeed silently).
+`from_v3_response()` therefore deep-copies every nested list/dict field
+below, so a CoreAnswer never aliases the same dict objects the original
+v3_response (or the V3 presenter still holding it) does — a mutation on
+one side can never reach the other through shared references. This is
+belt-and-braces alongside "don't write code that mutates it": the real
+enforcement is still that assemble_aev2 has no reason to write to `core`
+at all (see its own docstring), and test_ai_search_single_pipeline_
+runtime.py / test_ai_search_consolidation.py snapshot-compare a
+CoreAnswer before and after a presenter runs to prove neither actually
+does.
 """
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 
 
@@ -65,13 +82,17 @@ def from_v3_response(v3_response: dict | None) -> CoreAnswer:
         degraded_reason=v3_response.get("degraded_reason"),
         bottom_line=answer.get("bottom_line") or "",
         summary=answer.get("summary") or "",
-        companies=tuple(v3_response.get("companies") or []),
-        sectors=tuple(v3_response.get("sectors") or []),
-        related_events=tuple(v3_response.get("related_events") or []),
-        news=tuple(v3_response.get("news") or []),
-        policies=tuple(v3_response.get("policies") or []),
-        risks=tuple(answer.get("risks") or []),
+        # Deep-copied, not just wrapped in tuple() — tuple() only freezes
+        # the OUTER sequence; the dicts inside would still be the exact
+        # same mutable objects the original v3_response holds without
+        # this. See this function's own docstring above.
+        companies=tuple(copy.deepcopy(v3_response.get("companies") or [])),
+        sectors=tuple(copy.deepcopy(v3_response.get("sectors") or [])),
+        related_events=tuple(copy.deepcopy(v3_response.get("related_events") or [])),
+        news=tuple(copy.deepcopy(v3_response.get("news") or [])),
+        policies=tuple(copy.deepcopy(v3_response.get("policies") or [])),
+        risks=tuple(copy.deepcopy(answer.get("risks") or [])),
         confidence_score=answer.get("confidence"),
         confidence_level=answer.get("confidence_level") or "unscored",
-        source_attribution=tuple(v3_response.get("source_attribution") or []),
+        source_attribution=tuple(copy.deepcopy(v3_response.get("source_attribution") or [])),
     )

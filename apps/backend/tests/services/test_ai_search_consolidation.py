@@ -26,6 +26,15 @@ Covers, concretely:
   - The legacy ai_search_service.run_ai_search() function has zero real
     call sites in app/ — the "one canonical pipeline" claim, as a
     regression guard against a new caller silently reappearing.
+  - A missing telemetry HMAC key suppresses AEV2 telemetry emission
+    entirely, rather than emitting it with a useless shared placeholder
+    that would make shadow mode LOOK operational while being unusable.
+
+See test_ai_search_single_pipeline_runtime.py for the runtime (not just
+static call-site) proof of the one-call-per-stage invariants, and for
+the prediction-recording gating this file doesn't cover (that requires
+driving a real run_ai_search_v3 call, not just finalize_v3_response in
+isolation).
 """
 from __future__ import annotations
 
@@ -58,6 +67,55 @@ def test_from_v3_response_never_mutates_its_input():
     before = dict(v3_response)
     from_v3_response(v3_response)
     assert v3_response == before
+
+
+def test_core_answer_does_not_alias_the_original_response_nested_dicts():
+    """A frozen dataclass only blocks reassigning a FIELD — it does
+    nothing to stop code from reaching into a nested dict a tuple field
+    holds and mutating that dict in place. from_v3_response must
+    deep-copy, not just tuple()-wrap, or a mutation on the original
+    v3_response's companies list (which the V3 presenter itself still
+    holds and returns to the caller) would silently reach the "immutable"
+    CoreAnswer too, and vice versa."""
+    v3_response = {
+        "answer": {"bottom_line": "x"},
+        "companies": [{"symbol": "RELIANCE", "impact_score": 80}],
+    }
+    core = from_v3_response(v3_response)
+
+    # Mutate the ORIGINAL dict's nested company entry after projection.
+    v3_response["companies"][0]["impact_score"] = 999
+    assert core.companies[0]["impact_score"] == 80, "CoreAnswer aliased the original response's nested dict"
+
+    # And the reverse: mutating CoreAnswer's own nested dict must not
+    # reach back into the original v3_response either.
+    core.companies[0]["impact_score"] = -1
+    assert v3_response["companies"][0]["impact_score"] == 999, "mutating CoreAnswer's nested dict leaked back to the original response"
+
+
+def test_assemble_aev2_never_mutates_any_nested_dict_inside_core_answer():
+    """Snapshot-compare (deep copy) before and after a presenter runs —
+    proves the presenter didn't reach past the frozen dataclass shell and
+    mutate a nested dict in place, which a shallow equality check on
+    `core == before` would not by itself rule out for two dicts that
+    happen to still be equal in value but were touched in between."""
+    import copy
+    from app.services.ai_search.aev2.assemble import assemble_aev2
+    from app.services.ai_search.aev2.mode import AEV2Mode
+
+    v3_response = {
+        "answer": {"bottom_line": "HDFC Bank reported strong results."},
+        "companies": [{"symbol": "HDFCBANK", "impact_score": 80, "reason": "steady growth"}],
+        "related_events": [{"id": "e1", "title": "HDFC Bank Q2 results announced"}],
+    }
+    core = from_v3_response(v3_response)
+    snapshot = copy.deepcopy(core)
+
+    assemble_aev2(core, mode=AEV2Mode.PUBLIC)
+
+    assert core == snapshot
+    assert core.companies[0]["impact_score"] == 80
+    assert core.related_events[0]["title"] == "HDFC Bank Q2 results announced"
 
 
 def test_from_v3_response_is_pure_same_input_same_output():
@@ -109,7 +167,7 @@ def test_finalize_builds_aev2_from_a_core_answer_matching_the_returned_v3_dict(m
     monkeypatch.setattr("app.services.ai_search.response_finalize.assemble_aev2", spy_assemble)
 
     v3_response = {"answer": {"bottom_line": "HDFC Bank reported strong results."}, "response_id": "r1"}
-    result = finalize_v3_response("q", dict(v3_response))
+    result = finalize_v3_response("q", dict(v3_response), was_cached=True)
 
     assert captured["core"] == from_v3_response(v3_response)
     assert result["answer_experience_v2"]["direct_conclusion"]["text"] == "HDFC Bank reported strong results."
@@ -153,7 +211,7 @@ def test_clean_response_passes_through_finalize_unmodified(monkeypatch):
     monkeypatch.setattr(settings, "ai_search_aev2_mode", "off")
 
     v3_response = {"answer": {"bottom_line": "HDFC Bank reported strong quarterly results."}, "response_id": "r1"}
-    result = finalize_v3_response("q", v3_response)
+    result = finalize_v3_response("q", v3_response, was_cached=True)
     assert result.get("synthesis_incomplete") is not True
     assert result["answer"]["bottom_line"] == "HDFC Bank reported strong quarterly results."
 
@@ -269,7 +327,9 @@ def test_finalize_canary_mode_missing_admin_key_never_returns_aev2(monkeypatch):
     monkeypatch.setattr(settings, "admin_api_key", "real-secret")
     monkeypatch.setattr(mode_mod, "AEV2_BUILD_COMPLETE", True)
 
-    result = finalize_v3_response("q", {"answer": {"bottom_line": "clean text"}, "response_id": "r1"}, x_admin_key=None)
+    result = finalize_v3_response(
+        "q", {"answer": {"bottom_line": "clean text"}, "response_id": "r1"}, x_admin_key=None, was_cached=True,
+    )
     assert "answer_experience_v2" not in result
 
 
@@ -281,7 +341,9 @@ def test_finalize_canary_mode_wrong_admin_key_never_returns_aev2(monkeypatch):
     monkeypatch.setattr(settings, "admin_api_key", "real-secret")
     monkeypatch.setattr(mode_mod, "AEV2_BUILD_COMPLETE", True)
 
-    result = finalize_v3_response("q", {"answer": {"bottom_line": "clean text"}, "response_id": "r1"}, x_admin_key="wrong-key")
+    result = finalize_v3_response(
+        "q", {"answer": {"bottom_line": "clean text"}, "response_id": "r1"}, x_admin_key="wrong-key", was_cached=True,
+    )
     assert "answer_experience_v2" not in result
 
 
@@ -293,7 +355,9 @@ def test_finalize_canary_mode_correct_admin_key_returns_aev2(monkeypatch):
     monkeypatch.setattr(settings, "admin_api_key", "real-secret")
     monkeypatch.setattr(mode_mod, "AEV2_BUILD_COMPLETE", True)
 
-    result = finalize_v3_response("q", {"answer": {"bottom_line": "clean text"}, "response_id": "r1"}, x_admin_key="real-secret")
+    result = finalize_v3_response(
+        "q", {"answer": {"bottom_line": "clean text"}, "response_id": "r1"}, x_admin_key="real-secret", was_cached=True,
+    )
     assert "answer_experience_v2" in result
     assert result["answer_experience_v2"]["direct_conclusion"]["text"] == "clean text"
 
@@ -309,7 +373,9 @@ def test_finalize_canary_mode_stays_off_while_build_incomplete_even_with_correct
     monkeypatch.setattr(settings, "ai_search_aev2_mode", "canary")
     monkeypatch.setattr(settings, "admin_api_key", "real-secret")
 
-    result = finalize_v3_response("q", {"answer": {"bottom_line": "clean text"}, "response_id": "r1"}, x_admin_key="real-secret")
+    result = finalize_v3_response(
+        "q", {"answer": {"bottom_line": "clean text"}, "response_id": "r1"}, x_admin_key="real-secret", was_cached=True,
+    )
     assert "answer_experience_v2" not in result
 
 
@@ -373,3 +439,47 @@ def test_legacy_search_route_delegates_to_the_canonical_v3_pipeline():
     assert "run_ai_search_v3" in source
     assert "from app.services.ai_search_service import run_ai_search" not in source
     assert "ai_search_service.run_ai_search(" not in source
+
+
+# ── Missing telemetry key suppresses emission, never a usable-looking
+#    placeholder ───────────────────────────────────────────────────────────
+
+def test_missing_telemetry_key_suppresses_emission_entirely(monkeypatch):
+    from app.core.config import settings
+    from app.services.ai_search.aev2 import telemetry as telemetry_mod
+
+    monkeypatch.setattr(settings, "aev2_telemetry_key", "")
+    monkeypatch.setattr(telemetry_mod, "_warned_unconfigured", False)
+
+    with structlog.testing.capture_logs() as logs:
+        telemetry_mod.emit_assembly_success(
+            query="Should I invest in HDFC Bank?", mode="shadow", response_id="r1",
+            had_language_violation=False, is_fallback=False, stage_ms={},
+        )
+        telemetry_mod.emit_assembly_failed(query="q2", mode="shadow", failure_reason="x", stage_ms={})
+        telemetry_mod.emit_confidence_computed(query="q3", aev2_score=50.0, components_available=[], llm_self_rating=None)
+
+    assembly_events = [e for e in logs if e.get("event", "").startswith("ai_search.aev2_")
+                        and e["event"] != "ai_search.aev2_telemetry_key_unconfigured"]
+    assert assembly_events == [], f"expected zero telemetry events with no key configured, got {assembly_events}"
+
+    warn_events = [e for e in logs if e.get("event") == "ai_search.aev2_telemetry_key_unconfigured"]
+    assert len(warn_events) == 1, "should warn once, not once per emit call"
+
+
+def test_configured_telemetry_key_emits_normally_with_a_real_hash(monkeypatch):
+    from app.core.config import settings
+    from app.services.ai_search.aev2 import telemetry as telemetry_mod
+
+    monkeypatch.setattr(settings, "aev2_telemetry_key", "real-telemetry-secret")
+
+    with structlog.testing.capture_logs() as logs:
+        telemetry_mod.emit_assembly_success(
+            query="Should I invest in HDFC Bank?", mode="shadow", response_id="r1",
+            had_language_violation=False, is_fallback=False, stage_ms={},
+        )
+
+    events = [e for e in logs if e.get("event") == "ai_search.aev2_assembly"]
+    assert len(events) == 1
+    assert events[0]["query_hash"] not in ("", "telemetry-key-unconfigured")
+    assert len(events[0]["query_hash"]) == 16

@@ -93,7 +93,7 @@ async def ai_search(
         ai_search_stats.record_success(latency_ms)
 
     from app.services.ai_search.response_finalize import finalize_v3_response
-    result = finalize_v3_response(query, result)
+    result = finalize_v3_response(query, result, was_cached=was_cached)
 
     return SearchResponse(query=query, cached=was_cached, result=result)
 
@@ -162,7 +162,7 @@ async def ai_search_v3(
     # above, from whichever `result` was resolved (cache hit or fresh).
     # Never mutates `result` in place — see response_finalize.py.
     from app.services.ai_search.response_finalize import finalize_v3_response
-    result = finalize_v3_response(query, result, x_admin_key=x_admin_key)
+    result = finalize_v3_response(query, result, x_admin_key=x_admin_key, was_cached=was_cached)
 
     return SearchResponseV3(
         query=query, cached=was_cached, result=result,
@@ -238,7 +238,7 @@ async def ai_search_stream(
                     # simply unreachable from this route — the correct,
                     # safe default, not a gap to work around.
                     from app.services.ai_search.response_finalize import finalize_v3_response
-                    payload = finalize_v3_response(query, payload)
+                    payload = finalize_v3_response(query, payload, was_cached=was_cached)
                     envelope = {
                         "result": payload,
                         "cached": was_cached,

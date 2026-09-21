@@ -816,18 +816,15 @@ async def _assemble_response(
     else:
         response["follow_up_groups"] = []
 
-    # Asynchronously persist predictions for the learning engine (non-blocking).
-    # Shared with V2 — see prediction_recording.py's module docstring for why
-    # this was missing from V3 (the primary user-facing pipeline) until now.
-    from app.services.ai_search.prediction_recording import store_search_predictions
-    asyncio.create_task(
-        store_search_predictions(
-            result=response,
-            confidence_score=confidence_breakdown["final_confidence"],
-            confidence_level=confidence_breakdown["level"],
-            confidence_breakdown=confidence_breakdown,
-        ),
-        name="prediction-store-v3",
-    )
-
+    # Prediction recording moved to response_finalize.py (2026-09-21) —
+    # scheduling it here, unconditionally, meant a response that parses
+    # cleanly (was_degraded=False, so it reaches this point) but later
+    # fails the recommendation-language safety gate downstream in
+    # response_finalize.py would already have had a prediction recorded
+    # from its pre-gate (unsafe) content by the time the gate ever ran.
+    # response_finalize.py is the one place that knows the FINAL,
+    # post-gate response every route actually returns, and the one place
+    # that knows whether this was a fresh computation or a cache replay
+    # — both required to record "one prediction per fresh, clean answer,
+    # zero on cache hits or a gate rejection." See its own docstring.
     return response

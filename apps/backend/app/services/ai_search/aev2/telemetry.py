@@ -30,6 +30,19 @@ MODE is ever set to "shadow" (or beyond) in a real environment, someone
 must confirm that sink's real retention setting matches this window —
 that is an operational verification step, not something this module can
 prove from application code alone.
+
+Review finding (2026-09-21, second pass): a missing telemetry key must
+not let shadow/canary/public LOOK operational while actually being
+unusable. Emitting `ai_search.aev2_assembly` events with a fixed shared
+placeholder in place of query_hash would do exactly that — an operator
+watching for those log lines would see them arriving on schedule and
+reasonably conclude telemetry is working, when every row is in fact
+uncorrelatable with every other row. Every emit_* function below now
+checks readiness FIRST and emits nothing at all (beyond the one-time
+warning) when the key is unset — an absent stream of
+ai_search.aev2_assembly events is the honest signal that shadow mode
+isn't actually collecting usable telemetry yet, not a stream of
+misleadingly uniform ones.
 """
 from __future__ import annotations
 
@@ -44,24 +57,33 @@ log = structlog.get_logger(__name__)
 
 RETENTION_DAYS = 30
 
-_UNCONFIGURED_PLACEHOLDER = "telemetry-key-unconfigured"
 _warned_unconfigured = False
+
+
+def _telemetry_ready() -> bool:
+    """False when no dedicated telemetry key is configured — the one
+    gate every emit_* function below runs through first. Warns once
+    (not once per call) so an operator sees it, without spamming a log
+    line per search."""
+    global _warned_unconfigured
+    if settings.aev2_telemetry_key:
+        return True
+    if not _warned_unconfigured:
+        log.warning("ai_search.aev2_telemetry_key_unconfigured")
+        _warned_unconfigured = True
+    return False
 
 
 def hash_query(query: str) -> str:
     """Opaque identifier for correlating telemetry rows about the same
     query without ever storing the query text itself. HMAC-SHA256 keyed
     by a dedicated secret — never a bare hash, which dictionary/rainbow-
-    table attacks defeat for a small, guessable query space. Returns a
-    fixed, non-identifying placeholder (logged once) if no key is
-    configured, rather than falling back to an insecure bare hash."""
-    global _warned_unconfigured
+    table attacks defeat for a small, guessable query space. Callers must
+    check _telemetry_ready() before calling this — it has no unconfigured
+    fallback of its own (an empty key would make hmac.new itself the
+    guard, but every real emit_* call site below never reaches this
+    function at all when the key is unset, which is the actual contract)."""
     key = settings.aev2_telemetry_key
-    if not key:
-        if not _warned_unconfigured:
-            log.warning("ai_search.aev2_telemetry_key_unconfigured")
-            _warned_unconfigured = True
-        return _UNCONFIGURED_PLACEHOLDER
     return hmac.new(key.encode("utf-8"), query.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
 
 
@@ -74,6 +96,8 @@ def emit_assembly_success(
     is_fallback: bool,
     stage_ms: dict,
 ) -> None:
+    if not _telemetry_ready():
+        return
     log.info(
         "ai_search.aev2_assembly",
         query_hash=hash_query(query),
@@ -95,6 +119,8 @@ def emit_assembly_failed(
     """failure_reason is a specific code (e.g. "insufficient_evidence",
     "citation_resolution_exception", "attribution_exception") — never a
     raw exception message, which could incidentally quote generated text."""
+    if not _telemetry_ready():
+        return
     log.warning(
         "ai_search.aev2_assembly_failed",
         query_hash=hash_query(query),
@@ -115,6 +141,8 @@ def emit_confidence_computed(
     research — never included in the AEV2 confidence formula itself (see
     the confidence-renormalization design) and never returned to any HTTP
     caller in any form."""
+    if not _telemetry_ready():
+        return
     log.info(
         "ai_search.aev2_confidence_computed",
         query_hash=hash_query(query),
