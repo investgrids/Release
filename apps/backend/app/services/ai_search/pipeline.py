@@ -395,6 +395,99 @@ async def run_ai_search_v3(query: str, db: AsyncSession, session_context: dict |
     return result, was_cached
 
 
+def _filter_events_to_entities(events: list[dict], symbols: list[str]) -> list[dict]:
+    """Only events whose own structured `companies` field (set at ingestion,
+    ~93% coverage — see retrieval.py's _search_events) names one of the
+    query's resolved symbols. The one real, deterministic company<->event
+    link this pipeline has — never a text/keyword match, and never applied
+    to news/policy rows, which carry no company field at all today."""
+    if not symbols:
+        return []
+    wanted = {s.upper() for s in symbols}
+    out = []
+    for e in events:
+        tagged = {(c.get("symbol") or "").upper() for c in (e.get("companies") or []) if isinstance(c, dict)}
+        if tagged & wanted:
+            out.append(e)
+    return out
+
+
+def _build_degraded_response(
+    query: str, ai: dict, evidence, specialist_kind: str, degraded_reason: str,
+    entities: dict, response_id: str,
+) -> dict:
+    """Fail-closed shape for a genuinely failed synthesis (was_degraded=True
+    from specialist.run()).
+
+    Found live (2026-09-21): previously, base.py's hardcoded degraded_response()
+    stub — a fixed "Neutral / 6-12 months / Macro uncertainty / Policy clarity"
+    shell with no relation to the actual query — flowed through this same
+    function's FULL analytical machinery untouched: a real, evidence-derived
+    confidence score and a real engine_verdict got computed and attached right
+    next to that fabricated verdict, producing a page that admits "synthesis
+    failed" in the summary while presenting a fully-dressed investment
+    analysis two sections below it (confidence %, horizon, risk level,
+    scenarios, Research Outlook/Investment Watch disagreeing with each
+    other) — none of it meaningfully about the query. Real evidence WAS
+    already collected before the specialist call failed, so it's kept —
+    filtered to only what's deterministically tied to the query's own
+    resolved company (Event.companies), never news/policy (no company field
+    exists on those rows) and never a keyword match. No verdict, confidence
+    score, horizon, risk level, suitability, scenario, or engine computation
+    is safe to show here — this is a distinct response shape, not a normal
+    response with a warning banner on top."""
+    symbols = entities.get("companies") or []
+    related_events = _filter_events_to_entities(evidence.events, symbols)[:6]
+    sources_count = len(related_events)
+    summary = (
+        ai.get("bottom_line") or ai.get("summary") or
+        "Full AI analysis wasn't available for this query — showing the real evidence "
+        "found, with no generated conclusion, confidence score, or outlook."
+    )
+    return {
+        "query": query, "response_id": response_id, "schema_version": SCHEMA_VERSION,
+        "specialist": specialist_kind,
+        "degraded_reason": degraded_reason,
+        "synthesis_incomplete": True,
+        "answer": {
+            "summary": summary, "bottom_line": summary,
+            "what_happened": "", "why_it_happened": "", "immediate_impact": "",
+            "medium_term": "", "long_term": "", "what_priced_in": "",
+            "risks": [], "opportunities": [],
+            "confidence": None, "confidence_level": "unscored",
+            "sentiment": "neutral", "sources_count": sources_count,
+        },
+        "key_drivers": [], "insights": [], "companies": [], "sectors": [],
+        "related_events": related_events, "news": [], "policies": [],
+        "timeline": [], "historical_comparison": [], "ripple_chain": [],
+        "scenarios": {}, "monitoring": {"items": []},
+        "follow_up_questions": [],
+        "investment_verdict": {
+            "rating": "Not Applicable", "direction": "neutral", "confidence": None,
+            "horizon": None, "top_picks": [], "risks": [], "catalysts": [],
+            "opportunity_score": None, "risk_level": "", "suitable_for": "",
+            "engine_verdict": None,
+        },
+        "market_chart": {"labels": [], "series": []},
+        "graph": {"nodes": [], "edges": []},
+        "citations": [],
+        "decision_intelligence": None,
+        "confidence_data": {"level": "unscored", "score": None, "reasons": [], "breakdown": {}, "caveats": []},
+        "decision_engine_v2": {},
+        "timeline_intelligence": {}, "opportunity_risk_matrix": {}, "ai_conclusion": {},
+        "evidence_score": {
+            "stars": None, "checklist": {},
+            "source_count": sources_count, "development_count": sources_count,
+            "corroborating_source_count": sources_count,
+        },
+        "confidence_breakdown": {"final_confidence": None, "level": "unscored"},
+        "source_attribution": [f"event:{e.get('id')}" for e in related_events if e.get("id")],
+        "validation": {"repairs": [], "omissions": [], "contradiction_flagged": False},
+        "market_impact_horizons": {}, "what_to_monitor": [], "ai_reasoning_methods": [],
+        "follow_up_groups": [],
+    }
+
+
 async def _assemble_response(
     query: str, ai: dict, evidence, specialist_kind: str, was_degraded: bool, validation_report,
     db: AsyncSession, entities: dict,
@@ -405,7 +498,19 @@ async def _assemble_response(
     """Builds the final response dict — a strict superset of V2's shape
     (see schema.py) plus Phase 1's new fields. Reuses V2's own enrichment/
     graph-build machinery directly (untouched, imported) rather than
-    reimplementing it."""
+    reimplementing it.
+
+    Fail-closed gate: a genuinely failed synthesis (was_degraded=True) never
+    reaches any of the analytical computation below — see
+    _build_degraded_response's docstring for the real defect this closes
+    (confidence/horizon/engine_verdict were being computed from real evidence
+    and attached to a hardcoded, query-irrelevant verdict stub)."""
+    if was_degraded:
+        return _build_degraded_response(
+            query, ai, evidence, specialist_kind,
+            ai.get("_degraded_reason", "parse_failure"), entities, str(uuid.uuid4()),
+        )
+
     from app.services.ai_search.enrichment import (
         _classify_ripple_position,
         _enrich_sync,
