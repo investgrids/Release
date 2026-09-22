@@ -4,7 +4,7 @@
 // output — no live HTTP path exists yet (AEV2_BUILD_COMPLETE is False),
 // so these fixtures ARE the test surface.
 import { describe, it, expect } from "vitest";
-import { toSwitchAnalysisAEV2Answer } from "./answerTypes";
+import { toSwitchAnalysisAEV2Answer, toAIAnswer, IMPLEMENTED_UI_MODES } from "./answerTypes";
 import {
   completeSwitchAnswer, notSwitchShapedAnswer, wrongEntityCountAnswer,
   switchEntityMismatchAnswer, switchNoCompanyEvidenceAnswer, switchUnvalidatedAnswer,
@@ -87,5 +87,17 @@ describe("toSwitchAnalysisAEV2Answer — eligibility contract", () => {
     const second = toSwitchAnalysisAEV2Answer(completeSwitchAnswer.result, completeSwitchAnswer.aev2);
     expect(first).toEqual(second);
     expect(completeSwitchAnswer.aev2).toEqual(snapshot);
+  });
+
+  it("switch_analysis is wired through the live toAIAnswer()/SearchResults path once answer_experience_v2 is attached (2026-09-22, activation-wiring commit)", () => {
+    expect(IMPLEMENTED_UI_MODES.has("switch_analysis")).toBe(true);
+    const withPayload = toAIAnswer({ ...completeSwitchAnswer.result, answer_experience_v2: completeSwitchAnswer.aev2 });
+    expect(withPayload.ui_mode).toBe("switch_analysis");
+  });
+
+  it("switch_analysis degrades honestly on aev2_unavailable when the backend didn't attach a payload — today's ALWAYS case in real production traffic (AEV2_BUILD_COMPLETE stays False)", () => {
+    const withoutPayload = toAIAnswer(completeSwitchAnswer.result);
+    expect(withoutPayload.ui_mode).toBe("degraded");
+    if (withoutPayload.ui_mode === "degraded") expect(withoutPayload.reason).toBe("aev2_unavailable");
   });
 });

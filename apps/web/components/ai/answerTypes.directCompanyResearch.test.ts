@@ -4,7 +4,7 @@
 // is no live HTTP path to this data yet (AEV2_BUILD_COMPLETE is False),
 // so these fixtures ARE the test surface, not a stand-in for one.
 import { describe, it, expect } from "vitest";
-import { toDirectCompanyResearchAEV2Answer } from "./answerTypes";
+import { toDirectCompanyResearchAEV2Answer, toAIAnswer, IMPLEMENTED_UI_MODES } from "./answerTypes";
 import {
   completeAnswer, noPriceDataAnswer, noCompanyEvidenceAnswer, citationInvalidAnswer,
   advisoryLanguageAnswer, twoCompanyAnswer, synthesisIncompleteAnswer, minimalAnswer,
@@ -75,5 +75,17 @@ describe("toDirectCompanyResearchAEV2Answer — eligibility contract", () => {
     const second = toDirectCompanyResearchAEV2Answer(completeAnswer.result, completeAnswer.aev2);
     expect(first).toEqual(second);
     expect(completeAnswer.aev2).toEqual(aev2Snapshot);
+  });
+
+  it("direct_company_research is wired through the live toAIAnswer()/SearchResults path once answer_experience_v2 is attached (2026-09-22, activation-wiring commit)", () => {
+    expect(IMPLEMENTED_UI_MODES.has("direct_company_research")).toBe(true);
+    const withPayload = toAIAnswer({ ...completeAnswer.result, answer_experience_v2: completeAnswer.aev2 });
+    expect(withPayload.ui_mode).toBe("direct_company_research");
+  });
+
+  it("direct_company_research degrades honestly on aev2_unavailable when the backend didn't attach a payload — today's ALWAYS case in real production traffic (AEV2_BUILD_COMPLETE stays False)", () => {
+    const withoutPayload = toAIAnswer(completeAnswer.result);
+    expect(withoutPayload.ui_mode).toBe("degraded");
+    if (withoutPayload.ui_mode === "degraded") expect(withoutPayload.reason).toBe("aev2_unavailable");
   });
 });

@@ -18,24 +18,22 @@ interface AnswerBase {
   evidenceRows: EvidenceRow[];
 }
 
-// The LIVE-WIRE placeholder for this ui_mode — what toAIAnswer() would
-// build from a plain SearchResult today, same as every other not-yet-
-// activated mode below. IntentLayout still routes it to
-// DegradedAnswerLayout ("not_yet_implemented"); it exists only so the
-// exhaustive union/switch stays complete while the REAL, AEV2-sourced
-// layout (AEV2DirectCompanyAnswer, below) is built and tested in
-// isolation per the owner's explicit sequencing (2026-09-22): no HTTP
-// wiring, no AEV2_BUILD_COMPLETE flip, until a dedicated activation
-// commit. Do not add fields here from AEV2Response — when activation
-// happens, this placeholder is replaced by AEV2DirectCompanyAnswer, not
-// merged with it.
-export interface DirectCompanyResearchAnswer extends AnswerBase { ui_mode: "direct_company_research"; }
-export interface SwitchAnalysisAnswer extends AnswerBase { ui_mode: "switch_analysis"; }
-export interface ComparisonAnswer extends AnswerBase { ui_mode: "company_comparison"; }
+// FactualLookupAnswer is sourced straight from the plain SearchResult
+// (no AEV2 payload involved — factual lookups never needed the
+// restructured presenter). PolicyMacroImpactAnswer/SectorThemeAnswer
+// remain LIVE-WIRE placeholders: both modes stay in UNSUPPORTED_UI_MODES
+// below (their own data-feasibility audits closed BLOCKED), so
+// toAIAnswer() never actually constructs one — they exist only so
+// IntentLayout's exhaustive switch has a real type to match against.
+//
+// The other five implemented modes (2026-09-22, activation-wiring
+// commit) are NOT declared here — their real types are
+// AEV2DirectCompanyAnswer/AEV2SwitchAnswer/AEV2ComparisonAnswer/
+// AEV2EventImpactAnswer/AEV2MarketPulseAnswer, defined further down this
+// file next to their own gate functions, and referenced directly in the
+// AIAnswer union below.
 export interface FactualLookupAnswer extends AnswerBase { ui_mode: "factual_lookup"; }
 export interface PolicyMacroImpactAnswer extends AnswerBase { ui_mode: "policy_macro_impact"; }
-export interface MarketPulseAnswer extends AnswerBase { ui_mode: "market_pulse"; }
-export interface EventImpactAnswer extends AnswerBase { ui_mode: "event_impact"; }
 export interface SectorThemeAnswer extends AnswerBase { ui_mode: "sector_theme_research"; }
 
 // Not a backend ui_mode — a frontend-only discriminant covering every
@@ -90,19 +88,39 @@ export interface DegradedAnswer extends AnswerBase {
     // carries WHICH one, and UNSUPPORTED_MODE_INFO below supplies its
     // own specific message — never collapsed into "Analysis
     // unavailable" the way the generic reasons above are.
-    | "unsupported_mode";
+    | "unsupported_mode"
+    // 2026-09-22, activation-wiring commit — a real, IMPLEMENTED mode
+    // (its layout and gate function both exist and are wired here) whose
+    // backend answer_experience_v2 payload simply wasn't attached to
+    // this response. This is the ALWAYS case in today's production
+    // traffic (AEV2_BUILD_COMPLETE stays False — see aev2/mode.py — so
+    // should_return_to_client never lets the field reach a real HTTP
+    // caller, in any AI_SEARCH_AEV2_MODE), but it's also a genuine
+    // future runtime state once the latch flips: assemble_aev2 itself
+    // can return None on an internal assembly failure. Distinct from
+    // every "ineligible_*" reason below, which all fire INSIDE a gate
+    // function once a payload IS present but doesn't meet that mode's
+    // eligibility contract — this fires before a gate ever runs.
+    | "aev2_unavailable";
   degradedNotice?: string;
   sourceUiMode?: string;
 }
 
+// 2026-09-22, activation-wiring commit — the five AEV2-sourced answer
+// types (declared further down this file, next to their own gate
+// functions) join the union in place of their former AnswerBase
+// placeholders. Forward references are safe: these are `interface`
+// declarations, and the gate functions below are `function`
+// declarations — both hoisted, so toAIAnswer() (above them, textually)
+// can already reference every one of these names.
 export type AIAnswer =
-  | DirectCompanyResearchAnswer
-  | SwitchAnalysisAnswer
-  | ComparisonAnswer
+  | AEV2DirectCompanyAnswer
+  | AEV2SwitchAnswer
+  | AEV2ComparisonAnswer
   | FactualLookupAnswer
   | PolicyMacroImpactAnswer
-  | MarketPulseAnswer
-  | EventImpactAnswer
+  | AEV2MarketPulseAnswer
+  | AEV2EventImpactAnswer
   | SectorThemeAnswer
   | DegradedAnswer;
 
@@ -114,12 +132,23 @@ const KNOWN_UI_MODES: readonly UIMode[] = [
   "earnings_preview", "multi_company_comparison",
 ];
 
-// The 8 first-release modes with a real layout so far (grows one entry
-// per "Recommended build order" step — see project memory/plan). Any
-// valid ui_mode NOT in this set still resolves to a typed answer above,
-// but IntentLayout routes it to UnsupportedAnswerLayout, not a generic
-// success render.
-export const IMPLEMENTED_UI_MODES: ReadonlySet<UIMode> = new Set(["factual_lookup"]);
+// The six implemented modes (2026-09-22, activation-wiring commit —
+// grew from just factual_lookup once the six-mode integration audit
+// confirmed all five AEV2-sourced gate functions + layouts were
+// fixture-tested and consistent). Any valid ui_mode NOT in this set
+// still resolves to a typed answer above, but toAIAnswer degrades it
+// ("not_yet_implemented" or "unsupported_mode") before IntentLayout ever
+// sees it. Being IMPLEMENTED here is independent of whether a real
+// response ever actually reaches these layouts in production — that's
+// still gated separately by AEV2_BUILD_COMPLETE (backend) and
+// NEXT_PUBLIC_AI_ANSWER_SHELL (frontend), both of which stay off. See
+// "aev2_unavailable" above for the honest degrade every one of the five
+// AEV2-sourced modes falls into today, every time, until the backend
+// latch flips.
+export const IMPLEMENTED_UI_MODES: ReadonlySet<UIMode> = new Set([
+  "factual_lookup", "direct_company_research", "switch_analysis",
+  "company_comparison", "event_impact", "market_pulse",
+]);
 
 // ── Explicit recognized-but-unsupported modes (2026-09-22, intent-
 // coverage audit). Each is a REAL classification this codebase makes
@@ -247,11 +276,44 @@ export function toAIAnswer(result: SearchResult): AIAnswer {
   if (!IMPLEMENTED_UI_MODES.has(mode)) {
     return toDegraded(result, "not_yet_implemented");
   }
-  // Both guards above already confirmed `mode` is a known, implemented
-  // UIMode at runtime — TS's `Set.has`/`Array.includes` don't narrow a
-  // union by literal, so this cast reflects that already-proven fact
-  // rather than skipping a real check.
-  return { ...baseFields(result), ui_mode: mode } as AIAnswer;
+  if (mode === "factual_lookup") {
+    return { ...baseFields(result), ui_mode: mode };
+  }
+
+  // The remaining five implemented modes (2026-09-22, activation-wiring
+  // commit) are all AEV2-sourced — dispatched through the exact same
+  // strict gate function every fixture-only test already exercises
+  // (toDirectCompanyResearchAEV2Answer etc.), never a bespoke live-path
+  // reimplementation of their eligibility rules. A missing/null payload
+  // degrades honestly rather than throwing: see answer_experience_v2's
+  // own doc comment on SearchResult (AISearchClient.tsx) for why this is
+  // the ALWAYS case in today's real HTTP traffic, and a real future
+  // state (assemble_aev2 can itself return None) once it isn't.
+  const aev2 = result.answer_experience_v2;
+  if (!aev2) {
+    return toDegraded(result, "aev2_unavailable");
+  }
+  // IMPLEMENTED_UI_MODES already proved `mode` is one of exactly these 6
+  // strings (factual_lookup handled above) — TS can't narrow through a
+  // Set.has() check, so this switch's exhaustiveness is enforced at
+  // runtime by that guard, not by the type system, the same tradeoff as
+  // the factual_lookup branch's own return above.
+  switch (mode) {
+    case "market_pulse":
+      return toMarketPulseAEV2Answer(result, aev2 as AEV2MarketPulse);
+    case "direct_company_research":
+      return toDirectCompanyResearchAEV2Answer(result, aev2 as AEV2Response);
+    case "switch_analysis":
+      return toSwitchAnalysisAEV2Answer(result, aev2 as AEV2Response);
+    case "company_comparison":
+      return toComparisonAEV2Answer(result, aev2 as AEV2Response);
+    case "event_impact":
+      return toEventImpactAEV2Answer(result, aev2 as AEV2Response);
+    default:
+      // Unreachable given the guards above — fails closed rather than
+      // silently returning undefined if it somehow is.
+      return toDegraded(result, "unknown_ui_mode");
+  }
 }
 
 export function assertNever(x: never): never {

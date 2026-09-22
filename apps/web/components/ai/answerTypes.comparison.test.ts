@@ -62,11 +62,16 @@ describe("toComparisonAEV2Answer — eligibility contract", () => {
     if (answer.ui_mode === "degraded") expect(answer.reason).toBe("synthesis_incomplete");
   });
 
-  it("14. company_comparison stays unavailable through the live toAIAnswer()/SearchResults path", () => {
-    expect(IMPLEMENTED_UI_MODES.has("company_comparison")).toBe(false);
-    const liveAnswer = toAIAnswer(completeComparisonAnswer.result);
-    expect(liveAnswer.ui_mode).toBe("degraded");
-    if (liveAnswer.ui_mode === "degraded") expect(liveAnswer.reason).toBe("not_yet_implemented");
+  it("14. company_comparison is wired through the live toAIAnswer()/SearchResults path once answer_experience_v2 is attached (2026-09-22, activation-wiring commit)", () => {
+    expect(IMPLEMENTED_UI_MODES.has("company_comparison")).toBe(true);
+    const withPayload = toAIAnswer({ ...completeComparisonAnswer.result, answer_experience_v2: completeComparisonAnswer.aev2 });
+    expect(withPayload.ui_mode).toBe("company_comparison");
+  });
+
+  it("company_comparison degrades honestly on aev2_unavailable when the backend didn't attach a payload — today's ALWAYS case in real production traffic (AEV2_BUILD_COMPLETE stays False)", () => {
+    const withoutPayload = toAIAnswer(completeComparisonAnswer.result);
+    expect(withoutPayload.ui_mode).toBe("degraded");
+    if (withoutPayload.ui_mode === "degraded") expect(withoutPayload.reason).toBe("aev2_unavailable");
   });
 
   it("13. is a pure function — identical input twice yields deep-equal output, no fixture mutation", () => {

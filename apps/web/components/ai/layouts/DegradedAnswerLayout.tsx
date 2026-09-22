@@ -57,6 +57,12 @@ const NOTICE_BY_REASON: Record<DegradedAnswer["reason"], string> = {
   // doc comment for why none of these collapse into one shared line).
   unsupported_mode:
     "This kind of question isn't supported yet. The real evidence found is shown below.",
+  // 2026-09-22, activation-wiring commit — a real, implemented mode
+  // whose enhanced payload simply wasn't returned for this response
+  // (see answerTypes.ts's own doc comment on this reason for why this
+  // is the ALWAYS case in today's production traffic).
+  aev2_unavailable:
+    "This answer's enhanced view isn't available for this response. The real evidence found is shown below.",
 };
 
 const KNOWN_UI_MODES = new Set<string>([

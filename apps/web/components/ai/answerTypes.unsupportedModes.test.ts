@@ -47,12 +47,28 @@ describe("toAIAnswer — explicit unsupported modes", () => {
     );
   });
 
-  it("a still-unwired-but-locally-implemented mode keeps the generic not_yet_implemented reason, not unsupported_mode", () => {
-    const result = baseSearchResult({ ui_mode: "direct_company_research" as UIMode });
-    const answer = toAIAnswer(result);
-    expect(answer.ui_mode).toBe("degraded");
-    if (answer.ui_mode === "degraded") {
-      expect(answer.reason).toBe("not_yet_implemented");
+  it("every recognized ui_mode is now either implemented or explicitly unsupported — not_yet_implemented has no live case left (2026-09-22, activation-wiring commit)", () => {
+    // Before this commit, direct_company_research (among others) was a
+    // real live example of "not_yet_implemented": a mode with a built
+    // layout that toAIAnswer hadn't wired up yet. All five AEV2-sourced
+    // modes are wired now, so this asserts the resulting invariant
+    // directly rather than asserting against a mode that's since become
+    // a false example — a future mode added to KNOWN_UI_MODES without
+    // also being added to IMPLEMENTED_UI_MODES or UNSUPPORTED_MODE_INFO
+    // would break this test, which is exactly the point: it's the
+    // regression net for forgetting that step.
+    const ALL_KNOWN: UIMode[] = [
+      "direct_company_research", "switch_analysis", "company_comparison",
+      "factual_lookup", "policy_macro_impact", "market_pulse",
+      "event_impact", "sector_theme_research",
+      "technical_timing", "company_discovery", "portfolio_review",
+      "earnings_preview", "multi_company_comparison",
+    ];
+    for (const mode of ALL_KNOWN) {
+      const isImplemented = IMPLEMENTED_UI_MODES.has(mode);
+      const isUnsupported = mode in UNSUPPORTED_MODE_INFO;
+      expect(isImplemented || isUnsupported, `${mode} must be either implemented or explicitly unsupported`).toBe(true);
+      expect(isImplemented && isUnsupported, `${mode} must not be both`).toBe(false);
     }
   });
 

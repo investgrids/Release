@@ -64,9 +64,14 @@ describe("DegradedAnswerLayout — explicit unsupported modes", () => {
     expect(screen.queryByText("This kind of question isn't supported yet. The real evidence found is shown below.")).not.toBeInTheDocument();
   });
 
-  it("a still-unwired locally-implemented mode keeps the generic not-yet-implemented copy", () => {
+  it("an implemented mode with no attached AEV2 payload gets its own honest aev2_unavailable copy, not the generic not-yet-implemented one (2026-09-22, activation-wiring commit)", () => {
+    // direct_company_research is now wired (IMPLEMENTED_UI_MODES), but
+    // baseSearchResult carries no answer_experience_v2 — exactly today's
+    // real production state (AEV2_BUILD_COMPLETE stays False) — so this
+    // degrades on "aev2_unavailable", never "not_yet_implemented".
     const answer = buildDegraded("direct_company_research");
     render(<DegradedAnswerLayout answer={answer} onNewSearch={() => {}} />);
-    expect(screen.getByText(/still being built/)).toBeInTheDocument();
+    expect(screen.getByText(/enhanced view isn't available/)).toBeInTheDocument();
+    expect(screen.queryByText(/still being built/)).not.toBeInTheDocument();
   });
 });

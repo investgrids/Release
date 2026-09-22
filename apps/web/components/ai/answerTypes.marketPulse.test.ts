@@ -40,11 +40,16 @@ describe("toMarketPulseAEV2Answer — eligibility contract", () => {
     }
   });
 
-  it("market_pulse stays unavailable through the live toAIAnswer()/SearchResults path — no HTTP or SearchResults exposure", () => {
-    expect(IMPLEMENTED_UI_MODES.has("market_pulse")).toBe(false);
-    const liveAnswer = toAIAnswer(completeMarketPulseAnswer.result);
-    expect(liveAnswer.ui_mode).toBe("degraded");
-    if (liveAnswer.ui_mode === "degraded") expect(liveAnswer.reason).toBe("not_yet_implemented");
+  it("market_pulse is wired through the live toAIAnswer()/SearchResults path once answer_experience_v2 is attached (2026-09-22, activation-wiring commit)", () => {
+    expect(IMPLEMENTED_UI_MODES.has("market_pulse")).toBe(true);
+    const withPayload = toAIAnswer({ ...completeMarketPulseAnswer.result, answer_experience_v2: completeMarketPulseAnswer.aev2 });
+    expect(withPayload.ui_mode).toBe("market_pulse");
+  });
+
+  it("market_pulse degrades honestly on aev2_unavailable when the backend didn't attach a payload — today's ALWAYS case in real production traffic (AEV2_BUILD_COMPLETE stays False)", () => {
+    const withoutPayload = toAIAnswer(completeMarketPulseAnswer.result);
+    expect(withoutPayload.ui_mode).toBe("degraded");
+    if (withoutPayload.ui_mode === "degraded") expect(withoutPayload.reason).toBe("aev2_unavailable");
   });
 
   it("is a pure function — identical input twice yields deep-equal output, no fixture mutation", () => {

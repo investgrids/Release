@@ -37,6 +37,7 @@ import { DecisionTimelinePanel, type TimelineIntelligence } from "@/components/a
 import { ConfidenceBreakdownPanel } from "@/components/ai/ConfidenceBreakdownPanel";
 import { IntentLayout } from "@/components/ai/IntentLayout";
 import { toAIAnswer } from "@/components/ai/answerTypes";
+import type { AEV2Response, AEV2MarketPulse } from "@/components/ai/aev2Types";
 import { openResearchReport, downloadMarkdown } from "@/lib/researchReport";
 import type { ResponseMeta } from "@/lib/hooks/useAISearchStream";
 import { useAISearchStream } from "@/lib/hooks/useAISearchStream";
@@ -204,6 +205,21 @@ export interface SearchResult {
   // subject_for docstring. Drives the Investment Watch panel directly —
   // the frontend never re-derives which subject a query was "about".
   watch_subject?: WatchSubject | null;
+  // AEV2 activation-wiring (2026-09-22) — the additive presenter payload
+  // response_finalize.py optionally attaches (see that module's own
+  // "answer_experience_v2" step). Absent whenever AEV2 shouldn't have
+  // been computed (mode=off), wasn't allowed onto the wire for this
+  // request (shadow, or canary/public without the readiness latch — see
+  // aev2/mode.py's own should_return_to_client), or assembly itself
+  // failed (assemble_aev2 can return None). answerTypes.ts's toAIAnswer
+  // treats absence as a real, honestly-degraded state
+  // ("aev2_unavailable"), never a crash — this is the ALWAYS case in
+  // today's production traffic, since AEV2_BUILD_COMPLETE stays False
+  // regardless of AI_SEARCH_AEV2_MODE. market_pulse's own AEV2 shape
+  // (AEV2MarketPulse) is a structurally separate object, never nested
+  // inside AEV2Response — see aev2Types.ts's own AEV2MarketPulse doc
+  // comment for why.
+  answer_experience_v2?: AEV2Response | AEV2MarketPulse;
 }
 
 // ── Market Pulse types ───────────────────────────────────────────────────────

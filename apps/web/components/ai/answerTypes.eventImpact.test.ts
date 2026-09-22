@@ -76,11 +76,19 @@ describe("toEventImpactAEV2Answer — eligibility contract", () => {
     if (answer.ui_mode === "event_impact") expect(answer.eventImpact.observed_reactions).toEqual([]);
   });
 
-  it("event_impact stays unavailable through the live toAIAnswer()/SearchResults path — no HTTP or SearchResults exposure", () => {
-    expect(IMPLEMENTED_UI_MODES.has("event_impact")).toBe(false);
-    const liveAnswer = toAIAnswer(completeEventImpactAnswer.result);
-    expect(liveAnswer.ui_mode).toBe("degraded");
-    if (liveAnswer.ui_mode === "degraded") expect(liveAnswer.reason).toBe("not_yet_implemented");
+  it("event_impact is wired through the live toAIAnswer()/SearchResults path once answer_experience_v2 is attached (2026-09-22, activation-wiring commit)", () => {
+    expect(IMPLEMENTED_UI_MODES.has("event_impact")).toBe(true);
+    const withPayload = toAIAnswer({ ...completeEventImpactAnswer.result, answer_experience_v2: completeEventImpactAnswer.aev2 });
+    expect(withPayload.ui_mode).toBe("event_impact");
+    if (withPayload.ui_mode === "event_impact") {
+      expect(withPayload.eventImpact.event.id).toBe("e-reliance-1");
+    }
+  });
+
+  it("event_impact degrades honestly on aev2_unavailable when the backend didn't attach a payload — today's ALWAYS case in real production traffic (AEV2_BUILD_COMPLETE stays False)", () => {
+    const withoutPayload = toAIAnswer(completeEventImpactAnswer.result);
+    expect(withoutPayload.ui_mode).toBe("degraded");
+    if (withoutPayload.ui_mode === "degraded") expect(withoutPayload.reason).toBe("aev2_unavailable");
   });
 
   it("is a pure function — identical input twice yields deep-equal output, no fixture mutation", () => {
