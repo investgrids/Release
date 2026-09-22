@@ -24,10 +24,30 @@ Muhurat trading (a special Sunday session, e.g. 2026-11-08) is NOT a
 holiday and is out of scope -- this module only answers "is this
 otherwise-tradeable weekday actually closed", not "which weekends
 exceptionally open".
+
+Extended (2026-09-22, price-bar ingestion guard): that "out of scope"
+carve-out was real for market-status DISPLAY, but became a genuine gap
+once a trading-CALENDAR check started gating whether a price bar gets
+stored at all -- `is_valid_nse_trading_session()` needs one real answer
+for "was this specific date open", including the weekend-exception
+case, not two separate partial checks a caller could get out of sync.
+`_NSE_EXCEPTIONAL_TRADING_DATES` is the home for a verified weekend/
+Muhurat session, same two-independent-source discipline as
+`_NSE_TRADING_HOLIDAYS` above -- starts EMPTY, not guessed: no such
+date has been independently verified for this codebase's covered years
+yet, and asserting one without that verification would be exactly the
+"getting it wrong is worse than not having it" mistake this module's
+own holiday list already refuses to make. Add a real, sourced date here
+when one is verified; until then, every date defaults through the
+ordinary weekend/holiday rule below, which is the same fail-closed
+behavior the holiday list itself uses for unpopulated years.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
+
+_IST = ZoneInfo("Asia/Kolkata")
 
 _NSE_TRADING_HOLIDAYS: frozenset[date] = frozenset({
     date(2026, 1, 15),   # Municipal Corporation Elections (Maharashtra)
@@ -55,3 +75,46 @@ def is_nse_trading_holiday(d: date) -> bool:
     weekends included -- callers already have their own weekend check;
     this function answers holiday-or-not, nothing else."""
     return d in _NSE_TRADING_HOLIDAYS
+
+
+# Real, sourced weekend/Muhurat sessions the market was open despite the
+# calendar day -- see this module's own 2026-09-22 docstring addendum
+# for why this starts empty rather than an unverified guess.
+_NSE_EXCEPTIONAL_TRADING_DATES: frozenset[date] = frozenset()
+
+
+def is_valid_nse_trading_session(when: date | datetime) -> bool:
+    """The one authoritative "was the NSE equity segment actually open
+    on this date" answer -- weekends, verified holidays, AND verified
+    weekend exceptions (Muhurat-style special sessions), combined,
+    instead of scattered ad hoc weekend/holiday checks a caller could
+    apply inconsistently or forget one of.
+
+    Accepts either a plain `date` (the normal case -- a daily OHLCV
+    bar's own `bar_date`, which yfinance already indexes by the
+    exchange's own local trading date) or a timezone-aware `datetime`,
+    converted to its IST calendar date first -- a defensive path for
+    any future caller that only has a UTC timestamp in hand, so the
+    classification is never done against the wrong day for a bar
+    fetched or processed close to the IST midnight boundary.
+
+    Precedence: a verified exceptional date is open regardless of what
+    weekday it falls on; otherwise a real Sat/Sun is always closed;
+    otherwise a verified weekday holiday is closed; every other weekday
+    is open. Never guesses beyond what's actually verified in the two
+    frozensets above -- an unpopulated year behaves exactly like
+    is_nse_trading_holiday's own fail-closed default (holiday-wise
+    "no", weekend rule still applies)."""
+    if isinstance(when, datetime):
+        aware = when if when.tzinfo is not None else when.replace(tzinfo=timezone.utc)
+        d = aware.astimezone(_IST).date()
+    else:
+        d = when
+
+    if d in _NSE_EXCEPTIONAL_TRADING_DATES:
+        return True
+    if d.weekday() >= 5:
+        return False
+    if d in _NSE_TRADING_HOLIDAYS:
+        return False
+    return True
