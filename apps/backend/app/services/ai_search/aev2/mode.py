@@ -38,11 +38,29 @@ class AEV2Mode(str, Enum):
 # AI_SEARCH_AEV2_MODE must never accidentally expose that incomplete
 # shape to a real user. An env var can fail open on a typo; a hardcoded
 # Python constant cannot — flipping this requires an actual code change
-# and a new commit, not a config edit. Set this True only in the same
-# commit that finishes Build 1 (companies_affected attribution, full
-# response restructuring) and claim-level citation resolution — see the
-# approved spec's Sequencing section for what "complete" means here.
-AEV2_BUILD_COMPLETE = False
+# and a new commit, not a config edit.
+#
+# Flipped True (2026-09-22, isolated readiness-latch commit) now that
+# the six-mode build is actually complete: all five AEV2-sourced
+# assemblers (direct_company_research/switch_analysis/comparison/
+# event_impact/market_pulse) are implemented, and the route-level
+# contract harness (test_aev2_frontend_contract.py,
+# answerTypes.backendContract.test.ts) proved the real finalize_v3_
+# response() output satisfies every frontend gate function against
+# actual captured output, not mirrored fixtures.
+#
+# This flip alone changes NO runtime behavior: settings.ai_search_aev2_
+# mode (app/core/config.py) still defaults to "off" everywhere it isn't
+# explicitly overridden, and should_assemble()/should_return_to_client()
+# below both still gate on that mode first. This latch being True only
+# means a LATER, separate change to AI_SEARCH_AEV2_MODE (shadow first,
+# per the approved rollout sequencing) is no longer also blocked by an
+# incomplete-build safety net that no longer reflects reality — it is
+# not itself an activation. Local-only validation may set
+# AI_SEARCH_AEV2_MODE=shadow or =public via environment configuration
+# without any further code change; production's own environment
+# configuration is untouched by this commit.
+AEV2_BUILD_COMPLETE = True
 
 
 def get_aev2_mode() -> AEV2Mode:

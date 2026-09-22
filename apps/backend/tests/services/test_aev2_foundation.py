@@ -66,53 +66,82 @@ def test_should_return_to_client_matrix():
     # readiness latch either way, since shadow never returns anyway.
     assert should_return_to_client(AEV2Mode.SHADOW, has_valid_admin_key=True) is False
     assert should_return_to_client(AEV2Mode.SHADOW, has_valid_admin_key=False) is False
-    # canary/public: with the real, current AEV2_BUILD_COMPLETE=False latch,
-    # BOTH are always False regardless of admin key — see the dedicated
-    # readiness-latch tests below for the full proof this can't be
-    # bypassed via AI_SEARCH_AEV2_MODE alone.
-    assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=True) is False
-    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=True) is False
+    # canary/public (2026-09-22, isolated readiness-latch commit): with
+    # the real, current AEV2_BUILD_COMPLETE=True latch, canary now
+    # depends on the admin key and public now always returns — see the
+    # dedicated readiness-latch tests below for the full proof this is
+    # driven by the latch itself, not some coincidental condition.
+    # AI_SEARCH_AEV2_MODE still defaults to "off" (app/core/config.py),
+    # so get_aev2_mode() never actually hands this function CANARY/
+    # PUBLIC in real, unconfigured production — this matrix only proves
+    # what happens once something upstream DOES select that mode.
+    assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=True) is True
+    assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=False) is False
+    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=True) is True
+    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=False) is True
 
 
-# ── Readiness latch — canary/public fail closed until Build 1 is done ──────
+# ── Readiness latch — canary/public fail closed until the build is done ────
 
-def test_build_complete_is_false_today():
-    """The foundation slice only populates direct_conclusion — this must
-    stay False until a later, deliberate commit finishes response
-    restructuring and citation resolution."""
+def test_build_complete_is_true_now_that_the_six_mode_build_finished():
+    """Flipped True in the isolated readiness-latch commit (2026-09-22):
+    all five AEV2-sourced assemblers are implemented and the route-level
+    contract harness (test_aev2_frontend_contract.py) proved real
+    finalize_v3_response() output satisfies every frontend gate function.
+    This flip alone changes no runtime behavior — AI_SEARCH_AEV2_MODE
+    still defaults to "off" — see mode.py's own doc comment on this
+    constant for the full reasoning."""
     from app.services.ai_search.aev2 import mode as mode_mod
-    assert mode_mod.AEV2_BUILD_COMPLETE is False
+    assert mode_mod.AEV2_BUILD_COMPLETE is True
 
 
-def test_canary_and_public_fail_closed_regardless_of_admin_key_while_build_incomplete():
-    for has_key in (True, False):
-        assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=has_key) is False
-        assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=has_key) is False
+def test_canary_requires_admin_key_and_public_always_returns_now_that_build_is_complete():
+    assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=True) is True
+    assert should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=False) is False
+    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=True) is True
+    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=False) is True
 
 
 def test_readiness_latch_is_the_actual_gate_not_incidental(monkeypatch):
-    """Proves should_return_to_client's canary/public=False behavior
-    really is driven by AEV2_BUILD_COMPLETE (not some other coincidental
-    condition) by flipping the module-level constant directly — the only
-    way this constant can change is a code edit + a new commit, never an
-    environment variable."""
+    """Proves should_return_to_client's canary/public behavior really is
+    driven by AEV2_BUILD_COMPLETE (not some other coincidental
+    condition) by flipping the module-level constant back to False and
+    confirming both modes fail closed again regardless of admin key —
+    the mirror image of the real (now True) default above. The only way
+    this constant can change in the real codebase is a code edit and a
+    new commit, never an environment variable."""
     from app.services.ai_search.aev2 import mode as mode_mod
-    monkeypatch.setattr(mode_mod, "AEV2_BUILD_COMPLETE", True)
-    assert mode_mod.should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=False) is True
-    assert mode_mod.should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=True) is True
+    monkeypatch.setattr(mode_mod, "AEV2_BUILD_COMPLETE", False)
+    assert mode_mod.should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=True) is False
+    assert mode_mod.should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=True) is False
     assert mode_mod.should_return_to_client(AEV2Mode.CANARY, has_valid_admin_key=False) is False
 
 
-def test_readiness_latch_cannot_be_bypassed_by_an_env_var_typo(monkeypatch):
-    """The exact scenario the review flagged: someone sets
-    AI_SEARCH_AEV2_MODE to a valid-looking value expecting AEV2 to go
-    live. Even set to "public" outright (not a typo — the real value),
-    should_return_to_client must still refuse, because that decision was
-    never wired through settings/env vars at all."""
+def test_readiness_latch_and_env_mode_are_two_independent_gates_not_one(monkeypatch):
+    """2026-09-22, isolated readiness-latch commit: AEV2_BUILD_COMPLETE
+    is now True, so this can no longer prove "an env var alone can't
+    expose AEV2" the way it did while the latch was closed (that
+    scenario simply isn't real anymore — see the mirror-image proof
+    below for what still happens if the latch were ever flipped back).
+    What still holds, and what this now proves instead: AI_SEARCH_AEV2_
+    MODE remains its own fully independent decision. Set to its real,
+    unconfigured default "off" — even with the readiness latch now open
+    — should_assemble already refuses before should_return_to_client is
+    ever reached, so nothing is exposed just because the code build is
+    complete."""
     from app.core.config import settings
+    monkeypatch.setattr(settings, "ai_search_aev2_mode", "off")
+    assert get_aev2_mode() == AEV2Mode.OFF
+    assert should_assemble(AEV2Mode.OFF) is False
+
+    # And the converse the original version of this test proved: setting
+    # AI_SEARCH_AEV2_MODE to "public" outright now DOES let a correctly-
+    # gated request through, precisely because both independent gates
+    # (env mode AND the code latch) are open — proving neither one alone
+    # was ever a no-op check.
     monkeypatch.setattr(settings, "ai_search_aev2_mode", "public")
-    assert get_aev2_mode() == AEV2Mode.PUBLIC  # the mode itself DOES parse correctly...
-    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=True) is False  # ...but never returns
+    assert get_aev2_mode() == AEV2Mode.PUBLIC
+    assert should_return_to_client(AEV2Mode.PUBLIC, has_valid_admin_key=True) is True
 
 
 def test_should_emit_telemetry_false_only_for_off():

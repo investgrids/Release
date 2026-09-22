@@ -370,14 +370,37 @@ def test_finalize_canary_mode_correct_admin_key_returns_aev2(monkeypatch):
     assert result["answer_experience_v2"]["direct_conclusion"]["text"] == "clean text"
 
 
-def test_finalize_canary_mode_stays_off_while_build_incomplete_even_with_correct_key(monkeypatch):
-    """AEV2_BUILD_COMPLETE defaults to False in the real codebase today —
-    this test does NOT monkeypatch it, proving the readiness latch (not
-    just the admin-key check) is what's gating canary/public right now."""
+def test_finalize_canary_mode_now_returns_with_correct_key_now_that_the_build_is_complete(monkeypatch):
+    """AEV2_BUILD_COMPLETE defaults to True in the real codebase now
+    (2026-09-22, isolated readiness-latch commit) — this test does NOT
+    monkeypatch it, proving canary mode's own admin-key gate is now the
+    only thing standing between a correctly-keyed request and the
+    payload. AI_SEARCH_AEV2_MODE itself still defaults to "off" in real,
+    unconfigured production (app/core/config.py) — this test only
+    proves what happens once something upstream DOES select canary."""
     from app.core.config import settings
     from app.services.ai_search.aev2.mode import AEV2_BUILD_COMPLETE
 
-    assert AEV2_BUILD_COMPLETE is False, "if this now reads True, the build-complete commit should include this test's update"
+    assert AEV2_BUILD_COMPLETE is True, "if this now reads False, the readiness-latch commit was reverted — update this test to match"
+    monkeypatch.setattr(settings, "ai_search_aev2_mode", "canary")
+    monkeypatch.setattr(settings, "admin_api_key", "real-secret")
+
+    result = finalize_v3_response(
+        "q", {"answer": {"bottom_line": "clean text"}, "response_id": "r1"}, x_admin_key="real-secret", was_cached=True,
+    )
+    assert "answer_experience_v2" in result
+
+
+def test_finalize_canary_mode_still_stays_off_if_the_readiness_latch_were_ever_flipped_back(monkeypatch):
+    """The mirror-image proof: the readiness latch, not just the admin-
+    key check, is still what gates canary/public — flips
+    AEV2_BUILD_COMPLETE back to False (the pre-2026-09-22 default) to
+    confirm a correctly-keyed canary request would still be blocked if
+    that ever needed to happen again (e.g. an emergency rollback)."""
+    from app.core.config import settings
+    from app.services.ai_search.aev2 import mode as mode_mod
+
+    monkeypatch.setattr(mode_mod, "AEV2_BUILD_COMPLETE", False)
     monkeypatch.setattr(settings, "ai_search_aev2_mode", "canary")
     monkeypatch.setattr(settings, "admin_api_key", "real-secret")
 
