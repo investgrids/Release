@@ -134,6 +134,51 @@ describe("toAIAnswer against real backend-finalizer output — not hand-authored
     expect(fresh).toEqual(cached);
   });
 
+  // ── ui_mode is the ONLY dispatch discriminator — never field presence ───
+  //
+  // Real finding (2026-09-22, route-level contract work): assemble_
+  // comparison populates for ANY resolving 2-company comparison-
+  // specialist call regardless of switch-vs-neutral intent — so a real
+  // switch-shaped response's answer_experience_v2 legitimately carries
+  // BOTH switch_analysis and comparison populated simultaneously (see
+  // comparison.py's own docstring: "the FRONTEND eligibility gate
+  // decides whether it's good enough to render"). This is acceptable
+  // ONLY because toAIAnswer's dispatch reads result.ui_mode alone and
+  // never inspects which optional AEV2 section happens to be present —
+  // pinned here directly against the real dual-populated fixture so a
+  // future consumer can never silently start inferring the layout from
+  // field presence instead.
+
+  it("switchAnalysisReal has BOTH switch_analysis and comparison populated — the real dual-populated shape this rule protects against", () => {
+    const aev2 = (switchAnalysisReal as { answer_experience_v2: { switch_analysis: unknown; comparison: unknown } }).answer_experience_v2;
+    expect(aev2.switch_analysis).not.toBeNull();
+    expect(aev2.comparison).not.toBeNull();
+  });
+
+  it("ui_mode=switch_analysis renders switch_analysis from a payload where comparison is ALSO populated", () => {
+    const answer = toAIAnswer(toSearchResult(switchAnalysisReal));
+    expect(answer.ui_mode).toBe("switch_analysis");
+  });
+
+  it("the SAME real dual-populated payload, with only ui_mode forced to company_comparison, renders company_comparison instead — proving dispatch reads ui_mode alone, never which field happens to be populated", () => {
+    const mutated = { ...switchAnalysisReal, ui_mode: "company_comparison" };
+    const answer = toAIAnswer(toSearchResult(mutated));
+    expect(answer.ui_mode).toBe("company_comparison");
+    if (answer.ui_mode === "company_comparison") {
+      expect(new Set([answer.comparison.left_company.symbol, answer.comparison.right_company.symbol]))
+        .toEqual(new Set(["BEL", "HAL"]));
+    }
+  });
+
+  it("a payload where switch_analysis is genuinely null (a real neutral-comparison response) still degrades honestly when ui_mode is forced to switch_analysis — never falls back to reading the comparison field instead", () => {
+    const aev2 = (companyComparisonReal as { answer_experience_v2: { switch_analysis: unknown } }).answer_experience_v2;
+    expect(aev2.switch_analysis).toBeNull(); // test setup precondition
+    const mutated = { ...companyComparisonReal, ui_mode: "switch_analysis" };
+    const answer = toAIAnswer(toSearchResult(mutated));
+    expect(answer.ui_mode).toBe("degraded");
+    if (answer.ui_mode === "degraded") expect(answer.reason).toBe("ineligible_not_switch_shaped");
+  });
+
   // ── Prohibited legacy fields never reach the typed answer object graph ──
 
   const PROHIBITED_KEYS = [
