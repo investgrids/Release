@@ -84,7 +84,9 @@ async def test_market_pulse_cache_miss_writes_the_cache_for_next_time():
         async for _stage, _label, _payload in pipeline._run_v3_steps("top gainers today", db):
             pass
 
-    assert cache_mod.get_response("top gainers today") is not None
+    assert cache_mod.get_market_pulse_response("top gainers today") is not None
+    # And never leaks into the generic research-answer namespace.
+    assert cache_mod.get_response("top gainers today") is None
 
 
 # ── Shared finalizer — one function, dispatched by shape, never two

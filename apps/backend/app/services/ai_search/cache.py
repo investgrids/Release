@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import hashlib
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable, TypeVar
 
 import structlog
@@ -208,6 +209,79 @@ def _get(key: str, ttl: int) -> Any | None:
 
 def _set(key: str, value: Any) -> None:
     _CACHE[key] = (time.time(), value)
+
+
+# ── Market Pulse cache (2026-09-22, cache-freshness audit) ──────────────────
+# Deliberately its OWN namespace/prefix ("v3:mp:exact:"), never exact_key()'s
+# "v3:exact:" — market pulse data is far more time-sensitive than a research
+# answer (which reflects a point-in-time read of comparatively stable
+# company fundamentals), and a market pulse response also carries
+# Opportunity/risk references that can be administratively reverted or
+# corrected at any time (the same class of incident this codebase already
+# hardened against once — see the /api/revalidate route's own Opportunity
+# V2 canary-revert history). Sharing exact_key()'s namespace would also mean
+# an identical literal query text could theoretically collide between a
+# market-pulse-classified request and a differently-classified one for the
+# same text (classification for an ambiguous query goes through an LLM
+# call, which is not guaranteed byte-for-byte deterministic across calls) —
+# a fully separate prefix makes that structurally impossible regardless.
+#
+# The cache KEY itself — not just the TTL — encodes the current market
+# session ("weekend"/"pre_market"/"live"/"post_market", reusing
+# intelligence/engine.py's own _market_session(), the one real session
+# classifier this codebase has) and the current IST calendar date. A
+# transition across any of pre-market -> open, open -> closed, weekday ->
+# weekend, or one trading date -> another therefore changes the key
+# immediately, regardless of TTL — a cached entry can never be served
+# across one of those boundaries even if its TTL window hasn't elapsed.
+#
+# TTL still matters WITHIN a stable session+date bucket: MARKET_PULSE_TTL_
+# LIVE (45s) bounds staleness of continuously-moving live prices; MARKET_
+# PULSE_TTL_CLOSED (300s) is deliberately far shorter than the research-
+# answer EXACT_TTL (30 min) even though the market itself can't move while
+# closed — 5 minutes is short enough that an Opportunity revert or a risk-
+# relevant correction surfaces promptly, not up to half an hour later.
+MARKET_PULSE_TTL_LIVE = 45
+MARKET_PULSE_TTL_CLOSED = 300
+
+
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _market_pulse_bucket_and_ttl() -> tuple[str, int]:
+    # `_market_session` is imported locally (not hoisted) to avoid a
+    # module-level import cycle risk between cache.py and intelligence/
+    # engine.py; `datetime` itself IS a module-level import specifically
+    # so tests can patch app.services.ai_search.cache.datetime directly
+    # rather than reaching into this function's own locals.
+    from app.services.intelligence.engine import _market_session
+
+    now = datetime.now(_IST)
+    session = _market_session(now)
+    bucket = f"{session}:{now.date().isoformat()}"
+    ttl = MARKET_PULSE_TTL_LIVE if session == "live" else MARKET_PULSE_TTL_CLOSED
+    return bucket, ttl
+
+
+def _market_pulse_key(query: str, bucket: str) -> str:
+    basis = _norm(query) + "|mp:" + bucket
+    return "v3:mp:exact:" + hashlib.md5(basis.encode()).hexdigest()
+
+
+def get_market_pulse_response(query: str) -> Any | None:
+    """No session_context parameter, deliberately — a market pulse answer
+    ("top gainers today") is the same real snapshot for every caller
+    regardless of their own session's held companies/sectors, unlike a
+    research answer's "its" reference resolution. Bucket (and therefore
+    TTL) is computed fresh at call time — a GET right after a session/date
+    boundary always misses, never serving the prior bucket's entry."""
+    bucket, ttl = _market_pulse_bucket_and_ttl()
+    return _get(_market_pulse_key(query, bucket), ttl)
+
+
+def set_market_pulse_response(query: str, result: Any) -> None:
+    bucket, _ttl = _market_pulse_bucket_and_ttl()
+    _set(_market_pulse_key(query, bucket), result)
 
 
 def set_snapshot(response_id: str, snapshot: dict) -> None:

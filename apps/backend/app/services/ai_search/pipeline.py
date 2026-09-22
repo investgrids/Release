@@ -198,19 +198,22 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
 
     # Market Pulse stays V2's exact mechanism for real-data collection — a
     # different query family, out of scope for the specialist pipeline
-    # (see plan) — but joins the SAME cache discipline every other V3
-    # query gets (2026-09-22, Market Pulse AEV2 audit: previously this
-    # branch never checked or wrote the query cache at all, so an
-    # identical "top gainers today" asked twice in the same 30-minute
-    # window re-fetched every live market feed AND re-called the LLM
-    # synthesis both times). Layer 1 (exact key) only — there is no
-    # company/sector entity resolution step here to build a Layer 2
-    # semantic key from, and none is needed: a market-pulse-shaped query
-    # always re-enters this exact branch on every call, so the exact key
-    # alone gives it the same effective reuse the research path gets from
-    # Layer 1 before its own entity resolution has even run.
+    # (see plan) — but joins a cache discipline of its OWN (2026-09-22,
+    # cache-freshness audit): previously this branch never checked or
+    # wrote any query cache at all, so an identical "top gainers today"
+    # asked twice re-fetched every live market feed AND re-called the LLM
+    # synthesis both times. get_market_pulse_response/set_market_pulse_
+    # response (cache.py) are a DEDICATED namespace, never exact_key()'s
+    # — see that module's own docstring for why sharing a namespace with
+    # research-answer caching would be wrong here, not just redundant:
+    # the key itself encodes the current market session + IST trading
+    # date, so a cached entry structurally cannot survive a pre-market ->
+    # open, open -> closed, weekday -> weekend, or one-trading-date ->
+    # another transition, and the TTL within a stable bucket is far
+    # shorter (45s live / 300s closed) than a research answer's 30
+    # minutes.
     if await _detect_market_pulse_async(query):
-        cached_mp = cache_mod.get_response(query, session_context=session_context)
+        cached_mp = cache_mod.get_market_pulse_response(query)
         if cached_mp is not None:
             yield "finalizing", STAGE_LABELS["finalizing"], cached_mp
             return
@@ -218,7 +221,7 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
         mp_result["schema_version"] = SCHEMA_VERSION
         mp_result["intent"] = "market_pulse"
         mp_result["ui_mode"] = "market_pulse"
-        cache_mod.set_response(query, mp_result, session_context=session_context)
+        cache_mod.set_market_pulse_response(query, mp_result)
         yield "finalizing", STAGE_LABELS["finalizing"], mp_result
         return
 
