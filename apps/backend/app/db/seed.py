@@ -315,7 +315,21 @@ SECTORS = [
 
 
 async def seed(db):
-    """Insert initial rows into all tables if they're empty."""
+    """Insert initial rows into all tables if they're empty.
+
+    Defense in depth (2026-09-22, leaked-fixture repair): main.py's
+    lifespan already gates its call to this function behind
+    `if settings.is_production`, but that guard lived ONLY at that one
+    call site — any other caller (a test, a script, a future refactor)
+    could call seed() directly and insert this hand-written placeholder
+    content straight into a production database with no protection at
+    all, exactly how evt-rbi-june-2026/evt-defence-budget-2026/
+    evt-solar-capacity-2026 leaked into production on 2026-07-22, three
+    days before that guard existed. Checking here too means this
+    function refuses to run in production regardless of who calls it."""
+    from app.core.config import settings
+    if settings.is_production:
+        return
     from app.db.crud import count_rows, bulk_insert
 
     for model_cls, records in [
@@ -332,7 +346,13 @@ async def seed(db):
 
 
 async def seed_missing_stories(db):
-    """Upsert any STORIES entries that are missing - safe to run on an already-seeded DB."""
+    """Upsert any STORIES entries that are missing - safe to run on an already-seeded DB.
+
+    Same defense-in-depth production guard as seed() — see that
+    function's docstring."""
+    from app.core.config import settings
+    if settings.is_production:
+        return
     from sqlalchemy import select
     for story in STORIES:
         existing = (await db.execute(select(models.Story).where(models.Story.id == story.id))).scalar_one_or_none()
@@ -348,7 +368,13 @@ async def seed_missing_stories(db):
 
 
 async def seed_missing_calendar(db):
-    """Upsert any CALENDAR entries that are missing - safe to run on an already-seeded DB."""
+    """Upsert any CALENDAR entries that are missing - safe to run on an already-seeded DB.
+
+    Same defense-in-depth production guard as seed() — see that
+    function's docstring."""
+    from app.core.config import settings
+    if settings.is_production:
+        return
     from sqlalchemy import select
     for event in CALENDAR:
         existing = (await db.execute(select(models.CalendarEvent).where(models.CalendarEvent.id == event.id))).scalar_one_or_none()
@@ -364,7 +390,16 @@ async def seed_missing_calendar(db):
 
 
 async def seed_missing_events(db):
-    """Upsert EVENTS entries, restoring authoritative scores that the pipeline may overwrite."""
+    """Upsert EVENTS entries, restoring authoritative scores that the pipeline may overwrite.
+
+    Same defense-in-depth production guard as seed() — see that
+    function's docstring. This is the specific function whose
+    unconditional 2026-07-22 run is how evt-rbi-june-2026/
+    evt-defence-budget-2026/evt-solar-capacity-2026 leaked into
+    production."""
+    from app.core.config import settings
+    if settings.is_production:
+        return
     from sqlalchemy import select
     for event in EVENTS:
         existing = (await db.execute(select(models.Event).where(models.Event.id == event.id))).scalar_one_or_none()
