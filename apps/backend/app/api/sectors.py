@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.db.crud import get_sectors
 
 router = APIRouter()
 
@@ -29,6 +28,23 @@ _SECTOR_STOCKS: dict[str, list[str]] = {
     "finance":      ["BAJFINANCE", "BAJAJFINSV", "MUTHOOTFIN", "CHOLAFIN", "MANAPPURAM"],
 }
 
+# Display names for each of the 13 real, stock-backed sector keys above —
+# NOT derived from `.title()` (which would wrongly produce "It"/"Fmcg"
+# instead of "IT"/"FMCG"). Content-integrity repair (2026-09-22): this
+# replaces the fabricated `SectorData` table's `name` column as the
+# source of truth for sector display names, since that table's only
+# other column (`value`, a hand-typed percentage frozen since its
+# 2026-07-22 seed insert — never updated by any job) is being removed
+# from every public response below. See this module's own removed
+# SectorData usage in list_sectors()/sector_intelligence() for the full
+# rationale.
+_SECTOR_NAMES: dict[str, str] = {
+    "banking": "Banking", "it": "IT", "pharma": "Pharma", "energy": "Energy",
+    "auto": "Auto", "fmcg": "FMCG", "metals": "Metals", "infrastructure": "Infrastructure",
+    "defence": "Defence", "realty": "Realty", "chemicals": "Chemicals",
+    "telecom": "Telecom", "finance": "Finance (NBFC)",
+}
+
 # Normalise incoming sector id to match our keys
 def _norm(sid: str) -> str:
     s = sid.lower().replace("-", "").replace(" ", "")
@@ -50,12 +66,20 @@ def _norm(sid: str) -> str:
 
 
 @router.get("/", response_model=list[dict])
-async def list_sectors(db: AsyncSession = Depends(get_db)):
-    rows = await get_sectors(db)
-    return [
-        {"id": r.id, "name": r.name, "value": r.value, "positive": r.positive}
-        for r in rows
-    ]
+async def list_sectors():
+    """Content-integrity repair (2026-09-22): this used to list the
+    `SectorData` table's 12 rows, whose only non-identity column
+    (`value`, a percentage) was hand-typed once at seed time
+    (2026-07-22) and never updated by any job since — presented to users
+    as live sector momentum it never was. No replacement momentum source
+    is substituted here (ThemeScoringWorker measures theme momentum, a
+    different taxonomy, not sector performance — see this repair's own
+    audit). Returns [] unconditionally until a real, provenance-tracked
+    sector index feed exists (Data Foundation phase); every real
+    consumer of this endpoint already has an honest empty state for
+    exactly this response (see SectorsContent.tsx and OverviewTab.tsx on
+    the frontend)."""
+    return []
 
 
 @router.get("/{sector_id}/stocks")
@@ -152,38 +176,36 @@ def _words_overlap(a: set[str], b: set[str]) -> bool:
 
 @router.get("/{sector_id}/intelligence")
 async def sector_intelligence(sector_id: str, db: AsyncSession = Depends(get_db)):
-    """Real aggregation for sector landing pages (SEO Phase 2, §2.1) — the
-    sector's live momentum + constituent stocks (existing /stocks logic)
-    plus real opportunities and events whose own `sectors` field overlaps
-    this sector's name. No new intelligence generated here: every field is
-    a read of data that already exists elsewhere in the app, filtered by
-    sector — same word-overlap matching pattern as context_pulse.py's
-    _find_related_opportunity, reused rather than reinvented."""
+    """Real aggregation for sector landing pages (SEO Phase 2, §2.1) —
+    constituent stocks (existing /stocks logic) plus real opportunities
+    and events whose own `sectors` field overlaps this sector's name. No
+    new intelligence generated here: every field is a read of data that
+    already exists elsewhere in the app, filtered by sector — same
+    word-overlap matching pattern as context_pulse.py's
+    _find_related_opportunity, reused rather than reinvented.
+
+    Content-integrity repair (2026-09-22): no longer reads the
+    fabricated `SectorData` table at all — `value`/`positive` are now
+    always None for every sector (the same honest state Defence/
+    Chemicals/Telecom/Finance already returned before this repair, when
+    they had real stock/opportunity/event data but no SectorData
+    momentum row). No replacement momentum source is substituted; a real
+    sector index feed is Data Foundation-phase work."""
     from sqlalchemy import select
     from app.core.config import settings
     from app.db.models.event import Event
     from app.db.models.opportunity import Opportunity
 
-    rows = await get_sectors(db)
-    sector_row = next((r for r in rows if r.id.lower() == sector_id.lower()), None)
     key = _norm(sector_id)
-
-    if not sector_row:
-        # No live-momentum SectorData row, but real constituent stocks
-        # exist for this key (_SECTOR_STOCKS has 13 sectors; SectorData
-        # only tracks 12, and they're NOT the same 12 — Defence,
-        # Chemicals, Telecom, and Finance have real stock lists and real
-        # Opportunity/Event data but no momentum row). A page with real
-        # opportunities/events/companies and no momentum badge is honest
-        # and valuable; a 404 for "defence" when HAL/BEL opportunity and
-        # event data is sitting right there is not.
-        if key not in _SECTOR_STOCKS:
-            raise HTTPException(status_code=404, detail=f"Sector '{sector_id}' not found")
-        sector_name = key.replace("-", " ").title()
-        sector_value, sector_positive = None, None
-    else:
-        sector_name = sector_row.name
-        sector_value, sector_positive = sector_row.value, sector_row.positive
+    if key not in _SECTOR_STOCKS:
+        # No real constituent-stock backing for this id at all — an
+        # honest 404, not a page with nothing real to show. (Previously
+        # some of these ids — e.g. "media", "psu-bank", "pvt-bank" —
+        # rendered a page anyway, backed only by the fabricated
+        # SectorData row; that row is exactly what this repair removes.)
+        raise HTTPException(status_code=404, detail=f"Sector '{sector_id}' not found")
+    sector_name = _SECTOR_NAMES.get(key, key.replace("-", " ").title())
+    sector_value, sector_positive = None, None
 
     stocks = await _get_sector_stocks_cached(key)
     target_words = _sector_words(sector_name) | _sector_words(sector_id.replace("-", " "))

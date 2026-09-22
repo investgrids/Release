@@ -146,7 +146,9 @@ export async function generateMetadata({ params }: { params: Promise<{ sector: s
   const url = `${SITE}/sectors/${sector}`;
   const d = await fetchSector(sector);
   if (!d) return { title: "Sector Not Found", alternates: { canonical: url } };
-  const desc = `${d.name} sector on NSE${d.value ? ` — live performance (${d.value})` : ""}, constituent stocks, and AI-driven opportunity and event analysis on MarketRipple.`;
+  // Content-integrity repair (2026-09-22): d.value is always null now —
+  // no conditional "live performance" clause left to accidentally revive.
+  const desc = `${d.name} sector on NSE — curated constituent stocks, and AI-driven opportunity and event analysis on MarketRipple.`;
   return {
     title: `${d.name} Sector — AI Analysis`,
     description: desc,
@@ -187,6 +189,9 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
     url,
     mainEntity: {
       "@type": "ItemList",
+      // Curated discovery list (_SECTOR_STOCKS), never official index
+      // composition — see api/sectors.py's own module docstring.
+      description: "A curated list of companies commonly associated with this sector, not an official index constituent list.",
       itemListElement: rankedStocks.map((s, i) => ({
         "@type": "ListItem", position: i + 1, name: s.name,
         url: `${SITE}/companies/${s.symbol}`,
@@ -208,8 +213,12 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400">Sector Intelligence</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-text-primary">{d.name} Sector</h1>
+          {/* Content-integrity repair (2026-09-22): d.value is always
+              null now (see api/sectors.py's sector_intelligence()
+              docstring) — this copy no longer claims "live... performance"
+              unconditionally. */}
           <p className="mt-1 text-sm text-text-secondary">
-            Live NSE {d.name} sector performance, constituent stocks, and AI-driven opportunity and event analysis.
+            {d.name} sector: curated constituent stocks, and AI-driven opportunity and event analysis.
           </p>
         </div>
         {d.value ? (
@@ -230,7 +239,8 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
           yet keep price/change only, appended after the ranked ones. */}
       {rankedStocks.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[15px] font-semibold text-text-primary">Companies in {d.name}</h2>
+          <h2 className="text-[15px] font-semibold text-text-primary">Companies in {d.name}</h2>
+          <p className="mb-3 text-[11px] text-text-muted">A curated list of companies commonly associated with this sector, not an official index constituent list.</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rankedStocks.map((s, i) => {
               const ranked = scores.get(s.symbol);

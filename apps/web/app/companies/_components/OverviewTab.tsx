@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Flame, Sparkles, AlertTriangle, Trophy, Newspaper, ArrowRight } from "lucide-react";
+import { Flame, Sparkles, AlertTriangle, Newspaper, ArrowRight } from "lucide-react";
 import { fetchAPI } from "@/lib/api";
 
 // Real data only, every section — no fabricated numbers. Confirmed live
@@ -25,15 +25,11 @@ interface CompanyScoreRow {
   sector: string | null;
   top_contributors: CompanyScoreContributor[];
 }
-interface SectorRow { id: string; name: string; value: string; positive: boolean; }
 interface ArticleRow { slug: string; headline: string; angle_entity?: string | null; published_at?: string; }
 
 async function getCompanyScores(): Promise<CompanyScoreRow[]> {
   const data = await fetchAPI<{ companies: CompanyScoreRow[] }>("/api/company-scores/?limit=50").catch(() => null);
   return data?.companies ?? [];
-}
-async function getSectors(): Promise<SectorRow[]> {
-  return await fetchAPI<SectorRow[]>("/api/sectors").catch(() => []) ?? [];
 }
 async function getLatestCompanyArticles(): Promise<ArticleRow[]> {
   const data = await fetchAPI<{ items: ArticleRow[] }>("/api/insights/?article_type=company_intelligence&limit=4").catch(() => null);
@@ -64,9 +60,8 @@ function SectionCard({
 }
 
 export async function OverviewTab() {
-  const [scores, sectors, articles] = await Promise.all([
+  const [scores, articles] = await Promise.all([
     getCompanyScores(),
-    getSectors(),
     getLatestCompanyArticles(),
   ]);
 
@@ -77,10 +72,6 @@ export async function OverviewTab() {
     .slice(0, 5);
   const topPicks = [...scored].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, 5);
   const underPressure = [...scored].sort((a, b) => (a.score ?? 0) - (b.score ?? 0)).slice(0, 5);
-  const bestSectors = [...sectors]
-    .map(s => ({ ...s, pct: parseFloat(s.value) }))
-    .sort((a, b) => b.pct - a.pct)
-    .slice(0, 5);
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -129,20 +120,12 @@ export async function OverviewTab() {
         )}
       </SectionCard>
 
-      <SectionCard icon={<Trophy className="h-3.5 w-3.5" />} title="Best Performing Sectors" href="/companies?tab=sectors">
-        {bestSectors.length === 0 ? <p className="text-[12px] text-text-muted">Sector data unavailable.</p> : (
-          <ul className="space-y-2">
-            {bestSectors.map(s => (
-              <li key={s.id}>
-                <Link href={`/sectors/${s.id}`} className="flex items-center justify-between rounded-lg px-2 py-1.5 transition hover:bg-text-primary/[0.04]">
-                  <span className="text-[12.5px] font-semibold text-text-primary">{s.name}</span>
-                  <span className={`text-[12px] font-bold tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.value}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
+      {/* "Best Performing Sectors" removed (2026-09-22 content-integrity
+          repair) — it ranked by SectorData.value, a hand-typed
+          percentage frozen since a 2026-07-22 seed insert and never
+          updated by any job. No replacement sector-performance source
+          exists yet (Data Foundation phase); a permanently-empty
+          "unavailable" card is worse than no card at all. */}
 
       <SectionCard icon={<Newspaper className="h-3.5 w-3.5" />} title="Latest Company Intelligence" href="/newsroom">
         {articles.length === 0 ? <p className="text-[12px] text-text-muted">No company articles yet.</p> : (

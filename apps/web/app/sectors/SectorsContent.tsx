@@ -30,7 +30,15 @@ export async function SectorsContent({ headingLevel = "h1" }: { headingLevel?: "
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400">Market Overview</p>
           <Heading className="mt-2 text-3xl font-black tracking-tight text-text-primary">Sector Performance</Heading>
-          <p className="mt-1 text-sm text-text-secondary">Live performance across NSE sectoral indices.</p>
+          {/* Content-integrity repair (2026-09-22): no longer claims
+              "live" performance unconditionally — sectors[] is honestly
+              empty until a real, provenance-tracked sector index feed
+              exists (see api/sectors.py's list_sectors() docstring). */}
+          <p className="mt-1 text-sm text-text-secondary">
+            {sectors.length > 0
+              ? "Live performance across NSE sectoral indices."
+              : "NSE sectoral index performance — not yet available."}
+          </p>
         </div>
         <Link href="/market-intelligence"
           className="flex items-center gap-2 rounded-2xl border border-surface-border/10 bg-text-primary/[0.04] px-4 py-2 text-[13px] font-medium text-text-primary transition hover:bg-text-primary/[0.07]">

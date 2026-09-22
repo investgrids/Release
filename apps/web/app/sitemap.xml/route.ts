@@ -160,7 +160,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   // cache masked it. Per the Indexability Contract, ephemeral/cache-only
   // content is never submitted. Route now sets `robots: {index:false}`
   // (see app/news/[id]/layout.tsx) as the durable backstop.
-  const [events, ripple, radar, companiesPage1, insights, sectors, research, historical] = await Promise.all([
+  const [events, ripple, radar, companiesPage1, insights, research, historical] = await Promise.all([
     safeJson<Array<{ id: string; slug?: string; date?: string; indexable?: boolean }>>(`${API}/api/events/?limit=100`, []),
     // Ripple pages exist for the same "featured" high-impact events the
     // Ripple hub itself surfaces — not blindly mirroring every event route,
@@ -183,7 +183,6 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     // follow-up reconciliation.
     safeJson<{ companies?: Array<{ symbol: string }>; total_pages?: number }>(`${API}/api/companies/?page_size=60&page=1&live=false`, {}),
     safeJson<{ items?: Array<{ slug: string; article_type?: string; canonical_url?: string; last_updated?: string; published_at?: string; hero_image_url?: string | null }> }>(`${API}/api/insights/?limit=100`, {}),
-    safeJson<Array<{ id: string }>>(`${API}/api/sectors/`, []),
     // SEO Phase 2, §2.2 — comparison research pages.
     safeJson<{ items?: Array<{ slug: string; last_updated?: string; published_at?: string }> }>(`${API}/api/insights/?article_type=comparison_intelligence&limit=100`, {}),
     // Historical Memory pages — real dated events, ids are already
@@ -277,27 +276,26 @@ async function buildEntries(): Promise<SitemapEntry[]> {
       ...(a.hero_image_url ? { images: [`${API}${a.hero_image_url}`] } : {}),
     }));
 
-  // SEO Phase 2 §2.1 — real sector landing pages (/sectors/[sector]),
-  // sourced from the same SectorData rows the /sectors overview already
-  // lists, each backed by real constituent stocks + matched opportunities/
-  // events (see sectors.py's /intelligence endpoint).
-  const sectorRoutes: SitemapEntry[] = (Array.isArray(sectors) ? sectors : []).map(s => ({
-    url: `${base}/sectors/${s.id}`,
-    lastModified: now,
-    changeFrequency: "daily",
-    priority: 0.75,
-  }));
-
-  // Sectors.py's /intelligence endpoint also serves 4 sectors with real
-  // constituent stocks + opportunity/event data but no SectorData momentum
-  // row (Defence, Chemicals, Telecom, Finance) — not present in the
-  // /api/sectors/ list above, so listed explicitly here rather than
-  // silently missing from the sitemap.
-  const extraSectorRoutes: SitemapEntry[] = ["defence", "chemicals", "telecom", "finance"].map(id => ({
+  // SEO Phase 2 §2.1 — real sector landing pages (/sectors/[sector]).
+  // Content-integrity repair (2026-09-22): previously derived from the
+  // fabricated `SectorData` table's 12 rows via GET /api/sectors/ (now
+  // honestly empty — see api/sectors.py's list_sectors() docstring),
+  // plus 4 extra hardcoded ids for sectors SectorData never covered.
+  // Both lists are replaced by this one canonical set — the 13 real,
+  // stock-backed sector keys api/sectors.py's own _SECTOR_STOCKS
+  // defines (every one of these already serves a real page: constituent
+  // stocks + matched opportunities/events, no momentum badge). Kept in
+  // sync with that Python dict's key set by hand — a real API contract
+  // change on either side should update both.
+  const SECTOR_SLUGS = [
+    "banking", "it", "pharma", "energy", "auto", "fmcg", "metals",
+    "infrastructure", "defence", "realty", "chemicals", "telecom", "finance",
+  ];
+  const sectorRoutes: SitemapEntry[] = SECTOR_SLUGS.map(id => ({
     url: `${base}/sectors/${id}`,
     lastModified: now,
     changeFrequency: "daily",
-    priority: 0.7,
+    priority: 0.75,
   }));
 
   // Some stored events are thin, auto-captured recent items with no real
@@ -342,7 +340,7 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     priority: 0.8,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...rippleRoutes, ...radarRoutes, ...companyRoutes, ...insightRoutes, ...sectorRoutes, ...extraSectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
+  return [...staticRoutes, ...eventRoutes, ...rippleRoutes, ...radarRoutes, ...companyRoutes, ...insightRoutes, ...sectorRoutes, ...historicalRoutes, ...bestStocksRoutes, ...researchRoutes, ...glossaryRoutes, ...guideRoutes, ...articleRoutes];
 }
 
 export async function GET() {
