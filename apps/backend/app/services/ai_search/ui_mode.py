@@ -95,6 +95,13 @@ SWITCH_LIKE_INTENTS = {"switch", "hold", "sell", "buy", "decision"}
 # whether the query text also happens to look comparison-shaped (e.g.
 # "top gainers vs top losers" stays list_picks-shaped, never hijacks the
 # comparison specialist) — see that function's own exclusion tuple.
+# earnings_preview status: unsupported_pending_data_foundation (2026-
+# 09-22, earnings-preview feasibility audit closed BLOCKED — no company-
+# earnings-date calendar and no consensus-estimate source exist in this
+# codebase; the dormant banking-only XBRL FinancialFact pipeline is a
+# real future input but not sufficient on its own). This mapping does
+# not change until Data Foundation ships a real calendar + licensed
+# estimates.
 _UNSUPPORTED_INTENT_UI_MODE: dict[str, str] = {
     "entry_timing": "technical_timing",
     "list_picks": "company_discovery",

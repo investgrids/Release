@@ -149,8 +149,19 @@ export const UNSUPPORTED_MODE_INFO: Record<UnsupportedUIMode, string> = {
     "A ranked stock-picks view isn't available yet — it needs its own data audit (candidate universe, sector membership, ranking inputs, and per-company evidence) before it can be built honestly.",
   portfolio_review:
     "MarketRipple doesn't store personal holdings or portfolios today, so this can't be a personalized answer. Check the Portfolio Coverage tool instead.",
+  // Status: unsupported_pending_data_foundation (2026-09-22, earnings-
+  // preview feasibility audit — promoted from the earlier "pending_data_
+  // audit" label now that the audit itself is closed with a BLOCKED
+  // verdict: no company-earnings-date calendar and no consensus-estimate
+  // source exist anywhere in this codebase, confirmed by tracing real
+  // models/services, not assumed. The dormant banking-only XBRL
+  // FinancialFact pipeline is a real future input but is not itself
+  // sufficient — see project memory for the full Data Foundation list
+  // (verified NSE/BSE results calendar, general-company quarterly
+  // filings with source URLs + disclosure timestamps, point-in-time
+  // snapshots, structured guidance, licensed consensus estimates).
   earnings_preview:
-    "Earnings preview isn't available yet — it needs a data audit (earnings calendar, consensus estimates, and filing availability) before it can be built honestly.",
+    "A verified earnings date and analyst-estimate data are not available for this company.",
   multi_company_comparison:
     "Comparing three or more companies at once isn't supported yet — it needs its own contract beyond the current two-company comparison.",
   policy_macro_impact:
