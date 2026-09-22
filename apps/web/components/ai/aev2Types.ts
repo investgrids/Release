@@ -363,8 +363,17 @@ export interface AEV2MarketPulseEvidenceCoverage {
   calendar_event_count: number;
 }
 
+// 2026-09-22 fix (six-mode integration audit's own browser QA): `kind`
+// discriminates WHICH AEV2 variant a response carries (market_pulse vs
+// the research AEV2Response shape) — it does not replace schema
+// versioning, since that value never changes across a real field-shape
+// revision. schema_version is Market Pulse's own independent contract
+// version (see market_pulse.py's MARKET_PULSE_SCHEMA_VERSION), a
+// separate lineage from AEV2Response's schema_version ("aev2.4") — this
+// shape evolves on its own, never merged with the research contract.
 export interface AEV2MarketPulse {
   kind: "market_pulse";
+  schema_version: string;
   as_of: string | null;
   market_session: string | null;
   market_status: string | null;

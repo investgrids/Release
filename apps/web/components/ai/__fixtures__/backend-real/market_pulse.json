@@ -47,6 +47,7 @@
       "most_active": []
     },
     "risk_context": null,
+    "schema_version": "aev2-market-pulse.1",
     "sector_movement": {
       "lagging": [],
       "leading": []

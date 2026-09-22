@@ -58,6 +58,18 @@ from app.services.ai_search.aev2.citation_validator import (
 from app.services.ai_search.aev2.schema import build_validated_claim
 from app.services.ai_search.core_market_pulse import CoreMarketPulse
 
+# Market Pulse's own independent contract version (2026-09-22, six-mode
+# integration audit follow-up). `kind` discriminates WHICH AEV2 variant
+# a response carries (market_pulse vs the research AEV2Response shape)
+# — it does not replace schema versioning, since the discriminator value
+# itself never changes across a real field-shape revision. Deliberately
+# its own version lineage, not schema.py's SCHEMA_VERSION ("aev2.4") —
+# this shape evolves independently of the research contract (see this
+# module's own docstring: a fully separate presenter, never merged with
+# AEV2Response). Bump this, not schema.py's constant, when this specific
+# dict's own field shape changes.
+MARKET_PULSE_SCHEMA_VERSION = "aev2-market-pulse.1"
+
 _SOURCE_LABELS = {
     "index": "yfinance_nse_index",
     "sector": "yfinance_sector_etf",
@@ -290,6 +302,7 @@ def assemble_market_pulse(core: CoreMarketPulse) -> dict:
 
     return {
         "kind": "market_pulse",
+        "schema_version": MARKET_PULSE_SCHEMA_VERSION,
         "as_of": as_of,
         "market_session": session,
         "market_status": core.market_status,

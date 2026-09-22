@@ -21,6 +21,7 @@ export function baseMarketPulseSearchResult(overrides: Record<string, unknown> =
 export function baseMarketPulse(overrides: Partial<AEV2MarketPulse> = {}): AEV2MarketPulse {
   return {
     kind: "market_pulse",
+    schema_version: "aev2-market-pulse.1",
     as_of: "2026-09-22T10:06:08+00:00",
     market_session: "live",
     market_status: "open",
