@@ -9,7 +9,8 @@
 // what actually went wrong).
 import { AIAnswerShell, type ShellMode } from "../AIAnswerShell";
 import type { UIMode } from "@/app/ai-search/AISearchClient";
-import type { DegradedAnswer } from "../answerTypes";
+import type { DegradedAnswer, UnsupportedUIMode } from "../answerTypes";
+import { UNSUPPORTED_MODE_INFO } from "../answerTypes";
 
 const NOTICE_BY_REASON: Record<DegradedAnswer["reason"], string> = {
   synthesis_incomplete:
@@ -48,12 +49,22 @@ const NOTICE_BY_REASON: Record<DegradedAnswer["reason"], string> = {
     "This question doesn't resolve to exactly one event. The real evidence found is shown below.",
   ineligible_not_event_shaped:
     "This event didn't have the source, company attribution, or other structured fields this view needs. The real evidence found is shown below.",
+  // 2026-09-22, intent-coverage audit — a real, named ui_mode this
+  // codebase recognizes but cannot yet honestly answer. This generic
+  // string is only ever a fallback: the actual notice shown below
+  // always prefers UNSUPPORTED_MODE_INFO[answer.sourceUiMode], which
+  // carries each mode's own specific reason (see that registry's own
+  // doc comment for why none of these collapse into one shared line).
+  unsupported_mode:
+    "This kind of question isn't supported yet. The real evidence found is shown below.",
 };
 
 const KNOWN_UI_MODES = new Set<string>([
   "direct_company_research", "switch_analysis", "company_comparison",
   "factual_lookup", "policy_macro_impact", "market_pulse",
   "event_impact", "sector_theme_research",
+  "technical_timing", "company_discovery", "portfolio_review",
+  "earnings_preview", "multi_company_comparison",
 ]);
 
 export function DegradedAnswerLayout({
@@ -75,6 +86,14 @@ export function DegradedAnswerLayout({
       ? (answer.sourceUiMode as UIMode)
       : "degraded";
 
+  // Each explicit unsupported mode gets its OWN specific message — never
+  // collapsed into the generic "not supported yet" fallback above, which
+  // only fires if sourceUiMode is somehow missing or unrecognized.
+  const notice =
+    answer.reason === "unsupported_mode" && answer.sourceUiMode && answer.sourceUiMode in UNSUPPORTED_MODE_INFO
+      ? UNSUPPORTED_MODE_INFO[answer.sourceUiMode as UnsupportedUIMode]
+      : NOTICE_BY_REASON[answer.reason];
+
   return (
     <AIAnswerShell
       query={answer.query}
@@ -84,7 +103,7 @@ export function DegradedAnswerLayout({
       // relate — an unbuilt-but-successful layout still does, so only
       // gate the shell's own degraded body on a genuine failure.
       synthesisIncomplete={answer.reason === "synthesis_incomplete"}
-      degradedNotice={NOTICE_BY_REASON[answer.reason]}
+      degradedNotice={notice}
       evidenceRows={answer.evidenceRows}
       confidence={answer.reason === "synthesis_incomplete" ? null : answer.confidence}
       evidenceCoverage={answer.evidenceCoverage}
@@ -93,7 +112,7 @@ export function DegradedAnswerLayout({
       onRefine={onRefine}
     >
       <div className="rounded-[16px] border border-violet-500/20 bg-violet-500/[0.05] px-4 py-3">
-        <p className="text-[12.5px] leading-5 text-text-secondary">{NOTICE_BY_REASON[answer.reason]}</p>
+        <p className="text-[12.5px] leading-5 text-text-secondary">{notice}</p>
       </div>
     </AIAnswerShell>
   );

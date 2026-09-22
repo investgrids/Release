@@ -82,7 +82,15 @@ export interface DegradedAnswer extends AnswerBase {
     // are each different enough from every existing reason to need
     // their own.
     | "ineligible_wrong_event_count"
-    | "ineligible_not_event_shaped";
+    | "ineligible_not_event_shaped"
+    // 2026-09-22, intent-coverage audit — a real, named ui_mode this
+    // codebase recognizes but cannot yet honestly answer (as opposed to
+    // "not_yet_implemented," which means a real contract/layout already
+    // exists locally and just isn't wired to HTTP yet). sourceUiMode
+    // carries WHICH one, and UNSUPPORTED_MODE_INFO below supplies its
+    // own specific message — never collapsed into "Analysis
+    // unavailable" the way the generic reasons above are.
+    | "unsupported_mode";
   degradedNotice?: string;
   sourceUiMode?: string;
 }
@@ -102,6 +110,8 @@ const KNOWN_UI_MODES: readonly UIMode[] = [
   "direct_company_research", "switch_analysis", "company_comparison",
   "factual_lookup", "policy_macro_impact", "market_pulse",
   "event_impact", "sector_theme_research",
+  "technical_timing", "company_discovery", "portfolio_review",
+  "earnings_preview", "multi_company_comparison",
 ];
 
 // The 8 first-release modes with a real layout so far (grows one entry
@@ -110,6 +120,48 @@ const KNOWN_UI_MODES: readonly UIMode[] = [
 // but IntentLayout routes it to UnsupportedAnswerLayout, not a generic
 // success render.
 export const IMPLEMENTED_UI_MODES: ReadonlySet<UIMode> = new Set(["factual_lookup"]);
+
+// ── Explicit recognized-but-unsupported modes (2026-09-22, intent-
+// coverage audit). Each is a REAL classification this codebase makes
+// but cannot yet honestly answer — distinct from a mode that already
+// has a real local contract/layout and is merely unwired from HTTP
+// (IMPLEMENTED_UI_MODES/"not_yet_implemented" above). Every one of
+// these gets its own specific reason and message; none collapse into
+// the generic "Analysis unavailable" copy. policy_macro_impact and
+// sector_theme_research were already established as unsupported by the
+// respective data-feasibility audits; the other five are this audit's
+// own findings (four decision-intent labels that used to silently
+// collapse into an incompatible single-company/two-company contract,
+// plus multi-company comparison).
+export type UnsupportedUIMode =
+  | "technical_timing"
+  | "company_discovery"
+  | "portfolio_review"
+  | "earnings_preview"
+  | "multi_company_comparison"
+  | "policy_macro_impact"
+  | "sector_theme_research";
+
+export const UNSUPPORTED_MODE_INFO: Record<UnsupportedUIMode, string> = {
+  technical_timing:
+    "Technical timing is unavailable because verified price-series and indicator coverage is insufficient.",
+  company_discovery:
+    "A ranked stock-picks view isn't available yet — it needs its own data audit (candidate universe, sector membership, ranking inputs, and per-company evidence) before it can be built honestly.",
+  portfolio_review:
+    "MarketRipple doesn't store personal holdings or portfolios today, so this can't be a personalized answer. Check the Portfolio Coverage tool instead.",
+  earnings_preview:
+    "Earnings preview isn't available yet — it needs a data audit (earnings calendar, consensus estimates, and filing availability) before it can be built honestly.",
+  multi_company_comparison:
+    "Comparing three or more companies at once isn't supported yet — it needs its own contract beyond the current two-company comparison.",
+  policy_macro_impact:
+    "Policy and macro impact analysis isn't available yet — verified transmission-channel and market-reaction data doesn't exist for this today.",
+  sector_theme_research:
+    "Sector and theme analysis isn't available yet — no verified, non-fabricated sector performance data exists for this today.",
+};
+
+const UNSUPPORTED_UI_MODES: ReadonlySet<UIMode> = new Set(
+  Object.keys(UNSUPPORTED_MODE_INFO) as UnsupportedUIMode[],
+);
 
 export function formatShortDate(iso: string | null | undefined): string | null {
   if (!iso) return null;
@@ -177,6 +229,9 @@ export function toAIAnswer(result: SearchResult): AIAnswer {
       console.error("ai_answer.unknown_ui_mode", { ui_mode: mode, query: result.query });
     }
     return toDegraded(result, "unknown_ui_mode");
+  }
+  if (UNSUPPORTED_UI_MODES.has(mode)) {
+    return toDegraded(result, "unsupported_mode");
   }
   if (!IMPLEMENTED_UI_MODES.has(mode)) {
     return toDegraded(result, "not_yet_implemented");

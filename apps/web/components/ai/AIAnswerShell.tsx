@@ -47,6 +47,17 @@ export const UI_MODE_META: Record<ShellMode, { kindLabel: string; badgeLabel: st
   market_pulse:             { kindLabel: "Market pulse", badgeLabel: "Market pulse" },
   event_impact:             { kindLabel: "Event impact analysis", badgeLabel: "Event impact" },
   sector_theme_research:    { kindLabel: "Sector & theme research", badgeLabel: "Sector / theme" },
+  // 2026-09-22, intent-coverage audit — explicit recognized-but-
+  // unsupported modes. These never reach a successful AIAnswerShell
+  // render in practice today (toAIAnswer degrades them before that),
+  // but ShellMode's own exhaustiveness still requires real chrome copy
+  // here, not a placeholder — see DegradedAnswerLayout.tsx for the
+  // actual user-facing message each one shows.
+  technical_timing:         { kindLabel: "Technical timing", badgeLabel: "Technical timing" },
+  company_discovery:        { kindLabel: "Company discovery", badgeLabel: "Company discovery" },
+  portfolio_review:         { kindLabel: "Portfolio review", badgeLabel: "Portfolio review" },
+  earnings_preview:         { kindLabel: "Earnings preview", badgeLabel: "Earnings preview" },
+  multi_company_comparison: { kindLabel: "Multi-company comparison", badgeLabel: "Multi-company comparison" },
   degraded:                 { kindLabel: "Analysis unavailable", badgeLabel: "Degraded" },
 };
 
@@ -59,6 +70,11 @@ const BREADCRUMB_LABEL: Record<ShellMode, string> = {
   market_pulse: "Market Pulse",
   event_impact: "Event Impact",
   sector_theme_research: "Sector Research",
+  technical_timing: "Technical Timing",
+  company_discovery: "Company Discovery",
+  portfolio_review: "Portfolio Review",
+  earnings_preview: "Earnings Preview",
+  multi_company_comparison: "Multi-Company Comparison",
   degraded: "Analysis Unavailable",
 };
 
@@ -349,11 +365,35 @@ export function AIAnswerShell({
             <button onClick={onNewSearch} className="flex items-center gap-1.5 rounded-[12px] border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[12px] font-medium text-text-secondary hover:bg-text-primary/[0.08] transition">
               <Plus className="h-3.5 w-3.5" /> New Search
             </button>
-            {onRefine && (
-              <button onClick={onRefine} className="flex items-center gap-1.5 rounded-[12px] border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[12px] font-medium text-text-secondary hover:bg-text-primary/[0.08] transition">
-                <SlidersHorizontal className="h-3.5 w-3.5" /> Refine
-              </button>
-            )}
+            {/* Refine stays disabled for every AEV2-shell render
+                (2026-09-22, intent-coverage audit) — the legacy Refine
+                endpoint (POST /api/ai/search/refine) still returns
+                investment_verdict/decision_engine_v2/ai_conclusion
+                directly, never a CoreAnswer or AEV2 payload (see
+                ai_search_refine.py's own module docstring). Wiring an
+                AEV2 answer's onRefine into that endpoint would route an
+                AEV2 user into the exact prohibited plain-V3 concepts
+                this whole shell exists to keep unreachable. `onRefine`
+                is therefore intentionally never wired to this button's
+                onClick, regardless of whether a caller passes one —
+                AIAnswerShell itself owns this decision so a future
+                layout activation can't accidentally re-enable it by
+                simply passing a legacy handler through. Legacy Refine
+                (RefineAnalysisPanel.tsx, the pre-AEV2-shell UI) is
+                completely unaffected — that component tree never
+                renders through AIAnswerShell at all. Once Refine
+                becomes a real contextual request through the canonical
+                pipeline (not a sibling answer engine), this button
+                should read a real `onRefine` again. */}
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              title="Refinement is being upgraded for this answer format."
+              className="flex items-center gap-1.5 rounded-[12px] border border-surface-border/10 bg-text-primary/[0.04] px-3 py-1.5 text-[12px] font-medium text-text-muted opacity-50 cursor-not-allowed"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" /> Refine
+            </button>
             <button className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-surface-border/10 bg-text-primary/[0.04] text-text-secondary hover:bg-text-primary/[0.08] transition">
               <MoreHorizontal className="h-4 w-4" />
             </button>

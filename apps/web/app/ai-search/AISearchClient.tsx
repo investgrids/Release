@@ -145,14 +145,21 @@ export interface ConfidenceContract {
   };
 }
 
-// The 8 first-release AI Answer UI modes (2026-09-21) — ui_mode.py's own
-// public contract on the backend. Absent on the 3 early degraded shells
-// (referential/ambiguous/unrecognized-company) and on any response computed
-// before this field existed; callers must treat it as optional.
+// ui_mode.py's own public contract on the backend (2026-09-21; extended
+// 2026-09-22 with 5 explicit recognized-but-unsupported modes — the
+// intent-coverage audit's fix for 4 decision-intent labels that used to
+// silently collapse into direct_company_research/company_comparison and
+// fail only inside that mode's own eligibility gate, plus
+// multi_company_comparison for a 3+-company comparison-shaped query).
+// Absent on the 3 early degraded shells (referential/ambiguous/
+// unrecognized-company) and on any response computed before this field
+// existed; callers must treat it as optional.
 export type UIMode =
   | "direct_company_research" | "switch_analysis" | "company_comparison"
   | "factual_lookup" | "policy_macro_impact" | "market_pulse"
-  | "event_impact" | "sector_theme_research";
+  | "event_impact" | "sector_theme_research"
+  | "technical_timing" | "company_discovery" | "portfolio_review"
+  | "earnings_preview" | "multi_company_comparison";
 
 export interface SearchResult {
   type?: "search";
