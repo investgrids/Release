@@ -32,8 +32,26 @@ import { NextRequest, NextResponse } from "next/server";
  * Best-effort on the caller's side by design — a missed call just means
  * the page catches up at its next natural revalidation, not a broken
  * state, so this doesn't need retries or a queue of its own.
+ *
+ * Extended (2026-09-22) for the leaked-seed-fixture content-integrity
+ * repair: /events/{slug} had no revalidation path at all, so deleting
+ * the 3 fabricated Event rows left their pages serving stale cached
+ * HTML with the fabricated content. `kind: "event"` adds exactly that
+ * one route, `/events/${slug}` + the `/events` index, same fixed-
+ * template/allowlisted-slug pattern as the other two kinds — never a
+ * caller-supplied path.
+ *
+ * Event slugs get their own regex, `_EVENT_SLUG_RE`, rather than
+ * widening the shared `_SLUG_RE` article/opportunity_v2 already use:
+ * real production event slugs can end in a single trailing hyphen (the
+ * slug is `{title-slug}-{id-prefix}` truncated to a fixed length, which
+ * can land mid-id-prefix right after a hyphen — confirmed against the
+ * actual slug of one of the 3 rows this repair removed). `_SLUG_RE`
+ * itself is untouched, so article/opportunity_v2 validation is
+ * byte-for-byte unchanged.
  */
 const _SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const _EVENT_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*-?$/;
 
 export async function POST(req: NextRequest) {
   const secret = process.env.REVALIDATE_SECRET;
@@ -50,16 +68,23 @@ export async function POST(req: NextRequest) {
   const slug = body?.slug;
   const kind = body?.kind;
 
-  if (kind !== "opportunity_v2" && kind !== "article") {
-    return NextResponse.json({ error: "kind must be 'opportunity_v2' or 'article'" }, { status: 400 });
+  if (kind !== "opportunity_v2" && kind !== "article" && kind !== "event") {
+    return NextResponse.json({ error: "kind must be 'opportunity_v2', 'article', or 'event'" }, { status: 400 });
   }
-  if (typeof slug !== "string" || !_SLUG_RE.test(slug)) {
+  if (kind === "event") {
+    if (typeof slug !== "string" || !_EVENT_SLUG_RE.test(slug)) {
+      return NextResponse.json({ error: "slug must match ^[a-z0-9]+(-[a-z0-9]+)*-?$" }, { status: 400 });
+    }
+  } else if (typeof slug !== "string" || !_SLUG_RE.test(slug)) {
     return NextResponse.json({ error: "slug must match ^[a-z0-9]+(-[a-z0-9]+)*$" }, { status: 400 });
   }
 
   if (kind === "opportunity_v2") {
     revalidatePath(`/opportunity-radar/${slug}`);
     revalidatePath("/opportunity-radar");
+  } else if (kind === "event") {
+    revalidatePath(`/events/${slug}`, "page");
+    revalidatePath("/events");
   } else {
     revalidatePath(`/newsroom/article/${slug}`);
     // The same article also appears as a card on these listing pages — a

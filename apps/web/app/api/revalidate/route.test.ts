@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 
 // revalidatePath requires Next's request-scoped static-generation store,
 // which only exists inside a real server request — not in this unit-test
@@ -10,6 +11,7 @@ import { NextRequest } from "next/server";
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const { POST } = await import("./route");
+const mockedRevalidatePath = vi.mocked(revalidatePath);
 
 /**
  * app/api/revalidate/route.ts security hardening (2026-09-20) — real
@@ -36,6 +38,7 @@ function makeRequest(body: unknown, headers: Record<string, string> = {}): NextR
 describe("POST /api/revalidate", () => {
   beforeEach(() => {
     process.env.REVALIDATE_SECRET = TEST_SECRET;
+    mockedRevalidatePath.mockClear();
   });
   afterEach(() => {
     process.env.REVALIDATE_SECRET = ORIGINAL_SECRET;
@@ -98,5 +101,68 @@ describe("POST /api/revalidate", () => {
       { "x-revalidate-secret": TEST_SECRET },
     ));
     expect(res.status).toBe(200);
+  });
+
+  it("rejects a request with a missing slug", async () => {
+    const res = await POST(makeRequest({ kind: "article" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(res.status).toBe(400);
+  });
+
+  // ── event kind (2026-09-22, leaked-seed-fixture content-integrity
+  // repair) — /events/{slug} had no revalidation path at all. Real
+  // production event slugs can end in a single trailing hyphen (the
+  // slug is `{title}-{id-prefix}` truncated to a fixed length) — this
+  // exact slug is the real one for one of the 3 fabricated rows this
+  // repair removed, so it doubles as proof the fix actually works on
+  // the case that motivated it, not just a synthetic example. ─────────
+  it("accepts a valid event slug, including one ending in a single trailing hyphen", async () => {
+    const res = await POST(makeRequest(
+      { kind: "event", slug: "rbi-holds-repo-rate-at-6-5-for-seventh-consecutive-meeting-evt-rbi-" },
+      { "x-revalidate-secret": TEST_SECRET },
+    ));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toMatchObject({ revalidated: true, kind: "event" });
+  });
+
+  it("revalidates the event's own page exactly once, plus the /events index", async () => {
+    await POST(makeRequest(
+      { kind: "event", slug: "india-surpasses-100-gw-solar-capacity-milestone-evt-sola" },
+      { "x-revalidate-secret": TEST_SECRET },
+    ));
+    const eventPageCalls = mockedRevalidatePath.mock.calls.filter(
+      (call) => call[0] === "/events/india-surpasses-100-gw-solar-capacity-milestone-evt-sola",
+    );
+    expect(eventPageCalls).toHaveLength(1);
+    expect(eventPageCalls[0]).toEqual(["/events/india-surpasses-100-gw-solar-capacity-milestone-evt-sola", "page"]);
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/events");
+    expect(mockedRevalidatePath).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects an event slug containing an embedded slash", async () => {
+    const res = await POST(makeRequest({ kind: "event", slug: "a/b" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an event slug that is a path-traversal attempt", async () => {
+    const res = await POST(makeRequest({ kind: "event", slug: "../../etc/passwd" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an event slug that is a full arbitrary URL", async () => {
+    const res = await POST(makeRequest({ kind: "event", slug: "http://evil.example/x" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an event slug with more than one trailing hyphen", async () => {
+    const res = await POST(makeRequest({ kind: "event", slug: "evt-rbi--" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(res.status).toBe(400);
+  });
+
+  it("does not change article or opportunity_v2 slug validation (trailing hyphen still rejected for those kinds)", async () => {
+    const articleRes = await POST(makeRequest({ kind: "article", slug: "some-slug-" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(articleRes.status).toBe(400);
+    const oppRes = await POST(makeRequest({ kind: "opportunity_v2", slug: "some-slug-" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(oppRes.status).toBe(400);
   });
 });
