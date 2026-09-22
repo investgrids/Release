@@ -307,3 +307,121 @@ async def test_both_presenters_derive_from_the_identical_core_answer_at_runtime(
     v3_only = {k: v for k, v in final.items() if k != "answer_experience_v2"}
     assert captured["core"] == from_v3_response(v3_only)
     assert "answer_experience_v2" in final
+
+
+# ── The comparison specialist path (company_comparison + switch_analysis
+#    both flow through it — see _route_specialist) — proven with the
+#    SAME one-call invariant as the company-specialist tests above, but
+#    exercised for real via a genuinely comparison-shaped query and a
+#    2-company entities stub, never assumed to behave identically just
+#    because the counting helper is shared code (2026-09-22, six-mode
+#    activation-wiring commit's route-level contract work). event_impact
+#    and direct_company_research both resolve to specialist_kind
+#    "company" for a real query (see test_intent_routing_integration.py)
+#    and factual_lookup is a company-specialist query by construction —
+#    all three are already covered by the tests above. Market Pulse
+#    never reaches _route_specialist at all (see
+#    test_market_pulse_cache_freshness.py and
+#    test_intent_routing_integration.py's own source-inspection test for
+#    that fact) and has its own dedicated cache/call-count coverage. ────
+
+from app.services.ai_search.specialists import comparison as comparison_specialist  # noqa: E402
+
+_ENTITIES_CMP = {
+    "companies": ["TCS", "INFY"],
+    "company_matches": [
+        {"symbol": "TCS", "name": "Tata Consultancy Services Ltd", "match_type": "exact", "matched_text": "TCS"},
+        {"symbol": "INFY", "name": "Infosys Ltd", "match_type": "exact", "matched_text": "Infosys"},
+    ],
+    "sectors": [], "policies": [],
+}
+
+_CLEAN_CMP_PARSED = {
+    "summary": "TCS and Infosys both reported steady IT-sector demand this quarter.",
+    "bottom_line": "TCS and Infosys both reported steady IT-sector demand this quarter.",
+    "companies": [],  # empty — keeps _enrich_sync's live market-data fetch from ever running
+    "sectors": [],
+    "investment_verdict": {"direction": "neutral", "confidence": 60, "horizon": "6-12 months"},
+}
+
+
+def _counting_stub_entities_cmp():
+    calls = {"n": 0}
+
+    def _extract(query: str) -> dict:
+        calls["n"] += 1
+        return dict(_ENTITIES_CMP)
+
+    return _extract, calls
+
+
+async def test_comparison_specialist_fresh_request_makes_exactly_one_call_at_each_stage_boundary(monkeypatch):
+    query = f"TCS vs Infosys, which is better? (pytest-cmp-{uuid.uuid4().hex[:8]})"
+
+    extract, entity_calls = _counting_stub_entities_cmp()
+    collect, evidence_calls = _counting_stub_evidence()
+    run, specialist_calls = _counting_stub_specialist(_CLEAN_CMP_PARSED, was_degraded=False)
+    store, prediction_calls = _counting_stub_predictions()
+
+    monkeypatch.setattr(entities_mod, "extract_entities", extract)
+    monkeypatch.setattr(evidence_mod, "collect", collect)
+    monkeypatch.setattr(comparison_specialist, "run", run)
+    # The company specialist must never be invoked for this query — a
+    # second counting stub proves it, rather than only asserting the
+    # comparison stub's own count.
+    company_run, company_specialist_calls = _counting_stub_specialist(_CLEAN_PARSED, was_degraded=False)
+    monkeypatch.setattr(company_specialist, "run", company_run)
+    monkeypatch.setattr("app.services.ai_search.prediction_recording.store_search_predictions", store)
+
+    async with AsyncSessionLocal() as db:
+        result, was_cached = await run_ai_search_v3(query, db, None)
+    finalize_v3_response(query, result, was_cached=was_cached)
+    await _drain_background_tasks()
+
+    assert not was_cached
+    assert entity_calls["n"] == 1, "expected exactly 1 entity-resolution call"
+    assert evidence_calls["n"] == 1, "expected exactly 1 evidence-retrieval call"
+    assert specialist_calls["n"] == 1, "expected exactly 1 comparison-specialist call"
+    assert company_specialist_calls["n"] == 0, "the company specialist must not also run for a comparison-shaped query"
+    assert prediction_calls["n"] == 1, "fresh clean comparison response should still record exactly one prediction pass"
+
+
+async def test_comparison_specialist_cache_hit_performs_zero_new_work(monkeypatch):
+    query = f"TCS vs Infosys, which is better? (pytest-cmphit-{uuid.uuid4().hex[:8]})"
+
+    extract, _ = _counting_stub_entities_cmp()
+    collect, _ = _counting_stub_evidence()
+    run, _ = _counting_stub_specialist(_CLEAN_CMP_PARSED, was_degraded=False)
+    store, _ = _counting_stub_predictions()
+    monkeypatch.setattr(entities_mod, "extract_entities", extract)
+    monkeypatch.setattr(evidence_mod, "collect", collect)
+    monkeypatch.setattr(comparison_specialist, "run", run)
+    monkeypatch.setattr("app.services.ai_search.prediction_recording.store_search_predictions", store)
+
+    async with AsyncSessionLocal() as db:
+        first_result, first_cached = await run_ai_search_v3(query, db, None)
+    assert not first_cached
+    finalize_v3_response(query, first_result, was_cached=first_cached)
+    await _drain_background_tasks()
+
+    # Second call, identical query text — fresh stubs + fresh counters so
+    # any call at all is unambiguous.
+    extract2, entity_calls2 = _counting_stub_entities_cmp()
+    collect2, evidence_calls2 = _counting_stub_evidence()
+    run2, specialist_calls2 = _counting_stub_specialist(_CLEAN_CMP_PARSED, was_degraded=False)
+    store2, prediction_calls2 = _counting_stub_predictions()
+    monkeypatch.setattr(entities_mod, "extract_entities", extract2)
+    monkeypatch.setattr(evidence_mod, "collect", collect2)
+    monkeypatch.setattr(comparison_specialist, "run", run2)
+    monkeypatch.setattr("app.services.ai_search.prediction_recording.store_search_predictions", store2)
+
+    async with AsyncSessionLocal() as db:
+        second_result, second_cached = await run_ai_search_v3(query, db, None)
+    assert second_cached, "second call with identical query text should be a cache hit"
+    finalize_v3_response(query, second_result, was_cached=second_cached)
+    await _drain_background_tasks()
+
+    assert entity_calls2["n"] == 0, "cache hit must not re-run entity resolution"
+    assert evidence_calls2["n"] == 0, "cache hit must not re-run evidence retrieval"
+    assert specialist_calls2["n"] == 0, "cache hit must not re-invoke the comparison specialist"
+    assert prediction_calls2["n"] == 0, "cache hit must not record a second prediction for the same answer"

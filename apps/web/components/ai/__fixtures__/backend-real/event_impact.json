@@ -1,0 +1,167 @@
+{
+  "answer": {
+    "bottom_line": "Jio's completion of its nationwide 5G rollout strengthens Reliance's telecom infrastructure position.",
+    "immediate_impact": "",
+    "long_term": "",
+    "medium_term": "",
+    "risks": [],
+    "summary": "ok",
+    "what_happened": "",
+    "why_it_happened": ""
+  },
+  "answer_experience_v2": {
+    "companies_affected": {
+      "currently_higher": [
+        {
+          "change": "+0.40%",
+          "fetched_at": "2026-09-21T10:00:00+00:00",
+          "name": "Reliance Industries Ltd",
+          "price": "1,257.50",
+          "symbol": "RELIANCE"
+        }
+      ],
+      "currently_lower": [],
+      "omitted_unattributed": []
+    },
+    "comparison": null,
+    "confidence": {
+      "components_available": [
+        "data_freshness",
+        "evidence_quality",
+        "historical_similarity",
+        "market_confirmation"
+      ],
+      "level": "High",
+      "score": 63.0
+    },
+    "direct_conclusion": {
+      "evidence_refs": [
+        "event:e-reliance-1"
+      ],
+      "text": "Jio's completion of its nationwide 5G rollout strengthens Reliance's telecom infrastructure position.",
+      "validation_status": "validated"
+    },
+    "event_impact": {
+      "direct_conclusion": {
+        "evidence_refs": [
+          "event:e-reliance-1"
+        ],
+        "text": "Jio's completion of its nationwide 5G rollout strengthens Reliance's telecom infrastructure position.",
+        "validation_status": "validated"
+      },
+      "event": {
+        "id": "e-reliance-1",
+        "internal_url": "/events/reliance-jio-completes-pan-india-5g-rollout-e-reliance-1",
+        "original_source_url": null,
+        "published_at": "2026-09-15T09:30:00+00:00",
+        "source_name": "nse_announcements",
+        "summary": "Reliance Jio Infocomm Limited informed the Exchange that it has completed 5G network rollout across all 22 telecom circles in India.",
+        "title": "Reliance Jio completes pan-India 5G network rollout"
+      },
+      "linked_companies": [
+        {
+          "name": "Reliance Industries Ltd",
+          "symbol": "RELIANCE"
+        }
+      ],
+      "linked_sectors": [
+        {
+          "name": "Telecom"
+        }
+      ],
+      "observed_reactions": []
+    },
+    "evidence": [
+      {
+        "date": "Sep 15, 2026",
+        "id": "event:e-reliance-1",
+        "title": "Reliance Jio completes pan-India 5G network rollout",
+        "type": "event"
+      }
+    ],
+    "follow_up_groups": [],
+    "related_intelligence": {
+      "events": [
+        {
+          "date": "Sep 15, 2026",
+          "id": "event:e-reliance-1",
+          "title": "Reliance Jio completes pan-India 5G network rollout"
+        }
+      ],
+      "opportunities": [],
+      "ripple": null
+    },
+    "risks_and_invalidation": {
+      "invalidates_if": [],
+      "kind": "analysis",
+      "risks": [],
+      "watch_for": []
+    },
+    "schema_version": "aev2.4",
+    "switch_analysis": null,
+    "time_horizon": {
+      "primary_horizon": "3-6 months",
+      "timeline_phases": []
+    },
+    "what_happened": {
+      "evidence_refs": [],
+      "items": [],
+      "summary": ""
+    },
+    "why_it_matters": {
+      "evidence_refs": [],
+      "is_fallback": false,
+      "text": ""
+    }
+  },
+  "companies": [
+    {
+      "change": "+0.40%",
+      "name": "Reliance Industries Ltd",
+      "positive": true,
+      "price": "1,257.50",
+      "price_fetched_at": "2026-09-21T10:00:00+00:00",
+      "symbol": "RELIANCE"
+    }
+  ],
+  "confidence_breakdown": {
+    "data_freshness": 90.0,
+    "evidence_quality": 70.0,
+    "historical_similarity": 40.0,
+    "market_confirmation": 60.0
+  },
+  "intent": "news_reaction",
+  "investment_verdict": {
+    "horizon": "3-6 months"
+  },
+  "news": [],
+  "policies": [],
+  "query": "Reliance Jio just announced its 5G rollout is complete, what does this mean?",
+  "related_events": [
+    {
+      "category": "Corporate",
+      "companies": [
+        {
+          "name": "Reliance Industries Ltd",
+          "symbol": "RELIANCE"
+        }
+      ],
+      "confidence": 8.0,
+      "date": "Sep 15, 2026",
+      "event_date": "2026-09-15",
+      "id": "e-reliance-1",
+      "impact_score": 7.5,
+      "published_at": "2026-09-15T09:30:00+00:00",
+      "sectors": [
+        "Telecom"
+      ],
+      "slug": "reliance-jio-completes-pan-india-5g-rollout-e-reliance-1",
+      "source": "nse_announcements",
+      "summary": "Reliance Jio Infocomm Limited informed the Exchange that it has completed 5G network rollout across all 22 telecom circles in India.",
+      "title": "Reliance Jio completes pan-India 5G network rollout"
+    }
+  ],
+  "response_id": "resp-contract-event-1",
+  "specialist": "company",
+  "ui_mode": "event_impact"
+}

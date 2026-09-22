@@ -1,0 +1,95 @@
+{
+  "ai_conclusion": "",
+  "answer_experience_v2": {
+    "as_of": "2026-09-22T10:06:08+00:00",
+    "biggest_opportunity": {
+      "href": "/opportunity-radar/36",
+      "opportunity_score": 98.0,
+      "title": "IPO rush"
+    },
+    "evidence_coverage": {
+      "calendar_event_count": 0,
+      "movers_total": 0,
+      "movers_with_driver": 0,
+      "tracked_event_count": 0
+    },
+    "generated_conclusion": null,
+    "generated_summary": {
+      "evidence_refs": [],
+      "text": "Markets traded flat today.",
+      "validation_status": "validated"
+    },
+    "indices": [
+      {
+        "change": {
+          "as_of": "2026-09-22T10:06:08+00:00",
+          "session": "live",
+          "source": "yfinance_nse_index",
+          "value": "-0.43%"
+        },
+        "chart": [],
+        "name": "NIFTY 50",
+        "price": {
+          "as_of": "2026-09-22T10:06:08+00:00",
+          "session": "live",
+          "source": "yfinance_nse_index",
+          "value": "23,329.00"
+        },
+        "ticker": "^NSEI"
+      }
+    ],
+    "kind": "market_pulse",
+    "market_session": "live",
+    "market_status": "open",
+    "movers": {
+      "gainers": [],
+      "losers": [],
+      "most_active": []
+    },
+    "risk_context": null,
+    "sector_movement": {
+      "lagging": [],
+      "leading": []
+    },
+    "synthesis_status": "complete",
+    "theme_momentum": [],
+    "upcoming_events": []
+  },
+  "biggest_opportunity": {
+    "href": "/opportunity-radar/36",
+    "opportunity_score": 98.0,
+    "title": "IPO rush"
+  },
+  "biggest_risk": null,
+  "generated_at": "2026-09-22T10:06:08+00:00",
+  "indices": [
+    {
+      "change": "-0.43%",
+      "chart": [],
+      "name": "NIFTY 50",
+      "ticker": "^NSEI",
+      "value": "23,329.00"
+    }
+  ],
+  "lagging_sectors": [],
+  "leading_sectors": [],
+  "market_direction": "sideways",
+  "market_mood": "Neutral",
+  "market_session": "live",
+  "market_status": {
+    "status": "open"
+  },
+  "market_summary": "Markets traded flat today.",
+  "most_active": [],
+  "query": "top gainers today",
+  "scores": {},
+  "sector_narrative": "",
+  "synthesis_incomplete": false,
+  "theme_momentum": [],
+  "top_gainers": [],
+  "top_losers": [],
+  "type": "market_pulse",
+  "ui_mode": "market_pulse",
+  "what_to_watch_next": [],
+  "what_to_watch_summary": ""
+}
