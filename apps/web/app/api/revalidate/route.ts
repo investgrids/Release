@@ -83,16 +83,21 @@ export async function POST(req: NextRequest) {
     revalidatePath(`/opportunity-radar/${slug}`);
     revalidatePath("/opportunity-radar");
   } else if (kind === "event") {
-    // Both segment types, deliberately: app/events/[id]/page.tsx does its
-    // own fetch (revalidate: 300) for the body, but app/events/[id]/
+    // Two DIFFERENT calls for two different caches, deliberately:
+    // app/events/[id]/page.tsx's own fetch (revalidate: 300) backs the
+    // body — the resolved path + "page" correctly busts it (confirmed
+    // live: the body now renders "Page not found"). app/events/[id]/
     // layout.tsx's generateMetadata() does a SEPARATE fetch (revalidate:
-    // 3600) for <title>/description/OG/Twitter tags — a real, confirmed
-    // production gap (2026-09-22): revalidatePath(path, "page") alone
-    // correctly cleared the body (it rendered "Page not found"), but left
-    // the layout's own metadata cache untouched, so the stale fabricated
-    // title/description kept showing above an otherwise-correct 404 body.
+    // 3600) for <title>/description/OG/Twitter tags; a first attempt at
+    // busting it via the SAME resolved path + "layout" did NOT work
+    // (confirmed live, 2026-09-22 — title/meta stayed stale through
+    // repeated calls). Per Next.js's own documented revalidatePath
+    // semantics, "layout" invalidation targets the DYNAMIC ROUTE
+    // PATTERN (shared code for every possible [id]), not one resolved
+    // instance — so this passes the literal bracketed segment, exactly
+    // as Next.js's own /blog/[slug] example does.
     revalidatePath(`/events/${slug}`, "page");
-    revalidatePath(`/events/${slug}`, "layout");
+    revalidatePath("/events/[id]", "layout");
     revalidatePath("/events");
   } else {
     revalidatePath(`/newsroom/article/${slug}`);
