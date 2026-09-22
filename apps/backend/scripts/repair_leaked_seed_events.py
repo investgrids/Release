@@ -39,6 +39,23 @@ scripts/repair_leaked_seed_events_trigger_backup.py, run and verified
 separately, once, immediately before the first REPAIR_MODE=apply run.
 Keeping the two concerns in separate files means a backup failure can
 never be silently bypassed by re-running this file alone.
+
+Dependent-row handling (found by this script's own first dry-run,
+2026-09-22 — not assumed, not part of the original 4-table read-only
+audit): `opportunities` has no event-related column in production at
+all (its model file's comment is stale; checked directly via
+PRAGMA table_info, not assumed innocent). Two real, exact-ID
+dependents DO exist and are purely derivative of the 3 fixtures — never
+independently valuable once their source event is gone:
+  - event_similar: 7 rows where `similar_event_id` is one of the 3
+    fixtures (7 real, unrelated NSE events lose one "similar event"
+    cross-reference each; their own rows are untouched).
+  - ripple_graphs: exactly 3 rows, one per fixture, `event_id` = the
+    fixture id, built directly from the fixture's own fabricated title.
+Both are deleted, by the same exact 3 IDs only, in the SAME transaction
+as the events themselves, before the events delete — never a broader
+match, never touching any row that isn't provably tied to one of these
+3 IDs.
 """
 from __future__ import annotations
 
@@ -51,8 +68,12 @@ from datetime import datetime, timezone
 FIXTURE_IDS = ("evt-rbi-june-2026", "evt-defence-budget-2026", "evt-solar-capacity-2026")
 
 # Mirrors app/db/models/event.py's own ForeignKey("events.id") columns
-# exactly, plus the two known soft (non-FK, comment-only) references —
+# exactly, plus the known soft (non-FK, comment-only) reference —
 # discovered via `grep -rn "events.id" app/db/models/*.py`, not assumed.
+# `opportunities` is NOT here: its model file's own comment claims an
+# `event_id` FK, but PRAGMA table_info(opportunities) against the real
+# production schema (checked directly, 2026-09-22) shows no such column
+# exists at all — a stale comment, not a real dependency to guard.
 DEPENDENT_TABLES: tuple[tuple[str, str], ...] = (
     ("event_companies", "event_id"),
     ("event_sectors", "event_id"),
@@ -61,9 +82,18 @@ DEPENDENT_TABLES: tuple[tuple[str, str], ...] = (
     ("event_graph_nodes", "event_id"),
     ("event_graph_edges", "event_id"),
     ("event_similar", "event_id"),
-    ("event_similar", "similar_event_id"),
     ("event_policies", "event_id"),
-    ("opportunities", "event_id"),
+)
+
+# Discovered by this script's own first dry-run run (2026-09-22) — real,
+# exact-ID dependents that ARE expected and are purely derivative of the
+# 3 fixtures (never independently valuable once their source event is
+# gone). Deleted by these exact IDs only, in the same transaction, right
+# before the events themselves — never blocking, unlike DEPENDENT_TABLES
+# above, but never silently ignored either: every row deleted here is
+# recorded in the manifest.
+CLEANUP_BEFORE_DELETE: tuple[tuple[str, str], ...] = (
+    ("event_similar", "similar_event_id"),
     ("ripple_graphs", "event_id"),
 )
 
@@ -141,6 +171,14 @@ def main() -> int:
         raw_evidence_titles[t] = cur.fetchone()[0]
     manifest["raw_evidence_title_matches"] = raw_evidence_titles
 
+    # Expected, non-blocking dependents — recorded exactly, deleted (in
+    # apply mode) by these same exact IDs, before the events themselves.
+    cleanup_counts = {}
+    for table, col in CLEANUP_BEFORE_DELETE:
+        cur.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} IN ({placeholders})", present_ids)
+        cleanup_counts[f"{table}.{col}"] = cur.fetchone()[0]
+    manifest["cleanup_before_delete_counts"] = cleanup_counts
+
     if not all_clear:
         manifest["status"] = "aborted_dependent_rows_found"
         print(json.dumps(manifest, indent=2, default=str))
@@ -156,6 +194,21 @@ def main() -> int:
     # ── mode == "apply" ──────────────────────────────────────────────────
     try:
         cur.execute("BEGIN")
+
+        cleanup_affected = {}
+        for table, col in CLEANUP_BEFORE_DELETE:
+            cur.execute(f"DELETE FROM {table} WHERE {col} IN ({placeholders})", present_ids)
+            cleanup_affected[f"{table}.{col}"] = cur.rowcount
+        manifest["cleanup_affected_rows"] = cleanup_affected
+        for key, expected in cleanup_counts.items():
+            if cleanup_affected.get(key) != expected:
+                con.rollback()
+                manifest["status"] = "rolled_back_cleanup_rowcount_mismatch"
+                manifest["mismatch_key"] = key
+                print(json.dumps(manifest, indent=2, default=str))
+                con.close()
+                return 1
+
         cur.execute(f"DELETE FROM events WHERE id IN ({placeholders})", present_ids)
         affected = cur.rowcount
         if affected != len(present_ids):
