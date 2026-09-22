@@ -36,7 +36,19 @@ interface SectorIntelligence {
 
 async function fetchSector(sector: string): Promise<SectorIntelligence | null> {
   try {
-    const res = await fetch(`${API}/api/sectors/${sector}/intelligence`, { next: { revalidate: 300 } });
+    // Content-integrity repair (2026-09-22): was `{ next: { revalidate:
+    // 300 } }`. Real production finding — once this endpoint started
+    // 404ing for media/psu-bank/pvt-bank (the sector_data fabrication
+    // repair), Next.js's fetch-level Data Cache kept serving each one's
+    // last SUCCESSFUL (200) response indefinitely; neither the 300s TTL
+    // elapsing nor an explicit revalidatePath("/sectors/{id}", "page")
+    // call cleared it (confirmed live: still stale 18+ minutes and
+    // multiple on-demand revalidation calls later). `no-store` matches
+    // the already-proven-reliable pattern this same repair verified
+    // instantly on SectorsContent.tsx/OverviewTab.tsx's own fetchAPI
+    // calls — a real 404 is honored on the very next request, not
+    // eventually.
+    const res = await fetch(`${API}/api/sectors/${sector}/intelligence`, { cache: "no-store" });
     if (!res.ok) return null;
     return await res.json();
   } catch {
