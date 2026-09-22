@@ -59,6 +59,22 @@ const AI_SEARCH_V3_ENABLED = process.env.NEXT_PUBLIC_AI_SEARCH_V3 === "1";
 // NEXT_PUBLIC_AI_ANSWER_SHELL=1 in .env.local.
 const AI_ANSWER_SHELL_ENABLED = process.env.NEXT_PUBLIC_AI_ANSWER_SHELL === "1";
 
+// Single source of truth for "does this specific result render through the
+// new AEV2 shell" (2026-09-22 fix). Used at the top-level content dispatch
+// (deciding between IntentLayout and the legacy MarketPulseResults/
+// SearchResults renderers) AND to gate the legacy RightSidebar/follow-up
+// chrome that must not render around the new shell once it's active — both
+// call sites previously computed this independently (or not at all), which
+// is exactly how the legacy sidebar kept rendering alongside a
+// shell-enabled result. A response only carries a real ui_mode once V3
+// resolves it (see UIMode's own doc comment) — older/V2 responses and the
+// 3 early degraded shells (referential/ambiguous/unrecognized-company)
+// never do, so this still safely falls through to the legacy experience
+// for those, unchanged from before this fix.
+function usesAIAnswerShell(result: SearchResult | MarketPulseResult | null): boolean {
+  return AI_ANSWER_SHELL_ENABLED && !!result && !!(result as { ui_mode?: string }).ui_mode;
+}
+
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface AnswerSection {
@@ -261,6 +277,16 @@ export interface MarketPulseResult {
   biggest_risk: { headline: string | null; reason: string } | null;
   ai_conclusion: string; what_to_watch_next: PulseCalendarItem[]; what_to_watch_summary: string;
   scores: PulseScores;
+  // AEV2 activation-wiring (2026-09-22) — mirrors SearchResult's own
+  // optional ui_mode/answer_experience_v2 fields (see that interface's
+  // own doc comments). pipeline.py sets ui_mode: "market_pulse" on this
+  // exact shape (mp_result["ui_mode"] = "market_pulse"), and
+  // response_finalize.py's answer_experience_v2 attachment is shape-
+  // agnostic — both fields legitimately appear on the real backend
+  // response for a market-pulse-classified query, even though this type
+  // stays otherwise deliberately separate from SearchResult.
+  ui_mode?: UIMode;
+  answer_experience_v2?: AEV2MarketPulse;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -1206,6 +1232,26 @@ export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRe
   const [saved, setSaved] = useState(false);
   const [activeRippleNode, setActiveRippleNode] = useState<string | null>(null);
 
+  // Opt-in early return for the new typed AIAnswerShell/IntentLayout
+  // registry (2026-09-21 AI Answer UI work) — see AI_ANSWER_SHELL_ENABLED's
+  // own comment for why this must stay off by default. Only takes over
+  // when the response actually carries a ui_mode (older cached/V2
+  // responses won't), so there is no risk of this branch firing for a
+  // response shape it wasn't built against.
+  //
+  // MUST come before the legacy synthesis_incomplete check below (2026-
+  // 09-22 fix — found live via the six-mode integration audit's own
+  // preflight): a capacity-degraded response has synthesis_incomplete
+  // TRUE, and the old ordering let that legacy early return fire FIRST,
+  // so every degraded response silently rendered the legacy
+  // DegradedSearchAnswer even with the shell flag on — toAIAnswer's own
+  // "synthesis_incomplete" handling (which produces the universal
+  // DegradedAnswer -> DegradedAnswerLayout, not a mode-specific gate
+  // rejection) never got a chance to run.
+  if (usesAIAnswerShell(result)) {
+    return <IntentLayout answer={toAIAnswer(result)} onNewSearch={() => onFollowUp("")} />;
+  }
+
   // Dedicated top-level early return for a degraded (synthesis_incomplete)
   // response — see DegradedSearchAnswer's own docstring for why this
   // replaced the scattered per-section conditionals below (which had
@@ -1215,16 +1261,6 @@ export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRe
   // function, none of which is safe to compute from a degraded response.
   if (result.synthesis_incomplete) {
     return <DegradedSearchAnswer result={result} resultTime={resultTime} onFollowUp={onFollowUp} />;
-  }
-
-  // Opt-in early return for the new typed AIAnswerShell/IntentLayout
-  // registry (2026-09-21 AI Answer UI work) — see AI_ANSWER_SHELL_ENABLED's
-  // own comment for why this must stay off by default. Only takes over
-  // when the response actually carries a ui_mode (older cached/V2
-  // responses won't), so there is no risk of this branch firing for a
-  // response shape it wasn't built against.
-  if (AI_ANSWER_SHELL_ENABLED && result.ui_mode) {
-    return <IntentLayout answer={toAIAnswer(result)} onNewSearch={() => onFollowUp("")} />;
   }
 
   const { answer, key_drivers, companies: rawCompanies, sectors, related_events, news, policies,
@@ -2493,6 +2529,23 @@ export default function AISearchClient() {
     }
   }, [loading, history, v3Stream]);
 
+  // AEV2 shell's "New Search" button (2026-09-22 fix) — the legacy bottom
+  // follow-up bar (which used to always render regardless of shell state,
+  // and which AIAnswerShell's own onNewSearch previously wired to
+  // onFollowUp(""), a no-op given runSearch's own empty-string guard
+  // above) is now hidden while the shell is active, so this is the ONLY
+  // way back to a fresh query — it must actually clear the result and
+  // return focus to the main search input, not silently do nothing.
+  const resetToEmptySearch = useCallback(() => {
+    setResult(null);
+    setResultMeta(null);
+    setQuery("");
+    setInput("");
+    setFollowUp("");
+    setClarification(null);
+    textareaRef.current?.focus();
+  }, []);
+
   // Syncs the streaming hook's terminal state (result/error) back into this
   // component's own state machine, so every downstream consumer (SearchResults,
   // the follow-up flow, resultTime) works identically regardless of which
@@ -2691,9 +2744,11 @@ export default function AISearchClient() {
             </motion.div>
           ) : result ? (
             <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              {result.type === "market_pulse"
-                ? <MarketPulseResults result={result}/>
-                : <SearchResults result={result} onFollowUp={runSearch} resultTime={resultTime} resultMeta={resultMeta} onRefined={handleRefined}/>}
+              {usesAIAnswerShell(result)
+                ? <IntentLayout answer={toAIAnswer(result as unknown as SearchResult)} onNewSearch={resetToEmptySearch}/>
+                : result.type === "market_pulse"
+                  ? <MarketPulseResults result={result}/>
+                  : <SearchResults result={result} onFollowUp={runSearch} resultTime={resultTime} resultMeta={resultMeta} onRefined={handleRefined}/>}
             </motion.div>
           ) : (
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -2704,12 +2759,21 @@ export default function AISearchClient() {
       </div>
 
       {/* ── Right sidebar ────────────────────────────────────────────────────── */}
-      <RightSidebar result={result?.type === "market_pulse" ? null : result} onAction={handleSidebarAction}
-        onReopenSearch={runSearch} activeQuery={query || undefined} session={session}/>
+      {/* 2026-09-22 fix: must not render alongside the new AEV2 shell — it
+          used to render unconditionally here regardless of shell state,
+          which is exactly why a shell-enabled result still showed the
+          legacy Research Outlook/N/A sidebar next to it. */}
+      {!usesAIAnswerShell(result) && (
+        <RightSidebar result={result?.type === "market_pulse" ? null : result} onAction={handleSidebarAction}
+          onReopenSearch={runSearch} activeQuery={query || undefined} session={session}/>
+      )}
       </div>{/* end flex container */}
 
       {/* ── Fixed bottom follow-up bar ───────────────────────────────────────── */}
-      {(result || loading) && (
+      {/* 2026-09-22 fix: hidden while the new AEV2 shell is active — its own
+          "New Search" button (resetToEmptySearch, above) is the shell's own
+          equivalent affordance; this legacy bar must not render around it. */}
+      {(result || loading) && !usesAIAnswerShell(result) && (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-surface-border/6 bg-bg/97 backdrop-blur-xl px-6 py-3">
           <div className="mx-auto max-w-[1600px]">
             <form onSubmit={handleFollowUpSubmit}
