@@ -49,6 +49,19 @@ import { NextRequest, NextResponse } from "next/server";
  * actual slug of one of the 3 rows this repair removed). `_SLUG_RE`
  * itself is untouched, so article/opportunity_v2 validation is
  * byte-for-byte unchanged.
+ *
+ * Extended (2026-09-22) for the sector_data fabrication repair:
+ * /sectors/{id} pages went stale the same way /events/{slug} did after
+ * that repair (real production finding — media/psu-bank/pvt-bank kept
+ * serving their old, now-honestly-404 content for 5+ minutes past
+ * their own `revalidate: 300` window, with no sign of self-clearing,
+ * same server-side Data Cache staleness invisible to X-Vercel-Cache
+ * headers already documented for the event kind above). `kind:
+ * "sector"` uses ordinary sector ids, which already match the shared
+ * `_SLUG_RE` exactly — no new regex needed. Unlike events, /sectors/
+ * [sector]/page.tsx defines its own generateMetadata() directly (no
+ * separate layout.tsx segment), so a single "page"-type call busts
+ * both the body and the metadata in one revalidatePath call.
  */
 const _SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const _EVENT_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*-?$/;
@@ -68,8 +81,8 @@ export async function POST(req: NextRequest) {
   const slug = body?.slug;
   const kind = body?.kind;
 
-  if (kind !== "opportunity_v2" && kind !== "article" && kind !== "event") {
-    return NextResponse.json({ error: "kind must be 'opportunity_v2', 'article', or 'event'" }, { status: 400 });
+  if (kind !== "opportunity_v2" && kind !== "article" && kind !== "event" && kind !== "sector") {
+    return NextResponse.json({ error: "kind must be 'opportunity_v2', 'article', 'event', or 'sector'" }, { status: 400 });
   }
   if (kind === "event") {
     if (typeof slug !== "string" || !_EVENT_SLUG_RE.test(slug)) {
@@ -82,6 +95,8 @@ export async function POST(req: NextRequest) {
   if (kind === "opportunity_v2") {
     revalidatePath(`/opportunity-radar/${slug}`);
     revalidatePath("/opportunity-radar");
+  } else if (kind === "sector") {
+    revalidatePath(`/sectors/${slug}`, "page");
   } else if (kind === "event") {
     // Two DIFFERENT calls for two different caches, deliberately:
     // app/events/[id]/page.tsx's own fetch (revalidate: 300) backs the

@@ -169,4 +169,38 @@ describe("POST /api/revalidate", () => {
     const oppRes = await POST(makeRequest({ kind: "opportunity_v2", slug: "some-slug-" }, { "x-revalidate-secret": TEST_SECRET }));
     expect(oppRes.status).toBe(400);
   });
+
+  // ── sector kind (2026-09-22, sector_data fabrication repair) —
+  // /sectors/{id} had no revalidation path at all. Real production
+  // finding: media/psu-bank/pvt-bank kept serving their old, now-
+  // honestly-404 content for 5+ minutes past their own `revalidate:
+  // 300` window with no sign of self-clearing — same class of staleness
+  // the event kind above was built to fix. ────────────────────────────
+  it("accepts a valid sector id with the correct header secret", async () => {
+    const res = await POST(makeRequest({ kind: "sector", slug: "psu-bank" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toMatchObject({ revalidated: true, kind: "sector" });
+  });
+
+  it("revalidates only the sector's own page — no separate layout segment exists for this route", async () => {
+    await POST(makeRequest({ kind: "sector", slug: "banking" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/sectors/banking", "page");
+    expect(mockedRevalidatePath).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a sector id containing an embedded slash", async () => {
+    const res = await POST(makeRequest({ kind: "sector", slug: "a/b" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a sector id that is a path-traversal attempt", async () => {
+    const res = await POST(makeRequest({ kind: "sector", slug: "../../etc/passwd" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a sector id with a trailing hyphen (no truncated-id shape like events)", async () => {
+    const res = await POST(makeRequest({ kind: "sector", slug: "banking-" }, { "x-revalidate-secret": TEST_SECRET }));
+    expect(res.status).toBe(400);
+  });
 });

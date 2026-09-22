@@ -1,0 +1,28 @@
+{
+  "description": "Fabricated sector_data repair — see scripts/repair_sector_data_fabrication.py's own module docstring.",
+  "mode": "apply",
+  "exported_at_utc": "2026-09-22T09:43:20.277524+00:00",
+  "candidate_count": 12,
+  "rows_before_delete": [
+    {"id": "it", "name": "IT", "value": "-0.9%", "positive": 0, "updated_at": "2026-07-22 08:24:06.565768"},
+    {"id": "banking", "name": "Banking", "value": "+1.2%", "positive": 1, "updated_at": "2026-07-22 08:24:06.566372"},
+    {"id": "pharma", "name": "Pharma", "value": "+0.6%", "positive": 1, "updated_at": "2026-07-22 08:24:06.566861"},
+    {"id": "auto", "name": "Auto", "value": "+1.8%", "positive": 1, "updated_at": "2026-07-22 08:24:06.567311"},
+    {"id": "energy", "name": "Energy", "value": "+2.4%", "positive": 1, "updated_at": "2026-07-22 08:24:06.567856"},
+    {"id": "fmcg", "name": "FMCG", "value": "-0.3%", "positive": 0, "updated_at": "2026-07-22 08:24:06.568371"},
+    {"id": "infra", "name": "Infra", "value": "+3.1%", "positive": 1, "updated_at": "2026-07-22 08:24:06.568917"},
+    {"id": "metal", "name": "Metal", "value": "+0.7%", "positive": 1, "updated_at": "2026-07-22 08:24:06.569373"},
+    {"id": "realty", "name": "Realty", "value": "+1.5%", "positive": 1, "updated_at": "2026-07-22 08:24:06.569810"},
+    {"id": "psu-bank", "name": "PSU Bank", "value": "+0.4%", "positive": 1, "updated_at": "2026-07-22 08:24:06.570226"},
+    {"id": "pvt-bank", "name": "Pvt Bank", "value": "+1.1%", "positive": 1, "updated_at": "2026-07-22 08:24:06.570651"},
+    {"id": "media", "name": "Media", "value": "-1.2%", "positive": 0, "updated_at": "2026-07-22 08:24:06.571051"}
+  ],
+  "dependent_tables_checked": 73,
+  "dependent_rows_found": {},
+  "qualifying_count": 12,
+  "disqualified": [],
+  "status": "applied",
+  "affected_rows": 12,
+  "pre_repair_backup_object_key": "automated/pre_sector_data_fabrication_repair/ig-20260922T094253Z.db",
+  "pre_repair_backup_sha256": "83cd18a741e23b3f6f0a4ff9a2712d08b174c01ddb470bcdca900bf86eab8302"
+}
