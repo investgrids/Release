@@ -76,6 +76,69 @@ def test_factual_lookup():
     assert mode == "factual_lookup"
 
 
+# ── Narrowed factual-lookup heuristic (2026-09-22, six-mode integration
+# audit's own live preflight): the original "what is/was/were/are ... ?"
+# alternative matched ANY question of that shape regardless of content —
+# "What is happening with HDFC Bank?" silently became factual_lookup
+# purely off sentence shape, a real misrouting caught live, not merely
+# an unfortunate query choice. Factual routing now requires a
+# recognizable metric/value noun (revenue, market cap, Q2 profit, ...)
+# somewhere in the question — a generic "what is" research question
+# without one stays direct_company_research.
+def test_what_is_happening_stays_direct_company_research_not_factual_lookup():
+    mode = classify_ui_mode(
+        specialist_kind="company", intent_data={"intent": "general"},
+        entities={"companies": ["HDFCBANK"], "policies": []},
+        query="What is happening with HDFC Bank?",
+    )
+    assert mode == "direct_company_research"
+
+
+def test_what_is_the_outlook_stays_direct_company_research_not_factual_lookup():
+    mode = classify_ui_mode(
+        specialist_kind="company", intent_data={"intent": "general"},
+        entities={"companies": ["HDFCBANK"], "policies": []},
+        query="What is the outlook for HDFC Bank?",
+    )
+    assert mode == "direct_company_research"
+
+
+def test_what_are_the_latest_developments_stays_direct_company_research_not_factual_lookup():
+    mode = classify_ui_mode(
+        specialist_kind="company", intent_data={"intent": "general"},
+        entities={"companies": ["HDFCBANK"], "policies": []},
+        query="What are the latest developments at HDFC Bank?",
+    )
+    assert mode == "direct_company_research"
+
+
+def test_what_is_quarterly_revenue_still_routes_to_factual_lookup():
+    mode = classify_ui_mode(
+        specialist_kind="company", intent_data={"intent": "general"},
+        entities={"companies": ["HDFCBANK"], "policies": []},
+        query="What is HDFC Bank's latest quarterly revenue?",
+    )
+    assert mode == "factual_lookup"
+
+
+def test_what_is_market_cap_still_routes_to_factual_lookup():
+    mode = classify_ui_mode(
+        specialist_kind="company", intent_data={"intent": "general"},
+        entities={"companies": ["HDFCBANK"], "policies": []},
+        query="What is HDFC Bank's market cap?",
+    )
+    assert mode == "factual_lookup"
+
+
+def test_what_was_q2_profit_still_routes_to_factual_lookup():
+    mode = classify_ui_mode(
+        specialist_kind="company", intent_data={"intent": "general"},
+        entities={"companies": ["HDFCBANK"], "policies": []},
+        query="What was HDFC Bank's Q2 profit?",
+    )
+    assert mode == "factual_lookup"
+
+
 def test_policy_macro_impact_with_no_company_named():
     mode = classify_ui_mode(
         specialist_kind="company", intent_data={"intent": "general"},

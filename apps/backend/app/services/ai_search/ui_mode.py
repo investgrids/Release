@@ -109,8 +109,25 @@ _UNSUPPORTED_INTENT_UI_MODE: dict[str, str] = {
     "earnings_preview": "earnings_preview",
 }
 
+# A recognizable metric/value noun — the thing that actually
+# distinguishes "what is X's revenue?" (a lookup) from "what is
+# happening with X?" (a research question that also happens to start
+# with "what is"). 2026-09-22 fix: the original "what is/was/were/are
+# ... ?" alternative below matched ANY question shaped that way,
+# regardless of content — "What is happening with HDFC Bank?" and "What
+# is the outlook for HDFC Bank?" both silently became factual_lookup
+# purely off sentence shape, a real misrouting the six-mode integration
+# audit's own preflight caught live. Metric words only — a bare "results"
+# is deliberately excluded (too generic: "What are HDFC Bank's latest
+# results?" reads as research-shaped, unlike "Q2 profit" or "market cap"
+# which are single, specific values).
+_METRIC_TERMS = (
+    r"revenue|profit|earnings|eps|market\s+cap(?:italization)?|"
+    r"net\s+income|ebitda|turnover|dividend|npa|book\s+value|sales"
+)
+
 _FACTUAL_RE = re.compile(
-    r"^\s*what\s+(?:was|is|were|are)\b.{0,80}\?\s*$|"
+    r"^\s*what\s+(?:was|is|were|are)\b(?=.{0,80}?\b(?:" + _METRIC_TERMS + r")\b).{0,80}\?\s*$|"
     r"\bhow\s+much\b|\bhow\s+many\b|"
     r"\bq[1-4]\s+(?:revenue|profit|earnings|results)\b|"
     r"\b(?:revenue|profit|eps|market\s+cap)\s+(?:of|for)\b",
@@ -123,7 +140,14 @@ def _looks_factual(query: str) -> bool:
     negatives fall back to direct_company_research (a safe default: that
     layout still shows the real answer text, just without factual_
     lookup's more compact framing), never a crash or a wrong-shaped
-    schema requirement."""
+    schema requirement.
+
+    The "what is/was/were/are ... ?" shape alone is NOT sufficient (see
+    _METRIC_TERMS above) — it must also name a recognizable metric, so a
+    generic research question phrased as a question ("what is happening
+    with X", "what is the outlook for X", "what are the latest
+    developments at X") stays direct_company_research rather than
+    silently downgrading to the more compact factual_lookup framing."""
     return bool(_FACTUAL_RE.search(query or ""))
 
 
