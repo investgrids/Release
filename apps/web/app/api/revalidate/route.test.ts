@@ -125,18 +125,21 @@ describe("POST /api/revalidate", () => {
     expect(json).toMatchObject({ revalidated: true, kind: "event" });
   });
 
-  it("revalidates the event's own page exactly once, plus the /events index", async () => {
-    await POST(makeRequest(
-      { kind: "event", slug: "india-surpasses-100-gw-solar-capacity-milestone-evt-sola" },
-      { "x-revalidate-secret": TEST_SECRET },
-    ));
-    const eventPageCalls = mockedRevalidatePath.mock.calls.filter(
-      (call) => call[0] === "/events/india-surpasses-100-gw-solar-capacity-milestone-evt-sola",
-    );
-    expect(eventPageCalls).toHaveLength(1);
-    expect(eventPageCalls[0]).toEqual(["/events/india-surpasses-100-gw-solar-capacity-milestone-evt-sola", "page"]);
+  it("revalidates the event's own page AND layout segments exactly once each, plus the /events index", async () => {
+    // layout.tsx's generateMetadata() does its own separate fetch
+    // (title/description/OG/Twitter tags) from page.tsx's body fetch —
+    // both segment caches must be busted or the body correctly shows
+    // fresh content while the <title>/meta tags keep showing stale
+    // fabricated text above it (confirmed live, 2026-09-22).
+    const slug = "india-surpasses-100-gw-solar-capacity-milestone-evt-sola";
+    await POST(makeRequest({ kind: "event", slug }, { "x-revalidate-secret": TEST_SECRET }));
+
+    const eventPathCalls = mockedRevalidatePath.mock.calls.filter((call) => call[0] === `/events/${slug}`);
+    expect(eventPathCalls).toHaveLength(2);
+    expect(eventPathCalls).toContainEqual([`/events/${slug}`, "page"]);
+    expect(eventPathCalls).toContainEqual([`/events/${slug}`, "layout"]);
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/events");
-    expect(mockedRevalidatePath).toHaveBeenCalledTimes(2);
+    expect(mockedRevalidatePath).toHaveBeenCalledTimes(3);
   });
 
   it("rejects an event slug containing an embedded slash", async () => {

@@ -83,7 +83,16 @@ export async function POST(req: NextRequest) {
     revalidatePath(`/opportunity-radar/${slug}`);
     revalidatePath("/opportunity-radar");
   } else if (kind === "event") {
+    // Both segment types, deliberately: app/events/[id]/page.tsx does its
+    // own fetch (revalidate: 300) for the body, but app/events/[id]/
+    // layout.tsx's generateMetadata() does a SEPARATE fetch (revalidate:
+    // 3600) for <title>/description/OG/Twitter tags — a real, confirmed
+    // production gap (2026-09-22): revalidatePath(path, "page") alone
+    // correctly cleared the body (it rendered "Page not found"), but left
+    // the layout's own metadata cache untouched, so the stale fabricated
+    // title/description kept showing above an otherwise-correct 404 body.
     revalidatePath(`/events/${slug}`, "page");
+    revalidatePath(`/events/${slug}`, "layout");
     revalidatePath("/events");
   } else {
     revalidatePath(`/newsroom/article/${slug}`);
