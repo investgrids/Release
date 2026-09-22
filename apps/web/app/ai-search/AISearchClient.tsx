@@ -35,6 +35,8 @@ import { ClarificationPicker } from "@/components/ai/ClarificationPicker";
 import { InvestmentWatchPanel, type WatchSubject } from "@/components/ai/InvestmentWatchPanel";
 import { DecisionTimelinePanel, type TimelineIntelligence } from "@/components/ai/DecisionTimelinePanel";
 import { ConfidenceBreakdownPanel } from "@/components/ai/ConfidenceBreakdownPanel";
+import { IntentLayout } from "@/components/ai/IntentLayout";
+import { toAIAnswer } from "@/components/ai/answerTypes";
 import { openResearchReport, downloadMarkdown } from "@/lib/researchReport";
 import type { ResponseMeta } from "@/lib/hooks/useAISearchStream";
 import { useAISearchStream } from "@/lib/hooks/useAISearchStream";
@@ -46,6 +48,15 @@ import { EXAMPLES } from "./constants";
 // production traffic yet (see the V3 Phase 1 plan's migration section).
 // Toggle locally via NEXT_PUBLIC_AI_SEARCH_V3=1 in .env.local.
 const AI_SEARCH_V3_ENABLED = process.env.NEXT_PUBLIC_AI_SEARCH_V3 === "1";
+
+// Opt-in only — the new typed AIAnswerShell/IntentLayout registry
+// (2026-09-21 AI Answer UI work) has exactly one real layout
+// (factual_lookup) so far; every other ui_mode still fails closed to
+// the shared degraded state via toAIAnswer. Must stay off by default so
+// wiring it in does not replace the existing public successful-result
+// path below while only one layout exists. Toggle locally via
+// NEXT_PUBLIC_AI_ANSWER_SHELL=1 in .env.local.
+const AI_ANSWER_SHELL_ENABLED = process.env.NEXT_PUBLIC_AI_ANSWER_SHELL === "1";
 
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -116,8 +127,40 @@ interface OpportunityRiskMatrix {
   risk: { high?: string[]; medium?: string[]; low?: string[] };
 }
 
+// The AEV2-approved confidence contract (2026-09-21 AI Answer UI work,
+// review correction): the backend computes weighting, missing-component
+// behavior, rounding, and the unscored decision via
+// postprocess.build_confidence_contract — this type exists so the
+// frontend only ever FORMATS these fields, never recomputes the 0.35/
+// 0.25/0.25/0.15 formula itself. Present on every V3 response, including
+// degraded ones (status "unscored", every component null there).
+export interface ConfidenceContract {
+  status: "scored" | "unscored";
+  score: number | null;
+  components: {
+    evidence_quality: number | null;
+    market_confirmation: number | null;
+    historical_similarity: number | null;
+    data_freshness: number | null;
+  };
+}
+
+// The 8 first-release AI Answer UI modes (2026-09-21) — ui_mode.py's own
+// public contract on the backend. Absent on the 3 early degraded shells
+// (referential/ambiguous/unrecognized-company) and on any response computed
+// before this field existed; callers must treat it as optional.
+export type UIMode =
+  | "direct_company_research" | "switch_analysis" | "company_comparison"
+  | "factual_lookup" | "policy_macro_impact" | "market_pulse"
+  | "event_impact" | "sector_theme_research";
+
 export interface SearchResult {
   type?: "search";
+  // ui_mode: which of the 8 layouts to render — the frontend never infers
+  // this from prose; intent is decision_intent.py's own underlying label,
+  // kept separately since it's a finer-grained classification than ui_mode
+  // collapses it to (see ui_mode.py's own docstring on the backend).
+  ui_mode?: UIMode; intent?: string;
   query: string; synthesis_incomplete?: boolean; answer: AnswerSection; key_drivers: KeyDriver[]; insights: Insight[];
   companies: Company[]; sectors: Sector[]; related_events: RelatedEvent[];
   news: NewsItem[]; policies: Policy[]; timeline: Timeline[];
@@ -143,6 +186,8 @@ export interface SearchResult {
   timeline_intelligence?: TimelineIntelligence;
   evidence_score?: EvidenceScoreV3;
   confidence_breakdown?: ConfidenceBreakdown;
+  confidence?: ConfidenceContract;
+  validation?: { repairs: string[]; omissions: string[]; contradiction_flagged: boolean };
   opportunity_risk_matrix?: OpportunityRiskMatrix;
   // Phase 1.7 — what (if anything) the research session contributed to
   // this specific answer; see session_context.resolve_context on the backend.
@@ -1147,6 +1192,16 @@ export function SearchResults({ result, onFollowUp, resultTime, resultMeta, onRe
   // function, none of which is safe to compute from a degraded response.
   if (result.synthesis_incomplete) {
     return <DegradedSearchAnswer result={result} resultTime={resultTime} onFollowUp={onFollowUp} />;
+  }
+
+  // Opt-in early return for the new typed AIAnswerShell/IntentLayout
+  // registry (2026-09-21 AI Answer UI work) — see AI_ANSWER_SHELL_ENABLED's
+  // own comment for why this must stay off by default. Only takes over
+  // when the response actually carries a ui_mode (older cached/V2
+  // responses won't), so there is no risk of this branch firing for a
+  // response shape it wasn't built against.
+  if (AI_ANSWER_SHELL_ENABLED && result.ui_mode) {
+    return <IntentLayout answer={toAIAnswer(result)} onNewSearch={() => onFollowUp("")} />;
   }
 
   const { answer, key_drivers, companies: rawCompanies, sectors, related_events, news, policies,

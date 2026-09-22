@@ -161,3 +161,54 @@ async def compute_confidence_breakdown(evidence, parsed: dict, mie_state: dict |
         "level": result.level,
         "reasons": result.reasons,
     }
+
+
+# ── AEV2 confidence contract — the ONE place the approved formula's
+# arithmetic lives (review, 2026-09-21: a first frontend build recomputed
+# this same weighted sum in React, creating a second scoring path that
+# could drift from aev2/confidence.py's own copy; correction moved the
+# canonical formula here instead, a module with no aev2/ dependency, so
+# both aev2/confidence.py's compute_aev2_confidence AND every V3 response
+# — regardless of AEV2 mode — can share it without violating aev2/'s own
+# import-isolation rule, which forbids the reverse direction (aev2
+# modules importing pipeline/provider machinery), not this one).
+#
+# Fixed weights, exactly the closed specification aev2/confidence.py's
+# own docstring documents in full: 0.35 evidence_quality + 0.25
+# market_confirmation + 0.25 historical_similarity + 0.15 data_freshness.
+# A missing component contributes zero and weights are never
+# renormalized; all 4 missing -> unscored. See that module's docstring
+# for the full missing-component rationale — this is the same rule,
+# just factored out so it has exactly one implementation.
+_CONFIDENCE_CONTRACT_WEIGHTS: dict[str, float] = {
+    "evidence_quality": 0.35,
+    "market_confirmation": 0.25,
+    "historical_similarity": 0.25,
+    "data_freshness": 0.15,
+}
+
+
+def build_confidence_contract(breakdown: dict | None) -> dict:
+    """The frontend-facing confidence contract: `{status, score,
+    components}`. The frontend only formats this — it never recomputes
+    weighting, decides what "unscored" means, or rounds a score itself.
+
+    `breakdown` is the same dict `compute_confidence_breakdown` above (or
+    CoreAnswer.confidence_breakdown) already produces; this function does
+    no evidence counting of its own, so there is nowhere for a duplicate
+    source/company count to be double-scored."""
+    breakdown = breakdown or {}
+    components = {
+        name: (float(breakdown[name]) if breakdown.get(name) is not None else None)
+        for name in _CONFIDENCE_CONTRACT_WEIGHTS
+    }
+    available = {name: value for name, value in components.items() if value is not None}
+    score = (
+        round(sum(value * _CONFIDENCE_CONTRACT_WEIGHTS[name] for name, value in available.items()), 1)
+        if available else None
+    )
+    return {
+        "status": "unscored" if score is None else "scored",
+        "score": score,
+        "components": components,
+    }

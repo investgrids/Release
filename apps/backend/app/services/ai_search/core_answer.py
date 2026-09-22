@@ -93,6 +93,30 @@ class CoreAnswer:
     # "Deliberate exclusion" note for why nothing else from
     # investment_verdict is projected onto CoreAnswer.
     horizon: str | None = None
+    # decision_intent.py's own resolved holding/target company NAMES for
+    # a switch-shaped comparison query (2026-09-22, switch_analysis) —
+    # pipeline.py's _route_specialist already computes these into
+    # intent_data (zero new retrieval); serialized onto the plain V3
+    # response as switch_holding/switch_target specifically so this
+    # projection can recover them, since intent_data itself is a
+    # local-only variable that never otherwise reaches the response dict.
+    # Names, not symbols — resolved to an actual company (core.companies)
+    # by switch_analysis.py's own lookup, the same way citation_
+    # validator.py resolves company-like tokens against CoreAnswer's own
+    # resolved companies rather than trusting the raw string as a symbol.
+    switch_holding: str | None = None
+    switch_target: str | None = None
+    # decision_intent.py's own 12-label classification (2026-09-22,
+    # comparison/switch_analysis split) — already serialized on the plain
+    # V3 response as `intent` (ui_mode.py's own classify_ui_mode already
+    # reads the equivalent local intent_data value). The ONE real signal
+    # that distinguishes a switch-shaped comparison ("should I switch BEL
+    # to HAL") from a neutral one ("compare BEL and HAL") when BOTH
+    # resolve the same 2 companies via the same comparison specialist —
+    # see ui_mode.py's SWITCH_LIKE_INTENTS, which switch_analysis.py
+    # checks this against directly rather than re-deriving its own notion
+    # of "switch-shaped."
+    intent: str = "general"
     # Read-only passthrough of postprocess.compute_confidence_breakdown's
     # already-computed 6-part breakdown (evidence_quality/
     # market_confirmation/historical_similarity/data_freshness/
@@ -138,5 +162,8 @@ def from_v3_response(v3_response: dict | None) -> CoreAnswer:
         medium_term=answer.get("medium_term") or "",
         long_term=answer.get("long_term") or "",
         horizon=(v3_response.get("investment_verdict") or {}).get("horizon") or None,
+        switch_holding=v3_response.get("switch_holding"),
+        switch_target=v3_response.get("switch_target"),
+        intent=v3_response.get("intent") or "general",
         confidence_breakdown=copy.deepcopy(v3_response.get("confidence_breakdown") or {}),
     )

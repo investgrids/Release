@@ -64,9 +64,12 @@ import time
 import structlog
 
 from app.services.ai_search.aev2 import citation_validator, language_gate, schema, telemetry
+from app.services.ai_search.aev2.comparison import assemble_comparison
 from app.services.ai_search.aev2.confidence import compute_aev2_confidence
+from app.services.ai_search.aev2.event_impact import assemble_event_impact
 from app.services.ai_search.aev2.mode import AEV2Mode
 from app.services.ai_search.aev2.price_movement import build_price_movement_groups
+from app.services.ai_search.aev2.switch_analysis import assemble_switch_analysis
 from app.services.ai_search.core_answer import CoreAnswer
 
 log = structlog.get_logger(__name__)
@@ -200,10 +203,33 @@ def assemble_aev2(core: CoreAnswer, *, mode: AEV2Mode) -> dict | None:
         ]
 
         confidence = compute_aev2_confidence(core)
+
+        # switch_analysis (aev2.2) + comparison (aev2.3) + event_impact
+        # (aev2.4, 2026-09-22) — all three reuse the SAME catalog/
+        # claim_refs/claim_supporting_text/recognized_symbols/name_tokens
+        # already computed above, and each is None for any query its own
+        # assembler doesn't apply to (see each module's own docstring for
+        # its "not applicable" scope).
+        switch_analysis = assemble_switch_analysis(
+            core, catalog_ids=catalog_ids, claim_refs=claim_refs,
+            claim_supporting_text=claim_supporting_text,
+            recognized_symbols=recognized_symbols, name_tokens=name_tokens,
+        )
+        comparison = assemble_comparison(
+            core, catalog_ids=catalog_ids, claim_refs=claim_refs,
+            claim_supporting_text=claim_supporting_text,
+            recognized_symbols=recognized_symbols, name_tokens=name_tokens,
+        )
+        # event_impact deliberately does NOT take claim_refs/claim_
+        # supporting_text/recognized_symbols/name_tokens — see its own
+        # docstring for why the globally-scoped citation set (correct
+        # for switch_analysis/comparison's multi-company dimensions) is
+        # too wide for a single-Event contract.
+        event_impact = assemble_event_impact(core, catalog_ids=catalog_ids)
         stage_ms["restructuring_ms"] = round((time.monotonic() - _t_stage) * 1000, 1)
 
         response = schema.build_response(
-            direct_conclusion={"text": dc_text, "evidence_refs": dc_refs},
+            direct_conclusion=schema.build_validated_claim(dc_text, dc_refs, had_violation=dc_violation),
             what_happened={"summary": wh_text, "evidence_refs": wh_refs, "items": []},
             why_it_matters={"text": wim_text, "evidence_refs": wim_refs, "is_fallback": wim_violation},
             companies_affected=price_movement,
@@ -212,6 +238,9 @@ def assemble_aev2(core: CoreAnswer, *, mode: AEV2Mode) -> dict | None:
             evidence=catalog,
             related_intelligence={"opportunities": [], "events": related_events, "ripple": None},
             confidence=confidence,
+            switch_analysis=switch_analysis,
+            comparison=comparison,
+            event_impact=event_impact,
         )
     except Exception as exc:
         stage_ms["failed_after_ms"] = round((time.monotonic() - _t0) * 1000, 1)

@@ -30,6 +30,7 @@ from app.services.ai_search import session_context as session_context_mod
 from app.services.ai_search import postprocess
 from app.services.ai_search import validation as validation_mod
 from app.services.ai_search.schema import SCHEMA_VERSION
+from app.services.ai_search.ui_mode import classify_ui_mode
 from app.services.ai_search.specialists import comparison as comparison_specialist
 from app.services.ai_search.specialists import company as company_specialist
 from app.services.ai_search.specialists import sector as sector_specialist
@@ -200,6 +201,8 @@ async def _run_v3_steps(query: str, db: AsyncSession, session_context: dict | No
     if await _detect_market_pulse_async(query):
         mp_result = await _run_market_pulse_search(query)
         mp_result["schema_version"] = SCHEMA_VERSION
+        mp_result["intent"] = "market_pulse"
+        mp_result["ui_mode"] = "market_pulse"
         yield "finalizing", STAGE_LABELS["finalizing"], mp_result
         return
 
@@ -407,7 +410,7 @@ def _filter_events_to_entities(events: list[dict], symbols: list[str]) -> list[d
 
 def _build_degraded_response(
     query: str, ai: dict, evidence, specialist_kind: str, degraded_reason: str,
-    entities: dict, response_id: str,
+    entities: dict, response_id: str, intent_data: dict | None = None,
 ) -> dict:
     """Fail-closed shape for a genuinely failed synthesis (was_degraded=True
     from specialist.run()).
@@ -437,11 +440,22 @@ def _build_degraded_response(
         "Full AI analysis wasn't available for this query — showing the real evidence "
         "found, with no generated conclusion, confidence score, or outlook."
     )
+    # ui_mode/intent are structural routing metadata, not a verdict —
+    # safe to carry through even here (they only tell the frontend which
+    # shell variant's evidence layout to use, e.g. a comparison-shaped
+    # degraded response still benefits from the 2-entity evidence table
+    # rather than the single-entity one). Passed through the shared
+    # builder itself (not bolted on after) so this stays on the same key
+    # skeleton as safety_gate's degraded response.
     return build_degraded_shape(
         query=query, response_id=response_id, schema_version=SCHEMA_VERSION,
         specialist_kind=specialist_kind, degraded_reason=degraded_reason, summary=summary,
         related_events=related_events, sources_count=sources_count,
         source_attribution=[f"event:{e.get('id')}" for e in related_events if e.get("id")],
+        intent=(intent_data or {}).get("intent", "general"),
+        ui_mode=classify_ui_mode(
+            specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query,
+        ),
     )
 
 
@@ -466,6 +480,7 @@ async def _assemble_response(
         return _build_degraded_response(
             query, ai, evidence, specialist_kind,
             ai.get("_degraded_reason", "parse_failure"), entities, str(uuid.uuid4()),
+            intent_data=intent_data,
         )
 
     from app.services.ai_search.enrichment import (
@@ -591,6 +606,26 @@ async def _assemble_response(
         "response_id": response_id,
         "schema_version": SCHEMA_VERSION,
         "specialist": specialist_kind,
+        # Additive (2026-09-21, AI Answer UI work): intent is decision_
+        # intent.py's own 12-label classification, unchanged; ui_mode is
+        # ui_mode.py's projection of it (+ specialist_kind + entities)
+        # onto one of the 8 first-release AI Answer layouts. Neither
+        # replaces the other — see ui_mode.py's own docstring for why
+        # this is an interim projection, not the eventual consolidated
+        # IntentResolution contract.
+        "intent": (intent_data or {}).get("intent", "general"),
+        "ui_mode": classify_ui_mode(
+            specialist_kind=specialist_kind, intent_data=intent_data, entities=entities, query=query,
+        ),
+        # Additive (2026-09-22, switch_analysis): the SAME holding/target
+        # company names _route_specialist already resolved into
+        # intent_data for comparison.py's prompt-building — zero new
+        # retrieval. Serialized here specifically so CoreAnswer.
+        # from_v3_response can recover them (intent_data itself is a
+        # local variable that never otherwise reaches this dict) for
+        # aev2/switch_analysis.py's deterministic assembly.
+        "switch_holding": (intent_data or {}).get("holding"),
+        "switch_target": (intent_data or {}).get("target"),
         # P5 Stage 2, item 5: degraded_reason is the single source of truth;
         # synthesis_incomplete is derived from it, never set independently.
         # Priority: was_degraded (failed to generate at all) > grounding_collapsed
@@ -704,6 +739,13 @@ async def _assemble_response(
         "ai_conclusion": ai.get("ai_conclusion", {}),
         "evidence_score": evidence_score,
         "confidence_breakdown": confidence_breakdown,
+        # The frontend-facing confidence contract (2026-09-21 AI Answer UI
+        # work) — same canonical formula aev2/confidence.py uses, shared
+        # via postprocess.build_confidence_contract so the frontend never
+        # recomputes weighting itself. Exposed on every V3 response, not
+        # gated by AEV2 mode, since the new AI Answer shell needs it for
+        # local end-to-end UI work while AEV2 assembly stays off publicly.
+        "confidence": postprocess.build_confidence_contract(confidence_breakdown),
         "source_attribution": evidence.to_source_ids(),
         "validation": {
             "repairs": validation_report.repairs,

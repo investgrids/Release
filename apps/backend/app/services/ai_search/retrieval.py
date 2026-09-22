@@ -36,6 +36,22 @@ def _event_row_to_dict(e: Event) -> dict:
             e.event_date.strftime("%b %d, %Y") if e.event_date else
             e.published_at.strftime("%b %d, %Y") if e.published_at else ""
         ),
+        # Additive (2026-09-22, event_impact audit): projected at this
+        # existing retrieval boundary rather than adding a second query
+        # from AEV2 assembly. `source` is the real ingestion adapter name
+        # (Event.source, e.g. "nse_announcements") — the event_impact
+        # eligibility gate's "Event.source is non-null" check reads this
+        # exact key. `event_date`/`published_at` are raw ISO timestamps
+        # (unlike the pre-formatted "date" display string above, which
+        # every existing consumer of this dict already depends on
+        # unchanged) — event_date is when the event itself occurred,
+        # published_at is when MarketRipple ingested it; event_impact
+        # needs the former specifically for any future post-event price
+        # window, and the eligibility gate's "published_at is present"
+        # check reads the latter.
+        "source": e.source or "",
+        "event_date": e.event_date.isoformat() if e.event_date else None,
+        "published_at": e.published_at.isoformat() if e.published_at else None,
     }
 
 

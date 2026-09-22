@@ -65,14 +65,18 @@ tests for the fixture-based proof.
 from __future__ import annotations
 
 from app.services.ai_search.core_answer import CoreAnswer
+from app.services.ai_search.postprocess import build_confidence_contract
 from app.services.confidence_service import _THRESHOLDS
 
-_WEIGHTS = {
-    "evidence_quality": 0.35,
-    "market_confirmation": 0.25,
-    "historical_similarity": 0.25,
-    "data_freshness": 0.15,
-}
+# Weighting/missing-component arithmetic now lives in postprocess.py's
+# build_confidence_contract (review, 2026-09-21: a frontend build had
+# reimplemented this same formula in React, creating a second scoring
+# path — the fix was to factor the arithmetic out to one place, shared
+# by this module AND the plain V3 response, not to duplicate it again
+# here). postprocess.py has no aev2/ dependency, so importing it here
+# does not violate aev2/'s own import-isolation rule (which forbids the
+# reverse direction only — see test_aev2_package_never_imports_provider_
+# evidence_or_entity_resolution).
 
 
 def _score_to_level(score: float) -> str:
@@ -84,22 +88,19 @@ def compute_aev2_confidence(core: CoreAnswer) -> dict:
     company-attribution input (Build 1's first draft took a
     `price_movement` argument for exactly the two unapproved components
     this restores away from; there is nothing left for this function to
-    read from that source, so the parameter is gone, not just unused)."""
-    breakdown = core.confidence_breakdown or {}
-    available = {
-        name: float(breakdown[name])
-        for name in _WEIGHTS
-        if breakdown.get(name) is not None
-    }
-    if not available:
-        return {"score": None, "level": "unscored", "components_available": []}
+    read from that source, so the parameter is gone, not just unused).
 
-    # Fixed weights, NEVER renormalized — a missing component contributes
-    # exactly zero, not "redistributed" among the components that are
-    # present. See module docstring for why renormalizing was wrong.
-    score = round(sum(value * _WEIGHTS[name] for name, value in available.items()), 1)
+    Reshapes build_confidence_contract's {status, score, components}
+    into this module's own established {score, level, components_available}
+    return shape — unchanged from before the refactor, so existing AEV2
+    callers/tests keep working."""
+    contract = build_confidence_contract(core.confidence_breakdown or {})
+    if contract["score"] is None:
+        return {"score": None, "level": "unscored", "components_available": []}
     return {
-        "score": score,
-        "level": _score_to_level(score),
-        "components_available": sorted(available.keys()),
+        "score": contract["score"],
+        "level": _score_to_level(contract["score"]),
+        "components_available": sorted(
+            name for name, value in contract["components"].items() if value is not None
+        ),
     }

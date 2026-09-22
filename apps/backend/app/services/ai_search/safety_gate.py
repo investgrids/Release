@@ -98,7 +98,7 @@ def build_v3_safety_degraded_response(result: dict, field_label: str) -> dict:
         "with no generated conclusion, confidence score, or outlook."
     )
     answer = result.get("answer") or {}
-    return build_degraded_shape(
+    shape = build_degraded_shape(
         query=result.get("query", ""),
         response_id=result.get("response_id"),
         schema_version=result.get("schema_version"),
@@ -115,4 +115,13 @@ def build_v3_safety_degraded_response(result: dict, field_label: str) -> dict:
         evidence_score=result.get("evidence_score", {}),
         source_attribution=result.get("source_attribution", []),
         validation=result.get("validation") or {"repairs": [], "omissions": [], "contradiction_flagged": False},
+        # Structural routing metadata, not a verdict — the pre-gate
+        # response already resolved these; carrying them through lets the
+        # frontend keep using the right shell variant's evidence layout
+        # even here. Passed through the shared builder itself (not
+        # bolted on after) so this stays on the same key skeleton as
+        # pipeline's own degraded response.
+        intent=result.get("intent", "general"),
+        ui_mode=result.get("ui_mode"),
     )
+    return shape

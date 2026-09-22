@@ -58,15 +58,34 @@ def build_degraded_shape(
     evidence_score: dict | None = None,
     validation: dict | None = None,
     sources_count: int = 0,
+    intent: str = "general",
+    ui_mode: str | None = None,
 ) -> dict:
     """Pure function — no I/O, no logging (each caller logs its own
     reason/field before calling this). Every list/dict default is a
-    fresh honest-empty value, never a shared mutable default."""
+    fresh honest-empty value, never a shared mutable default.
+
+    `intent`/`ui_mode` (2026-09-21 AI Answer UI work) are structural
+    routing metadata the pre-degradation response already resolved, not a
+    verdict — carrying them through the shared builder (rather than each
+    caller bolting them onto the returned dict afterward) is what keeps
+    both real degraded paths on the exact same key skeleton, which
+    test_ai_search_consolidation.py's
+    test_pipeline_and_safety_gate_degraded_responses_share_one_key_skeleton
+    and test_ai_search_single_pipeline_runtime.py's
+    test_language_gate_rejection_records_zero_predictions_and_uses_shared_builder
+    both assert directly."""
     related_events = related_events if related_events is not None else []
     return {
         "query": query, "response_id": response_id, "schema_version": schema_version,
         "specialist": specialist_kind,
         "degraded_reason": degraded_reason,
+        "intent": intent, "ui_mode": ui_mode,
+        # A genuinely failed/degraded synthesis has no resolved switch
+        # roles worth carrying — honestly None, same key as the success
+        # path (see build_confidence_contract's own precedent for why
+        # this lives in the shared builder, not bolted on by a caller).
+        "switch_holding": None, "switch_target": None,
         "synthesis_incomplete": True,
         "answer": {
             "summary": summary, "bottom_line": summary,
@@ -99,6 +118,17 @@ def build_degraded_shape(
             "corroborating_source_count": sources_count,
         },
         "confidence_breakdown": {"final_confidence": None, "level": "unscored"},
+        # Same honest-empty shape build_confidence_contract returns for
+        # an all-missing breakdown — hardcoded rather than imported so
+        # this module keeps its zero-dependency posture (see module
+        # docstring: callers, not this shape, own what's trustworthy).
+        "confidence": {
+            "status": "unscored", "score": None,
+            "components": {
+                "evidence_quality": None, "market_confirmation": None,
+                "historical_similarity": None, "data_freshness": None,
+            },
+        },
         "source_attribution": source_attribution if source_attribution is not None else [],
         "validation": validation if validation is not None else {"repairs": [], "omissions": [], "contradiction_flagged": False},
         "market_impact_horizons": {}, "what_to_monitor": [], "ai_reasoning_methods": [],

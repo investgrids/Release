@@ -51,6 +51,7 @@ from app.services.ai_search.advisory_language import scan as _shared_scan
 # just states plainly that the generated text didn't pass the check.
 FALLBACK_TEXT = {
     "direct_conclusion": "A direct conclusion could not be shown for this query because the generated text did not pass the research-language check.",
+    "direct_comparison": "A direct comparison could not be shown for this query because the generated text did not pass the research-language check.",
     "what_happened": "A summary of what happened could not be shown because the generated text did not pass the research-language check.",
     "why_it_matters": "An analysis could not be shown for this query because the generated text did not pass the research-language check.",
     "risk": "A risk statement could not be shown because the generated text did not pass the research-language check.",

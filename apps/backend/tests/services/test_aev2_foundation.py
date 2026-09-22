@@ -125,7 +125,9 @@ def test_should_emit_telemetry_false_only_for_off():
 
 def test_build_response_default_shape_is_fully_honest_empty():
     r = schema.build_response()
-    assert r["direct_conclusion"] == {"text": "", "evidence_refs": []}
+    # aev2.2 (2026-09-22): direct_conclusion gained validation_status —
+    # see schema.py's build_validated_claim docstring.
+    assert r["direct_conclusion"] == {"text": "", "evidence_refs": [], "validation_status": "validated"}
     assert r["what_happened"] == {"summary": "", "evidence_refs": [], "items": []}
     assert r["why_it_matters"] == {"text": "", "evidence_refs": [], "is_fallback": False}
     assert r["companies_affected"] == {"currently_higher": [], "currently_lower": [], "omitted_unattributed": []}
@@ -135,7 +137,10 @@ def test_build_response_default_shape_is_fully_honest_empty():
     assert r["related_intelligence"] == {"opportunities": [], "events": [], "ripple": None}
     assert r["follow_up_groups"] == []
     assert r["confidence"] == {"score": None, "level": "unscored", "components_available": []}
-    assert r["schema_version"] == "aev2.1"
+    assert r["switch_analysis"] is None
+    assert r["comparison"] is None
+    assert r["event_impact"] is None
+    assert r["schema_version"] == "aev2.4"
 
 
 def test_build_response_never_carries_verdict_shaped_fields():
