@@ -1,35 +1,43 @@
 """
 The one shared post-processing pipeline every /api/ai/search* route runs
 its resolved V3 core response through, before it ever reaches a client —
-and the one place the canonical CoreAnswer is built for presentation,
-and the one place a search is recorded to the prediction/calibration
-learning engine:
+and the one place a canonical core is built for presentation, and the
+one place a search is recorded to the prediction/calibration learning
+engine:
 
-    cached/fresh V3 core
-    -> recommendation-language safety gate (unconditional, any AEV2 mode)
+    cached/fresh V3 core (research-shaped OR market-pulse-shaped)
+    -> recommendation-language safety gate (unconditional, any AEV2 mode;
+       shape-aware implementation, same boundary)
     -> honest degraded response on violation
-    -> CoreAnswer.from_v3_response (one immutable projection)
-    -> optional AEV2 assembly, reading only the CoreAnswer
-    -> prediction recording (fresh + clean only — see below)
+    -> one immutable CanonicalAnswerCore projection (CoreAnswer OR
+       CoreMarketPulse — see aev2/assemble.py's own CanonicalAnswerCore
+       docstring for why no shared base class ties them together)
+    -> optional AEV2 assembly, reading only that canonical core
+       (assemble_aev2 itself dispatches on which variant it received)
+    -> prediction recording (research only — fresh + clean only, see
+       below)
     -> strip internal-only attribution plumbing (see below)
     -> return the V3 dict presenter (unchanged), optionally + AEV2's
 
-Market Pulse (2026-09-21, intent audit + Phase 1 fix): Market Pulse
-short-circuits _run_v3_steps with a STRUCTURALLY DIFFERENT response
-shape ({"type": "market_pulse", "market_summary": str, ...} — no
-`answer`/`companies`/`investment_verdict`), but every route still calls
-this same finalize_v3_response on whatever _run_v3_steps yields. Before
-this fix, that meant Market Pulse's own generated prose (market_summary/
-sector_narrative/ai_conclusion/what_to_watch_summary/mover narratives)
-passed through completely unscanned — safety_gate.py's fixed field paths
-don't exist on this shape, so find_v3_safety_violation silently found
-nothing to check. This function now detects that shape first and routes
-it through market_pulse_safety.py's own field-aware check instead — a
-parallel, Market-Pulse-specific safety net, not a stretch of the
-SearchResult-specific one. CoreAnswer/AEV2/prediction-recording are all
-SearchResult concepts (confirmed inapplicable by the same audit: from_
-v3_response reads keys this shape doesn't have) and are skipped entirely
-for this shape, not silently run on empty data.
+Market Pulse (2026-09-21, intent audit + Phase 1 fix; restructured
+2026-09-22, Market Pulse AEV2 audit): Market Pulse short-circuits
+_run_v3_steps with a STRUCTURALLY DIFFERENT response shape ({"type":
+"market_pulse", "market_summary": str, ...} — no `answer`/`companies`/
+`investment_verdict`), but every route still calls this same
+finalize_v3_response on whatever _run_v3_steps yields. The 2026-09-21
+fix routed this shape through market_pulse_safety.py's own field-aware
+safety check (safety_gate.py's fixed field paths don't exist on this
+shape) but then RETURNED EARLY — a second, independently-wired
+finalization path that never built a canonical core, never ran AEV2,
+never went through the shared serialization gate. The 2026-09-22 audit
+concluded this was the wrong shape for the architecture (Market Pulse
+must not become "a second AI-answer pipeline") — Market Pulse now
+builds its own CoreMarketPulse (core_market_pulse.py) at the exact same
+step CoreAnswer is built for a research query, and flows through every
+step below it identically. Prediction recording is the one step Market
+Pulse still skips deliberately (not one of the required shared
+boundaries — it has no confidence_breakdown/investment-thesis concept
+for the calibration engine to record against).
 
 Internal-only field stripping (2026-09-21, review): pipeline.py's
 response dict carries an "announcements" key (CompanyAnnouncement rows,
@@ -85,6 +93,7 @@ from app.services.ai_search import market_pulse_safety, safety_gate
 from app.services.ai_search.aev2.assemble import assemble_aev2
 from app.services.ai_search.aev2.mode import get_aev2_mode, should_assemble, should_return_to_client
 from app.services.ai_search.core_answer import from_v3_response
+from app.services.ai_search.core_market_pulse import from_market_pulse_response
 
 # Internal-only fields CoreAnswer is allowed to read from `result` that
 # must never be serialized to an actual HTTP caller — see this module's
@@ -118,32 +127,42 @@ def finalize_v3_response(
     if result is None:
         return result
 
-    # ── 0. Market Pulse — a structurally different shape, never a
-    # SearchResult. Its own safety net; no CoreAnswer, no AEV2, no
-    # prediction recording (none of those apply to this shape at all —
-    # see module docstring). Returns here, never falls through to the
-    # SearchResult-specific steps below. ────────────────────────────────
-    if result.get("type") == "market_pulse":
+    is_market_pulse = result.get("type") == "market_pulse"
+
+    # ── 1. Deterministic recommendation-language safety net — runs
+    # UNCONDITIONALLY, regardless of AI_SEARCH_AEV2_MODE, for BOTH
+    # canonical-core variants. Market Pulse's response shape has no
+    # `answer.bottom_line`/`ai_conclusion.investor_action_note`/etc. for
+    # safety_gate.py's fixed field paths to find (see that module's own
+    # docstring for the real incident this closes for the research
+    # shape) — market_pulse_safety.py is the shape-aware implementation
+    # of this SAME boundary for Market Pulse's own field set
+    # (market_summary/sector_narrative/ai_conclusion/
+    # what_to_watch_summary/mover narratives). ──────────────────────────
+    if is_market_pulse:
         violated = market_pulse_safety.find_market_pulse_violation(result)
         if violated:
             result = market_pulse_safety.build_market_pulse_degraded_response(result, violated)
-        return result
+    else:
+        violated_field = safety_gate.find_v3_safety_violation(result)
+        if violated_field:
+            result = safety_gate.build_v3_safety_degraded_response(result, violated_field)
 
-    # ── 1. Deterministic recommendation-language safety net — runs
-    # UNCONDITIONALLY, regardless of AI_SEARCH_AEV2_MODE. See
-    # safety_gate.py's module docstring for the real incident this closes.
-    violated_field = safety_gate.find_v3_safety_violation(result)
-    if violated_field:
-        result = safety_gate.build_v3_safety_degraded_response(result, violated_field)
-
-    # ── 2. One immutable CoreAnswer, built once from whatever `result`
-    # is at this point (the real response, or the safety-degraded one
-    # above) — the single object every presenter (V3's own dict, already
-    # `result`; AEV2, below) derives from. ─────────────────────────────
-    core = from_v3_response(result)
+    # ── 2. One immutable CanonicalAnswerCore, built once from whatever
+    # `result` is at this point (the real response, or the safety-
+    # degraded one above) — the single object every presenter (V3's own
+    # dict, already `result`; AEV2, below) derives from. Market Pulse
+    # builds CoreMarketPulse here instead of CoreAnswer — same step, same
+    # "build exactly once, unconditionally" discipline, never a second
+    # finalization path that skips this. ────────────────────────────────
+    core = from_market_pulse_response(result) if is_market_pulse else from_v3_response(result)
 
     # ── 3. Optional AEV2 assembly — a presenter over `core`, never over
-    # `result` directly, and never mutating either. ────────────────────
+    # `result` directly, and never mutating either. assemble_aev2 itself
+    # dispatches on which CanonicalAnswerCore variant `core` is (see its
+    # own docstring) — this call site never needs to know or care which
+    # one it's holding. should_return_to_client is the SAME public-
+    # serialization gate for both. ──────────────────────────────────────
     from app.core.security import has_valid_admin_key
 
     aev2_mode = get_aev2_mode()
@@ -154,14 +173,17 @@ def finalize_v3_response(
         ):
             result = {**result, "answer_experience_v2": aev2_value}
 
-    # ── 4. Prediction recording — fresh + clean only. Never on a cache
-    # hit (the same answer already recorded one the first time it was
-    # computed) and never on a gate rejection (result["synthesis_incomplete"]
-    # is True on both the specialist-degraded and the safety-gate-degraded
-    # shape — see degraded_shape.py). Fire-and-forget, exactly as the
-    # prior in-pipeline call site was — a prediction-store failure must
-    # never affect the answer already being returned. ──────────────────
-    if not was_cached and not result.get("synthesis_incomplete"):
+    # ── 4. Prediction recording — research only. Not one of the shared
+    # canonical-core boundaries: Market Pulse has no confidence_breakdown
+    # or investment-thesis concept for the calibration engine to record
+    # a prediction against (see module docstring). Fresh + clean only
+    # for the research path — never on a cache hit (the same answer
+    # already recorded one the first time it was computed) and never on
+    # a gate rejection (result["synthesis_incomplete"] is True on both
+    # the specialist-degraded and the safety-gate-degraded shape — see
+    # degraded_shape.py). Fire-and-forget — a prediction-store failure
+    # must never affect the answer already being returned. ─────────────
+    if not is_market_pulse and not was_cached and not result.get("synthesis_incomplete"):
         from app.services.ai_search.prediction_recording import store_search_predictions
 
         breakdown = result.get("confidence_breakdown") or {}
@@ -176,6 +198,9 @@ def finalize_v3_response(
         )
 
     # ── 5. Strip internal-only attribution plumbing — the one point
-    # every route and every cache-hit/fresh/mode combination passes
-    # through before a response is actually returned. ──────────────────
+    # every route, every cache-hit/fresh/mode combination, and both
+    # canonical-core variants pass through before a response is actually
+    # returned. A no-op for Market Pulse (its shape never carries
+    # "announcements"), applied unconditionally anyway rather than
+    # special-cased — one shared exit, not two. ─────────────────────────
     return _strip_internal_only_fields(result)

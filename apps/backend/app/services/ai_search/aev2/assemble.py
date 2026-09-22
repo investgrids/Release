@@ -67,12 +67,25 @@ from app.services.ai_search.aev2 import citation_validator, language_gate, schem
 from app.services.ai_search.aev2.comparison import assemble_comparison
 from app.services.ai_search.aev2.confidence import compute_aev2_confidence
 from app.services.ai_search.aev2.event_impact import assemble_event_impact
+from app.services.ai_search.aev2.market_pulse import assemble_market_pulse
 from app.services.ai_search.aev2.mode import AEV2Mode
 from app.services.ai_search.aev2.price_movement import build_price_movement_groups
 from app.services.ai_search.aev2.switch_analysis import assemble_switch_analysis
 from app.services.ai_search.core_answer import CoreAnswer
+from app.services.ai_search.core_market_pulse import CoreMarketPulse
 
 log = structlog.get_logger(__name__)
+
+# CanonicalAnswerCore (2026-09-22, Market Pulse AEV2 audit) — the
+# discriminated union every presenter downstream of response_finalize.py
+# now reads from. No shared base class or `kind` field ties the two
+# together (see core_market_pulse.py's own docstring for why); Python's
+# `isinstance` below is the discriminant. Both variants share this exact
+# `assemble_aev2` entry point, the same OFF-mode short-circuit, and the
+# same telemetry module (telemetry.emit_assembly_success/_failed) — a
+# market-pulse-shaped query never reaches a second, independently-wired
+# AEV2 pipeline.
+CanonicalAnswerCore = CoreAnswer | CoreMarketPulse
 
 
 def _build_singular_field(
@@ -119,14 +132,43 @@ def _build_list_field_texts(
     return kept
 
 
-def assemble_aev2(core: CoreAnswer, *, mode: AEV2Mode) -> dict | None:
-    """Returns a freshly-built answer_experience_v2 dict, or None if
-    `mode` is OFF (assembly never runs — see mode.should_assemble) or if
-    assembly raised (telemetered, then degraded to None). Reads only from
-    `core`; never mutates it, never re-derives entities/evidence, never
-    calls a provider."""
+def assemble_aev2(core: CanonicalAnswerCore, *, mode: AEV2Mode) -> dict | None:
+    """Returns a freshly-built AEV2 dict, or None if `mode` is OFF
+    (assembly never runs — see mode.should_assemble) or if assembly
+    raised (telemetered, then degraded to None). Reads only from `core`;
+    never mutates it, never re-derives entities/evidence, never calls a
+    provider.
+
+    Dispatches on which CanonicalAnswerCore variant `core` is — a
+    CoreMarketPulse gets the entirely different AEV2MarketPulse shape
+    (aev2/market_pulse.py), never nested inside the research-shaped
+    envelope schema.build_response defines below. Both branches share
+    this one entry point, the OFF-mode short-circuit above, and the
+    telemetry module (see each branch's own emit_assembly_success/
+    _failed calls) — this is the "same AEV2 dispatch" boundary, not two
+    independently-wired assembly pipelines that happen to live in the
+    same file."""
     if mode == AEV2Mode.OFF:
         return None
+
+    if isinstance(core, CoreMarketPulse):
+        _t0 = time.monotonic()
+        try:
+            response = assemble_market_pulse(core)
+        except Exception as exc:
+            log.warning("ai_search.aev2_market_pulse_assembly_exception", exc=str(exc)[:160])
+            telemetry.emit_assembly_failed(
+                query=core.query, mode=mode.value, failure_reason="market_pulse_assembly_exception",
+                stage_ms={"failed_after_ms": round((time.monotonic() - _t0) * 1000, 1)},
+            )
+            return None
+        telemetry.emit_assembly_success(
+            query=core.query, mode=mode.value, response_id=core.response_id,
+            had_language_violation=response["synthesis_status"] == "unavailable" and bool(core.generated_summary),
+            is_fallback=response["synthesis_status"] == "unavailable",
+            stage_ms={"total_ms": round((time.monotonic() - _t0) * 1000, 1)},
+        )
+        return response
 
     _t0 = time.monotonic()
     stage_ms: dict[str, float] = {}

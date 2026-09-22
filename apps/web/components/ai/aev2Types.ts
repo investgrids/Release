@@ -234,6 +234,169 @@ export interface AEV2EventImpact {
   direct_conclusion: AEV2DirectConclusion;
 }
 
+// ── market_pulse (2026-09-22, canonical-core audit) — mirrors aev2/
+// market_pulse.py's assemble_market_pulse() shape exactly. This is a
+// FULLY SEPARATE top-level shape from AEV2Response below, never nested
+// inside it — assemble_aev2() (the shared dispatcher) returns EITHER
+// this OR the standard envelope, dispatched on which CanonicalAnswerCore
+// variant (CoreAnswer | CoreMarketPulse) it was given. See aev2/
+// assemble.py's own CanonicalAnswerCore docstring for why Market Pulse
+// is not "a second AI-answer pipeline" despite this structural
+// difference: both variants pass through the identical response
+// finalizer / safety gate / telemetry boundary / cache discipline /
+// AEV2 dispatch / public-serialization gate — only the PRESENTED SHAPE
+// differs, because a market snapshot and a company research answer are
+// genuinely different kinds of content.
+//
+// No standard research confidence formula (evidence_quality/market_
+// confirmation/historical_similarity/data_freshness) — Market Pulse has
+// no comparable historical_similarity or company-attribution contract;
+// AEV2MarketPulseEvidenceCoverage below is what it shows instead.
+
+// Every market value carries its own provenance envelope rather than a
+// bare display string — never a fresh per-item fetch timestamp (the
+// whole payload is fetched in one batch), `as_of`/`session` are the
+// SAME single generation timestamp/session the top-level response
+// carries; `source` names which real feed produced that CATEGORY of
+// value (a fixed label, e.g. "yfinance_sector_etf" — never SectorData,
+// never invented per item).
+export interface AEV2MarketValue {
+  value: string;
+  as_of: string | null;
+  source: string;
+  session: string | null;
+}
+
+export interface AEV2MarketIndex {
+  name: string;
+  ticker: string;
+  price: AEV2MarketValue | null;
+  change: AEV2MarketValue | null;
+  chart: { label: string; value: number }[];
+}
+
+export interface AEV2SectorMove {
+  id: string;
+  name: string;
+  change: AEV2MarketValue | null;
+  momentum_score: number | null;
+}
+
+export interface AEV2VerifiedDriver {
+  driver: string;
+  driver_type: string;
+  confidence_tier: string;
+  driver_strength: number | null;
+  // "event:{id}" — real EventTriage.event_id rows, never invented. []
+  // is the honest "no real driver found" state, not a placeholder.
+  evidence_refs: string[];
+}
+
+export interface AEV2MarketMover {
+  company: string;
+  ticker: string;
+  price: AEV2MarketValue | null;
+  change: AEV2MarketValue | null;
+  verified_drivers: AEV2VerifiedDriver[];
+  // null when generated text didn't pass validation (advisory-language
+  // scan, numbers_supported, entities_supported against the real
+  // structured payload) — omitted, never a fabricated placeholder.
+  narrative: string | null;
+}
+
+export interface AEV2ThemeMomentum {
+  theme: string;
+  score: number | null;
+  momentum: string | null;
+  price_signal: number | null;
+  news_signal: number | null;
+}
+
+export interface AEV2OpportunityRef {
+  title: string;
+  href: string;
+  // Explicitly an Opportunity score, never a forecast probability —
+  // see aev2/market_pulse.py's own _opportunity_ref docstring. Already
+  // exclusively sourced from public, non-shadow rows upstream.
+  opportunity_score: number | null;
+}
+
+// Discriminated union (2026-09-22 spec) — the two branches are NEVER
+// rendered with the same trust label. "ai_synthesis" is declared here
+// for completeness of the type (matching the approved spec's own
+// shape) but aev2/market_pulse.py's _risk_context never actually
+// produces it in this slice: that branch has no real Event or
+// structured fact behind it, so it can never carry a valid
+// evidence_refs entry, and the rule is to omit rather than substitute
+// uncited narrative — see that function's own docstring. Frontend
+// rendering rule: "tracked_event" -> "Verified market risk"; the
+// (currently unreachable) "ai_synthesis" branch -> "AI-identified
+// consideration". Neither branch carries the raw self-rated confidence
+// number backing it — dropped entirely upstream.
+export type AEV2RiskContext =
+  | {
+      source: "tracked_event";
+      event_id: string;
+      title: string;
+      published_at: string | null;
+      evidence_refs: string[];
+    }
+  | {
+      source: "ai_synthesis";
+      text: string;
+      validation_status: "validated";
+      evidence_refs: string[];
+    };
+
+export interface AEV2CalendarEvent {
+  id: string;
+  title: string;
+  date: string | null;
+  category: string | null;
+  description: string | null;
+}
+
+export interface AEV2MarketPulseEvidenceCoverage {
+  movers_with_driver: number;
+  movers_total: number;
+  tracked_event_count: number;
+  calendar_event_count: number;
+}
+
+export interface AEV2MarketPulse {
+  kind: "market_pulse";
+  as_of: string | null;
+  market_session: string | null;
+  market_status: string | null;
+
+  indices: AEV2MarketIndex[];
+  sector_movement: {
+    leading: AEV2SectorMove[];
+    lagging: AEV2SectorMove[];
+  };
+  movers: {
+    gainers: AEV2MarketMover[];
+    losers: AEV2MarketMover[];
+    most_active: AEV2MarketMover[];
+  };
+
+  theme_momentum: AEV2ThemeMomentum[];
+  biggest_opportunity: AEV2OpportunityRef | null;
+  risk_context: AEV2RiskContext | null;
+  upcoming_events: AEV2CalendarEvent[];
+
+  // Both null when generated text failed validation — the structured
+  // fields above remain fully populated regardless (see
+  // synthesis_status). Reuses the same shared validated-claim shape
+  // (AEV2DirectConclusion) every other AEV2 mode's claims use — no
+  // per-mode validity boolean.
+  generated_summary: AEV2DirectConclusion | null;
+  generated_conclusion: AEV2DirectConclusion | null;
+
+  synthesis_status: "complete" | "unavailable";
+  evidence_coverage: AEV2MarketPulseEvidenceCoverage;
+}
+
 export interface AEV2Response {
   direct_conclusion: AEV2DirectConclusion;
   what_happened: AEV2WhatHappened;

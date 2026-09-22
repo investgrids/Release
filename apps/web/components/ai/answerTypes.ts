@@ -7,7 +7,7 @@
 // falling through to a generic "successful answer" render.
 import type { SearchResult, UIMode, ConfidenceContract } from "@/app/ai-search/AISearchClient";
 import type { EvidenceRow, EvidenceCoverageSummary } from "./AIAnswerShell";
-import type { AEV2Response, AEV2CompaniesAffected, AEV2SwitchAnalysis, AEV2Comparison, AEV2EventImpact } from "./aev2Types";
+import type { AEV2Response, AEV2CompaniesAffected, AEV2SwitchAnalysis, AEV2Comparison, AEV2EventImpact, AEV2MarketPulse } from "./aev2Types";
 
 interface AnswerBase {
   query: string;
@@ -537,4 +537,42 @@ export function toEventImpactAEV2Answer(
   }
 
   return { ui_mode: "event_impact", query: result.query, aev2, eventImpact: ei };
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// market_pulse — sourced from assemble_aev2()'s OWN, fully separate
+// AEV2MarketPulse shape (2026-09-22, canonical-core audit), never
+// nested inside AEV2Response the way event_impact/comparison/switch_
+// analysis are. Same dedicated-type rule as every other AEV2-sourced
+// mode: not part of the AIAnswer union, not reachable from toAIAnswer().
+// Built and tested against fixtures until a dedicated activation
+// commit — see aev2Types.ts's own AEV2MarketPulse doc comment for why
+// this structural difference does not make Market Pulse "a second
+// AI-answer pipeline" (it shares the identical finalizer/safety-gate/
+// telemetry/cache/AEV2-dispatch/serialization boundary on the backend).
+export interface AEV2MarketPulseAnswer {
+  ui_mode: "market_pulse";
+  query: string;
+  aev2: AEV2MarketPulse;
+}
+
+// The minimum eligibility contract (2026-09-22). Deliberately thinner
+// than the other AEV2-sourced gates: Market Pulse has no company/
+// entity-count concept for a SearchResult to disagree with (that
+// classification already happened upstream, at the decision-intent
+// layer, before this ever runs), and assemble_market_pulse() always
+// returns a full object — there is no backend "not applicable" None
+// state to check for here the way event_impact/comparison have. The
+// structured payload (indices/movers/sectors/drivers/themes/
+// opportunity/risk/calendar) is never held back by this gate; only a
+// genuine synthesis_incomplete fails closed to the universal
+// DegradedAnswer, same as every other mode.
+export function toMarketPulseAEV2Answer(
+  result: SearchResult,
+  aev2: AEV2MarketPulse,
+): AEV2MarketPulseAnswer | DegradedAnswer {
+  if (result.synthesis_incomplete) {
+    return toDegraded(result, "synthesis_incomplete");
+  }
+  return { ui_mode: "market_pulse", query: result.query, aev2 };
 }
