@@ -79,8 +79,9 @@ async def test_seed_missing_events_inserts_none_of_the_leaked_fixture_ids_when_i
 async def test_seed_missing_events_still_seeds_normally_when_not_production(db_session):
     """Confirms the new guard doesn't disable the function outright —
     only production is blocked; dev/staging keeps working exactly as
-    before this fix."""
-    from app.db.seed import seed_missing_events
+    before this fix. Real, non-leaked demo events (evt-it-deal-slowdown-
+    2026, evt-semiconductor-plc-2026) still seed."""
+    from app.db.seed import EVENTS, seed_missing_events
 
     settings.json_logs = False
     assert settings.is_production is False
@@ -89,7 +90,24 @@ async def test_seed_missing_events_still_seeds_normally_when_not_production(db_s
 
     result = await db_session.execute(select(Event.id))
     ids = set(result.scalars().all())
-    assert set(_LEAKED_FIXTURE_IDS).issubset(ids)
+    assert ids == {e.id for e in EVENTS}
+    assert ids, "seed_missing_events must still seed something in non-production"
+
+
+def test_leaked_fixture_ids_are_gone_from_the_source_list_entirely_not_just_production_guarded():
+    """2026-09-23 fix: seed_missing_events() is an unconditional UPSERT
+    in every non-production environment — deleting the leaked fixture
+    rows via repair_leaked_seed_events.py was never durable on its own,
+    since the very next local dev restart re-inserted them straight from
+    EVENTS (confirmed live during a browser QA review). The only real
+    fix is removing these 3 exact IDs from EVENTS itself, so they can
+    never be reintroduced by seeding in ANY environment again — not
+    production-guarding a hardcoded list that still contains them."""
+    from app.db.seed import EVENTS
+
+    ids = {e.id for e in EVENTS}
+    for leaked_id in _LEAKED_FIXTURE_IDS:
+        assert leaked_id not in ids
 
 
 async def test_seed_missing_stories_and_calendar_also_guarded_in_production(db_session):
