@@ -89,11 +89,15 @@ from __future__ import annotations
 
 import asyncio
 
+import structlog
+
 from app.services.ai_search import market_pulse_safety, safety_gate
 from app.services.ai_search.aev2.assemble import assemble_aev2
 from app.services.ai_search.aev2.mode import get_aev2_mode, should_assemble, should_return_to_client
 from app.services.ai_search.core_answer import from_v3_response
 from app.services.ai_search.core_market_pulse import from_market_pulse_response
+
+log = structlog.get_logger(__name__)
 
 # Internal-only fields CoreAnswer is allowed to read from `result` that
 # must never be serialized to an actual HTTP caller — see this module's
@@ -252,15 +256,48 @@ def finalize_v3_response(
     # shape) — market_pulse_safety.py is the shape-aware implementation
     # of this SAME boundary for Market Pulse's own field set
     # (market_summary/sector_narrative/ai_conclusion/
-    # what_to_watch_summary/mover narratives). ──────────────────────────
+    # what_to_watch_summary/mover narratives).
+    #
+    # 2026-09-23 fix (Phase 1.3 live verification, BEL/HAL switch query):
+    # this gate used to rebuild `result` on ANY violation, even when
+    # `result` was ALREADY a degraded response (synthesis_incomplete=
+    # True) for some earlier, unrelated reason — e.g. a capacity failure
+    # whose own generic fallback text happened to echo the user's raw
+    # query, which itself contained an advisory-shaped phrase ("...
+    # continue holding BEL or switch to HAL?"). The rebuild silently
+    # replaced the real degraded_reason ("capacity") with "recommendation_
+    # language_violation", destroying the original failure cause that
+    # answer_availability (and any operator debugging a real outage)
+    # depends on. `degraded_response()` itself no longer echoes the raw
+    # query (see specialists/base.py's own 2026-09-23 fix) — this is
+    # defense in depth for any OTHER field/path that could still
+    # legitimately or accidentally carry advisory-shaped text on an
+    # already-degraded response. The original degraded_reason is now
+    # immutable once set: a safety hit on an already-degraded response is
+    # recorded in telemetry only, never promoted to the public primary
+    # cause. `recommendation_language_violation` remains reachable only
+    # the way it always mattered — rejecting an otherwise SUCCESSFUL
+    # response whose generated conclusion failed this check. ────────────
     if is_market_pulse:
         violated = market_pulse_safety.find_market_pulse_violation(result)
         if violated:
-            result = market_pulse_safety.build_market_pulse_degraded_response(result, violated)
+            if result.get("synthesis_incomplete"):
+                log.warning(
+                    "ai_search_v3.safety_hit_on_already_degraded_response",
+                    field=violated, original_degraded_reason=result.get("degraded_reason"),
+                )
+            else:
+                result = market_pulse_safety.build_market_pulse_degraded_response(result, violated)
     else:
         violated_field = safety_gate.find_v3_safety_violation(result)
         if violated_field:
-            result = safety_gate.build_v3_safety_degraded_response(result, violated_field)
+            if result.get("synthesis_incomplete"):
+                log.warning(
+                    "ai_search_v3.safety_hit_on_already_degraded_response",
+                    field=violated_field, original_degraded_reason=result.get("degraded_reason"),
+                )
+            else:
+                result = safety_gate.build_v3_safety_degraded_response(result, violated_field)
 
     # ── 2. One immutable CanonicalAnswerCore, built once from whatever
     # `result` is at this point (the real response, or the safety-

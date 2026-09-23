@@ -76,9 +76,22 @@ def degraded_response(query: str) -> dict:
     flatten_nested — it's a synthetic default, not LLM output to translate)."""
     return {
         "degraded": True,
-        "summary": f"Market intelligence analysis for: {query}. Analysis based on real-time database events and news.",
+        # 2026-09-23 fix: previously interpolated the raw query verbatim
+        # into both of these fields. Both are scanned by safety_gate.py's
+        # advisory-language check (they're the two "answer"-shaped
+        # _SAFETY_FIELDS), which has no way to distinguish an echoed USER
+        # question from generated assistant analysis — a query merely
+        # containing an advisory-shaped phrase ("...continue holding BEL
+        # or switch to HAL?") tripped the scanner on the user's own words,
+        # not anything this system generated, and silently overwrote the
+        # real degraded_reason ("capacity") with "recommendation_language_
+        # violation" (see response_finalize.py's now-immutable-original-
+        # reason fix for the other half of this incident). The query is
+        # already shown verbatim in the page's own heading, so repeating
+        # it here added nothing besides this risk.
+        "summary": "Market intelligence analysis for this question. Analysis based on real-time database events and news.",
         "bottom_line": (
-            f"There isn't enough freshly generated analysis to answer “{query}” with confidence right now "
+            "There isn't enough freshly generated analysis to answer this question with confidence right now "
             "— the underlying event and news data is available below, but the synthesis step didn't complete. "
             "Try rephrasing the question or checking back shortly."
         ),
