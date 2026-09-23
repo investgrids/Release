@@ -95,10 +95,39 @@ export function DegradedAnswerLayout({
   // Each explicit unsupported mode gets its OWN specific message — never
   // collapsed into the generic "not supported yet" fallback above, which
   // only fires if sourceUiMode is somehow missing or unrecognized.
-  const notice =
-    answer.reason === "unsupported_mode" && answer.sourceUiMode && answer.sourceUiMode in UNSUPPORTED_MODE_INFO
-      ? UNSUPPORTED_MODE_INFO[answer.sourceUiMode as UnsupportedUIMode]
-      : NOTICE_BY_REASON[answer.reason];
+  //
+  // 2026-09-23 fix (real browser QA finding): every NOTICE_BY_REASON
+  // string above claims "the real evidence found is shown below" —
+  // true when answer.evidenceRows is non-empty, false and misleading
+  // when a query genuinely matched zero news/events/policies (a real,
+  // common case — e.g. "What is the impact of RBI rate cut on banking
+  // stocks?" resolves no company and matches no keyword-searched
+  // evidence at all). Fixed for the 3 reasons actually reachable via
+  // live HTTP today (synthesis_incomplete, unknown_ui_mode, aev2_
+  // unavailable — see this codebase's own invariant test proving every
+  // other reason is either an eligibility-gate rejection unreachable
+  // until AEV2 activates, or provably unreachable full stop); the
+  // remaining reasons keep their static text pending the same fix once
+  // they become live-reachable.
+  const hasEvidence = answer.evidenceRows.length > 0;
+  let notice: string;
+  if (answer.reason === "unsupported_mode" && answer.sourceUiMode && answer.sourceUiMode in UNSUPPORTED_MODE_INFO) {
+    notice = UNSUPPORTED_MODE_INFO[answer.sourceUiMode as UnsupportedUIMode];
+  } else if (answer.reason === "synthesis_incomplete") {
+    notice = hasEvidence
+      ? "The real evidence found is shown below, with no generated conclusion, confidence score, or outlook."
+      : "No related news, events, or policy evidence was found for this query, and the analysis itself didn't complete.";
+  } else if (answer.reason === "unknown_ui_mode") {
+    notice = hasEvidence
+      ? "This question's answer type wasn't recognized by this version of AI Search. The real evidence found is shown below."
+      : "This question's answer type wasn't recognized by this version of AI Search, and no related evidence was found.";
+  } else if (answer.reason === "aev2_unavailable") {
+    notice = hasEvidence
+      ? "This answer's enhanced view isn't available for this response. The real evidence found is shown below."
+      : "This answer's enhanced view isn't available for this response, and no related evidence was found.";
+  } else {
+    notice = NOTICE_BY_REASON[answer.reason];
+  }
 
   return (
     <AIAnswerShell

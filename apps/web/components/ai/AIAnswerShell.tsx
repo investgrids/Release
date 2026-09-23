@@ -242,7 +242,6 @@ function EvidenceCoverageCard({ summary }: { summary: EvidenceCoverageSummary | 
     { label: "exchange / company filing", count: summary.filingSourceCount ?? 0 },
   ].filter(r => r.count > 0);
   const hasConflictSignal = summary.contradictionFlagged !== undefined;
-  if (rows.length === 0 && !hasConflictSignal) return null;
   // 2026-09-22 fix (browser QA content-integrity review): "views are
   // consistent across sources" is a logically invalid conclusion to draw
   // from a single item — consistency/conflict is a comparison between
@@ -251,6 +250,22 @@ function EvidenceCoverageCard({ summary }: { summary: EvidenceCoverageSummary | 
   // at 0 sources there's nothing to say, so the line is omitted entirely.
   const totalSourceCount = summary.newsSourceCount + summary.eventSourceCount
     + summary.policySourceCount + (summary.filingSourceCount ?? 0);
+  // 2026-09-23 fix (real browser QA finding): totalSourceCount is built
+  // from the exact same 4 fields as `rows`, so rows.length === 0 always
+  // means totalSourceCount === 0 too — meaning the omitted-at-zero rule
+  // just above ALSO means neither conflict line ever renders in that
+  // case. contradictionFlagged is produced via `!!result.validation?.
+  // contradiction_flagged` (see buildEvidenceCoverage), which always
+  // coerces to a real boolean, never actual `undefined` — so
+  // hasConflictSignal was true on nearly every response, and the OLD
+  // guard (`rows.length === 0 && !hasConflictSignal`) never fired,
+  // rendering this card with its header and completely empty body
+  // whenever a query matched zero evidence. The only real content this
+  // card can ever show is gated on rows.length > 0 (a coverage row) or
+  // totalSourceCount >= 1 (a conflict line, itself impossible unless
+  // rows is also non-empty) — so rows.length === 0 alone is the correct,
+  // complete "nothing to show" condition.
+  if (rows.length === 0) return null;
   return (
     <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
       <p className="mb-3 flex items-center gap-1.5 text-[13px] font-semibold text-text-primary">

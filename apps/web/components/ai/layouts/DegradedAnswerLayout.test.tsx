@@ -75,3 +75,39 @@ describe("DegradedAnswerLayout — explicit unsupported modes", () => {
     expect(screen.queryByText(/still being built/)).not.toBeInTheDocument();
   });
 });
+
+describe("DegradedAnswerLayout — never claims evidence is 'shown below' when there isn't any (2026-09-23, real browser QA finding)", () => {
+  // Real query that surfaced this live: "What is the impact of RBI rate
+  // cut on banking stocks?" resolved no company and matched zero
+  // keyword-searched news/events/policies, yet the degraded notice still
+  // said "The real evidence found is shown below" with nothing below it.
+  function degradedWithEvidence(reason: "synthesis_incomplete" | "aev2_unavailable", hasEvidence: boolean): DegradedAnswer {
+    const overrides: Record<string, unknown> = hasEvidence
+      ? { related_events: [{ id: "e1", title: "Some real event", date: "2026-09-20", category: "Macro" }] }
+      : { related_events: [], news: [], policies: [] };
+    if (reason === "synthesis_incomplete") overrides.synthesis_incomplete = true;
+    const answer = toAIAnswer(baseSearchResult({ ui_mode: "direct_company_research", ...overrides }));
+    if (answer.ui_mode !== "degraded") throw new Error("expected a degraded answer for this fixture");
+    return answer;
+  }
+
+  it("synthesis_incomplete with zero evidence says so honestly, never claiming evidence is shown below", () => {
+    const answer = degradedWithEvidence("synthesis_incomplete", false);
+    render(<DegradedAnswerLayout answer={answer} onNewSearch={() => {}} />);
+    expect(screen.getByText(/No related news, events, or policy evidence was found/)).toBeInTheDocument();
+    expect(screen.queryByText(/shown below/)).not.toBeInTheDocument();
+  });
+
+  it("synthesis_incomplete WITH real evidence keeps the original 'shown below' copy", () => {
+    const answer = degradedWithEvidence("synthesis_incomplete", true);
+    render(<DegradedAnswerLayout answer={answer} onNewSearch={() => {}} />);
+    expect(screen.getByText(/shown below/)).toBeInTheDocument();
+  });
+
+  it("aev2_unavailable with zero evidence also says so honestly", () => {
+    const answer = degradedWithEvidence("aev2_unavailable", false);
+    render(<DegradedAnswerLayout answer={answer} onNewSearch={() => {}} />);
+    expect(screen.getByText(/no related evidence was found/)).toBeInTheDocument();
+    expect(screen.queryByText(/shown below/)).not.toBeInTheDocument();
+  });
+});

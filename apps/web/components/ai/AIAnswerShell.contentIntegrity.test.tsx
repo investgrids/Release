@@ -94,6 +94,27 @@ describe("AIAnswerShell — dead nav links removed, Methodology kept", () => {
   });
 });
 
+describe("AIAnswerShell — Evidence Coverage card hides entirely when there's nothing to show", () => {
+  it("real browser QA finding (2026-09-23): a query matching zero news/events/policies used to render an empty 'Evidence Coverage' header with no rows and no conflict line beneath it — the card must not render at all", () => {
+    // contradictionFlagged is ALWAYS a real boolean (never undefined) —
+    // see buildEvidenceCoverage's `!!result.validation?.contradiction_
+    // flagged` — so this exact shape (all counts 0, a defined boolean)
+    // is the real one every zero-evidence response produces, not a
+    // contrived edge case.
+    renderShell({
+      evidenceCoverage: { newsSourceCount: 0, eventSourceCount: 0, policySourceCount: 0, contradictionFlagged: false },
+    });
+    expect(screen.queryByText("Evidence Coverage")).not.toBeInTheDocument();
+  });
+
+  it("still renders normally once at least one real source exists", () => {
+    renderShell({
+      evidenceCoverage: { newsSourceCount: 1, eventSourceCount: 0, policySourceCount: 0, contradictionFlagged: false },
+    });
+    expect(screen.getByText("Evidence Coverage")).toBeInTheDocument();
+  });
+});
+
 describe("AIAnswerShell — degraded badge wording and disclaimer deduplication", () => {
   it("shows Limited evidence, never the internal DEGRADED label", () => {
     renderShell({ uiMode: "degraded" });
