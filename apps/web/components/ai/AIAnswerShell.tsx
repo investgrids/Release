@@ -22,7 +22,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, ChevronRight, Plus, SlidersHorizontal, MoreHorizontal,
-  ShieldCheck, GitBranch, Sparkles, ExternalLink,
+  ShieldCheck, Sparkles, ExternalLink,
 } from "lucide-react";
 import { AIDisclaimer } from "./AIDisclaimer";
 import type { UIMode, ConfidenceContract } from "@/app/ai-search/AISearchClient";
@@ -58,7 +58,12 @@ export const UI_MODE_META: Record<ShellMode, { kindLabel: string; badgeLabel: st
   portfolio_review:         { kindLabel: "Portfolio review", badgeLabel: "Portfolio review" },
   earnings_preview:         { kindLabel: "Earnings preview", badgeLabel: "Earnings preview" },
   multi_company_comparison: { kindLabel: "Multi-company comparison", badgeLabel: "Multi-company comparison" },
-  degraded:                 { kindLabel: "Analysis unavailable", badgeLabel: "Degraded" },
+  // 2026-09-22 fix (browser QA content-integrity review): "DEGRADED" is
+  // internal engineering language — kindLabel ("Analysis unavailable")
+  // already tells the user what happened in plain terms right next to
+  // this badge, so the badge itself uses equally plain wording rather
+  // than a system-status word a user has no reason to know the meaning of.
+  degraded:                 { kindLabel: "Analysis unavailable", badgeLabel: "Limited evidence" },
 };
 
 const BREADCRUMB_LABEL: Record<ShellMode, string> = {
@@ -149,6 +154,26 @@ const CONFIDENCE_FACTORS: { key: keyof ConfidenceContract["components"]; label: 
   { key: "data_freshness", label: "Data Freshness", hint: "How recent the underlying evidence is" },
 ];
 
+// 2026-09-22 fix (browser QA content-integrity review): "N verified
+// sources" overstates a header badge that was really counting bare
+// structured market Events with no independently checkable provenance
+// (no named outlet, no source URL — see buildEvidenceRows's own fix for
+// the same underlying gap). "Verified" is honest only when at least one
+// counted source is a named news outlet, a government/regulatory body,
+// or an exchange filing — all of which carry real, checkable
+// attribution; a bare Event with no `source` field does not. Falls back
+// to the more conservative label whenever evidenceCoverage isn't
+// available to prove otherwise.
+function sourceCountBadgeLabel(sourceCount: number, evidenceCoverage: EvidenceCoverageSummary | null | undefined): string {
+  const hasIndependentProvenance = !!evidenceCoverage && (
+    evidenceCoverage.newsSourceCount > 0
+    || evidenceCoverage.policySourceCount > 0
+    || (evidenceCoverage.filingSourceCount ?? 0) > 0
+  );
+  const noun = hasIndependentProvenance ? "verified source" : "linked market event";
+  return `${sourceCount} ${noun}${sourceCount === 1 ? "" : "s"}`;
+}
+
 function barColor(v: number) {
   return v >= 70 ? "from-emerald-500 to-emerald-300" : v >= 40 ? "from-amber-500 to-amber-300" : "from-rose-500 to-rose-300";
 }
@@ -218,6 +243,14 @@ function EvidenceCoverageCard({ summary }: { summary: EvidenceCoverageSummary | 
   ].filter(r => r.count > 0);
   const hasConflictSignal = summary.contradictionFlagged !== undefined;
   if (rows.length === 0 && !hasConflictSignal) return null;
+  // 2026-09-22 fix (browser QA content-integrity review): "views are
+  // consistent across sources" is a logically invalid conclusion to draw
+  // from a single item — consistency/conflict is a comparison between
+  // AT LEAST two independent things. Below 2 total sources, the honest
+  // statement is that no real conflict assessment was possible at all;
+  // at 0 sources there's nothing to say, so the line is omitted entirely.
+  const totalSourceCount = summary.newsSourceCount + summary.eventSourceCount
+    + summary.policySourceCount + (summary.filingSourceCount ?? 0);
   return (
     <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] p-5">
       <p className="mb-3 flex items-center gap-1.5 text-[13px] font-semibold text-text-primary">
@@ -230,11 +263,16 @@ function EvidenceCoverageCard({ summary }: { summary: EvidenceCoverageSummary | 
             {r.count} {r.label}{r.count === 1 ? "" : "s"}
           </p>
         ))}
-        {hasConflictSignal && (
+        {hasConflictSignal && totalSourceCount >= 2 && (
           <p className="text-[11.5px] text-text-secondary">
             {summary.contradictionFlagged
               ? "Conflicting evidence found across sources"
               : "No material conflicting evidence — views are consistent across sources"}
+          </p>
+        )}
+        {hasConflictSignal && totalSourceCount === 1 && (
+          <p className="text-[11.5px] text-text-secondary">
+            Conflict assessment requires additional independent evidence.
           </p>
         )}
       </div>
@@ -242,24 +280,26 @@ function EvidenceCoverageCard({ summary }: { summary: EvidenceCoverageSummary | 
   );
 }
 
+// 2026-09-22 fix (browser QA content-integrity review): "Ripple impact"
+// and "Related intelligence" used to render unconditionally with a dead
+// `href="#"` — neither is backed by any real data this shell receives
+// today (no ripple/related-intelligence prop exists on AIAnswerShellProps
+// at all), so they always led nowhere. Removed rather than conditionally
+// hidden, since "hidden until real data exists" and "doesn't exist yet"
+// are the same state today — re-add each as a real, populated nav item
+// once its own data actually flows into this component. Methodology is
+// the one real, always-true link (a static knowledge-base page), so it
+// stays unconditionally.
 function RelatedLinksNav() {
-  const items = [
-    { label: "Ripple impact", icon: <GitBranch size={13} strokeWidth={1.8} /> },
-    { label: "Related intelligence", icon: <Sparkles size={13} strokeWidth={1.8} /> },
-    { label: "Methodology", icon: <ExternalLink size={13} strokeWidth={1.8} /> },
-  ];
   return (
     <div className="rounded-[20px] border border-surface-border/7 bg-text-primary/[0.03] divide-y divide-surface-border/6">
-      {items.map(it => (
-        <Link
-          key={it.label}
-          href={it.label === "Methodology" ? "/knowledge/ai-methodology" : "#"}
-          className="flex items-center justify-between gap-2 px-4 py-3 text-[12px] font-medium text-text-secondary hover:text-text-primary transition"
-        >
-          <span className="flex items-center gap-2">{it.icon}{it.label}</span>
-          <ChevronRight size={14} className="text-text-muted" />
-        </Link>
-      ))}
+      <Link
+        href="/knowledge/ai-methodology"
+        className="flex items-center justify-between gap-2 px-4 py-3 text-[12px] font-medium text-text-secondary hover:text-text-primary transition"
+      >
+        <span className="flex items-center gap-2"><ExternalLink size={13} strokeWidth={1.8} />Methodology</span>
+        <ChevronRight size={14} className="text-text-muted" />
+      </Link>
     </div>
   );
 }
@@ -413,12 +453,16 @@ export function AIAnswerShell({
               </span>
               {sourceCount > 0 && (
                 <span className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-0.5 text-[10px] font-medium text-text-secondary">
-                  {sourceCount} verified source{sourceCount === 1 ? "" : "s"}
+                  {sourceCountBadgeLabel(sourceCount, evidenceCoverage)}
                 </span>
               )}
-              <span className="rounded-full border border-amber-500/20 bg-amber-500/[0.05] px-2.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                Not investment advice
-              </span>
+              {/* "Not investment advice" used to also appear here as a
+                  header pill (2026-09-22 fix, browser QA content-
+                  integrity review) — duplicating AIDisclaimer's own full
+                  footer disclaimer below, verbatim. One prominent
+                  version (the footer's, which links to the full legal
+                  disclaimer) is kept; this terser header repeat is
+                  removed rather than the more substantive one. */}
             </div>
 
             {synthesisIncomplete ? (

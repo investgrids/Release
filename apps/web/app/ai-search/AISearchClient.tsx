@@ -90,7 +90,15 @@ interface KeyDriver    { icon: string; title: string; explanation: string; confi
 interface Insight      { icon: string; title: string; summary: string; }
 interface Company      { symbol: string; name: string; price: string; change: string; positive: boolean; impact_type: string; impact_score: number | null; confidence: number | null; reason: string; chart: number[]; ripple_position?: string; why_it_matters?: string; }
 interface Sector       { name: string; score: number | null; confidence: number | null; outlook: string; positive: boolean; status?: string; time_horizon?: string; explanation?: string; }
-interface RelatedEvent { id: string; slug?: string; title: string; date: string; impact_score: number | null; confidence: number | null; category: string; }
+// `source` (2026-09-22 fix, browser QA content-integrity review) — the
+// real ingestion adapter name (e.g. "nse_announcements"), already sent
+// by the backend on every related_events item (see retrieval.py's
+// _event_row_to_dict) but never declared here until now, which is why
+// answerTypes.ts's buildEvidenceRows fell back to displaying `category`
+// (a classification, not a source) in the evidence table's Source
+// column. Optional since older/cached responses predate the backend
+// field existing at all.
+interface RelatedEvent { id: string; slug?: string; title: string; date: string; impact_score: number | null; confidence: number | null; category: string; source?: string; }
 interface NewsItem     { id: string; headline: string; summary: string; source: string; published_at: string; impact_score: number | null; }
 interface Policy       { id: number; title: string; ministry: string; status: string; impact_score: number | null; }
 interface Timeline     { date: string; title: string; description: string; }

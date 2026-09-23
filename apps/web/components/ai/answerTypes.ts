@@ -216,8 +216,18 @@ function buildEvidenceRows(result: SearchResult): EvidenceRow[] {
     rows.push({ id: `news-${n.id}`, date: formatShortDate(n.published_at), source: n.source || "News", headline: n.headline });
   }
   for (const e of result.related_events ?? []) {
+    // 2026-09-22 fix (browser QA content-integrity review): this used to
+    // always show `e.category` (a classification like "Macro") in the
+    // Source column, mislabeling a category as a source even when the
+    // backend's real Event.source field (the actual ingestion adapter,
+    // e.g. "nse_announcements" — see retrieval.py's _event_row_to_dict)
+    // was available. Real source now takes precedence; only when it's
+    // genuinely absent does this fall back to a category-derived label,
+    // and that fallback now reads "Macro event" rather than a bare
+    // "Macro" so it can't be mistaken for an identifiable outlet.
     rows.push({
-      id: `event-${e.id}`, date: formatShortDate(e.date), source: e.category || "Market event",
+      id: `event-${e.id}`, date: formatShortDate(e.date),
+      source: e.source || `${e.category || "Market"} event`,
       headline: e.title, href: e.slug ? `/events/${e.slug}` : undefined,
     });
   }
