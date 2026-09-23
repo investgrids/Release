@@ -367,6 +367,6 @@ def _print_summary(summary: dict, rows: list[dict], errored: list[dict]) -> None
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--concurrency", type=int, default=3)
-    parser.add_argument("--out", type=str, default="scripts/repairs/aev2_benchmark_report.json")
+    parser.add_argument("--out", type=str, default="scripts/benchmarks/results/aev2_benchmark_report.json")
     args = parser.parse_args()
     sys.exit(asyncio.run(main_async(args.concurrency, args.out)))
