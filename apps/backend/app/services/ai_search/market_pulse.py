@@ -90,8 +90,11 @@ _MARKET_PULSE_RE = re.compile(
     r"today'?s\s+(?:top\s+|biggest\s+)?(?:gainers?|losers?|winners?|movers?|gaining\s+stocks?)|"
     r"biggest\s+(?:gainers?|losers?|winners?|movers?)|"
     r"52.?week\s+highs?|52.?week\s+lows?|most\s+active\s+stocks?|highest\s+volume\s+stocks?|"
+    r"stocks?\s+(?:are\s+)?(?:the\s+)?most\s+active|"
     r"what'?s\s+(?:driving|moving)\s+the\s+market|"
-    r"why\s+is\s+(?:the\s+)?(?:nifty|sensex|market)\s+(?:up|down)"
+    r"why\s+is\s+(?:the\s+)?(?:nifty|sensex|market)\s+(?:up|down)|"
+    r"(?:what'?s|what\s+is)\s+(?:the\s+)?(?:nifty|sensex|the\s+market)\s+doing|"
+    r"market'?s?\s+mood"
     r")\b",
     re.IGNORECASE,
 )

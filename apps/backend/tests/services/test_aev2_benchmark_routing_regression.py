@@ -58,18 +58,20 @@ def route(query: str) -> str:
 
 # ── Known, documented, NOT part of the 2026-09-23 routing-family fixes ──────
 #
-# Market Pulse LLM-dependent queries: none of the 5 requested fix
-# categories touch market_pulse.py's own detection, and its own semantic
-# classifier is explicitly, deliberately LLM-backed for ambiguous
-# phrasing — a real, intentional design (see that module's own
-# docstring), not a regex gap to close here. Expected to route correctly
-# once provider capacity recovers; asserting a hard pass today would
-# make this suite flaky by construction.
-_MARKET_PULSE_LLM_DEPENDENT = {
-    "What's the market mood today?",
-    "Which stocks are most active today?",
-    "What is the Nifty doing today?",
-}
+# Market Pulse LLM-dependent queries: previously all 3 of these fell
+# through market_pulse.py's static regex and only routed correctly via
+# its LLM-backed semantic classifier (a real, intentional design for
+# genuinely ambiguous phrasing — see that module's own docstring). A
+# separate, later fix (2026-09-23, deterministic-routing pass) added 3
+# bounded regex alternatives — reversed-order "stocks ... most active",
+# "market mood" (direct order, the existing regex only had "mood ... in
+# the market"), and "what is Nifty/Sensex/the market doing" — covering
+# exactly these 3 phrasings without touching the classifier's own
+# deliberately-broader semantic fallback. All 3 now route deterministically
+# offline and moved into the main parametrized suite below; this set stays
+# empty (not deleted) so a FUTURE genuinely LLM-dependent Market Pulse
+# query has a documented place to land again.
+_MARKET_PULSE_LLM_DEPENDENT: set[str] = set()
 
 # Parag Milk Foods' own entity-resolution gap (extract_entities never
 # resolves it to a real company) has its own dedicated xfail test below,
