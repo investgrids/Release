@@ -241,7 +241,9 @@ async def test_language_gate_rejection_records_zero_predictions_and_uses_shared_
         query="q", response_id=None, schema_version=None, specialist_kind=None,
         degraded_reason=None, summary="s",
     ).keys())
-    assert set(ctx["final"].keys()) == skeleton_keys
+    # + answer_availability (2026-09-23) — attached by finalize_v3_response
+    # AFTER build_degraded_shape runs, on every response including this one.
+    assert set(ctx["final"].keys()) == skeleton_keys | {"answer_availability"}
 
 
 async def test_fresh_clean_response_records_exactly_one_prediction(monkeypatch):

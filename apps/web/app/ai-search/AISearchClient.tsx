@@ -186,6 +186,20 @@ export type UIMode =
   | "technical_timing" | "company_discovery" | "portfolio_review"
   | "earnings_preview" | "multi_company_comparison";
 
+// answer_availability (2026-09-23, response_finalize.py's own
+// _derive_answer_availability) — the backend's own honest account of
+// WHY a response has limited or no evidence, computed fresh on every
+// serve from the response's real content (never cached/stale). Replaces
+// inferring "no evidence exists" from an empty related_events/news/
+// policies array, which conflated a genuine zero-evidence outcome with
+// a provider/capacity failure that never let retrieval or synthesis
+// finish at all. See DegradedAnswerLayout.tsx for where this drives copy.
+export interface AnswerAvailability {
+  state: "available" | "temporarily_unavailable" | "no_verified_evidence" | "limited_evidence";
+  evidence_retrieval_completed: boolean;
+  evidence_count: number;
+}
+
 export interface SearchResult {
   type?: "search";
   // ui_mode: which of the 8 layouts to render — the frontend never infers
@@ -244,6 +258,7 @@ export interface SearchResult {
   // inside AEV2Response — see aev2Types.ts's own AEV2MarketPulse doc
   // comment for why.
   answer_experience_v2?: AEV2Response | AEV2MarketPulse;
+  answer_availability?: AnswerAvailability | null;
 }
 
 // ── Market Pulse types ───────────────────────────────────────────────────────
@@ -295,6 +310,7 @@ export interface MarketPulseResult {
   // stays otherwise deliberately separate from SearchResult.
   ui_mode?: UIMode;
   answer_experience_v2?: AEV2MarketPulse;
+  answer_availability?: AnswerAvailability | null;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────

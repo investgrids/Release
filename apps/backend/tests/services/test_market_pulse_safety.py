@@ -168,7 +168,12 @@ def test_finalize_v3_response_degrades_unsafe_market_pulse():
 
 def test_finalize_v3_response_leaves_clean_market_pulse_unchanged():
     result = finalize_v3_response("market summary today", dict(_CLEAN_PULSE))
-    assert result == _CLEAN_PULSE
+    assert result == {
+        **_CLEAN_PULSE,
+        # 2026-09-23: the one intentional addition — see
+        # test_answer_availability.py for its own dedicated coverage.
+        "answer_availability": {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 3},
+    }
 
 
 def test_finalize_v3_response_never_attaches_aev2_or_core_answer_concepts_to_market_pulse():

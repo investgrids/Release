@@ -133,6 +133,13 @@ interface AIAnswerShellProps {
   // without having to opt back in explicitly.
   showConfidence?: boolean;
   showRelatedLinks?: boolean;
+  // answer_availability-driven badge override (2026-09-23) — lets a
+  // caller (currently only DegradedAnswerLayout) show one of the 3
+  // honest availability badges (TEMPORARILY UNAVAILABLE / NO VERIFIED
+  // EVIDENCE / LIMITED EVIDENCE) instead of the static per-ui_mode
+  // badgeLabel in UI_MODE_META, without every other caller needing to
+  // know this exists. Undefined preserves today's behavior exactly.
+  badgeLabelOverride?: string;
   onNewSearch: () => void;
   onRefine?: () => void;
   children: React.ReactNode;
@@ -392,7 +399,7 @@ function DegradedAnswerBody({ notice, evidenceRows, kindLabel }: { notice?: stri
 export function AIAnswerShell({
   query, uiMode, generatedAt, evidenceFreshAsOf, sourceCount, synthesisIncomplete, degradedNotice,
   evidenceRows, confidence, evidenceCoverage, sidebarSnapshot,
-  showConfidence = true, showRelatedLinks = true, onNewSearch, onRefine, children,
+  showConfidence = true, showRelatedLinks = true, badgeLabelOverride, onNewSearch, onRefine, children,
 }: AIAnswerShellProps) {
   const meta = UI_MODE_META[uiMode];
   const breadcrumb = BREADCRUMB_LABEL[uiMode];
@@ -464,7 +471,7 @@ export function AIAnswerShell({
               <Sparkles size={15} strokeWidth={1.8} className="text-violet-400" />
               <p className="text-[14px] font-bold text-text-primary">{meta.kindLabel}</p>
               <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-0.5 text-[10px] font-bold text-violet-600 dark:text-violet-300 uppercase tracking-wider">
-                {meta.badgeLabel}
+                {badgeLabelOverride ?? meta.badgeLabel}
               </span>
               {sourceCount > 0 && (
                 <span className="rounded-full border border-surface-border/8 bg-text-primary/[0.03] px-2.5 py-0.5 text-[10px] font-medium text-text-secondary">

@@ -139,7 +139,12 @@ def test_legacy_market_pulse_response_unchanged_while_aev2_mode_is_off():
     """AEV2_BUILD_COMPLETE/mode default (no AI_SEARCH_AEV2_MODE set in
     tests) means OFF — the real HTTP-facing Market Pulse response must
     be byte-identical to what it always was, canonical-core plumbing
-    notwithstanding."""
+    notwithstanding, aside from the one intentional 2026-09-23 addition
+    (answer_availability — see test_answer_availability.py for its own
+    dedicated coverage)."""
     result = finalize_v3_response("top gainers today", dict(_MP_RESULT))
-    assert result == _MP_RESULT
+    assert result == {
+        **_MP_RESULT,
+        "answer_availability": {"state": "available", "evidence_retrieval_completed": True, "evidence_count": 0},
+    }
     assert "answer_experience_v2" not in result

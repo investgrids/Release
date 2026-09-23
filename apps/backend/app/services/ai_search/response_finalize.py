@@ -109,6 +109,120 @@ def _strip_internal_only_fields(result: dict) -> dict:
     return {k: v for k, v in result.items() if k not in _INTERNAL_ONLY_FIELDS}
 
 
+# ── answer_availability (2026-09-23) — the backend's own honest account
+# of WHY a response has limited or no evidence, so the frontend never
+# again has to infer "no evidence exists" from an empty array alone (an
+# empty related_events/news/policies list can just as easily mean
+# retrieval itself never completed, e.g. a provider/capacity failure, as
+# it can mean retrieval completed and genuinely found nothing).
+#
+# Derived entirely from `degraded_reason`/`synthesis_incomplete` — never
+# a new field threaded through pipeline.py — because degraded_reason is
+# already, per pipeline.py's own comment ("degraded_reason is the single
+# source of truth"), a complete account of every degradation path,
+# research-shaped or market-pulse-shaped. Reading it here rather than
+# adding a parallel marker also means this survives EVERY response
+# reconstruction downstream of the original assembly — including
+# safety_gate.build_v3_safety_degraded_response's rebuild via
+# build_degraded_shape, which passes through an explicit field whitelist
+# that a bolted-on marker would simply be dropped by.
+#
+# Computed fresh on every call, from `result` as it exists RIGHT NOW —
+# never stored in or read from the cache. Both cache layers hold the
+# pre-safety-gate `result` (see this module's own docstring), and this
+# function runs strictly after that gate, so a stale cached degraded
+# response can never misreport its own availability; re-deriving costs
+# nothing (it's pure dict inspection, no I/O).
+_PRE_RETRIEVAL_DEGRADED_REASONS = frozenset({
+    # Set by pipeline.py's _referential_no_context_response/
+    # _ambiguous_entity_response/_unrecognized_company_response_v3 —
+    # confident, deterministic classifications made BEFORE
+    # evidence_mod.collect() ever runs. Not a capacity/provider failure
+    # (not "temporarily_unavailable") and not "retrieval completed with
+    # zero results" in the literal sense (retrieval never started) — of
+    # the 4 available states, "no_verified_evidence" is the honest
+    # closest fit: there genuinely is no evidence to show, and it is not
+    # a transient condition a retry would fix.
+    "referential_no_context", "ambiguous_entity", "unsupported_entity",
+})
+
+# Set by specialists/base.py's parse_specialist_json when the LLM
+# provider returned no text at all ("capacity") or text that didn't
+# parse ("parse_failure") — both fire strictly AFTER evidence_mod.
+# collect() already succeeded (see pipeline.py's own ordering: evidence
+# collection at line ~336, the specialist/LLM call afterward). Real
+# evidence may already be sitting in `result`, but the ANALYSIS did not
+# complete — the user should be told to retry, never told "no evidence
+# exists" or given a confident "limited" take assembled from nothing.
+_PROVIDER_FAILURE_DEGRADED_REASONS = frozenset({"capacity", "parse_failure"})
+
+
+def _research_evidence_count(result: dict) -> int:
+    return (
+        len(result.get("related_events") or [])
+        + len(result.get("news") or [])
+        + len(result.get("policies") or [])
+    )
+
+
+def _market_pulse_evidence_count(result: dict) -> int:
+    return (
+        len(result.get("indices") or [])
+        + len(result.get("top_gainers") or [])
+        + len(result.get("top_losers") or [])
+        + len(result.get("leading_sectors") or [])
+        + len(result.get("lagging_sectors") or [])
+    )
+
+
+def _derive_answer_availability(result: dict, *, is_market_pulse: bool) -> dict:
+    """The one function that computes `answer_availability`. Fails
+    closed on anything it doesn't explicitly recognize: an unrecognized
+    degraded_reason with real evidence present lands on the more modest
+    `limited_evidence` rather than `available` — see the final branch."""
+    synthesis_incomplete = bool(result.get("synthesis_incomplete"))
+    evidence_count = (
+        _market_pulse_evidence_count(result) if is_market_pulse else _research_evidence_count(result)
+    )
+
+    if not synthesis_incomplete:
+        return {"state": "available", "evidence_retrieval_completed": True, "evidence_count": evidence_count}
+
+    if is_market_pulse:
+        # Market Pulse's only degraded path is an LLM narrative failure
+        # over real, already-fetched market data (market_pulse.py's own
+        # `synthesis_incomplete = not bool(ai)`) — there is no "zero
+        # evidence" state for market-wide data, only "we couldn't
+        # narrate it right now." `market_status` truthiness is this
+        # shape's own signal for whether get_market_pulse() itself
+        # returned real data or the `{}` fallback on a fetch failure.
+        return {
+            "state": "temporarily_unavailable",
+            "evidence_retrieval_completed": bool(result.get("market_status")),
+            "evidence_count": evidence_count,
+        }
+
+    degraded_reason = result.get("degraded_reason")
+
+    if degraded_reason in _PRE_RETRIEVAL_DEGRADED_REASONS:
+        return {"state": "no_verified_evidence", "evidence_retrieval_completed": False, "evidence_count": 0}
+
+    if degraded_reason in _PROVIDER_FAILURE_DEGRADED_REASONS:
+        return {
+            "state": "temporarily_unavailable",
+            "evidence_retrieval_completed": True,
+            "evidence_count": evidence_count,
+        }
+
+    # grounding_collapsed / multi_entity_partial / recommendation_language_
+    # violation / any future reason: retrieval and at least partial
+    # synthesis both ran — the honest remaining distinction is whether
+    # any real evidence survived to actually show.
+    if evidence_count == 0:
+        return {"state": "no_verified_evidence", "evidence_retrieval_completed": True, "evidence_count": 0}
+    return {"state": "limited_evidence", "evidence_retrieval_completed": True, "evidence_count": evidence_count}
+
+
 def finalize_v3_response(
     query: str, result: dict | None, *, x_admin_key: str | None = None, was_cached: bool = False,
 ) -> dict | None:
@@ -197,7 +311,11 @@ def finalize_v3_response(
             name="prediction-store-v3",
         )
 
-    # ── 5. Strip internal-only attribution plumbing — the one point
+    # ── 5. answer_availability — see this module's own section above for
+    # why it must be derived here, fresh, on every call. ─────────────────
+    result = {**result, "answer_availability": _derive_answer_availability(result, is_market_pulse=is_market_pulse)}
+
+    # ── 6. Strip internal-only attribution plumbing — the one point
     # every route, every cache-hit/fresh/mode combination, and both
     # canonical-core variants pass through before a response is actually
     # returned. A no-op for Market Pulse (its shape never carries

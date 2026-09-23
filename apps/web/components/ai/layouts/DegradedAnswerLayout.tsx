@@ -65,6 +65,24 @@ const NOTICE_BY_REASON: Record<DegradedAnswer["reason"], string> = {
     "This answer's enhanced view isn't available for this response. The real evidence found is shown below.",
 };
 
+// answer_availability-driven copy (2026-09-23, Phase 1.2) — the backend's
+// own honest account of WHY synthesis_incomplete is true, replacing the
+// evidenceRows.length-only inference below (which could not distinguish
+// "retrieval never completed due to a provider/capacity failure" from
+// "retrieval completed and genuinely found nothing"). See
+// response_finalize.py's _derive_answer_availability for how `state` is
+// computed — never inferred client-side.
+const AVAILABILITY_BADGE: Record<string, string> = {
+  temporarily_unavailable: "TEMPORARILY UNAVAILABLE",
+  no_verified_evidence: "NO VERIFIED EVIDENCE",
+  limited_evidence: "LIMITED EVIDENCE",
+};
+const AVAILABILITY_NOTICE: Record<string, string> = {
+  temporarily_unavailable: "We couldn't complete evidence retrieval and analysis right now. Please try again later.",
+  no_verified_evidence: "No related verified news, events, or policy evidence was found for this query.",
+  limited_evidence: "The verified evidence found is shown below, but the full analysis could not be completed.",
+};
+
 const KNOWN_UI_MODES = new Set<string>([
   "direct_company_research", "switch_analysis", "company_comparison",
   "factual_lookup", "policy_macro_impact", "market_pulse",
@@ -110,13 +128,28 @@ export function DegradedAnswerLayout({
   // remaining reasons keep their static text pending the same fix once
   // they become live-reachable.
   const hasEvidence = answer.evidenceRows.length > 0;
+  // Only meaningful for reason === "synthesis_incomplete" — every other
+  // DegradedAnswer reason is a frontend-side gate rejection of an
+  // otherwise "available" backend response (answer_availability.state
+  // would say "available" for those, which is correct but not useful
+  // copy here), so this is read only inside that branch.
+  const availabilityState = answer.raw.answer_availability?.state;
   let notice: string;
+  let badgeLabelOverride: string | undefined;
   if (answer.reason === "unsupported_mode" && answer.sourceUiMode && answer.sourceUiMode in UNSUPPORTED_MODE_INFO) {
     notice = UNSUPPORTED_MODE_INFO[answer.sourceUiMode as UnsupportedUIMode];
   } else if (answer.reason === "synthesis_incomplete") {
-    notice = hasEvidence
-      ? "The real evidence found is shown below, with no generated conclusion, confidence score, or outlook."
-      : "No related news, events, or policy evidence was found for this query, and the analysis itself didn't complete.";
+    if (availabilityState && availabilityState !== "available" && availabilityState in AVAILABILITY_NOTICE) {
+      notice = AVAILABILITY_NOTICE[availabilityState];
+      badgeLabelOverride = AVAILABILITY_BADGE[availabilityState];
+    } else {
+      // Fails back to the older, more conservative evidence-length-based
+      // copy for a response that predates this contract (e.g. a stale
+      // cached shape) rather than crash on a missing field.
+      notice = hasEvidence
+        ? "The real evidence found is shown below, with no generated conclusion, confidence score, or outlook."
+        : "No related news, events, or policy evidence was found for this query, and the analysis itself didn't complete.";
+    }
   } else if (answer.reason === "unknown_ui_mode") {
     notice = hasEvidence
       ? "This question's answer type wasn't recognized by this version of AI Search. The real evidence found is shown below."
@@ -143,6 +176,7 @@ export function DegradedAnswerLayout({
       confidence={answer.reason === "synthesis_incomplete" ? null : answer.confidence}
       evidenceCoverage={answer.evidenceCoverage}
       showConfidence={answer.reason !== "synthesis_incomplete"}
+      badgeLabelOverride={badgeLabelOverride}
       onNewSearch={onNewSearch}
       onRefine={onRefine}
     >

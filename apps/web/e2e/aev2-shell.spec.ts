@@ -164,6 +164,55 @@ test.describe("edge cases", () => {
     await page.screenshot({ path: "e2e/.output/screenshots/edge-zero-evidence.png", fullPage: true });
   });
 
+  test("answer_availability: temporarily_unavailable shows its own badge, never claims no evidence exists", async ({ page }) => {
+    const mutated = clone(directCompanyResearchReal) as Record<string, unknown>;
+    mutated.synthesis_incomplete = true;
+    mutated.degraded_reason = "capacity";
+    mutated.answer_availability = { state: "temporarily_unavailable", evidence_retrieval_completed: true, evidence_count: 0 };
+    delete mutated.answer_experience_v2;
+
+    await mockSearchStream(page, mutated);
+    await submitQuery(page, "Should I invest in Reliance Industries?");
+
+    await expect(page.getByText("TEMPORARILY UNAVAILABLE")).toBeVisible();
+    await expect(page.getByText(/couldn't complete evidence retrieval and analysis right now/)).toBeVisible();
+    await expect(page.getByText(/No related verified news/)).not.toBeVisible();
+    await page.screenshot({ path: "e2e/.output/screenshots/edge-answer-availability-temporarily-unavailable.png", fullPage: true });
+  });
+
+  test("answer_availability: no_verified_evidence shows its own badge", async ({ page }) => {
+    const mutated = clone(directCompanyResearchReal) as Record<string, unknown>;
+    mutated.synthesis_incomplete = true;
+    mutated.degraded_reason = "unsupported_entity";
+    mutated.related_events = []; mutated.news = []; mutated.policies = [];
+    mutated.answer_availability = { state: "no_verified_evidence", evidence_retrieval_completed: false, evidence_count: 0 };
+    delete mutated.answer_experience_v2;
+
+    await mockSearchStream(page, mutated);
+    await submitQuery(page, "Should I invest in Reliance Industries?");
+
+    await expect(page.getByText("NO VERIFIED EVIDENCE")).toBeVisible();
+    await expect(page.getByText("No related verified news, events, or policy evidence was found for this query.")).toBeVisible();
+    await page.screenshot({ path: "e2e/.output/screenshots/edge-answer-availability-no-verified-evidence.png", fullPage: true });
+  });
+
+  test("answer_availability: limited_evidence shows its own badge and still renders the real evidence table", async ({ page }) => {
+    const mutated = clone(directCompanyResearchReal) as Record<string, unknown>;
+    mutated.synthesis_incomplete = true;
+    mutated.degraded_reason = "grounding_collapsed";
+    mutated.related_events = [{ id: "e1", title: "A real event", date: "2026-09-20", category: "Macro" }];
+    mutated.answer_availability = { state: "limited_evidence", evidence_retrieval_completed: true, evidence_count: 1 };
+    delete mutated.answer_experience_v2;
+
+    await mockSearchStream(page, mutated);
+    await submitQuery(page, "Should I invest in Reliance Industries?");
+
+    await expect(page.getByText("LIMITED EVIDENCE")).toBeVisible();
+    await expect(page.getByText(/verified evidence found is shown below, but the full analysis could not be completed/)).toBeVisible();
+    await expect(page.getByText("Key evidence and sources")).toBeVisible();
+    await page.screenshot({ path: "e2e/.output/screenshots/edge-answer-availability-limited-evidence.png", fullPage: true });
+  });
+
   test("partially populated evidence (event with no linked sectors or observed reactions) renders honestly, no fabricated fill", async ({ page }) => {
     const mutated = clone(eventImpactReal) as { answer_experience_v2: { event_impact: Record<string, unknown> } };
     mutated.answer_experience_v2.event_impact.linked_sectors = [];

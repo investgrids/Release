@@ -602,9 +602,15 @@ def test_aev2_off_public_result_unaffected_by_internal_announcement_plumbing():
     """The exact regression this review named: AEV2=off must return
     byte-identical output to what V3's public contract looked like
     before announcements existed at all — i.e. the same dict with
-    exactly the internal-only key removed, nothing else different."""
+    exactly the internal-only key removed, plus the one intentional
+    2026-09-23 addition (answer_availability — see
+    test_answer_availability.py for its own dedicated coverage),
+    nothing else different."""
     v3_response = _v3_response_with_announcements()
     prior_public_shape = {k: v for k, v in v3_response.items() if k != "announcements"}
+    prior_public_shape["answer_availability"] = {
+        "state": "available", "evidence_retrieval_completed": True, "evidence_count": 0,
+    }
 
     result = finalize_v3_response("q", dict(v3_response), was_cached=True)
     assert result == prior_public_shape

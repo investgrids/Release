@@ -111,3 +111,49 @@ describe("DegradedAnswerLayout — never claims evidence is 'shown below' when t
     expect(screen.queryByText(/shown below/)).not.toBeInTheDocument();
   });
 });
+
+describe("DegradedAnswerLayout — answer_availability-driven copy (2026-09-23, Phase 1.2)", () => {
+  function degradedWithAvailability(availability: { state: string; evidence_retrieval_completed: boolean; evidence_count: number }): DegradedAnswer {
+    const answer = toAIAnswer(baseSearchResult({
+      ui_mode: "direct_company_research",
+      synthesis_incomplete: true,
+      answer_availability: availability,
+    }));
+    if (answer.ui_mode !== "degraded") throw new Error("expected a degraded answer for this fixture");
+    return answer;
+  }
+
+  it("temporarily_unavailable shows its own badge and never claims no evidence exists", () => {
+    const answer = degradedWithAvailability({ state: "temporarily_unavailable", evidence_retrieval_completed: true, evidence_count: 0 });
+    render(<DegradedAnswerLayout answer={answer} onNewSearch={() => {}} />);
+    expect(screen.getByText("TEMPORARILY UNAVAILABLE")).toBeInTheDocument();
+    expect(screen.getByText(/couldn't complete evidence retrieval and analysis right now/)).toBeInTheDocument();
+    expect(screen.queryByText(/No related verified news/)).not.toBeInTheDocument();
+  });
+
+  it("no_verified_evidence shows its own badge and message", () => {
+    const answer = degradedWithAvailability({ state: "no_verified_evidence", evidence_retrieval_completed: true, evidence_count: 0 });
+    render(<DegradedAnswerLayout answer={answer} onNewSearch={() => {}} />);
+    expect(screen.getByText("NO VERIFIED EVIDENCE")).toBeInTheDocument();
+    expect(screen.getByText("No related verified news, events, or policy evidence was found for this query.")).toBeInTheDocument();
+  });
+
+  it("limited_evidence shows its own badge and message, distinct from temporarily_unavailable", () => {
+    const answer = degradedWithAvailability({ state: "limited_evidence", evidence_retrieval_completed: true, evidence_count: 3 });
+    render(<DegradedAnswerLayout answer={answer} onNewSearch={() => {}} />);
+    expect(screen.getByText("LIMITED EVIDENCE")).toBeInTheDocument();
+    expect(screen.getByText(/verified evidence found is shown below, but the full analysis could not be completed/)).toBeInTheDocument();
+    expect(screen.queryByText("TEMPORARILY UNAVAILABLE")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the older evidence-length-based copy when answer_availability is absent (a response predating this contract)", () => {
+    const answer = toAIAnswer(baseSearchResult({
+      ui_mode: "direct_company_research", synthesis_incomplete: true,
+      related_events: [], news: [], policies: [],
+    }));
+    if (answer.ui_mode !== "degraded") throw new Error("expected a degraded answer for this fixture");
+    render(<DegradedAnswerLayout answer={answer} onNewSearch={() => {}} />);
+    expect(screen.getByText(/No related news, events, or policy evidence was found for this query, and the analysis itself didn't complete/)).toBeInTheDocument();
+    expect(screen.queryByText("TEMPORARILY UNAVAILABLE")).not.toBeInTheDocument();
+  });
+});
