@@ -164,7 +164,7 @@ const CONFIDENCE_FACTORS: { key: keyof ConfidenceContract["components"]; label: 
 // attribution; a bare Event with no `source` field does not. Falls back
 // to the more conservative label whenever evidenceCoverage isn't
 // available to prove otherwise.
-function sourceCountBadgeLabel(sourceCount: number, evidenceCoverage: EvidenceCoverageSummary | null | undefined): string {
+export function sourceCountBadgeLabel(sourceCount: number, evidenceCoverage: EvidenceCoverageSummary | null | undefined): string {
   const hasIndependentProvenance = !!evidenceCoverage && (
     evidenceCoverage.newsSourceCount > 0
     || evidenceCoverage.policySourceCount > 0

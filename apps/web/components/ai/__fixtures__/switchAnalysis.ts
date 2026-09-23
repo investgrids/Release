@@ -236,6 +236,22 @@ export const switchPriceOnlyComparableAnswer = {
   })),
 };
 
+// Long company names/titles — checked for layout overflow (2026-09-23
+// dense-restyle verification), not just presence.
+export const switchLongNamesAnswer = {
+  result: baseSwitchSearchResult({
+    query: "Should I keep holding Bharat Electronics Limited (Defence Electronics Systems Division) or rotate into Hindustan Aeronautics Limited (Aircraft and Helicopter Manufacturing Division) instead?",
+    companies: [
+      { symbol: "BEL", name: "Bharat Electronics Limited (Defence Electronics Systems Division)", price: "285.40", change: "+1.10%", positive: true, impact_type: "direct", impact_score: 60, confidence: 55, reason: "", chart: [] },
+      { symbol: "HAL", name: "Hindustan Aeronautics Limited (Aircraft and Helicopter Manufacturing Division)", price: "4,512.00", change: "-0.30%", positive: false, impact_type: "direct", impact_score: 58, confidence: 55, reason: "", chart: [] },
+    ],
+  }),
+  aev2: withSwitch(baseSwitchAnalysis({
+    current_company: { symbol: "BEL", name: "Bharat Electronics Limited (Defence Electronics Systems Division)" },
+    alternative_company: { symbol: "HAL", name: "Hindustan Aeronautics Limited (Aircraft and Helicopter Manufacturing Division)" },
+  })),
+};
+
 // Empty optional sections — no blank cards or placeholders.
 export const switchMinimalAnswer = {
   result: baseSwitchSearchResult(),

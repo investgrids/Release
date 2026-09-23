@@ -72,6 +72,35 @@ test.describe("direct_company_research — viewport/theme matrix", () => {
   }
 });
 
+// Desktop/mobile x light/dark on switch_analysis's own dense restyle
+// (2026-09-23) — the "desktop" and "mobile" Playwright projects already
+// run every test in this file once each, so this loop's 2 tests x 2
+// projects together produce all 4 required screenshots (desktop-light,
+// desktop-dark, mobile-light, mobile-dark).
+test.describe("switch_analysis — viewport/theme matrix", () => {
+  for (const theme of ["light", "dark"] as const) {
+    test(`renders correctly in ${theme} mode`, async ({ page }) => {
+      await setTheme(page, theme);
+      await mockSearchStream(page, switchAnalysisReal);
+      await submitQuery(page, "Should I continue holding BEL or switch to HAL?");
+
+      const shell = page.getByTestId("ai-answer-shell");
+      await expect(shell).toHaveAttribute("data-ui-mode", "switch_analysis");
+      if (theme === "dark") {
+        await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+      }
+      // No horizontal overflow at this viewport — the dense table/rail
+      // layout must never force a wider-than-viewport shell.
+      const shellBox = await shell.boundingBox();
+      const viewportSize = page.viewportSize();
+      if (shellBox && viewportSize) {
+        expect(shellBox.width).toBeLessThanOrEqual(viewportSize.width);
+      }
+      await page.screenshot({ path: `e2e/.output/screenshots/switch_analysis-${test.info().project.name}-${theme}.png`, fullPage: true });
+    });
+  }
+});
+
 // ── 3. Edge cases: missing fields, long titles, zero evidence, partial evidence ──
 
 test.describe("edge cases", () => {
