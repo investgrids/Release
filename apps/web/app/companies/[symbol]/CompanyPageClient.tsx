@@ -263,7 +263,7 @@ function useCompanyRating(symbol: string) {
 // (owner decision, 2026-08-29): the older single-engine AI/evidence
 // score (useCompanyRating above) no longer carries that name — see
 // MarketRippleScoreSection's own comment for how the two coexist.
-interface MarketRippleScoreData {
+export interface MarketRippleScoreData {
   resolved: boolean;
   snapshot?: boolean;
   symbol?: string;
@@ -1426,7 +1426,7 @@ function CurrentIntelligenceCard({ stock }: { stock: StockDetail }) {
 // fact. block_headline/block_message are the real, structural,
 // server-computed reason (see public_projection.py's priority-ordered
 // reason-code mapping) — never re-derived or guessed here.
-function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScoreData; stock: StockDetail }) {
+export function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScoreData; stock: StockDetail }) {
   const methodologyLink = (
     <Link href="/methodology/marketripple-score" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">How this score works →</Link>
   );
