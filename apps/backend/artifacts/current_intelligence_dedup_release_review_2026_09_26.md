@@ -2,11 +2,17 @@
 
 **Branch:** `marketripple-score/current-intelligence-dedup` (off `origin/main` @ `c84c28a`)
 **Status:** Local only. Not pushed, not deployed. Public activation: 0%.
-**Revision 3** (2026-09-26, later same day) — Revision 2 rewrote section 3
-after the public-content freeze widened and added sections 6-7 (Company
-Rankings, remaining surfaces). This revision adds section 8: the Company
-page's own competing-rating fallback (`CurrentIntelligenceCard`/
-`useCompanyRating`) is now deleted, closing the last one-score gap.
+**Revision 4** (2026-09-26, later same day) — Revision 3 closed the
+Overview-tab competing-rating fallback (section 8). This revision closes
+the rest of the one-score sweep the owner asked for across every Company
+tab and ranking surface: the Intelligence tab (section 9) and the
+Opportunities tab (section 10) both had the same standalone "AI Company
+Score"/"AI Company Intelligence Score" rating under different titles;
+both are now removed the same way. Section 11 records the sweep's
+negative result (nothing else found live) and one new, more severe,
+explicitly NOT-fixed finding on the separate Compare page. The commit
+table below is now complete and accurate (previous revisions omitted 2-3
+of the newest rows from the table body, describing them only in prose).
 
 ## 1. Commits (19 total, chronological)
 
@@ -28,6 +34,9 @@ page's own competing-rating fallback (`CurrentIntelligenceCard`/
 | 14 | `3e8bedb` | Company Rankings backend endpoint (`get_banking_rankings`) |
 | 15 | `5c9a196` | Company Rankings frontend (Best Stocks retired, tab renamed) |
 | 16 | `73028ff` | Remaining surfaces: `/best-stocks/[sector]`, Overview widgets, `/sectors/[sector]`, fixture tests |
+| 17 | `424b089` | Overview tab: delete the competing-rating fallback (`useCompanyRating`/`CurrentIntelligenceCard`) |
+| 18 | `6d96fd2` | Intelligence tab: rename/strip `CompanyScoreContributors` ("AI Company Score" → "Recent Intelligence Evidence") |
+| 19 | `0accb62` | Opportunities tab: rename/strip `OpportunityRadarSection` the same way, closing the sweep |
 
 **Grouped diff since revision 1** (+7 files touched, +9 new tests):
 - `orchestration.py`: `_process_cluster()` now returns early on any matched public row — no score write, no linkage, no narrative regen, no slug touch.
@@ -100,6 +109,42 @@ Unchanged from revision 1: `backfill_company_signal_event_ids(db, dry_run=True)`
 
 `tsc --noEmit`: 0 new errors. `vitest`: 386/386 pass (2 new).
 
+## 9. Intelligence tab — `CompanyScoreContributors` competing rating removed
+
+**Finding:** the Overview-tab fix (section 8) didn't close the gap — a different tab under a different name was still a second public company rating. `CompanyScoreContributors` (Intelligence tab, titled "AI Company Score") showed a standalone 36px score headline, an "AI Powered" badge, an "Evidence quality" gauge (`_evidenceLabel(risk_level)`), Risk/Trend colour pills, and a `verdict.reasoning` sentence that itself embedded the same score/risk as prose (e.g. "Opportunity score 62/100 · Medium risk"). Users landing on the Intelligence tab could see this number sitting alongside the canonical MarketRipple Score's own card.
+
+**Fix (`6d96fd2`):** renamed to "Recent Intelligence Evidence"; removed all of the above. Kept the real, dated evidence columns (`ContributorRow`: reason text, source-type badge, formatted date, href link, and each row's own `signed_magnitude` — an individual evidence-item weight, not a company rating) untouched, plus one new factual sentence: the evidence feeds the MarketRipple Score's Current Intelligence pillar and is not itself a rating. The underlying calculation (`company_score_engine.py`) is untouched and keeps running internally as that pillar's real input. Exported `CompanyScoreContributors`/`CompanyScoreData`/`CompanyScoreContributor` for testability.
+
+**Regression test** (`CompanyScoreContributors.test.tsx`, 3 new cases): full-content case asserts every removed element ("AI Company Score", the score number, "AI Score", "AI Powered", "Evidence quality", risk/trend text, verdict text) is absent and every real evidence string/date/source-type/contributing-signal-count line is present; empty-state case; pending-fetch case. All 3 pass.
+
+**Real hydrated-browser verification** (this revision closes the caveat section 8 explicitly left open): installed `@playwright/test@^1.63.0` (version-matched to `release/ai-answer-v2`, reusing the globally-cached Chrome binaries at `C:\Users\Malini\AppData\Local\ms-playwright\` rather than downloading new ones), added `playwright.config.ts` + `e2e/one-score-company-page.spec.ts`. Started real local backend (port 8123) and frontend (port 3125) dev servers and confirmed via curl that `ICICIBANK` exercises both the Overview "Unavailable" state (`{"resolved":false}` from `/api/companies/ICICIBANK/marketripple-score`) and rich real Intelligence-tab evidence (`/api/company-scores/ICICIBANK`, score 52.8, 50 contributing signals) simultaneously. 2/2 real browser tests passed: Overview tab shows "Unavailable" and never the old fallback content; Intelligence tab shows "Recent Intelligence Evidence" with real evidence and never the old score/badge/pills/verdict. Both dev servers stopped after the run.
+
+`tsc --noEmit`: no new errors; three pre-existing errors remain (`AISearchClient.test.tsx`, unrelated, unchanged). `vitest`: 389/389 pass (3 new).
+
+## 10. Opportunities tab — `OpportunityRadarSection` competing rating removed (closes the sweep)
+
+**Finding:** the owner's explicit full-sweep instruction ("the requirement applies across the entire Company page, not only components named individually") found one more live instance: `OpportunityRadarSection` (Opportunities tab, titled "AI Company Intelligence Score") read the *same* `/api/company-scores/{symbol}` endpoint as `CompanyScoreContributors` and showed the identical pattern — score headline, "AI Powered" badge, "Evidence quality" gauge.
+
+**Fix (`0accb62`):** renamed to "Recent Intelligence Evidence" and stripped the same three elements, mirroring section 9 exactly. Kept the real per-signal evidence cards (reason, source-type badge, formatted date, href link, `signed_magnitude`) untouched — same distinction as `ContributorRow`. `RelatedOpportunitiesList`, rendered directly above this section on the same tab with its own real per-opportunity Opportunity Score badges (`o.score` from `/api/related/company/{symbol}`), is a separate, already-compliant concept and was correctly left untouched. Deleted `_evidenceLabel` entirely — this was its last remaining call site (its only other use, in `CompanyScoreContributors`, was already removed in section 9), so nothing was left orphaned. Exported `OpportunityRadarSection` for testability.
+
+**Regression test** (`OpportunityRadarSection.test.tsx`, 2 new cases): asserts every removed element is absent and the real per-signal evidence, `signed_magnitude` values, contributing-signal count, and pillar-explanation sentence are present; empty-state (no signals) case. Both pass.
+
+**Real hydrated-browser verification:** extended `e2e/one-score-company-page.spec.ts` with a third test covering the Opportunities tab. A stale frontend dev-server process left over from the section-9 verification round was found still holding port 3125 and serving pre-change code (confirmed via its actual OS process start time, well before this round's edits) — killed, then both servers were restarted clean. All 3 tests then passed against the fresh servers and real ICICIBANK data: Overview → "Unavailable"; Intelligence and Opportunities tabs → "Recent Intelligence Evidence" with real evidence, never the old score/badge/gauge, on all three tabs. Both dev servers stopped cleanly afterward.
+
+`tsc --noEmit`: no new errors; three pre-existing errors remain (unrelated, unchanged). `vitest`: 391/391 pass (2 new).
+
+## 11. Full sweep result — Company tabs and ranking surfaces
+
+Per the owner's instruction, searched the whole Company page and every ranking surface for remaining competing company-score labels/components, not just the two named above:
+
+- **Overview, Intelligence, Opportunities tabs** — closed (sections 8-10). Real hydrated-browser tests cover all three.
+- **`IntelligencePanel`** (sticky sidebar, visible on every tab) — already clean; its own "AI Rating"/"AI Investment Rating" gauge was removed in Batch B (2026-08-25), confirmed by reading the code, not just the comment.
+- **Company Rankings** (`/companies?tab=company-rankings`) — already compliant by construction: reads only `get_marketripple_score_projection()`, the same function the Company page itself calls.
+- **`/best-stocks/[sector]`, `/sectors/[sector]`** — already fixed in commit `73028ff` (Banking reads the real MarketRipple Score; other sectors show no score at all).
+- **`/best-stocks` (exact path, the old hub page)** — `BestStocksContent`/`RankingsView` still contain a live "AI Score" table column and hero number sourced from the retired `company_score_engine.py` ranking (`lib/bestStocks.ts`), but `next.config.ts` 301-redirects the exact `/best-stocks` path to `/companies?tab=company-rankings` — confirmed this makes the page unreachable in normal navigation, i.e. dead code, not a served competing surface. Not fixed (nothing user-visible to fix); flagged here only because it still exists on disk and would need deleting in a future cleanup pass, separate from this one-score effort.
+
+**New finding, explicitly NOT fixed — flag for owner decision:** the Compare page (`/companies?tab=compare` and the `/compare` redirect, `CompareContent.tsx`) shows an "AI Score"/"AI winner" banner per compared company that is **not** the retired-but-real `company_score_engine.py` score — it's computed entirely client-side from a hardcoded formula (`let s = 50; s += roe*0.8; s += (30-pe)*0.5; s -= debt_to_equity*5; ...`, clamped 10-99) over a hardcoded 30-company registry, with no backend call at all. This is a different, more severe class of problem than the two closed above: not a second *real* rating living under a competing label, but an outright fabricated number with zero backend provenance — the same category of finding as the Company Pages Audit's worst fabrication case earlier this engagement. The fix isn't a like-for-like rename/strip: an "AI winner" banner, a "Best Future Potential" ranking, and a per-company score ring all depend on this fabricated formula, so removing it changes the page's UX meaningfully and needs the owner's steer on what (if anything) replaces it. Not touched in this round.
+
 ## Held per instruction
 
-Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off.
+Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off. The Compare-page fabrication finding (section 11) is also held pending an owner decision on scope/replacement. Production snapshot history and coverage remain unknown — no new read attempt was made this round.
