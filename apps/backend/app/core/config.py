@@ -262,7 +262,23 @@ class Settings(BaseSettings):
     article_v2_canary_public_write_enabled: bool = False
 
     class Config:
-        env_file = ".env"
+        # 2026-09-26 security hotfix: never read a .env file when running
+        # on Railway (or any platform that sets RAILWAY_ENVIRONMENT, which
+        # every Railway deployment gets automatically -- confirmed present
+        # in this project's real production variables, unrelated to any
+        # app-level config). This is checked via a real OS environment
+        # variable, never a .env-sourced one, so it can't itself be
+        # defeated by the exact failure mode this closes: an earlier
+        # incident where a compromised MISTRAL_API_KEY, deleted from
+        # Railway, kept working anyway because pydantic-settings silently
+        # fell back to a stale .env file baked into the Docker image (see
+        # project_mistral_key_exposure_incident.md, Claude memory, and the
+        # sibling .dockerignore fix in this same commit, which stops that
+        # file from being baked in going forward). Production must be
+        # configured entirely through real platform environment variables
+        # from now on; local dev (no RAILWAY_ENVIRONMENT set) is
+        # unaffected and still reads .env exactly as before.
+        env_file = None if os.environ.get("RAILWAY_ENVIRONMENT") else ".env"
         env_file_encoding = "utf-8"
         extra = "ignore"  # silently skip any unrecognised env vars
 

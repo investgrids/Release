@@ -1,0 +1,62 @@
+# 2026-09-26 security hotfix — this file did not exist before, and its
+# absence is exactly why the production incident on this date happened:
+# the Dockerfile's `COPY . .` copied this directory's entire contents,
+# including .env (every provider API key, the admin key), directly into
+# the image at build time. A later, unrelated env-var-only fix (deleting
+# a compromised key from Railway) then had no effect at runtime, because
+# the process fell back to the still-baked-in .env file the moment the
+# real environment variable was absent — see project_mistral_key_
+# exposure_incident.md (Claude memory) for the full incident this closes.
+#
+# Every pattern below is either a credential, a local/dev-only database,
+# or a build-irrelevant artifact — nothing here should ever need to be
+# inside a production image regardless of this specific incident.
+
+# ── Credentials — the actual point of this file ──────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*_credentials.json
+*serviceaccount*.json
+credentials.json
+
+# ── Local/dev-only databases and their journal files ─────────────────
+*.db
+*.db-shm
+*.db-wal
+*.db.bak*
+*.sqlite
+*.sqlite3
+
+# ── Local repair/backup artifacts that have shown up as untracked
+#    files in this directory during real incidents this engagement —
+#    never something a production image should ship. ─────────────────
+*repair*.json
+ig_dev.db*
+
+# ── Version control / editor / OS noise ───────────────────────────────
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+
+# ── Python build/test artifacts ───────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+
+# ── Local dependency lockfile artifacts not needed at image-build time
+#    (the Dockerfile installs via pip -e . against pyproject.toml only —
+#    see that RUN step's own comment) ─────────────────────────────────
+.uv-cache/
