@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Flame, Sparkles, AlertTriangle, Newspaper, ArrowRight } from "lucide-react";
+import { Flame, Sparkles, Newspaper, ArrowRight } from "lucide-react";
 import { fetchAPI } from "@/lib/api";
+import { getSectorRankings, type RankedCompanyRow } from "@/lib/companyRankings";
 
 // Real data only, every section — no fabricated numbers. Confirmed live
 // before building this: /api/company-scores/ has no score-history field
@@ -60,18 +61,37 @@ function SectionCard({
 }
 
 export async function OverviewTab() {
-  const [scores, articles] = await Promise.all([
+  const [scores, articles, bankingRankings] = await Promise.all([
     getCompanyScores(),
     getLatestCompanyArticles(),
+    getSectorRankings("Banking"),
   ]);
 
   const scored = scores.filter(s => s.score !== null);
   // "Trending" = most recently signaled, not a fabricated popularity metric.
+  // Kept on the older engine deliberately — this reflects real signal
+  // recency, not a rating, so it isn't a competing public company score.
   const trending = [...scored]
     .sort((a, b) => new Date(b.top_contributors[0]?.signal_at ?? 0).getTime() - new Date(a.top_contributors[0]?.signal_at ?? 0).getTime())
     .slice(0, 5);
-  const topPicks = [...scored].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, 5);
-  const underPressure = [...scored].sort((a, b) => (a.score ?? 0) - (b.score ?? 0)).slice(0, 5);
+
+  // MarketRipple Score migration (2026-09-26) — "AI Top Picks" now reads
+  // the same approved MarketRippleScoreSnapshot projections the Company
+  // Rankings page and each company's own page use, never a separate
+  // computation. Real, honest empty state below (not a fabricated
+  // fallback to the old score) for as long as publishable stays False.
+  const topPicks: RankedCompanyRow[] = bankingRankings.ranked.slice(0, 5);
+
+  // "Companies Under Pressure" removed (2026-09-26, Company Rankings
+  // migration) rather than re-pointed at the new score: it classified
+  // "under pressure" purely from a low old-engine composite, which was
+  // never a real signal of selling pressure to begin with. A low
+  // MarketRipple Score (a fundamentals/valuation/behaviour/intelligence
+  // composite) doesn't establish that either — there's no honest way to
+  // build this classification from either score, so it's dropped rather
+  // than re-implemented on the new one. Same precedent as "Best
+  // Performing Sectors" above (2026-09-22): a card with no honest basis
+  // is worse than no card.
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -90,29 +110,16 @@ export async function OverviewTab() {
         )}
       </SectionCard>
 
-      <SectionCard icon={<Sparkles className="h-3.5 w-3.5" />} title="AI Top Picks" href="/companies?tab=company-rankings">
-        {topPicks.length === 0 ? <p className="text-[12px] text-text-muted">No scored companies yet.</p> : (
+      <SectionCard icon={<Sparkles className="h-3.5 w-3.5" />} title="MarketRipple Top Picks" href="/companies?tab=company-rankings">
+        {topPicks.length === 0 ? (
+          <p className="text-[12px] text-text-muted">No banks have a published MarketRipple Score yet.</p>
+        ) : (
           <ul className="space-y-2">
             {topPicks.map(c => (
               <li key={c.symbol}>
-                <Link href={`/companies/${displayName(c.symbol)}`} className="flex items-center justify-between rounded-lg px-2 py-1.5 transition hover:bg-text-primary/[0.04]">
-                  <span className="text-[12.5px] font-semibold text-text-primary">{displayName(c.symbol)}</span>
-                  <span className="text-[12px] font-bold text-emerald-400 tabular-nums">{c.score?.toFixed(0)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
-
-      <SectionCard icon={<AlertTriangle className="h-3.5 w-3.5" />} title="Companies Under Pressure" href="/companies?tab=all-companies">
-        {underPressure.length === 0 ? <p className="text-[12px] text-text-muted">No scored companies yet.</p> : (
-          <ul className="space-y-2">
-            {underPressure.map(c => (
-              <li key={c.symbol}>
-                <Link href={`/companies/${displayName(c.symbol)}`} className="flex items-center justify-between rounded-lg px-2 py-1.5 transition hover:bg-text-primary/[0.04]">
-                  <span className="text-[12.5px] font-semibold text-text-primary">{displayName(c.symbol)}</span>
-                  <span className="text-[12px] font-bold text-amber-500 tabular-nums">{c.score?.toFixed(0)}</span>
+                <Link href={`/companies/${c.symbol}`} className="flex items-center justify-between rounded-lg px-2 py-1.5 transition hover:bg-text-primary/[0.04]">
+                  <span className="text-[12.5px] font-semibold text-text-primary">{c.companyName}</span>
+                  <span className="text-[12px] font-bold text-emerald-400 tabular-nums">{Math.round(c.score)}</span>
                 </Link>
               </li>
             ))}

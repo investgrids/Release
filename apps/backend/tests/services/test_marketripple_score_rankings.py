@@ -196,3 +196,32 @@ def test_unsupported_sector_returns_honest_empty_state_never_the_old_score():
     assert result["supported"] is False
     assert result["ranked"] == []
     assert "not yet available" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_ranked_row_matches_the_same_symbol_s_company_page_projection_exactly():
+    """The real cross-surface consistency guarantee this migration promises:
+    'the same company shows the identical score and timestamp everywhere.'
+    Both Company Rankings and the Company page's MarketRippleScoreCard read
+    get_marketripple_score_projection() — this is a regression guard against
+    that ever drifting into two separate reads/computations."""
+    from app.services.marketripple_score.public_projection import get_marketripple_score_projection
+
+    tag = "UNIONBANK"
+    async with AsyncSessionLocal() as db:
+        await _seed_entity(db, tag)
+        db.add(_snapshot(tag, score=63.4, publishable=True, block_reasons=[]))
+        await db.commit()
+    try:
+        async with AsyncSessionLocal() as db:
+            rankings = await get_banking_rankings(db)
+        async with AsyncSessionLocal() as db:
+            company_page_projection = await get_marketripple_score_projection(db, tag)
+
+        row = next(r for r in rankings["ranked"] if r["symbol"] == tag)
+        assert row["score"] == company_page_projection["score"]
+        assert row["rating"] == company_page_projection["rating"]
+        assert row["coverage_pct"] == company_page_projection["evidence_coverage_pct"]
+        assert row["calculated_at"] == company_page_projection["calculated_at"]
+    finally:
+        await _cleanup([tag])

@@ -130,22 +130,25 @@ async function fetchSectorArticles(sectorName: string): Promise<RelatedArticle[]
   }
 }
 
-interface SectorScoreCompany { symbol: string; score: number | null; top_contributors: { reason: string | null }[] }
-
-// AI Company Intelligence Score (company_score_engine.py) — real per-company
-// ranking + reason, previously nowhere on this page: "Companies in {sector}"
-// was an unranked flat grid of just price/change. Additive only — stocks
-// with no real signal yet keep their original position, not hidden.
+// Company Rankings migration (2026-09-26) — this used to rank every
+// sector's constituents by the retired AI Company Score
+// (company_score_engine.py). Banking now reads the real, approved
+// MarketRipple Score instead (the same projections Company Rankings and
+// each company's own page use — never a second computation). Every other
+// sector has no approved methodology, so it gets no score-based ranking
+// at all rather than a fallback to the retired engine — stocks keep their
+// original relative order with price/change only, the same honest path
+// this page already used for any stock with no signal.
 async function fetchSectorScores(sectorName: string): Promise<Map<string, { score: number; reason: string | null }>> {
+  if (sectorName.toLowerCase() !== "banking") return new Map();
   try {
-    const res = await fetch(`${API}/api/company-scores/sector/${encodeURIComponent(sectorName)}?limit=50`, { next: { revalidate: 900 } });
+    const res = await fetch(`${API}/api/company-rankings/Banking`, { next: { revalidate: 900 } });
     if (!res.ok) return new Map();
     const data = await res.json();
-    const companies: SectorScoreCompany[] = Array.isArray(data.companies) ? data.companies : [];
+    const ranked: { symbol: string; score: number; rating: string | null }[] = Array.isArray(data.ranked) ? data.ranked : [];
     const map = new Map<string, { score: number; reason: string | null }>();
-    for (const c of companies) {
-      if (c.score == null) continue;
-      map.set(c.symbol, { score: c.score, reason: c.top_contributors?.[0]?.reason ?? null });
+    for (const c of ranked) {
+      map.set(c.symbol, { score: c.score, reason: c.rating ? `MarketRipple Score: ${c.rating}` : null });
     }
     return map;
   } catch {
@@ -246,9 +249,10 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
         )}
       </div>
 
-      {/* Constituent stocks — ranked by real AI Company Intelligence Score
-          where available (company_score_engine.py); stocks with no signal
-          yet keep price/change only, appended after the ranked ones. */}
+      {/* Constituent stocks — Banking ranked by the real, approved
+          MarketRipple Score (same projections as Company Rankings / each
+          company's own page); every other sector shows price/change only,
+          since no other sector has an approved methodology yet. */}
       {rankedStocks.length > 0 && (
         <section>
           <h2 className="text-[15px] font-semibold text-text-primary">Companies in {d.name}</h2>

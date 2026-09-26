@@ -2,7 +2,7 @@ import { API_BASE_URL as API } from "@/lib/api";
 import { GLOSSARY } from "@/lib/glossary-data";
 import { GUIDES } from "@/lib/guides-data";
 import { ARTICLES } from "@/lib/articles-data";
-import { getSectorsWithCounts } from "@/lib/bestStocks";
+import { sectorSlug } from "@/lib/bestStocks";
 import { buildSitemapXml, type SitemapEntry } from "@/lib/xmlSitemap";
 
 /**
@@ -88,11 +88,11 @@ async function buildEntries(): Promise<SitemapEntry[]> {
     // (historical_memory_service.py, 52 events) previously powering only a
     // sidebar widget with no indexable URL of its own.
     { url: `${base}/historical`,                 lastModified: now, changeFrequency: "weekly", priority: 0.75 },
-    // Best Stocks (real, opportunity-scored rankings by sector) is now
-    // reached at /companies?tab=best-stocks — the bare /companies entry
-    // above (priority 0.9) is the one indexable URL for this whole hub,
-    // same "don't list a redirecting URL" reasoning as /newsroom above.
-    // /best-stocks itself 301-redirects to that canonical view.
+    // Company Rankings (real MarketRipple Score rankings, Banking today)
+    // is reached at /companies?tab=company-rankings — the bare /companies
+    // entry above (priority 0.9) is the one indexable URL for this whole
+    // hub, same "don't list a redirecting URL" reasoning as /newsroom
+    // above. /best-stocks and /company-rankings both 301-redirect there.
     // Commodities — real live metals/energy prices (commodities.py), fixed
     // 8-item set (4 metals + 4 energy) defined in the backend itself, so
     // listed directly rather than fetched.
@@ -305,15 +305,24 @@ async function buildEntries(): Promise<SitemapEntry[]> {
   // near-empty page to Google is exactly the thin-content risk the SEO
   // audit flagged. Only events with real reaction/scoring data go in the
   // sitemap; the hub page still lists everything for browsing.
-  // Best Stocks — reuses the same thin-content threshold (>=3 real
-  // companies) already applied inside getSectorsWithCounts().
-  const bestStocksSectors = await getSectorsWithCounts();
-  const bestStocksRoutes: SitemapEntry[] = bestStocksSectors.map(s => ({
-    url: `${base}/best-stocks/${s.slug}`,
-    lastModified: now,
-    changeFrequency: "daily",
-    priority: 0.75,
-  }));
+  // Company Rankings migration (2026-09-26) — this used to source from
+  // getSectorsWithCounts() (the retired AI Company Score's own thin-
+  // content-gated sector list). Now sources from the real, full sector
+  // list (/api/companies/sectors) instead, since every sector's
+  // /best-stocks/{slug} page is honest content now (a real company list,
+  // not a score) rather than something requiring old-engine coverage to
+  // be worth indexing. Banking is excluded — it now 301-redirects to
+  // Company Rankings, and a redirecting URL doesn't belong in the sitemap
+  // (same "don't list a redirecting URL" principle used elsewhere here).
+  const allSectors = await safeJson<{ sectors?: string[] }>(`${API}/api/companies/sectors`, {});
+  const bestStocksRoutes: SitemapEntry[] = (allSectors.sectors ?? [])
+    .filter(s => s.toLowerCase() !== "banking")
+    .map(s => ({
+      url: `${base}/best-stocks/${sectorSlug(s)}`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    }));
 
   // SEO P1-P2, 2026-08-24 — now matches the detail page's own
   // isSubstantive() gate exactly (nifty_1w || opportunity_score ||

@@ -48,6 +48,12 @@ const nextConfig: NextConfig = {
       // consolidation policy as this redirect always used.
       { source: "/best-stocks",        destination: "/companies?tab=company-rankings", permanent: true },
       { source: "/company-rankings",   destination: "/companies?tab=company-rankings", permanent: true },
+      // The old per-sector Banking page now duplicates the real Company
+      // Rankings surface exactly — redirect it there rather than keep two
+      // pages answering the same question. Other /best-stocks/{sector}
+      // slugs are NOT redirected (they still resolve, now with honest
+      // "not yet available" + company-browsing content — see that page).
+      { source: "/best-stocks/banking", destination: "/companies?tab=company-rankings", permanent: true },
       { source: "/compare",            destination: "/companies?tab=compare",     permanent: true },
       { source: "/ipo-hub",            destination: "/companies?tab=ipo",         permanent: true },
       { source: "/sectors",            destination: "/companies?tab=sectors",     permanent: true },
