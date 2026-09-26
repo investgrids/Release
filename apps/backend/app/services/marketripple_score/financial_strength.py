@@ -34,6 +34,7 @@ computed/interpolated substitute.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,35 +71,71 @@ _KNOWN_UNAVAILABLE = [
     "advances_growth (same — only 1 real year deep)",
 ]
 
+# Provenance contract, 2026-09-26 audit follow-up — bumped whenever the
+# scoring/substitution formula itself changes, so every already-computed
+# PillarScore.detail record stays traceable to the exact logic that
+# produced it, independent of the broader BANKING_METHODOLOGY_VERSION.
+FORMULA_VERSION = "financial_strength_v3d"
 
-async def _latest_valid_fact_value(db: AsyncSession, symbol: str, metric_code: str) -> float | None:
+
+async def _latest_valid_fact_record(db: AsyncSession, symbol: str, metric_code: str) -> dict | None:
     """The real, current, non-anomalous, plausible, non-quarantined
-    observation for this symbol+metric — walks back past any ANOMALY,
-    IMPLAUSIBLE_SCALE, or SOURCE_DOCUMENT_QUARANTINED (S4.5-B) flagged
-    period rather than using it or fabricating a replacement. Applies
-    identically whether `symbol` is the scored bank or a peer being pulled
-    into another bank's percentile ranking — a filer whose values are
-    excluded from its own score is excluded from every other bank's peer
-    pool too. Non-Consolidated only (load-bearing, see FinancialFact's own
-    module docstring)."""
+    observation for this symbol+metric, WITH its own provenance — walks
+    back past any ANOMALY, IMPLAUSIBLE_SCALE, or SOURCE_DOCUMENT_QUARANTINED
+    (S4.5-B) flagged period rather than using it or fabricating a
+    replacement. Applies identically whether `symbol` is the scored bank or
+    a peer being pulled into another bank's percentile ranking — a filer
+    whose values are excluded from its own score is excluded from every
+    other bank's peer pool too. Non-Consolidated only (load-bearing, see
+    FinancialFact's own module docstring).
+
+    Returns None when no valid observation exists at all, else a dict with:
+      value, period ("FY{year}Q{quarter}"), published_at (NSE's real
+      broadCastDate for the filing, ISO or None if NSE never supplied one
+      for this row — stays explicitly None, never guessed), substituted
+      (True when a MORE RECENT period exists for this symbol+metric but was
+      excluded for quality reasons — i.e. this is a real fallback, not
+      simply "the newest data we have"), substituted_from_period (that
+      excluded period's own label, or None).
+    """
     from app.db.models.financial_fact import (
         EXTRACTION_POPULATED, FinancialFact, QUALITY_ANOMALY,
         QUALITY_IMPLAUSIBLE_SCALE, QUALITY_SOURCE_DOCUMENT_QUARANTINED,
     )
 
     rows = (await db.execute(
-        select(FinancialFact.value, FinancialFact.fiscal_year, FinancialFact.fiscal_quarter, FinancialFact.quality_status)
+        select(
+            FinancialFact.value, FinancialFact.fiscal_year, FinancialFact.fiscal_quarter,
+            FinancialFact.quality_status, FinancialFact.published_at,
+        )
         .where(
             FinancialFact.symbol == symbol, FinancialFact.metric_code == metric_code,
             FinancialFact.consolidation_scope == "Non-Consolidated", FinancialFact.extraction_status == EXTRACTION_POPULATED,
         )
     )).all()
     _excluded = (QUALITY_ANOMALY, QUALITY_IMPLAUSIBLE_SCALE, QUALITY_SOURCE_DOCUMENT_QUARANTINED)
-    valid = [(v, fy, fq or 0) for v, fy, fq, qs in rows if qs not in _excluded and v is not None]
+
+    valid = [(v, fy, fq or 0, pub) for v, fy, fq, qs, pub in rows if qs not in _excluded and v is not None]
     if not valid:
         return None
     valid.sort(key=lambda r: (r[1], r[2]), reverse=True)
-    return valid[0][0]
+    value, fy, fq, published_at = valid[0]
+
+    excluded_periods = [(fy2, fq2 or 0) for _, fy2, fq2, qs, _ in rows if qs in _excluded]
+    newer_excluded = [p for p in excluded_periods if p > (fy, fq)]
+    substituted = bool(newer_excluded)
+    substituted_from_period = None
+    if newer_excluded:
+        newest = max(newer_excluded)
+        substituted_from_period = f"FY{newest[0]}Q{newest[1]}"
+
+    return {
+        "value": value,
+        "period": f"FY{fy}Q{fq}",
+        "published_at": published_at.isoformat() if published_at else None,
+        "substituted": substituted,
+        "substituted_from_period": substituted_from_period,
+    }
 
 
 def _fetch_financial_strength_inputs_sync(symbol: str) -> dict:
@@ -173,6 +210,7 @@ async def score_financial_strength(
 
     active_peer_group = peer_group if peer_group is not None else ALL_ELIGIBLE_NSE_BANKS
     peer_symbols = list(dict.fromkeys([symbol] + [s for s in active_peer_group if s != symbol]))
+    retrieved_at = datetime.now(timezone.utc).isoformat()
 
     # yfinance-sourced (ROE, NII growth, Profit growth) — sequential, not
     # asyncio.gather, per the real, confirmed-live concurrent-load finding
@@ -185,16 +223,26 @@ async def score_financial_strength(
     own_yf = by_symbol_yf[symbol]
 
     # FinancialFact-sourced (Gross NPA%, Net NPA%, CET1, ROA) — real
-    # primary-source values, anomaly-excluded per _latest_valid_fact_value.
-    fact_values: dict[str, dict[str, float]] = {code: {} for code, _ in _FACT_METRICS}
+    # primary-source values + provenance, anomaly-excluded per
+    # _latest_valid_fact_record.
+    fact_records: dict[str, dict[str, dict]] = {code: {} for code, _ in _FACT_METRICS}
     for s in peer_symbols:
         for code, _ in _FACT_METRICS:
-            v = await _latest_valid_fact_value(db, s, code)
-            if v is not None:
-                fact_values[code][s] = v
+            rec = await _latest_valid_fact_record(db, s, code)
+            if rec is not None:
+                fact_records[code][s] = rec
+    fact_values: dict[str, dict[str, float]] = {
+        code: {s: rec["value"] for s, rec in by_s.items()} for code, by_s in fact_records.items()
+    }
 
     metrics_used, metrics_missing = [], list(_KNOWN_UNAVAILABLE)
     sub_scores: dict[str, float] = {}
+    # Provenance contract (2026-09-26 audit follow-up): one structured
+    # record per metric this pillar actually scored for THIS symbol — never
+    # a bare scalar. Each metric can carry a different real vintage (see
+    # substituted/substituted_from_period), so this is per-metric, never a
+    # single pillar-wide "as of" date.
+    metric_provenance: dict[str, dict] = {}
     detail: dict = {
         "peer_group": peer_symbols,
         "nim_proxy_pct": own_yf.get("nim_proxy_not_scored"),
@@ -206,7 +254,20 @@ async def score_financial_strength(
         if pctile is not None:
             sub_scores[code] = pctile
             metrics_used.append(f"{code}_peer_percentile (real, NSE XBRL, Non-Consolidated)")
-            detail[code] = fact_values[code].get(symbol)
+            own_rec = fact_records[code].get(symbol, {})
+            detail[code] = own_rec.get("value")
+            metric_provenance[code] = {
+                "value": own_rec.get("value"),
+                "source": "NSE_XBRL_FinancialFact",
+                "period": own_rec.get("period"),
+                "retrieved_at": retrieved_at,
+                "observation_as_of": own_rec.get("published_at"),  # NSE's real broadCastDate, or None if NSE never supplied one
+                "substitution_reason": (
+                    f"anomaly_fallback_from_{own_rec.get('substituted_from_period')}"
+                    if own_rec.get("substituted") else None
+                ),
+                "formula_version": FORMULA_VERSION,
+            }
         else:
             metrics_missing.append(f"{code} (no valid — non-anomalous — real observation for this symbol yet)")
 
@@ -216,6 +277,12 @@ async def score_financial_strength(
         sub_scores["roe"] = roe_pctile
         metrics_used.append("roe_peer_percentile (yfinance)")
         detail["roe"] = own_yf.get("roe")
+        metric_provenance["roe"] = {
+            "value": own_yf.get("roe"), "source": "yfinance_info",
+            "period": None,  # yfinance's trailing ROE carries no explicit fiscal-period label — explicitly unknown, not guessed
+            "retrieved_at": retrieved_at, "observation_as_of": None,
+            "substitution_reason": None, "formula_version": FORMULA_VERSION,
+        }
     else:
         metrics_missing.append("roe_peer_percentile")
 
@@ -225,6 +292,12 @@ async def score_financial_strength(
         sub_scores["nii_growth"] = nii_growth_pctile
         metrics_used.append("nii_growth_peer_percentile (yfinance)")
         detail["nii_growth_pct"] = own_yf.get("nii_growth")
+        metric_provenance["nii_growth"] = {
+            "value": own_yf.get("nii_growth"), "source": "yfinance_annual_financials (Net Interest Income, YoY)",
+            "period": None,  # the two annual columns compared carry no captured fiscal-year-end date — explicitly unknown, see financial_strength.py's own extraction code
+            "retrieved_at": retrieved_at, "observation_as_of": None,
+            "substitution_reason": None, "formula_version": FORMULA_VERSION,
+        }
     else:
         metrics_missing.append("nii_growth_peer_percentile")
 
@@ -234,8 +307,16 @@ async def score_financial_strength(
         sub_scores["profit_growth"] = profit_growth_pctile
         metrics_used.append("profit_growth_peer_percentile (yfinance)")
         detail["profit_growth_pct"] = own_yf.get("profit_growth")
+        metric_provenance["profit_growth"] = {
+            "value": own_yf.get("profit_growth"), "source": "yfinance_annual_financials (Net Income, YoY)",
+            "period": None,  # same gap as nii_growth above
+            "retrieved_at": retrieved_at, "observation_as_of": None,
+            "substitution_reason": None, "formula_version": FORMULA_VERSION,
+        }
     else:
         metrics_missing.append("profit_growth_peer_percentile")
+
+    detail["metrics"] = metric_provenance
 
     if not sub_scores:
         return PillarScore(
