@@ -6,48 +6,32 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Shield, Leaf, ClipboardList, BarChart2, X, Award } from "lucide-react";
+import { Trophy, Shield, ClipboardList, BarChart2, X } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
+import type { MarketRippleScoreData } from "@/app/companies/[symbol]/CompanyPageClient";
 
 // Recharts split into its own lazy chunk (2026-08 performance audit) — see
 // CompareLineChart.tsx's own header comment for why.
 const CompareLineChart = dynamic(() => import("./CompareLineChart").then(m => m.CompareLineChart), { ssr: false });
 
-
-// ── Company registry ──────────────────────────────────────────────────────────
-
-const COMPANY_LIST = [
-  { symbol: "TATAPOWER",  name: "Tata Power Co. Ltd.",         sector: "Power Generation" },
-  { symbol: "NTPC",       name: "NTPC Ltd.",                   sector: "Power Generation" },
-  { symbol: "ADANIPOWER", name: "Adani Power Ltd.",            sector: "Power Generation" },
-  { symbol: "RELIANCE",   name: "Reliance Industries Ltd.",    sector: "Energy" },
-  { symbol: "TCS",        name: "Tata Consultancy Services",   sector: "IT" },
-  { symbol: "INFY",       name: "Infosys Ltd.",                sector: "IT" },
-  { symbol: "HDFCBANK",   name: "HDFC Bank Ltd.",              sector: "Banking" },
-  { symbol: "ICICIBANK",  name: "ICICI Bank Ltd.",             sector: "Banking" },
-  { symbol: "KOTAKBANK",  name: "Kotak Mahindra Bank",         sector: "Banking" },
-  { symbol: "SBIN",       name: "State Bank of India",         sector: "Banking" },
-  { symbol: "WIPRO",      name: "Wipro Ltd.",                  sector: "IT" },
-  { symbol: "BEL",        name: "Bharat Electronics Ltd.",     sector: "Defence" },
-  { symbol: "HAL",        name: "Hindustan Aeronautics Ltd.",  sector: "Defence" },
-  { symbol: "RVNL",       name: "Rail Vikas Nigam Ltd.",       sector: "Infrastructure" },
-  { symbol: "IRFC",       name: "Indian Railway Finance Corp.",sector: "Finance" },
-  { symbol: "ADANIENT",   name: "Adani Enterprises Ltd.",      sector: "Conglomerate" },
-  { symbol: "TATASTEEL",  name: "Tata Steel Ltd.",             sector: "Metals" },
-  { symbol: "JSWSTEEL",   name: "JSW Steel Ltd.",              sector: "Metals" },
-  { symbol: "HINDUNILVR", name: "Hindustan Unilever Ltd.",     sector: "FMCG" },
-  { symbol: "ITC",        name: "ITC Ltd.",                    sector: "FMCG" },
-  { symbol: "SUNPHARMA",  name: "Sun Pharmaceutical",          sector: "Pharma" },
-  { symbol: "DRREDDY",    name: "Dr Reddy's Laboratories",     sector: "Pharma" },
-  { symbol: "MARUTI",     name: "Maruti Suzuki India Ltd.",    sector: "Auto" },
-  { symbol: "TATAMOTORS", name: "Tata Motors Ltd.",            sector: "Auto" },
-  { symbol: "LT",         name: "Larsen & Toubro Ltd.",        sector: "Infrastructure" },
-  { symbol: "POWERGRID",  name: "Power Grid Corporation",      sector: "Power" },
-  { symbol: "ONGC",       name: "Oil & Natural Gas Corp.",     sector: "Energy" },
-  { symbol: "COALINDIA",  name: "Coal India Ltd.",             sector: "Energy" },
-  { symbol: "AXISBANK",   name: "Axis Bank Ltd.",              sector: "Banking" },
-  { symbol: "BAJFINANCE", name: "Bajaj Finance Ltd.",          sector: "Finance" },
-];
+// One-score migration sweep (2026-09-26, owner instruction): this page used
+// to run its own client-side "AI Score" — a hardcoded formula (`s = 50 +
+// f(roe, pe, debt_to_equity, gross_margins, dividend_yield)`, clamped
+// 10-99) with no backend call at all, over a hand-maintained 30-company
+// registry that never covered the real ~500+ company universe. Verified the
+// underlying financial metrics themselves ARE real/sourced (yfinance/
+// Finnhub via /api/stocks/{symbol}, confirmed live for both a bank and a
+// non-bank symbol) — the fabrication was specifically the scoring formula
+// and the "AI winner" declarations built on top of it, not the inputs.
+// Replaced with the same real, approved MarketRipple Score projection the
+// Company page itself reads (GET /api/companies/{symbol}/marketripple-
+// score) — shown honestly per company (real score, partial coverage, or
+// unavailable), never a declared "winner." The hardcoded company registry
+// is gone too — the "Add Company" search now calls the real backend
+// directory (GET /api/companies/search, the same metadata-only search
+// AllCompaniesTab.tsx already uses) instead of filtering a static list
+// that had already drifted from the real ~500+ company universe once
+// before in this app's history.
 
 const PALETTE = ["#3b82f6", "#22c55e", "#f59e0b", "#a855f7"];
 const TABS = ["Overview","Financials","Valuation","Performance","Profitability","Cash Flow","Balance Sheet","Growth","Dividends","Peers","Events","AI Analysis"];
@@ -95,10 +79,6 @@ function parseN(s: string | number | undefined): number {
 }
 
 function color(i: number) { return PALETTE[i % PALETTE.length]; }
-
-function meta(sym: string) {
-  return COMPANY_LIST.find(c => c.symbol === sym) ?? { symbol: sym, name: sym, sector: "General" };
-}
 
 function highlight(values: number[], lowerBetter = false): string[] {
   const valid = values.filter(v => v > 0);
@@ -200,6 +180,50 @@ function ScoreRing({ score, label, col }: { score: number; label: string; col: s
   );
 }
 
+// ── MarketRipple Score tile (real, one canonical score — 2026-09-26) ───────────
+// Replaces the old client-side "AI Score" ScoreRing: reads the exact same
+// projection the Company page's own MarketRippleScoreCard reads, so a
+// company's score here always matches its score everywhere else on the
+// site. Shows the honest partial/unavailable state per company rather than
+// hiding it or substituting a fabricated number — and deliberately never
+// highlights or ranks the compared tiles against each other (no declared
+// winner), even when every company shown is fully eligible.
+function MrScoreTile({ data, label, col }: {
+  data: MarketRippleScoreData | null | undefined; label: string; col: string;
+}) {
+  if (data === undefined) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex h-[76px] w-[76px] items-center justify-center text-[13px] text-text-muted">···</div>
+        <span className="text-[10px] text-text-secondary text-center leading-tight">{label}</span>
+      </div>
+    );
+  }
+  if (data?.eligible === true && data.score == null && data.pillar_coverage_status === "partial") {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex h-[76px] w-[76px] flex-col items-center justify-center text-center">
+          <span className="text-[12px] font-bold text-text-primary">Partial</span>
+          <span className="text-[9px] text-text-muted">coverage</span>
+        </div>
+        <span className="text-[10px] text-text-secondary text-center leading-tight">{label}</span>
+      </div>
+    );
+  }
+  const eligible = !!data?.resolved && !!data?.snapshot && data?.eligible === true && data.score != null;
+  if (!eligible) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex h-[76px] w-[76px] items-center justify-center text-center">
+          <span className="text-[12px] font-bold text-text-muted">Unavailable</span>
+        </div>
+        <span className="text-[10px] text-text-secondary text-center leading-tight">{label}</span>
+      </div>
+    );
+  }
+  return <ScoreRing score={Math.round(data.score!)} label={label} col={col} />;
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" }) {
@@ -220,7 +244,23 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
   const [search,   setSearch]       = useState("");
   const [showSearch,setShowSearch]  = useState(false);
   const [loadingChart,setLoadingChart] = useState(false);
+  // Real company-directory metadata, populated as search results and stock
+  // fetches resolve (2026-09-26 — replaces the hardcoded 30-company
+  // COMPANY_LIST; the eventual real /api/stocks/{symbol} fetch already
+  // overwrites these the moment it resolves, this is just what a chip
+  // shows in the instant before that).
+  const [directory, setDirectory]   = useState<Record<string, { name: string; sector: string }>>({});
+  const [searchResults, setSearchResults] = useState<{ symbol: string; name: string; sector: string }[]>([]);
+  const [searching, setSearching]   = useState(false);
+  // Real MarketRipple Score projections — the same one canonical endpoint
+  // the Company page itself reads (GET /api/companies/{symbol}/
+  // marketripple-score). undefined = loading, null = fetch failed.
+  const [mrScores, setMrScores]     = useState<Record<string, MarketRippleScoreData | null | undefined>>({});
   const searchRef = useRef<HTMLDivElement>(null);
+
+  function meta(sym: string) {
+    return directory[sym] ?? { symbol: sym, name: sym, sector: "General" };
+  }
 
   // Close search on outside click
   useEffect(() => {
@@ -231,6 +271,39 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  // Real company-directory search (2026-09-26) — the same metadata-only
+  // GET /api/companies/search AllCompaniesTab.tsx already uses for the
+  // /companies directory, replacing the old client-side filter over a
+  // hardcoded 30-company list that could never find the other ~470+ real
+  // companies this app actually covers.
+  useEffect(() => {
+    if (!search.trim()) { setSearchResults([]); setSearching(false); return; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      fetch(`${API}/api/companies/search?${new URLSearchParams({ q: search, limit: "8" })}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => setSearchResults((d?.companies ?? []).filter((c: any) => !selected.includes(c.symbol))))
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search, selected]);
+
+  // Real MarketRipple Score projections, one fetch per selected symbol —
+  // mirrors the Company page's own useMarketRippleScore hook exactly so
+  // the same symbol always shows the same score here as everywhere else.
+  useEffect(() => {
+    selected.forEach(sym => {
+      if (sym in mrScores) return;
+      setMrScores(prev => ({ ...prev, [sym]: undefined }));
+      fetch(`${API}/api/companies/${sym}/marketripple-score`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => setMrScores(prev => ({ ...prev, [sym]: d })))
+        .catch(() => setMrScores(prev => ({ ...prev, [sym]: null })));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
   // Fetch stock info
   useEffect(() => {
     selected.forEach(sym => {
@@ -240,6 +313,15 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           if (!d) { setStocks(prev => ({ ...prev, [sym]: { ...fallback(sym), loading: false } })); return; }
+          // /api/stocks/{symbol} has never actually returned top-level
+          // `revenue`/`profit` fields (confirmed live for both a bank and
+          // a non-bank symbol, 2026-09-26) — this component was reading
+          // fields that don't exist, so "Revenue"/"Net Profit" rows always
+          // rendered "—" for every company. The real figures ARE present,
+          // just nested in `annual_financials` (which this file already
+          // fetches and displays elsewhere) — use the latest fiscal year
+          // from there instead of the dead top-level fields.
+          const latestAnnual = (d.annual_financials || []).slice(-1)[0];
           setStocks(prev => ({
             ...prev,
             [sym]: {
@@ -272,8 +354,8 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               debt_to_equity:    d.debt_to_equity|| "—",
               current_ratio:     d.current_ratio || "—",
               free_cashflow:     d.free_cashflow || "—",
-              revenue:           d.revenue       || "—",
-              profit:            d.profit        || "—",
+              revenue:           latestAnnual ? latestAnnual.revenue.toLocaleString("en-IN") : "—",
+              profit:            latestAnnual ? latestAnnual.net_income.toLocaleString("en-IN") : "—",
               enterprise_value:  d.enterprise_value || "—",
               recommendation:    d.recommendation || "hold",
               target_mean:       d.target_mean   || "—",
@@ -339,23 +421,19 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
     };
   }
 
-  function addCompany(sym: string) {
-    if (selected.includes(sym) || selected.length >= 4) return;
-    setSelected(prev => [...prev, sym]);
-    setSearch(""); setShowSearch(false);
+  function addCompany(c: { symbol: string; name: string; sector: string }) {
+    if (selected.includes(c.symbol) || selected.length >= 4) return;
+    setDirectory(prev => ({ ...prev, [c.symbol]: { name: c.name, sector: c.sector } }));
+    setSelected(prev => [...prev, c.symbol]);
+    setSearch(""); setShowSearch(false); setSearchResults([]);
   }
   function removeCompany(sym: string) {
     setSelected(prev => prev.filter(s => s !== sym));
     setStocks(prev => { const n = { ...prev }; delete n[sym]; return n; });
+    setMrScores(prev => { const n = { ...prev }; delete n[sym]; return n; });
   }
 
   const companies = selected.map(sym => stocks[sym] ?? fallback(sym));
-
-  const filteredSearch = COMPANY_LIST.filter(c =>
-    !selected.includes(c.symbol) &&
-    (c.symbol.toLowerCase().includes(search.toLowerCase()) ||
-     c.name.toLowerCase().includes(search.toLowerCase()))
-  ).slice(0, 8);
 
   // Merge chart data → % change from first point
   const mergedChart = useMemo(() => {
@@ -373,19 +451,6 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
       return pt;
     });
   }, [selected, chartMap]);
-
-  // AI winner
-  const aiScores = useMemo(() => companies.map(c => {
-    let s = 50;
-    const roe = parseN(c.roe);      if (roe  > 0) s += Math.min(roe * 0.8, 20);
-    const pe  = parseN(c.pe);       if (pe   > 0 && pe < 60) s += Math.max(0, (30 - pe) * 0.5);
-    const de  = parseN(c.debt_to_equity); s -= Math.min(de * 5, 20);
-    const gm  = parseN(c.gross_margins); s += Math.min(gm * 0.3, 15);
-    const div = parseN(c.dividend_yield); s += Math.min(div * 2, 8);
-    return Math.min(99, Math.max(10, Math.round(s)));
-  }), [companies]);
-
-  const winnerIdx = aiScores.indexOf(Math.max(...aiScores));
 
   const recBadge = (r: string) => {
     const map: Record<string, string> = {
@@ -466,15 +531,15 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                   </thead>
                   <tbody>
                     <CmpRow label="Market Cap"       values={companies.map(c => c.market_cap)} />
-                    <CmpRow label="P/E Ratio (TTM)"  values={companies.map(c => c.pe)}           lowerBetter />
-                    <CmpRow label="P/B Ratio"        values={companies.map(c => c.pb)}           lowerBetter />
-                    <CmpRow label="ROE (%)"          values={companies.map(c => c.roe)} />
-                    <CmpRow label="ROCE (%)"         values={companies.map(c => c.roce)} />
-                    <CmpRow label="Debt to Equity"   values={companies.map(c => c.debt_to_equity)} lowerBetter />
-                    <CmpRow label="Dividend Yield"   values={companies.map(c => c.dividend_yield)} />
-                    <CmpRow label="52W High"         values={companies.map(c => c.week52_high)}
+                    <CmpRow label="P/E Ratio (TTM, x)" values={companies.map(c => c.pe)}           lowerBetter />
+                    <CmpRow label="P/B Ratio (x)"    values={companies.map(c => c.pb)}           lowerBetter />
+                    <CmpRow label="ROE (%, TTM)"      values={companies.map(c => c.roe)} />
+                    <CmpRow label="ROCE (%, TTM)"     values={companies.map(c => c.roce)} />
+                    <CmpRow label="Debt to Equity (x)" values={companies.map(c => c.debt_to_equity)} lowerBetter />
+                    <CmpRow label="Dividend Yield (%)" values={companies.map(c => c.dividend_yield)} />
+                    <CmpRow label="52W High (₹)"     values={companies.map(c => c.week52_high)}
                       fmt={v => v === "—" ? "—" : `₹${v}`} />
-                    <CmpRow label="52W Low"          values={companies.map(c => c.week52_low)}
+                    <CmpRow label="52W Low (₹)"      values={companies.map(c => c.week52_low)}
                       fmt={v => v === "—" ? "—" : `₹${v}`} lowerBetter />
                   </tbody>
                 </table>
@@ -484,22 +549,27 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
           {/* RIGHT — sticky */}
           <div className="space-y-5 xl:sticky xl:top-[84px]">
-            {/* AI Comparison Summary */}
-            <Card className="border-violet-500/10">
+            {/* Comparison Summary (renamed from "AI Comparison Summary",
+                2026-09-26 one-score migration) — no longer declares an
+                overall winner. Each item below is a transparent,
+                single-real-metric superlative (highest ROE, lowest beta)
+                with its own attribution, not a composite AI verdict.
+                "Best Future Potential" (based on the removed fabricated
+                score) is gone — there is no validated predictive metric
+                to replace it with. */}
+            <Card>
               <div className="mb-4 flex items-center gap-2">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5 shrink-0 text-violet-400"><path d="M12 2 L14.4 9.6 L22 9.6 L15.8 14.1 L18.2 21.7 L12 17 L5.8 21.7 L8.2 14.1 L2 9.6 L9.6 9.6 Z"/></svg>
-                <h3 className="text-sm font-semibold text-text-primary">AI Comparison Summary</h3>
+                <BarChart2 className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+                <h3 className="text-sm font-semibold text-text-primary">Comparison Summary</h3>
               </div>
               <p className="mb-4 text-[12px] leading-5 text-text-secondary">
-                {companies[winnerIdx]?.name || companies[0]?.name || "—"} leads on risk-adjusted return metrics.
-                {companies.length > 1 ? ` ${companies.find((_, i) => i !== winnerIdx)?.name ?? ""} offers stability with lower volatility.` : ""}
-                {companies.length > 2 ? " Consider sector exposure and time horizon before comparing." : ""}
+                Real, sourced metrics for the selected {companies.length === 1 ? "company" : "companies"} — the
+                bolded value in each table below is the strongest among them for that metric.
               </p>
               <div className="space-y-2">
                 {([
-                  { icon: <Trophy className="h-4 w-4" />, label: "Best Performer",      col: "text-amber-600 dark:text-amber-300",   val: companies.reduce((b, c) => parseN(c.roe) > parseN(b.roe) ? c : b, companies[0])?.name || "—" },
-                  { icon: <Shield className="h-4 w-4" />, label: "Most Stable",         col: "text-sky-600 dark:text-sky-300",     val: companies.reduce((b, c) => { const bn = parseN(b.beta); const cn = parseN(c.beta); return (cn > 0 && cn < bn) || bn <= 0 ? c : b; }, companies[0])?.name || "—" },
-                  { icon: <Leaf className="h-4 w-4" />,   label: "Best Future Potential",col: "text-emerald-600 dark:text-emerald-300", val: companies.reduce((b, c) => aiScores[companies.indexOf(c)] > aiScores[companies.indexOf(b)] ? c : b, companies[0])?.name || "—" },
+                  { icon: <Trophy className="h-4 w-4" />, label: "Highest ROE",  col: "text-amber-600 dark:text-amber-300", val: companies.reduce((b, c) => parseN(c.roe) > parseN(b.roe) ? c : b, companies[0])?.name || "—" },
+                  { icon: <Shield className="h-4 w-4" />, label: "Lowest Beta",  col: "text-sky-600 dark:text-sky-300",     val: companies.reduce((b, c) => { const bn = parseN(b.beta); const cn = parseN(c.beta); return (cn > 0 && cn < bn) || bn <= 0 ? c : b; }, companies[0])?.name || "—" },
                 ] as { icon: ReactNode; label: string; col: string; val: string }[]).map(item => (
                   <div key={item.label}
                     className="flex items-center justify-between rounded-xl border border-surface-border/5 bg-text-primary/[0.02] px-3 py-2.5">
@@ -513,8 +583,8 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               </div>
               <button
                 onClick={() => setActiveTab("AI Analysis")}
-                className="mt-4 w-full rounded-xl border border-violet-500/20 bg-gradient-to-r from-violet-500/15 to-sky-500/10 py-2.5 text-[12px] font-medium text-violet-600 dark:text-violet-300 transition hover:from-violet-500/25 hover:to-sky-500/15">
-                View Detailed AI Analysis →
+                className="mt-4 w-full rounded-xl border border-sky-500/20 bg-gradient-to-r from-sky-500/15 to-sky-500/10 py-2.5 text-[12px] font-medium text-sky-600 dark:text-sky-300 transition hover:from-sky-500/25 hover:to-sky-500/15">
+                View Detailed Analysis →
               </button>
             </Card>
 
@@ -570,9 +640,15 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           </div>
         </div>
 
-        {/* Financial Highlights (full width below) */}
+        {/* Financial Highlights (full width below). Was labeled "(TTM)" for
+            every row, but Revenue/Net Profit are real annual figures (the
+            latest fiscal year in annual_financials — fixed 2026-09-26, see
+            the revenue/profit mapping comment above; these were reading
+            dead top-level API fields before) while EPS/margins genuinely
+            are trailing figures — each row now states its own real
+            period rather than one blanket, partly-inaccurate label. */}
         <Card>
-          <CardTitle sub="Trailing Twelve Months">Financial Highlights (TTM)</CardTitle>
+          <CardTitle sub="Real, sourced figures — period shown per metric">Financial Highlights</CardTitle>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -590,11 +666,11 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               </thead>
               <tbody>
                 {([
-                  { label: "Revenue (₹ Cr)",      key: "revenue",           lowerBetter: false },
-                  { label: "Net Profit (₹ Cr)",   key: "profit",            lowerBetter: false },
-                  { label: "EPS (₹)",             key: "eps",               lowerBetter: false },
-                  { label: "Operating Margin (%)",key: "operating_margins", lowerBetter: false },
-                  { label: "Net Margin (%)",      key: "net_margins",       lowerBetter: false },
+                  { label: "Revenue (₹ Cr, Latest FY)",       key: "revenue",           lowerBetter: false },
+                  { label: "Net Profit (₹ Cr, Latest FY)",    key: "profit",            lowerBetter: false },
+                  { label: "EPS (₹, TTM)",                    key: "eps",               lowerBetter: false },
+                  { label: "Operating Margin (%, TTM)",       key: "operating_margins", lowerBetter: false },
+                  { label: "Net Margin (%, TTM)",             key: "net_margins",       lowerBetter: false },
                 ] as { label: string; key: keyof StockData; lowerBetter: boolean }[]).map(row => {
                   const vals = companies.map(c => parseN(String((c as any)[row.key])));
                   const max = Math.max(...vals.filter(v => v > 0), 1);
@@ -671,12 +747,12 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                 <div className="flex h-24 items-center justify-center text-[11px] text-text-muted">No data</div>
               )}
               <div className="mt-3 space-y-0 border-t border-surface-border/5 pt-3">
-                <KVRow label="Revenue"        value={c.revenue} />
-                <KVRow label="Net Profit"     value={c.profit} />
-                <KVRow label="Gross Margin"   value={c.gross_margins} />
-                <KVRow label="Op. Margin"     value={c.operating_margins} />
-                <KVRow label="Net Margin"     value={c.net_margins} />
-                <KVRow label="Free Cash Flow" value={c.free_cashflow} />
+                <KVRow label="Revenue (₹ Cr, Latest FY)"    value={c.revenue} />
+                <KVRow label="Net Profit (₹ Cr, Latest FY)" value={c.profit} />
+                <KVRow label="Gross Margin (%, TTM)"        value={c.gross_margins} />
+                <KVRow label="Op. Margin (%, TTM)"          value={c.operating_margins} />
+                <KVRow label="Net Margin (%, TTM)"          value={c.net_margins} />
+                <KVRow label="Free Cash Flow (TTM)"         value={c.free_cashflow} />
               </div>
             </Card>
           ))}
@@ -729,13 +805,13 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
   function ValuationTab() {
     const rows = [
-      { label: "P/E Ratio (TTM)", vals: companies.map(c => c.pe),          lowerBetter: true  },
-      { label: "P/B Ratio",       vals: companies.map(c => c.pb),          lowerBetter: true  },
-      { label: "Forward P/E",     vals: companies.map(c => c.forward_pe),  lowerBetter: true  },
-      { label: "EPS (₹)",         vals: companies.map(c => c.eps),         lowerBetter: false },
-      { label: "Beta",            vals: companies.map(c => c.beta),        lowerBetter: true  },
-      { label: "Market Cap",      vals: companies.map(c => c.market_cap),  lowerBetter: false },
-      { label: "Ent. Value",      vals: companies.map(c => c.enterprise_value), lowerBetter: false },
+      { label: "P/E Ratio (TTM, x)", vals: companies.map(c => c.pe),          lowerBetter: true  },
+      { label: "P/B Ratio (x)",      vals: companies.map(c => c.pb),          lowerBetter: true  },
+      { label: "Forward P/E (x)",    vals: companies.map(c => c.forward_pe),  lowerBetter: true  },
+      { label: "EPS (₹, TTM)",       vals: companies.map(c => c.eps),         lowerBetter: false },
+      { label: "Beta",               vals: companies.map(c => c.beta),        lowerBetter: true  },
+      { label: "Market Cap",         vals: companies.map(c => c.market_cap),  lowerBetter: false },
+      { label: "Ent. Value",         vals: companies.map(c => c.enterprise_value), lowerBetter: false },
     ];
     return (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
@@ -756,20 +832,16 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           </table>
         </Card>
         <Card>
-          <CardTitle>Score Comparison</CardTitle>
+          <CardTitle>MarketRipple Score</CardTitle>
           <div className="flex flex-wrap justify-around gap-4 pt-2">
             {companies.map((c, i) => (
-              <div key={c.symbol} className="flex flex-col items-center gap-3">
-                <ScoreRing score={aiScores[i]} label={c.symbol} col={color(i)} />
-                <div className="text-center">
-                  <p className="text-[10px] text-text-muted">Valuation Score</p>
-                  <p className="text-[12px] font-bold text-text-primary">{aiScores[i]}/100</p>
-                </div>
-              </div>
+              <MrScoreTile key={c.symbol} data={mrScores[c.symbol]} label={c.symbol} col={color(i)} />
             ))}
           </div>
           <p className="mt-4 text-[10px] text-text-muted text-center">
-            Score derived from ROE, PE, D/E, gross margins, and dividend yield.
+            The real, approved four-pillar methodology (Financial Strength, Valuation, Market Behaviour,
+            Current Intelligence) — shown only where a company's sector has a published methodology and
+            full evidence coverage. Not a prediction or a declared winner.
           </p>
         </Card>
       </div>
@@ -778,12 +850,12 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
   function ProfitabilityTab() {
     const rows = [
-      { label: "Gross Margin",     key: "gross_margins"     as keyof StockData },
-      { label: "Operating Margin", key: "operating_margins" as keyof StockData },
-      { label: "Net Margin",       key: "net_margins"       as keyof StockData },
-      { label: "ROE",              key: "roe"               as keyof StockData },
-      { label: "ROA",              key: "roa"               as keyof StockData },
-      { label: "ROCE",             key: "roce"              as keyof StockData },
+      { label: "Gross Margin (%, TTM)",     key: "gross_margins"     as keyof StockData },
+      { label: "Operating Margin (%, TTM)", key: "operating_margins" as keyof StockData },
+      { label: "Net Margin (%, TTM)",       key: "net_margins"       as keyof StockData },
+      { label: "ROE (%, TTM)",              key: "roe"               as keyof StockData },
+      { label: "ROA (%, TTM)",              key: "roa"               as keyof StockData },
+      { label: "ROCE (%, TTM)",             key: "roce"              as keyof StockData },
     ];
     return (
       <div className="space-y-5">
@@ -849,11 +921,11 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
             </tr>
           </thead>
           <tbody>
-            <CmpRow label="Debt to Equity"   values={companies.map(c => c.debt_to_equity)} lowerBetter />
-            <CmpRow label="Current Ratio"    values={companies.map(c => c.current_ratio)} />
-            <CmpRow label="Free Cash Flow"   values={companies.map(c => c.free_cashflow)} />
-            <CmpRow label="Enterprise Value" values={companies.map(c => c.enterprise_value)} />
-            <CmpRow label="Market Cap"       values={companies.map(c => c.market_cap)} />
+            <CmpRow label="Debt to Equity (x)"   values={companies.map(c => c.debt_to_equity)} lowerBetter />
+            <CmpRow label="Current Ratio (x)"    values={companies.map(c => c.current_ratio)} />
+            <CmpRow label="Free Cash Flow (TTM)" values={companies.map(c => c.free_cashflow)} />
+            <CmpRow label="Enterprise Value"     values={companies.map(c => c.enterprise_value)} />
+            <CmpRow label="Market Cap"           values={companies.map(c => c.market_cap)} />
           </tbody>
         </table>
       </Card>
@@ -875,9 +947,9 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               </tr>
             </thead>
             <tbody>
-              <CmpRow label="Dividend Yield"  values={companies.map(c => c.dividend_yield)} />
-              <CmpRow label="Dividend Rate"   values={companies.map(c => c.dividend_rate)} />
-              <CmpRow label="Payout Ratio"    values={companies.map(() => "—")} />
+              <CmpRow label="Dividend Yield (%)" values={companies.map(c => c.dividend_yield)} />
+              <CmpRow label="Dividend Rate (₹)"  values={companies.map(c => c.dividend_rate)} />
+              <CmpRow label="Payout Ratio"       values={companies.map(() => "—")} />
             </tbody>
           </table>
         </Card>
@@ -1005,7 +1077,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                     {(c.recommendation || "hold").replace(/_/g, " ").toUpperCase()}
                   </span>
                 </div>
-                <ScoreRing score={aiScores[i]} label="AI Score" col={color(i)} />
+                <MrScoreTile data={mrScores[c.symbol]} label="MarketRipple Score" col={color(i)} />
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div>
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Strengths</p>
@@ -1033,43 +1105,16 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                   </div>
                 </div>
                 <div className="mt-3 space-y-0 border-t border-surface-border/5 pt-3">
-                  <KVRow label="Target Mean"     value={c.target_mean} />
-                  <KVRow label="Target High"     value={c.target_high} />
-                  <KVRow label="Target Low"      value={c.target_low} />
+                  <KVRow label="Target Mean (₹)" value={c.target_mean} />
+                  <KVRow label="Target High (₹)" value={c.target_high} />
+                  <KVRow label="Target Low (₹)"  value={c.target_low} />
                   <KVRow label="Analysts"        value={String(c.analyst_count || "—")} />
-                  <KVRow label="Inst. Holding"   value={c.held_institutions} />
+                  <KVRow label="Inst. Holding (%)" value={c.held_institutions} />
                 </div>
               </Card>
             );
           })}
         </div>
-
-        {/* Winner summary */}
-        <Card className="border-violet-500/20 bg-violet-500/[0.04]">
-          <div className="flex flex-wrap items-center gap-4">
-            <Award className="h-7 w-7 text-violet-400" />
-            <div className="flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400">AI Recommended Pick</p>
-              <p className="mt-0.5 text-xl font-bold text-text-primary">{companies[winnerIdx]?.name || "—"}</p>
-              <p className="mt-1 text-[12px] text-text-secondary">
-                Scores highest ({aiScores[winnerIdx]}/100) on risk-adjusted return metrics among the compared companies.
-                Based on ROE, valuation multiples, debt levels, and dividend returns.
-              </p>
-            </div>
-            <div className="flex gap-4">
-              {companies.map((c, i) => (
-                <div key={c.symbol} className="text-center">
-                  <p className="text-[10px] text-text-muted">{c.symbol}</p>
-                  <p className="text-[20px] font-black" style={{ color: color(i) }}>{aiScores[i]}</p>
-                  <p className="text-[9px] text-text-muted">/100</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <button className="mt-4 rounded-xl border border-violet-500/20 bg-gradient-to-r from-violet-500/15 to-sky-500/10 px-5 py-2.5 text-[12px] font-medium text-violet-600 dark:text-violet-300 transition hover:from-violet-500/25 hover:to-sky-500/20">
-            View Detailed AI Analysis →
-          </button>
-        </Card>
       </div>
     );
   }
@@ -1168,8 +1213,8 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                       className="w-full rounded-lg border border-surface-border/5 bg-text-primary/[0.04] px-3 py-2 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-sky-500/30"
                     />
                     <div className="mt-2 max-h-48 overflow-y-auto space-y-0.5">
-                      {filteredSearch.map(c => (
-                        <button key={c.symbol} onClick={() => addCompany(c.symbol)}
+                      {searchResults.map(c => (
+                        <button key={c.symbol} onClick={() => addCompany(c)}
                           className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-text-primary/[0.04]">
                           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-text-primary/[0.06] text-[9px] font-bold text-text-secondary">
                             {c.symbol.slice(0, 2)}
@@ -1180,8 +1225,14 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                           </div>
                         </button>
                       ))}
-                      {filteredSearch.length === 0 && (
+                      {searching && (
+                        <p className="py-3 text-center text-[11px] text-text-muted">Searching…</p>
+                      )}
+                      {!searching && search.trim() && searchResults.length === 0 && (
                         <p className="py-3 text-center text-[11px] text-text-muted">No results found</p>
+                      )}
+                      {!search.trim() && (
+                        <p className="py-3 text-center text-[11px] text-text-muted">Type a company name or symbol…</p>
                       )}
                     </div>
                   </motion.div>
