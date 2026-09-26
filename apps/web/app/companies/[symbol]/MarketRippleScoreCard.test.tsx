@@ -67,4 +67,39 @@ describe("MarketRippleScoreCard — comparability interim rule (2026-09-26)", ()
     expect(screen.getByText("Neutral")).toBeInTheDocument();
     expect(screen.getAllByText("50").length).toBeGreaterThan(0); // headline + all 4 pillars share this value
   });
+
+  // One-score migration regression guard (2026-09-26, owner instruction):
+  // CurrentIntelligenceCard/useCompanyRating (the older single-engine
+  // score's own Overview-tab card) were deleted from CompanyPageClient.tsx
+  // entirely — MarketRippleScoreSection now always renders this same card,
+  // even when there is no snapshot at all (unsupported sector, or not yet
+  // computed for this bank). These tests prove that state renders the
+  // honest "Unavailable" card, never the old numeric score/rating/verdict,
+  // and that nothing here depends on `stock` in a way that could suppress
+  // or corrupt unrelated company data elsewhere on the page.
+  describe("one-score migration — no snapshot at all never falls back to the old score", () => {
+    it("renders the honest Unavailable state, not the old score/verdict, when no snapshot has ever been computed", () => {
+      const data: MarketRippleScoreData = { resolved: true, snapshot: false };
+      render(<MarketRippleScoreCard data={data} stock={stock} />);
+      expect(screen.getByText("Unavailable")).toBeInTheDocument();
+      expect(screen.getByText("Not available yet")).toBeInTheDocument();
+      // The old engine's own card title/labels must never appear here —
+      // that component no longer exists in this file at all.
+      expect(screen.queryByText("Current Intelligence")).not.toBeInTheDocument();
+      expect(screen.queryByText(/Insufficient evidence for a current-intelligence view/)).not.toBeInTheDocument();
+      // No stray numeric score of any kind renders in this state.
+      expect(screen.queryByText("/ 100")).not.toBeInTheDocument();
+    });
+
+    it("renders the same honest Unavailable state for the raw fetch-failure fallback shape used by MarketRippleScoreSection", () => {
+      // Mirrors MarketRippleScoreSection's `data ?? { resolved: false }` —
+      // the shape passed when the fetch itself failed, not just when the
+      // company has no snapshot.
+      const data: MarketRippleScoreData = { resolved: false };
+      render(<MarketRippleScoreCard data={data} stock={stock} />);
+      expect(screen.getByText("Unavailable")).toBeInTheDocument();
+      expect(screen.queryByText("Current Intelligence")).not.toBeInTheDocument();
+      expect(screen.queryByText(/[0-9]{2,3}\/100/)).not.toBeInTheDocument();
+    });
+  });
 });

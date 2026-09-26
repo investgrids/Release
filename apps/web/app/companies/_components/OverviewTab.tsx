@@ -75,11 +75,14 @@ export async function OverviewTab() {
     .sort((a, b) => new Date(b.top_contributors[0]?.signal_at ?? 0).getTime() - new Date(a.top_contributors[0]?.signal_at ?? 0).getTime())
     .slice(0, 5);
 
-  // MarketRipple Score migration (2026-09-26) — "AI Top Picks" now reads
-  // the same approved MarketRippleScoreSnapshot projections the Company
-  // Rankings page and each company's own page use, never a separate
-  // computation. Real, honest empty state below (not a fabricated
-  // fallback to the old score) for as long as publishable stays False.
+  // MarketRipple Score migration (2026-09-26) — "AI Top Picks" renamed to
+  // "Highest MarketRipple Scores" (owner correction: "Top Picks" implies a
+  // recommendation this score has never been validated to make — it's a
+  // descriptive ranking preview, not investment advice). Reads the same
+  // approved MarketRippleScoreSnapshot projections the Company Rankings
+  // page and each company's own page use, never a separate computation.
+  // Real, honest empty state below (not a fabricated fallback to the old
+  // score) for as long as publishable stays False.
   const topPicks: RankedCompanyRow[] = bankingRankings.ranked.slice(0, 5);
 
   // "Companies Under Pressure" removed (2026-09-26, Company Rankings
@@ -110,7 +113,7 @@ export async function OverviewTab() {
         )}
       </SectionCard>
 
-      <SectionCard icon={<Sparkles className="h-3.5 w-3.5" />} title="MarketRipple Top Picks" href="/companies?tab=company-rankings">
+      <SectionCard icon={<Sparkles className="h-3.5 w-3.5" />} title="Highest MarketRipple Scores" href="/companies?tab=company-rankings">
         {topPicks.length === 0 ? (
           <p className="text-[12px] text-text-muted">No banks have a published MarketRipple Score yet.</p>
         ) : (

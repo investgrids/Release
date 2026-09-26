@@ -240,29 +240,21 @@ function MiniBar({ label, value, max = 100, color }: { label: string; value: num
 // owner's spec, so it stays a real, ever-present promise: there IS one
 // rating here, and it is either real or explicitly marked as not yet
 // available.
-function useCompanyRating(symbol: string) {
-  const [rating, setRating] = useState<CompanyScoreData | null | undefined>(undefined);
-  useEffect(() => {
-    let cancelled = false;
-    setRating(undefined);
-    fetch(`${API}/api/company-scores/${symbol}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (!cancelled) setRating(d); })
-      .catch(() => { if (!cancelled) setRating(null); });
-    return () => { cancelled = true; };
-  }, [symbol]);
-  return rating;
-}
-
 // S5-C — the real, unified four-pillar MarketRipple Score
 // (Financial Strength / Valuation / Market Behaviour / Current
 // Intelligence), reading only the persisted snapshot the backend
 // computed ahead of time (GET /api/companies/{symbol}/marketripple-score)
 // — never a live 27-bank recomputation from this page. "MarketRipple
 // Score" is reserved exclusively for this methodology going forward
-// (owner decision, 2026-08-29): the older single-engine AI/evidence
-// score (useCompanyRating above) no longer carries that name — see
-// MarketRippleScoreSection's own comment for how the two coexist.
+// (owner decision, 2026-08-29). One-score migration (2026-09-26, owner
+// instruction): the older single-engine AI/evidence score no longer has
+// its own Overview-tab card/fallback either — MarketRippleScoreSection
+// always renders this same card, in whichever state (complete/partial/
+// unavailable) the real projection is actually in. The older calculation
+// stays real and running internally (it's the Current Intelligence
+// pillar's own input, see current_intelligence.py) and still has its own,
+// separately-labeled "AI Company Score" home on the Intelligence tab
+// (CompanyScoreContributors) — just never as a competing headline rating.
 export interface MarketRippleScoreData {
   resolved: boolean;
   snapshot?: boolean;
@@ -1354,63 +1346,6 @@ function KeyDataGrid({ stock }: { stock: StockDetail }) {
   );
 }
 
-// Current Intelligence — the older, single-engine AI/evidence company
-// score (useCompanyRating), presented as a conclusion: score, verdict,
-// one real helping/holding-back reason each, link to the full
-// Intelligence tab. Renamed from "MarketRipple View" (S5-C, 2026-08-29,
-// owner decision) — "MarketRipple Score" is now reserved exclusively for
-// the unified four-pillar BANKING_V1 methodology (see
-// MarketRippleScoreSection). This card is now shown ONLY when that
-// unified score isn't available for the company (no methodology for its
-// sector yet, or no snapshot computed yet) — its real evidence still
-// deserves a home, just not under the MarketRipple Score brand. When the
-// unified score IS eligible, this same evidence already lives on the
-// Intelligence tab (CompanyScoreContributors) — showing it twice on
-// Overview would recreate the "two competing numbers" problem this
-// rename exists to prevent. Honest "insufficient evidence" state when
-// there's no real signal — never a fabricated number.
-function CurrentIntelligenceCard({ stock }: { stock: StockDetail }) {
-  const rating = useCompanyRating(stock.symbol);
-  if (rating === undefined) return null;
-  const hasRealRating = !!rating && rating.signal_count > 0 && rating.score != null;
-  const helping = rating?.positive_reasons?.find(r => r.reason);
-  const holdingBack = rating?.risk_factors?.find(r => r.reason);
-
-  return (
-    <SectionCard title="Current Intelligence" action={
-      <Link href={`/companies/${stock.symbol}?tab=intelligence` as any} className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View Intelligence →</Link>
-    }>
-      {!hasRealRating ? (
-        <p className="mt-3 text-[13px] text-text-muted">Insufficient evidence for a current-intelligence view on {stock.name} yet — this is built only from real published analysis and opportunity tracking, never estimated.</p>
-      ) : (
-        <div className="mt-3 space-y-3">
-          <div className="flex items-center gap-3">
-            <span className="text-[28px] font-black leading-none text-text-primary">{Math.round(rating!.score!)}</span>
-            {rating!.verdict?.label && (
-              <Pill color={rating!.risk_level === "High" ? "rose" : rating!.risk_level === "Low" ? "green" : "amber"}>{rating!.verdict!.label}</Pill>
-            )}
-          </div>
-          {rating!.verdict?.reasoning && <p className="text-[13px] leading-6 text-text-secondary">{rating!.verdict!.reasoning}</p>}
-          {(helping || holdingBack) && (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {helping && (
-                <p className="flex items-start gap-1.5 text-[12px] leading-5 text-text-secondary">
-                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400"/> {helping.reason}
-                </p>
-              )}
-              {holdingBack && (
-                <p className="flex items-start gap-1.5 text-[12px] leading-5 text-text-secondary">
-                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"/> {holdingBack.reason}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </SectionCard>
-  );
-}
-
 // MarketRipple Score — the real, unified four-pillar card (S5-C,
 // 2026-08-29). Deliberately restrained per owner spec: the headline
 // number dominates, the four pillars read as an EXPLANATION of it (a
@@ -1518,22 +1453,23 @@ export function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScore
   );
 }
 
-// The one real decision point for which Overview-tab card to show:
-// eligible-and-scored -> the new unified MarketRippleScoreCard;
-// blocked-but-scored (evidence exists, didn't clear BANKING_V1_P1) ->
-// MarketRippleScoreCard's own "Unavailable" state (never silently falls
-// back to the old score — that would defeat the point of a real,
-// structural eligibility gate); no methodology for this sector yet, or
-// no snapshot computed at all -> CurrentIntelligenceCard, so the older
-// engine's real evidence still has a home, just not under the
-// MarketRipple Score brand (owner decision, 2026-08-29).
+// One-score migration (2026-09-26, owner instruction): this Overview-tab
+// slot always renders the one canonical MarketRippleScoreCard now, in
+// whichever real state the projection is actually in — complete
+// (eligible, scored, 4-of-4 pillars), partial (eligible but withheld
+// pending full coverage), or unavailable (no methodology for this sector
+// yet, no snapshot computed yet, blocked, or stale). It never falls back
+// to the older single-engine score/verdict as a substitute company
+// rating — MarketRippleScoreCard's own "Unavailable" branch already
+// handles every one of those cases honestly (data.eligible is falsy for
+// all of them), so no separate fallback component is needed. The older
+// engine's real evidence keeps its own, separately-labeled home on the
+// Intelligence tab (CompanyScoreContributors, "AI Company Score") — never
+// as a second, competing headline number here.
 function MarketRippleScoreSection({ stock }: { stock: StockDetail }) {
   const data = useMarketRippleScore(stock.symbol);
-  if (data === undefined) return null;
-  if (data?.resolved && data?.snapshot) {
-    return <MarketRippleScoreCard data={data} stock={stock} />;
-  }
-  return <CurrentIntelligenceCard stock={stock} />;
+  if (data === undefined) return null; // still loading
+  return <MarketRippleScoreCard data={data ?? { resolved: false }} stock={stock} />;
 }
 
 // Latest Developments — the most recent real news headline and material
