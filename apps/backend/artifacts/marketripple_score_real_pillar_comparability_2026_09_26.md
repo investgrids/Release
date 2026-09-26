@@ -6,6 +6,18 @@ the synthetic 5-company comparability demonstration in
 the synthetic version establishes the mechanism is real; this establishes the
 magnitude on actual banks is not a contrived edge case.
 
+**Scope correction (2026-09-26, second pass):** this run's "real" Financial
+Strength scores were computed against a local database with zero
+`financial_facts` rows (see `financial_strength_metric_coverage_gap_2026_09_26.md`)
+— every bank's Financial Strength value below is built from the 3
+yfinance-sourced metrics only (ROE/NII growth/Profit growth), not the full
+7-metric real mix. This experiment demonstrates that the scoring formula
+is genuinely sensitive to missing pillars/metrics on real (not synthetic)
+numbers — it does **not** establish production's actual Banking coverage,
+nor production rank stability under real full-coverage conditions. That
+requires re-running this same method once a verified production
+`financial_facts` read is available.
+
 ## Method
 
 Ran `scripts/marketripple_score_five_bank_comparison.py` live against the 5
@@ -26,9 +38,11 @@ renormalized) case, using the exact same weighting formula
 | KOTAKBANK | 36.6 | 18.2 | 59.2 | 52.0 | 40.2 | 4 |
 | AXISBANK | 29.7 | 32.8 | 31.4 | 52.0 | 36.1 | 5 |
 
-Real Financial Strength coverage today, every bank: 16.7–25% (2 of 7–12
-metrics) — the single-pillar drop below is not a hypothetical, it approximates
-what today's real, thin Financial Strength coverage already amounts to.
+Local Financial Strength coverage today, every bank: 16.7–25% (2-3 of 7
+real metrics, driven entirely by the local financial_facts gap above) —
+the single-pillar drop below is not a hypothetical relative to this local
+environment, but whether it reflects production's real coverage is
+unverified.
 
 ## 1-pillar-drop results (real data)
 
@@ -47,13 +61,20 @@ Realistic given Financial Strength's actual current coverage. Deltas are
 
 ## Conclusion
 
-Real bank data confirms the synthetic demonstration was not overstated —
-if anything, the realistic 2-pillar-thin case (which describes every real
-bank's actual Financial Strength coverage today) produces larger swings than
-the single-pillar synthetic test alone showed. This is the evidentiary basis
-for `engine.py`'s comparability interim rule (score withheld below 4-of-4
-pillars) and directly answers why "at least 3 of 4" was rejected as a
-publication threshold in the audit follow-up.
+Real bank data confirms the synthetic demonstration's *mechanism* was not
+overstated — the renormalization sensitivity is real, not a contrived
+synthetic artifact, and the realistic 2-pillar-thin case produces larger
+swings than the single-pillar case alone. This is real evidence in support
+of `engine.py`'s comparability interim rule (score withheld below 4-of-4
+pillars).
+
+**What this does NOT establish:** production's actual Banking Financial
+Strength coverage (this local run used yfinance-only inputs due to the
+local `financial_facts` gap), or production rank stability under real
+full-coverage conditions. Both require re-running this method against a
+verified production data read. Treat this artifact as "the formula is
+sensitive to missing pillars — proven on real numbers," not "this is what
+production ranking risk looks like."
 
 Not re-run automatically (live yfinance/NSE data changes daily, same
 established convention as `scripts/marketripple_score_five_bank_comparison.py`
