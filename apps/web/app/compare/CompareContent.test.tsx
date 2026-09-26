@@ -64,7 +64,7 @@ describe("CompareContent — one-score migration (2026-09-26 sweep)", () => {
   it("shows a real, populated MarketRipple Score and a real 'Partial coverage' state honestly, with no fabricated AI score or declared winner", async () => {
     searchParamValues = { a: "ELIGCO", b: "PARTCO" };
     mockFetch({
-      "/api/stocks/ELIGCO": stockPayload({ name: "Eligible Co", roe: "25.0%", beta: "0.5", annual_financials: [{ year: "FY25", revenue: 123456, net_income: 22222 }] }),
+      "/api/stocks/ELIGCO": stockPayload({ name: "Eligible Co", roe: "25.0%", beta: "0.5", annual_financials: [{ year: "FY26", revenue: 123456, net_income: 22222 }] }),
       "/api/stocks/PARTCO": stockPayload({ name: "Partial Co", roe: "10.0%", beta: "1.5", annual_financials: [{ year: "FY25", revenue: 987654, net_income: 11111 }] }),
       "/api/companies/ELIGCO/marketripple-score": mrScorePayload({ score: 72, rating: "Strong" }),
       "/api/companies/PARTCO/marketripple-score": {
@@ -83,6 +83,19 @@ describe("CompareContent — one-score migration (2026-09-26 sweep)", () => {
     // always render "—". Confirms it now derives from the real
     // annual_financials figure instead.
     expect(screen.getByText("1,23,456")).toBeInTheDocument();
+
+    // Real per-company fiscal-year label (2026-09-26, owner instruction:
+    // "show the actual fiscal year-end"). ELIGCO and PARTCO are given
+    // DIFFERENT real years here specifically to prove a generic "Latest
+    // FY" placeholder was replaced by each company's own real year, not
+    // just relabeled.
+    expect(screen.getAllByText("FY26").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("FY25").length).toBeGreaterThan(0);
+
+    // Honest period-label disclosure (2026-09-26, owner instruction:
+    // labels need verified definitions) — TTM figures are the data
+    // provider's own convention, not independently recomputed here.
+    expect(screen.getAllByText(/trailing-twelve-month calculation/).length).toBeGreaterThan(0);
 
     // Real, single-metric Comparison Summary — never an overall "winner".
     expect(screen.getByText("Comparison Summary")).toBeInTheDocument();

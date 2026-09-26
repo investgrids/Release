@@ -44,6 +44,16 @@ test.describe("Compare page — one-score migration (real hydrated browser)", ()
     await expect(page.getByText("Highest ROE")).toBeVisible();
     await expect(page.getByText("Lowest Beta")).toBeVisible();
 
+    // Real fiscal-year-end label (2026-09-26, owner instruction) — both
+    // real companies' latest annual figures happen to be FY26 (confirmed
+    // live via /api/stocks/{symbol}), replacing the old generic "Latest
+    // FY" placeholder with each company's own real year.
+    await expect(page.getByText("FY26").first()).toBeVisible();
+
+    // Honest period-label disclosure — TTM figures are the data
+    // provider's own convention, not independently recomputed here.
+    await expect(page.getByText(/trailing-twelve-month calculation/).first()).toBeVisible();
+
     // Valuation tab: the real MarketRipple Score card, honestly showing
     // "Unavailable" for both real companies (confirmed live: no snapshot
     // exists locally for either symbol) — never the old fabricated ring.

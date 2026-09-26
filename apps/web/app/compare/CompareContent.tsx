@@ -48,7 +48,7 @@ interface StockData {
   dividend_yield: string; dividend_rate: string;
   gross_margins: string; operating_margins: string; net_margins: string;
   debt_to_equity: string; current_ratio: string; free_cashflow: string;
-  revenue: string; profit: string; enterprise_value: string;
+  revenue: string; profit: string; revenue_fy: string; enterprise_value: string;
   recommendation: string; target_mean: string; target_high: string; target_low: string;
   analyst_count: number; buy_count: number; hold_count: number; sell_count: number;
   held_institutions: string; held_insiders: string;
@@ -130,6 +130,22 @@ function KVRow({ label, value, cls = "text-text-primary" }: { label: string; val
       <span className="text-[11px] text-text-muted shrink-0">{label}</span>
       <span className={`text-[12px] font-semibold text-right ${cls}`}>{value || "—"}</span>
     </div>
+  );
+}
+
+// Period-label honesty note (2026-09-26, owner instruction: "labels ...
+// need verified definitions"). Verified against the source contract
+// (market_data.py::get_stock_detail): roe/roa/roce/gross_margins/
+// operating_margins/net_margins are raw pass-throughs of yfinance's own
+// `.info` fields (returnOnEquity, grossMargins, etc.) with no repo-side
+// period recomputation — "TTM" reflects the data provider's own
+// documented convention for those fields, not something this app
+// independently verifies or recalculates.
+function TtmNote() {
+  return (
+    <p className="mt-3 text-[9.5px] leading-4 text-text-muted">
+      TTM figures are the data provider's own trailing-twelve-month calculation, not independently recomputed by this app.
+    </p>
   );
 }
 
@@ -321,6 +337,27 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           // just nested in `annual_financials` (which this file already
           // fetches and displays elsewhere) — use the latest fiscal year
           // from there instead of the dead top-level fields.
+          //
+          // Verified against the source contract (2026-09-26, owner
+          // instruction): `annual_financials[].year` is a naive
+          // `col.strftime("FY%y")` of yfinance's own statement-column
+          // date (market_data.py::get_stock_detail) — it is NOT
+          // normalized across companies, so two compared companies can
+          // genuinely have different real latest fiscal years (one FY25,
+          // another already FY26) depending on when each filed. A
+          // generic "Latest FY" label would falsely imply they're the
+          // same period — show the real per-company year instead.
+          //
+          // Also verified: that same backend function unconditionally
+          // divides by 1e7 assuming INR, with no `financialCurrency`
+          // check — the exact currency-mislabeling bug already found and
+          // fixed for the sibling /financials endpoint (INFY reports USD,
+          // commit c844920) but NOT fixed here. Flagged as a separate,
+          // real, NOT-yet-fixed backend bug in the release package
+          // (outside this migration's boundary) rather than silently
+          // worked around client-side, since there's no reliable way to
+          // detect a company's real reporting currency from this
+          // endpoint's response today.
           const latestAnnual = (d.annual_financials || []).slice(-1)[0];
           setStocks(prev => ({
             ...prev,
@@ -356,6 +393,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               free_cashflow:     d.free_cashflow || "—",
               revenue:           latestAnnual ? latestAnnual.revenue.toLocaleString("en-IN") : "—",
               profit:            latestAnnual ? latestAnnual.net_income.toLocaleString("en-IN") : "—",
+              revenue_fy:        latestAnnual ? latestAnnual.year : "—",
               enterprise_value:  d.enterprise_value || "—",
               recommendation:    d.recommendation || "hold",
               target_mean:       d.target_mean   || "—",
@@ -412,7 +450,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
       dividend_yield: "—", dividend_rate: "—",
       gross_margins: "—", operating_margins: "—", net_margins: "—",
       debt_to_equity: "—", current_ratio: "—", free_cashflow: "—",
-      revenue: "—", profit: "—", enterprise_value: "—",
+      revenue: "—", profit: "—", revenue_fy: "—", enterprise_value: "—",
       recommendation: "hold", target_mean: "—", target_high: "—", target_low: "—",
       analyst_count: 0, buy_count: 0, hold_count: 0, sell_count: 0,
       held_institutions: "—", held_insiders: "—",
@@ -544,6 +582,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                   </tbody>
                 </table>
               </div>
+              <TtmNote />
             </Card>
           </div>
 
@@ -601,13 +640,14 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                   </tr>
                 </thead>
                 <tbody>
-                  <CmpRow label="P/E Ratio (TTM)" values={companies.map(c => c.pe)}         lowerBetter />
-                  <CmpRow label="P/B Ratio"       values={companies.map(c => c.pb)}         lowerBetter />
-                  <CmpRow label="Forward P/E"     values={companies.map(c => c.forward_pe)} lowerBetter />
-                  <CmpRow label="EPS (₹)"         values={companies.map(c => c.eps)} />
-                  <CmpRow label="Beta"            values={companies.map(c => c.beta)}       lowerBetter />
+                  <CmpRow label="P/E Ratio (TTM, x)" values={companies.map(c => c.pe)}         lowerBetter />
+                  <CmpRow label="P/B Ratio (x)"       values={companies.map(c => c.pb)}         lowerBetter />
+                  <CmpRow label="Forward P/E (x)"     values={companies.map(c => c.forward_pe)} lowerBetter />
+                  <CmpRow label="EPS (₹, TTM)"         values={companies.map(c => c.eps)} />
+                  <CmpRow label="Beta"                values={companies.map(c => c.beta)}       lowerBetter />
                 </tbody>
               </table>
+              <TtmNote />
             </Card>
 
             {/* Recent Events */}
@@ -666,12 +706,20 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               </thead>
               <tbody>
                 {([
-                  { label: "Revenue (₹ Cr, Latest FY)",       key: "revenue",           lowerBetter: false },
-                  { label: "Net Profit (₹ Cr, Latest FY)",    key: "profit",            lowerBetter: false },
+                  // Real fiscal-year-end fix (2026-09-26, owner instruction):
+                  // "Latest FY" was a generic placeholder — two compared
+                  // companies can genuinely have different real latest
+                  // fiscal years (verified against the source contract:
+                  // market_data.py derives it per-symbol from yfinance's
+                  // own statement columns, with no cross-company
+                  // alignment). `fyKey` renders each company's own real
+                  // year as a per-cell caption instead of a shared label.
+                  { label: "Revenue (₹ Cr)",       key: "revenue",           fyKey: "revenue_fy" as const, lowerBetter: false },
+                  { label: "Net Profit (₹ Cr)",    key: "profit",            fyKey: "revenue_fy" as const, lowerBetter: false },
                   { label: "EPS (₹, TTM)",                    key: "eps",               lowerBetter: false },
                   { label: "Operating Margin (%, TTM)",       key: "operating_margins", lowerBetter: false },
                   { label: "Net Margin (%, TTM)",             key: "net_margins",       lowerBetter: false },
-                ] as { label: string; key: keyof StockData; lowerBetter: boolean }[]).map(row => {
+                ] as { label: string; key: keyof StockData; fyKey?: keyof StockData; lowerBetter: boolean }[]).map(row => {
                   const vals = companies.map(c => parseN(String((c as any)[row.key])));
                   const max = Math.max(...vals.filter(v => v > 0), 1);
                   const cls = highlight(vals, row.lowerBetter);
@@ -682,12 +730,14 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                         const v = vals[i];
                         const w = max > 0 ? (v / max) * 100 : 0;
                         const display = String((c as any)[row.key]);
+                        const fy = row.fyKey ? String((c as any)[row.fyKey]) : null;
                         return (
                           <td key={c.symbol} className="py-2.5 text-right">
                             {c.loading
                               ? <span className="text-[11px] text-text-muted">…</span>
                               : <div className="inline-flex flex-col items-end gap-1">
                                   <span className={`text-[12px] font-semibold ${cls[i]}`}>{display || "—"}</span>
+                                  {fy && fy !== "—" && <span className="text-[9px] text-text-muted">{fy}</span>}
                                   {w > 0 && (
                                     <div className="h-1 w-16 overflow-hidden rounded-full bg-text-primary/[0.05]">
                                       <div className="h-full rounded-full" style={{ width: `${w}%`, background: color(i) }} />
@@ -704,6 +754,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               </tbody>
             </table>
           </div>
+          <TtmNote />
         </Card>
       </div>
     );
@@ -747,8 +798,8 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                 <div className="flex h-24 items-center justify-center text-[11px] text-text-muted">No data</div>
               )}
               <div className="mt-3 space-y-0 border-t border-surface-border/5 pt-3">
-                <KVRow label="Revenue (₹ Cr, Latest FY)"    value={c.revenue} />
-                <KVRow label="Net Profit (₹ Cr, Latest FY)" value={c.profit} />
+                <KVRow label={`Revenue (₹ Cr${c.revenue_fy !== "—" ? `, ${c.revenue_fy}` : ""})`}    value={c.revenue} />
+                <KVRow label={`Net Profit (₹ Cr${c.revenue_fy !== "—" ? `, ${c.revenue_fy}` : ""})`} value={c.profit} />
                 <KVRow label="Gross Margin (%, TTM)"        value={c.gross_margins} />
                 <KVRow label="Op. Margin (%, TTM)"          value={c.operating_margins} />
                 <KVRow label="Net Margin (%, TTM)"          value={c.net_margins} />
@@ -757,6 +808,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
             </Card>
           ))}
         </div>
+        <TtmNote />
         {/* Annual table */}
         {companies.some(c => c.annual_financials?.length > 0) && (
           <Card>
@@ -830,6 +882,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               {rows.map(r => <CmpRow key={r.label} label={r.label} values={r.vals} lowerBetter={r.lowerBetter} />)}
             </tbody>
           </table>
+          <TtmNote />
         </Card>
         <Card>
           <CardTitle>MarketRipple Score</CardTitle>
@@ -902,6 +955,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               {rows.map(r => <CmpRow key={r.key} label={r.label} values={companies.map(c => String((c as any)[r.key]))} />)}
             </tbody>
           </table>
+          <TtmNote />
         </Card>
       </div>
     );
@@ -928,6 +982,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
             <CmpRow label="Market Cap"           values={companies.map(c => c.market_cap)} />
           </tbody>
         </table>
+        <TtmNote />
       </Card>
     );
   }
