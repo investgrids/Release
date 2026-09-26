@@ -126,6 +126,11 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     # Nullable, no backfill: every pre-existing row correctly reads as
     # "no known event lineage" rather than a guessed link.
     ("ai_company_signals", "event_id", "VARCHAR(128)"),
+    # Comparability interim rule (2026-09-26) — marketripple_score_snapshots
+    # already existed (real, though zero rows in production as of the
+    # audit) before these columns did.
+    ("marketripple_score_snapshots", "pillar_coverage_status", "VARCHAR(16)"),
+    ("marketripple_score_snapshots", "pillar_coverage_message", "TEXT"),
 ]
 
 

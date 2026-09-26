@@ -108,4 +108,14 @@ class MarketRippleScoreSnapshot(Base):
     publication_policy_version = Column(String(32), nullable=True)
     publication_block_reasons = Column(JSON, nullable=True)
 
+    # Comparability interim rule (2026-09-26 audit follow-up) — whether this
+    # snapshot's `score` reflects all 4 pillars ("complete") or was withheld
+    # because fewer than 4 produced a real number ("partial" — see
+    # engine.py's own field docstring for why a renormalized partial blend
+    # isn't shown as a headline number). Persisted so a caller can render
+    # "Partial coverage — N of 4 pillars" instead of a generic "Unavailable"
+    # once this feature is ever unlocked, without recomputing anything.
+    pillar_coverage_status = Column(String(16), nullable=True)
+    pillar_coverage_message = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=_now)

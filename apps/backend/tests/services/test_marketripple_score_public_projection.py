@@ -56,7 +56,8 @@ async def _seed_entity(db, symbol: str, entity_id: str, old_symbol: str | None =
 
 
 def _snapshot(symbol, entity_id, *, score, financial_strength, coverage_pct, fin_metrics_used,
-              financial_data_as_of, block_reasons, publishable=False):
+              financial_data_as_of, block_reasons, publishable=False,
+              pillar_coverage_status="complete", pillar_coverage_message="Complete coverage — 4 of 4 pillars"):
     now = datetime.now(timezone.utc)
     return MarketRippleScoreSnapshot(
         entity_id=entity_id, symbol=symbol, score=score, rating="Positive",
@@ -66,6 +67,7 @@ def _snapshot(symbol, entity_id, *, score, financial_strength, coverage_pct, fin
         calculated_at=now, financial_data_as_of=financial_data_as_of,
         publishable=publishable, publication_block_reason=None if publishable else "S2 phase lock",
         publication_policy_version="BANKING_V1_P1", publication_block_reasons=block_reasons,
+        pillar_coverage_status=pillar_coverage_status, pillar_coverage_message=pillar_coverage_message,
     )
 
 
@@ -222,6 +224,49 @@ async def test_alias_resolves_to_the_same_canonical_snapshot():
         assert via_old["score"] == via_current["score"] == 61.0
     finally:
         await _cleanup([current_symbol], [entity_id])
+
+
+@pytest.mark.asyncio
+async def test_partial_coverage_status_surfaces_when_publishable():
+    symbol, entity_id = f"T{_tag()}", _entity_id()
+    async with AsyncSessionLocal() as db:
+        await _seed_entity(db, symbol, entity_id)
+        db.add(_snapshot(symbol, entity_id, score=None, financial_strength=68.7, coverage_pct=60.0,
+                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          publishable=True, pillar_coverage_status="partial",
+                          pillar_coverage_message="Partial coverage — 2 of 4 pillars"))
+        await db.commit()
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await get_marketripple_score_projection(db, symbol)
+        assert result["pillar_coverage_status"] == "partial"
+        assert result["pillar_coverage_message"] == "Partial coverage — 2 of 4 pillars"
+    finally:
+        await _cleanup([symbol], [entity_id])
+
+
+@pytest.mark.asyncio
+async def test_pillar_coverage_status_hidden_when_not_publishable():
+    """Same trust boundary as score/rating/pillars — see the 2026-08-31
+    leak-fix test above. A caller must not learn a snapshot WOULD be
+    partial-coverage any more than it should learn the withheld number."""
+    symbol, entity_id = f"T{_tag()}", _entity_id()
+    async with AsyncSessionLocal() as db:
+        await _seed_entity(db, symbol, entity_id)
+        db.add(_snapshot(symbol, entity_id, score=None, financial_strength=68.7, coverage_pct=60.0,
+                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          publishable=False, pillar_coverage_status="partial",
+                          pillar_coverage_message="Partial coverage — 2 of 4 pillars"))
+        await db.commit()
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await get_marketripple_score_projection(db, symbol)
+        assert result["pillar_coverage_status"] is None
+        assert result["pillar_coverage_message"] is None
+    finally:
+        await _cleanup([symbol], [entity_id])
 
 
 @pytest.mark.asyncio

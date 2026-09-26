@@ -143,6 +143,12 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
         },
         "evidence_coverage_pct": snap.coverage_pct if publishable else None,
         "financial_data_as_of": snap.financial_data_as_of if publishable else None,
+        # Comparability interim rule (2026-09-26) — gated alongside the rest
+        # of the numeric payload, same trust boundary as `score` above: a
+        # caller shouldn't learn "this would be a partial-coverage score"
+        # any more than it should learn the withheld number itself.
+        "pillar_coverage_status": snap.pillar_coverage_status if publishable else None,
+        "pillar_coverage_message": snap.pillar_coverage_message if publishable else None,
         "calculated_at": snap.calculated_at.isoformat() if snap.calculated_at else None,
         "block_reason_codes": reasons,
         "block_headline": block[0] if block else None,

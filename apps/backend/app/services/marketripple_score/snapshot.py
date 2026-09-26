@@ -124,6 +124,8 @@ async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group
         intelligence_as_of=now,
         publishable=result.publishable,
         publication_block_reason=result.publish_reason,
+        pillar_coverage_status=result.pillar_coverage_status,
+        pillar_coverage_message=result.pillar_coverage_message,
     )
     db.add(snapshot)
     await db.commit()

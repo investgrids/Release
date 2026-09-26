@@ -279,6 +279,13 @@ interface MarketRippleScoreData {
   };
   evidence_coverage_pct?: number;
   financial_data_as_of?: string | null;
+  // Comparability interim rule (2026-09-26) — "complete" | "partial" |
+  // "insufficient" | null. When "partial", `score`/`rating` are withheld
+  // (a renormalized 2-or-3-of-4 blend isn't comparable to a real 4-of-4
+  // one) even though individual `pillars` values that WERE computed are
+  // still real and present — see engine.py's own field docstring.
+  pillar_coverage_status?: "complete" | "partial" | "insufficient" | null;
+  pillar_coverage_message?: string | null;
   calculated_at?: string | null;
   block_headline?: string | null;
   block_message?: string | null;
@@ -1420,11 +1427,52 @@ function CurrentIntelligenceCard({ stock }: { stock: StockDetail }) {
 // server-computed reason (see public_projection.py's priority-ordered
 // reason-code mapping) — never re-derived or guessed here.
 function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScoreData; stock: StockDetail }) {
-  const eligible = data.eligible === true && data.score != null;
-
   const methodologyLink = (
     <Link href="/methodology/marketripple-score" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">How this score works →</Link>
   );
+
+  const pillars: { label: string; value: number | null | undefined }[] = [
+    { label: "Financial Strength",    value: data.pillars?.financial_strength },
+    { label: "Valuation",             value: data.pillars?.valuation },
+    { label: "Market Behaviour",      value: data.pillars?.market_behaviour },
+    { label: "Current Intelligence",  value: data.pillars?.current_intelligence },
+  ];
+  const updated = data.calculated_at
+    ? new Date(data.calculated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+    : null;
+
+  // Comparability interim rule (2026-09-26): eligible but withheld because
+  // fewer than 4 pillars produced a real number — a renormalized partial
+  // blend isn't shown as a headline number/ranking, but whichever real
+  // per-pillar values DID compute are still shown, not hidden behind a
+  // generic "Unavailable".
+  if (data.eligible === true && data.score == null && data.pillar_coverage_status === "partial") {
+    return (
+      <SectionCard title="MarketRipple Score" action={methodologyLink}>
+        <p className="mt-1 text-[12px] leading-5 text-text-muted">
+          A combined view of financial strength, valuation, market behaviour and current market intelligence.
+        </p>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="text-[15px] font-bold text-text-primary">Partial coverage</span>
+        </div>
+        <p className="mt-1 text-[12px] leading-5 text-text-muted">
+          {data.pillar_coverage_message ?? "Not enough pillars are available yet for a combined score."} A combined
+          number isn't shown until all four pillars are available, so partial results stay comparable to each other.
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+          {pillars.map(p => (
+            <div key={p.label}>
+              <p className="text-[9px] uppercase tracking-wider text-text-muted">{p.label}</p>
+              <p className="mt-0.5 text-[16px] font-bold text-text-primary">{p.value != null ? Math.round(p.value) : "—"}</p>
+            </div>
+          ))}
+        </div>
+        {updated && <p className="mt-5 border-t border-surface-border/10 pt-3 text-[11px] text-text-muted">Updated {updated}</p>}
+      </SectionCard>
+    );
+  }
+
+  const eligible = data.eligible === true && data.score != null;
 
   if (!eligible) {
     return (
@@ -1437,16 +1485,6 @@ function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScoreData; s
       </SectionCard>
     );
   }
-
-  const pillars: { label: string; value: number | null | undefined }[] = [
-    { label: "Financial Strength",    value: data.pillars?.financial_strength },
-    { label: "Valuation",             value: data.pillars?.valuation },
-    { label: "Market Behaviour",      value: data.pillars?.market_behaviour },
-    { label: "Current Intelligence",  value: data.pillars?.current_intelligence },
-  ];
-  const updated = data.calculated_at
-    ? new Date(data.calculated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-    : null;
 
   return (
     <SectionCard title="MarketRipple Score" action={methodologyLink}>
