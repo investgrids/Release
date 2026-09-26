@@ -2,11 +2,11 @@
 
 **Branch:** `marketripple-score/current-intelligence-dedup` (off `origin/main` @ `c84c28a`)
 **Status:** Local only. Not pushed, not deployed. Public activation: 0%.
-**Revision 2** (2026-09-26, later same day) — supersedes the first version of this
-document: section 3 below was rewritten after the public-content freeze was
-widened (narrative content and Development linkage are now also frozen, not
-just score/signal fields), and sections 6-7 (Company Rankings, remaining
-surfaces) are new.
+**Revision 3** (2026-09-26, later same day) — Revision 2 rewrote section 3
+after the public-content freeze widened and added sections 6-7 (Company
+Rankings, remaining surfaces). This revision adds section 8: the Company
+page's own competing-rating fallback (`CurrentIntelligenceCard`/
+`useCompanyRating`) is now deleted, closing the last one-score gap.
 
 ## 1. Commits (19 total, chronological)
 
@@ -82,9 +82,23 @@ Unchanged from revision 1: `backfill_company_signal_event_ids(db, dry_run=True)`
 
 **End-to-end dev-server verification** (both rounds, real backend + real frontend, real local DB, servers stopped after each check): `/api/company-rankings/Banking` returns 200 with real data; `/companies?tab=company-rankings`, `/best-stocks/technology` (200, honest unavailable + real company list), `/best-stocks/banking` (308 → Company Rankings), `/sectors/banking` (200, no stale score badges), `/companies?tab=overview` (200, new widget + confirmed absence of "Companies Under Pressure") — all verified, no server errors in either log.
 
-## 7. Compile/test totals, this round
+## 7. Compile/test totals, revision 2 round
 
 `tsc --noEmit`: 0 new errors (3 pre-existing, unrelated `AISearchClient.test.tsx` errors persist unchanged). `vitest`: 384/384 pass (9 new this round). Backend `test_marketripple_score_rankings.py`: 9/9 pass.
+
+## 8. Company page — competing rating fallback removed (closes the one-score gap)
+
+**Finding:** `MarketRippleScoreSection` (Overview tab) still fell back to `CurrentIntelligenceCard` — the older single-engine score, verdict, and reasons — whenever MarketRipple Score had no snapshot for a company (unsupported sector, or not yet computed). This was a real second public company rating, not just an internal detail: the August 2026 decision that gave the older score its own "Current Intelligence" identity never authorized it a *fallback* slot for the canonical score's own card.
+
+**Fix:** `useCompanyRating()` and `CurrentIntelligenceCard` deleted entirely from `CompanyPageClient.tsx` (each was the other's only call site — no orphaned code left behind). `MarketRippleScoreSection` now always renders `MarketRippleScoreCard`, in whichever real state the projection is in — including "no snapshot at all," which the card's existing `!eligible` branch already renders correctly as "Unavailable" with no code change needed there. The older engine's real calculation is untouched and still runs internally (Current Intelligence pillar input) and still has its own, separately-labeled, different-tab home (`CompanyScoreContributors`, "AI Company Score" on the Intelligence tab) — that surface was not named in scope and was left alone.
+
+**Renamed**: Overview's "AI Top Picks" → "Highest MarketRipple Scores" ("Top Picks" implied a recommendation this score has never been validated to make).
+
+**Regression test** (`MarketRippleScoreCard.test.tsx`, 2 new cases): both the `{resolved:true,snapshot:false}` and raw `{resolved:false}` shapes render the honest "Unavailable" state and never the old engine's title/text/score — verified by asserting the old component's exact strings ("Current Intelligence", "Insufficient evidence for a current-intelligence view...") are absent alongside asserting the new honest state is present.
+
+**Verification caveat, stated plainly**: full client-hydrated browser verification wasn't possible in this environment (no Playwright browser installed here) — the score card fetches client-side via `useEffect`, so a plain `curl` of the SSR HTML cannot show its post-hydration state either way. Verified instead via: (1) component tests rendering the exact real API response shapes directly, and (2) confirming live against the real backend that `{"resolved":false}` is indeed what `/api/companies/{symbol}/marketripple-score` returns for the local test symbols, and that the Company page itself loads 200 with the new code path live.
+
+`tsc --noEmit`: 0 new errors. `vitest`: 386/386 pass (2 new).
 
 ## Held per instruction
 
