@@ -253,8 +253,9 @@ function MiniBar({ label, value, max = 100, color }: { label: string; value: num
 // unavailable) the real projection is actually in. The older calculation
 // stays real and running internally (it's the Current Intelligence
 // pillar's own input, see current_intelligence.py) and still has its own,
-// separately-labeled "AI Company Score" home on the Intelligence tab
-// (CompanyScoreContributors) — just never as a competing headline rating.
+// separately-labeled "Recent Intelligence Evidence" home on the
+// Intelligence tab (CompanyScoreContributors) — just never as a competing
+// headline rating.
 export interface MarketRippleScoreData {
   resolved: boolean;
   snapshot?: boolean;
@@ -746,16 +747,27 @@ function RelatedOpportunitiesList({ stock }: { stock: StockDetail }) {
   );
 }
 
-// ── Section 9: AI Company Intelligence Score ──────────────────────────────────
+// ── Section 9: Recent Intelligence Evidence (Opportunities tab) ─────────────
 // Previously "Opportunity Radar" — 3 entirely fabricated cards (invented
 // titles like "Export Opportunity", scores/confidence/revenue/timeline that
 // were never computed from anything, just hardcoded numbers plus one fake
-// formula on market_cap). Replaced with the real AI Company Intelligence
-// Score engine (company_score_engine.py) — real signals extracted from
-// every published article's companies_affected[] and every opportunity's
-// real per-company impact_score, aggregated with real recency decay. Hides
-// entirely rather than showing a fabricated fallback when a company has no
-// real signals yet.
+// formula on market_cap). Replaced with real signals from company_score_
+// engine.py — extracted from every published article's companies_affected[]
+// and every opportunity's real per-company impact_score, aggregated with
+// real recency decay. Hides entirely rather than showing a fabricated
+// fallback when a company has no real signals yet.
+//
+// One-score migration (2026-09-26, owner instruction): this section
+// duplicated the same "AI Company Intelligence Score" standalone rating
+// already removed from the Intelligence tab's CompanyScoreContributors —
+// living on the Opportunities tab under a different title didn't exempt it.
+// Renamed and stripped of the same elements (score headline, "AI Powered"
+// badge, "Evidence quality" gauge); the real evidence cards themselves
+// (per-signal reason, source, date, link, and signed magnitude — the
+// individual-signal-level number, not a company rating) are unchanged. The
+// real per-opportunity Opportunity Score badges shown in
+// RelatedOpportunitiesList directly above this section on the same tab are
+// a separate, already-compliant concept and were not touched.
 export interface CompanyScoreContributor {
   reason: string | null; source_type: "article" | "opportunity"; href: string | null;
   signed_magnitude: number; signal_at: string | null;
@@ -777,27 +789,7 @@ export interface CompanyScoreData {
   risk_factors?: CompanyScoreContributor[];
 }
 
-// 2026-08-25 — the raw per-signal confidence average (a plain mean of
-// each AICompanySignal row's own confidence field) was shown as a
-// prominent "Confidence: 71%" bar next to the score — a second, visually
-// competing number, architecturally unrelated to the score itself and
-// (per the confidence provenance audit) genuinely misleading on its own:
-// it isn't a measure of how trustworthy the SCORE is, just a mean of
-// inputs that could include zero-weight rows. Retired per owner decision
-// rather than replaced with a different raw percentage (e.g. a filtered-
-// rows recount) — that would just be a better-looking version of the same
-// wrong concept. risk_level is already a real, computed signal (average
-// confidence + whether signals agree in direction) reused here as a
-// qualitative label instead, until a real Evidence Confidence engine
-// (entity certainty/source quality/corroboration/freshness/agreement)
-// replaces it.
-function _evidenceLabel(riskLevel: CompanyScoreData["risk_level"]): string {
-  if (riskLevel === "Low") return "Strong";
-  if (riskLevel === "High") return "Limited";
-  return "Moderate";
-}
-
-function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
+export function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
   const [data, setData] = useState<CompanyScoreData | null>(null);
 
   useEffect(() => {
@@ -812,22 +804,10 @@ function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
   if (!data || data.signal_count === 0) return null;
 
   return (
-    <SectionCard title="AI Company Intelligence Score" action={<span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-300">AI Powered</span>}>
-      <div className="mt-2 flex items-center gap-6 rounded-2xl border border-surface-border/6 bg-gradient-to-b from-text-primary/[0.03] to-transparent p-4">
-        <div className="text-center">
-          <p className="text-[36px] font-black leading-none text-text-primary">{data.score}</p>
-          <p className="mt-1 text-[9px] uppercase tracking-wider text-text-muted">AI Score</p>
-        </div>
-        <div className="flex-1 space-y-1.5">
-          <div className="flex justify-between text-[10px]">
-            <span className="text-text-muted">Evidence quality</span>
-            <span className="font-semibold text-emerald-400">{data.risk_level ? _evidenceLabel(data.risk_level) : "—"}</span>
-          </div>
-          <p className="text-[10px] text-text-muted">
-            Based on {data.contributing_signal_count} contributing signal{data.contributing_signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking
-          </p>
-        </div>
-      </div>
+    <SectionCard title="Recent Intelligence Evidence">
+      <p className="mt-1 text-[11px] leading-5 text-text-muted">
+        Based on {data.contributing_signal_count} contributing signal{data.contributing_signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking — this evidence feeds the MarketRipple Score's Current Intelligence pillar; it is not itself a company rating.
+      </p>
       {data.top_contributors.length > 0 && (
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {data.top_contributors.map((c, i) => {
@@ -1464,8 +1444,8 @@ export function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScore
 // handles every one of those cases honestly (data.eligible is falsy for
 // all of them), so no separate fallback component is needed. The older
 // engine's real evidence keeps its own, separately-labeled home on the
-// Intelligence tab (CompanyScoreContributors, "AI Company Score") — never
-// as a second, competing headline number here.
+// Intelligence tab (CompanyScoreContributors, "Recent Intelligence
+// Evidence") — never as a second, competing headline number here.
 function MarketRippleScoreSection({ stock }: { stock: StockDetail }) {
   const data = useMarketRippleScore(stock.symbol);
   if (data === undefined) return null; // still loading

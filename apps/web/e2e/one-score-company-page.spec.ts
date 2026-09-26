@@ -16,7 +16,9 @@ import { test, expect } from "@playwright/test";
  * company-scores evidence (50 contributing signals) but no MarketRipple
  * Score snapshot/CompanyEntity resolution yet ({"resolved":false} from
  * /api/companies/ICICIBANK/marketripple-score, confirmed live) — the
- * exact real-world state that exercises both changes made this session.
+ * exact real-world state that exercises the Overview, Intelligence, and
+ * Opportunities tab changes made this session (2026-09-26 sweep added the
+ * third, Opportunities-tab test).
  */
 
 test.describe("Company page — one-score migration (real hydrated browser)", () => {
@@ -53,5 +55,26 @@ test.describe("Company page — one-score migration (real hydrated browser)", ()
     await expect(page.getByText("Evidence quality")).not.toBeVisible();
     await expect(page.getByText(/^(Low|Medium|High) Risk$/)).not.toBeVisible();
     await expect(page.getByText(/^Trending (Up|Down)$/)).not.toBeVisible();
+  });
+
+  // Sweep addition (2026-09-26): OpportunityRadarSection (Opportunities
+  // tab) read the same /api/company-scores/ICICIBANK evidence as the
+  // Intelligence tab and showed the same kind of standalone "AI Company
+  // Intelligence Score" rating under a different title — fixed the same
+  // way. RelatedOpportunitiesList (rendered above it on the same tab)
+  // keeps its own real per-opportunity Opportunity Score badges untouched;
+  // this test only asserts on the evidence section below it.
+  test("Opportunities tab: shows 'Recent Intelligence Evidence' with real per-signal evidence, never the old score/badge/gauge", async ({ page }) => {
+    await page.goto("/companies/ICICIBANK?tab=opportunities");
+
+    const heading = page.getByText("Recent Intelligence Evidence");
+    await expect(heading).toBeVisible({ timeout: 15_000 });
+
+    await expect(page.getByText(/contributing signal/)).toBeVisible();
+
+    await expect(page.getByText("AI Company Intelligence Score")).not.toBeVisible();
+    await expect(page.getByText("AI Score")).not.toBeVisible();
+    await expect(page.getByText("AI Powered")).not.toBeVisible();
+    await expect(page.getByText("Evidence quality")).not.toBeVisible();
   });
 });
