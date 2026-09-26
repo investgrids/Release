@@ -1,9 +1,14 @@
-# Current Intelligence Dedup — Release Review Package
+# Current Intelligence Dedup + Company Rankings — Release Review Package
 
 **Branch:** `marketripple-score/current-intelligence-dedup` (off `origin/main` @ `c84c28a`)
 **Status:** Local only. Not pushed, not deployed. Public activation: 0%.
+**Revision 2** (2026-09-26, later same day) — supersedes the first version of this
+document: section 3 below was rewritten after the public-content freeze was
+widened (narrative content and Development linkage are now also frozen, not
+just score/signal fields), and sections 6-7 (Company Rankings, remaining
+surfaces) are new.
 
-## 1. Commits (12 total, chronological)
+## 1. Commits (19 total, chronological)
 
 | # | Hash | Summary |
 |---|---|---|
@@ -16,56 +21,71 @@
 | 7 | `e704e82` | Real-data (5-bank) pillar comparability run |
 | 8 | `aed784e` | *(cherry-pick)* declare `sqlalchemy[asyncio]` explicitly |
 | 9 | `25ae90a` | *(cherry-pick)* exclude secrets from Docker build context, disable dotenv fallback in production |
-| 10 | `9a0cb48` | **Freeze public-row score/signal fields**; dry-run backfill reporting |
+| 10 | `9a0cb48` | Freeze public-row score/signal fields (narrower, first version); dry-run backfill reporting |
 | 11 | `d1bc50d` | Financial Strength metric-coverage gap investigation |
-| 12 | `092f977` | Tighten comparability scope; full-path public-row field survey |
+| 12 | `092f977` | Tighten comparability scope; full-path public-row field survey (still narrower freeze) |
+| 13 | `22b3d82` | **Widen public-row freeze** to cover narrative content and Development linkage |
+| 14 | `3e8bedb` | Company Rankings backend endpoint (`get_banking_rankings`) |
+| 15 | `5c9a196` | Company Rankings frontend (Best Stocks retired, tab renamed) |
+| 16 | `73028ff` | Remaining surfaces: `/best-stocks/[sector]`, Overview widgets, `/sectors/[sector]`, fixture tests |
 
-**Grouped diff** (30 files, +2304/-75):
-- Backend scoring core: `company_score_engine.py`, `current_intelligence.py`, `engine.py`, `contracts.py`, `financial_strength.py`, `public_projection.py`, `snapshot.py`
-- New backend module: `company_signal_event_id_backfill.py`
-- Schema: `company_signal.py`, `marketripple_score_snapshot.py`, `schema_patches.py` (2 new nullable columns each, additive only)
-- Opportunity V2: `orchestration.py` (the public-row freeze)
-- Reconciled baseline: `.dockerignore`, `config.py`, `pyproject.toml` (cherry-picked from production hotfixes)
-- Frontend: `CompanyPageClient.tsx`, new `MarketRippleScoreCard.test.tsx`, `vitest.setup.ts`
-- 10 new/modified backend test files, 2 artifacts (comparability + coverage-gap), 1 shadow-comparability script
+**Grouped diff since revision 1** (+7 files touched, +9 new tests):
+- `orchestration.py`: `_process_cluster()` now returns early on any matched public row — no score write, no linkage, no narrative regen, no slug touch.
+- New: `rankings.py`, `company_rankings.py` (API), `lib/companyRankings.ts`, `app/company-rankings/*`.
+- Rewritten: `best-stocks/[sector]/page.tsx`, `sectors/[sector]/page.tsx`, `OverviewTab.tsx`, `sitemap.xml/route.ts`, `next.config.ts`.
 
-## 2. Test totals (clarifying the ambiguity)
+## 2. Test totals
 
-**Authoritative full-suite number** (branch HEAD @ `092f977`, `tests/` — the whole tree, not a subset, final confirmation run): **28 failed, 2120 passed, 2 skipped, 2 xfailed** (369.8s). Identical failure list across all 3 full-suite runs taken during this session (369.8s/371.7s/352.4s) — stable, not flaky on this branch's own commits.
+**Authoritative full-suite number** (branch HEAD @ `73028ff`, final confirmation run): **28 failed, 2130 passed, 2 skipped, 2 xfailed** (384.95s). Identical failure list — same 28 tests, by name — across all 4 full-suite runs taken this session (369.8s/371.7s/352.4s/384.95s); only the passed count grows as new tests are added (2116 → 2120 → 2129 → 2130).
 
-All other numbers reported earlier this session (2038, 1336, 1313, 1296, 1319 passed) were **partial/bisection subset runs** (`tests/services/` only, or explicit file-list slices) used purely to isolate the 2 extra failures — not competing totals. Retracting the ambiguity: there is one real full-suite number, above.
+**Parent-baseline comparison** (unchanged from revision 1, still holds): the 2 non-live-network extra failures (`test_opportunity_v2_batch_e_consumers.py`) were reproduced on a clean `origin/main` checkout with zero application-code changes — confirmed pre-existing, not a regression from this branch.
 
-**Parent-baseline comparison** (the actual requested check — equivalent dependencies, config, test order, zero application-code changes):
-- Created a disposable worktree from `origin/main` (untouched).
-- Cherry-picked the same 2 production hotfixes (`aed784e`/`25ae90a`'s originals) for dependency parity.
-- Copied the same `.env`.
-- Ran the exact same-position file slice (first 146 files in that checkout's own natural collection order — files differ slightly since this branch's new test files aren't present, so "first 146" there ≠ "first 146" here by content, but is the equivalent-scope set).
-- **Result: the same 2 `test_opportunity_v2_batch_e_consumers.py` failures reproduce identically, with zero application-code changes present.** This is conclusive: pre-existing, order-dependent test-isolation bug in `origin/main` itself, not a regression from any commit in this branch. Root cause not further investigated (out of scope — a pre-existing bug, not something this branch's changes should be blocked on fixing).
-- The other 26 failures are the same live-network/external-dependency category confirmed earlier (AI search live engines, comparison publisher V3 live, quant leakage/membership, macro rates live, etc.) — unaffected either way.
+## 3. Public-content freeze — end-to-end result (REVISED, widened scope)
 
-**Net: this branch introduces zero new test failures.** 28 vs 26 was never a real regression count; it's 26 pre-existing + 2 pre-existing-but-not-previously-observed-in-this-session's-earlier-narrower-runs.
+**The freeze now covers the entire `run_shadow_pass()` outcome for a matched public row, not just score/signal fields.** Tracing `read_service.py`'s real consumers found two more real exposure paths the narrower version (commit `9a0cb48`) missed:
+- `title`/`why_this_exists` fall back to `current_title`/`current_summary` whenever no `editorial_title`/`editorial_summary` is set — a real, valid public-row state (promotion doesn't require an override).
+- `evidence_count`/`supporting_evidence`/`ripple`/`development_impacts` are all built live from current Development linkage, which grew unconditionally.
 
-## 3. Public-row freeze — end-to-end result
+**Fix (`22b3d82`):** `_process_cluster()` returns early the instant it matches an already-public row — no score write, no new Development linkage, no narrative regeneration, no slug touch. Logs `opportunity_v2.orchestration.public_row_frozen` with what would have happened.
 
-Two tests now cover this, run through the real `run_shadow_pass()` pipeline (never a direct call to the private `_process_cluster()`):
+**Verification, both at the ORM level and through the real public read path:**
+- `test_opportunity_v2_orchestration_public_row_field_survey.py::test_full_field_survey_including_the_real_public_read_path_for_a_row_without_editorial_override` — **PASS**. The harder, more exposed case (a public row with NO editorial override). Calls the real `get_opportunity_v2_detail()` before and after a real reprocess with new evidence available, asserting byte-identical: `title`, `why_this_exists`, `current_strength`, `evidence_count`, `supporting_evidence` (dev IDs), `ripple` (node/edge IDs), `development_impacts`, `companies_connected`, `sectors_themes`, `contradictions_risks`, `updated_at`. Also confirms at the ORM level that `generate_narrative` is never even called for a frozen row (call-count assertion, not just output comparison).
+- `test_opportunity_v2_orchestration_public_row_field_survey.py::test_shadow_row_still_updates_everything_normally` — **PASS** (control). An ordinary shadow row keeps updating score, narrative, and linkage exactly as before.
+- `test_opportunity_v2_orchestration_public_row_scoring.py` — both tests updated to assert the widened behavior (Development linkage no longer happens for a frozen row either) rather than the old, now-incorrect expectation.
 
-- `test_opportunity_v2_orchestration_public_row_scoring.py::test_public_row_score_and_signals_are_frozen_when_a_cluster_reprocesses` — **PASS**. Promotes a row to public with an editorial override, adds a real new signal, forces a real reprocess. Confirms `current_score`/`score_breakdown`/`contradictions`/`companies` are byte-identical before/after, and the new signal is provably NOT folded in.
-- `test_opportunity_v2_orchestration_public_row_scoring.py::test_shadow_row_still_updates_normally` — **PASS** (control). An ordinary shadow row with the identical scenario DOES pick up the new signal — proves the freeze is `public_status`-specific, not a general break.
-- `test_opportunity_v2_orchestration_public_row_field_survey.py::test_full_field_survey_of_a_reprocessed_public_row` — **PASS**. Full-path survey covering every field `run_shadow_pass()` can touch, not just the score-write block: confirms `public_status` + all 4 `editorial_*` fields + `current_score`/`score_breakdown`/`contradictions`/`sectors`/`companies` are frozen; confirms `narrative_status`/`current_title`/`current_summary`/`narrative_input_hash` are **not** frozen (proven to actually change across 2 real narrative-generation calls, not just untested); confirms Development linkage is additive regardless of `public_status`.
+129/129 `opportunity_v2` tests pass with the widened freeze in place.
 
 ## 4. Backfill dry-run — counts, conflict handling, idempotency, rollback
 
-`company_signal_event_id_backfill.py::backfill_company_signal_event_ids(db, dry_run=True)`:
-- Reports `candidates`, `resolvable`, `unresolved_no_real_lineage`, `symbols_with_new_conflicting_groups` (+count).
-- **Local dev DB dry-run result** (from the earlier one-off measurement, same derivation logic): 1734 total signals, 1398 resolvable (80.6%), 128 real duplicate-event groups, 15 genuinely conflicting.
-- 5 tests, all passing: article-lineage derivation, opportunity-lineage (highest-importance tie-break), no-real-lineage (never fabricates), dry-run writes nothing at all, dry-run correctly flags a newly-introduced conflicting group.
-- **Idempotency**: proven — a second real run against an already-backfilled row is a no-op (`event_id IS NULL` filter naturally excludes it).
-- **Rollback procedure**: not applicable in the traditional sense — this backfill only ever sets a currently-NULL column to a derived value; it never overwrites a non-NULL value. To undo, a real rollback would be `UPDATE ai_company_signals SET event_id = NULL WHERE event_id IN (<the specific derived values written this run>)` — not yet needed since the script has never been run against any real database beyond ad hoc local measurement copies, and remains unexecuted against production.
+Unchanged from revision 1: `backfill_company_signal_event_ids(db, dry_run=True)` reports `candidates`/`resolvable`/`unresolved_no_real_lineage`/`symbols_with_new_conflicting_groups`. Local dev DB dry-run: 1734 signals, 1398 resolvable, 128 duplicate-event groups, 15 conflicting. 5 tests pass. Idempotent. Rollback: targeted `UPDATE ... SET event_id = NULL` on just the values a real run wrote — not yet needed, script remains unexecuted against production.
 
 ## 5. Production snapshot / FinancialFact coverage
 
-**Still blocked.** The "Production Reads" classifier denied both attempts this session. Status: **unknown**, not zero — do not treat the local-DB findings (zero `financial_facts` rows, zero `marketripple_score_snapshots` rows) as evidence about production's real state. This remains the one open item requiring either an explicit permission grant or the owner running the read directly.
+**Still blocked and still unknown**, unchanged from revision 1. Local zero-snapshot/zero-`financial_facts` findings establish nothing about production's real state.
+
+## 6. Company Rankings — the one-score migration
+
+**Backend** (`rankings.py`, `company_rankings.py`): `GET /api/company-rankings/{sector}`. Banking reads `get_marketripple_score_projection()` per symbol — the exact function the Company page already calls, so score/rating/coverage/timestamp match by construction. Categorizes every real bank into `ranked` / `partial_coverage` / `unavailable` (with real reason: no snapshot, publication-locked, ineligible, or stale — 30-day threshold explicitly flagged provisional/unvalidated). Non-Banking sectors get an honest "not yet available" response, never an empty list dressed as complete.
+
+**Frontend**: "Best Stocks" retired as a brand — tab renamed to "Company Rankings" across the hub, nav, footer, breadcrumbs, with 301 redirects preserved (`/best-stocks`, `/company-rankings` both → `/companies?tab=company-rankings`).
+
+**Remaining surfaces closed this round:**
+- `/best-stocks/[sector]`: Banking redirects (301) to the canonical page. Every other sector shows an honest "not yet available" notice plus the real, fully browsable company list for that sector — no score, no fallback to the retired engine.
+- Overview "AI Top Picks" → "MarketRipple Top Picks": reads the same approved projections; honest empty state verified live ("No banks have a published MarketRipple Score yet").
+- Overview "Companies Under Pressure": **removed outright**, not re-implemented on the new score — a low composite (old or new) was never a real signal of selling pressure.
+- `/sectors/[sector]`: Banking constituents now rank by the real MarketRipple Score; every other sector reverts to price/change only (no score at all), matching the page's own pre-existing honest fallback for signal-less stocks.
+- Reviewed and intentionally **not** changed: Overview "Trending Companies" (shows a recency reason, never a score — not a competing rating); `CompanyPageClient.tsx`'s `useCompanyRating`/`CurrentIntelligenceCard` (the already-disambiguated, 2026-08-25-decided "Current Intelligence" surface — a genuinely different concept, out of scope for a ranking-specific migration).
+
+**Fixture coverage (this round's explicit ask, not just the live empty-state check):**
+- Backend: `test_marketripple_score_rankings.py` — 9 tests covering populated/partial/stale/ineligible/locked/unsupported-sector states via `MarketRippleScoreSnapshot` fixtures, plus `test_ranked_row_matches_the_same_symbol_s_company_page_projection_exactly` — a regression guard proving a ranking row and `get_marketripple_score_projection()` agree on score/rating/coverage/timestamp for the same symbol.
+- Frontend: `CompanyRankingsView.test.tsx` — 4 tests, local fixtures for all 4 states (populated table, partial coverage, stale/ineligible in the collapsible unavailable section, unsupported sector).
+
+**End-to-end dev-server verification** (both rounds, real backend + real frontend, real local DB, servers stopped after each check): `/api/company-rankings/Banking` returns 200 with real data; `/companies?tab=company-rankings`, `/best-stocks/technology` (200, honest unavailable + real company list), `/best-stocks/banking` (308 → Company Rankings), `/sectors/banking` (200, no stale score badges), `/companies?tab=overview` (200, new widget + confirmed absence of "Companies Under Pressure") — all verified, no server errors in either log.
+
+## 7. Compile/test totals, this round
+
+`tsc --noEmit`: 0 new errors (3 pre-existing, unrelated `AISearchClient.test.tsx` errors persist unchanged). `vitest`: 384/384 pass (9 new this round). Backend `test_marketripple_score_rankings.py`: 9/9 pass.
 
 ## Held per instruction
 
-Lineage backfill execution and public activation (`publishable` flip) remain held pending this review's sign-off.
+Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off.
