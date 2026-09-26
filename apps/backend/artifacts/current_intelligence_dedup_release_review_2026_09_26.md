@@ -2,18 +2,22 @@
 
 **Branch:** `marketripple-score/current-intelligence-dedup` (off `origin/main` @ `c84c28a`)
 **Status:** Local only. Not pushed, not deployed. Public activation: 0%.
-**Revision 5** (2026-09-26, later same day) — Revision 4 closed the
-Intelligence/Opportunities-tab renames and flagged the Compare page's
-fabricated "AI Score"/"AI winner" as a new, more severe, explicitly
-NOT-yet-fixed finding (section 11). This revision closes it (section 12):
-the fabricated scoring formula and every winner declaration built on it
-are removed, replaced by the same real MarketRipple Score projection the
-Company page reads, and the hardcoded 30-company selector is replaced by
-the real backend directory. This closes every item raised in the owner's
-one-score migration instructions across the Company page, Company
-Rankings, and the Compare page.
+**Revision 6** (2026-09-26, later same day) — Revision 5 closed the
+Compare page's fabricated "AI Score"/"AI winner." This revision (section
+13) verifies the period/unit labels that fix introduced against their
+real source contract rather than assuming they were correct: confirms
+what "TTM" actually means for the ROE/margin fields (a data-provider
+convention, not something this app recomputes), replaces the generic
+"Latest FY" placeholder with each company's own real fiscal year (which
+can genuinely differ between compared companies), and surfaces one new,
+separate, NOT-yet-fixed currency/unit bug found while checking — the same
+INR-assumed-unconditionally pattern already fixed once for a sibling
+endpoint. The owner also confirmed the fixture-based test strategy used
+throughout this package (sections 9, 12) is legitimate, complementary
+coverage alongside the live browser checks, not a compromise — noted
+explicitly at the end of section 12.
 
-## 1. Commits (20 total, chronological)
+## 1. Commits (21 total, chronological)
 
 | # | Hash | Summary |
 |---|---|---|
@@ -37,6 +41,7 @@ Rankings, and the Compare page.
 | 18 | `6d96fd2` | Intelligence tab: rename/strip `CompanyScoreContributors` ("AI Company Score" → "Recent Intelligence Evidence") |
 | 19 | `0accb62` | Opportunities tab: rename/strip `OpportunityRadarSection` the same way, closing the sweep |
 | 20 | `d18133c` | Compare page: replace the fabricated AI Score/winner with the real MarketRipple Score; real directory search |
+| 21 | `ab070d9` | Verify and correct financial period/unit labels against the source contract; real per-company fiscal year |
 
 **Grouped diff since revision 1** (+7 files touched, +9 new tests):
 - `orchestration.py`: `_process_cluster()` now returns early on any matched public row — no score write, no linkage, no narrative regen, no slug touch.
@@ -164,6 +169,28 @@ Per the owner's instruction, searched the whole Company page and every ranking s
 
 `tsc --noEmit`: no new errors; three pre-existing errors remain (unrelated, unchanged). `vitest`: 394/394 pass (3 new).
 
+**Owner confirmation on testing strategy:** the fixture-based populated/partial checks above and the live "Unavailable" browser check are complementary coverage, not a compromise — clearly isolated test snapshots are legitimate testing, not fabricated production data. Noted here explicitly per the owner's correction; applies equally to the identical pattern already used in sections 9 (`CompanyScoreContributors.test.tsx`) and 8 (`MarketRippleScoreCard.test.tsx`).
+
+## 13. Financial period/unit labels — verified against the source contract, one new bug found
+
+**Owner instruction:** "Labels such as 'ROE — TTM' and 'Latest FY' need verified definitions; show the actual fiscal year-end for annual revenue/profit and confirm currency conversion and units." The section-12 fix had added these labels without tracing them back to their real backend source — this section corrects that.
+
+**ROE/margins "(TTM)" — verified, disclosed rather than silently asserted.** Traced to `market_data.py::get_stock_detail`: `roe`/`roa`/`roce`/`gross_margins`/`operating_margins`/`net_margins` are raw pass-throughs of yfinance's own `.info` fields (`returnOnEquity`, `grossMargins`, etc.) with zero repo-side period recomputation — no in-repo comment, docstring, or test establishes their period. "TTM" reflects the data provider's own documented convention for those fields, not something this app independently verifies. Rather than present that as a flatly confirmed fact, added a new shared `TtmNote` component — a plain-language disclosure ("TTM figures are the data provider's own trailing-twelve-month calculation, not independently recomputed by this app") — attached to every table using a "(TTM)" label (Key Comparison, Valuation Metrics, Valuation Multiples, Margin Comparison, the per-company Financials/Profitability cards, Balance Sheet Ratios).
+
+**"Latest FY" — replaced with the real, per-company fiscal year.** Traced `annual_financials[].year` to the same function: it's a naive `col.strftime("FY%y")` of yfinance's own statement-column date, computed independently per symbol with no cross-company alignment. Two compared companies can genuinely have different real latest fiscal years (verified: nothing in the code detects or normalizes for this). The generic "Latest FY" placeholder introduced in section 12 would have falsely implied every compared company reports the same period. Fixed: capture the real `year` per company (`revenue_fy`) and render it inline next to Revenue/Net Profit, per company, instead of a shared placeholder.
+
+**New finding, explicitly NOT fixed — flag for owner decision:** checking "currency conversion and units" surfaced a real, separate, previously-unknown backend bug. `get_stock_detail()`'s `annual_financials`/`quarterly_revenue`/`quarterly_net_income` blocks unconditionally divide by `1e7` assuming INR, with **no `financialCurrency` check** — the exact currency-mislabeling pattern already found and fixed for the sibling `/financials` endpoint (INFY reports `financialCurrency: "USD"`, commit `c844920`, "Company Financials" feature) but left unfixed in this second code path in the same file. Confirmed by direct code inspection and diff of the fix commit (not by re-running yfinance live against INFY this round). Practical effect: INFY's (and potentially any other USD-reporting company's) real revenue/profit figures returned by `GET /api/stocks/{symbol}` are silently ~700x too small and mislabeled as "₹ Cr" — this affects the Compare page's Revenue/Net Profit rows (via the section-12 fix) and any other consumer of this same endpoint, not just Compare. **Not fixed here**: `get_stock_detail()` is a shared, cross-cutting endpoint well beyond the Compare page's boundary, and there is no reliable way to detect a company's real reporting currency from the frontend alone to guard against it client-side — this needs its own authorized backend change (reusing the existing `_STATEMENT_CURRENCY_SCALE` pattern), reviewed on its own terms rather than folded into a label-verification pass.
+
+**Also fixed during the same audit pass:** added missing "(x)" unit annotations to P/B Ratio and Forward P/E on the Overview sidebar's "Valuation Metrics" card — present on the Valuation tab's equivalent rows since the section-12 fix but missed on this earlier card.
+
+**Regression test** (`CompareContent.test.tsx`, extended): the existing populated/partial test now gives the two companies **different** real fiscal years (FY26 vs FY25) and asserts both real years render distinctly (not a shared placeholder), plus asserts the TTM disclosure text is present. All 3 tests still pass.
+
+**Real hydrated-browser verification:** extended `e2e/compare-one-score.spec.ts` to assert the real "FY26" label (both ICICIBANK's and TCS's real latest `annual_financials` year, confirmed live via curl before writing the assertion) and the TTM disclosure text render on the real page. 2/2 pass against real local servers and real data.
+
+`tsc --noEmit`: no new errors; three pre-existing errors remain (unrelated, unchanged). `vitest`: 394/394 pass, confirmed via a clean isolated run (a same-round full-suite run showed a flaky, CPU-contention timeout in an unrelated test — WeekendHomePage — while local dev servers were also running for manual preview; a different test flaked on a subsequent run, then a fully clean 394/394 run confirmed contention, not a regression).
+
 ## Held per instruction
+
+Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off. Production snapshot history and coverage remain unknown — no new read attempt was made this round. Every one-score finding raised across the Company page, Company Rankings, and the Compare page is now closed, with period/unit labels verified against their real source contract. Two loose ends remain, both explicitly flagged rather than fixed: the dead, unreachable `/best-stocks` hub page code (section 11), and the `get_stock_detail()` currency/unit bug for non-INR-reporting companies (section 13) — a real data-correctness issue, but outside this migration's boundary and requiring its own authorized backend change.
 
 Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off. Production snapshot history and coverage remain unknown — no new read attempt was made this round. Every one-score finding raised across the Company page, Company Rankings, and the Compare page is now closed; the only remaining loose end from the sweep (section 11) is the dead, unreachable `/best-stocks` hub page code, flagged but not fixed as it serves nothing live.
