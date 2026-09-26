@@ -2,19 +2,18 @@
 
 **Branch:** `marketripple-score/current-intelligence-dedup` (off `origin/main` @ `c84c28a`)
 **Status:** Local only. Not pushed, not deployed. Public activation: 0%.
-**Revision 4** (2026-09-26, later same day) — Revision 3 closed the
-Overview-tab competing-rating fallback (section 8). This revision closes
-the rest of the one-score sweep the owner asked for across every Company
-tab and ranking surface: the Intelligence tab (section 9) and the
-Opportunities tab (section 10) both had the same standalone "AI Company
-Score"/"AI Company Intelligence Score" rating under different titles;
-both are now removed the same way. Section 11 records the sweep's
-negative result (nothing else found live) and one new, more severe,
-explicitly NOT-fixed finding on the separate Compare page. The commit
-table below is now complete and accurate (previous revisions omitted 2-3
-of the newest rows from the table body, describing them only in prose).
+**Revision 5** (2026-09-26, later same day) — Revision 4 closed the
+Intelligence/Opportunities-tab renames and flagged the Compare page's
+fabricated "AI Score"/"AI winner" as a new, more severe, explicitly
+NOT-yet-fixed finding (section 11). This revision closes it (section 12):
+the fabricated scoring formula and every winner declaration built on it
+are removed, replaced by the same real MarketRipple Score projection the
+Company page reads, and the hardcoded 30-company selector is replaced by
+the real backend directory. This closes every item raised in the owner's
+one-score migration instructions across the Company page, Company
+Rankings, and the Compare page.
 
-## 1. Commits (19 total, chronological)
+## 1. Commits (20 total, chronological)
 
 | # | Hash | Summary |
 |---|---|---|
@@ -37,6 +36,7 @@ of the newest rows from the table body, describing them only in prose).
 | 17 | `424b089` | Overview tab: delete the competing-rating fallback (`useCompanyRating`/`CurrentIntelligenceCard`) |
 | 18 | `6d96fd2` | Intelligence tab: rename/strip `CompanyScoreContributors` ("AI Company Score" → "Recent Intelligence Evidence") |
 | 19 | `0accb62` | Opportunities tab: rename/strip `OpportunityRadarSection` the same way, closing the sweep |
+| 20 | `d18133c` | Compare page: replace the fabricated AI Score/winner with the real MarketRipple Score; real directory search |
 
 **Grouped diff since revision 1** (+7 files touched, +9 new tests):
 - `orchestration.py`: `_process_cluster()` now returns early on any matched public row — no score write, no linkage, no narrative regen, no slug touch.
@@ -145,6 +145,25 @@ Per the owner's instruction, searched the whole Company page and every ranking s
 
 **New finding, explicitly NOT fixed — flag for owner decision:** the Compare page (`/companies?tab=compare` and the `/compare` redirect, `CompareContent.tsx`) shows an "AI Score"/"AI winner" banner per compared company that is **not** the retired-but-real `company_score_engine.py` score — it's computed entirely client-side from a hardcoded formula (`let s = 50; s += roe*0.8; s += (30-pe)*0.5; s -= debt_to_equity*5; ...`, clamped 10-99) over a hardcoded 30-company registry, with no backend call at all. This is a different, more severe class of problem than the two closed above: not a second *real* rating living under a competing label, but an outright fabricated number with zero backend provenance — the same category of finding as the Company Pages Audit's worst fabrication case earlier this engagement. The fix isn't a like-for-like rename/strip: an "AI winner" banner, a "Best Future Potential" ranking, and a per-company score ring all depend on this fabricated formula, so removing it changes the page's UX meaningfully and needs the owner's steer on what (if anything) replaces it. Not touched in this round.
 
+## 12. Compare page — fabricated AI Score/winner replaced with the real MarketRipple Score (closes section 11's flagged finding)
+
+**Owner decision (this round):** fix it within the same migration. Confirmed first, per the owner's explicit instruction, that "a formula calculated in the browser is not automatically fabricated" — checked whether the underlying inputs were hardcoded samples or real sourced values. They're real: `GET /api/stocks/{symbol}` is backed by yfinance/Finnhub, confirmed live for both a bank (ICICIBANK) and a non-bank (TCS) symbol. The fabrication was specifically the scoring formula and the winner declarations built on top of those real inputs — not the inputs themselves.
+
+**Removed:** the `aiScores` formula (`s = 50 + f(roe, pe, debt_to_equity, gross_margins, dividend_yield)`, clamped 10-99, no backend call); the "AI Comparison Summary" card's winner-declaring paragraph; "Best Future Potential" (no validated predictive metric exists to replace it with, per the owner's instruction); the entire "AI Recommended Pick" / "Winner summary" banner on the AI Analysis tab; the hardcoded 30-company `COMPANY_LIST`.
+
+**Replaced with, following the owner's replacement table exactly:**
+- *"AI Score" → the canonical MarketRipple Score projection, or its honest unavailable/partial state.* New `MrScoreTile` reads the same `GET /api/companies/{symbol}/marketripple-score` endpoint the Company page's own `MarketRippleScoreCard` reads — real score, "Partial coverage", or "Unavailable", never a fabricated fallback. Used on both the Valuation tab (renamed "Score Comparison" → "MarketRipple Score") and the AI Analysis tab. Deliberately never highlights or ranks the tiles against each other, even when every compared company is fully eligible — no declared winner, per the owner's explicit "do not declare an overall winner."
+- *"AI winner" banner → neutral heading.* "AI Comparison Summary" → "Comparison Summary"; kept "Highest ROE" and "Lowest Beta" (transparent single-real-metric superlatives, not composite AI verdicts).
+- *"Best Future Potential" → removed.*
+- *Financial comparison rows → real metrics only, with reporting periods and units.* Found and fixed a real, previously-undiscovered bug while verifying the underlying data: `/api/stocks/{symbol}` has never actually returned top-level `revenue`/`profit` fields (confirmed live for both test symbols) — this component was reading fields that don't exist, so "Revenue"/"Net Profit" rows always rendered "—" for every company, in both the "Financial Highlights" table and the per-company Financials tab. The real figures were already being fetched into the same object as `annual_financials`; now derives the latest fiscal year from there instead. Every comparison row across Overview, Valuation, Profitability, Balance Sheet, Dividends, and AI Analysis now states its real period and unit inline (e.g. "ROE (%, TTM)", "P/E Ratio (TTM, x)", "Revenue (₹ Cr, Latest FY)") instead of one blanket, partly-inaccurate "(TTM)" card label.
+- *Hardcoded company selector → the real directory.* "Add Company" now calls `GET /api/companies/search`, the same real, metadata-only backend directory `AllCompaniesTab.tsx` already uses for `/companies` — replacing a hardcoded list that could only ever find 30 of the real ~500+ company universe (the same class of drift this app's `/companies` page itself was fixed for once before).
+
+**Regression test** (`CompareContent.test.tsx`, 3 new cases): a real populated score (72) and a real "Partial coverage" state side by side, with the revenue/profit fix and the neutral "Comparison Summary" confirmed, and every removed element ("AI Score", "AI Powered", "AI Recommended Pick", "Best Future Potential", "Scores highest...", "Score Comparison") asserted absent across the Valuation and AI Analysis tabs; a real "Unavailable" state; the real company-directory search (asserts the actual network call to `/api/companies/search`, and that a company only findable there gets added — not just present in a hardcoded list). All 3 pass.
+
+**Real hydrated-browser verification, with an honest data-availability caveat:** confirmed live, before writing the browser test, that the local dev DB currently has **zero real MarketRipple Score snapshots for any company** — every one of 10 real Banking symbols queried returns `{"resolved":false}`, and `GET /api/company-rankings/Banking` itself returns `ranked:[]` and `partial_coverage:[]` for the whole sector. This is the same standing "local zero-snapshot findings establish nothing about production" gap already tracked elsewhere in this engagement (section 5), not something specific to the Compare page — and not something to paper over by hand-writing a snapshot row into the dev DB, which would just be fabricating test data under a different name. The populated/partial states are therefore verified via `CompareContent.test.tsx`'s fixtures (same precedent as `MarketRippleScoreCard.test.tsx` and `CompanyScoreContributors.test.tsx` earlier this session, for the same reason). The real browser check (2 new Playwright tests, `e2e/compare-one-score.spec.ts`) covers what real local data actually supports: the honest "Unavailable" state on two real companies (ICICIBANK, TCS), real financial data rendering, the real directory search (finds "Infosys" via a real `/api/companies/search` network request, asserted directly), and — the core of this fix — confirms no fabricated score or winner element survives real hydration anywhere on the page. All 5 Playwright tests pass together (this page's 2 plus the existing Company page suite's 3). Both dev servers stopped after the run.
+
+`tsc --noEmit`: no new errors; three pre-existing errors remain (unrelated, unchanged). `vitest`: 394/394 pass (3 new).
+
 ## Held per instruction
 
-Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off. The Compare-page fabrication finding (section 11) is also held pending an owner decision on scope/replacement. Production snapshot history and coverage remain unknown — no new read attempt was made this round.
+Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off. Production snapshot history and coverage remain unknown — no new read attempt was made this round. Every one-score finding raised across the Company page, Company Rankings, and the Compare page is now closed; the only remaining loose end from the sweep (section 11) is the dead, unreachable `/best-stocks` hub page code, flagged but not fixed as it serves nothing live.
