@@ -756,12 +756,12 @@ function RelatedOpportunitiesList({ stock }: { stock: StockDetail }) {
 // real per-company impact_score, aggregated with real recency decay. Hides
 // entirely rather than showing a fabricated fallback when a company has no
 // real signals yet.
-interface CompanyScoreContributor {
+export interface CompanyScoreContributor {
   reason: string | null; source_type: "article" | "opportunity"; href: string | null;
   signed_magnitude: number; signal_at: string | null;
 }
 interface CompanyScoreVerdict { label: string; tone: string; reasoning: string }
-interface CompanyScoreData {
+export interface CompanyScoreData {
   symbol: string; score: number | null; confidence: number | null;
   signal_count: number; contributing_signal_count: number; sector: string | null;
   top_contributors: CompanyScoreContributor[];
@@ -1605,7 +1605,7 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
   );
 }
 
-// ── Company Score Contributors (Batch 2) ───────────────────────────────────────
+// ── Recent Intelligence Evidence (Batch 2, renamed 2026-09-26) ──────────────────
 // Intelligence tab, per the redesign audit: real Company Score
 // contributors — including real negative ones — replacing the fabricated
 // "Top Risks"/"Top Opportunities" cards removed in Batch 0. Fetches the
@@ -1614,6 +1614,20 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
 // own positive/negative split instead of collapsing everything into one
 // |magnitude|-sorted list — the FACT/EVIDENCE (real supporting signal) vs
 // COUNTER-SIGNAL (real disagreeing signal) distinction the audit required.
+//
+// One-score migration (2026-09-26, owner instruction): renamed from "AI
+// Company Score" to "Recent Intelligence Evidence" and stripped of every
+// standalone numeric score, rating, verdict, and score-based colour gauge
+// (the old headline number, the Risk/Trend pills, the "Evidence quality"
+// label, and the verdict-reasoning sentence — which itself embedded the
+// same score/risk as prose, e.g. "Opportunity score 62/100 · Medium
+// risk"). A second, competing public company rating living on a different
+// tab under a different name was still a second rating. The real
+// calculation is untouched and keeps running internally — it's the
+// Current Intelligence pillar's own input (current_intelligence.py) and
+// is visible there in the MarketRipple Score card's own pillar
+// breakdown — this section now shows only the dated, sourced evidence
+// itself: real articles, real opportunities, real reasons, real dates.
 function ContributorRow({ c, tone }: { c: CompanyScoreContributor; tone: "positive" | "negative" }) {
   const positive = tone === "positive";
   const inner = (
@@ -1645,7 +1659,7 @@ function ContributorRow({ c, tone }: { c: CompanyScoreContributor; tone: "positi
     : <div className={cls}>{inner}</div>;
 }
 
-function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
+export function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
   const [data, setData] = useState<CompanyScoreData | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1660,8 +1674,8 @@ function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
 
   if (data.signal_count === 0) {
     return (
-      <SectionCard title="AI Company Score">
-        <p className="text-sm text-text-secondary">No AI Company Score evidence tracked for {stock.name} yet — this score is built only from real published analysis and opportunity tracking, never estimated.</p>
+      <SectionCard title="Recent Intelligence Evidence">
+        <p className="text-sm text-text-secondary">No intelligence evidence tracked for {stock.name} yet — built only from real published analysis and opportunity tracking, never estimated.</p>
       </SectionCard>
     );
   }
@@ -1670,29 +1684,10 @@ function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
   const negatives = data.risk_factors?.filter(r => r.reason) ?? [];
 
   return (
-    <SectionCard title="AI Company Score" action={<span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-300">AI Powered</span>}>
-      <div className="mt-2 flex flex-wrap items-center gap-6 rounded-2xl border border-surface-border/6 bg-gradient-to-b from-text-primary/[0.03] to-transparent p-4">
-        <div className="text-center">
-          <p className="text-[36px] font-black leading-none text-text-primary">{data.score}</p>
-          <p className="mt-1 text-[9px] uppercase tracking-wider text-text-muted">AI Score</p>
-        </div>
-        <div className="min-w-[160px] flex-1 space-y-1.5">
-          <div className="flex justify-between text-[10px]">
-            <span className="text-text-muted">Evidence quality</span>
-            <span className="font-semibold text-emerald-400">{data.risk_level ? _evidenceLabel(data.risk_level) : "—"}</span>
-          </div>
-          <p className="text-[10px] text-text-muted">
-            Based on {data.contributing_signal_count} contributing signal{data.contributing_signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {data.risk_level && <Pill color={data.risk_level === "High" ? "rose" : data.risk_level === "Low" ? "green" : "amber"}>{data.risk_level} Risk</Pill>}
-          {data.trend && data.trend !== "neutral" && <Pill color={data.trend === "up" ? "green" : "rose"}>{data.trend === "up" ? "Trending Up" : "Trending Down"}</Pill>}
-        </div>
-      </div>
-      {data.verdict?.reasoning && (
-        <p className="mt-3 text-[11px] text-text-muted">{data.verdict.reasoning}</p>
-      )}
+    <SectionCard title="Recent Intelligence Evidence">
+      <p className="mt-1 text-[11px] leading-5 text-text-muted">
+        Based on {data.contributing_signal_count} contributing signal{data.contributing_signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking — this evidence feeds the MarketRipple Score's Current Intelligence pillar; it is not itself a company rating.
+      </p>
 
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div>
