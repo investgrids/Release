@@ -110,6 +110,8 @@ async def compute_marketripple_score(
             pillars=pillars, weights=CANDIDATE_WEIGHTS, overall_coverage_pct=0.0,
             peer_universe=actual_peer_universe, peer_universe_count=len(actual_peer_universe),
             peer_universe_as_of=peer_universe_as_of,
+            pillar_coverage_status="insufficient",
+            pillar_coverage_message="No pillar produced a real score for this symbol.",
         )
         if methodology_version is not None:
             kwargs["methodology_version"] = methodology_version
@@ -119,12 +121,30 @@ async def compute_marketripple_score(
     overall_score = round(sum(p.score * CANDIDATE_WEIGHTS[name] for name, p in usable.items()) / used_weight, 1)
     overall_coverage = round(sum(p.coverage_pct * CANDIDATE_WEIGHTS[name] for name, p in usable.items()) / used_weight, 1)
 
+    total_pillars = len(pillars)
+    if len(usable) < total_pillars:
+        # Comparability interim rule — see contracts.py's own field docstring.
+        # A renormalized 2-of-4 (or 3-of-4) blend is not comparable to a
+        # 4-of-4 one, so no headline number or ranking eligibility until a
+        # real shadow comparison says which partial combinations are safe.
+        # Per-pillar scores that WERE produced stay fully visible in
+        # `pillars` — only the combined number is withheld.
+        pillar_coverage_status = "partial"
+        pillar_coverage_message = f"Partial coverage — {len(usable)} of {total_pillars} pillars"
+        headline_score, headline_label = None, None
+    else:
+        pillar_coverage_status = "complete"
+        pillar_coverage_message = f"Complete coverage — {total_pillars} of {total_pillars} pillars"
+        headline_score, headline_label = overall_score, _label_for(overall_score)
+
     kwargs = dict(
-        symbol=symbol, score=overall_score, label=_label_for(overall_score),
+        symbol=symbol, score=headline_score, label=headline_label,
         publishable=False, publish_reason=_PUBLISH_LOCK_REASON,
         pillars=pillars, weights=CANDIDATE_WEIGHTS, overall_coverage_pct=overall_coverage,
         peer_universe=actual_peer_universe, peer_universe_count=len(actual_peer_universe),
         peer_universe_as_of=peer_universe_as_of,
+        pillar_coverage_status=pillar_coverage_status,
+        pillar_coverage_message=pillar_coverage_message,
     )
     if methodology_version is not None:
         kwargs["methodology_version"] = methodology_version

@@ -68,3 +68,17 @@ class MarketRippleScore:
     peer_universe: list[str] = field(default_factory=list)
     peer_universe_count: int = 0
     peer_universe_as_of: date | None = None
+    # Comparability interim rule (2026-09-26 audit follow-up, owner
+    # decision): a 2-of-4-pillar score and a 4-of-4-pillar score are not
+    # comparable — renormalized weights change what the same headline
+    # number represents. Until a shadow comparison validates which partial
+    # combinations are safe to publish/rank (see
+    # scripts/marketripple_score_shadow_pillar_comparability.py), `score`
+    # stays None whenever fewer than all 4 pillars produced a real number,
+    # even though `pillars` still carries every real per-pillar result that
+    # WAS produced. pillar_coverage_status is "complete" | "partial" |
+    # "insufficient"; pillar_coverage_message is the real, human-readable
+    # reason (e.g. "Partial coverage — 2 of 4 pillars") a caller should
+    # show in place of a combined number.
+    pillar_coverage_status: str = "insufficient"
+    pillar_coverage_message: str = "No pillar produced a real score for this symbol."
