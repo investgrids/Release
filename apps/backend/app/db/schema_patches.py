@@ -121,6 +121,11 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("opportunities_v2", "editorial_summary", "TEXT"),
     ("opportunities_v2", "editorial_reason", "TEXT"),
     ("opportunities_v2", "editorial_updated_at", "DATETIME"),
+    # Current Intelligence dedup (2026-09-26) — ai_company_signals already
+    # existed (real production signal history) before this column did.
+    # Nullable, no backfill: every pre-existing row correctly reads as
+    # "no known event lineage" rather than a guessed link.
+    ("ai_company_signals", "event_id", "VARCHAR(128)"),
 ]
 
 

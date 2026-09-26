@@ -33,6 +33,19 @@ class AICompanySignal(Base):
     source_type  = Column(String(16), nullable=False, index=True)  # "article" | "opportunity"
     source_id    = Column(String(64), nullable=False, index=True)  # IntelligenceArticle.id or Opportunity.id (str)
 
+    # Real underlying events.id this signal traces back to, when known —
+    # article-sourced rows use IntelligenceArticle.trigger_event_id;
+    # opportunity-sourced rows use that opportunity's highest-importance
+    # linked OpportunityEvent.event_id (one opportunity can aggregate
+    # several events; see extract_opportunity_signals). Nullable because
+    # older rows and any producer without a real event link predate this
+    # column — those stay correctly un-deduplicatable rather than guessed
+    # at. This is what lets compute_company_score() detect the SAME real
+    # event surfacing as both an article and an opportunity for the same
+    # company, instead of weighting it twice (Current Intelligence audit,
+    # 2026-09-26).
+    event_id     = Column(String(128), nullable=True, index=True)
+
     # ── Company ───────────────────────────────────────────────────────────
     symbol       = Column(String(32), nullable=False, index=True)  # NSE symbol, no .NS suffix
     company_name = Column(String(200), nullable=True)

@@ -242,6 +242,7 @@ async def extract_company_signals(db: AsyncSession, article: IntelligenceArticle
             quality=article.quality_score,
             reason=c.get("reason"),
             signal_at=signal_at,
+            event_id=article.trigger_event_id,
         ))
         created += 1
     if created and auto_commit:
@@ -255,7 +256,7 @@ async def extract_opportunity_signals(db: AsyncSession, opportunity_id: int, opp
     real signal source (previously the ONLY source bestStocks.ts read).
     Merging both into one signal table is what makes this one engine
     instead of two parallel ranking systems."""
-    from app.db.models.opportunity import OpportunityCompany
+    from app.db.models.opportunity import OpportunityCompany, OpportunityEvent
 
     existing = (await db.execute(
         select(AICompanySignal.id).where(
@@ -269,6 +270,18 @@ async def extract_opportunity_signals(db: AsyncSession, opportunity_id: int, opp
     rows = (await db.execute(
         select(OpportunityCompany).where(OpportunityCompany.opportunity_id == opportunity_id)
     )).scalars().all()
+
+    # One opportunity can aggregate several real events (OpportunityEvent is
+    # a one-to-many child table) — for lineage/dedup purposes we need one
+    # representative event_id per opportunity, so take its highest-importance
+    # linked event (deterministic tie-break on event_id) rather than the
+    # first row returned by an unordered query.
+    primary_event_id = (await db.execute(
+        select(OpportunityEvent.event_id)
+        .where(OpportunityEvent.opportunity_id == opportunity_id)
+        .order_by(OpportunityEvent.importance.desc(), OpportunityEvent.event_id.asc())
+        .limit(1)
+    )).scalar_one_or_none()
 
     signal_at = _aware(opportunity_created_at) or datetime.now(timezone.utc)
     created = 0
@@ -288,6 +301,7 @@ async def extract_opportunity_signals(db: AsyncSession, opportunity_id: int, opp
             quality=None,  # no equivalent quality gate for opportunity rows
             reason=c.reason,
             signal_at=signal_at,
+            event_id=primary_event_id,
         ))
         created += 1
     if created and auto_commit:
@@ -378,6 +392,81 @@ def _trend_for(score: float) -> str:
     return "neutral"
 
 
+def _dedupe_signals_by_event(
+    rows: list[AICompanySignal],
+) -> tuple[list[AICompanySignal], dict[int, list[AICompanySignal]], list[dict[str, Any]]]:
+    """Current Intelligence audit, 2026-09-26: IntelligenceArticle.trigger_event_id
+    and Opportunity's linked OpportunityEvent.event_id both point into the
+    same real `events` table, so one real event can independently produce
+    an article-sourced AND an opportunity-sourced AICompanySignal for the
+    same company — previously both were summed, double-counting one real
+    fact. This groups signals by their real event_id (never by title/text
+    similarity) and keeps exactly one representative per event in the
+    weighted sum.
+
+    Returns (scoring_rows, supporting_by_representative, unresolved_lineage):
+      scoring_rows — every row that should enter the weighted sum: one
+        representative per real event_id group, plus every row with no
+        known event_id (nothing to dedupe against, so it stands alone).
+      supporting_by_representative — representative row id -> the other
+        real rows in its group. Preserved as supporting evidence/provenance
+        (never silently dropped), just not weighted a second time.
+      unresolved_lineage — event groups where sources genuinely disagree on
+        direction (some positive, some negative) for the same real event.
+        Never averaged or silently resolved to one side: excluded from the
+        weighted sum entirely and reported separately for a human to look
+        at, per the owner's explicit instruction not to merge conflicting
+        interpretations.
+    """
+    by_event: dict[str, list[AICompanySignal]] = {}
+    no_event: list[AICompanySignal] = []
+    for r in rows:
+        if r.event_id:
+            by_event.setdefault(r.event_id, []).append(r)
+        else:
+            no_event.append(r)
+
+    scoring_rows: list[AICompanySignal] = list(no_event)
+    supporting_by_representative: dict[int, list[AICompanySignal]] = {}
+    unresolved_lineage: list[dict[str, Any]] = []
+
+    for event_id, group in by_event.items():
+        if len(group) == 1:
+            scoring_rows.append(group[0])
+            continue
+        signs = {1 if g.signed_magnitude > 0 else (-1 if g.signed_magnitude < 0 else 0) for g in group}
+        if len(signs - {0}) > 1:
+            unresolved_lineage.append({
+                "event_id": event_id,
+                "signals": [
+                    {
+                        "source_type": g.source_type, "source_id": g.source_id,
+                        "signed_magnitude": g.signed_magnitude, "reason": g.reason,
+                    }
+                    for g in group
+                ],
+            })
+            continue
+
+        # Deterministic representative — highest confidence*quality (the
+        # same authority proxy the weighting formula itself already uses),
+        # tie-broken by source_type (article, the primary disclosure,
+        # before opportunity, a derived thesis), then by id for full
+        # determinism. Never text/title similarity.
+        def _priority(g: AICompanySignal) -> tuple[float, int, int]:
+            conf = g.confidence if g.confidence is not None else 0.5
+            qual = g.quality if g.quality is not None else 1.0
+            source_rank = 0 if g.source_type == "article" else 1
+            return (-(conf * qual), source_rank, g.id)
+
+        ordered = sorted(group, key=_priority)
+        representative, duplicates = ordered[0], ordered[1:]
+        scoring_rows.append(representative)
+        supporting_by_representative[representative.id] = duplicates
+
+    return scoring_rows, supporting_by_representative, unresolved_lineage
+
+
 def _risk_level_for(rows: list[AICompanySignal], confidences: list[float]) -> str:
     """Not a fabricated risk score — a real derived read on the same signal
     rows already used for the price score: low average confidence and/or
@@ -416,7 +505,10 @@ async def compute_company_score(
     if not rows:
         return {
             "symbol": symbol, "score": None, "confidence": None,
-            "signal_count": 0, "contributing_signal_count": 0, "sector": _sector_for(symbol),
+            "signal_count": 0, "contributing_signal_count": 0,
+            "contributing_event_count": 0, "contributing_no_lineage_count": 0,
+            "supporting_source_count": 0, "unresolved_lineage": [],
+            "sector": _sector_for(symbol),
             "top_contributors": [], "positive_reasons": [], "risk_factors": [],
             "trend": "neutral", "verdict": None, "breakdown": {},
         }
@@ -427,9 +519,16 @@ async def compute_company_score(
     else:
         accuracy_mult = await _accuracy_multiplier(db, symbol)
 
+    # Current Intelligence audit, 2026-09-26 — dedupe before weighting, not
+    # after: an article and an opportunity tracing to the SAME real event
+    # must contribute once, not twice. scoring_rows is what every weighted
+    # sum, average, and risk read below uses instead of the raw `rows`.
+    scoring_rows, supporting_by_representative, unresolved_lineage = _dedupe_signals_by_event(rows)
+    supporting_source_count = sum(len(v) for v in supporting_by_representative.values())
+
     weighted_rows = []
     confidences = []
-    for r in rows:
+    for r in scoring_rows:
         age_days = max(0.0, (now - _aware(r.signal_at)).total_seconds() / 86400)
         decay = 0.5 ** (age_days / _RECENCY_HALF_LIFE_DAYS)
         confidence = r.confidence if r.confidence is not None else 0.5
@@ -443,10 +542,12 @@ async def compute_company_score(
     # strong signals don't blow past 100 while still differentiating a
     # 1-signal company from a 20-signal one — divisor tuned to real observed
     # magnitude range (event_score/opportunity impact_score both ~0-100).
-    score = 50 + max(-50, min(50, total / max(1, len(rows)) * 0.5))
+    # Uses len(scoring_rows), not len(rows): a duplicate merged away above
+    # must not also dilute the per-signal average.
+    score = 50 + max(-50, min(50, total / max(1, len(scoring_rows)) * 0.5))
     avg_confidence = sum(confidences) / len(confidences) if confidences else None
     trend = _trend_for(score)
-    risk_level = _risk_level_for(rows, confidences)
+    risk_level = _risk_level_for(scoring_rows, confidences)
 
     # 2026-08-25 — owner decision, following the signal semantic integrity
     # audit (artifacts/company_signal_semantic_integrity_audit.md): two
@@ -465,6 +566,19 @@ async def compute_company_score(
     # the new, honest number for display — only rows whose real weighted
     # contribution is non-zero.
     contributing_signal_count = sum(1 for w, _ in weighted_rows if w != 0)
+
+    # Current Intelligence audit, 2026-09-26 — "how many signal ROWS
+    # contribute" and "how many independent real EVENTS that represents"
+    # are different questions; a company with 8 contributing signals from
+    # only 3 real events is materially different evidence than 8 signals
+    # from 8 events, and contributing_signal_count alone can't tell them
+    # apart. Reported separately rather than conflated into one count.
+    contributing_event_count = len({
+        r.event_id for w, r in weighted_rows if w != 0 and r.event_id
+    })
+    contributing_no_lineage_count = sum(
+        1 for w, r in weighted_rows if w != 0 and not r.event_id
+    )
 
     # "Why Ranked" / "Risk Factors" — the same weighted evidence, just split
     # by sign instead of by |magnitude| like the old single top_contributors
@@ -515,6 +629,10 @@ async def compute_company_score(
         "confidence": round(avg_confidence, 2) if avg_confidence is not None else None,
         "signal_count": len(rows),
         "contributing_signal_count": contributing_signal_count,
+        "contributing_event_count": contributing_event_count,
+        "contributing_no_lineage_count": contributing_no_lineage_count,
+        "supporting_source_count": supporting_source_count,
+        "unresolved_lineage": unresolved_lineage,
         "sector": _sector_for(symbol),
         "trend": trend,
         "risk_level": risk_level,
