@@ -20,5 +20,4 @@ class MockIntersectionObserver {
   disconnect() {}
   takeRecords(): IntersectionObserverEntry[] { return []; }
 }
-// @ts-expect-error — a minimal test-only stub, not a full spec implementation
-globalThis.IntersectionObserver = MockIntersectionObserver;
+globalThis.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;

@@ -43,7 +43,11 @@ const nextConfig: NextConfig = {
       // automatically — Next.js appends incoming params not present on the
       // destination. Same proven pattern as /markets → /commodities above,
       // where the redirected-from page.tsx also still exists on disk.
-      { source: "/best-stocks",        destination: "/companies?tab=best-stocks", permanent: true },
+      // Company Rankings migration (2026-09-26) — "Best Stocks" retired in
+      // favor of the real MarketRipple Score ranking surface; same
+      // consolidation policy as this redirect always used.
+      { source: "/best-stocks",        destination: "/companies?tab=company-rankings", permanent: true },
+      { source: "/company-rankings",   destination: "/companies?tab=company-rankings", permanent: true },
       { source: "/compare",            destination: "/companies?tab=compare",     permanent: true },
       { source: "/ipo-hub",            destination: "/companies?tab=ipo",         permanent: true },
       { source: "/sectors",            destination: "/companies?tab=sectors",     permanent: true },

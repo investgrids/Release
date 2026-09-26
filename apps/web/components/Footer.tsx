@@ -23,7 +23,7 @@ const PRODUCT_LINKS = [
   { label: "Events",              href: "/events" },
   { label: "Companies",           href: "/companies" },
   { label: "Opportunity Radar",   href: "/opportunity-radar" },
-  { label: "Best Stocks",         href: "/companies?tab=best-stocks" },
+  { label: "Company Rankings",    href: "/companies?tab=company-rankings" },
   { label: "Ripple Intelligence", href: "/ripple" },
   { label: "AI Search",           href: "/ai-search" },
   { label: "Historical Patterns", href: "/historical" },

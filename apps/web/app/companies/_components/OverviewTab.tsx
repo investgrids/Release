@@ -90,7 +90,7 @@ export async function OverviewTab() {
         )}
       </SectionCard>
 
-      <SectionCard icon={<Sparkles className="h-3.5 w-3.5" />} title="AI Top Picks" href="/companies?tab=best-stocks">
+      <SectionCard icon={<Sparkles className="h-3.5 w-3.5" />} title="AI Top Picks" href="/companies?tab=company-rankings">
         {topPicks.length === 0 ? <p className="text-[12px] text-text-muted">No scored companies yet.</p> : (
           <ul className="space-y-2">
             {topPicks.map(c => (

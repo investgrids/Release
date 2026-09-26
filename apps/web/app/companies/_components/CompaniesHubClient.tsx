@@ -15,7 +15,7 @@ import { useDelayedPending } from "@/hooks/useDelayedPending";
 const TABS: HubTab[] = [
   { id: "overview",      label: "Overview",       icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
   { id: "all-companies", label: "All Companies",  icon: <Building2 className="h-3.5 w-3.5" /> },
-  { id: "best-stocks",   label: "Best Stocks",    icon: <TrendingUp className="h-3.5 w-3.5" /> },
+  { id: "company-rankings", label: "Company Rankings", icon: <TrendingUp className="h-3.5 w-3.5" /> },
   { id: "sectors",       label: "Sectors",        icon: <LayoutGrid className="h-3.5 w-3.5" /> },
   { id: "compare",       label: "Company Compare",icon: <GitCompare className="h-3.5 w-3.5" /> },
   { id: "ipo",           label: "IPO Hub",        icon: <Rocket className="h-3.5 w-3.5" /> },

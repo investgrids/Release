@@ -3,7 +3,7 @@ import { fetchAPI } from "@/lib/api";
 import { CompaniesHubClient } from "./_components/CompaniesHubClient";
 import { OverviewTab } from "./_components/OverviewTab";
 import { AllCompaniesTab } from "./_components/AllCompaniesTab";
-import BestStocksHubPage from "@/app/best-stocks/page";
+import CompanyRankingsHubPage from "@/app/company-rankings/page";
 import SectorsPage from "@/app/sectors/page";
 import ComparePage from "@/app/compare/page";
 import IPOHubPage from "@/app/ipo-hub/page";
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-const VALID_TABS = new Set(["overview", "all-companies", "best-stocks", "sectors", "compare", "ipo"]);
+const VALID_TABS = new Set(["overview", "all-companies", "company-rankings", "sectors", "compare", "ipo"]);
 
 export default async function CompaniesHubPage({
   searchParams,
@@ -77,7 +77,7 @@ export default async function CompaniesHubPage({
   let content: React.ReactNode;
   switch (tab) {
     case "all-companies": content = <AllCompaniesTab q={q} sector={sector} cap={cap} sort={sort} page={page} />; break;
-    case "best-stocks":   content = <BestStocksHubPage />; break;
+    case "company-rankings": content = <CompanyRankingsHubPage />; break;
     case "sectors":       content = <SectorsPage />; break;
     case "compare":       content = <ComparePage />; break;
     case "ipo":           content = <IPOHubPage />; break;
