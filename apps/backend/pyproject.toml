@@ -12,7 +12,22 @@ dependencies = [
   "pydantic-settings>=2.0.0",
 
   # Database
-  "sqlalchemy>=2.0.32",
+  # 2026-09-26 production incident: sqlalchemy's asyncio extension
+  # (used throughout this app -- AsyncSession, asyncpg, aiosqlite) has
+  # always required `greenlet` at runtime, but it was never listed as
+  # an explicit dependency here -- only ever resolved incidentally/
+  # transitively via some other package's own pin, and only present in
+  # production because of a cached build layer. A real production
+  # redeploy with build caching disabled (skipBuildCache=true) re-
+  # resolved dependencies from scratch and greenlet was absent,
+  # crashing every worker on boot with "ModuleNotFoundError: No module
+  # named 'greenlet'" -- confirmed via live production crash logs, not
+  # a hypothetical. Declared explicitly here (the sqlalchemy[asyncio]
+  # extra, matching the exact install path SQLAlchemy's own error
+  # message recommends) so a future cache-free build can never repeat
+  # this: the dependency the app actually needs is now real, versioned
+  # project metadata, not an accident of build-cache history.
+  "sqlalchemy[asyncio]>=2.0.32",
   "asyncpg>=0.28.0",
   "aiosqlite>=0.20.0",
   "alembic>=1.13.0",
