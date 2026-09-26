@@ -59,7 +59,7 @@ async def test_backfill_derives_article_lineage_for_pre_existing_rows():
     try:
         async with AsyncSessionLocal() as db:
             result = await backfill_company_signal_event_ids(db)
-        assert result["updated"] >= 1
+        assert result["resolvable"] >= 1
 
         async with AsyncSessionLocal() as db:
             row = (await db.execute(
@@ -129,7 +129,7 @@ async def test_backfill_never_guesses_when_no_real_lineage_exists():
     try:
         async with AsyncSessionLocal() as db:
             result = await backfill_company_signal_event_ids(db)
-        assert result["skipped_no_real_lineage"] >= 1
+        assert result["unresolved_no_real_lineage"] >= 1
 
         async with AsyncSessionLocal() as db:
             row = (await db.execute(
@@ -138,3 +138,86 @@ async def test_backfill_never_guesses_when_no_real_lineage_exists():
         assert row.event_id is None, "never fabricate lineage when no real source link exists"
     finally:
         await _cleanup([symbol], [], [])
+
+
+@pytest.mark.asyncio
+async def test_dry_run_reports_the_same_counts_but_writes_nothing():
+    tag = _tag()
+    symbol = f"TESTBFDRY{tag}"[:20].upper()
+    article_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as db:
+        db.add(IntelligenceArticle(
+            id=article_id, headline="Test headline", slug=f"t-{tag}",
+            trigger_event_id=f"evt-{tag}", published_at=now, created_at=now,
+        ))
+        db.add(AICompanySignal(
+            source_type="article", source_id=article_id, symbol=symbol,
+            sector="Energy", signed_magnitude=10.0, confidence=0.8, quality=0.8,
+            signal_at=now, event_id=None,
+        ))
+        await db.commit()
+
+    try:
+        async with AsyncSessionLocal() as db:
+            dry_result = await backfill_company_signal_event_ids(db, dry_run=True)
+        assert dry_result["dry_run"] is True
+        assert dry_result["resolvable"] >= 1
+
+        # Nothing written — the row must still show event_id IS NULL.
+        async with AsyncSessionLocal() as db:
+            row = (await db.execute(
+                select(AICompanySignal).where(AICompanySignal.symbol == symbol)
+            )).scalar_one()
+        assert row.event_id is None, "dry_run=True must never write anything"
+
+        # The real run must then produce the same resolvable count.
+        async with AsyncSessionLocal() as db:
+            real_result = await backfill_company_signal_event_ids(db, dry_run=False)
+        assert real_result["resolvable"] == dry_result["resolvable"]
+        assert real_result["dry_run"] is False
+    finally:
+        await _cleanup([symbol], [article_id], [])
+
+
+@pytest.mark.asyncio
+async def test_dry_run_reports_a_newly_introduced_conflicting_group():
+    """The real case this audit measured platform-wide: restoring lineage
+    to two currently-independent (event_id=NULL) rows for the same symbol
+    can reveal they actually disagree about the same real event — this
+    must be reported as a NEW conflict, not silently absorbed."""
+    tag = _tag()
+    symbol = f"TESTBFCONFLICT{tag}"[:20].upper()
+    article_a, article_b = str(uuid.uuid4()), str(uuid.uuid4())
+    shared_event_id = f"evt-shared-{tag}"
+    now = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as db:
+        db.add(IntelligenceArticle(
+            id=article_a, headline="Positive take", slug=f"a-{tag}",
+            trigger_event_id=shared_event_id, published_at=now, created_at=now,
+        ))
+        db.add(IntelligenceArticle(
+            id=article_b, headline="Negative take", slug=f"b-{tag}",
+            trigger_event_id=shared_event_id, published_at=now, created_at=now,
+        ))
+        db.add(AICompanySignal(
+            source_type="article", source_id=article_a, symbol=symbol,
+            sector="Energy", signed_magnitude=60.0, confidence=0.8, quality=0.8,
+            signal_at=now, event_id=None,
+        ))
+        db.add(AICompanySignal(
+            source_type="article", source_id=article_b, symbol=symbol,
+            sector="Energy", signed_magnitude=-60.0, confidence=0.8, quality=0.8,
+            signal_at=now, event_id=None,
+        ))
+        await db.commit()
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await backfill_company_signal_event_ids(db, dry_run=True)
+        assert symbol in result["symbols_with_new_conflicting_groups"]
+        assert result["symbols_with_new_conflicting_groups_count"] >= 1
+    finally:
+        await _cleanup([symbol], [article_a, article_b], [])

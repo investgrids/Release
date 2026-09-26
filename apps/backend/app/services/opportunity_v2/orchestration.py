@@ -197,25 +197,48 @@ async def _process_cluster(db: AsyncSession, cluster: CoherentCluster, now: date
         )
         db.add(opp)
 
-    opp.current_score = breakdown.total
-    # Persisted exactly alongside current_score (owner correction,
-    # 2026-08-23: a GET request must never reconstruct different
-    # reasoning than the score it's displaying was actually computed
-    # from — see read_service.py, which serves these fields as-is,
-    # never a live recomputation).
-    opp.score_breakdown = {
-        "evidence_quality": breakdown.evidence_quality,
-        "development_count": breakdown.development_count,
-        "company_confirmation": breakdown.company_confirmation,
-        "sector_confirmation": breakdown.sector_confirmation,
-        "freshness": breakdown.freshness,
-        "contradiction_penalty": breakdown.contradiction_penalty,
-        "company_signals": breakdown.company_signals,
-    }
-    opp.contradictions = breakdown.contradictions
-    opp.sectors = sectors
-    opp.companies = companies
-    opp.updated_at = now
+    # Public-row score freeze (2026-09-26, verification follow-up): before
+    # this, find_matching_open_opportunity() matches purely on
+    # (thesis_anchor, thesis_direction, status=="open") with no
+    # public_status check, so a normal shadow pass silently overwrote
+    # current_score/score_breakdown/contradictions/sectors/companies on an
+    # ALREADY-PUBLIC row exactly like any shadow one — confirmed empirically
+    # via test_opportunity_v2_orchestration_public_row_scoring.py. Editorial
+    # text and public_status itself were already safe (no code path here
+    # touches either); the score/signal fields were not. Promotion to
+    # public is meant to be a deliberate editorial decision about what's
+    # shown — an automatic recompute silently changing the underlying
+    # number two clusters later defeats that. Any future refresh of a
+    # public row's score must be an explicit, separate action (not
+    # implemented here — this only stops the implicit one), never a side
+    # effect of the routine shadow pass.
+    frozen = existing is not None and existing.public_status == "public"
+    if frozen:
+        log.info(
+            "opportunity_v2.orchestration.public_row_score_frozen",
+            opportunity_id=opp.id,
+            would_be_score=breakdown.total, previous_score=opp.current_score,
+        )
+    else:
+        opp.current_score = breakdown.total
+        # Persisted exactly alongside current_score (owner correction,
+        # 2026-08-23: a GET request must never reconstruct different
+        # reasoning than the score it's displaying was actually computed
+        # from — see read_service.py, which serves these fields as-is,
+        # never a live recomputation).
+        opp.score_breakdown = {
+            "evidence_quality": breakdown.evidence_quality,
+            "development_count": breakdown.development_count,
+            "company_confirmation": breakdown.company_confirmation,
+            "sector_confirmation": breakdown.sector_confirmation,
+            "freshness": breakdown.freshness,
+            "contradiction_penalty": breakdown.contradiction_penalty,
+            "company_signals": breakdown.company_signals,
+        }
+        opp.contradictions = breakdown.contradictions
+        opp.sectors = sectors
+        opp.companies = companies
+        opp.updated_at = now
     await db.commit()
 
     new_dev_ids = await _link_developments(db, opp.id, cluster.developments, now)
@@ -269,7 +292,10 @@ async def _process_cluster(db: AsyncSession, cluster: CoherentCluster, now: date
         action=action, opportunity_id=opp.id, thesis_anchor=identity.anchor, thesis_direction=identity.direction,
         development_ids=[d.id for d in cluster.developments], development_titles=[d.canonical_title for d in cluster.developments],
         new_development_ids=new_dev_ids, sectors=sectors, companies=companies,
-        score=breakdown.total, narrative_status=opp.narrative_status, title=opp.current_title,
+        # The opportunity's real persisted score (== breakdown.total unless
+        # frozen — see above), never the discarded recompute for a frozen
+        # public row.
+        score=opp.current_score, narrative_status=opp.narrative_status, title=opp.current_title,
         narrative_reused=narrative_reused,
     )
 

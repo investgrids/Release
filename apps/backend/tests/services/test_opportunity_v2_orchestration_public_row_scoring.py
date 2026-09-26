@@ -2,33 +2,29 @@
 Opportunity V2 orchestration vs. a PUBLIC row — real end-to-end proof
 (2026-09-26, Current Intelligence dedup verification follow-up).
 
-The question this answers precisely: when run_shadow_pass() reprocesses a
-cluster that matches an ALREADY-PUBLIC opportunity's (thesis_anchor,
-thesis_direction) identity, what actually survives unchanged and what
-doesn't?
+Original finding (now fixed, see orchestration.py's own comment on the
+`frozen` check in _process_cluster): find_matching_open_opportunity()
+(identity.py) matches purely on (thesis_anchor, thesis_direction,
+status=="open") with no public_status check, so a normal shadow pass used
+to silently overwrite current_score/score_breakdown/contradictions/
+sectors/companies on an ALREADY-PUBLIC row exactly like any shadow row —
+confirmed empirically by an earlier version of this test. public_status
+and the 4 editorial_* fields were already safe (no code in orchestration.py
+ever wrote them); the score/signal fields were not.
 
-find_matching_open_opportunity() (identity.py) matches on
-(thesis_anchor, thesis_direction, status=="open") only -- it has no
-public_status filter at all. _process_cluster() (orchestration.py) never
-references public_status or any editorial_* field. So the real, correct
-expectation is NOT "the public row is frozen" -- it's narrower:
+The fix: _process_cluster() now checks whether the matched existing row is
+public and, if so, skips writing current_score/score_breakdown/
+contradictions/sectors/companies entirely — logging what the recompute
+WOULD have been (opportunity_v2.orchestration.public_row_score_frozen)
+rather than silently applying it. Development linkage still happens (new
+evidence keeps accumulating for a future EXPLICIT refresh, not implemented
+here), and narrative regeneration is untouched (out of this fix's scope —
+editorial override already protects narrative display regardless of what
+the generated narrative does).
 
-  - public_status itself is never written by orchestration.py (the only
-    real write path is the admin-gated canary-promote/revert endpoints,
-    confirmed by a full-repo grep in an earlier engagement audit).
-  - editorial_title/editorial_summary/editorial_reason/editorial_updated_at
-    are never written by orchestration.py either (no such field name
-    appears in that module) -- so read_service.py's editorial-takes-
-    precedence display stays stable regardless of what else changes.
-  - current_score/score_breakdown/contradictions/sectors/companies ARE
-    NOT frozen -- a normal shadow pass recomputes and overwrites them on
-    a public row exactly like any other "open" row, if that row's cluster
-    reforms. This is by design (the promotion flag is a display gate, not
-    a freeze), not something the Current Intelligence dedup fix changed.
-
-This test proves all of that empirically through the real run_shadow_pass()
-pipeline (never a direct call to the private _process_cluster), using the
-same real-graph/real-DB/monkeypatched-narrative-only pattern as
+This test proves the fix through the real run_shadow_pass() pipeline
+(never a direct call to the private _process_cluster), using the same
+real-graph/real-DB/monkeypatched-narrative-only pattern as
 test_opportunity_v2_orchestration_persistence.py.
 """
 from __future__ import annotations
@@ -110,7 +106,7 @@ async def _fake_narrative_ok(evidence_text, sectors, companies) -> NarrativeResu
 
 
 @pytest.mark.asyncio
-async def test_public_status_and_editorial_fields_survive_a_reprocessed_cluster_but_score_does_not(monkeypatch):
+async def test_public_row_score_and_signals_are_frozen_when_a_cluster_reprocesses(monkeypatch):
     monkeypatch.setattr(orch, "generate_narrative", _fake_narrative_ok)
     since = _since()
     ticker = f"TPUB{uuid.uuid4().hex[:6].upper()}"
@@ -127,6 +123,8 @@ async def test_public_status_and_editorial_fields_survive_a_reprocessed_cluster_
         assert opp is not None
         opp_ids = [opp.id]
         score_before = opp.current_score
+        breakdown_before = opp.score_breakdown
+        companies_before = opp.companies
         assert score_before is not None
 
         # Simulate the real canary state: promoted to public with an
@@ -146,7 +144,9 @@ async def test_public_status_and_editorial_fields_survive_a_reprocessed_cluster_
             await db.commit()
 
         # A real new signal for the same company, strong enough to move
-        # company_confirmation and therefore current_score if recomputed.
+        # company_confirmation and therefore current_score IF it were
+        # recomputed — proves the freeze is real, not just "nothing new
+        # to compute anyway".
         async with AsyncSessionLocal() as db:
             db.add(AICompanySignal(
                 source_type="article", source_id="test-public-row", symbol=ticker,
@@ -158,8 +158,7 @@ async def test_public_status_and_editorial_fields_survive_a_reprocessed_cluster_
 
         # A second real Development, same company -> same (thesis_anchor,
         # thesis_direction) identity -> find_matching_open_opportunity()
-        # matches the SAME row we just made public, purely on identity,
-        # with no public_status check anywhere in that lookup.
+        # matches the SAME row we just made public, purely on identity.
         dev_b = _make_dev("Second real development, same company, reprocesses the public row", companies=[ticker], sectors=["Banking"])
         node_ids.append(await _link(dev_b))
         async with AsyncSessionLocal() as db:
@@ -168,30 +167,81 @@ async def test_public_status_and_editorial_fields_survive_a_reprocessed_cluster_
         async with AsyncSessionLocal() as db:
             reprocessed = await db.get(OpportunityV2, opp.id)
 
-        # What IS protected, empirically confirmed:
-        assert reprocessed.public_status == "public", "orchestration.py must never touch public_status"
+        # Editorial content and public_status — protected before and after this fix.
+        assert reprocessed.public_status == "public"
         assert reprocessed.editorial_title == editorial_title
         assert reprocessed.editorial_summary == editorial_summary
         assert reprocessed.editorial_reason == editorial_reason
-        # SQLite's DateTime(timezone=True) round-trips as naive — compare
-        # the wall-clock value, not tzinfo presence.
-        assert reprocessed.editorial_updated_at.replace(tzinfo=timezone.utc) == editorial_at, \
-            "editorial fields must never be silently touched by a shadow pass"
+        assert reprocessed.editorial_updated_at.replace(tzinfo=timezone.utc) == editorial_at
 
-        # What is NOT protected — the real, by-design behavior this test
-        # exists to make explicit rather than assumed: a public row's
-        # underlying score/breakdown DOES get recomputed like any other
-        # open row when its cluster reforms.
-        assert reprocessed.current_score != score_before, (
-            "current_score is NOT frozen on a public row — it is recomputed "
-            "by any shadow pass whose cluster matches its thesis identity, "
-            "public_status notwithstanding. This is pre-existing orchestration "
-            "behavior, not something the Current Intelligence dedup fix changed."
-        )
+        # Score/signal fields — the real fix: frozen, not silently recomputed.
+        assert reprocessed.current_score == score_before, "a public row's score must never change from a routine shadow pass"
+        assert reprocessed.score_breakdown == breakdown_before, "a public row's persisted breakdown must not be silently replaced"
+        assert reprocessed.companies == companies_before
+
+        # The new real signal was NOT folded in — proves this isn't an
+        # accidental no-op (e.g. the cluster failing to match) but a
+        # deliberate skip of a real, available update.
         signals = reprocessed.score_breakdown["company_signals"]
         matching = [s for s in signals if s.get("symbol") == ticker]
         assert len(matching) == 1
-        assert matching[0]["score"] is not None, "the new real signal DID get folded into the public row's persisted breakdown"
+        assert matching[0]["score"] is None, "the frozen breakdown must still be the pre-promotion one, which had no real signal for this company yet"
+
+        # Development linkage still happens even while frozen — evidence
+        # keeps accumulating for a future explicit refresh.
+        async with AsyncSessionLocal() as db:
+            linked = (await db.execute(
+                select(OpportunityV2Development.development_id).where(OpportunityV2Development.opportunity_id == opp.id)
+            )).scalars().all()
+        assert dev_b.id in linked, "new evidence must still be linked even while the score itself is frozen"
+    finally:
+        dev_ids = [dev_a.id] + ([dev_b.id] if dev_b is not None else [])
+        await _cleanup(dev_ids, node_ids, opp_ids, [ticker])
+
+
+@pytest.mark.asyncio
+async def test_shadow_row_still_updates_normally(monkeypatch):
+    """Control case: the freeze must be specific to public_status=="public"
+    -- an ordinary shadow row must keep updating exactly as before."""
+    monkeypatch.setattr(orch, "generate_narrative", _fake_narrative_ok)
+    since = _since()
+    ticker = f"TSHADOW{uuid.uuid4().hex[:6].upper()}"
+
+    dev_a = _make_dev("First real development, stays shadow", companies=[ticker], sectors=["Banking"])
+    dev_b = None
+    node_ids, opp_ids = [], []
+    try:
+        node_ids.append(await _link(dev_a))
+        async with AsyncSessionLocal() as db:
+            await orch.run_shadow_pass(db, since=since, limit=50)
+
+        opp = await _opportunity_for(dev_a.id)
+        assert opp is not None
+        opp_ids = [opp.id]
+        assert opp.public_status == "shadow"
+        score_before = opp.current_score
+
+        async with AsyncSessionLocal() as db:
+            db.add(AICompanySignal(
+                source_type="article", source_id="test-shadow-row", symbol=ticker,
+                company_name="Test Shadow Co", sector="Banking",
+                signed_magnitude=90.0, confidence=0.95, quality=0.95,
+                signal_at=datetime.now(timezone.utc),
+            ))
+            await db.commit()
+
+        dev_b = _make_dev("Second real development, same company, reprocesses the shadow row", companies=[ticker], sectors=["Banking"])
+        node_ids.append(await _link(dev_b))
+        async with AsyncSessionLocal() as db:
+            await orch.run_shadow_pass(db, since=since, limit=50)
+
+        async with AsyncSessionLocal() as db:
+            reprocessed = await db.get(OpportunityV2, opp.id)
+
+        assert reprocessed.current_score != score_before, "a real shadow row must keep updating normally — the freeze is public-status-specific"
+        signals = reprocessed.score_breakdown["company_signals"]
+        matching = [s for s in signals if s.get("symbol") == ticker]
+        assert matching[0]["score"] is not None, "the new real signal must be folded in for a shadow row"
     finally:
         dev_ids = [dev_a.id] + ([dev_b.id] if dev_b is not None else [])
         await _cleanup(dev_ids, node_ids, opp_ids, [ticker])
