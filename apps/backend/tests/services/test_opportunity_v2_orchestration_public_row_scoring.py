@@ -12,15 +12,21 @@ confirmed empirically by an earlier version of this test. public_status
 and the 4 editorial_* fields were already safe (no code in orchestration.py
 ever wrote them); the score/signal fields were not.
 
-The fix: _process_cluster() now checks whether the matched existing row is
-public and, if so, skips writing current_score/score_breakdown/
-contradictions/sectors/companies entirely — logging what the recompute
-WOULD have been (opportunity_v2.orchestration.public_row_score_frozen)
-rather than silently applying it. Development linkage still happens (new
-evidence keeps accumulating for a future EXPLICIT refresh, not implemented
-here), and narrative regeneration is untouched (out of this fix's scope —
-editorial override already protects narrative display regardless of what
-the generated narrative does).
+The fix (widened 2026-09-26, second pass, after tracing read_service.py's
+real consumers): _process_cluster() now checks whether the matched existing
+row is public and, if so, returns early — skipping the score write,
+Development linkage, AND narrative regeneration entirely — logging what the
+recompute WOULD have been (opportunity_v2.orchestration.public_row_frozen)
+rather than silently applying it. The original, narrower version only froze
+current_score/score_breakdown/contradictions/sectors/companies; that left a
+public row without an editorial override (a real, valid state) still
+exposed to a changing current_title/current_summary via read_service.py's
+_effective_title/_effective_summary fallback, and exposed evidence_count/
+supporting_evidence/ripple/development_impacts to growing via unconditional
+Development linkage. See
+test_opportunity_v2_orchestration_public_row_field_survey.py for the proof
+through the real public read path (get_opportunity_v2_detail), not just
+the ORM row's own fields.
 
 This test proves the fix through the real run_shadow_pass() pipeline
 (never a direct call to the private _process_cluster), using the same
@@ -187,13 +193,17 @@ async def test_public_row_score_and_signals_are_frozen_when_a_cluster_reprocesse
         assert len(matching) == 1
         assert matching[0]["score"] is None, "the frozen breakdown must still be the pre-promotion one, which had no real signal for this company yet"
 
-        # Development linkage still happens even while frozen — evidence
-        # keeps accumulating for a future explicit refresh.
+        # 2026-09-26 widened freeze: Development linkage is now ALSO skipped
+        # for a frozen row (not just the score) — a public row's evidence
+        # surface (evidence_count/supporting_evidence/ripple on the real
+        # public read path) must not grow silently either. See
+        # test_opportunity_v2_orchestration_public_row_field_survey.py for
+        # the full real-read-path proof of why this widened.
         async with AsyncSessionLocal() as db:
             linked = (await db.execute(
                 select(OpportunityV2Development.development_id).where(OpportunityV2Development.opportunity_id == opp.id)
             )).scalars().all()
-        assert dev_b.id in linked, "new evidence must still be linked even while the score itself is frozen"
+        assert dev_b.id not in linked, "a public row's evidence must not grow via a routine shadow pass either"
     finally:
         dev_ids = [dev_a.id] + ([dev_b.id] if dev_b is not None else [])
         await _cleanup(dev_ids, node_ids, opp_ids, [ticker])

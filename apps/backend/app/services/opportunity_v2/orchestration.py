@@ -67,6 +67,7 @@ class CandidateOutcome:
     narrative_status: str | None = None
     title: str | None = None
     narrative_reused: bool = False  # True = skipped generation, unchanged narrative_input_hash (zero LLM call)
+    frozen: bool = False  # True = matched an already-public row; the whole cluster outcome was skipped, not just narrative
 
 
 @dataclass
@@ -80,6 +81,12 @@ class PassSummary:
     narrative_generated: int = 0
     narrative_failed: int = 0
     narrative_reused: int = 0  # LLM calls avoided this pass via narrative_input_hash
+    # 2026-09-26 — a matched cluster whose existing row is public_status="public":
+    # the entire cluster outcome (score, narrative, new Development linkage) is
+    # skipped for that row, not just the score. Counted separately from
+    # narrative_reused, which means "recomputed but the hash was unchanged" —
+    # a frozen row is never recomputed at all.
+    public_rows_frozen: int = 0
     outcomes: list[CandidateOutcome] = field(default_factory=list)
 
 
@@ -197,48 +204,65 @@ async def _process_cluster(db: AsyncSession, cluster: CoherentCluster, now: date
         )
         db.add(opp)
 
-    # Public-row score freeze (2026-09-26, verification follow-up): before
-    # this, find_matching_open_opportunity() matches purely on
-    # (thesis_anchor, thesis_direction, status=="open") with no
-    # public_status check, so a normal shadow pass silently overwrote
-    # current_score/score_breakdown/contradictions/sectors/companies on an
-    # ALREADY-PUBLIC row exactly like any shadow one — confirmed empirically
-    # via test_opportunity_v2_orchestration_public_row_scoring.py. Editorial
-    # text and public_status itself were already safe (no code path here
-    # touches either); the score/signal fields were not. Promotion to
-    # public is meant to be a deliberate editorial decision about what's
-    # shown — an automatic recompute silently changing the underlying
-    # number two clusters later defeats that. Any future refresh of a
-    # public row's score must be an explicit, separate action (not
-    # implemented here — this only stops the implicit one), never a side
-    # effect of the routine shadow pass.
+    # Public-row content freeze (2026-09-26, verification follow-up — widened
+    # from an earlier score-only version after tracing read_service.py's
+    # real consumers). find_matching_open_opportunity() matches purely on
+    # (thesis_anchor, thesis_direction, status=="open") with no public_status
+    # check, so a normal shadow pass would otherwise keep mutating an
+    # ALREADY-PUBLIC row exactly like any shadow one. Freezing only
+    # current_score/score_breakdown/contradictions/sectors/companies was NOT
+    # enough: read_service.py's title/why_this_exists fall back to
+    # current_title/current_summary whenever no editorial_title/
+    # editorial_summary is set (a real, valid public-row state — promotion
+    # doesn't require an override), and evidence_count/supporting_evidence/
+    # ripple/development_impacts are all built live from CURRENT Development
+    # linkage, which _link_developments() kept growing unconditionally.
+    # Both are real, user-visible content changes on a promoted row that
+    # public_status/editorial fields alone never protected.
+    #
+    # The fix: once public, the ENTIRE cluster outcome for this row is
+    # skipped — no score write, no new Development linkage, no narrative
+    # regeneration, no slug touch (slug is already set for any real public
+    # row regardless). This is a full stop, not a partial one, so nothing
+    # downstream of it can accidentally reintroduce drift. Any future
+    # refresh of a public row (score OR evidence OR narrative) must be an
+    # explicit, separate action — not implemented here, only the implicit
+    # one is stopped.
     frozen = existing is not None and existing.public_status == "public"
     if frozen:
         log.info(
-            "opportunity_v2.orchestration.public_row_score_frozen",
+            "opportunity_v2.orchestration.public_row_frozen",
             opportunity_id=opp.id,
             would_be_score=breakdown.total, previous_score=opp.current_score,
+            new_developments_not_linked=[d.id for d in cluster.developments],
         )
-    else:
-        opp.current_score = breakdown.total
-        # Persisted exactly alongside current_score (owner correction,
-        # 2026-08-23: a GET request must never reconstruct different
-        # reasoning than the score it's displaying was actually computed
-        # from — see read_service.py, which serves these fields as-is,
-        # never a live recomputation).
-        opp.score_breakdown = {
-            "evidence_quality": breakdown.evidence_quality,
-            "development_count": breakdown.development_count,
-            "company_confirmation": breakdown.company_confirmation,
-            "sector_confirmation": breakdown.sector_confirmation,
-            "freshness": breakdown.freshness,
-            "contradiction_penalty": breakdown.contradiction_penalty,
-            "company_signals": breakdown.company_signals,
-        }
-        opp.contradictions = breakdown.contradictions
-        opp.sectors = sectors
-        opp.companies = companies
-        opp.updated_at = now
+        return CandidateOutcome(
+            action=action, opportunity_id=opp.id, thesis_anchor=identity.anchor, thesis_direction=identity.direction,
+            development_ids=[d.id for d in cluster.developments], development_titles=[d.canonical_title for d in cluster.developments],
+            new_development_ids=[], sectors=opp.sectors or [], companies=opp.companies or [],
+            score=opp.current_score, narrative_status=opp.narrative_status, title=opp.current_title,
+            narrative_reused=True, frozen=True,
+        )
+
+    opp.current_score = breakdown.total
+    # Persisted exactly alongside current_score (owner correction,
+    # 2026-08-23: a GET request must never reconstruct different
+    # reasoning than the score it's displaying was actually computed
+    # from — see read_service.py, which serves these fields as-is,
+    # never a live recomputation).
+    opp.score_breakdown = {
+        "evidence_quality": breakdown.evidence_quality,
+        "development_count": breakdown.development_count,
+        "company_confirmation": breakdown.company_confirmation,
+        "sector_confirmation": breakdown.sector_confirmation,
+        "freshness": breakdown.freshness,
+        "contradiction_penalty": breakdown.contradiction_penalty,
+        "company_signals": breakdown.company_signals,
+    }
+    opp.contradictions = breakdown.contradictions
+    opp.sectors = sectors
+    opp.companies = companies
+    opp.updated_at = now
     await db.commit()
 
     new_dev_ids = await _link_developments(db, opp.id, cluster.developments, now)
@@ -292,9 +316,6 @@ async def _process_cluster(db: AsyncSession, cluster: CoherentCluster, now: date
         action=action, opportunity_id=opp.id, thesis_anchor=identity.anchor, thesis_direction=identity.direction,
         development_ids=[d.id for d in cluster.developments], development_titles=[d.canonical_title for d in cluster.developments],
         new_development_ids=new_dev_ids, sectors=sectors, companies=companies,
-        # The opportunity's real persisted score (== breakdown.total unless
-        # frozen — see above), never the discarded recompute for a frozen
-        # public row.
         score=opp.current_score, narrative_status=opp.narrative_status, title=opp.current_title,
         narrative_reused=narrative_reused,
     )
@@ -331,7 +352,9 @@ async def run_shadow_pass(db: AsyncSession, since: datetime | None = None, limit
         else:
             summary.rejected_no_identity += 1
 
-        if outcome.narrative_reused:
+        if outcome.frozen:
+            summary.public_rows_frozen += 1
+        elif outcome.narrative_reused:
             summary.narrative_reused += 1
         elif outcome.narrative_status == "generated":
             summary.narrative_generated += 1
