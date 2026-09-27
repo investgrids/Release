@@ -1,13 +1,16 @@
 """
-Non-Banking Commercial & Industrial V1 rankings — NS1 tests (2026-09-27).
-Mirrors test_marketripple_score_rankings.py's own Banking test structure
-exactly (same categorization contract, same _get_sector_rankings shared
-code) but for get_industrial_sector_rankings(), confirming: (1) it works
-identically for a real NS1 sector, (2) a Banking-methodology snapshot
-never leaks into an industrial sector's ranked list and vice versa —
-"do not imply that numbers from different sector methods are directly
+Non-Banking Commercial & Industrial rankings — NS1 tests (2026-09-27),
+updated for the same-day "one score calculation" unification (Banking and
+every NONBANK_INDUSTRIAL_SECTORS sector now share ONE methodology tag,
+MARKETRIPPLE_SCORE_V1). Mirrors test_marketripple_score_rankings.py's own
+Banking test structure exactly (same categorization contract, same
+_get_sector_rankings shared code) but for get_industrial_sector_rankings(),
+confirming: (1) it works identically for a real NS1 sector, (2) a Banking
+symbol never leaks into an industrial sector's ranked list and vice versa
+— "do not imply that numbers from different sector methods are directly
 comparable" (owner instruction) is enforced structurally by each ranking
-call only ever querying its own sector's universe.
+call only ever querying its own sector's real peer universe, never by the
+methodology tag (which both sectors now share).
 """
 from __future__ import annotations
 
@@ -46,7 +49,7 @@ async def _cleanup(symbols: list[str]):
         await db.commit()
 
 
-def _snapshot(symbol, *, score, publishable, block_reasons, methodology_version="NONBANK_INDUSTRIAL_V2", pillar_coverage_status="complete"):
+def _snapshot(symbol, *, score, publishable, block_reasons, methodology_version="MARKETRIPPLE_SCORE_V1", pillar_coverage_status="complete"):
     return MarketRippleScoreSnapshot(
         symbol=symbol, score=score, rating="Positive" if score else None,
         financial_strength=score, valuation=score, market_behaviour=score, current_intelligence=score,
@@ -55,7 +58,7 @@ def _snapshot(symbol, *, score, publishable, block_reasons, methodology_version=
         publication_block_reason=None if publishable else "S2 phase lock",
         publication_policy_version="NONBANK_INDUSTRIAL_V2_P1", publication_block_reasons=block_reasons,
         pillar_coverage_status=pillar_coverage_status,
-        pillar_coverage_message="Complete coverage — 4 of 4 pillars" if pillar_coverage_status == "complete" else "Partial coverage — 2 of 4 pillars",
+        pillar_coverage_message="Complete coverage — 3 of 3 required pillars" if pillar_coverage_status == "complete" else "Partial coverage — 2 of 3 required pillars",
     )
 
 
@@ -90,7 +93,7 @@ async def test_industrial_sector_ranking_categorizes_like_banking_does():
         async with AsyncSessionLocal() as db:
             result = await get_industrial_sector_rankings(db, "Technology")
         assert result["sector"] == "Technology"
-        assert result["methodology_version"] == "NONBANK_INDUSTRIAL_V2"
+        assert result["methodology_version"] == "MARKETRIPPLE_SCORE_V1"
         assert result["supported"] is True
         row = next(r for r in result["ranked"] if r["symbol"] == tag)
         assert row["score"] == 61.0
@@ -118,14 +121,16 @@ async def test_industrial_ineligible_snapshot_lands_in_unavailable():
 
 @pytest.mark.asyncio
 async def test_banking_snapshot_never_appears_in_an_industrial_sector_ranking():
-    """The core comparability guarantee: a Banking-methodology score must
+    """The core comparability guarantee: a Banking company's score must
     never be counted as a real Technology (or any industrial sector)
-    ranking result, even if hypothetically seeded under a symbol that
-    happens to also be requested for an industrial sector's ranking."""
+    ranking result, even though Banking and Technology now share the same
+    methodology tag — separation is enforced by real peer-universe
+    membership (sector_peer_universe("Technology") never contains a
+    Banking symbol), not by the methodology tag."""
     tag = "TESTBANK1"
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, tag, "Banking")
-        db.add(_snapshot(tag, score=99.0, publishable=True, block_reasons=[], methodology_version="BANKING_V1"))
+        db.add(_snapshot(tag, score=99.0, publishable=True, block_reasons=[]))
         await db.commit()
     try:
         async with AsyncSessionLocal() as db:

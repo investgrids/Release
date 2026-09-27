@@ -55,12 +55,12 @@ def _snapshot(symbol, *, score, publishable, block_reasons, pillar_coverage_stat
     return MarketRippleScoreSnapshot(
         symbol=symbol, score=score, rating="Positive" if score else None,
         financial_strength=score, valuation=score, market_behaviour=score, current_intelligence=score,
-        coverage_pct=80.0, methodology_version="BANKING_V1", peer_universe=[], peer_universe_count=27,
+        coverage_pct=80.0, methodology_version="MARKETRIPPLE_SCORE_V1", peer_universe=[], peer_universe_count=27,
         calculated_at=now, publishable=publishable,
         publication_block_reason=None if publishable else "S2 phase lock",
         publication_policy_version="BANKING_V1_P1", publication_block_reasons=block_reasons,
         pillar_coverage_status=pillar_coverage_status,
-        pillar_coverage_message="Complete coverage — 4 of 4 pillars" if pillar_coverage_status == "complete" else "Partial coverage — 2 of 4 pillars",
+        pillar_coverage_message="Complete coverage — 3 of 3 required pillars" if pillar_coverage_status == "complete" else "Partial coverage — 2 of 3 required pillars",
     )
 
 

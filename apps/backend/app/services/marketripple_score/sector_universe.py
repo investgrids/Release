@@ -85,7 +85,7 @@ NONBANK_STRUCTURALLY_EXCLUDED_SECTORS: dict[str, str] = {
         "peer group — see module docstring."
     ),
     "Insurance": "Same structural reason as Finance — actuarial/embedded-value metrics, not sampled or attempted here.",
-    "Banking": "Already has its own real, frozen BANKING_V1 methodology — this cohort never applies to it.",
+    "Banking": "Already has its own real peer universe and Financial Strength metrics (banking_universe.py) — this cohort never applies to it, even though Banking now shares the same MARKETRIPPLE_SCORE_V1 headline function as every sector above.",
 }
 
 

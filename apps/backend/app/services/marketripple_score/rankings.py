@@ -1,8 +1,12 @@
 """
 Company Rankings — the one real ranking surface over MarketRippleScoreSnapshot
-(2026-09-26, Company Rankings migration). Banking-only, matching the only
-implemented methodology (BANKING_V1) — no other sector has an approved
-model, so no other sector is ranked here, ever, regardless of demand.
+(2026-09-26, Company Rankings migration; unified onto one methodology tag,
+MARKETRIPPLE_SCORE_METHODOLOGY_VERSION, 2026-09-27). Banking and every
+NONBANK_INDUSTRIAL_SECTORS sector are each ranked in their OWN separate
+per-sector list — never merged into one cross-sector ranking — since a
+company is only ever comparable to its real peer group, regardless of both
+now sharing one headline formula. No other sector has an approved
+methodology, so no other sector is ranked here, ever, regardless of demand.
 
 This is a pure read layer over get_marketripple_score_projection(), the
 exact same function CompanyPageClient.tsx's MarketRippleScoreCard already
@@ -135,20 +139,125 @@ async def _get_sector_rankings(db: AsyncSession, sector: str, universe: list[str
 async def get_banking_rankings(db: AsyncSession) -> dict[str, Any]:
     """The one real Banking ranking response — see _get_sector_rankings'
     own docstring for the shared logic this now calls."""
-    return await _get_sector_rankings(db, "Banking", ALL_ELIGIBLE_NSE_BANKS, "BANKING_V1")
+    from app.services.marketripple_score.contracts import MARKETRIPPLE_SCORE_METHODOLOGY_VERSION
+
+    return await _get_sector_rankings(db, "Banking", ALL_ELIGIBLE_NSE_BANKS, MARKETRIPPLE_SCORE_METHODOLOGY_VERSION)
 
 
 async def get_industrial_sector_rankings(db: AsyncSession, sector: str) -> dict[str, Any]:
-    """The real Non-Banking Commercial & Industrial V1 ranking response for
+    """The real Non-Banking Commercial & Industrial ranking response for
     one of sector_universe.py's NONBANK_INDUSTRIAL_SECTORS — a SEPARATE
     ranked list per sector (never merged with Banking's or another
-    industrial sector's), since scores from different methodologies are
-    never directly comparable. `sector` must already be validated as a
-    real NONBANK_INDUSTRIAL_SECTORS member by the caller."""
-    from app.services.marketripple_score.contracts import NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
+    industrial sector's), since scores are only ever ranked within a real,
+    comparable peer group even though Banking and Industrial now share one
+    methodology tag. `sector` must already be validated as a real
+    NONBANK_INDUSTRIAL_SECTORS member by the caller."""
+    from app.services.marketripple_score.contracts import MARKETRIPPLE_SCORE_METHODOLOGY_VERSION
     from app.services.marketripple_score.sector_universe import sector_peer_universe
 
-    return await _get_sector_rankings(db, sector, sector_peer_universe(sector), NONBANK_INDUSTRIAL_METHODOLOGY_VERSION)
+    return await _get_sector_rankings(db, sector, sector_peer_universe(sector), MARKETRIPPLE_SCORE_METHODOLOGY_VERSION)
+
+
+_ALL_COMPANIES_LOOKUP_CACHE: dict = {"data": None, "at": 0.0}
+_ALL_COMPANIES_LOOKUP_TTL_S = 300.0
+
+
+async def _build_all_companies_lookup(db: AsyncSession) -> dict[str, dict[str, Any]]:
+    """Runs every real supported sector's ranking ONCE (Banking + all 19
+    NONBANK_INDUSTRIAL_SECTORS) and merges the results into one
+    symbol -> real-status lookup, reused across every paginated page of
+    get_all_companies_rankings() rather than recomputed per page request.
+    A DB-only read layer (same as _get_sector_rankings itself) — cached
+    briefly so a user paging through the full directory doesn't repeat all
+    20 sector reads (~400+ per-symbol projection reads) on every page."""
+    import time as _time
+
+    now = _time.monotonic()
+    if _ALL_COMPANIES_LOOKUP_CACHE["data"] is not None and now - _ALL_COMPANIES_LOOKUP_CACHE["at"] < _ALL_COMPANIES_LOOKUP_TTL_S:
+        return _ALL_COMPANIES_LOOKUP_CACHE["data"]
+
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
+
+    sector_results = [await get_banking_rankings(db)]
+    for sector in NONBANK_INDUSTRIAL_SECTORS:
+        sector_results.append(await get_industrial_sector_rankings(db, sector))
+
+    lookup: dict[str, dict[str, Any]] = {}
+    for result in sector_results:
+        total_ranked = len(result["ranked"])
+        for row in result["ranked"]:
+            lookup[row["symbol"]] = {
+                "status": "ranked", "score": row["score"], "rating": row["rating"],
+                "coverage_pct": row["coverage_pct"], "calculated_at": row["calculated_at"],
+                "rank": row["rank"], "total_ranked_in_sector": total_ranked,
+                "message": None,
+            }
+        for row in result["partial_coverage"]:
+            lookup[row["symbol"]] = {
+                "status": "partial_coverage", "score": None, "rating": None, "coverage_pct": None,
+                "calculated_at": row.get("calculated_at"), "rank": None, "total_ranked_in_sector": None,
+                "message": row["message"],
+            }
+        for row in result["unavailable"]:
+            lookup[row["symbol"]] = {
+                "status": row["reason"], "score": None, "rating": None, "coverage_pct": None,
+                "calculated_at": row.get("calculated_at"), "rank": None, "total_ranked_in_sector": None,
+                "message": row["message"],
+            }
+
+    _ALL_COMPANIES_LOOKUP_CACHE["data"] = lookup
+    _ALL_COMPANIES_LOOKUP_CACHE["at"] = now
+    return lookup
+
+
+async def get_all_companies_rankings(db: AsyncSession, page: int = 1, page_size: int = 50) -> dict[str, Any]:
+    """The full, paginated Company Rankings directory (owner instruction,
+    2026-09-27, "Company Rankings and UI": "show every company from the
+    real Companies directory... with pagination... eligible companies show
+    their canonical score, rating and calculation date; everyone else
+    shows an explicit N/A with an honest reason, never zero, never
+    ranked"). Iterates the SAME real company directory list_companies()
+    itself reads (app.api.companies.get_full_company_directory), never a
+    second, separately-curated list. Every ranked row's `rank` is real and
+    scoped to its own sector's peer group only (via
+    _build_all_companies_lookup's per-sector _get_sector_rankings calls) —
+    a company is never ranked against a different sector's companies, and
+    a company with no approved methodology for its sector reports
+    "unsupported_sector" with an honest message, never a fabricated
+    number and never a rank."""
+    import math
+
+    from app.api.companies import get_full_company_directory
+
+    directory = await get_full_company_directory(db)
+    lookup = await _build_all_companies_lookup(db)
+
+    total = len(directory)
+    total_pages = max(1, math.ceil(total / page_size))
+    page = min(max(page, 1), total_pages)
+    start = (page - 1) * page_size
+    page_items = directory[start: start + page_size]
+
+    rows = []
+    for co in page_items:
+        info = lookup.get(co["symbol"])
+        if info is None:
+            rows.append({
+                "symbol": co["symbol"], "company_name": co["name"], "sector": co["sector"],
+                "status": "unsupported_sector", "score": None, "rating": None, "coverage_pct": None,
+                "rank": None, "total_ranked_in_sector": None, "calculated_at": None,
+                "message": "MarketRipple Score does not yet support this sector.",
+            })
+        else:
+            rows.append({
+                "symbol": co["symbol"], "company_name": co["name"], "sector": co["sector"],
+                **info,
+            })
+
+    return {
+        "total": total, "page": page, "page_size": page_size, "total_pages": total_pages,
+        "companies": rows, "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def get_unsupported_sector_response(sector: str) -> dict[str, Any]:
