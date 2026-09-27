@@ -141,6 +141,44 @@ The 177 "partial" companies each have a full, real 6/6 Financial Strength metric
 
 Verified live via `GET /api/companies/?sector=Technology`: every company now returns real snapshot-backed data (`eligible: true` for all 33; `marketripple_score_local_preview.score` populated for the 7 numeric ones, `null` for the 26 genuinely-partial ones) — no frontend changes needed, confirming the existing UI wiring (Company page, header tile, All Companies Score column, Company Rankings) is fully generic.
 
+## 6c. NS2 — extending to the 12 previously-unmeasured sectors (owner instruction, 2026-09-27, "keep trying to show maximum companies")
+
+**Real measurement, not assumption:** `scripts/ns2_remaining_sectors_data_inventory.py` sampled 2-3 real companies (pulled live from `_NSE_UNIVERSE`, never hand-typed) across every one of the 12 sectors NS1 had left unmeasured: Infrastructure, Power, Energy, Real Estate, Telecom, Media, Cement, Healthcare, Textiles, Electronics, Retail, Defence. **Every single one of the 35 sampled companies across all 12 sectors showed the complete real statement shape** (multi-period revenue/net income/EBIT/interest expense, real total debt/equity/total assets/current liabilities, 251-252 real daily price rows) — a 100% hit rate.
+
+**This changed the real understanding of where the cohort boundary actually is.** It was never "these specific 7 industries" — it's financial-intermediary businesses (Banking/Finance/Insurance, whose balance sheets are leverage/regulatory-capital-driven, not operating-margin-driven) versus every other real, operating company. All 12 sectors were added to `NONBANK_INDUSTRIAL_SECTORS` on that evidence.
+
+**`scripts/ns3_finance_feebased_data_inventory.py`** tested a real, specific hypothesis: does the broad "Finance" sector label (genuinely NBFC/insurance-dominated, confirmed via the full 62-company real listing) hide non-lending, fee-based businesses that might fit anyway? CDSL (Depositories), MCX (Commodity Exchange), CRISIL (ratings), CAMS (Mutual Fund Services), and ANGELONE (Broking) all showed the same complete statement shape. **Not added to the cohort in this pass** — `sector_peer_universe()` pulls the whole "Finance" label, and blending 5 fee-based names into a peer pool of ~57 real lenders/insurers would compare them against a structurally different population. This needs its own small, explicitly-curated peer group (a real "Financial Market Infrastructure" sub-list) — the data is already gathered and this is a scoped, ready-to-build follow-up, not attempted here.
+
+**Real backfill result: all 12 newly-added sectors, 183/183 companies, zero errors, zero no-usable-data:**
+
+| Sector | Total | Numeric score | Partial |
+|---|---|---|---|
+| Infrastructure | 68 | 10 | 58 |
+| Power | 18 | 2 | 16 |
+| Energy | 17 | 6 | 11 |
+| Real Estate | 11 | 1 | 10 |
+| Telecom | 9 | 1 | 8 |
+| Media | 10 | 2 | 8 |
+| Cement | 11 | 0 | 11 |
+| Healthcare | 18 | 3 | 15 |
+| Textiles | 4 | 1 | 3 |
+| Electronics | 2 | 0 | 2 |
+| Retail | 2 | 0 | 2 |
+| Defence | 13 | 8 | 5 |
+| **Total** | **183** | **34** | **149** |
+
+Two real sectors (Electronics, Retail) have only 2 real companies each in the live universe — genuinely small, not a data gap. Kept in the cohort per the explicit "maximum companies" instruction rather than excluded for peer-pool size, with the caveat now documented in `sector_universe.py`'s own module docstring and in a fixed test (`test_all_industrial_sectors_have_a_real_nonempty_live_peer_universe`, minimum 2 — `_percentile_rank`'s own real floor — not an arbitrary larger number).
+
+**Combined cohort total across all 19 sectors, after NS1 + NS2: 397/397 companies with a real local snapshot, zero errors, zero no-usable-data anywhere. 71 have a real numeric headline score; 326 correctly show partial coverage** (full 6/6 Financial Strength metrics, real per-pillar data, honestly withheld headline number for missing Current Intelligence evidence). Plus 2 Banking snapshots (ICICIBANK, KOTAKBANK) from the earlier pilot — **399 total companies with a real local score somewhere in this local DB.**
+
+**New top-scorer across the full cohort:** HAL (62.5, Positive) — narrowly ahead of BAJAJ-AUTO (62.2).
+
+**What remains a real, structural wall, not something a loop fixes:**
+- **Finance (62 companies, minus the 5 fee-based names) and Insurance (5 companies)** — genuinely need their own bespoke methodology (regulatory-capital/AUM-based), not the industrial formula.
+- **25 of 27 banks** — bank regulatory ratios (NPA/CET1) don't exist in standard financial statements; each bank needs real disclosure documents sourced individually (like the ICICIBANK/KOTAKBANK pilot) or NSE's Integrated Filing access resolved — not a batch job.
+- **The fee-based Finance sub-list** (CDSL/MCX/CRISIL/CAMS/ANGELONE, and any other real names like them) — real data confirmed, needs a small curated peer-group mechanism, not yet built.
+- **ETF/REIT/InvIT (11 companies)** — not real operating companies in the traditional sense; never a candidate for this kind of company score to begin with.
+
 ## 7. Remaining steps to publish
 
 None of the following were done in this pass, per the explicit "keep production publication locked" instruction:

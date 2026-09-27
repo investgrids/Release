@@ -59,12 +59,18 @@ def _snapshot(symbol, *, score, publishable, block_reasons, methodology_version=
     )
 
 
-def test_all_seven_ns1_sectors_have_a_real_nonempty_live_peer_universe():
-    """Sanity check the cohort itself resolves against the real, live
-    company universe — not an empty/typo'd sector string."""
+def test_all_industrial_sectors_have_a_real_nonempty_live_peer_universe():
+    """Sanity check every cohort sector resolves against the real, live
+    company universe — not an empty/typo'd sector string. Minimum is 2
+    (_percentile_rank's own real floor for a ranking to mean anything at
+    all — see valuation.py's test), not a larger number: NS2 (2026-09-27)
+    added real sectors as small as Electronics/Retail (2 real companies
+    each) on real measured data, not assumed data availability — a small
+    real peer pool is an honest methodology caveat (see sector_universe.py's
+    own module docstring), not grounds to exclude a real sector."""
     for sector in NONBANK_INDUSTRIAL_SECTORS:
         universe = sector_peer_universe(sector)
-        assert len(universe) > 5, f"{sector} peer universe suspiciously small: {universe}"
+        assert len(universe) >= 2, f"{sector} peer universe too small to rank at all: {universe}"
 
 
 @pytest.mark.asyncio
