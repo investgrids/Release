@@ -19,7 +19,7 @@ import pytest
 from app.services.market_data import (
     _extract_statement_rows, _is_real_number, _annual_label, _quarterly_label,
     _INCOME_STATEMENT_ROWS, _BALANCE_SHEET_ROWS, _CASH_FLOW_ROWS,
-    _statement_scale,
+    _statement_scale, _fmt_large,
 )
 
 
@@ -204,3 +204,28 @@ class TestExtractStatementRowsCurrencyAware:
         df = pd.DataFrame({cols[0]: [500000000000.0]}, index=["Common Stock Equity"])
         rows = _extract_statement_rows(df, _BALANCE_SHEET_ROWS, _annual_label, currency_scale=None)
         assert rows == []
+
+
+# Currency/unit correctness fix, second instance (2026-09-27): free_cashflow
+# was the only real caller of _fmt_large and hardcoded "₹" regardless of
+# the company's real financialCurrency — the identical mislabeling bug
+# already fixed for annual_financials/quarterly_revenue in the same file,
+# missed the first time because it lives in a separate formatting helper.
+class TestFmtLargeCurrencyAware:
+    def test_inr_uses_the_real_indian_numbering_convention(self):
+        assert _fmt_large(5_000_000_000, "INR") == "₹5.0B"
+        assert _fmt_large(50_000_000, "INR") == "₹5Cr"
+
+    def test_usd_uses_the_standard_international_convention_never_crore_or_lakh(self):
+        assert _fmt_large(5_000_000_000, "USD") == "$5.0B"
+        assert "Cr" not in _fmt_large(5_000_000_000, "USD")
+        assert "L" not in _fmt_large(5_000_000_000, "USD")
+
+    def test_missing_currency_withholds_the_figure_never_defaults_to_inr(self):
+        assert _fmt_large(5_000_000_000, None) == "—"
+
+    def test_unrecognized_currency_withholds_rather_than_guess_a_convention(self):
+        assert _fmt_large(5_000_000_000, "EUR") == "—"
+
+    def test_currency_matching_is_case_insensitive(self):
+        assert _fmt_large(5_000_000_000, "usd") == "$5.0B"

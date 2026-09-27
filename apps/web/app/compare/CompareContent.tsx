@@ -87,7 +87,51 @@ function parseN(s: string | number | undefined): number {
 
 function color(i: number) { return PALETTE[i % PALETTE.length]; }
 
-function highlight(values: number[], lowerBetter = false): string[] {
+// Ranking-alignment guard (2026-09-27, owner instruction): "Compare must
+// not rank revenue, profit or cash flow across USD millions and INR
+// crores — or across different fiscal periods. Displaying them side by
+// side is valid; highlighting a larger raw number as better is not."
+// These absolute-currency fields (unlike a %/ratio, which is comparable
+// regardless of underlying currency) can only be validly ranked when
+// every compared company shares the exact same real currency, magnitude
+// unit, and — for revenue/profit specifically — the same real fiscal
+// period. `rankable=false` in `highlight()` below suppresses the
+// best/worst color entirely for the row (still shown side by side, never
+// hidden) rather than attempt a partial/subset ranking.
+function currencyAligned(companies: { statement_currency_prefix: string | null; statement_currency_unit: string | null }[]): boolean {
+  if (companies.length < 2) return false;
+  const ref = companies[0];
+  if (!ref.statement_currency_prefix || !ref.statement_currency_unit) return false;
+  return companies.every(c =>
+    c.statement_currency_prefix === ref.statement_currency_prefix &&
+    c.statement_currency_unit === ref.statement_currency_unit
+  );
+}
+
+function periodAligned(companies: { revenue_fy: string }[]): boolean {
+  if (companies.length < 2) return false;
+  const ref = companies[0].revenue_fy;
+  if (ref === "—") return false;
+  return companies.every(c => c.revenue_fy === ref);
+}
+
+// Free Cash Flow's own formatted string picks a magnitude suffix (Cr/L
+// for INR, B/M/T for either) per company based on that company's own
+// value size — even two real INR companies can show "₹1.2Cr" vs "₹5.0L"
+// side by side. `parseN` doesn't recognize multi-letter suffixes like
+// "Cr"/"L" (only single-letter B/M/K/T), so comparing those raw parsed
+// numbers would silently compare mismatched magnitudes even when the
+// currency itself is aligned. Require the same trailing suffix too,
+// specifically for this field, before ranking it.
+function magnitudeSuffixAligned(values: string[]): boolean {
+  if (values.length < 2) return false;
+  const suffixes = values.map(v => v.match(/([A-Za-z]+)$/)?.[1] ?? null);
+  if (suffixes.some(s => s === null)) return false;
+  return suffixes.every(s => s === suffixes[0]);
+}
+
+function highlight(values: number[], lowerBetter = false, rankable = true): string[] {
+  if (!rankable) return values.map(() => "text-text-primary");
   const valid = values.filter(v => v > 0);
   if (valid.length < 2) return values.map(() => "text-text-primary");
   const best = lowerBetter ? Math.min(...valid) : Math.max(...valid);
@@ -174,11 +218,17 @@ function MiniBar({ pct, col }: { pct: number; col: string }) {
 
 // ── Comparison table row ──────────────────────────────────────────────────────
 
-function CmpRow({ label, values, fmt, lowerBetter = false }: {
+function CmpRow({ label, values, fmt, lowerBetter = false, rankable = true }: {
   label: string; values: (string | number)[]; fmt?: (v: string | number) => string; lowerBetter?: boolean;
+  // false suppresses best/worst highlighting entirely (values still shown
+  // side by side) — for a field this row's caller has determined is not
+  // validly comparable across the currently-selected companies (mismatched
+  // currency, unit, or period). See currencyAligned/periodAligned/
+  // magnitudeSuffixAligned above.
+  rankable?: boolean;
 }) {
   const nums = values.map(v => parseN(String(v)));
-  const cls = highlight(nums, lowerBetter);
+  const cls = highlight(nums, lowerBetter, rankable);
   const display = fmt ? values.map(fmt) : values.map(v => String(v));
   return (
     <tr className="border-b border-surface-border/4 last:border-0">
@@ -747,13 +797,21 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                 ] as { label: string; key: keyof StockData; showCurrency?: boolean; lowerBetter: boolean }[]).map(row => {
                   const vals = companies.map(c => parseN(String((c as any)[row.key])));
                   const max = Math.max(...vals.filter(v => v > 0), 1);
-                  const cls = highlight(vals, row.lowerBetter);
+                  // Ranking-alignment guard (2026-09-27, owner instruction):
+                  // Revenue/Net Profit are absolute currency figures — only
+                  // rankable (color AND the relative-size bar below, which
+                  // is itself a form of "highlighting a larger number as
+                  // better") when every compared company shares the same
+                  // real currency, unit, AND fiscal period. Rows without
+                  // showCurrency (EPS, margins) are unaffected.
+                  const rowRankable = row.showCurrency ? (currencyAligned(companies) && periodAligned(companies)) : true;
+                  const cls = highlight(vals, row.lowerBetter, rowRankable);
                   return (
                     <tr key={row.label} className="border-b border-surface-border/4 last:border-0">
                       <td className="py-2.5 text-[11px] text-text-muted">{row.label}</td>
                       {companies.map((c, i) => {
                         const v = vals[i];
-                        const w = max > 0 ? (v / max) * 100 : 0;
+                        const w = rowRankable && max > 0 ? (v / max) * 100 : 0;
                         const display = String((c as any)[row.key]);
                         const caption = row.showCurrency && c.revenue_fy !== "—"
                           ? [c.statement_currency_prefix && c.statement_currency_unit ? `${c.statement_currency_prefix} ${c.statement_currency_unit}` : null, c.revenue_fy]
@@ -783,6 +841,9 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
             </table>
           </div>
           <TtmNote />
+          <p className="mt-1 text-[9.5px] leading-4 text-text-muted">
+            Revenue and Net Profit are only ranked between companies when their real reporting currency, unit, and fiscal year all match exactly — shown side by side regardless.
+          </p>
         </Card>
       </div>
     );
@@ -1005,12 +1066,16 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           <tbody>
             <CmpRow label="Debt to Equity (x)"   values={companies.map(c => c.debt_to_equity)} lowerBetter />
             <CmpRow label="Current Ratio (x)"    values={companies.map(c => c.current_ratio)} />
-            <CmpRow label="Free Cash Flow (period unconfirmed)" values={companies.map(c => c.free_cashflow)} />
+            <CmpRow label="Free Cash Flow (period unconfirmed)" values={companies.map(c => c.free_cashflow)}
+              rankable={currencyAligned(companies) && magnitudeSuffixAligned(companies.map(c => c.free_cashflow))} />
             <CmpRow label="Enterprise Value"     values={companies.map(c => c.enterprise_value)} />
             <CmpRow label="Market Cap"           values={companies.map(c => c.market_cap)} />
           </tbody>
         </table>
         <TtmNote />
+        <p className="mt-1 text-[9.5px] leading-4 text-text-muted">
+          Free Cash Flow is only ranked between companies when its real reporting currency and magnitude unit match exactly — shown side by side regardless.
+        </p>
       </Card>
     );
   }

@@ -264,3 +264,125 @@ describe("CompareContent — currency/unit correctness (2026-09-27)", () => {
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 });
+
+// Ranking-alignment guard (2026-09-27, owner instruction, follow-up to the
+// currency fix): "Compare must not rank revenue, profit or cash flow
+// across USD millions and INR crores — or across different fiscal
+// periods. Displaying them side by side is valid; highlighting a larger
+// raw number as better is not." Focused regression check only — no new
+// implementation scope beyond this.
+describe("CompareContent — ranking-alignment guard (2026-09-27)", () => {
+  it("never colors Revenue/Net Profit as best/worst when the two companies report in different currencies", async () => {
+    searchParamValues = { a: "USDCO", b: "INRCO" };
+    mockFetch({
+      "/api/stocks/USDCO": stockPayload({
+        name: "USD Reporting Co",
+        annual_financials: [{ year: "FY26", revenue: 20158, net_income: 3313 }],
+        statement_currency_prefix: "$", statement_currency_unit: "Million",
+      }),
+      "/api/stocks/INRCO": stockPayload({
+        name: "INR Reporting Co",
+        annual_financials: [{ year: "FY26", revenue: 267021, net_income: 49210 }],
+        statement_currency_prefix: "₹", statement_currency_unit: "Crore",
+      }),
+      "/api/companies/USDCO/marketripple-score": { resolved: false },
+      "/api/companies/INRCO/marketripple-score": { resolved: false },
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+    await waitFor(() => expect(screen.getAllByText("USD Reporting Co").length).toBeGreaterThan(0));
+
+    // INR's raw number (267,021) is numerically far larger than USD's
+    // (20,158) — if this were wrongly ranked, INR would be bolded
+    // "emerald" as the winner. It must not be: different currencies, so
+    // no winner is declared at all.
+    const usdRevenue = screen.getByText("20,158");
+    const inrRevenue = screen.getByText("2,67,021");
+    expect(usdRevenue.className).not.toMatch(/emerald|rose/);
+    expect(inrRevenue.className).not.toMatch(/emerald|rose/);
+  });
+
+  it("never colors Revenue/Net Profit as best/worst when the two companies' latest real fiscal years differ, even with the same currency", async () => {
+    searchParamValues = { a: "OLDFY", b: "NEWFY" };
+    mockFetch({
+      "/api/stocks/OLDFY": stockPayload({
+        name: "Old FY Co",
+        annual_financials: [{ year: "FY25", revenue: 100000, net_income: 10000 }],
+      }),
+      "/api/stocks/NEWFY": stockPayload({
+        name: "New FY Co",
+        annual_financials: [{ year: "FY26", revenue: 500000, net_income: 50000 }],
+      }),
+      "/api/companies/OLDFY/marketripple-score": { resolved: false },
+      "/api/companies/NEWFY/marketripple-score": { resolved: false },
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+    await waitFor(() => expect(screen.getAllByText("Old FY Co").length).toBeGreaterThan(0));
+
+    // Same currency/unit (both default to ₹ Crore in stockPayload), but
+    // different real fiscal years — still must not be ranked.
+    const oldRevenue = screen.getByText("1,00,000");
+    const newRevenue = screen.getByText("5,00,000");
+    expect(oldRevenue.className).not.toMatch(/emerald|rose/);
+    expect(newRevenue.className).not.toMatch(/emerald|rose/);
+  });
+
+  it("still ranks Revenue/Net Profit normally when currency, unit, and fiscal year all genuinely align", async () => {
+    searchParamValues = { a: "SMALLCO", b: "BIGCO" };
+    mockFetch({
+      "/api/stocks/SMALLCO": stockPayload({
+        name: "Small Co",
+        annual_financials: [{ year: "FY26", revenue: 100000, net_income: 10000 }],
+      }),
+      "/api/stocks/BIGCO": stockPayload({
+        name: "Big Co",
+        annual_financials: [{ year: "FY26", revenue: 500000, net_income: 50000 }],
+      }),
+      "/api/companies/SMALLCO/marketripple-score": { resolved: false },
+      "/api/companies/BIGCO/marketripple-score": { resolved: false },
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+    await waitFor(() => expect(screen.getAllByText("Small Co").length).toBeGreaterThan(0));
+
+    // Same currency, same unit, same real fiscal year — this is the
+    // genuinely valid case, and ranking must still work here (proves the
+    // guard suppresses only the invalid case, not ranking altogether).
+    const bigRevenue = screen.getByText("5,00,000");
+    const smallRevenue = screen.getByText("1,00,000");
+    expect(bigRevenue.className).toMatch(/emerald/);
+    expect(smallRevenue.className).not.toMatch(/emerald/);
+  });
+
+  it("never ranks Free Cash Flow when the compared companies' currencies differ", async () => {
+    searchParamValues = { a: "USDCO", b: "INRCO" };
+    mockFetch({
+      "/api/stocks/USDCO": stockPayload({
+        name: "USD Reporting Co", free_cashflow: "$500.0M",
+        statement_currency_prefix: "$", statement_currency_unit: "Million",
+      }),
+      "/api/stocks/INRCO": stockPayload({
+        name: "INR Reporting Co", free_cashflow: "₹50.0B",
+        statement_currency_prefix: "₹", statement_currency_unit: "Crore",
+      }),
+      "/api/companies/USDCO/marketripple-score": { resolved: false },
+      "/api/companies/INRCO/marketripple-score": { resolved: false },
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+    await waitFor(() => expect(screen.getAllByText("USD Reporting Co").length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getByText("Balance Sheet"));
+    await waitFor(() => expect(screen.getByText("Balance Sheet Ratios")).toBeInTheDocument());
+
+    const usdFcf = screen.getByText("$500.0M");
+    const inrFcf = screen.getByText("₹50.0B");
+    expect(usdFcf.className).not.toMatch(/emerald|rose/);
+    expect(inrFcf.className).not.toMatch(/emerald|rose/);
+  });
+});

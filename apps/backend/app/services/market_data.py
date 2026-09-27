@@ -559,22 +559,51 @@ def _fmt_vol(v) -> str:
     return str(int(v)) if v else "—"
 
 
-def _fmt_large(n) -> str:
+def _fmt_large(n, financial_currency: str | None = "INR") -> str:
+    """Currency-aware large-number formatter. Real-world case this closes
+    (2026-09-27 currency-bug fix, second instance found in the same
+    function): this was the only caller of freeCashflow, hardcoding "₹"
+    regardless of the company's real financialCurrency — the identical
+    mislabeling bug already fixed for annual_financials/quarterly_revenue
+    in this same file, just missed the first time because it lives in a
+    different formatting helper. `financial_currency=None` (unconfirmed)
+    withholds the figure rather than guessing INR, matching
+    _statement_scale()'s own rule. INR uses the real Indian numbering
+    convention (Crore/Lakh); a confirmed non-INR currency uses the
+    standard international convention (Billion/Million) — never
+    Crore/Lakh for a non-INR figure. The default `"INR"` preserves this
+    function's behavior for its other, non-financial-statement callers
+    that are always real-time INR (none currently exist, but the default
+    avoids silently changing behavior for a future one that doesn't pass
+    financial_currency explicitly)."""
     try:
         n = float(n)
     except (TypeError, ValueError):
         return "—"
     if n == 0:
         return "—"
+    if not financial_currency:
+        return "—"
+    fc = financial_currency.upper()
     sign = "−" if n < 0 else ""
     a = abs(n)
-    if a >= 1e12:
-        return f"{sign}₹{a / 1e12:.2f}T"
-    if a >= 1e9:
-        return f"{sign}₹{a / 1e9:.1f}B"
-    if a >= 1e7:
-        return f"{sign}₹{a / 1e7:.0f}Cr"
-    return f"{sign}₹{a / 1e5:.1f}L"
+    if fc == "INR":
+        if a >= 1e12:
+            return f"{sign}₹{a / 1e12:.2f}T"
+        if a >= 1e9:
+            return f"{sign}₹{a / 1e9:.1f}B"
+        if a >= 1e7:
+            return f"{sign}₹{a / 1e7:.0f}Cr"
+        return f"{sign}₹{a / 1e5:.1f}L"
+    if fc == "USD":
+        if a >= 1e12:
+            return f"{sign}${a / 1e12:.2f}T"
+        if a >= 1e9:
+            return f"{sign}${a / 1e9:.1f}B"
+        return f"{sign}${a / 1e6:.1f}M"
+    # A real currency this app has no confirmed display convention for
+    # yet — withhold rather than mislabel it under either convention.
+    return "—"
 
 
 async def get_stock_scoring_raw(symbol: str) -> Optional[dict]:
@@ -853,7 +882,7 @@ async def get_stock_detail(symbol: str) -> Optional[dict]:
                 "net_margins":       _pct_str(info.get("profitMargins")),
                 "debt_to_equity":    _num_str(info.get("debtToEquity")),
                 "current_ratio":     _num_str(info.get("currentRatio"), 2),
-                "free_cashflow":     _fmt_large(info.get("freeCashflow")),
+                "free_cashflow":     _fmt_large(info.get("freeCashflow"), financial_currency),
                 "recommendation":    (info.get("recommendationKey") or "hold").lower(),
                 "target_mean":       _fmt_price(float(info.get("targetMeanPrice") or 0)) if info.get("targetMeanPrice") else "—",
                 "target_high":       _fmt_price(float(info.get("targetHighPrice") or 0)) if info.get("targetHighPrice") else "—",
