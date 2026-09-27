@@ -38,8 +38,35 @@ async function getLatestCompanyArticles(): Promise<ArticleRow[]> {
   return data?.items ?? [];
 }
 
+interface QuoteRow { symbol: string; price_str: string; change_pct_str: string; positive: boolean }
+
+// Real live prices for the Trending/Highest-Score widgets' own symbols
+// only (never a separate, wider fetch) -- one batched call, same
+// /api/data/quotes endpoint AllCompaniesTab's own price column reads
+// indirectly via list_companies().
+async function getQuotesFor(symbols: string[]): Promise<Map<string, QuoteRow>> {
+  if (symbols.length === 0) return new Map();
+  const data = await fetchAPI<{ quotes: QuoteRow[] }>(
+    `/api/data/quotes?symbols=${encodeURIComponent(symbols.join(","))}`,
+  ).catch(() => null);
+  const map = new Map<string, QuoteRow>();
+  for (const q of data?.quotes ?? []) {
+    if (q?.symbol) map.set(q.symbol, q);
+  }
+  return map;
+}
+
 function displayName(symbol: string) {
   return symbol.replace(/^NSE_/, "");
+}
+
+function PriceTag({ quote }: { quote: QuoteRow | undefined }) {
+  if (!quote) return null;
+  return (
+    <span className={`text-[10.5px] font-semibold tabular-nums ${quote.positive ? "text-emerald-400" : "text-rose-400"}`}>
+      ₹{quote.price_str} <span className="text-[9.5px]">({quote.change_pct_str})</span>
+    </span>
+  );
 }
 
 function SectionCard({
@@ -97,6 +124,15 @@ export async function OverviewTab() {
   const topPicks: RankedCompanyRow[] = bankingRankings.ranked.slice(0, 5);
   const showLocalPreview = topPicks.length === 0 && topLocalPreview.length > 0;
 
+  // Real live price for each symbol actually shown in these two widgets --
+  // one batched call for the union, never a per-row fetch.
+  const priceSymbols = Array.from(new Set([
+    ...trending.map(c => displayName(c.symbol)),
+    ...topPicks.map(c => c.symbol),
+    ...(showLocalPreview ? topLocalPreview.map(c => c.symbol) : []),
+  ]));
+  const quotes = await getQuotesFor(priceSymbols);
+
   // "Companies Under Pressure" removed (2026-09-26, Company Rankings
   // migration) rather than re-pointed at the new score: it classified
   // "under pressure" purely from a low old-engine composite, which was
@@ -116,8 +152,11 @@ export async function OverviewTab() {
             {trending.map(c => (
               <li key={c.symbol}>
                 <Link href={`/companies/${displayName(c.symbol)}`} className="flex items-center justify-between rounded-lg px-2 py-1.5 transition hover:bg-text-primary/[0.04]">
-                  <span className="text-[12.5px] font-semibold text-text-primary">{displayName(c.symbol)}</span>
-                  <span className="text-[11px] text-text-muted line-clamp-1 max-w-[55%] text-right">{c.top_contributors[0]?.reason ?? ""}</span>
+                  <span>
+                    <span className="block text-[12.5px] font-semibold text-text-primary">{displayName(c.symbol)}</span>
+                    <PriceTag quote={quotes.get(displayName(c.symbol))} />
+                  </span>
+                  <span className="text-[11px] text-text-muted line-clamp-1 max-w-[45%] text-right">{c.top_contributors[0]?.reason ?? ""}</span>
                 </Link>
               </li>
             ))}
@@ -131,7 +170,10 @@ export async function OverviewTab() {
             {topPicks.map(c => (
               <li key={c.symbol}>
                 <Link href={`/companies/${c.symbol}`} className="flex items-center justify-between rounded-lg px-2 py-1.5 transition hover:bg-text-primary/[0.04]">
-                  <span className="text-[12.5px] font-semibold text-text-primary">{c.companyName}</span>
+                  <span>
+                    <span className="block text-[12.5px] font-semibold text-text-primary">{c.companyName}</span>
+                    <PriceTag quote={quotes.get(c.symbol)} />
+                  </span>
                   <span className="text-[12px] font-bold text-emerald-400 tabular-nums">{marketRippleScoreDisplayInt(c.score)}</span>
                 </Link>
               </li>
@@ -142,7 +184,10 @@ export async function OverviewTab() {
             {topLocalPreview.map(c => (
               <li key={c.symbol}>
                 <Link href={`/companies/${c.symbol}`} className="flex items-center justify-between rounded-lg px-2 py-1.5 transition hover:bg-text-primary/[0.04]">
-                  <span className="text-[12.5px] font-semibold text-text-primary">{c.companyName}</span>
+                  <span>
+                    <span className="block text-[12.5px] font-semibold text-text-primary">{c.companyName}</span>
+                    <PriceTag quote={quotes.get(c.symbol)} />
+                  </span>
                   <span className="flex items-center gap-1">
                     <span className="text-[12px] font-bold text-amber-500 tabular-nums">{marketRippleScoreDisplayInt(c.score)}</span>
                     <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-amber-500" title="Local unpublished preview — never shown in production">
