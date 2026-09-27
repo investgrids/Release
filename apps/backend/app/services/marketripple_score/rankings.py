@@ -62,17 +62,37 @@ async def _get_sector_rankings(db: AsyncSession, sector: str, universe: list[str
     get_marketripple_score_projection(db, symbol) — never recomputed here.
     Per-sector ranking is deliberate: a Technology score and a Banking
     score are never comparable, so they are never in the same ranked
-    list — see this module's own docstring."""
+    list — see this module's own docstring.
+
+    Also computes `local_preview_rank`/`local_preview_score`/
+    `local_preview_rating` on every row from get_company_marketripple_score_local_preview's
+    same underlying data (real, eligible score regardless of `publishable`)
+    — a SEPARATE ranking pass, never blended into `ranked`/`rank` above,
+    so the honest public state is never perturbed by it. Callers (the API
+    layer) are responsible for stripping these fields in real production,
+    same settings.is_production convention as every other local-preview
+    surface in this codebase."""
     from app.services.aipe.company_score_engine import _name_for
     from app.services.marketripple_score.public_projection import get_marketripple_score_projection
+    from app.services.marketripple_score.snapshot import get_latest_snapshot
 
     ranked: list[dict] = []
     partial_coverage: list[dict] = []
     unavailable: list[dict] = []
+    local_preview_candidates: list[dict] = []  # symbol, company_name, score, rating -- real & eligible, any publishable state
 
     for symbol in universe:
         company_name = _name_for(symbol) or symbol
         proj = await get_marketripple_score_projection(db, symbol)
+
+        # Local-preview candidacy is evaluated from the real snapshot
+        # directly (never from `proj`, which redacts score/rating whenever
+        # publishable is False) -- the same real eligibility bar
+        # (block_reason_codes empty) as everywhere else, just not gated on
+        # the whole-feature publication lock.
+        snap = await get_latest_snapshot(db, symbol)
+        if snap is not None and not (snap.publication_block_reasons or []) and snap.score is not None:
+            local_preview_candidates.append({"symbol": symbol, "company_name": company_name, "score": snap.score, "rating": snap.rating})
 
         if not proj.get("resolved") or not proj.get("snapshot"):
             unavailable.append({
@@ -124,6 +144,14 @@ async def _get_sector_rankings(db: AsyncSession, sector: str, universe: list[str
     for i, row in enumerate(ranked):
         row["rank"] = i + 1
 
+    local_preview_candidates.sort(key=lambda r: r["score"], reverse=True)
+    local_preview_by_symbol: dict[str, dict] = {}
+    for i, row in enumerate(local_preview_candidates):
+        local_preview_by_symbol[row["symbol"]] = {
+            "score": row["score"], "rating": row["rating"],
+            "rank": i + 1, "total_ranked_in_sector": len(local_preview_candidates),
+        }
+
     return {
         "sector": sector,
         "supported": True,
@@ -131,6 +159,7 @@ async def _get_sector_rankings(db: AsyncSession, sector: str, universe: list[str
         "ranked": ranked,
         "partial_coverage": partial_coverage,
         "unavailable": unavailable,
+        "local_preview_by_symbol": local_preview_by_symbol,
         "total_universe": len(universe),
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -204,6 +233,19 @@ async def _build_all_companies_lookup(db: AsyncSession) -> dict[str, dict[str, A
                 "calculated_at": row.get("calculated_at"), "rank": None, "total_ranked_in_sector": None,
                 "message": row["message"],
             }
+        # LOCAL-DEV-ONLY (2026-09-27) — attaches a real rank/score/rating
+        # regardless of `publishable`, on EVERY row (not just the ones
+        # already "ranked" above), so a local dev build can actually verify
+        # the full directory's real ordering while every company is still
+        # publication-locked. Never overwrites `status`/`score` above --
+        # the API layer decides whether to expose this at all (stripped in
+        # real production).
+        for symbol, preview in result["local_preview_by_symbol"].items():
+            lookup.setdefault(symbol, {
+                "status": "unsupported_sector", "score": None, "rating": None, "coverage_pct": None,
+                "calculated_at": None, "rank": None, "total_ranked_in_sector": None, "message": None,
+            })
+            lookup[symbol]["local_preview"] = preview
 
     _ALL_COMPANIES_LOOKUP_CACHE["data"] = lookup
     _ALL_COMPANIES_LOOKUP_CACHE["at"] = now
@@ -246,11 +288,12 @@ async def get_all_companies_rankings(db: AsyncSession, page: int = 1, page_size:
                 "symbol": co["symbol"], "company_name": co["name"], "sector": co["sector"],
                 "status": "unsupported_sector", "score": None, "rating": None, "coverage_pct": None,
                 "rank": None, "total_ranked_in_sector": None, "calculated_at": None,
-                "message": "MarketRipple Score does not yet support this sector.",
+                "message": "MarketRipple Score does not yet support this sector.", "local_preview": None,
             })
         else:
             rows.append({
                 "symbol": co["symbol"], "company_name": co["name"], "sector": co["sector"],
+                "local_preview": None,
                 **info,
             })
 
@@ -258,6 +301,59 @@ async def get_all_companies_rankings(db: AsyncSession, page: int = 1, page_size:
         "total": total, "page": page, "page_size": page_size, "total_pages": total_pages,
         "companies": rows, "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+async def get_top_local_preview_scores(db: AsyncSession, limit: int = 5) -> list[dict[str, Any]]:
+    """LOCAL-DEV-ONLY (2026-09-27) — the real top-N companies by unified
+    MarketRipple Score, REGARDLESS of `publishable`, mirroring
+    companies.py's own /marketripple-score/local-preview per-symbol
+    endpoint (same settings.is_production gate, same "S2 phase lock stays
+    completely untouched" contract). Exists because every real caller of
+    get_all_companies_rankings/_get_sector_rankings deliberately withholds
+    `score` whenever publishable is False (which is every company today)
+    -- there was no real path left for a "highest scores" leaderboard to
+    show anything at all in local dev once that gate is respected
+    correctly. Reads the latest MARKETRIPPLE_SCORE_METHODOLOGY_VERSION
+    snapshot per symbol directly (never re-derives from the public
+    projection, which would just return None for score here)."""
+    from sqlalchemy import func, select
+
+    from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
+    from app.services.aipe.company_score_engine import _name_for
+    from app.services.marketripple_score.contracts import MARKETRIPPLE_SCORE_METHODOLOGY_VERSION
+
+    # Latest calculated_at per symbol under the current methodology, then
+    # join back to get that row's real score/rating -- the same "latest
+    # per symbol" contract get_latest_snapshot() enforces per-symbol,
+    # applied here across every symbol at once.
+    latest_per_symbol = (
+        select(
+            MarketRippleScoreSnapshot.symbol,
+            func.max(MarketRippleScoreSnapshot.calculated_at).label("max_calculated_at"),
+        )
+        .where(MarketRippleScoreSnapshot.methodology_version == MARKETRIPPLE_SCORE_METHODOLOGY_VERSION)
+        .group_by(MarketRippleScoreSnapshot.symbol)
+        .subquery()
+    )
+    rows = (await db.execute(
+        select(MarketRippleScoreSnapshot)
+        .join(
+            latest_per_symbol,
+            (MarketRippleScoreSnapshot.symbol == latest_per_symbol.c.symbol)
+            & (MarketRippleScoreSnapshot.calculated_at == latest_per_symbol.c.max_calculated_at),
+        )
+        .where(MarketRippleScoreSnapshot.score.is_not(None))
+        .order_by(MarketRippleScoreSnapshot.score.desc())
+        .limit(limit)
+    )).scalars().all()
+
+    return [
+        {
+            "symbol": row.symbol, "company_name": _name_for(row.symbol) or row.symbol,
+            "score": row.score, "rating": row.rating,
+        }
+        for row in rows
+    ]
 
 
 def get_unsupported_sector_response(sector: str) -> dict[str, Any]:

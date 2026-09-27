@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Flame, Sparkles, Newspaper, ArrowRight } from "lucide-react";
 import { fetchAPI } from "@/lib/api";
-import { getSectorRankings, type RankedCompanyRow } from "@/lib/companyRankings";
+import { getSectorRankings, getTopLocalPreviewScores, type RankedCompanyRow, type TopLocalPreviewRow } from "@/lib/companyRankings";
 import { marketRippleScoreDisplayInt } from "@/lib/scoring";
 
 // Real data only, every section — no fabricated numbers. Confirmed live
@@ -62,10 +62,12 @@ function SectionCard({
 }
 
 export async function OverviewTab() {
-  const [scores, articles, bankingRankings] = await Promise.all([
+  const isDev = process.env.NODE_ENV === "development";
+  const [scores, articles, bankingRankings, topLocalPreview] = await Promise.all([
     getCompanyScores(),
     getLatestCompanyArticles(),
     getSectorRankings("Banking"),
+    isDev ? getTopLocalPreviewScores(5) : Promise.resolve([] as TopLocalPreviewRow[]),
   ]);
 
   const scored = scores.filter(s => s.score !== null);
@@ -82,9 +84,18 @@ export async function OverviewTab() {
   // descriptive ranking preview, not investment advice). Reads the same
   // approved MarketRippleScoreSnapshot projections the Company Rankings
   // page and each company's own page use, never a separate computation.
-  // Real, honest empty state below (not a fabricated fallback to the old
-  // score) for as long as publishable stays False.
+  //
+  // Real, honest empty state (not a fabricated fallback to the old score)
+  // for as long as publishable stays False, which is every company today
+  // (S2 phase lock) — this card would otherwise show nothing at all in
+  // local dev even though real scores exist, unlike every other
+  // MarketRipple Score surface (Company/Compare/All Companies), which all
+  // already show a dev-only "local preview" fallback (2026-09-27: this
+  // card had been missed). topLocalPreview is real, cross-sector (not
+  // Banking-only), the same unified MARKETRIPPLE_SCORE_V1 data, gated
+  // server-side to 404 in real production.
   const topPicks: RankedCompanyRow[] = bankingRankings.ranked.slice(0, 5);
+  const showLocalPreview = topPicks.length === 0 && topLocalPreview.length > 0;
 
   // "Companies Under Pressure" removed (2026-09-26, Company Rankings
   // migration) rather than re-pointed at the new score: it classified
@@ -115,9 +126,7 @@ export async function OverviewTab() {
       </SectionCard>
 
       <SectionCard icon={<Sparkles className="h-3.5 w-3.5" />} title="Highest MarketRipple Scores" href="/companies?tab=company-rankings">
-        {topPicks.length === 0 ? (
-          <p className="text-[12px] text-text-muted">No banks have a published MarketRipple Score yet.</p>
-        ) : (
+        {topPicks.length > 0 ? (
           <ul className="space-y-2">
             {topPicks.map(c => (
               <li key={c.symbol}>
@@ -128,6 +137,24 @@ export async function OverviewTab() {
               </li>
             ))}
           </ul>
+        ) : showLocalPreview ? (
+          <ul className="space-y-2">
+            {topLocalPreview.map(c => (
+              <li key={c.symbol}>
+                <Link href={`/companies/${c.symbol}`} className="flex items-center justify-between rounded-lg px-2 py-1.5 transition hover:bg-text-primary/[0.04]">
+                  <span className="text-[12.5px] font-semibold text-text-primary">{c.companyName}</span>
+                  <span className="flex items-center gap-1">
+                    <span className="text-[12px] font-bold text-amber-500 tabular-nums">{marketRippleScoreDisplayInt(c.score)}</span>
+                    <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-amber-500" title="Local unpublished preview — never shown in production">
+                      preview
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[12px] text-text-muted">No companies have a published MarketRipple Score yet.</p>
         )}
       </SectionCard>
 

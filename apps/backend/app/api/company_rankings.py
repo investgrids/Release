@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.services.marketripple_score.rankings import (
     get_all_companies_rankings, get_banking_rankings, get_industrial_sector_rankings,
-    get_unsupported_sector_response,
+    get_top_local_preview_scores, get_unsupported_sector_response,
 )
 from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
 
@@ -41,7 +41,31 @@ async def get_all_company_rankings(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=10, le=200),
     db: AsyncSession = Depends(get_db),
 ):
-    return await get_all_companies_rankings(db, page=page, page_size=page_size)
+    from app.core.config import settings
+
+    result = await get_all_companies_rankings(db, page=page, page_size=page_size)
+    if settings.is_production:
+        # local_preview (2026-09-27) shows a real score regardless of
+        # `publishable` -- same settings.is_production strip as every other
+        # local-preview surface in this codebase, never sent to a real
+        # production caller.
+        for row in result["companies"]:
+            row["local_preview"] = None
+    return result
+
+
+@router.get("/local-preview/top")
+async def get_top_local_preview(limit: int = Query(5, ge=1, le=20), db: AsyncSession = Depends(get_db)):
+    """LOCAL-DEV-ONLY (2026-09-27) — see get_top_local_preview_scores's own
+    docstring. Registered before the /{sector} catch-all below so this
+    two-segment path is never swallowed by it; 404s in real production,
+    same convention as /marketripple-score/local-preview."""
+    from fastapi import HTTPException
+
+    from app.core.config import settings
+    if settings.is_production:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"companies": await get_top_local_preview_scores(db, limit=limit)}
 
 
 @router.get("/{sector}")

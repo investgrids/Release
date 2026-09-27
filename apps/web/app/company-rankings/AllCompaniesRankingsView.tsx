@@ -53,6 +53,13 @@ function pageHref(p: number) {
   return `/company-rankings?page=${p}`;
 }
 
+// LOCAL-DEV-ONLY (2026-09-27) — row.localPreview is a real score/rating/
+// rank regardless of `publishable`; the backend already returns it as
+// null in real production (settings.is_production strip), so this
+// NODE_ENV check is a second, independent guard, not the only one —
+// either alone already prevents this from ever showing to a real user.
+const isDev = process.env.NODE_ENV === "development";
+
 function RankingCell({ row }: { row: AllCompanyRankingRow }) {
   if (row.status === "ranked" && row.score != null) {
     return (
@@ -60,6 +67,21 @@ function RankingCell({ row }: { row: AllCompanyRankingRow }) {
         <span className="font-black tabular-nums text-text-primary">{marketRippleScoreDisplayInt(row.score)}</span>
         {row.rating && (
           <p className={`text-[10.5px] font-semibold ${RATING_COLOR[row.rating] ?? "text-text-muted"}`}>{row.rating}</p>
+        )}
+      </>
+    );
+  }
+  if (isDev && row.localPreview) {
+    return (
+      <>
+        <span className="inline-flex items-center gap-1">
+          <span className="font-black tabular-nums text-amber-500">{marketRippleScoreDisplayInt(row.localPreview.score)}</span>
+          <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-amber-500" title="Local unpublished preview — never shown in production">
+            preview
+          </span>
+        </span>
+        {row.localPreview.rating && (
+          <p className={`text-[10.5px] font-semibold ${RATING_COLOR[row.localPreview.rating] ?? "text-text-muted"}`}>{row.localPreview.rating}</p>
         )}
       </>
     );
@@ -72,6 +94,13 @@ function RankBadgeCell({ row }: { row: AllCompanyRankingRow }) {
     return (
       <span className="inline-flex items-center rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[11px] font-bold tabular-nums text-text-secondary">
         #{row.rank}{row.totalRankedInSector ? ` of ${row.totalRankedInSector}` : ""}
+      </span>
+    );
+  }
+  if (isDev && row.localPreview) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-500">
+        #{row.localPreview.rank} of {row.localPreview.totalRankedInSector}
       </span>
     );
   }

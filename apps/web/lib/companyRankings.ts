@@ -110,6 +110,13 @@ export type AllCompanyRankingStatus =
   | "ranked" | "partial_coverage" | "no_snapshot_computed_yet"
   | "publication_locked" | "ineligible" | "stale" | "unsupported_sector";
 
+export interface AllCompanyLocalPreview {
+  score: number;
+  rating: string | null;
+  rank: number;
+  totalRankedInSector: number;
+}
+
 export interface AllCompanyRankingRow {
   symbol: string;
   companyName: string;
@@ -122,6 +129,9 @@ export interface AllCompanyRankingRow {
   totalRankedInSector: number | null;
   calculatedAt: string | null;
   message: string | null;
+  // LOCAL-DEV-ONLY (2026-09-27) — a real score/rating/rank regardless of
+  // `publishable`, always null in real production (backend strips it).
+  localPreview: AllCompanyLocalPreview | null;
 }
 
 export interface AllCompanyRankingsPage {
@@ -133,11 +143,15 @@ export interface AllCompanyRankingsPage {
   generatedAt?: string;
 }
 
+interface ApiAllCompanyLocalPreview {
+  score: number; rating: string | null; rank: number; total_ranked_in_sector: number;
+}
 interface ApiAllCompanyRow {
   symbol: string; company_name: string; sector: string; status: AllCompanyRankingStatus;
   score: number | null; rating: string | null; coverage_pct: number | null;
   rank: number | null; total_ranked_in_sector: number | null;
   calculated_at: string | null; message: string | null;
+  local_preview: ApiAllCompanyLocalPreview | null;
 }
 interface ApiAllCompanyRankingsPage {
   total: number; page: number; page_size: number; total_pages: number;
@@ -147,6 +161,27 @@ interface ApiAllCompanyRankingsPage {
 const EMPTY_ALL_COMPANIES_PAGE: AllCompanyRankingsPage = {
   total: 0, page: 1, pageSize: 50, totalPages: 1, companies: [],
 };
+
+export interface TopLocalPreviewRow {
+  symbol: string;
+  companyName: string;
+  score: number;
+  rating: string | null;
+}
+
+// LOCAL-DEV-ONLY (2026-09-27) — real top-N scores regardless of
+// `publishable`, mirroring the per-company local-preview pattern already
+// used on Company/Compare/All Companies. 404s in real production (backend
+// gate), so this always resolves to [] there — callers should only use it
+// as a dev-only supplement to the real public ranked list, never a
+// replacement for it.
+export async function getTopLocalPreviewScores(limit: number): Promise<TopLocalPreviewRow[]> {
+  const d = await safeJson<{ companies: { symbol: string; company_name: string; score: number; rating: string | null }[] }>(
+    `${API}/api/company-rankings/local-preview/top?limit=${encodeURIComponent(String(limit))}`,
+  );
+  if (!d) return [];
+  return d.companies.map(c => ({ symbol: c.symbol, companyName: c.company_name, score: c.score, rating: c.rating }));
+}
 
 export async function getAllCompaniesRankings(page: number, pageSize: number): Promise<AllCompanyRankingsPage> {
   const d = await safeJson<ApiAllCompanyRankingsPage>(
@@ -161,6 +196,10 @@ export async function getAllCompaniesRankings(page: number, pageSize: number): P
       score: r.score, rating: r.rating, coveragePct: r.coverage_pct,
       rank: r.rank, totalRankedInSector: r.total_ranked_in_sector,
       calculatedAt: r.calculated_at, message: r.message,
+      localPreview: r.local_preview ? {
+        score: r.local_preview.score, rating: r.local_preview.rating,
+        rank: r.local_preview.rank, totalRankedInSector: r.local_preview.total_ranked_in_sector,
+      } : null,
     })),
   };
 }
