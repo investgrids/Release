@@ -50,21 +50,6 @@ function avatarColor(symbol: string) {
   return AVATAR_COLORS[idx];
 }
 
-function Sparkline({ positive }: { positive?: boolean }) {
-  if (positive === undefined || positive === null) {
-    return <div className="h-6 w-[72px]" />;
-  }
-  const pts = positive
-    ? "2,18 15,14 28,15 41,10 54,12 67,8 80,9 93,5 106,3"
-    : "2,3 15,5 28,4 41,9 54,6 67,12 80,10 93,15 106,19";
-  const color = positive ? "#10b981" : "#f43f5e";
-  return (
-    <svg width="72" height="24" viewBox="0 0 108 22">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function capBadge(cap: string) {
   if (cap === "large") return { label: "Large Cap", cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" };
   if (cap === "mid")   return { label: "Mid Cap",   cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" };
@@ -177,7 +162,7 @@ export async function AllCompaniesTab({
   const from     = total > 0 ? (safePage - 1) * PAGE_SIZE + 1 : 0;
   const to       = Math.min(safePage * PAGE_SIZE, total);
   const pageList = buildPageList(safePage, totalPages);
-  const colGrid = "grid-cols-[3fr_1fr_0.9fr_1.5fr_1.2fr_1.2fr_1fr_80px_44px]";
+  const colGrid = "grid-cols-[3fr_1fr_0.9fr_1.5fr_1.2fr_1.2fr_1fr_44px]";
 
   return (
     <div className="flex items-start gap-5">
@@ -191,9 +176,9 @@ export async function AllCompaniesTab({
               columns into a narrow viewport (real mobile-overflow fix,
               owner instruction 2026-09-27) -- horizontal scroll here,
               never clipped/illegible content. */}
-          <div className={`grid ${colGrid} min-w-[720px] border-b border-surface-border/6 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted`}>
+          <div className={`grid ${colGrid} min-w-[640px] border-b border-surface-border/6 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted`}>
             <span>Company</span><span>Ticker</span><span>Score</span><span>Sector</span><span>Market Cap</span>
-            <span>Price</span><span>Change %</span><span>1D Chart</span><span />
+            <span>Price</span><span>Change %</span><span />
           </div>
 
           {companies.length === 0 ? (
@@ -216,7 +201,7 @@ export async function AllCompaniesTab({
                   <Link
                     key={co.symbol}
                     href={`/companies/${co.symbol}`}
-                    className={`grid ${colGrid} min-w-[720px] items-center border-b border-surface-border/4 px-4 py-3 transition last:border-0 hover:bg-text-primary/[0.025] ${i % 2 !== 0 ? "bg-text-primary/[0.01]" : ""}`}
+                    className={`grid ${colGrid} min-w-[640px] items-center border-b border-surface-border/4 px-4 py-3 transition last:border-0 hover:bg-text-primary/[0.025] ${i % 2 !== 0 ? "bg-text-primary/[0.01]" : ""}`}
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[9px] font-bold uppercase text-text-primary ${avatarColor(co.symbol)}`}>
@@ -236,7 +221,6 @@ export async function AllCompaniesTab({
                     <span className={`rounded border px-2 py-0.5 text-[10px] font-semibold w-fit ${cap_badge.cls}`}>{cap_badge.label}</span>
                     <span className="font-mono text-[12px] font-semibold tabular-nums text-text-primary">{co.price ? `₹${co.price}` : "—"}</span>
                     <span className={`text-[12px] font-bold tabular-nums ${positive === true ? "text-emerald-400" : positive === false ? "text-rose-400" : "text-text-muted"}`}>{pctStr}</span>
-                    <div className="flex items-center"><Sparkline positive={positive ?? undefined} /></div>
                     <div className="flex justify-center">
                       <WatchlistButton item={{ id: co.symbol, type: "company", label: co.name, ticker: co.symbol }} size="sm" />
                     </div>
