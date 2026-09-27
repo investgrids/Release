@@ -191,8 +191,14 @@ async def test_ranked_rows_are_sorted_descending_with_sequential_rank():
 
 
 def test_unsupported_sector_returns_honest_empty_state_never_the_old_score():
-    result = get_unsupported_sector_response("Technology")
-    assert result["sector"] == "Technology"
+    # "Insurance" specifically, not "Technology" — NS1 (2026-09-27) made
+    # Technology a real, supported NONBANK_INDUSTRIAL_SECTORS member (see
+    # test_marketripple_score_industrial_rankings.py), so it's no longer a
+    # valid example of an unsupported sector. Insurance remains a real,
+    # deliberately-excluded sector (structurally different balance sheets —
+    # see sector_universe.py's NONBANK_STRUCTURALLY_EXCLUDED_SECTORS).
+    result = get_unsupported_sector_response("Insurance")
+    assert result["sector"] == "Insurance"
     assert result["supported"] is False
     assert result["ranked"] == []
     assert "not yet available" in result["message"]

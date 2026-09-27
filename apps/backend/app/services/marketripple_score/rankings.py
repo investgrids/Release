@@ -48,16 +48,17 @@ def _is_stale(calculated_at: str | None) -> bool:
     return age_days > _STALE_AFTER_DAYS
 
 
-async def get_banking_rankings(db: AsyncSession) -> dict[str, Any]:
-    """The one real Banking ranking response. Every row's data comes from
-    get_marketripple_score_projection(db, symbol) — never recomputed here,
-    never read from a second table. Categorizes each of the 27 real
-    ALL_ELIGIBLE_NSE_BANKS symbols into exactly one of: ranked (publishable,
-    eligible, fresh, has a real score), partial_coverage (publishable and
-    eligible but pillar_coverage_status=="partial" — no headline number
-    yet), or unavailable (not publishable, not eligible, no snapshot yet,
-    or stale) with the real reason. Never silently drops a bank — every
-    real symbol in the universe appears in exactly one list."""
+async def _get_sector_rankings(db: AsyncSession, sector: str, universe: list[str], methodology_version: str) -> dict[str, Any]:
+    """Shared ranking logic (NS1, owner instruction 2026-09-27) — extracted
+    verbatim from get_banking_rankings' own original body, byte-for-byte
+    unchanged behavior, just parameterized on (sector, universe,
+    methodology_version) so the Non-Banking Industrial methodology reuses
+    the exact same categorization instead of a second, hand-copied
+    implementation. Every row still comes from
+    get_marketripple_score_projection(db, symbol) — never recomputed here.
+    Per-sector ranking is deliberate: a Technology score and a Banking
+    score are never comparable, so they are never in the same ranked
+    list — see this module's own docstring."""
     from app.services.aipe.company_score_engine import _name_for
     from app.services.marketripple_score.public_projection import get_marketripple_score_projection
 
@@ -65,7 +66,7 @@ async def get_banking_rankings(db: AsyncSession) -> dict[str, Any]:
     partial_coverage: list[dict] = []
     unavailable: list[dict] = []
 
-    for symbol in ALL_ELIGIBLE_NSE_BANKS:
+    for symbol in universe:
         company_name = _name_for(symbol) or symbol
         proj = await get_marketripple_score_projection(db, symbol)
 
@@ -120,15 +121,34 @@ async def get_banking_rankings(db: AsyncSession) -> dict[str, Any]:
         row["rank"] = i + 1
 
     return {
-        "sector": "Banking",
+        "sector": sector,
         "supported": True,
-        "methodology_version": "BANKING_V1",
+        "methodology_version": methodology_version,
         "ranked": ranked,
         "partial_coverage": partial_coverage,
         "unavailable": unavailable,
-        "total_universe": len(ALL_ELIGIBLE_NSE_BANKS),
+        "total_universe": len(universe),
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+async def get_banking_rankings(db: AsyncSession) -> dict[str, Any]:
+    """The one real Banking ranking response — see _get_sector_rankings'
+    own docstring for the shared logic this now calls."""
+    return await _get_sector_rankings(db, "Banking", ALL_ELIGIBLE_NSE_BANKS, "BANKING_V1")
+
+
+async def get_industrial_sector_rankings(db: AsyncSession, sector: str) -> dict[str, Any]:
+    """The real Non-Banking Commercial & Industrial V1 ranking response for
+    one of sector_universe.py's NONBANK_INDUSTRIAL_SECTORS — a SEPARATE
+    ranked list per sector (never merged with Banking's or another
+    industrial sector's), since scores from different methodologies are
+    never directly comparable. `sector` must already be validated as a
+    real NONBANK_INDUSTRIAL_SECTORS member by the caller."""
+    from app.services.marketripple_score.contracts import NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
+    from app.services.marketripple_score.sector_universe import sector_peer_universe
+
+    return await _get_sector_rankings(db, sector, sector_peer_universe(sector), NONBANK_INDUSTRIAL_METHODOLOGY_VERSION)
 
 
 def get_unsupported_sector_response(sector: str) -> dict[str, Any]:
