@@ -49,11 +49,12 @@ export default async function CompaniesHubPage({
   const rawTab = typeof params.tab === "string" ? params.tab : "overview";
   const tab    = VALID_TABS.has(rawTab) ? rawTab : "overview";
 
-  const q      = typeof params.q      === "string" ? params.q      : "";
-  const sector = typeof params.sector === "string" ? params.sector : "";
-  const cap    = typeof params.cap    === "string" ? params.cap    : "";
-  const sort   = typeof params.sort   === "string" ? params.sort   : "name";
-  const page   = typeof params.page   === "string" ? Math.max(1, parseInt(params.page, 10) || 1) : 1;
+  const q        = typeof params.q         === "string" ? params.q         : "";
+  const sector   = typeof params.sector    === "string" ? params.sector    : "";
+  const cap      = typeof params.cap       === "string" ? params.cap       : "";
+  const sort     = typeof params.sort      === "string" ? params.sort      : "name";
+  const minScore = typeof params.min_score === "string" ? params.min_score : "";
+  const page     = typeof params.page      === "string" ? Math.max(1, parseInt(params.page, 10) || 1) : 1;
 
   // Real numbers only — no "5,000+" placeholder. Article total comes from
   // the same /api/insights/ endpoint the rest of the app already uses.
@@ -76,7 +77,7 @@ export default async function CompaniesHubPage({
 
   let content: React.ReactNode;
   switch (tab) {
-    case "all-companies": content = <AllCompaniesTab q={q} sector={sector} cap={cap} sort={sort} page={page} />; break;
+    case "all-companies": content = <AllCompaniesTab q={q} sector={sector} cap={cap} sort={sort} page={page} minScore={minScore} />; break;
     case "company-rankings": content = <CompanyRankingsHubPage searchParams={Promise.resolve({ page: String(page) })} />; break;
     case "sectors":       content = <SectorsPage />; break;
     case "compare":       content = <ComparePage />; break;

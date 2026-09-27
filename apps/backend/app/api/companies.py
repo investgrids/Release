@@ -1137,12 +1137,73 @@ async def search_companies(
     }
 
 
+async def _fetch_mr_scores(db: AsyncSession, symbols: list[str]) -> dict[str, dict]:
+    """One batched MarketRippleScoreSnapshot read for an arbitrary symbol
+    list, never N+1, never a live computation (same "DB read only" contract
+    as get_latest_snapshot()). Two separate fields, matching the same trust
+    boundary already established for the single-company endpoints:
+      marketripple_score              — publishable-gated (public/real).
+      marketripple_score_local_preview — the real number regardless of
+        publishable, but the WHOLE field is omitted (always None) when
+        settings.is_production is true, mirroring
+        /marketripple-score/local-preview's own settings.is_production
+        gate. Never sent to a real production caller either way.
+    Extracted (2026-09-27) so list_companies can also call this for the
+    FULL filtered candidate set when a min_score filter is active, not
+    just the current page."""
+    mr_scores: dict[str, dict] = {}
+    if not symbols:
+        return mr_scores
+
+    from sqlalchemy import select
+
+    from app.core.config import settings
+    from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
+    from app.services.marketripple_score.contracts import MARKETRIPPLE_SCORE_METHODOLOGY_VERSION
+
+    # Filtered to the one current methodology tag, same guarantee as
+    # get_latest_snapshot() (owner instruction, 2026-09-27) -- this
+    # batched query must never select a superseded-tagged row (real
+    # history under BANKING_V1/NONBANK_INDUSTRIAL_V1/V2) just because
+    # it happens to carry a newer timestamp than expected.
+    snap_rows = (await db.execute(
+        select(MarketRippleScoreSnapshot)
+        .where(
+            MarketRippleScoreSnapshot.symbol.in_(symbols),
+            MarketRippleScoreSnapshot.methodology_version == MARKETRIPPLE_SCORE_METHODOLOGY_VERSION,
+        )
+        .order_by(MarketRippleScoreSnapshot.calculated_at.desc())
+    )).scalars().all()
+    latest_by_symbol: dict[str, MarketRippleScoreSnapshot] = {}
+    for snap in snap_rows:
+        latest_by_symbol.setdefault(snap.symbol, snap)  # first hit per symbol is the newest (query is DESC)
+
+    show_local_preview = not settings.is_production
+    for symbol, snap in latest_by_symbol.items():
+        reasons = snap.publication_block_reasons or []
+        eligible = len(reasons) == 0
+        publishable = bool(snap.publishable)
+        mr_scores[symbol] = {
+            "marketripple_score": {
+                "eligible": eligible, "publishable": publishable,
+                "score": snap.score if publishable else None,
+                "rating": snap.rating if publishable else None,
+            },
+            "marketripple_score_local_preview": (
+                {"eligible": eligible, "score": snap.score, "rating": snap.rating}
+                if show_local_preview else None
+            ),
+        }
+    return mr_scores
+
+
 @router.get("/")
 async def list_companies(
     q:         str = Query("",    description="Search query"),
     sector:    str = Query("",    description="Filter by sector"),
     cap:       str = Query("",    description="Filter by cap: large | mid | small"),
     sort:      str = Query("name",description="Sort: name | cap | sector"),
+    min_score: float | None = Query(None, ge=0, le=100, description="Only companies whose real MarketRipple Score is at least this value"),
     page:      int = Query(1,     ge=1),
     page_size: int = Query(24,    ge=6, le=60),
     live:      bool = Query(True, description="Fetch live prices for current page"),
@@ -1157,9 +1218,19 @@ async def list_companies(
          not already in the static list — the directory now reflects
          what MarketRipple actually has evidence for, not just the
          hand-curated 512.
-      3. Sort by name / cap / sector                         (instant)
-      4. Paginate                                            (instant)
-      5. Optionally fetch live prices for the page's symbols via yfinance
+      3. Optionally filter to a real minimum MarketRipple Score (2026-09-27)
+         -- requires knowing every candidate's real score BEFORE paginating
+         (a per-page-only score fetch can't answer "does page 5 have any
+         matches"), so this one real batched read runs against the WHOLE
+         filtered candidate set, only when min_score is actually passed.
+         Filters on whichever score value the UI would actually show for
+         that company (the real public score once publishable, or --
+         local dev only -- the same local-preview score every other
+         MarketRipple Score surface already falls back to), never a
+         fabricated/estimated value.
+      4. Sort by name / cap / sector                         (instant)
+      5. Paginate                                            (instant)
+      6. Optionally fetch live prices for the page's symbols via yfinance
     """
     matches = _filter_and_rank(q, sector, cap)
     matches += _filter_and_rank_extended(await _get_qualified_master_entries(db), q, sector, cap)
@@ -1171,6 +1242,25 @@ async def list_companies(
     superseded = await _superseded_symbols(db)
     if superseded:
         matches = [m for m in matches if m["symbol"] not in superseded]
+
+    # Full-candidate-set score fetch, only when actually filtering by score
+    # -- every other request path keeps the original, cheaper per-page-only
+    # fetch below.
+    full_mr_scores: dict[str, dict] | None = None
+    if min_score is not None and matches:
+        full_mr_scores = await _fetch_mr_scores(db, [m["symbol"] for m in matches])
+
+        def _effective_score(symbol: str) -> float | None:
+            mr = full_mr_scores.get(symbol) if full_mr_scores else None
+            if not mr:
+                return None
+            public = mr.get("marketripple_score") or {}
+            if public.get("score") is not None:
+                return public["score"]
+            preview = mr.get("marketripple_score_local_preview") or {}
+            return preview.get("score")
+
+        matches = [m for m in matches if (s := _effective_score(m["symbol"])) is not None and s >= min_score]
 
     # Secondary sort (primary sort is always relevance score for queries,
     # then by the selected sort column). Always re-sorted explicitly here
@@ -1198,59 +1288,14 @@ async def list_companies(
         symbols = [co["symbol"] for co in page_items]
         prices = await _fetch_prices(symbols)
 
-    # MarketRipple Score for this page only (2026-09-27) — one batched
-    # query for the page's symbols, never N+1, never a live computation
-    # (same "DB read only" contract as get_latest_snapshot()). Two
-    # separate fields, matching the same trust boundary already
-    # established for the single-company endpoints:
-    #   marketripple_score              — publishable-gated (public/real).
-    #   marketripple_score_local_preview — the real number regardless of
-    #     publishable, but the WHOLE field is omitted (always None) when
-    #     settings.is_production is true, mirroring
-    #     /marketripple-score/local-preview's own settings.is_production
-    #     gate. Never sent to a real production caller either way.
-    mr_scores: dict[str, dict] = {}
-    if page_items:
-        from sqlalchemy import select
-
-        from app.core.config import settings
-        from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
-        from app.services.marketripple_score.contracts import MARKETRIPPLE_SCORE_METHODOLOGY_VERSION
-
-        page_symbols = [co["symbol"] for co in page_items]
-        # Filtered to the one current methodology tag, same guarantee as
-        # get_latest_snapshot() (owner instruction, 2026-09-27) -- this
-        # batched query must never select a superseded-tagged row (real
-        # history under BANKING_V1/NONBANK_INDUSTRIAL_V1/V2) just because
-        # it happens to carry a newer timestamp than expected.
-        snap_rows = (await db.execute(
-            select(MarketRippleScoreSnapshot)
-            .where(
-                MarketRippleScoreSnapshot.symbol.in_(page_symbols),
-                MarketRippleScoreSnapshot.methodology_version == MARKETRIPPLE_SCORE_METHODOLOGY_VERSION,
-            )
-            .order_by(MarketRippleScoreSnapshot.calculated_at.desc())
-        )).scalars().all()
-        latest_by_symbol: dict[str, MarketRippleScoreSnapshot] = {}
-        for snap in snap_rows:
-            latest_by_symbol.setdefault(snap.symbol, snap)  # first hit per symbol is the newest (query is DESC)
-
-        show_local_preview = not settings.is_production
-        for symbol, snap in latest_by_symbol.items():
-            reasons = snap.publication_block_reasons or []
-            eligible = len(reasons) == 0
-            publishable = bool(snap.publishable)
-            mr_scores[symbol] = {
-                "marketripple_score": {
-                    "eligible": eligible, "publishable": publishable,
-                    "score": snap.score if publishable else None,
-                    "rating": snap.rating if publishable else None,
-                },
-                "marketripple_score_local_preview": (
-                    {"eligible": eligible, "score": snap.score, "rating": snap.rating}
-                    if show_local_preview else None
-                ),
-            }
+    # MarketRipple Score for this page only -- reuses the full-candidate-set
+    # fetch above when min_score filtering already ran it, otherwise a
+    # fresh page-only fetch (the original, cheaper default path).
+    if full_mr_scores is not None:
+        page_symbols_set = {co["symbol"] for co in page_items}
+        mr_scores = {sym: mr for sym, mr in full_mr_scores.items() if sym in page_symbols_set}
+    else:
+        mr_scores = await _fetch_mr_scores(db, [co["symbol"] for co in page_items])
 
     companies = []
     for co in page_items:
@@ -1277,5 +1322,6 @@ async def list_companies(
         "q":           q,
         "sector":      sector,
         "cap":         cap,
+        "min_score":   min_score,
         "companies":   companies,
     }

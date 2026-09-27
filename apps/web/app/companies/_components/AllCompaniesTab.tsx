@@ -135,11 +135,12 @@ function ScoreCell({ co }: { co: ListResponse["companies"][number] }) {
 }
 
 export async function AllCompaniesTab({
-  q, sector, cap, sort, page,
-}: { q: string; sector: string; cap: string; sort: string; page: number }) {
+  q, sector, cap, sort, page, minScore = "",
+}: { q: string; sector: string; cap: string; sort: string; page: number; minScore?: string }) {
   const params = new URLSearchParams({
     q, sector, cap, sort, page: String(page), page_size: String(PAGE_SIZE), live: "true",
   });
+  if (minScore) params.set("min_score", minScore);
 
   let total = 0, totalPages = 1, safePage = page;
   let companies: ListResponse["companies"] = [];
@@ -171,6 +172,7 @@ export async function AllCompaniesTab({
   if (sector)                  baseParams.set("sector", sector);
   if (cap)                     baseParams.set("cap", cap);
   if (sort && sort !== "name") baseParams.set("sort", sort);
+  if (minScore)                baseParams.set("min_score", minScore);
 
   const from     = total > 0 ? (safePage - 1) * PAGE_SIZE + 1 : 0;
   const to       = Math.min(safePage * PAGE_SIZE, total);
@@ -179,10 +181,10 @@ export async function AllCompaniesTab({
 
   return (
     <div className="flex items-start gap-5">
-      <FilterSidebar sectors={sectors} initialSector={sector} initialCap={cap} initialSort={sort} initialQ={q} />
+      <FilterSidebar sectors={sectors} initialSector={sector} initialCap={cap} initialSort={sort} initialQ={q} initialMinScore={minScore} />
 
       <div className="min-w-0 flex-1 space-y-3">
-        <CompanySearchInput defaultValue={q} sector={sector} cap={cap} sort={sort} />
+        <CompanySearchInput defaultValue={q} sector={sector} cap={cap} sort={sort} minScore={minScore} />
 
         <div className="overflow-x-auto rounded-xl border border-surface-border/6 bg-surface-card">
           {/* min-w keeps every column readable instead of squeezing 9 fixed

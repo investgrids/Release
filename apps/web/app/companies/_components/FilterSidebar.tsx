@@ -9,13 +9,15 @@ interface Props {
   initialCap: string;
   initialSort: string;
   initialQ: string;
+  initialMinScore: string;
 }
 
-export function FilterSidebar({ sectors, initialSector, initialCap, initialSort, initialQ }: Props) {
+export function FilterSidebar({ sectors, initialSector, initialCap, initialSort, initialQ, initialMinScore }: Props) {
   const router = useRouter();
   const [sector, setSector] = useState(initialSector);
   const [cap, setCap] = useState(initialCap);
   const [sort, setSort] = useState(initialSort || "name");
+  const [minScore, setMinScore] = useState(initialMinScore);
 
   function apply() {
     const sp = new URLSearchParams();
@@ -23,6 +25,7 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
     if (sector) sp.set("sector", sector);
     if (cap) sp.set("cap", cap);
     if (sort && sort !== "name") sp.set("sort", sort);
+    if (minScore) sp.set("min_score", minScore);
     sp.set("page", "1");
     const qs = sp.toString();
     router.push(`/companies${qs ? `?${qs}` : ""}`);
@@ -32,6 +35,7 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
     setSector("");
     setCap("");
     setSort("name");
+    setMinScore("");
     router.push("/companies");
   }
 
@@ -70,6 +74,19 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
           <option value="large">Large Cap</option>
           <option value="mid">Mid Cap</option>
           <option value="small">Small Cap</option>
+        </select>
+      </div>
+
+      {/* MarketRipple Score */}
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">MarketRipple Score</p>
+        <select value={minScore} onChange={e => setMinScore(e.target.value)} className={selectCls}>
+          <option value="">Any Score</option>
+          <option value="50">50+</option>
+          <option value="60">60+</option>
+          <option value="70">70+</option>
+          <option value="80">80+</option>
+          <option value="90">90+</option>
         </select>
       </div>
 

@@ -9,9 +9,10 @@ interface Props {
   sector: string;
   cap: string;
   sort: string;
+  minScore?: string;
 }
 
-export function CompanySearchInput({ defaultValue, sector, cap, sort }: Props) {
+export function CompanySearchInput({ defaultValue, sector, cap, sort, minScore = "" }: Props) {
   const [value, setValue] = useState(defaultValue);
   const router = useRouter();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -23,11 +24,12 @@ export function CompanySearchInput({ defaultValue, sector, cap, sort }: Props) {
       if (sector) sp.set("sector", sector);
       if (cap) sp.set("cap", cap);
       if (sort && sort !== "name") sp.set("sort", sort);
+      if (minScore) sp.set("min_score", minScore);
       sp.set("page", "1");
       const qs = sp.toString();
       router.push(`/companies${qs ? `?${qs}` : ""}`);
     },
-    [router, sector, cap, sort],
+    [router, sector, cap, sort, minScore],
   );
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
