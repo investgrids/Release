@@ -99,3 +99,68 @@ export async function getSectorRankings(sector: string): Promise<SectorRankings>
 // it must never be inferred from the general company-sector list, which
 // would silently imply support that doesn't exist yet.
 export const SUPPORTED_RANKING_SECTORS = ["Banking"] as const;
+
+// ── Full-directory paginated rankings (owner instruction, 2026-09-27,
+// "Company Rankings and UI") — every real company, not just Banking's own
+// per-sector view above. `status` is the one honest field driving display:
+// "ranked" is the only status that ever carries a real score/rating/rank;
+// everything else is an explicit N/A with its own real reason, never a
+// fabricated number and never a rank.
+export type AllCompanyRankingStatus =
+  | "ranked" | "partial_coverage" | "no_snapshot_computed_yet"
+  | "publication_locked" | "ineligible" | "stale" | "unsupported_sector";
+
+export interface AllCompanyRankingRow {
+  symbol: string;
+  companyName: string;
+  sector: string;
+  status: AllCompanyRankingStatus;
+  score: number | null;
+  rating: string | null;
+  coveragePct: number | null;
+  rank: number | null;
+  totalRankedInSector: number | null;
+  calculatedAt: string | null;
+  message: string | null;
+}
+
+export interface AllCompanyRankingsPage {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  companies: AllCompanyRankingRow[];
+  generatedAt?: string;
+}
+
+interface ApiAllCompanyRow {
+  symbol: string; company_name: string; sector: string; status: AllCompanyRankingStatus;
+  score: number | null; rating: string | null; coverage_pct: number | null;
+  rank: number | null; total_ranked_in_sector: number | null;
+  calculated_at: string | null; message: string | null;
+}
+interface ApiAllCompanyRankingsPage {
+  total: number; page: number; page_size: number; total_pages: number;
+  companies: ApiAllCompanyRow[]; generated_at?: string;
+}
+
+const EMPTY_ALL_COMPANIES_PAGE: AllCompanyRankingsPage = {
+  total: 0, page: 1, pageSize: 50, totalPages: 1, companies: [],
+};
+
+export async function getAllCompaniesRankings(page: number, pageSize: number): Promise<AllCompanyRankingsPage> {
+  const d = await safeJson<ApiAllCompanyRankingsPage>(
+    `${API}/api/company-rankings/?page=${encodeURIComponent(String(page))}&page_size=${encodeURIComponent(String(pageSize))}`,
+  );
+  if (!d) return EMPTY_ALL_COMPANIES_PAGE;
+  return {
+    total: d.total, page: d.page, pageSize: d.page_size, totalPages: d.total_pages,
+    generatedAt: d.generated_at,
+    companies: (d.companies ?? []).map(r => ({
+      symbol: r.symbol, companyName: r.company_name, sector: r.sector, status: r.status,
+      score: r.score, rating: r.rating, coveragePct: r.coverage_pct,
+      rank: r.rank, totalRankedInSector: r.total_ranked_in_sector,
+      calculatedAt: r.calculated_at, message: r.message,
+    })),
+  };
+}

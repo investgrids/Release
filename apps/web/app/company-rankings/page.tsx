@@ -17,6 +17,12 @@ export const metadata: Metadata = {
   alternates: { canonical: `${SITE}/company-rankings` },
 };
 
-export default function CompanyRankingsHubPage() {
-  return <CompanyRankingsContent headingLevel="h1" />;
+export default async function CompanyRankingsHubPage({
+  searchParams = Promise.resolve({}),
+}: {
+  searchParams?: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
+  const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+  return <CompanyRankingsContent headingLevel="h1" page={page} />;
 }

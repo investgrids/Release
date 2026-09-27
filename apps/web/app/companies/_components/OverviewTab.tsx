@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Flame, Sparkles, Newspaper, ArrowRight } from "lucide-react";
 import { fetchAPI } from "@/lib/api";
 import { getSectorRankings, type RankedCompanyRow } from "@/lib/companyRankings";
+import { marketRippleScoreDisplayInt } from "@/lib/scoring";
 
 // Real data only, every section — no fabricated numbers. Confirmed live
 // before building this: /api/company-scores/ has no score-history field
@@ -122,7 +123,7 @@ export async function OverviewTab() {
               <li key={c.symbol}>
                 <Link href={`/companies/${c.symbol}`} className="flex items-center justify-between rounded-lg px-2 py-1.5 transition hover:bg-text-primary/[0.04]">
                   <span className="text-[12.5px] font-semibold text-text-primary">{c.companyName}</span>
-                  <span className="text-[12px] font-bold text-emerald-400 tabular-nums">{Math.round(c.score)}</span>
+                  <span className="text-[12px] font-bold text-emerald-400 tabular-nums">{marketRippleScoreDisplayInt(c.score)}</span>
                 </Link>
               </li>
             ))}

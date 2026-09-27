@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import type { SectorRankings } from "@/lib/companyRankings";
+import { marketRippleScoreDisplayInt } from "@/lib/scoring";
 
 const RANK_BADGE = [
   "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30",
@@ -94,7 +95,7 @@ export function CompanyRankingsView({ data }: { data: SectorRankings }) {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className="font-black tabular-nums text-text-primary">{Math.round(c.score)}</span>
+                    <span className="font-black tabular-nums text-text-primary">{marketRippleScoreDisplayInt(c.score)}</span>
                     {c.rating && <p className={`text-[10.5px] font-semibold ${RATING_COLOR[c.rating] ?? "text-text-muted"}`}>{c.rating}</p>}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-text-secondary">

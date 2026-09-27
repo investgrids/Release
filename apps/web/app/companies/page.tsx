@@ -77,7 +77,7 @@ export default async function CompaniesHubPage({
   let content: React.ReactNode;
   switch (tab) {
     case "all-companies": content = <AllCompaniesTab q={q} sector={sector} cap={cap} sort={sort} page={page} />; break;
-    case "company-rankings": content = <CompanyRankingsHubPage />; break;
+    case "company-rankings": content = <CompanyRankingsHubPage searchParams={Promise.resolve({ page: String(page) })} />; break;
     case "sectors":       content = <SectorsPage />; break;
     case "compare":       content = <ComparePage />; break;
     case "ipo":           content = <IPOHubPage />; break;

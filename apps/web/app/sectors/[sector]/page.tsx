@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import { safeJsonLd } from "@/lib/text";
 import { AskAICta } from "@/components/AskAICta";
+import { marketRippleScoreDisplayInt } from "@/lib/scoring";
 
 /**
  * Sector landing page (SEO Phase 2, §2.1 — the single largest programmatic-
@@ -274,7 +275,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
                     <div className="flex items-center gap-2">
                       {ranked && (
                         <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
-                          {Math.round(ranked.score)}
+                          {marketRippleScoreDisplayInt(ranked.score)}
                         </span>
                       )}
                       <span className={`text-[12px] font-semibold tabular-nums ${s.positive ? "text-emerald-400" : "text-rose-400"}`}>{s.change}</span>

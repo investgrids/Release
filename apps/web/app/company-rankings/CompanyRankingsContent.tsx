@@ -1,10 +1,12 @@
 import { BarChart3 } from "lucide-react";
-import { getSectorRankings } from "@/lib/companyRankings";
-import { CompanyRankingsView } from "./CompanyRankingsView";
+import { getAllCompaniesRankings } from "@/lib/companyRankings";
+import { AllCompaniesRankingsView } from "./AllCompaniesRankingsView";
 
-export async function CompanyRankingsContent({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" }) {
+const PAGE_SIZE = 50;
+
+export async function CompanyRankingsContent({ headingLevel = "h1", page = 1 }: { headingLevel?: "h1" | "h2"; page?: number }) {
   const Heading = headingLevel;
-  const data = await getSectorRankings("Banking");
+  const data = await getAllCompaniesRankings(page, PAGE_SIZE);
 
   return (
     <main className="mx-auto max-w-[1400px] py-8 pb-16">
@@ -19,25 +21,27 @@ export async function CompanyRankingsContent({ headingLevel = "h1" }: { headingL
             Company Rankings
           </Heading>
           <p className="mt-3 text-[14px] leading-relaxed text-text-secondary">
-            Companies ranked by MarketRipple Score — a combined view of financial strength, valuation, market
-            behaviour and current intelligence, published only once a company's real evidence clears a fixed
-            eligibility bar. Never a screener guess, never a fabricated number for a company that isn't ready.
+            Every company in MarketRipple's directory, one shared MarketRipple Score formula — financial strength,
+            valuation and market behaviour, ranked within each company's own real sector peer group. A company
+            without enough real evidence yet, or in a sector without an approved methodology, shows an honest N/A
+            with its real reason — never a screener guess, never a fabricated number, never a fake rank.
           </p>
         </div>
       </div>
 
       <div className="mt-10">
-        <CompanyRankingsView data={data} />
+        <AllCompaniesRankingsView data={data} />
       </div>
 
       <div className="mt-10 rounded-[20px] border border-surface-border/8 bg-text-primary/[0.02] p-6">
         <h2 className="text-[15px] font-bold text-text-primary">How These Rankings Work</h2>
         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-text-secondary">
-          Every ranked company has a MarketRipple Score computed from real financial data, valuation, market
-          behaviour and evidence — reviewed and approved for publication before it appears here. A company that
-          hasn't cleared that bar yet is shown as unranked with its real reason, never filled in with a
-          different, unrelated score. Banking is the only sector with an approved methodology today; other
-          sectors will be added as their own methodologies are reviewed and approved.
+          Every supported company's MarketRipple Score comes from the same shared formula — 8/15 Financial
+          Strength, 4/15 Valuation, 3/15 Market Behaviour — whether it's a bank or a non-bank company. Current
+          Intelligence is real, tracked evidence shown on each company's own page, but never part of this number.
+          A company only gets a real score once all three pillars are available; otherwise it shows N/A with its
+          real reason, never a filled-in guess. Rank is always within a company's own real sector peer group — a
+          Banking score and a Technology score are never compared to each other.
         </p>
       </div>
     </main>
