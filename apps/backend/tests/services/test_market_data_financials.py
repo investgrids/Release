@@ -19,6 +19,7 @@ import pytest
 from app.services.market_data import (
     _extract_statement_rows, _is_real_number, _annual_label, _quarterly_label,
     _INCOME_STATEMENT_ROWS, _BALANCE_SHEET_ROWS, _CASH_FLOW_ROWS,
+    _statement_scale,
 )
 
 
@@ -108,3 +109,98 @@ def test_extract_balance_sheet_candidate_key_fallback():
 def test_quarterly_label_format():
     ts = pd.Timestamp("2026-06-30")
     assert _quarterly_label(ts) == "Jun '26"
+
+
+# Currency/unit correctness fix (2026-09-27, owner-directed re-audit).
+# Confirmed live before this fix: INFY reports financialCurrency="USD"
+# (real annual revenue $20.158B) while get_stock_detail unconditionally
+# divided by 1e7 assuming INR — the exact bug already found and fixed once
+# for the sibling get_stock_financials() (INFY, commit c844920), except
+# THAT fix's own `(financial_currency or "INR")` default still silently
+# assumed INR whenever financialCurrency was missing, which is the same
+# defect moved rather than closed. _statement_scale now returns None for
+# a missing/unrecognized currency, and _extract_statement_rows nulls every
+# "currency"-unit field rather than guessing a scale, in that case.
+class TestStatementScale:
+    def test_known_inr_currency_returns_the_crore_scale(self):
+        assert _statement_scale("INR") == (1e7, "₹", "Crore")
+
+    def test_known_usd_currency_returns_the_million_scale(self):
+        assert _statement_scale("USD") == (1e6, "$", "Million")
+
+    def test_currency_matching_is_case_insensitive(self):
+        assert _statement_scale("inr") == (1e7, "₹", "Crore")
+        assert _statement_scale("usd") == (1e6, "$", "Million")
+
+    def test_missing_currency_returns_none_never_the_inr_default(self):
+        """The exact regression this fix closes: a missing financialCurrency
+        must never be silently treated as INR."""
+        assert _statement_scale(None) is None
+        assert _statement_scale("") is None
+
+    def test_unrecognized_currency_returns_none_never_the_inr_default(self):
+        """A real currency yfinance could report that this app has no
+        confirmed scale for (e.g. EUR, GBP, JPY) must also withhold rather
+        than guess — not just a genuinely-missing value."""
+        assert _statement_scale("EUR") is None
+        assert _statement_scale("GBP") is None
+
+
+class TestExtractStatementRowsCurrencyAware:
+    """_extract_statement_rows(currency_scale=...) — the shared function
+    both get_stock_financials and get_stock_detail rely on for currency-
+    aware scaling."""
+
+    def _income_df(self):
+        cols = [pd.Timestamp("2026-03-31")]
+        return pd.DataFrame({cols[0]: [
+            1057219000000.0,  # Total Revenue
+            204906000000.0,   # EBITDA
+            121377000000.0,   # Operating Income
+            123162000000.0,   # Pretax Income
+            27552000000.0,    # Tax Provision
+            0.224,             # Tax Rate For Calcs
+            80775000000.0,     # Net Income
+            59.69,              # Diluted EPS
+        ]}, index=[
+            "Total Revenue", "EBITDA", "Operating Income", "Pretax Income",
+            "Tax Provision", "Tax Rate For Calcs", "Net Income", "Diluted EPS",
+        ])
+
+    def test_inr_scale_divides_currency_fields_by_1e7(self):
+        rows = _extract_statement_rows(self._income_df(), _INCOME_STATEMENT_ROWS, _annual_label, currency_scale=1e7)
+        assert len(rows) == 1
+        assert rows[0]["revenue"] == 105721.9
+
+    def test_usd_scale_divides_currency_fields_by_1e6_not_1e7(self):
+        """The real fix: a USD-reporting company's real figures must scale
+        to Million, not be mislabeled at the INR/Crore divisor."""
+        rows = _extract_statement_rows(self._income_df(), _INCOME_STATEMENT_ROWS, _annual_label, currency_scale=1e6)
+        assert len(rows) == 1
+        assert rows[0]["revenue"] == 1057219.0  # 1,057,219,000,000 / 1e6
+        assert rows[0]["revenue"] != 105721.9   # never the INR-scale number
+
+    def test_unconfirmed_currency_nulls_every_currency_field_but_keeps_percent_and_raw_fields(self):
+        """The honest response to a genuinely unknown reporting currency:
+        withhold the numbers that would be wrong if mislabeled (revenue,
+        ebitda, net_profit, etc.), while percent/raw fields that don't
+        depend on currency (effective_tax_rate, eps) are unaffected — same
+        "null over fabricated" rule as a missing line item."""
+        rows = _extract_statement_rows(self._income_df(), _INCOME_STATEMENT_ROWS, _annual_label, currency_scale=None)
+        assert len(rows) == 1  # the period survives because eps/tax_rate are still real
+        r = rows[0]
+        assert r["revenue"] is None
+        assert r["ebitda"] is None
+        assert r["net_profit"] is None
+        assert r["effective_tax_rate"] == 22.4   # percent — unaffected by currency
+        assert r["eps"] == 59.69                  # raw — unaffected by currency
+
+    def test_unconfirmed_currency_drops_a_period_that_is_all_currency_fields(self):
+        """Balance Sheet / Cash Flow rows are ALL "currency"-typed (no
+        percent/raw fallback) — with an unconfirmed currency, a period with
+        zero survivable fields must be dropped entirely, exactly like a
+        period with no real data at all."""
+        cols = [pd.Timestamp("2026-03-31")]
+        df = pd.DataFrame({cols[0]: [500000000000.0]}, index=["Common Stock Equity"])
+        rows = _extract_statement_rows(df, _BALANCE_SHEET_ROWS, _annual_label, currency_scale=None)
+        assert rows == []

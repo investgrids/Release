@@ -116,13 +116,23 @@ export function ShareholdingDonut({ data }: { data: { name: string; value: numbe
 }
 
 // ── Historical Performance bar chart (Section 18) ────────────────────────────
-export function HistoricalPerformanceBarChart({ data, activeMetric }: { data: any[]; activeMetric: "revenue" | "profit" }) {
+// Currency/unit bug fix (2026-09-27, owner-directed re-audit): the tooltip
+// hardcoded "₹...Cr" for every company, but this chart's data (annual
+// revenue/net_income) is only ever real ₹ Crore when the company's real
+// reporting currency (yfinance's financialCurrency) is confirmed INR —
+// currencyPrefix/currencyUnit are passed by the caller from the same real
+// per-company value used everywhere else on this page, never assumed here.
+export function HistoricalPerformanceBarChart({ data, activeMetric, currencyPrefix, currencyUnit }: {
+  data: any[]; activeMetric: "revenue" | "profit"; currencyPrefix?: string | null; currencyUnit?: string | null;
+}) {
+  const prefix = currencyPrefix ?? "";
+  const unit = currencyUnit ?? "";
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 4, right: 4, bottom: 4, left: 0 }}>
         <XAxis dataKey="year" tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false}/>
         <YAxis tick={{ fill: "rgb(var(--text-muted))", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}K`} width={40}/>
-        <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 10, fontSize: 11 }} formatter={(v: number) => [`₹${v.toLocaleString()} Cr`, activeMetric === "revenue" ? "Revenue" : "Net Profit"]}/>
+        <RTooltip contentStyle={{ background: "rgb(var(--surface-card))", border: "1px solid rgb(var(--text-primary) / 0.12)", borderRadius: 10, fontSize: 11 }} formatter={(v: number) => [`${prefix}${v.toLocaleString()} ${unit}`.trim(), activeMetric === "revenue" ? "Revenue" : "Net Profit"]}/>
         <Bar dataKey={activeMetric === "revenue" ? "revenue" : "net_income"} radius={[6, 6, 0, 0]}
           fill={activeMetric === "revenue" ? "#38bdf8" : "#22c55e"} fillOpacity={0.8}/>
       </BarChart>

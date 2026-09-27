@@ -48,7 +48,14 @@ interface StockData {
   dividend_yield: string; dividend_rate: string;
   gross_margins: string; operating_margins: string; net_margins: string;
   debt_to_equity: string; current_ratio: string; free_cashflow: string;
-  revenue: string; profit: string; revenue_fy: string; enterprise_value: string;
+  revenue: string; profit: string; revenue_fy: string;
+  // Real per-statement reporting currency (2026-09-27 currency-bug fix) —
+  // null when yfinance's own financialCurrency is unconfirmed, in which
+  // case revenue/profit above are "—" rather than a silently INR-assumed
+  // number. NOT the stock's own trading currency (market_cap stays
+  // real-time NSE INR regardless of this).
+  statement_currency_prefix: string | null; statement_currency_unit: string | null;
+  enterprise_value: string;
   recommendation: string; target_mean: string; target_high: string; target_low: string;
   analyst_count: number; buy_count: number; hold_count: number; sell_count: number;
   held_institutions: string; held_insiders: string;
@@ -134,17 +141,23 @@ function KVRow({ label, value, cls = "text-text-primary" }: { label: string; val
 }
 
 // Period-label honesty note (2026-09-26, owner instruction: "labels ...
-// need verified definitions"). Verified against the source contract
-// (market_data.py::get_stock_detail): roe/roa/roce/gross_margins/
-// operating_margins/net_margins are raw pass-throughs of yfinance's own
-// `.info` fields (returnOnEquity, grossMargins, etc.) with no repo-side
-// period recomputation — "TTM" reflects the data provider's own
-// documented convention for those fields, not something this app
-// independently verifies or recalculates.
+// need verified definitions"; corrected 2026-09-27: "a disclaimer does
+// not validate 'TTM' — keep that label only where the provider's field
+// definition supports it, otherwise show 'provider-reported; period
+// unavailable'"). Verified against the source contract (market_data.py::
+// get_stock_detail): only `pe` (yfinance's `trailingPE`) and `eps`
+// (`trailingEps`) carry "trailing" in the PROVIDER'S OWN field name — that
+// is real confirmation. roe/roa/roce/gross_margins/operating_margins/
+// net_margins/free_cashflow (`returnOnEquity`, `grossMargins`, etc.) have
+// no such confirmation anywhere — not in this repo's code, and their own
+// yfinance field names say nothing about period — so those are labeled
+// "period unconfirmed" instead of "(TTM)", per the owner's exact
+// instruction, rather than asserting a period this app cannot verify.
 function TtmNote() {
   return (
     <p className="mt-3 text-[9.5px] leading-4 text-text-muted">
-      TTM figures are the data provider's own trailing-twelve-month calculation, not independently recomputed by this app.
+      "(TTM)" is shown only for P/E and EPS — yfinance's own field names ("trailingPE", "trailingEps") confirm that period.
+      Other ratios are provider-reported with no confirmed period ("period unconfirmed"), not independently recomputed by this app.
     </p>
   );
 }
@@ -348,16 +361,18 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           // generic "Latest FY" label would falsely imply they're the
           // same period — show the real per-company year instead.
           //
-          // Also verified: that same backend function unconditionally
-          // divides by 1e7 assuming INR, with no `financialCurrency`
-          // check — the exact currency-mislabeling bug already found and
-          // fixed for the sibling /financials endpoint (INFY reports USD,
-          // commit c844920) but NOT fixed here. Flagged as a separate,
-          // real, NOT-yet-fixed backend bug in the release package
-          // (outside this migration's boundary) rather than silently
-          // worked around client-side, since there's no reliable way to
-          // detect a company's real reporting currency from this
-          // endpoint's response today.
+          // Currency fix (2026-09-27, owner-directed): the backend used to
+          // unconditionally divide by 1e7 assuming INR, with no
+          // `financialCurrency` check — confirmed live (INFY: real annual
+          // revenue $20.158B USD; the old code would have shown "2,016"
+          // mislabeled "Rs Cr", implying ~Rs 20B when the real figure is
+          // ~$20B — a real currency mismatch, not merely a magnitude
+          // error). Fixed at the source (market_data.py::get_stock_detail):
+          // annual_financials/revenue/profit are now only ever populated
+          // when financialCurrency is confirmed (INR or USD today), scaled
+          // and labeled correctly for that real currency; an unconfirmed
+          // currency now correctly returns empty data (never a
+          // silently-INR-assumed number) rather than a wrong one.
           const latestAnnual = (d.annual_financials || []).slice(-1)[0];
           setStocks(prev => ({
             ...prev,
@@ -394,6 +409,8 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               revenue:           latestAnnual ? latestAnnual.revenue.toLocaleString("en-IN") : "—",
               profit:            latestAnnual ? latestAnnual.net_income.toLocaleString("en-IN") : "—",
               revenue_fy:        latestAnnual ? latestAnnual.year : "—",
+              statement_currency_prefix: d.statement_currency_prefix ?? null,
+              statement_currency_unit:   d.statement_currency_unit ?? null,
               enterprise_value:  d.enterprise_value || "—",
               recommendation:    d.recommendation || "hold",
               target_mean:       d.target_mean   || "—",
@@ -450,7 +467,9 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
       dividend_yield: "—", dividend_rate: "—",
       gross_margins: "—", operating_margins: "—", net_margins: "—",
       debt_to_equity: "—", current_ratio: "—", free_cashflow: "—",
-      revenue: "—", profit: "—", revenue_fy: "—", enterprise_value: "—",
+      revenue: "—", profit: "—", revenue_fy: "—",
+      statement_currency_prefix: null, statement_currency_unit: null,
+      enterprise_value: "—",
       recommendation: "hold", target_mean: "—", target_high: "—", target_low: "—",
       analyst_count: 0, buy_count: 0, hold_count: 0, sell_count: 0,
       held_institutions: "—", held_insiders: "—",
@@ -571,8 +590,8 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                     <CmpRow label="Market Cap"       values={companies.map(c => c.market_cap)} />
                     <CmpRow label="P/E Ratio (TTM, x)" values={companies.map(c => c.pe)}           lowerBetter />
                     <CmpRow label="P/B Ratio (x)"    values={companies.map(c => c.pb)}           lowerBetter />
-                    <CmpRow label="ROE (%, TTM)"      values={companies.map(c => c.roe)} />
-                    <CmpRow label="ROCE (%, TTM)"     values={companies.map(c => c.roce)} />
+                    <CmpRow label="ROE (%, period unconfirmed)"      values={companies.map(c => c.roe)} />
+                    <CmpRow label="ROCE (%, period unconfirmed)"     values={companies.map(c => c.roce)} />
                     <CmpRow label="Debt to Equity (x)" values={companies.map(c => c.debt_to_equity)} lowerBetter />
                     <CmpRow label="Dividend Yield (%)" values={companies.map(c => c.dividend_yield)} />
                     <CmpRow label="52W High (₹)"     values={companies.map(c => c.week52_high)}
@@ -712,14 +731,20 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                   // fiscal years (verified against the source contract:
                   // market_data.py derives it per-symbol from yfinance's
                   // own statement columns, with no cross-company
-                  // alignment). `fyKey` renders each company's own real
-                  // year as a per-cell caption instead of a shared label.
-                  { label: "Revenue (₹ Cr)",       key: "revenue",           fyKey: "revenue_fy" as const, lowerBetter: false },
-                  { label: "Net Profit (₹ Cr)",    key: "profit",            fyKey: "revenue_fy" as const, lowerBetter: false },
+                  // alignment). `showCurrency` renders each company's own
+                  // real reporting currency + unit + year as a per-cell
+                  // caption instead of a shared, potentially-wrong label —
+                  // currency-bug fix (2026-09-27): compared companies can
+                  // also genuinely report in different real currencies
+                  // (confirmed live: INFY reports in USD, most NSE
+                  // companies in INR), so "Revenue (₹ Cr)" as one shared
+                  // label would mislabel a USD reporter's real figures.
+                  { label: "Revenue",       key: "revenue",           showCurrency: true, lowerBetter: false },
+                  { label: "Net Profit",    key: "profit",            showCurrency: true, lowerBetter: false },
                   { label: "EPS (₹, TTM)",                    key: "eps",               lowerBetter: false },
-                  { label: "Operating Margin (%, TTM)",       key: "operating_margins", lowerBetter: false },
-                  { label: "Net Margin (%, TTM)",             key: "net_margins",       lowerBetter: false },
-                ] as { label: string; key: keyof StockData; fyKey?: keyof StockData; lowerBetter: boolean }[]).map(row => {
+                  { label: "Operating Margin (%, period unconfirmed)",       key: "operating_margins", lowerBetter: false },
+                  { label: "Net Margin (%, period unconfirmed)",             key: "net_margins",       lowerBetter: false },
+                ] as { label: string; key: keyof StockData; showCurrency?: boolean; lowerBetter: boolean }[]).map(row => {
                   const vals = companies.map(c => parseN(String((c as any)[row.key])));
                   const max = Math.max(...vals.filter(v => v > 0), 1);
                   const cls = highlight(vals, row.lowerBetter);
@@ -730,14 +755,17 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                         const v = vals[i];
                         const w = max > 0 ? (v / max) * 100 : 0;
                         const display = String((c as any)[row.key]);
-                        const fy = row.fyKey ? String((c as any)[row.fyKey]) : null;
+                        const caption = row.showCurrency && c.revenue_fy !== "—"
+                          ? [c.statement_currency_prefix && c.statement_currency_unit ? `${c.statement_currency_prefix} ${c.statement_currency_unit}` : null, c.revenue_fy]
+                              .filter(Boolean).join(", ")
+                          : null;
                         return (
                           <td key={c.symbol} className="py-2.5 text-right">
                             {c.loading
                               ? <span className="text-[11px] text-text-muted">…</span>
                               : <div className="inline-flex flex-col items-end gap-1">
                                   <span className={`text-[12px] font-semibold ${cls[i]}`}>{display || "—"}</span>
-                                  {fy && fy !== "—" && <span className="text-[9px] text-text-muted">{fy}</span>}
+                                  {caption && <span className="text-[9px] text-text-muted">{caption}</span>}
                                   {w > 0 && (
                                     <div className="h-1 w-16 overflow-hidden rounded-full bg-text-primary/[0.05]">
                                       <div className="h-full rounded-full" style={{ width: `${w}%`, background: color(i) }} />
@@ -798,12 +826,12 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                 <div className="flex h-24 items-center justify-center text-[11px] text-text-muted">No data</div>
               )}
               <div className="mt-3 space-y-0 border-t border-surface-border/5 pt-3">
-                <KVRow label={`Revenue (₹ Cr${c.revenue_fy !== "—" ? `, ${c.revenue_fy}` : ""})`}    value={c.revenue} />
-                <KVRow label={`Net Profit (₹ Cr${c.revenue_fy !== "—" ? `, ${c.revenue_fy}` : ""})`} value={c.profit} />
-                <KVRow label="Gross Margin (%, TTM)"        value={c.gross_margins} />
-                <KVRow label="Op. Margin (%, TTM)"          value={c.operating_margins} />
-                <KVRow label="Net Margin (%, TTM)"          value={c.net_margins} />
-                <KVRow label="Free Cash Flow (TTM)"         value={c.free_cashflow} />
+                <KVRow label={`Revenue (${[c.statement_currency_prefix && c.statement_currency_unit ? `${c.statement_currency_prefix} ${c.statement_currency_unit}` : null, c.revenue_fy !== "—" ? c.revenue_fy : null].filter(Boolean).join(", ") || "currency unconfirmed"})`}    value={c.revenue} />
+                <KVRow label={`Net Profit (${[c.statement_currency_prefix && c.statement_currency_unit ? `${c.statement_currency_prefix} ${c.statement_currency_unit}` : null, c.revenue_fy !== "—" ? c.revenue_fy : null].filter(Boolean).join(", ") || "currency unconfirmed"})`} value={c.profit} />
+                <KVRow label="Gross Margin (%, period unconfirmed)"        value={c.gross_margins} />
+                <KVRow label="Op. Margin (%, period unconfirmed)"          value={c.operating_margins} />
+                <KVRow label="Net Margin (%, period unconfirmed)"          value={c.net_margins} />
+                <KVRow label="Free Cash Flow (period unconfirmed)"         value={c.free_cashflow} />
               </div>
             </Card>
           ))}
@@ -903,12 +931,12 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
   function ProfitabilityTab() {
     const rows = [
-      { label: "Gross Margin (%, TTM)",     key: "gross_margins"     as keyof StockData },
-      { label: "Operating Margin (%, TTM)", key: "operating_margins" as keyof StockData },
-      { label: "Net Margin (%, TTM)",       key: "net_margins"       as keyof StockData },
-      { label: "ROE (%, TTM)",              key: "roe"               as keyof StockData },
-      { label: "ROA (%, TTM)",              key: "roa"               as keyof StockData },
-      { label: "ROCE (%, TTM)",             key: "roce"              as keyof StockData },
+      { label: "Gross Margin (%, period unconfirmed)",     key: "gross_margins"     as keyof StockData },
+      { label: "Operating Margin (%, period unconfirmed)", key: "operating_margins" as keyof StockData },
+      { label: "Net Margin (%, period unconfirmed)",       key: "net_margins"       as keyof StockData },
+      { label: "ROE (%, period unconfirmed)",              key: "roe"               as keyof StockData },
+      { label: "ROA (%, period unconfirmed)",              key: "roa"               as keyof StockData },
+      { label: "ROCE (%, period unconfirmed)",             key: "roce"              as keyof StockData },
     ];
     return (
       <div className="space-y-5">
@@ -977,7 +1005,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           <tbody>
             <CmpRow label="Debt to Equity (x)"   values={companies.map(c => c.debt_to_equity)} lowerBetter />
             <CmpRow label="Current Ratio (x)"    values={companies.map(c => c.current_ratio)} />
-            <CmpRow label="Free Cash Flow (TTM)" values={companies.map(c => c.free_cashflow)} />
+            <CmpRow label="Free Cash Flow (period unconfirmed)" values={companies.map(c => c.free_cashflow)} />
             <CmpRow label="Enterprise Value"     values={companies.map(c => c.enterprise_value)} />
             <CmpRow label="Market Cap"           values={companies.map(c => c.market_cap)} />
           </tbody>

@@ -50,9 +50,10 @@ test.describe("Compare page — one-score migration (real hydrated browser)", ()
     // FY" placeholder with each company's own real year.
     await expect(page.getByText("FY26").first()).toBeVisible();
 
-    // Honest period-label disclosure — TTM figures are the data
-    // provider's own convention, not independently recomputed here.
-    await expect(page.getByText(/trailing-twelve-month calculation/).first()).toBeVisible();
+    // Honest period-label disclosure, corrected 2026-09-27: "(TTM)" is
+    // kept only where the provider's own field name confirms it (P/E,
+    // EPS); other ratios show "period unconfirmed" instead.
+    await expect(page.getByText(/trailingPE/).first()).toBeVisible();
 
     // Valuation tab: the real MarketRipple Score card, honestly showing
     // "Unavailable" for both real companies (confirmed live: no snapshot

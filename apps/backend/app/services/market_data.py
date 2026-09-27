@@ -213,21 +213,37 @@ def _is_real_number(raw) -> bool:
 # "USD" — its NYSE ADR filing currency — while RELIANCE/TCS/HDFCBANK/
 # WIPRO all report "INR") — a real, per-company field, not a guess. The
 # old hardcoded "/ 1e7" assumed every statement was INR-in-rupees, which
-# silently mislabeled INFY's real USD-in-ones figures as "₹ in Crore"
-# (its real ~$5B quarterly revenue rendered as "508" Crore, ~700x too
-# small). Unknown/missing currencies fall back to the INR/Crore scale —
-# the behavior every company had before this fix, not a new guess.
+# silently mislabeled INFY's real USD-in-ones figures as "₹ in Crore".
+#
+# Corrected 2026-09-27 (owner-directed re-audit): the fix above still had
+# the same class of defect it was meant to close — `(financial_currency or
+# "INR")` silently assumed INR whenever yfinance didn't return
+# `financialCurrency` at all, exactly the "unconfirmed currency treated as
+# INR" bug, just moved from "always" to "only when missing." A missing
+# currency is not evidence it's INR. `_statement_scale` now returns None
+# for a missing or unrecognized currency — callers must treat that as
+# "cannot safely scale/display this figure," not "assume INR." Division by
+# 1e7/1e6 is a magnitude scale (base units -> Crore/Million), never a
+# currency conversion — it must never be applied to a currency this app
+# hasn't actually confirmed.
 _STATEMENT_CURRENCY_SCALE = {
     "INR": (1e7, "₹", "Crore"),
     "USD": (1e6, "$", "Million"),
 }
 
 
-def _statement_scale(financial_currency: str | None) -> tuple[float, str, str]:
-    return _STATEMENT_CURRENCY_SCALE.get((financial_currency or "INR").upper(), _STATEMENT_CURRENCY_SCALE["INR"])
+def _statement_scale(financial_currency: str | None) -> tuple[float, str, str] | None:
+    """Returns (divisor, currency_prefix, unit_name) for a currency this
+    app has an explicit, confirmed scale for — or None when the currency
+    is missing or not one of the currencies above. None must never be
+    coerced to the INR scale by a caller; the honest response to an
+    unconfirmed currency is to withhold the scaled figure, not guess."""
+    if not financial_currency:
+        return None
+    return _STATEMENT_CURRENCY_SCALE.get(financial_currency.upper())
 
 
-def _extract_statement_rows(df, row_defs: list[tuple[str, list[str], str]], label_fn, currency_scale: float = 1e7) -> list[dict]:
+def _extract_statement_rows(df, row_defs: list[tuple[str, list[str], str]], label_fn, currency_scale: float | None = 1e7) -> list[dict]:
     """Real-data-only extraction: a period is included only if at least
     one of its real line items actually has a real value — never a row
     of all-null placeholders. Each individual field is null (not 0, not
@@ -241,7 +257,12 @@ def _extract_statement_rows(df, row_defs: list[tuple[str, list[str], str]], labe
     divides "currency"-unit fields down to a human-scale figure (Crore for
     INR, Million for USD — see _statement_scale()); it is NEVER a currency
     conversion, only a magnitude scale, so it must match the statement's
-    own real reporting currency or the displayed number is wrong."""
+    own real reporting currency or the displayed number is wrong.
+    `currency_scale=None` means the statement's real reporting currency is
+    unconfirmed — every "currency"-unit field is left null in that case
+    (same "honest gap over fabricated number" rule as a missing line item)
+    while percent/raw fields, which don't depend on currency, are
+    unaffected."""
     if df is None or df.empty:
         return []
     periods: list[dict] = []
@@ -260,12 +281,18 @@ def _extract_statement_rows(df, row_defs: list[tuple[str, list[str], str]], labe
                 if _is_real_number(raw):
                     f = float(raw)
                     if unit == "currency":
-                        val = round(f / currency_scale, 1)
+                        if currency_scale is not None:
+                            val = round(f / currency_scale, 1)
+                            any_real = True
+                        # currency_scale is None: leave val=None, do not
+                        # set any_real — an unconfirmed currency must not
+                        # silently produce a displayed number.
                     elif unit == "percent":
                         val = round(f * 100, 1)
+                        any_real = True
                     else:
                         val = round(f, 2)
-                    any_real = True
+                        any_real = True
             row_data[key] = val
         if any_real:
             periods.append(row_data)
@@ -443,9 +470,11 @@ async def get_stock_financials(symbol: str) -> dict:
         # report "INR"). Determines the scale divisor for every "currency"-
         # unit field below, plus the unit label the API returns so the
         # frontend never hardcodes "₹ in Crore" for a statement that isn't
-        # actually in INR.
-        financial_currency = info.get("financialCurrency") or "INR"
-        scale, symbol_prefix, unit_name = _statement_scale(financial_currency)
+        # actually in INR. No `or "INR"` fallback (2026-09-27 correction):
+        # a missing financialCurrency is not evidence it's INR.
+        financial_currency = info.get("financialCurrency")
+        scale_info = _statement_scale(financial_currency)
+        scale, symbol_prefix, unit_name = scale_info if scale_info else (None, None, None)
 
         income_a  = _extract_statement_rows(_safe("financials"),             _INCOME_STATEMENT_ROWS, _annual_label,    scale)
         income_q  = _extract_statement_rows(_safe("quarterly_financials"),   _INCOME_STATEMENT_ROWS, _quarterly_label, scale)
@@ -636,26 +665,43 @@ async def get_stock_detail(symbol: str) -> Optional[dict]:
             else:
                 mc = "—"
 
+            # Real per-statement reporting currency (2026-09-27 correction —
+            # see market_data.py's _STATEMENT_CURRENCY_SCALE/_statement_scale
+            # for the full history). t.financials/t.quarterly_financials
+            # report in `info.financialCurrency` (INR for most NSE
+            # companies, USD for an ADR-style filer like INFY) — NOT
+            # necessarily INR, and a missing/unrecognized currency must
+            # never be assumed to be INR. quarterly_revenue/net_income and
+            # annual_financials below are only ever populated when the
+            # currency is confirmed; scale_info is None otherwise, which
+            # correctly leaves them empty (the existing "no data" empty
+            # state) rather than showing a wrongly-scaled or wrongly-
+            # labeled number.
+            financial_currency = info.get("financialCurrency")
+            scale_info = _statement_scale(financial_currency)
+
             # Quarterly financials (4 most-recent quarters)
             quarterly_revenue: list    = []
             quarterly_net_income: list = []
-            try:
-                qf = t.quarterly_financials
-                if not qf.empty and len(qf.columns) >= 2:
-                    rev_row = next((qf.loc[k] for k in _REV_KEYS if k in qf.index), None)
-                    ni_row  = next((qf.loc[k] for k in _NI_KEYS  if k in qf.index), None)
-                    cols    = list(qf.columns)[:4]          # newest first
-                    for col in reversed(cols):              # oldest → newest for bar chart
-                        try:
-                            lbl = col.strftime("%b '%y") if hasattr(col, "strftime") else str(col)[:7]
-                        except Exception:
-                            lbl = str(col)[:7]
-                        rev = float(rev_row[col]) / 1e7 if rev_row is not None else 0.0
-                        ni  = float(ni_row[col])  / 1e7 if ni_row  is not None else 0.0
-                        quarterly_revenue.append({"label": lbl, "value": round(rev, 0)})
-                        quarterly_net_income.append({"label": lbl, "value": round(ni, 0)})
-            except Exception:
-                pass
+            if scale_info is not None:
+                fin_scale = scale_info[0]
+                try:
+                    qf = t.quarterly_financials
+                    if not qf.empty and len(qf.columns) >= 2:
+                        rev_row = next((qf.loc[k] for k in _REV_KEYS if k in qf.index), None)
+                        ni_row  = next((qf.loc[k] for k in _NI_KEYS  if k in qf.index), None)
+                        cols    = list(qf.columns)[:4]          # newest first
+                        for col in reversed(cols):              # oldest → newest for bar chart
+                            try:
+                                lbl = col.strftime("%b '%y") if hasattr(col, "strftime") else str(col)[:7]
+                            except Exception:
+                                lbl = str(col)[:7]
+                            rev = float(rev_row[col]) / fin_scale if rev_row is not None else 0.0
+                            ni  = float(ni_row[col])  / fin_scale if ni_row  is not None else 0.0
+                            quarterly_revenue.append({"label": lbl, "value": round(rev, 0)})
+                            quarterly_net_income.append({"label": lbl, "value": round(ni, 0)})
+                except Exception:
+                    pass
 
             open_price = info.get("open") or prev_close
             day_high   = info.get("dayHigh")  or price * 1.005
@@ -678,22 +724,23 @@ async def get_stock_detail(symbol: str) -> Optional[dict]:
 
             # ── Annual financials (4 most-recent fiscal years) ──────────
             annual_financials: list = []
-            try:
-                af = t.financials
-                if not af.empty:
-                    rev_row_a = next((af.loc[k] for k in _REV_KEYS if k in af.index), None)
-                    ni_row_a  = next((af.loc[k] for k in _NI_KEYS  if k in af.index), None)
-                    cols_a = list(af.columns)[:4]
-                    for col in reversed(cols_a):
-                        try:
-                            yr = col.strftime("FY%y") if hasattr(col, "strftime") else str(col)[:7]
-                        except Exception:
-                            yr = str(col)[:7]
-                        rev_v = round(float(rev_row_a[col]) / 1e7) if rev_row_a is not None else 0
-                        ni_v  = round(float(ni_row_a[col])  / 1e7) if ni_row_a  is not None else 0
-                        annual_financials.append({"year": yr, "revenue": rev_v, "net_income": ni_v})
-            except Exception:
-                pass
+            if scale_info is not None:
+                try:
+                    af = t.financials
+                    if not af.empty:
+                        rev_row_a = next((af.loc[k] for k in _REV_KEYS if k in af.index), None)
+                        ni_row_a  = next((af.loc[k] for k in _NI_KEYS  if k in af.index), None)
+                        cols_a = list(af.columns)[:4]
+                        for col in reversed(cols_a):
+                            try:
+                                yr = col.strftime("FY%y") if hasattr(col, "strftime") else str(col)[:7]
+                            except Exception:
+                                yr = str(col)[:7]
+                            rev_v = round(float(rev_row_a[col]) / fin_scale) if rev_row_a is not None else 0
+                            ni_v  = round(float(ni_row_a[col])  / fin_scale) if ni_row_a  is not None else 0
+                            annual_financials.append({"year": yr, "revenue": rev_v, "net_income": ni_v})
+                except Exception:
+                    pass
 
             # ── DNA scores derived from real financial metrics ──────────
             roe_val      = float(info.get("returnOnEquity") or 0) * 100
@@ -816,6 +863,15 @@ async def get_stock_detail(symbol: str) -> Optional[dict]:
                 "held_insiders":     _pct_str(info.get("heldPercentInsiders")),
                 "quarterly_revenue":     quarterly_revenue,
                 "quarterly_net_income":  quarterly_net_income,
+                # Real per-statement reporting currency for quarterly_revenue/
+                # quarterly_net_income/annual_financials above — None when
+                # unconfirmed (those three fields are then empty, never a
+                # silently-INR-assumed number). NOT the stock's own trading
+                # currency (market_cap/enterprise_value above are always
+                # real-time NSE INR regardless of this).
+                "statement_currency":        financial_currency if scale_info else None,
+                "statement_currency_prefix": scale_info[1] if scale_info else None,
+                "statement_currency_unit":   scale_info[2] if scale_info else None,
                 "enterprise_value":      enterprise_value,
                 "roce":                  roce,
                 "annual_financials":     annual_financials,

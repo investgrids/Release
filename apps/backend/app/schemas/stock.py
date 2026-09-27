@@ -65,6 +65,15 @@ class StockDetail(BaseModel):
     held_insiders: str = ""
     quarterly_revenue: List[dict] = []
     quarterly_net_income: List[dict] = []
+    # Real per-statement reporting currency for quarterly_revenue/
+    # quarterly_net_income/annual_financials (2026-09-27 currency-bug fix)
+    # — None when yfinance's own financialCurrency is missing/unrecognized,
+    # in which case those three fields are empty rather than a silently
+    # INR-assumed number. NOT the stock's own trading currency (market_cap/
+    # enterprise_value are always real-time NSE INR regardless of this).
+    statement_currency: Optional[str] = None
+    statement_currency_prefix: Optional[str] = None
+    statement_currency_unit: Optional[str] = None
     enterprise_value: str = ""
     roce: str = ""
     annual_financials: List[dict] = []

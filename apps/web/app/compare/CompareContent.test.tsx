@@ -34,6 +34,7 @@ function stockPayload(overrides: Record<string, unknown> = {}) {
     held_institutions: "40.0%", held_insiders: "5.0%",
     quarterly_revenue: [], quarterly_net_income: [],
     annual_financials: [{ year: "FY25", revenue: 123456, net_income: 22222 }],
+    statement_currency_prefix: "₹", statement_currency_unit: "Crore",
     events: [], peers: [],
     ...overrides,
   };
@@ -89,13 +90,17 @@ describe("CompareContent — one-score migration (2026-09-26 sweep)", () => {
     // DIFFERENT real years here specifically to prove a generic "Latest
     // FY" placeholder was replaced by each company's own real year, not
     // just relabeled.
-    expect(screen.getAllByText("FY26").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("FY25").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/FY26/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/FY25/).length).toBeGreaterThan(0);
 
-    // Honest period-label disclosure (2026-09-26, owner instruction:
-    // labels need verified definitions) — TTM figures are the data
-    // provider's own convention, not independently recomputed here.
-    expect(screen.getAllByText(/trailing-twelve-month calculation/).length).toBeGreaterThan(0);
+    // Honest period-label disclosure, corrected 2026-09-27: "(TTM)" is
+    // kept only for P/E/EPS (yfinance's own "trailing" field names confirm
+    // it) — ROE/margins/etc. are labeled "period unconfirmed" instead of
+    // an asserted-but-unverifiable "(TTM)".
+    expect(screen.getAllByText(/trailingPE/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/trailingEps/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ROE \(%, period unconfirmed\)/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/ROE \(%, TTM\)/)).not.toBeInTheDocument();
 
     // Real, single-metric Comparison Summary — never an overall "winner".
     expect(screen.getByText("Comparison Summary")).toBeInTheDocument();
@@ -166,5 +171,96 @@ describe("CompareContent — one-score migration (2026-09-26 sweep)", () => {
 
     fireEvent.click(screen.getByText("Real Directory Co"));
     await waitFor(() => expect(screen.getAllByText("Real Directory Co").length).toBeGreaterThan(0));
+  });
+});
+
+// Currency/unit correctness fix (2026-09-27, owner-directed re-audit).
+// Confirmed live before this fix: INFY reports financialCurrency="USD"
+// (real annual revenue $20.158B) while /api/stocks/{symbol} unconditionally
+// divided by 1e7 assuming INR — division by 1e7/1e6 is a magnitude scale
+// (base units -> Crore/Million), never a currency conversion, so applying
+// the INR divisor to a USD figure produced a wrong, mislabeled number.
+// Fixed at the source (market_data.py::get_stock_detail): revenue/profit
+// are now only ever populated when financialCurrency is confirmed, scaled
+// and labeled for that real currency; unconfirmed currency now withholds
+// the figure entirely rather than guessing INR.
+describe("CompareContent — currency/unit correctness (2026-09-27)", () => {
+  it("shows a real USD-reporting company's revenue in $ Million, never mislabeled as ₹ Crore", async () => {
+    searchParamValues = { a: "USDCO", b: "INRCO" };
+    mockFetch({
+      "/api/stocks/USDCO": stockPayload({
+        name: "USD Reporting Co",
+        annual_financials: [{ year: "FY26", revenue: 20158, net_income: 6800 }],
+        statement_currency_prefix: "$", statement_currency_unit: "Million",
+      }),
+      "/api/stocks/INRCO": stockPayload({ name: "INR Reporting Co" }),
+      "/api/companies/USDCO/marketripple-score": { resolved: false },
+      "/api/companies/INRCO/marketripple-score": { resolved: false },
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+    await waitFor(() => expect(screen.getAllByText("USD Reporting Co").length).toBeGreaterThan(0));
+
+    // The real USD figure (20,158 = $20.158B) must render as-is, labeled
+    // "$ Million" — never divided again or shown as if it were ₹ Crore.
+    expect(screen.getByText("20,158")).toBeInTheDocument();
+    expect(screen.getAllByText(/\$ Million/).length).toBeGreaterThan(0);
+    // The INR-reporting company's figure keeps its own real ₹ Crore label
+    // in the same table, side by side — confirms per-company (not
+    // per-page) currency labeling.
+    expect(screen.getAllByText(/₹ Crore/).length).toBeGreaterThan(0);
+  });
+
+  it("withholds revenue/profit rather than guessing INR when the reporting currency is unconfirmed", async () => {
+    searchParamValues = { a: "UNKNOWNCO", b: "INRCO" };
+    mockFetch({
+      "/api/stocks/UNKNOWNCO": stockPayload({
+        name: "Unknown Currency Co",
+        annual_financials: [],           // real backend behavior: empty when currency unconfirmed
+        statement_currency_prefix: null, statement_currency_unit: null,
+      }),
+      "/api/stocks/INRCO": stockPayload({ name: "INR Reporting Co" }),
+      "/api/companies/UNKNOWNCO/marketripple-score": { resolved: false },
+      "/api/companies/INRCO/marketripple-score": { resolved: false },
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+    await waitFor(() => expect(screen.getAllByText("Unknown Currency Co").length).toBeGreaterThan(0));
+
+    // Revenue/Net Profit for the unconfirmed-currency company show "—",
+    // never a number silently scaled as if it were INR.
+    const revenueRow = screen.getByText("Revenue").closest("tr");
+    expect(revenueRow).toBeTruthy();
+    expect(revenueRow!.textContent).toMatch(/—/);
+    // The INR-reporting company's real figure still renders normally in
+    // the same row — one company's unconfirmed currency doesn't blank the
+    // whole comparison.
+    expect(screen.getByText("1,23,456")).toBeInTheDocument();
+  });
+
+  it("handles missing financial values (empty annual_financials, blank ratio strings) without crashing or fabricating numbers", async () => {
+    searchParamValues = { a: "NODATACO", b: "INRCO" };
+    mockFetch({
+      "/api/stocks/NODATACO": stockPayload({
+        name: "No Data Co",
+        annual_financials: [], quarterly_revenue: [], quarterly_net_income: [],
+        roe: "—", roa: "—", roce: "—", eps: "—", pe: "—", pb: "—",
+        gross_margins: "—", operating_margins: "—", net_margins: "—",
+        statement_currency_prefix: null, statement_currency_unit: null,
+      }),
+      "/api/stocks/INRCO": stockPayload({ name: "INR Reporting Co" }),
+      "/api/companies/NODATACO/marketripple-score": { resolved: false },
+      "/api/companies/INRCO/marketripple-score": { resolved: false },
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+    await waitFor(() => expect(screen.getAllByText("No Data Co").length).toBeGreaterThan(0));
+
+    // No crash, no fabricated numbers — every missing metric renders the
+    // honest empty state.
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 });

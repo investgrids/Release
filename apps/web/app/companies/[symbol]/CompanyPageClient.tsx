@@ -49,6 +49,13 @@ export interface StockDetail  {
   analyst_count: number; held_institutions: string; held_insiders: string;
   quarterly_revenue: { label: string; value: number }[];
   quarterly_net_income: { label: string; value: number }[];
+  // Real per-statement reporting currency (2026-09-27 currency-bug fix) —
+  // null when yfinance's own financialCurrency is unconfirmed, in which
+  // case quarterly_revenue/quarterly_net_income/annual_financials are
+  // empty rather than a silently INR-assumed number. NOT the stock's own
+  // trading currency (market_cap/enterprise_value are always real-time
+  // NSE INR regardless of this).
+  statement_currency_prefix?: string | null; statement_currency_unit?: string | null;
   enterprise_value: string; roce: string;
   annual_financials: { year: string; revenue: number; net_income: number }[];
   dna_scores: Record<string, number>; gov_score: number; gov_level: string;
@@ -544,10 +551,25 @@ function StockDNA({ stock }: { stock: StockDetail }) {
 }
 
 // ── Section 5: Financial Highlights ──────────────────────────────────────────
+// Currency/unit bug fix (2026-09-27, owner-directed re-audit): this
+// component hardcoded "₹ in Crore"/" Cr" for every company, but
+// quarterly_revenue/quarterly_net_income/annual_financials are only ever
+// real ₹ Crore when the company's real reporting currency (yfinance's
+// financialCurrency) is confirmed INR — a USD-reporting company like INFY
+// would have these fields empty now (the backend withholds them rather
+// than guess), and the currency prefix/unit below reflect whatever real
+// currency WAS confirmed. Division by a magnitude scale (1e7/1e6) is never
+// a currency conversion, so this label must always match the real backend
+// value, never be assumed.
 function FinancialHighlights({ stock }: { stock: StockDetail }) {
-  const kpis: { label: string; value: number; suffix: string; color: string }[] = [
-    { label: "Revenue",   value: stock.quarterly_revenue.slice(-1)[0]?.value ?? 0,    suffix: " Cr", color: "text-sky-400" },
-    { label: "Net Profit",value: stock.quarterly_net_income.slice(-1)[0]?.value ?? 0, suffix: " Cr", color: "text-emerald-400" },
+  const curPrefix = stock.statement_currency_prefix;
+  const curUnit = stock.statement_currency_unit;
+  const curLabel = curPrefix && curUnit ? `${curPrefix} ${curUnit}` : null;
+  const latestQuarterlyRevenue = stock.quarterly_revenue.slice(-1)[0]?.value ?? null;
+  const latestQuarterlyProfit = stock.quarterly_net_income.slice(-1)[0]?.value ?? null;
+  const kpis: { label: string; value: number | null; suffix: string; color: string }[] = [
+    { label: "Revenue",   value: latestQuarterlyRevenue, suffix: curUnit ? ` ${curUnit}` : "", color: "text-sky-400" },
+    { label: "Net Profit",value: latestQuarterlyProfit,  suffix: curUnit ? ` ${curUnit}` : "", color: "text-emerald-400" },
     { label: "ROE",       value: n2(stock.roe),  suffix: "%",   color: "text-violet-400" },
     { label: "ROCE",      value: n2(stock.roce), suffix: "%",   color: "text-amber-400" },
     { label: "EPS",       value: n2(stock.eps),  suffix: "",    color: "text-teal-400" },
@@ -567,7 +589,7 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
           <div key={k.label} className="text-center">
             <p className="text-[9px] uppercase tracking-wide text-text-muted">{k.label}</p>
             <p className={`mt-0.5 text-[16px] font-bold leading-none ${k.color}`}>
-              {k.value.toLocaleString("en-IN")}{k.suffix}
+              {k.value == null ? "—" : `${k.value.toLocaleString("en-IN")}${k.suffix}`}
             </p>
           </div>
         ))}
@@ -579,7 +601,7 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
           <table className="w-full text-[12px]">
             <thead>
               <tr className="border-b border-surface-border/6">
-                <th className="pb-2 text-left text-[10px] text-text-muted font-medium">₹ in Crore</th>
+                <th className="pb-2 text-left text-[10px] text-text-muted font-medium">{curLabel ?? "Currency unconfirmed"}</th>
                 {stock.annual_financials.map(f => <th key={f.year} className="pb-2 text-right text-[10px] text-text-muted font-medium">{f.year}</th>)}
                 <th className="pb-2 text-right text-[10px] text-violet-400 font-medium">TTM</th>
               </tr>
@@ -595,20 +617,20 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
                     client), causing React to discard and re-render this whole
                     tree. Explicit locale makes both passes agree. */}
                 {stock.annual_financials.map(f => <td key={f.year} className="py-2 text-right font-semibold text-text-primary">{f.revenue.toLocaleString("en-IN")}</td>)}
-                <td className="py-2 text-right font-bold text-violet-600 dark:text-violet-300">{stock.quarterly_revenue.reduce((a, b) => a + b.value, 0).toLocaleString("en-IN")}</td>
+                <td className="py-2 text-right font-bold text-violet-600 dark:text-violet-300">{stock.quarterly_revenue.length > 0 ? stock.quarterly_revenue.reduce((a, b) => a + b.value, 0).toLocaleString("en-IN") : "—"}</td>
               </tr>
               <tr>
                 <td className="py-2 text-text-secondary">Net Profit</td>
                 {stock.annual_financials.map(f => <td key={f.year} className={`py-2 text-right font-semibold ${f.net_income >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>{f.net_income.toLocaleString("en-IN")}</td>)}
-                <td className="py-2 text-right font-bold text-emerald-600 dark:text-emerald-300">{stock.quarterly_net_income.reduce((a, b) => a + b.value, 0).toLocaleString("en-IN")}</td>
+                <td className="py-2 text-right font-bold text-emerald-600 dark:text-emerald-300">{stock.quarterly_net_income.length > 0 ? stock.quarterly_net_income.reduce((a, b) => a + b.value, 0).toLocaleString("en-IN") : "—"}</td>
               </tr>
               <tr>
-                <td className="py-2 text-text-secondary">ROE (%)</td>
+                <td className="py-2 text-text-secondary">ROE (%, period unconfirmed)</td>
                 {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-text-primary">{i === stock.annual_financials.length - 1 ? stock.roe : "—"}</td>)}
                 <td className="py-2 text-right text-violet-600 dark:text-violet-300">{stock.roe}</td>
               </tr>
               <tr>
-                <td className="py-2 text-text-secondary">EPS (₹)</td>
+                <td className="py-2 text-text-secondary">EPS{curPrefix ? ` (${curPrefix}, TTM)` : ""}</td>
                 {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-text-primary">{i === stock.annual_financials.length - 1 ? stock.eps : "—"}</td>)}
                 <td className="py-2 text-right text-violet-600 dark:text-violet-300">{stock.eps}</td>
               </tr>
@@ -1160,7 +1182,8 @@ function HistoricalPerformance({ stock }: { stock: StockDetail }) {
         ))}
       </div>
       <div className="h-[180px]">
-        <HistoricalPerformanceBarChart data={data} activeMetric={activeMetric} />
+        <HistoricalPerformanceBarChart data={data} activeMetric={activeMetric}
+          currencyPrefix={stock.statement_currency_prefix} currencyUnit={stock.statement_currency_unit} />
       </div>
     </SectionCard>
   );
