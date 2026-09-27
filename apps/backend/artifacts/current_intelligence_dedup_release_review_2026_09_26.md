@@ -2,22 +2,21 @@
 
 **Branch:** `marketripple-score/current-intelligence-dedup` (off `origin/main` @ `c84c28a`)
 **Status:** Local only. Not pushed, not deployed. Public activation: 0%.
-**Revision 6** (2026-09-26, later same day) — Revision 5 closed the
-Compare page's fabricated "AI Score"/"AI winner." This revision (section
-13) verifies the period/unit labels that fix introduced against their
-real source contract rather than assuming they were correct: confirms
-what "TTM" actually means for the ROE/margin fields (a data-provider
-convention, not something this app recomputes), replaces the generic
-"Latest FY" placeholder with each company's own real fiscal year (which
-can genuinely differ between compared companies), and surfaces one new,
-separate, NOT-yet-fixed currency/unit bug found while checking — the same
-INR-assumed-unconditionally pattern already fixed once for a sibling
-endpoint. The owner also confirmed the fixture-based test strategy used
-throughout this package (sections 9, 12) is legitimate, complementary
-coverage alongside the live browser checks, not a compromise — noted
-explicitly at the end of section 12.
+**Revision 7** (2026-09-27) — Revision 6 verified the period/unit labels
+and flagged the `get_stock_detail()` currency bug as found-but-not-yet-
+fixed. This revision (section 14) fixes it at the source: currency-aware
+scaling reused from the sibling `/financials` fix, `financialCurrency`
+read before any conversion, every real consumer (Compare page, Company
+page) verified and corrected, INR/USD/missing-currency/missing-value
+cases tested, and INFY browser-checked alongside a real INR reporter.
+Also corrects the sibling `get_stock_financials()`'s own latent version of
+the same defect (a silent INR default when currency was missing), and
+downgrades "(TTM)" to "(period unconfirmed)" everywhere the label wasn't
+actually backed by the provider's own field definition. The magnitude of
+the originally-cited "~700x" error is substantiated with real numbers,
+not repeated as an unverified figure.
 
-## 1. Commits (21 total, chronological)
+## 1. Commits (22 total, chronological)
 
 | # | Hash | Summary |
 |---|---|---|
@@ -42,6 +41,7 @@ explicitly at the end of section 12.
 | 19 | `0accb62` | Opportunities tab: rename/strip `OpportunityRadarSection` the same way, closing the sweep |
 | 20 | `d18133c` | Compare page: replace the fabricated AI Score/winner with the real MarketRipple Score; real directory search |
 | 21 | `ab070d9` | Verify and correct financial period/unit labels against the source contract; real per-company fiscal year |
+| 22 | `ba975be` | Correct currency/unit handling for revenue/profit at the source; fix the sibling's latent silent-INR default too |
 
 **Grouped diff since revision 1** (+7 files touched, +9 new tests):
 - `orchestration.py`: `_process_cluster()` now returns early on any matched public row — no score write, no linkage, no narrative regen, no slug touch.
@@ -189,8 +189,31 @@ Per the owner's instruction, searched the whole Company page and every ranking s
 
 `tsc --noEmit`: no new errors; three pre-existing errors remain (unrelated, unchanged). `vitest`: 394/394 pass, confirmed via a clean isolated run (a same-round full-suite run showed a flaky, CPU-contention timeout in an unrelated test — WeekendHomePage — while local dev servers were also running for manual preview; a different test flaked on a subsequent run, then a fully clean 394/394 run confirmed contention, not a regression).
 
+## 14. Currency/unit correctness — fixed at the source (closes section 13's flagged finding)
+
+**Owner decision:** fix now, not defer — "a shared endpoint is a reason to check its consumers, not defer a confirmed correctness defect."
+
+**Fix, per the owner's five-point instruction:**
+1. *Inspect the sibling `/financials` fix and reuse its logic.* `_STATEMENT_CURRENCY_SCALE`/`_statement_scale()` (the sibling's own currency-aware scaling, `market_data.py`) is now the single shared implementation both `get_stock_financials()` and `get_stock_detail()` call — no parallel logic.
+2. *Read `financialCurrency` before converting; division by 1e7 is not a currency conversion.* `get_stock_detail()` now reads `info.get("financialCurrency")` and only scales/populates `annual_financials`/`quarterly_revenue`/`quarterly_net_income` when that currency is confirmed (INR -> ÷1e7, USD -> ÷1e6) — never applies the INR divisor to a non-INR statement.
+3. *Unknown currency must never default silently to INR; display the original currency.* `_statement_scale()` now returns `None` for a missing or unrecognized currency (previously it silently returned the INR scale in both this function AND, found during this fix, the ALREADY-SHIPPED sibling `get_stock_financials()` — its own `(financial_currency or "INR")` fallback was the identical defect, just triggered only when currency was missing rather than always; corrected in the same commit rather than left in place). `_extract_statement_rows(currency_scale=None)` nulls every currency-typed field rather than guessing; real confirmed currencies (INR, USD) display in their own real currency, not converted to INR via an exchange rate.
+4. *Verify every real consumer of `/api/stocks/{symbol}`.* Traced and fixed both: `CompareContent.tsx` (Compare page, already the primary trigger) and `CompanyPageClient.tsx`'s `FinancialHighlights`/`HistoricalPerformanceBarChart` (Company page, Financials tab) — a second real consumer of the exact same hardcoded "₹ in Crore"/" Cr" assumption, found by grepping for `annual_financials`/`quarterly_revenue` usage across the frontend rather than assuming Compare was the only caller.
+5. *Test INR, USD, missing currency, missing values; browser-check INFY alongside an INR reporter.* Done — see Verification below.
+
+**Magnitude substantiation (owner instruction — the prior report's "~700x" was not independently established):** live-verified today: INFY's real latest quarterly revenue is $5,082 Million; the old code's unconditional ÷1e7 would show "508" mislabeled "₹ Cr" — this reproduces the sibling fix's original code-comment example ("508 Crore" / "~$5B", "~700x too small") almost exactly for the quarterly figure. For the latest ANNUAL figure, the real numbers are: raw revenue $20,158,000,000 USD; old buggy transform (÷1e7, mislabeled "₹ Cr") = "2,016"; correct transform (÷1e6, labeled "$ Million") = "20,158" — a ~10x raw-number discrepancy, compounded by a full currency mismatch (USD vs assumed INR), not a clean "~700x" multiplier. Conclusion reported honestly: the currency mismatch itself is fully established and fixed; "~700x" is not a stable constant reproducible from today's live data in every case — it depends on which period is checked.
+
+**"(TTM)" label correction (owner instruction: a disclaimer doesn't validate the label — keep it only where the provider's field definition supports it):** re-examined which fields have real provider confirmation. Only `pe` (yfinance's own field name `trailingPE`) and `eps` (`trailingEps`) carry "trailing" in the provider's own naming — genuine confirmation. ROE/ROA/ROCE/margins/Free Cash Flow have no such confirmation anywhere (not in this repo's code, not in yfinance's own field names for them) — relabeled from "(TTM)" to "(period unconfirmed)" on both the Compare page and the Company page's Financial Highlights table. `TtmNote`'s disclosure text rewritten to state this distinction plainly rather than a blanket "TTM is the provider's convention" claim.
+
+**Regression tests:**
+- Backend (`test_market_data_financials.py`, 11 new cases): `_statement_scale` returns the correct scale for INR/USD (case-insensitive), `None` for missing or unrecognized currencies (EUR/GBP/JPY tested) — never the old INR default; `_extract_statement_rows` correctly divides by 1e7 vs 1e6, nulls currency fields while keeping percent/raw fields when currency is unconfirmed, and correctly drops an all-currency-typed period (Balance Sheet/Cash Flow shape) when unconfirmed. All pass.
+- Frontend (`CompareContent.test.tsx`, 3 new cases): a real USD-reporting company renders in $ Million beside a real INR reporter in ₹ Crore in the same table, never cross-mislabeled; an unconfirmed-currency company shows "—" without blanking the other company's real figure; missing financial values (empty arrays, "—" ratio strings) render every honest empty state without crashing. All pass.
+- Backend full suite: 28 failed / 2139 passed — the same 28 pre-existing failures already tracked in this package's authoritative baseline (live-network-dependent tests: AI-search-live, comparison-publisher-v3-live, macro-rates-live, quant-leakage/membership, etc.); none touch `market_data.py` or its consumers.
+- `tsc --noEmit`: no new errors; three pre-existing errors remain (unrelated, unchanged). `vitest`: 397/397 pass (6 new).
+
+**Real hydrated-browser verification (Playwright, 3 new tests across 2 new spec files):** confirmed live via curl immediately before writing each assertion — INFY: `statement_currency_prefix="$"`, `unit="Million"`, FY26 revenue=20,158; TCS: `prefix="₹"`, `unit="Crore"`, FY26 revenue=267,021. Compare page (`e2e/compare-currency-fix.spec.ts`) shows both real, correctly-labeled figures side by side, and asserts the old bug's exact wrong output ("2,016") is absent. Company page's Financials tab (`e2e/company-page-currency-fix.spec.ts`) verified independently for both INFY and TCS. All 8 Playwright tests (this round's 3 plus the existing one-score suite's 5, one assertion in that suite updated for the corrected TTM-disclosure copy) pass together against real local servers. Both dev servers stopped after the run.
+
 ## Held per instruction
 
-Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off. Production snapshot history and coverage remain unknown — no new read attempt was made this round. Every one-score finding raised across the Company page, Company Rankings, and the Compare page is now closed, with period/unit labels verified against their real source contract. Two loose ends remain, both explicitly flagged rather than fixed: the dead, unreachable `/best-stocks` hub page code (section 11), and the `get_stock_detail()` currency/unit bug for non-INR-reporting companies (section 13) — a real data-correctness issue, but outside this migration's boundary and requiring its own authorized backend change.
+Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off. Production snapshot history and coverage remain unknown — no new read attempt was made this round. Every one-score finding raised across the Company page, Company Rankings, and the Compare page is now closed, with period/unit labels verified against their real source contract and the currency/unit correctness bug fixed at the source (not deferred). One loose end remains, explicitly flagged rather than fixed: the dead, unreachable `/best-stocks` hub page code (section 11) — it serves nothing live, so it was left for a future cleanup pass rather than folded into this fix.
 
 Lineage backfill execution and public activation (`publishable` flip) remain held pending review sign-off. Production snapshot history and coverage remain unknown — no new read attempt was made this round. Every one-score finding raised across the Company page, Company Rankings, and the Compare page is now closed; the only remaining loose end from the sweep (section 11) is the dead, unreachable `/best-stocks` hub page code, flagged but not fixed as it serves nothing live.
