@@ -57,13 +57,13 @@ async def _seed_entity(db, symbol: str, entity_id: str, old_symbol: str | None =
 
 def _snapshot(symbol, entity_id, *, score, financial_strength, coverage_pct, fin_metrics_used,
               financial_data_as_of, block_reasons, publishable=False,
-              pillar_coverage_status="complete", pillar_coverage_message="Complete coverage — 4 of 4 pillars"):
+              pillar_coverage_status="complete", pillar_coverage_message="Complete coverage — 3 of 3 required pillars"):
     now = datetime.now(timezone.utc)
     return MarketRippleScoreSnapshot(
         entity_id=entity_id, symbol=symbol, score=score, rating="Positive",
         financial_strength=financial_strength, valuation=30.8, market_behaviour=84.3, current_intelligence=56.4,
         coverage_pct=coverage_pct, financial_metrics_used_count=fin_metrics_used, financial_metrics_total_count=7,
-        methodology_version="BANKING_V1", peer_universe=[], peer_universe_count=27,
+        methodology_version="MARKETRIPPLE_SCORE_V1", peer_universe=[], peer_universe_count=27,
         calculated_at=now, financial_data_as_of=financial_data_as_of,
         publishable=publishable, publication_block_reason=None if publishable else "S2 phase lock",
         publication_policy_version="BANKING_V1_P1", publication_block_reasons=block_reasons,
@@ -234,14 +234,14 @@ async def test_partial_coverage_status_surfaces_when_publishable():
         db.add(_snapshot(symbol, entity_id, score=None, financial_strength=68.7, coverage_pct=60.0,
                           fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
                           publishable=True, pillar_coverage_status="partial",
-                          pillar_coverage_message="Partial coverage — 2 of 4 pillars"))
+                          pillar_coverage_message="Partial coverage — 2 of 3 required pillars"))
         await db.commit()
 
     try:
         async with AsyncSessionLocal() as db:
             result = await get_marketripple_score_projection(db, symbol)
         assert result["pillar_coverage_status"] == "partial"
-        assert result["pillar_coverage_message"] == "Partial coverage — 2 of 4 pillars"
+        assert result["pillar_coverage_message"] == "Partial coverage — 2 of 3 required pillars"
     finally:
         await _cleanup([symbol], [entity_id])
 
@@ -257,7 +257,7 @@ async def test_pillar_coverage_status_hidden_when_not_publishable():
         db.add(_snapshot(symbol, entity_id, score=None, financial_strength=68.7, coverage_pct=60.0,
                           fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
                           publishable=False, pillar_coverage_status="partial",
-                          pillar_coverage_message="Partial coverage — 2 of 4 pillars"))
+                          pillar_coverage_message="Partial coverage — 2 of 3 required pillars"))
         await db.commit()
 
     try:

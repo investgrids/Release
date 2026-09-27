@@ -84,12 +84,12 @@ async def compute_and_persist_snapshot(
     backfill share one sector's prefetched peer/benchmark data across many
     persisted snapshots instead of each one re-fetching independently."""
     from app.services.company_identity.qualification import resolve_entity_by_any_symbol
-    from app.services.marketripple_score.contracts import NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
     from app.services.marketripple_score.eligibility import (
         BANKING_V1_P1, NONBANK_INDUSTRIAL_V2_P1, evaluate_eligibility,
     )
     from app.services.marketripple_score.financial_strength import REAL_BANKING_METRICS_TOTAL
     from app.services.marketripple_score.financial_strength_industrial import REAL_INDUSTRIAL_METRICS_TOTAL
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
 
     symbol = symbol.upper()
     result = await compute_marketripple_score(db, symbol, peer_group=peer_group, industrial_cache=industrial_cache)
@@ -103,11 +103,18 @@ async def compute_and_persist_snapshot(
 
     # S5-B — direct, real metric count (never reverse-derived from a
     # coverage percentage), and the real per-methodology eligibility
-    # verdict. Banking's own branch is completely unchanged; NS1 (owner
-    # instruction, 2026-09-27) adds the equivalent for the Non-Banking
-    # Industrial methodology, never mixing the two policies/metric totals.
-    is_banking = result.methodology_version == "BANKING_V1"
-    is_industrial = result.methodology_version == NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
+    # verdict. The headline SCORE now shares one function/tag across
+    # sectors (engine.py's MARKETRIPPLE_SCORE_METHODOLOGY_VERSION), but
+    # ELIGIBILITY still keys off which real metric registry (7 Banking
+    # metrics vs. 6 Industrial metrics) actually produced this company's
+    # Financial Strength pillar — a genuinely different denominator per
+    # sector, not a leftover from the old two-methodology split. Peer
+    # universe membership is the real, authoritative way to tell them
+    # apart (methodology_version is now identical for both).
+    from app.services.aipe.company_score_engine import _sector_for
+    sector = _sector_for(symbol)
+    is_banking = sector == "Banking"
+    is_industrial = sector in NONBANK_INDUSTRIAL_SECTORS
 
     if is_banking:
         financial_data_as_of = await _real_financial_data_as_of(db, symbol)
@@ -189,27 +196,26 @@ async def get_latest_snapshot(db: AsyncSession, symbol: str) -> MarketRippleScor
     all three read through this same function) should use — no live
     computation, no external network calls.
 
-    Filtered to CURRENT_METHODOLOGY_VERSIONS only (owner instruction,
-    2026-09-27, after NONBANK_INDUSTRIAL_V1 was superseded by V2 same day):
-    "latest by calculated_at" alone is not a safe proxy for "current
-    methodology" — a stale-tagged row could otherwise still be selected if
-    it ever happened to carry a newer timestamp than expected (a delayed
-    batch, clock skew, a partially-completed recompute). Real superseded
-    history (e.g. NONBANK_INDUSTRIAL_V1 rows) is never deleted and stays
-    queryable directly, it simply can never be chosen as "the" current
-    result again — old and new methodology calculations can't be mistaken
-    for each other by construction, not by convention."""
-    from app.services.marketripple_score.contracts import (
-        BANKING_METHODOLOGY_VERSION, NONBANK_INDUSTRIAL_METHODOLOGY_VERSION,
-    )
+    Filtered to MARKETRIPPLE_SCORE_METHODOLOGY_VERSION only (owner
+    instruction, 2026-09-27, "one score calculation" unification — the
+    prior filter accepted either of two separate tags, BANKING_V1 and
+    NONBANK_INDUSTRIAL_V2; both are now retired and superseded by the one
+    shared tag). "Latest by calculated_at" alone is not a safe proxy for
+    "current methodology" — a stale-tagged row could otherwise still be
+    selected if it ever happened to carry a newer timestamp than expected
+    (a delayed batch, clock skew, a partially-completed recompute). Real
+    superseded history (BANKING_V1/NONBANK_INDUSTRIAL_V1/V2 rows) is never
+    deleted and stays queryable directly, it simply can never be chosen as
+    "the" current result again — old and new methodology calculations
+    can't be mistaken for each other by construction, not by convention."""
+    from app.services.marketripple_score.contracts import MARKETRIPPLE_SCORE_METHODOLOGY_VERSION
 
     symbol = symbol.upper()
-    current_versions = (BANKING_METHODOLOGY_VERSION, NONBANK_INDUSTRIAL_METHODOLOGY_VERSION)
     return (await db.execute(
         select(MarketRippleScoreSnapshot)
         .where(
             MarketRippleScoreSnapshot.symbol == symbol,
-            MarketRippleScoreSnapshot.methodology_version.in_(current_versions),
+            MarketRippleScoreSnapshot.methodology_version == MARKETRIPPLE_SCORE_METHODOLOGY_VERSION,
         )
         .order_by(MarketRippleScoreSnapshot.calculated_at.desc())
         .limit(1)

@@ -866,6 +866,71 @@ async def _get_qualified_master_entries(db: AsyncSession) -> list[dict]:
     return entries
 
 
+_SUPERSEDED_SYMBOLS_CACHE: dict = {"data": None, "at": 0.0}
+_SUPERSEDED_SYMBOLS_TTL_S = 600.0
+
+
+async def _superseded_symbols(db: AsyncSession) -> set[str]:
+    """Real, DB-derived set of symbols that are a known-renamed OLD symbol
+    for a company whose CURRENT canonical symbol is a different string
+    (e.g. TATAMOTORS -> TMPV, real NSE rename 2025-10-24) -- used only to
+    avoid showing the same real company twice in a full-directory listing
+    under both its old and current symbol (owner instruction, 2026-09-27:
+    "resolve the legacy TATAMOTORS/TMPV identity issue so it doesn't
+    create a misleading duplicate"). Never used for identity RESOLUTION
+    itself -- resolve_entity_by_any_symbol() already correctly resolves
+    either symbol to the same real CompanyEntity; this is purely a
+    directory/ranking DISPLAY dedup concern, and general (derived from
+    every real CompanyAlias old_symbol row, not hardcoded to this one
+    company), so it also covers any future real rename."""
+    now = time.monotonic()
+    if _SUPERSEDED_SYMBOLS_CACHE["data"] is not None and now - _SUPERSEDED_SYMBOLS_CACHE["at"] < _SUPERSEDED_SYMBOLS_TTL_S:
+        return _SUPERSEDED_SYMBOLS_CACHE["data"]
+
+    from sqlalchemy import select as _select
+    from app.db.models.company_entity import CompanyAlias, CompanyEntity
+
+    rows = (await db.execute(
+        _select(CompanyAlias.alias_value, CompanyEntity.symbol)
+        .join(CompanyEntity, CompanyEntity.entity_id == CompanyAlias.entity_id)
+        .where(CompanyAlias.alias_type == "old_symbol")
+    )).all()
+    result = {old for old, current in rows if old != current}
+    _SUPERSEDED_SYMBOLS_CACHE["data"] = result
+    _SUPERSEDED_SYMBOLS_CACHE["at"] = now
+    return result
+
+
+_FULL_DIRECTORY_CACHE: dict = {"data": None, "at": 0.0}
+_FULL_DIRECTORY_TTL_S = 600.0
+
+
+async def get_full_company_directory(db: AsyncSession) -> list[dict]:
+    """The real, full Companies directory (owner instruction, 2026-09-27,
+    "Company Rankings and UI": "show every company from the real
+    Companies directory") -- the static _NSE_UNIVERSE plus C4 qualified
+    Company Master entries, same real sources list_companies() itself
+    reads, deduped for a known symbol rename (see _superseded_symbols) so
+    a renamed company (e.g. TATAMOTORS -> TMPV) appears exactly once.
+    Cached the same way _get_qualified_master_entries already is -- this
+    is a real directory read, not a live computation, and Rankings reads
+    it for every one of its paginated pages."""
+    now = time.monotonic()
+    if _FULL_DIRECTORY_CACHE["data"] is not None and now - _FULL_DIRECTORY_CACHE["at"] < _FULL_DIRECTORY_TTL_S:
+        return _FULL_DIRECTORY_CACHE["data"]
+
+    entries = list(_SEARCH_INDEX) + await _get_qualified_master_entries(db)
+    superseded = await _superseded_symbols(db)
+    directory = [
+        {"symbol": e["symbol"], "name": e["name"], "sector": e["sector"]}
+        for e in entries if e["symbol"] not in superseded
+    ]
+    directory.sort(key=lambda r: r["name"])
+    _FULL_DIRECTORY_CACHE["data"] = directory
+    _FULL_DIRECTORY_CACHE["at"] = now
+    return directory
+
+
 def _filter_and_rank_extended(candidates: list[dict], q: str, sector: str, cap: str) -> list[dict]:
     """Same scoring/filtering as _filter_and_rank, over an arbitrary
     candidate list -- reused for the qualified-Master extension so the
@@ -958,8 +1023,7 @@ async def get_company_marketripple_score_local_preview(symbol: str, db: AsyncSes
         raise HTTPException(status_code=404, detail="Not found")
 
     from app.services.company_identity.qualification import resolve_entity_by_any_symbol
-    from app.services.marketripple_score.contracts import NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
-    from app.services.marketripple_score.engine import CANDIDATE_WEIGHTS, NONBANK_INDUSTRIAL_V2_WEIGHTS
+    from app.services.marketripple_score.engine import HEADLINE_WEIGHTS
     from app.services.marketripple_score.snapshot import get_latest_snapshot
 
     entity = await resolve_entity_by_any_symbol(db, symbol)
@@ -978,30 +1042,16 @@ async def get_company_marketripple_score_local_preview(symbol: str, db: AsyncSes
         "market_behaviour": snap.market_behaviour, "current_intelligence": snap.current_intelligence,
     }
 
-    # Weights must be looked up by the snapshot's OWN real methodology, not
-    # assumed to be Banking's — a real bug this endpoint had until owner
-    # instruction 2026-09-27 introduced NONBANK_INDUSTRIAL_V2: it always
-    # hardcoded CANDIDATE_WEIGHTS (Banking's 4-pillar dynamic-renormalization
-    # rule), which would have wrongly shown current_intelligence as
-    # carrying some effective weight for non-bank companies whenever its
-    # score happened to be present -- V2's real rule never weights
-    # current_intelligence at all, present or not.
-    if snap.methodology_version == NONBANK_INDUSTRIAL_METHODOLOGY_VERSION:
-        # V2: all-3-required-or-none for the headline number -- no partial
-        # renormalized blend ever contributes to `score`, so the fixed
-        # weights apply exactly as declared whenever a real score exists,
-        # and current_intelligence is never assigned an effective weight.
-        effective_weights = {
-            name: (NONBANK_INDUSTRIAL_V2_WEIGHTS.get(name) if snap.score is not None else None)
-            for name in pillar_scores
-        }
-    else:
-        candidate_weights = CANDIDATE_WEIGHTS
-        used_weight = sum(candidate_weights[name] for name, score in pillar_scores.items() if score is not None)
-        effective_weights = {
-            name: (round(candidate_weights[name] / used_weight, 4) if score is not None and used_weight else None)
-            for name, score in pillar_scores.items()
-        }
+    # One shared headline rule for every methodology now (owner instruction,
+    # 2026-09-27): all-3-required-or-none for the headline number — no
+    # partial renormalized blend ever contributes to `score`, so the fixed
+    # weights apply exactly as declared whenever a real score exists, and
+    # current_intelligence is never assigned an effective weight, present
+    # or not.
+    effective_weights = {
+        name: (HEADLINE_WEIGHTS.get(name) if snap.score is not None else None)
+        for name in pillar_scores
+    }
 
     return {
         "resolved": True, "snapshot": True, "local_dev_preview": True,
@@ -1018,10 +1068,7 @@ async def get_company_marketripple_score_local_preview(symbol: str, db: AsyncSes
         "score": snap.score,
         "rating": snap.rating,
         "pillars": pillar_scores,
-        "candidate_weights": (
-            NONBANK_INDUSTRIAL_V2_WEIGHTS if snap.methodology_version == NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
-            else CANDIDATE_WEIGHTS
-        ),
+        "candidate_weights": HEADLINE_WEIGHTS,
         "effective_weights": effective_weights,
         "evidence_coverage_pct": snap.coverage_pct,
         "financial_coverage_pct": snap.financial_coverage_pct,
@@ -1117,6 +1164,14 @@ async def list_companies(
     matches = _filter_and_rank(q, sector, cap)
     matches += _filter_and_rank_extended(await _get_qualified_master_entries(db), q, sector, cap)
 
+    # Real-rename dedup (owner instruction, 2026-09-27) -- a company whose
+    # symbol changed (e.g. TATAMOTORS -> TMPV) must appear exactly once in
+    # this directory, under its current symbol, never as two separate
+    # rows.
+    superseded = await _superseded_symbols(db)
+    if superseded:
+        matches = [m for m in matches if m["symbol"] not in superseded]
+
     # Secondary sort (primary sort is always relevance score for queries,
     # then by the selected sort column). Always re-sorted explicitly here
     # (rather than relying on _filter_and_rank's own ordering, as the
@@ -1160,11 +1215,20 @@ async def list_companies(
 
         from app.core.config import settings
         from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
+        from app.services.marketripple_score.contracts import MARKETRIPPLE_SCORE_METHODOLOGY_VERSION
 
         page_symbols = [co["symbol"] for co in page_items]
+        # Filtered to the one current methodology tag, same guarantee as
+        # get_latest_snapshot() (owner instruction, 2026-09-27) -- this
+        # batched query must never select a superseded-tagged row (real
+        # history under BANKING_V1/NONBANK_INDUSTRIAL_V1/V2) just because
+        # it happens to carry a newer timestamp than expected.
         snap_rows = (await db.execute(
             select(MarketRippleScoreSnapshot)
-            .where(MarketRippleScoreSnapshot.symbol.in_(page_symbols))
+            .where(
+                MarketRippleScoreSnapshot.symbol.in_(page_symbols),
+                MarketRippleScoreSnapshot.methodology_version == MARKETRIPPLE_SCORE_METHODOLOGY_VERSION,
+            )
             .order_by(MarketRippleScoreSnapshot.calculated_at.desc())
         )).scalars().all()
         latest_by_symbol: dict[str, MarketRippleScoreSnapshot] = {}

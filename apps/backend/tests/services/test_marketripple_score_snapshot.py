@@ -91,12 +91,12 @@ async def test_get_latest_snapshot_picks_most_recent_by_calculated_at():
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as db:
         db.add(MarketRippleScoreSnapshot(
-            symbol=symbol, score=50.0, coverage_pct=80.0, methodology_version="BANKING_V1",
+            symbol=symbol, score=50.0, coverage_pct=80.0, methodology_version="MARKETRIPPLE_SCORE_V1",
             peer_universe=[], peer_universe_count=0, calculated_at=now - timedelta(days=1),
             publishable=False,
         ))
         db.add(MarketRippleScoreSnapshot(
-            symbol=symbol, score=55.5, coverage_pct=83.3, methodology_version="BANKING_V1",
+            symbol=symbol, score=55.5, coverage_pct=83.3, methodology_version="MARKETRIPPLE_SCORE_V1",
             peer_universe=[], peer_universe_count=0, calculated_at=now,
             publishable=False,
         ))
@@ -124,24 +124,25 @@ async def test_get_latest_snapshot_never_selects_a_superseded_methodology_even_w
     """The real coordination guarantee owner instruction 2026-09-27 asked
     for: "select only snapshots from the current methodology... old and
     new calculations cannot be mistaken for each other." A stale-tagged
-    row (e.g. the real, retired NONBANK_INDUSTRIAL_V1) must never be
-    selected as "latest," even in the adversarial case where it happens to
-    carry a NEWER calculated_at than the real current-methodology row --
-    exactly the scenario a delayed batch or clock skew could produce.
-    "Latest by timestamp" alone was not a safe proxy for "current
-    methodology" before this fix."""
+    row (e.g. the real, retired NONBANK_INDUSTRIAL_V2, superseded the same
+    day by the "one score calculation" unification's MARKETRIPPLE_SCORE_V1)
+    must never be selected as "latest," even in the adversarial case where
+    it happens to carry a NEWER calculated_at than the real
+    current-methodology row -- exactly the scenario a delayed batch or
+    clock skew could produce. "Latest by timestamp" alone was not a safe
+    proxy for "current methodology" before this fix."""
     symbol = f"TESTSNAP{_tag()}"[:20].upper()
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as db:
         db.add(MarketRippleScoreSnapshot(
-            symbol=symbol, score=60.0, coverage_pct=90.0, methodology_version="NONBANK_INDUSTRIAL_V2",
+            symbol=symbol, score=60.0, coverage_pct=90.0, methodology_version="MARKETRIPPLE_SCORE_V1",
             peer_universe=[], peer_universe_count=33, calculated_at=now - timedelta(hours=1),
             publishable=False,
         ))
         # Adversarial case: a real, superseded methodology tag with a
         # LATER timestamp than the current-methodology row above.
         db.add(MarketRippleScoreSnapshot(
-            symbol=symbol, score=45.0, coverage_pct=70.0, methodology_version="NONBANK_INDUSTRIAL_V1",
+            symbol=symbol, score=45.0, coverage_pct=70.0, methodology_version="NONBANK_INDUSTRIAL_V2",
             peer_universe=[], peer_universe_count=33, calculated_at=now,
             publishable=False,
         ))
@@ -151,7 +152,7 @@ async def test_get_latest_snapshot_never_selects_a_superseded_methodology_even_w
         async with AsyncSessionLocal() as db:
             latest = await get_latest_snapshot(db, symbol)
         assert latest is not None
-        assert latest.methodology_version == "NONBANK_INDUSTRIAL_V2"
+        assert latest.methodology_version == "MARKETRIPPLE_SCORE_V1"
         assert latest.score == 60.0  # the current-methodology row, despite being older
     finally:
         await _cleanup_snapshots(symbol)

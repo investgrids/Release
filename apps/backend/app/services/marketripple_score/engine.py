@@ -1,8 +1,39 @@
 """
-MarketRippleScore engine — S2-A/D. Composes the 4 pillars with the owner's
-candidate weights (Financial Strength 40 / Valuation 20 / Market Behaviour
-15 / Current Intelligence 25) — explicitly unvalidated; see the 5-bank
-comparison this module is built to support before trusting them.
+MarketRippleScore engine — S2-A/D, unified by owner instruction 2026-09-27
+("one score calculation"). ONE shared headline function (compute_headline
+below) now composes every supported company's score — Banking and every
+NONBANK_INDUSTRIAL_SECTORS sector alike — using the exact same rule:
+Financial Strength/Valuation/Market Behaviour are the three REQUIRED,
+fixed-weight pillars (8/15, 4/15, 3/15, kept as exact Fractions so the
+blend never accumulates decimal-rounding error); all three or no headline
+number, never a renormalized subset. Current Intelligence is computed and
+shown in full for every company but never enters this blend, present or
+not — it is supporting evidence about the company, not a scoring input.
+
+Sector-specific code still produces the raw Financial Strength PillarScore
+itself (financial_strength.py dispatches Banking's NPA/CET1/ROA-based
+metrics vs. Industrial's revenue-growth/ROE-based metrics) — only the
+headline composition, rating bands and missing-pillar rule are now
+identical across sectors, per the owner's explicit instruction: "Banks and
+non-banks may use different raw metrics to produce Financial Strength, but
+the headline function, rating bands and missing-pillar rule must be
+identical."
+
+This replaces two separate, now-retired rules: Banking's original 4-pillar
+dynamic-renormalization composition (CANDIDATE_WEIGHTS, complete only at
+4-of-4, real and tested from 2026-08-25 until this unification) and
+NONBANK_INDUSTRIAL_V2's own dedicated 3-pillar function
+(compute_nonbank_headline, introduced hours earlier the same day,
+2026-09-27, to fix 82% of non-bank companies losing their headline over
+thin Current Intelligence evidence — see contracts.py's own history). Both
+real, deliberate, already-shipped designs; this unification keeps V2's
+3-pillar/fixed-weight shape (the right one) and extends it to Banking
+too, rather than inventing a third rule. A real, deliberate consequence:
+Banking scores can change under this unification (a bank no longer needs
+Current Intelligence to get a headline number) — see
+MARKETRIPPLE_SCORE_METHODOLOGY_VERSION in contracts.py for why that's
+tagged as a genuinely new methodology, not a silent reinterpretation of
+BANKING_V1's old rows.
 
 publishable is hardcoded False for the whole S2 phase per owner decision
 ("S2 may calculate. S2 may test. S2 may not replace the Company-page score
@@ -20,7 +51,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.marketripple_score.banking_universe import ALL_ELIGIBLE_NSE_BANKS, PEER_UNIVERSE_AS_OF
 from app.services.marketripple_score.contracts import (
-    BANKING_METHODOLOGY_VERSION, NONBANK_INDUSTRIAL_METHODOLOGY_VERSION,
+    MARKETRIPPLE_SCORE_METHODOLOGY_VERSION,
     MarketRippleScore, PillarScore, PillarStatus,
 )
 from app.services.marketripple_score.current_intelligence import score_current_intelligence
@@ -31,81 +62,40 @@ from app.services.marketripple_score.sector_universe import (
 )
 from app.services.marketripple_score.valuation import score_valuation
 
-CANDIDATE_WEIGHTS = {
-    "financial_strength": 0.40,
-    "valuation": 0.20,
-    "market_behaviour": 0.15,
-    "current_intelligence": 0.25,
-}
-
-# NONBANK_INDUSTRIAL_V2 (owner instruction, 2026-09-27) — a versioned,
-# DELIBERATE redesign, not a Banking-formula change (Banking's own
-# CANDIDATE_WEIGHTS/4-pillar rule above stays exactly as it is, forever,
-# until its own methodology is deliberately revised). Real problem this
-# closes: after the NS1/NS2 full-cohort backfill, 326 of 397 non-bank
-# companies (82%) showed a real, complete 3-of-3 Financial Strength/
-# Valuation/Market Behaviour result but no headline number at all, purely
-# because Current Intelligence (real evidence density, not a financial
-# metric) found no contributing signal for them — the OLD 4-pillar
-# comparability rule (inherited from Banking's own design) was
-# withholding a real, defensible score over a pillar that measures
-# something structurally different (evidence coverage, not company
-# fundamentals) and is far thinner for most non-bank companies than for
-# the 27 heavily-covered real banks it was designed against.
-#
-# V2's fix: Financial Strength, Valuation, and Market Behaviour are the
-# three REQUIRED, WEIGHTED pillars for a non-bank headline score — fixed,
-# disclosed weights below, never adaptively renormalized across however
-# many of the three happen to be available (all three or no headline
-# number, same honest-withholding principle Banking already uses, just
-# against a 3-pillar bar instead of 4). Current Intelligence is still
-# computed and still shown in full, real detail (never hidden) — it is
-# evidence ABOUT the company, presented under its own separate label, and
-# never enters this weighted blend at all, present or not. A caller can
-# tell the two pillar classes apart via `weights` on the returned
-# MarketRippleScore: NONBANK_INDUSTRIAL_V2's `weights` dict has no
-# "current_intelligence" key, unlike Banking's.
-#
-# Weights: NOT a fresh arbitrary split — derived by renormalizing
-# engine.py's own original candidate weights (Financial Strength 40 /
-# Valuation 20 / Market Behaviour 15, ignoring Current Intelligence's 25)
-# across just these three, preserving their original relative priority
-# ordering rather than re-deciding it from scratch: 0.40/0.75, 0.20/0.75,
-# 0.15/0.75 — the owner-agreed EXACT rational form of that is 8/15, 4/15,
-# 3/15. Kept as Fraction (not a rounded float) so the headline computation
-# itself in compute_nonbank_headline() below never accumulates decimal-
-# rounding error; NONBANK_INDUSTRIAL_V2_WEIGHTS (float, derived FROM the
-# exact fractions, not the reverse) exists only for display/API/ranking
-# disclosure, never for the actual weighted sum.
-NONBANK_INDUSTRIAL_V2_REQUIRED_PILLARS = ("financial_strength", "valuation", "market_behaviour")
-_NONBANK_INDUSTRIAL_V2_EXACT_WEIGHTS: dict[str, Fraction] = {
+# The ONE shared headline rule (owner instruction, 2026-09-27) — every
+# supported sector (Banking and NONBANK_INDUSTRIAL_SECTORS alike) requires
+# exactly these three pillars, weighted identically. Not a fresh arbitrary
+# split — derived by renormalizing this engine's original 2026-08-25
+# candidate weights (Financial Strength 40 / Valuation 20 / Market
+# Behaviour 15, ignoring Current Intelligence's 25) across just these
+# three, preserving their original relative priority ordering: 0.40/0.75,
+# 0.20/0.75, 0.15/0.75 — the owner-agreed exact rational form of that is
+# 8/15, 4/15, 3/15.
+REQUIRED_HEADLINE_PILLARS = ("financial_strength", "valuation", "market_behaviour")
+_HEADLINE_EXACT_WEIGHTS: dict[str, Fraction] = {
     "financial_strength": Fraction(8, 15),
     "valuation": Fraction(4, 15),
     "market_behaviour": Fraction(3, 15),
 }
-NONBANK_INDUSTRIAL_V2_WEIGHTS: dict[str, float] = {
-    name: float(w) for name, w in _NONBANK_INDUSTRIAL_V2_EXACT_WEIGHTS.items()
+HEADLINE_WEIGHTS: dict[str, float] = {
+    name: float(w) for name, w in _HEADLINE_EXACT_WEIGHTS.items()
 }
 
-# Structured reason codes for compute_nonbank_headline()'s "unavailable"
-# outcome — never a bare free-text-only failure, same discipline as
-# eligibility.py's own REASON_* constants.
-NONBANK_HEADLINE_REASON_MISSING_PILLAR = "MISSING_REQUIRED_PILLAR"
-NONBANK_HEADLINE_REASON_INVALID_SCORE_RANGE = "INVALID_PILLAR_SCORE_RANGE"
+# Structured reason codes for compute_headline()'s "unavailable" outcome —
+# never a bare free-text-only failure, same discipline as eligibility.py's
+# own REASON_* constants.
+HEADLINE_REASON_MISSING_PILLAR = "MISSING_REQUIRED_PILLAR"
+HEADLINE_REASON_INVALID_SCORE_RANGE = "INVALID_PILLAR_SCORE_RANGE"
 
 _PUBLISH_LOCK_REASON = (
-    "S2 phase lock (owner decision, 2026-08-25): Financial Strength is real "
-    "but PARTIAL for every Banking symbol (8 of 12 proposed metrics missing, "
-    "including both asset-quality and both capital-adequacy metrics — see "
-    "artifacts/marketripple_score_s1_feasibility_audit.md). This score is "
-    "computed and inspectable but never publishable until S3 (banking "
-    "fundamentals sourcing) closes that gap or a decision is made to "
-    "publish anyway with the coverage caveat shown."
+    "S2 phase lock (owner decision, 2026-08-25): the score is computed and "
+    "inspectable but never publishable until a deliberate decision reopens "
+    "S2's phase lock — see this module's own docstring."
 )
 
 
 @dataclass
-class NonBankHeadlineResult:
+class HeadlineResult:
     score: float | None
     label: str | None
     status: str  # "complete" | "partial" | "insufficient"
@@ -116,21 +106,22 @@ class NonBankHeadlineResult:
     coverage_pct: float | None = None
 
 
-def compute_nonbank_headline(pillars: dict[str, PillarScore]) -> NonBankHeadlineResult:
+def compute_headline(pillars: dict[str, PillarScore]) -> HeadlineResult:
     """THE one real function that turns real Financial Strength/Valuation/
-    Market Behaviour PillarScores into the NONBANK_INDUSTRIAL_V2 headline
-    number (owner instruction, 2026-09-27) — validates each required
-    pillar's score is a real value in [0, 100], computes the exact-
-    fraction weighted blend, assigns the rating label (via the same
-    `_label_for` Banking already uses — one shared rating scale, not a
-    second one), and returns a STRUCTURED reason (never just a free-text
-    message) whenever a headline can't be computed. Current Intelligence,
-    even if present in `pillars`, is never read by this function at all —
-    it structurally cannot affect the output, regardless of what any
-    caller passes in."""
+    Market Behaviour PillarScores into the MARKETRIPPLE_SCORE_V1 headline
+    number, for every supported sector (owner instruction, 2026-09-27:
+    "one shared function for every supported company... the headline
+    function, rating bands and missing-pillar rule must be identical").
+    Validates each required pillar's score is a real value in [0, 100],
+    computes the exact-fraction weighted blend, assigns the rating label
+    (via the shared `_label_for`), and returns a STRUCTURED reason
+    whenever a headline can't be computed. Current Intelligence, even if
+    present in `pillars`, is never read by this function at all — it
+    structurally cannot affect the output, regardless of what any caller
+    passes in."""
     invalid: list[tuple[str, float]] = []
     missing: list[str] = []
-    for name in NONBANK_INDUSTRIAL_V2_REQUIRED_PILLARS:
+    for name in REQUIRED_HEADLINE_PILLARS:
         p = pillars.get(name)
         score = p.score if p is not None else None
         if score is None:
@@ -139,9 +130,9 @@ def compute_nonbank_headline(pillars: dict[str, PillarScore]) -> NonBankHeadline
             invalid.append((name, score))
 
     if invalid:
-        return NonBankHeadlineResult(
+        return HeadlineResult(
             score=None, label=None, status="insufficient",
-            reason_code=NONBANK_HEADLINE_REASON_INVALID_SCORE_RANGE,
+            reason_code=HEADLINE_REASON_INVALID_SCORE_RANGE,
             message=(
                 f"Refusing to compute a headline: pillar(s) outside the real 0-100 range: {invalid}. "
                 "This indicates a real bug upstream, not a data-availability gap."
@@ -149,12 +140,12 @@ def compute_nonbank_headline(pillars: dict[str, PillarScore]) -> NonBankHeadline
         )
 
     if missing:
-        n_required = len(NONBANK_INDUSTRIAL_V2_REQUIRED_PILLARS)
+        n_required = len(REQUIRED_HEADLINE_PILLARS)
         n_ok = n_required - len(missing)
         status = "insufficient" if n_ok == 0 else "partial"
-        return NonBankHeadlineResult(
+        return HeadlineResult(
             score=None, label=None, status=status,
-            reason_code=NONBANK_HEADLINE_REASON_MISSING_PILLAR,
+            reason_code=HEADLINE_REASON_MISSING_PILLAR,
             message=(
                 f"{'Partial' if status == 'partial' else 'Insufficient'} coverage — {n_ok} of {n_required} "
                 "required pillars (Financial Strength, Valuation, Market Behaviour). Current Intelligence "
@@ -164,21 +155,21 @@ def compute_nonbank_headline(pillars: dict[str, PillarScore]) -> NonBankHeadline
         )
 
     exact_score = sum(
-        Fraction(pillars[name].score).limit_denominator(10**9) * _NONBANK_INDUSTRIAL_V2_EXACT_WEIGHTS[name]
-        for name in NONBANK_INDUSTRIAL_V2_REQUIRED_PILLARS
+        Fraction(pillars[name].score).limit_denominator(10**9) * _HEADLINE_EXACT_WEIGHTS[name]
+        for name in REQUIRED_HEADLINE_PILLARS
     )
     exact_coverage = sum(
-        Fraction(pillars[name].coverage_pct).limit_denominator(10**9) * _NONBANK_INDUSTRIAL_V2_EXACT_WEIGHTS[name]
-        for name in NONBANK_INDUSTRIAL_V2_REQUIRED_PILLARS
+        Fraction(pillars[name].coverage_pct).limit_denominator(10**9) * _HEADLINE_EXACT_WEIGHTS[name]
+        for name in REQUIRED_HEADLINE_PILLARS
     )
     score = round(float(exact_score), 1)
-    return NonBankHeadlineResult(
+    return HeadlineResult(
         score=score, label=_label_for(score), status="complete", reason_code=None,
         message=(
             "Complete coverage — 3 of 3 required pillars (Financial Strength, Valuation, Market Behaviour). "
             "Current Intelligence is shown separately as evidence, not part of this score."
         ),
-        weights=NONBANK_INDUSTRIAL_V2_WEIGHTS, coverage_pct=round(float(exact_coverage), 1),
+        weights=HEADLINE_WEIGHTS, coverage_pct=round(float(exact_coverage), 1),
     )
 
 
@@ -198,15 +189,16 @@ async def compute_marketripple_score(
     db: AsyncSession, symbol: str, peer_group: list[str] | None = None,
     industrial_cache: dict | None = None,
 ) -> MarketRippleScore:
-    """Composes all 4 pillars into one MarketRippleScore. The single real
-    entry point for S2/S3-D/S4 — used directly by the 5-bank comparison in
-    scripts/marketripple_score_five_bank_comparison.py.
+    """Composes all 4 pillars into one MarketRippleScore via the ONE shared
+    headline function (compute_headline). The single real entry point for
+    every supported sector.
 
     peer_group: S4's peer-universe sensitivity test needs to run the
     IDENTICAL frozen scoring formula against a wider real population —
-    None (default) preserves the production 5-bank behavior byte-for-byte;
-    passing a wider real list only changes which real companies the
-    percentile ranking is computed against, never the formula itself.
+    None (default) preserves the production default peer universe
+    byte-for-byte; passing a wider real list only changes which real
+    companies the percentile ranking is computed against, never the
+    formula itself.
 
     industrial_cache (NS1 round 2, 2026-09-27): an optional
     {"financial_inputs": ..., "valuation_snapshots": ..., "benchmarks": ...}
@@ -249,95 +241,48 @@ async def compute_marketripple_score(
 
     # S4.5 — the real peer population this computation actually used
     # travels with the score itself (never just implicit backend config),
-    # so the same bank can't silently get a different score from a
-    # different caller. Banking gets its own versioned methodology tag;
-    # other, not-yet-built sectors keep the generic placeholder.
+    # so the same company can't silently get a different score from a
+    # different caller. Banking and NONBANK_INDUSTRIAL_SECTORS each keep
+    # their own real peer universe (a Technology score is never compared
+    # against a Banking peer pool) but now share ONE methodology tag and
+    # ONE headline function — see this module's own docstring.
     if sector == "Banking":
-        methodology_version = BANKING_METHODOLOGY_VERSION
         actual_peer_universe = peer_group if peer_group is not None else ALL_ELIGIBLE_NSE_BANKS
         peer_universe_as_of = PEER_UNIVERSE_AS_OF
     elif sector in NONBANK_INDUSTRIAL_SECTORS:
-        # NS1 (owner instruction, 2026-09-27) — a real, separate
-        # methodology tag and peer universe; Banking's own branch above is
-        # completely untouched by this addition.
-        methodology_version = NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
         actual_peer_universe = peer_group if peer_group is not None else sector_peer_universe(sector)
         peer_universe_as_of = NONBANK_PEER_UNIVERSE_AS_OF
     else:
-        methodology_version = None  # falls back to the dataclass field default
         actual_peer_universe = []
         peer_universe_as_of = None
 
-    if sector in NONBANK_INDUSTRIAL_SECTORS:
-        # NONBANK_INDUSTRIAL_V2 (owner instruction, 2026-09-27) — the ONE
-        # real function that validates the three required pillars,
-        # computes the exact-fraction weighted headline, assigns its
-        # rating, and returns a structured reason when it can't. A
-        # genuinely separate composition rule from Banking's below, not a
-        # generalized shared formula, so Banking's own real, tested
-        # behavior can never be perturbed by this branch. `ci` stays real,
-        # computed, and fully visible in `pillars` — evidence about the
-        # company, presented separately, never read by compute_nonbank_headline
-        # at all, let alone folded into the weighted number.
-        headline = compute_nonbank_headline(pillars)
+    if sector != "Banking" and sector not in NONBANK_INDUSTRIAL_SECTORS:
+        # No approved methodology exists for this sector at all yet
+        # (Finance/Insurance and any other not-yet-built sector) — honest
+        # "unsupported," never a fabricated number and never ranked.
         return MarketRippleScore(
-            symbol=symbol, score=headline.score, label=headline.label,
-            publishable=False, publish_reason=_PUBLISH_LOCK_REASON,
-            pillars=pillars, weights=NONBANK_INDUSTRIAL_V2_WEIGHTS,
-            overall_coverage_pct=headline.coverage_pct if headline.coverage_pct is not None else 0.0,
-            peer_universe=actual_peer_universe, peer_universe_count=len(actual_peer_universe),
-            peer_universe_as_of=peer_universe_as_of, methodology_version=methodology_version,
-            pillar_coverage_status=headline.status, pillar_coverage_message=headline.message,
-        )
-
-    # Banking (and any not-yet-built sector) — completely unchanged from
-    # before NONBANK_INDUSTRIAL_V2 existed. Dynamic subset of ALL declared
-    # pillars, renormalized against CANDIDATE_WEIGHTS, complete only at
-    # 4-of-4 — Banking's own real, tested comparability rule, untouched.
-    usable = {name: p for name, p in pillars.items() if p.score is not None}
-    if not usable:
-        kwargs = dict(
             symbol=symbol, score=None, label=None, publishable=False,
-            publish_reason="No pillar produced a real score for this symbol.",
-            pillars=pillars, weights=CANDIDATE_WEIGHTS, overall_coverage_pct=0.0,
-            peer_universe=actual_peer_universe, peer_universe_count=len(actual_peer_universe),
-            peer_universe_as_of=peer_universe_as_of,
+            publish_reason="No approved MarketRipple Score methodology exists for this sector yet.",
+            pillars=pillars, weights=HEADLINE_WEIGHTS, overall_coverage_pct=0.0,
+            peer_universe=[], peer_universe_count=0, peer_universe_as_of=None,
             pillar_coverage_status="insufficient",
-            pillar_coverage_message="No pillar produced a real score for this symbol.",
+            pillar_coverage_message="No approved MarketRipple Score methodology exists for this sector yet.",
         )
-        if methodology_version is not None:
-            kwargs["methodology_version"] = methodology_version
-        return MarketRippleScore(**kwargs)
 
-    used_weight = sum(CANDIDATE_WEIGHTS[name] for name in usable)
-    overall_score = round(sum(p.score * CANDIDATE_WEIGHTS[name] for name, p in usable.items()) / used_weight, 1)
-    overall_coverage = round(sum(p.coverage_pct * CANDIDATE_WEIGHTS[name] for name, p in usable.items()) / used_weight, 1)
-
-    total_pillars = len(pillars)
-    if len(usable) < total_pillars:
-        # Comparability interim rule — see contracts.py's own field docstring.
-        # A renormalized 2-of-4 (or 3-of-4) blend is not comparable to a
-        # 4-of-4 one, so no headline number or ranking eligibility until a
-        # real shadow comparison says which partial combinations are safe.
-        # Per-pillar scores that WERE produced stay fully visible in
-        # `pillars` — only the combined number is withheld.
-        pillar_coverage_status = "partial"
-        pillar_coverage_message = f"Partial coverage — {len(usable)} of {total_pillars} pillars"
-        headline_score, headline_label = None, None
-    else:
-        pillar_coverage_status = "complete"
-        pillar_coverage_message = f"Complete coverage — {total_pillars} of {total_pillars} pillars"
-        headline_score, headline_label = overall_score, _label_for(overall_score)
-
-    kwargs = dict(
-        symbol=symbol, score=headline_score, label=headline_label,
+    # MARKETRIPPLE_SCORE_V1 (owner instruction, 2026-09-27) — the ONE real
+    # function that validates the three required pillars, computes the
+    # exact-fraction weighted headline, assigns its rating, and returns a
+    # structured reason when it can't, for every supported sector alike.
+    # `ci` stays real, computed, and fully visible in `pillars` — evidence
+    # about the company, presented separately, never read by
+    # compute_headline at all, let alone folded into the weighted number.
+    headline = compute_headline(pillars)
+    return MarketRippleScore(
+        symbol=symbol, score=headline.score, label=headline.label,
         publishable=False, publish_reason=_PUBLISH_LOCK_REASON,
-        pillars=pillars, weights=CANDIDATE_WEIGHTS, overall_coverage_pct=overall_coverage,
+        pillars=pillars, weights=HEADLINE_WEIGHTS,
+        overall_coverage_pct=headline.coverage_pct if headline.coverage_pct is not None else 0.0,
         peer_universe=actual_peer_universe, peer_universe_count=len(actual_peer_universe),
-        peer_universe_as_of=peer_universe_as_of,
-        pillar_coverage_status=pillar_coverage_status,
-        pillar_coverage_message=pillar_coverage_message,
+        peer_universe_as_of=peer_universe_as_of, methodology_version=MARKETRIPPLE_SCORE_METHODOLOGY_VERSION,
+        pillar_coverage_status=headline.status, pillar_coverage_message=headline.message,
     )
-    if methodology_version is not None:
-        kwargs["methodology_version"] = methodology_version
-    return MarketRippleScore(**kwargs)

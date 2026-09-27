@@ -23,32 +23,29 @@ class PillarStatus(str, Enum):
 
 METHODOLOGY_VERSION = "s2-2026-08-25"
 
-# S4.5 (owner decision, 2026-08-29) — Banking gets its own versioned
-# methodology tag once its peer universe and quality rules are frozen,
-# separate from the generic placeholder above (which other, not-yet-built
-# sectors still use). Bumping this is how a future real methodology change
-# (a different peer universe, a new metric) becomes traceable on every
-# already-computed score, instead of silently reinterpreting old results.
+# RETIRED tags (owner decision 2026-08-29 / 2026-09-27) — kept as literal
+# historical constants only (real, already-persisted snapshot rows carry
+# these exact strings forever; never rewritten). Neither is selected as
+# "current" by get_latest_snapshot() anymore — see
+# MARKETRIPPLE_SCORE_METHODOLOGY_VERSION below, which superseded both on
+# 2026-09-27 as part of the owner's "one score calculation" unification.
 BANKING_METHODOLOGY_VERSION = "BANKING_V1"
-
-# NS1 (owner instruction, 2026-09-27) — the real, separate Non-Banking
-# Commercial & Industrial methodology tag, matching BANKING_METHODOLOGY_VERSION's
-# own reasoning: a different formula (financial_strength_industrial.py),
-# a different peer universe (sector_universe.py), never silently
-# comparable to a BANKING_V1 score just because both are 0-100.
-#
-# Bumped to V2 the same day (owner instruction, 2026-09-27, after the real
-# full-cohort backfill showed 82% of non-bank companies withheld a
-# headline number purely for thin Current Intelligence evidence): V2
-# scores on Financial Strength/Valuation/Market Behaviour only, with fixed
-# disclosed weights (engine.py's NONBANK_INDUSTRIAL_V2_WEIGHTS), and shows
-# Current Intelligence as separate, real, un-weighted evidence rather than
-# a fourth required pillar. Every already-persisted "NONBANK_INDUSTRIAL_V1"
-# snapshot row keeps that exact tag forever (real history, never rewritten)
-# — get_latest_snapshot() naturally surfaces the newest (V2) row per
-# symbol once recomputed, the same append-only pattern this whole
-# initiative already relies on.
 NONBANK_INDUSTRIAL_METHODOLOGY_VERSION = "NONBANK_INDUSTRIAL_V2"
+
+# MARKETRIPPLE_SCORE_V1 (owner instruction, 2026-09-27) — the ONE current
+# methodology identifier for every supported company, replacing the two
+# separate tags above. Banking and every NONBANK_INDUSTRIAL_SECTORS sector
+# now compute their headline number via the exact same shared function
+# (engine.py's compute_headline) and the exact same disclosed weights
+# (8/15, 4/15, 3/15) — sector-specific code still produces the raw
+# Financial Strength/Valuation/Market Behaviour PillarScores themselves
+# (genuinely different raw metrics for Banking vs. Industrial), but the
+# headline composition, rating bands and missing-pillar rule are now
+# identical across every sector, so one identifier covers all of them.
+# get_latest_snapshot() selects ONLY this tag going forward — real history
+# under BANKING_V1/NONBANK_INDUSTRIAL_V2 stays queryable directly but can
+# never be mistaken for a current-methodology row again.
+MARKETRIPPLE_SCORE_METHODOLOGY_VERSION = "MARKETRIPPLE_SCORE_V1"
 
 
 @dataclass
@@ -87,17 +84,20 @@ class MarketRippleScore:
     peer_universe: list[str] = field(default_factory=list)
     peer_universe_count: int = 0
     peer_universe_as_of: date | None = None
-    # Comparability interim rule (2026-09-26 audit follow-up, owner
-    # decision): a 2-of-4-pillar score and a 4-of-4-pillar score are not
-    # comparable — renormalized weights change what the same headline
-    # number represents. Until a shadow comparison validates which partial
-    # combinations are safe to publish/rank (see
-    # scripts/marketripple_score_shadow_pillar_comparability.py), `score`
-    # stays None whenever fewer than all 4 pillars produced a real number,
-    # even though `pillars` still carries every real per-pillar result that
-    # WAS produced. pillar_coverage_status is "complete" | "partial" |
+    # Comparability rule (2026-09-26 audit finding, generalized into the
+    # ONE shared headline function by the 2026-09-27 "one score
+    # calculation" unification): a renormalized partial-pillar score is not
+    # comparable to a full one — the real, measured evidence for this
+    # (scripts/marketripple_score_shadow_pillar_comparability.py, now
+    # archival) showed dropping a single pillar materially moves both the
+    # score and rank position. engine.py's compute_headline() enforces this
+    # directly: `score` stays None unless all 3 required pillars
+    # (Financial Strength, Valuation, Market Behaviour) produced a real
+    # number — never a renormalized subset, for any sector — even though
+    # `pillars` still carries every real per-pillar result that WAS
+    # produced. pillar_coverage_status is "complete" | "partial" |
     # "insufficient"; pillar_coverage_message is the real, human-readable
-    # reason (e.g. "Partial coverage — 2 of 4 pillars") a caller should
-    # show in place of a combined number.
+    # reason (e.g. "Partial coverage — 2 of 3 required pillars") a caller
+    # should show in place of a combined number.
     pillar_coverage_status: str = "insufficient"
     pillar_coverage_message: str = "No pillar produced a real score for this symbol."
