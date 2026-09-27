@@ -933,6 +933,83 @@ async def get_company_marketripple_score(symbol: str, db: AsyncSession = Depends
     return await get_marketripple_score_projection(db, symbol)
 
 
+@router.get("/{symbol}/marketripple-score/local-preview")
+async def get_company_marketripple_score_local_preview(symbol: str, db: AsyncSession = Depends(get_db)):
+    """LOCAL-DEV-ONLY debug preview (2026-09-27) — returns the real,
+    already-computed MarketRippleScoreSnapshot's full numeric payload
+    REGARDLESS of `publishable`, so the actual calculated number is
+    visible during local development while the S2 phase lock (engine.py's
+    hardcoded `publishable=False`) stays completely untouched.
+
+    This is a SECOND, additive read path — it does not modify, gate on, or
+    replace get_marketripple_score_projection()'s own hard trust boundary
+    above (that endpoint's publishable-gating fix, from the 2026-08-31
+    Company Page release audit, stays exactly as it is). This route is
+    itself gated on settings.is_production (True only when JSON_LOGS=true,
+    i.e. real Railway production — see Settings.is_production's own
+    docstring, the same existing convention this codebase already uses
+    for "must never run against real users" endpoints), returning 404
+    there. Never triggers a live computation — reads the same
+    get_latest_snapshot() as the public endpoint, no yfinance/NSE calls."""
+    from fastapi import HTTPException
+
+    from app.core.config import settings
+    if settings.is_production:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    from app.services.company_identity.qualification import resolve_entity_by_any_symbol
+    from app.services.marketripple_score.engine import CANDIDATE_WEIGHTS
+    from app.services.marketripple_score.snapshot import get_latest_snapshot
+
+    entity = await resolve_entity_by_any_symbol(db, symbol)
+    if entity is None:
+        return {"resolved": False, "symbol": symbol.upper(), "local_dev_preview": True}
+
+    snap = await get_latest_snapshot(db, entity.symbol)
+    if snap is None:
+        return {"resolved": True, "symbol": entity.symbol, "snapshot": False, "local_dev_preview": True}
+
+    reasons = snap.publication_block_reasons or []
+    eligible = len(reasons) == 0
+
+    pillar_scores = {
+        "financial_strength": snap.financial_strength, "valuation": snap.valuation,
+        "market_behaviour": snap.market_behaviour, "current_intelligence": snap.current_intelligence,
+    }
+    used_weight = sum(CANDIDATE_WEIGHTS[name] for name, score in pillar_scores.items() if score is not None)
+    effective_weights = {
+        name: (round(CANDIDATE_WEIGHTS[name] / used_weight, 4) if score is not None and used_weight else None)
+        for name, score in pillar_scores.items()
+    }
+
+    return {
+        "resolved": True, "snapshot": True, "local_dev_preview": True,
+        "symbol": snap.symbol, "entity_id": snap.entity_id,
+        "methodology_version": snap.methodology_version,
+        "publication_policy_version": snap.publication_policy_version,
+        "publishable": bool(snap.publishable),
+        "eligible": eligible,
+        "block_reason_codes": reasons,
+        # Unlike the public projection above, this endpoint ALWAYS returns
+        # the real numeric payload — that is its entire purpose. Safety
+        # comes from the settings.is_production gate at the top of this
+        # function, not from redacting fields here.
+        "score": snap.score,
+        "rating": snap.rating,
+        "pillars": pillar_scores,
+        "candidate_weights": CANDIDATE_WEIGHTS,
+        "effective_weights": effective_weights,
+        "evidence_coverage_pct": snap.coverage_pct,
+        "financial_coverage_pct": snap.financial_coverage_pct,
+        "financial_metrics_used_count": snap.financial_metrics_used_count,
+        "financial_metrics_total_count": snap.financial_metrics_total_count,
+        "financial_data_as_of": snap.financial_data_as_of,
+        "pillar_coverage_status": snap.pillar_coverage_status,
+        "pillar_coverage_message": snap.pillar_coverage_message,
+        "calculated_at": snap.calculated_at.isoformat() if snap.calculated_at else None,
+    }
+
+
 @router.get("/{symbol}/ripple")
 async def get_company_ripple(symbol: str, hops: int = Query(2, ge=1, le=3), db: AsyncSession = Depends(get_db)):
     """Company redesign Batch 4 — the Company page's Ripple tab reads

@@ -1472,7 +1472,136 @@ export function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScore
 function MarketRippleScoreSection({ stock }: { stock: StockDetail }) {
   const data = useMarketRippleScore(stock.symbol);
   if (data === undefined) return null; // still loading
-  return <MarketRippleScoreCard data={data ?? { resolved: false }} stock={stock} />;
+  return (
+    <>
+      <MarketRippleScoreCard data={data ?? { resolved: false }} stock={stock} />
+      <LocalUnpublishedScorePreview symbol={stock.symbol} />
+    </>
+  );
+}
+
+// ── Local unpublished score preview (2026-09-27) ────────────────────────────
+// Dev-only: shows the real, already-computed MarketRippleScoreSnapshot
+// number regardless of the S2 phase lock (`publishable`, hardcoded False in
+// engine.py — untouched by this component), so the actual calculated score
+// is visible while developing locally. Double-gated for safety: this
+// component is a no-op unless NODE_ENV==="development" (Next.js's own
+// build-time constant — a real `next build` for production sets this to
+// "production", so this branch is dead code in any real deployment, not
+// just visually hidden), AND its backing endpoint
+// (/marketripple-score/local-preview) independently 404s whenever
+// settings.is_production is true on the backend. Neither gate depends on
+// the other — either one alone already prevents this from ever reaching a
+// real user. MarketRippleScoreCard above (the real, public-facing card)
+// is completely unmodified by this addition.
+interface LocalPreviewData {
+  resolved: boolean;
+  snapshot?: boolean;
+  local_dev_preview?: boolean;
+  publishable?: boolean;
+  eligible?: boolean;
+  block_reason_codes?: string[];
+  score?: number | null;
+  rating?: string | null;
+  pillars?: { financial_strength: number | null; valuation: number | null; market_behaviour: number | null; current_intelligence: number | null };
+  candidate_weights?: Record<string, number>;
+  effective_weights?: Record<string, number | null>;
+  evidence_coverage_pct?: number | null;
+  financial_coverage_pct?: number | null;
+  financial_metrics_used_count?: number | null;
+  financial_metrics_total_count?: number | null;
+  financial_data_as_of?: string | null;
+  pillar_coverage_status?: string | null;
+  pillar_coverage_message?: string | null;
+  calculated_at?: string | null;
+}
+
+function useLocalUnpublishedScorePreview(symbol: string) {
+  const [data, setData] = useState<LocalPreviewData | null | undefined>(undefined);
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    let cancelled = false;
+    setData(undefined);
+    fetch(`${API}/api/companies/${symbol}/marketripple-score/local-preview`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setData(null); });
+    return () => { cancelled = true; };
+  }, [symbol]);
+  return data;
+}
+
+function LocalUnpublishedScorePreview({ symbol }: { symbol: string }) {
+  if (process.env.NODE_ENV !== "development") return null;
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- NODE_ENV is a
+  // build-time constant, identical across every render/instance, not a
+  // runtime prop/state value — this early return can never change between
+  // renders of the same build, so it doesn't violate hook-order rules.
+  const data = useLocalUnpublishedScorePreview(symbol);
+  if (!data || !data.resolved || !data.snapshot) return null;
+
+  const pillars: { label: string; key: keyof NonNullable<LocalPreviewData["pillars"]> }[] = [
+    { label: "Financial Strength", key: "financial_strength" },
+    { label: "Valuation", key: "valuation" },
+    { label: "Market Behaviour", key: "market_behaviour" },
+    { label: "Current Intelligence", key: "current_intelligence" },
+  ];
+  const updated = data.calculated_at
+    ? new Date(data.calculated_at).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null;
+
+  return (
+    <div className="mt-3 rounded-2xl border-2 border-dashed border-amber-500/50 bg-amber-500/[0.06] p-4">
+      <div className="flex items-center gap-2">
+        <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+          Local Unpublished Preview
+        </span>
+        <span className="text-[10px] text-text-muted">Dev-only — never shown in production, publication lock unaffected</span>
+      </div>
+
+      {data.eligible ? (
+        <>
+          <div className="mt-3 flex items-baseline gap-3">
+            <span className="text-[28px] font-black leading-none text-text-primary">
+              {data.score != null ? Math.round(data.score) : "—"}
+            </span>
+            <span className="text-[12px] text-text-muted">/ 100</span>
+            {data.rating && <span className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">{data.rating}</span>}
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+            {pillars.map(p => {
+              const value = data.pillars?.[p.key];
+              const weight = data.effective_weights?.[p.key];
+              return (
+                <div key={p.label}>
+                  <p className="text-[9px] uppercase tracking-wider text-text-muted">{p.label}</p>
+                  <p className="mt-0.5 text-[14px] font-bold text-text-primary">{value != null ? Math.round(value) : "—"}</p>
+                  <p className="text-[9px] text-text-muted">
+                    {weight != null ? `effective weight ${Math.round(weight * 100)}%` : "not contributing"}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-amber-500/20 pt-2 text-[10px] text-text-muted">
+            <span>Financial metrics {data.financial_metrics_used_count ?? "—"}/{data.financial_metrics_total_count ?? "—"}</span>
+            <span>Evidence coverage {data.evidence_coverage_pct != null ? Math.round(data.evidence_coverage_pct) : "—"}%</span>
+            <span>Financial data as of {data.financial_data_as_of ?? "—"}</span>
+            {updated && <span>Calculated {updated}</span>}
+          </div>
+        </>
+      ) : (
+        <div className="mt-3">
+          <p className="text-[12px] font-semibold text-text-secondary">Not eligible — actual reason(s):</p>
+          <ul className="mt-1 list-inside list-disc text-[11px] text-text-muted">
+            {(data.block_reason_codes ?? []).map(code => <li key={code}>{code}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Latest Developments — the most recent real news headline and material
