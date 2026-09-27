@@ -94,10 +94,15 @@ function color(i: number) { return PALETTE[i % PALETTE.length]; }
 // These absolute-currency fields (unlike a %/ratio, which is comparable
 // regardless of underlying currency) can only be validly ranked when
 // every compared company shares the exact same real currency, magnitude
-// unit, and — for revenue/profit specifically — the same real fiscal
-// period. `rankable=false` in `highlight()` below suppresses the
-// best/worst color entirely for the row (still shown side by side, never
-// hidden) rather than attempt a partial/subset ranking.
+// unit, and (for revenue/profit) the same real fiscal period.
+// `rankable=false` in `highlight()` below suppresses the best/worst color
+// (and, for Revenue/Net Profit, the relative-size bar — itself a form of
+// declaring a winner) entirely for the row, still shown side by side,
+// never hidden, rather than attempt a partial/subset ranking. Free Cash
+// Flow (below) is never ranked at all, regardless of currency/unit
+// alignment: its own reporting period is itself unconfirmed (follow-up
+// instruction, same date) — matching currency and unit doesn't establish
+// that two companies' figures even cover the same window.
 function currencyAligned(companies: { statement_currency_prefix: string | null; statement_currency_unit: string | null }[]): boolean {
   if (companies.length < 2) return false;
   const ref = companies[0];
@@ -113,21 +118,6 @@ function periodAligned(companies: { revenue_fy: string }[]): boolean {
   const ref = companies[0].revenue_fy;
   if (ref === "—") return false;
   return companies.every(c => c.revenue_fy === ref);
-}
-
-// Free Cash Flow's own formatted string picks a magnitude suffix (Cr/L
-// for INR, B/M/T for either) per company based on that company's own
-// value size — even two real INR companies can show "₹1.2Cr" vs "₹5.0L"
-// side by side. `parseN` doesn't recognize multi-letter suffixes like
-// "Cr"/"L" (only single-letter B/M/K/T), so comparing those raw parsed
-// numbers would silently compare mismatched magnitudes even when the
-// currency itself is aligned. Require the same trailing suffix too,
-// specifically for this field, before ranking it.
-function magnitudeSuffixAligned(values: string[]): boolean {
-  if (values.length < 2) return false;
-  const suffixes = values.map(v => v.match(/([A-Za-z]+)$/)?.[1] ?? null);
-  if (suffixes.some(s => s === null)) return false;
-  return suffixes.every(s => s === suffixes[0]);
 }
 
 function highlight(values: number[], lowerBetter = false, rankable = true): string[] {
@@ -223,8 +213,9 @@ function CmpRow({ label, values, fmt, lowerBetter = false, rankable = true }: {
   // false suppresses best/worst highlighting entirely (values still shown
   // side by side) — for a field this row's caller has determined is not
   // validly comparable across the currently-selected companies (mismatched
-  // currency, unit, or period). See currencyAligned/periodAligned/
-  // magnitudeSuffixAligned above.
+  // currency/unit, mismatched period, or — like Free Cash Flow — a field
+  // whose real reporting period is never confirmed at all). See
+  // currencyAligned/periodAligned above.
   rankable?: boolean;
 }) {
   const nums = values.map(v => parseN(String(v)));
@@ -1066,15 +1057,24 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           <tbody>
             <CmpRow label="Debt to Equity (x)"   values={companies.map(c => c.debt_to_equity)} lowerBetter />
             <CmpRow label="Current Ratio (x)"    values={companies.map(c => c.current_ratio)} />
+            {/* Never ranked (2026-09-27, owner instruction): matching
+                currency and magnitude unit alone doesn't make two Free
+                Cash Flow figures comparable — this field's own reporting
+                period is itself unconfirmed (see the "(period
+                unconfirmed)" label), so there's no basis to claim two
+                companies' figures cover the same window at all, even
+                when their currency/unit do align. Currency-correct
+                values still render; best/worst is never declared until a
+                real, confirmed, aligned period exists for this field. */}
             <CmpRow label="Free Cash Flow (period unconfirmed)" values={companies.map(c => c.free_cashflow)}
-              rankable={currencyAligned(companies) && magnitudeSuffixAligned(companies.map(c => c.free_cashflow))} />
+              rankable={false} />
             <CmpRow label="Enterprise Value"     values={companies.map(c => c.enterprise_value)} />
             <CmpRow label="Market Cap"           values={companies.map(c => c.market_cap)} />
           </tbody>
         </table>
         <TtmNote />
         <p className="mt-1 text-[9.5px] leading-4 text-text-muted">
-          Free Cash Flow is only ranked between companies when its real reporting currency and magnitude unit match exactly — shown side by side regardless.
+          Free Cash Flow is shown side by side but never ranked — its real reporting period is unconfirmed, so even currency-matched figures aren't confirmed comparable.
         </p>
       </Card>
     );

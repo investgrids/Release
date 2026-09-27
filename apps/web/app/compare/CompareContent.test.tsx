@@ -358,6 +358,45 @@ describe("CompareContent — ranking-alignment guard (2026-09-27)", () => {
     expect(smallRevenue.className).not.toMatch(/emerald/);
   });
 
+  it("never ranks Free Cash Flow even when currency AND magnitude unit genuinely match, because its reporting period is unconfirmed", async () => {
+    // Follow-up owner instruction (2026-09-27): matching currency and
+    // units alone does not make Free Cash Flow values comparable — this
+    // field's own real reporting period is never confirmed, so ranking
+    // must stay suppressed regardless of currency/unit alignment. This is
+    // the case the prior currency-only guard would have wrongly allowed.
+    searchParamValues = { a: "SMALLCO", b: "BIGCO" };
+    mockFetch({
+      "/api/stocks/SMALLCO": stockPayload({
+        name: "Small Co", free_cashflow: "₹10.0B",
+        statement_currency_prefix: "₹", statement_currency_unit: "Crore",
+      }),
+      "/api/stocks/BIGCO": stockPayload({
+        name: "Big Co", free_cashflow: "₹90.0B",
+        statement_currency_prefix: "₹", statement_currency_unit: "Crore",
+      }),
+      "/api/companies/SMALLCO/marketripple-score": { resolved: false },
+      "/api/companies/BIGCO/marketripple-score": { resolved: false },
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+    await waitFor(() => expect(screen.getAllByText("Small Co").length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getByText("Balance Sheet"));
+    await waitFor(() => expect(screen.getByText("Balance Sheet Ratios")).toBeInTheDocument());
+
+    // Currency-correct values still render...
+    const smallFcf = screen.getByText("₹10.0B");
+    const bigFcf = screen.getByText("₹90.0B");
+    expect(smallFcf).toBeInTheDocument();
+    expect(bigFcf).toBeInTheDocument();
+    // ...but neither is declared best/worst, even though "₹90.0B" is
+    // numerically the larger real figure and both share the exact same
+    // currency and unit.
+    expect(smallFcf.className).not.toMatch(/emerald|rose/);
+    expect(bigFcf.className).not.toMatch(/emerald|rose/);
+  });
+
   it("never ranks Free Cash Flow when the compared companies' currencies differ", async () => {
     searchParamValues = { a: "USDCO", b: "INRCO" };
     mockFetch({
