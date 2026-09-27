@@ -19,16 +19,21 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
   const [sort, setSort] = useState(initialSort || "name");
   const [minScore, setMinScore] = useState(initialMinScore);
 
+  // Real bug fixed here (found live, 2026-09-27): neither apply() nor
+  // reset() ever set tab=all-companies, so using ANY sidebar filter
+  // silently navigated back to the Overview tab (CompaniesHubPage
+  // defaults to "overview" whenever `tab` is absent) instead of staying
+  // on the filtered All Companies list the user was just looking at.
   function apply() {
     const sp = new URLSearchParams();
+    sp.set("tab", "all-companies");
     if (initialQ.trim()) sp.set("q", initialQ.trim());
     if (sector) sp.set("sector", sector);
     if (cap) sp.set("cap", cap);
     if (sort && sort !== "name") sp.set("sort", sort);
     if (minScore) sp.set("min_score", minScore);
     sp.set("page", "1");
-    const qs = sp.toString();
-    router.push(`/companies${qs ? `?${qs}` : ""}`);
+    router.push(`/companies?${sp.toString()}`);
   }
 
   function reset() {
@@ -36,7 +41,7 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
     setCap("");
     setSort("name");
     setMinScore("");
-    router.push("/companies");
+    router.push("/companies?tab=all-companies");
   }
 
   const selectCls =
@@ -97,6 +102,9 @@ export function FilterSidebar({ sectors, initialSector, initialCap, initialSort,
           <option value="name">Name A–Z</option>
           <option value="cap">Market Cap</option>
           <option value="sector">Sector</option>
+          <option value="ticker">Ticker A–Z</option>
+          <option value="score_desc">Score: High to Low</option>
+          <option value="score_asc">Score: Low to High</option>
         </select>
       </div>
 

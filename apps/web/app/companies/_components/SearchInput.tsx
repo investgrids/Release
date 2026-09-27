@@ -17,17 +17,20 @@ export function CompanySearchInput({ defaultValue, sector, cap, sort, minScore =
   const router = useRouter();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  // Same real tab-drop bug as FilterSidebar's apply()/reset() (found live,
+  // 2026-09-27): without tab=all-companies, typing a search query
+  // silently navigated back to the Overview tab.
   const navigate = useCallback(
     (q: string) => {
       const sp = new URLSearchParams();
+      sp.set("tab", "all-companies");
       if (q.trim()) sp.set("q", q.trim());
       if (sector) sp.set("sector", sector);
       if (cap) sp.set("cap", cap);
       if (sort && sort !== "name") sp.set("sort", sort);
       if (minScore) sp.set("min_score", minScore);
       sp.set("page", "1");
-      const qs = sp.toString();
-      router.push(`/companies${qs ? `?${qs}` : ""}`);
+      router.push(`/companies?${sp.toString()}`);
     },
     [router, sector, cap, sort, minScore],
   );

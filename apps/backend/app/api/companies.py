@@ -1197,12 +1197,32 @@ async def _fetch_mr_scores(db: AsyncSession, symbols: list[str]) -> dict[str, di
     return mr_scores
 
 
+_SCORE_SORTS = ("score_desc", "score_asc")
+
+
+def _effective_score_from(mr_scores: dict[str, dict], symbol: str) -> float | None:
+    """The score value the UI would actually show for this symbol -- the
+    real public score once publishable, or (local dev only) the same
+    local-preview fallback every other MarketRipple Score surface already
+    uses. Shared by min_score filtering and score_desc/score_asc sorting
+    below, both of which need the identical real value, never two
+    different notions of "the score" for the same feature."""
+    mr = mr_scores.get(symbol)
+    if not mr:
+        return None
+    public = mr.get("marketripple_score") or {}
+    if public.get("score") is not None:
+        return public["score"]
+    preview = mr.get("marketripple_score_local_preview") or {}
+    return preview.get("score")
+
+
 @router.get("/")
 async def list_companies(
     q:         str = Query("",    description="Search query"),
     sector:    str = Query("",    description="Filter by sector"),
     cap:       str = Query("",    description="Filter by cap: large | mid | small"),
-    sort:      str = Query("name",description="Sort: name | cap | sector"),
+    sort:      str = Query("name",description="Sort: name | cap | sector | ticker | score_desc | score_asc"),
     min_score: float | None = Query(None, ge=0, le=100, description="Only companies whose real MarketRipple Score is at least this value"),
     page:      int = Query(1,     ge=1),
     page_size: int = Query(24,    ge=6, le=60),
@@ -1222,13 +1242,12 @@ async def list_companies(
          -- requires knowing every candidate's real score BEFORE paginating
          (a per-page-only score fetch can't answer "does page 5 have any
          matches"), so this one real batched read runs against the WHOLE
-         filtered candidate set, only when min_score is actually passed.
-         Filters on whichever score value the UI would actually show for
-         that company (the real public score once publishable, or --
-         local dev only -- the same local-preview score every other
-         MarketRipple Score surface already falls back to), never a
-         fabricated/estimated value.
-      4. Sort by name / cap / sector                         (instant)
+         filtered candidate set, only when min_score is actually passed
+         OR sort is score_desc/score_asc (2026-09-27, same real need: a
+         page-only fetch can't sort the whole directory by score).
+         Never a fabricated/estimated value -- companies with no real
+         score sort last regardless of direction, never placed arbitrarily.
+      4. Sort by name / cap / sector / ticker / score          (instant)
       5. Paginate                                            (instant)
       6. Optionally fetch live prices for the page's symbols via yfinance
     """
@@ -1243,24 +1262,18 @@ async def list_companies(
     if superseded:
         matches = [m for m in matches if m["symbol"] not in superseded]
 
-    # Full-candidate-set score fetch, only when actually filtering by score
-    # -- every other request path keeps the original, cheaper per-page-only
-    # fetch below.
+    # Full-candidate-set score fetch, only when actually needed (score
+    # filtering or score sorting) -- every other request path keeps the
+    # original, cheaper per-page-only fetch below.
     full_mr_scores: dict[str, dict] | None = None
-    if min_score is not None and matches:
+    if (min_score is not None or sort in _SCORE_SORTS) and matches:
         full_mr_scores = await _fetch_mr_scores(db, [m["symbol"] for m in matches])
 
-        def _effective_score(symbol: str) -> float | None:
-            mr = full_mr_scores.get(symbol) if full_mr_scores else None
-            if not mr:
-                return None
-            public = mr.get("marketripple_score") or {}
-            if public.get("score") is not None:
-                return public["score"]
-            preview = mr.get("marketripple_score_local_preview") or {}
-            return preview.get("score")
-
-        matches = [m for m in matches if (s := _effective_score(m["symbol"])) is not None and s >= min_score]
+    if min_score is not None and full_mr_scores is not None:
+        matches = [
+            m for m in matches
+            if (s := _effective_score_from(full_mr_scores, m["symbol"])) is not None and s >= min_score
+        ]
 
     # Secondary sort (primary sort is always relevance score for queries,
     # then by the selected sort column). Always re-sorted explicitly here
@@ -1273,6 +1286,19 @@ async def list_companies(
         matches.sort(key=lambda x: (cap_order.get(x["cap"], 3), x["name"]))
     elif sort == "sector":
         matches.sort(key=lambda x: (x["sector"], x["name"]))
+    elif sort == "ticker":
+        matches.sort(key=lambda x: x["symbol"])
+    elif sort in _SCORE_SORTS and full_mr_scores is not None:
+        # Missing scores always sort last, whichever direction -- a real
+        # gap in evidence is never treated as "lowest score" (which would
+        # be indistinguishable from a real 0) or silently skipped.
+        reverse = sort == "score_desc"
+        def _sort_key(m):
+            s = _effective_score_from(full_mr_scores, m["symbol"])
+            has_score = s is not None
+            ordered = s if s is not None else 0.0
+            return (has_score, ordered if reverse else -ordered)
+        matches.sort(key=_sort_key, reverse=True)
     else:
         matches.sort(key=lambda x: (-x["_score"], x["name"]))
 

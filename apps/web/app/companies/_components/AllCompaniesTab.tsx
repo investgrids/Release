@@ -3,6 +3,7 @@ import { WatchlistButton } from "@/components/WatchlistButton";
 import { marketRippleScoreDisplayInt } from "@/lib/scoring";
 import { CompanySearchInput } from "../_components/SearchInput";
 import { FilterSidebar } from "../_components/FilterSidebar";
+import { SortableHeaderCell } from "../_components/SortableHeaderCell";
 
 // Was: local filterAndRank() over a static, hand-maintained copy of the
 // company universe (lib/companies-data.ts) plus a separate live-quotes
@@ -177,7 +178,10 @@ export async function AllCompaniesTab({
               owner instruction 2026-09-27) -- horizontal scroll here,
               never clipped/illegible content. */}
           <div className={`grid ${colGrid} min-w-[640px] border-b border-surface-border/6 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted`}>
-            <span>Company</span><span>Ticker</span><span>Score</span><span>Sector</span><span>Market Cap</span>
+            <span>Company</span>
+            <SortableHeaderCell label="Ticker" currentSort={sort} baseParamsString={baseParams.toString()} kind="ticker" />
+            <SortableHeaderCell label="Score" currentSort={sort} baseParamsString={baseParams.toString()} kind="score" />
+            <span>Sector</span><span>Market Cap</span>
             <span>Price</span><span>Change %</span><span />
           </div>
 
