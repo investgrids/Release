@@ -46,14 +46,14 @@ async def _cleanup(symbols: list[str]):
         await db.commit()
 
 
-def _snapshot(symbol, *, score, publishable, block_reasons, methodology_version="NONBANK_INDUSTRIAL_V1", pillar_coverage_status="complete"):
+def _snapshot(symbol, *, score, publishable, block_reasons, methodology_version="NONBANK_INDUSTRIAL_V2", pillar_coverage_status="complete"):
     return MarketRippleScoreSnapshot(
         symbol=symbol, score=score, rating="Positive" if score else None,
         financial_strength=score, valuation=score, market_behaviour=score, current_intelligence=score,
         coverage_pct=80.0, methodology_version=methodology_version, peer_universe=[], peer_universe_count=33,
         calculated_at=datetime.now(timezone.utc), publishable=publishable,
         publication_block_reason=None if publishable else "S2 phase lock",
-        publication_policy_version="NONBANK_INDUSTRIAL_V1_P1", publication_block_reasons=block_reasons,
+        publication_policy_version="NONBANK_INDUSTRIAL_V2_P1", publication_block_reasons=block_reasons,
         pillar_coverage_status=pillar_coverage_status,
         pillar_coverage_message="Complete coverage — 4 of 4 pillars" if pillar_coverage_status == "complete" else "Partial coverage — 2 of 4 pillars",
     )
@@ -90,7 +90,7 @@ async def test_industrial_sector_ranking_categorizes_like_banking_does():
         async with AsyncSessionLocal() as db:
             result = await get_industrial_sector_rankings(db, "Technology")
         assert result["sector"] == "Technology"
-        assert result["methodology_version"] == "NONBANK_INDUSTRIAL_V1"
+        assert result["methodology_version"] == "NONBANK_INDUSTRIAL_V2"
         assert result["supported"] is True
         row = next(r for r in result["ranked"] if r["symbol"] == tag)
         assert row["score"] == 61.0

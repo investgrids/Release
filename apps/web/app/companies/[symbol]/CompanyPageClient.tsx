@@ -1520,10 +1520,11 @@ function MarketRippleScoreSection({ stock }: { stock: StockDetail }) {
 // the other — either one alone already prevents this from ever reaching a
 // real user. MarketRippleScoreCard above (the real, public-facing card)
 // is completely unmodified by this addition.
-interface LocalPreviewData {
+export interface LocalPreviewData {
   resolved: boolean;
   snapshot?: boolean;
   local_dev_preview?: boolean;
+  methodology_version?: string | null;
   publishable?: boolean;
   eligible?: boolean;
   block_reason_codes?: string[];
@@ -1589,7 +1590,7 @@ function LocalUnpublishedScorePreview({ symbol }: { symbol: string }) {
         <>
           <div className="mt-3 flex items-baseline gap-3">
             <span className="text-[28px] font-black leading-none text-text-primary">
-              {data.score != null ? Math.round(data.score) : "—"}
+              {data.score != null ? marketRippleScoreDisplayInt(data.score) : "—"}
             </span>
             <span className="text-[12px] text-text-muted">/ 100</span>
             {data.rating && <span className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">{data.rating}</span>}
@@ -1599,12 +1600,25 @@ function LocalUnpublishedScorePreview({ symbol }: { symbol: string }) {
             {pillars.map(p => {
               const value = data.pillars?.[p.key];
               const weight = data.effective_weights?.[p.key];
+              // NONBANK_INDUSTRIAL_V2 (2026-09-27): Current Intelligence is
+              // real, computed evidence about the company, deliberately
+              // never part of this version's weighted score (see
+              // engine.py's own NONBANK_INDUSTRIAL_V2_WEIGHTS docstring) —
+              // labeled distinctly from a genuinely-missing contributing
+              // pillar (e.g. Valuation with no real PE/PB data), which
+              // still says "not contributing" since that IS an honest gap
+              // for methodologies where it would otherwise count.
+              const isEvidenceOnly = p.key === "current_intelligence" && data.methodology_version === "NONBANK_INDUSTRIAL_V2";
               return (
                 <div key={p.label}>
-                  <p className="text-[9px] uppercase tracking-wider text-text-muted">{p.label}</p>
+                  <p className="text-[9px] uppercase tracking-wider text-text-muted">
+                    {p.label}{isEvidenceOnly && <span className="ml-1 lowercase text-amber-500/80">(evidence)</span>}
+                  </p>
                   <p className="mt-0.5 text-[14px] font-bold text-text-primary">{value != null ? Math.round(value) : "—"}</p>
                   <p className="text-[9px] text-text-muted">
-                    {weight != null ? `effective weight ${Math.round(weight * 100)}%` : "not contributing"}
+                    {isEvidenceOnly
+                      ? "shown separately — not part of this score"
+                      : weight != null ? `effective weight ${Math.round(weight * 100)}%` : "not contributing"}
                   </p>
                 </div>
               );

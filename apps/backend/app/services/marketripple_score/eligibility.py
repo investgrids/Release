@@ -65,18 +65,23 @@ BANKING_V1_P1 = EligibilityPolicy(
     require_financial_strength_pillar=True,
 )
 
-# Non-Banking Commercial & Industrial V1 publication policy (NS1, owner
+# Non-Banking Commercial & Industrial publication policy (NS1, owner
 # instruction 2026-09-27) — same reasoning as BANKING_V1_P1, scaled to
 # this methodology's own real metric total (6, not 7 — see
 # financial_strength_industrial.py's REAL_INDUSTRIAL_METRICS_TOTAL). 4/6
 # (~67%) mirrors BANKING_V1_P1's own ~71% (5/7) floor: enough of the real
 # metric set present to be defensible, not "almost half the model absent."
 # Overall coverage floor kept identical to Banking's (65%) — that
-# threshold is about whole-score evidence sufficiency across all 4
-# pillars, not something specific to the Financial Strength formula, so
-# there's no real reason for it to differ by sector.
-NONBANK_INDUSTRIAL_V1_P1 = EligibilityPolicy(
-    name="NONBANK_INDUSTRIAL_V1_P1",
+# threshold is about whole-score evidence sufficiency, not something
+# specific to the Financial Strength formula, so there's no real reason
+# for it to differ by sector. Named V2, not V1, to stay paired with
+# engine.py's NONBANK_INDUSTRIAL_METHODOLOGY_VERSION ("NONBANK_INDUSTRIAL_V2",
+# bumped same day for the 3-required-pillar score redesign) — the
+# eligibility THRESHOLDS themselves are unchanged from the original V1
+# values, only the name moved to avoid a confusing "V1 policy on a V2
+# score" pairing on every persisted snapshot's publication_policy_version.
+NONBANK_INDUSTRIAL_V2_P1 = EligibilityPolicy(
+    name="NONBANK_INDUSTRIAL_V2_P1",
     min_financial_metrics_used=4,
     min_overall_coverage_pct=65.0,
     require_financial_strength_pillar=True,

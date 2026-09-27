@@ -2,7 +2,7 @@
 Company Rankings API — the one real backend ranking endpoint over approved
 MarketRippleScoreSnapshot data (2026-09-26 migration; NS1 non-Banking
 cohort added 2026-09-27). Two approved methodologies today: BANKING_V1 and
-NONBANK_INDUSTRIAL_V1 (sector_universe.py's NONBANK_INDUSTRIAL_SECTORS) —
+NONBANK_INDUSTRIAL_V2 (sector_universe.py's NONBANK_INDUSTRIAL_SECTORS) —
 each ranked in its own separate list, never blended, since scores from
 different methodologies are never directly comparable. No frontend score
 calculation — every field here is read straight from

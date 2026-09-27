@@ -179,6 +179,50 @@ Two real sectors (Electronics, Retail) have only 2 real companies each in the li
 - **The fee-based Finance sub-list** (CDSL/MCX/CRISIL/CAMS/ANGELONE, and any other real names like them) — real data confirmed, needs a small curated peer-group mechanism, not yet built.
 - **ETF/REIT/InvIT (11 companies)** — not real operating companies in the traditional sense; never a candidate for this kind of company score to begin with.
 
+## 9. NONBANK_INDUSTRIAL_V2 — the versioned redesign (owner instruction, 2026-09-27, "prioritize the 326 evidence-limited companies")
+
+**Real problem this closes:** after the full NS1+NS2 backfill, 326 of 397 non-bank companies (82%) showed a complete, real 3-of-3 Financial Strength/Valuation/Market Behaviour result but no headline number at all — purely because Current Intelligence found no contributing evidence for them. The old 4-pillar comparability rule (inherited unmodified from Banking's own design) was withholding a real, defensible score over a pillar that measures evidence density, not company fundamentals, and is structurally thinner for most non-bank companies than for the 27 heavily-covered real banks it was designed against.
+
+**The redesign:**
+- **`compute_nonbank_headline()`** (`engine.py`) — the one dedicated function that validates the three required pillars (Financial Strength, Valuation, Market Behaviour) are each real values in `[0, 100]`, computes the weighted headline using **exact rational weights `Fraction(8,15)`, `Fraction(4,15)`, `Fraction(3,15)`** (owner-agreed exact split, not a rounded decimal approximation — converted to float only at the final 1-decimal rounding step), assigns the rating via the same shared `_label_for` Banking uses, and returns a structured result (`status`, `reason_code` — `MISSING_REQUIRED_PILLAR` or `INVALID_PILLAR_SCORE_RANGE` — never just a free-text message) when a headline can't be computed.
+- **Current Intelligence is never read by this function at all** — proven by a test showing the headline score is byte-identical whether it's present or `None`. It stays fully computed and visible in `pillars`, labeled "(evidence)" in the UI, distinct from a genuinely-missing contributing pillar.
+- **`NONBANK_INDUSTRIAL_METHODOLOGY_VERSION` bumped to `"NONBANK_INDUSTRIAL_V2"`** the same day; the matching eligibility policy renamed `NONBANK_INDUSTRIAL_V2_P1` (same real thresholds — 4/6 metrics, 65% coverage — just paired consistently with the new version).
+- **Banking's own 4-pillar dynamic-renormalization rule is completely untouched** — proven by a regression test with a controlled case that would produce a *different* result under each rule if they were ever accidentally shared (Banking still withholds at 3-of-4; V2 would have called that "complete").
+- **`get_latest_snapshot()` now filters to `(BANKING_V1, NONBANK_INDUSTRIAL_V2)` only** — "latest by timestamp" was not a safe proxy for "current methodology" on its own; a real, superseded `NONBANK_INDUSTRIAL_V1` row could theoretically have carried a later timestamp than a genuine V2 row (a delayed batch, clock skew) and been wrongly selected. Proven with an adversarial test: an old-tagged row with a *newer* `calculated_at` than the current-methodology row is never selected. Superseded history is never deleted, just never chosen as "current" again.
+- **A real, found-live rounding inconsistency was caught and fixed during browser verification** (see §10) — not a data bug, a *display* bug: two new components (`LocalUnpublishedScorePreview`, `AllCompaniesTab`'s Score column, and Compare's `MrScoreTile`) were using `Math.round()` for the headline score instead of the codebase's own established `marketRippleScoreDisplayInt()` (deliberately `Math.floor`, documented against a real historical bug where 59.7 rounded to a displayed "60" while the real rating stayed "Neutral"). Fixed in all three places.
+- **Compare page extended** with the same dev-only local-preview fallback the Company page already had (`mrLocalPreviews` state, gated identically) — it previously only read the public (locked) projection and showed "Unavailable" for every non-bank company, which meant it could never actually be verified against the other two surfaces until this fix.
+
+**14 new tests** (6 for `compute_nonbank_headline`'s validation/exact-math/structured-reasons, 4 for the engine composition end-to-end, 2 for the `get_latest_snapshot` methodology-filtering including the adversarial case, plus the earlier engine tests) — all passing, alongside the full 65-test regression suite.
+
+## 10. Full recompute results (real, local)
+
+All 397 non-bank companies (19 sectors) and both Banking pilots recomputed fresh under the finalized code.
+
+**Reconciling the earlier count** (flagged by the owner): the prior "399 companies" figure blended two different methodologies without labeling them separately. Corrected here:
+
+| Cohort | Total | Numeric score | Partial/unavailable |
+|---|---|---|---|
+| **Non-bank (NONBANK_INDUSTRIAL_V2, 19 sectors)** | **397** | **396 (99.7%)** | **1** |
+| **Banking (BANKING_V1, pilot)** | **2** | **2 (100%)** | **0** |
+| **Combined** | **399** | **398** | **1** |
+
+The single non-bank exception is **TATAMOTORS** (0 of 3 required pillars usable — this is the real, legacy pre-rename ticker; the company's real financial/market data now trades under TMPV per the confirmed 2025-10-24 rename, and TMPV itself shows a real numeric score in this same run). Zero errors and zero true "no usable data" cases across all 397 non-bank companies and both banks.
+
+This is the direct, measured result of the redesign: **from 71/397 (17.9%) numeric under the old 4-pillar rule to 396/397 (99.7%) numeric under V2** — the 326 evidence-limited companies from before are now real, defensible scores.
+
+## 11. Real browser verification — cross-surface agreement
+
+Verified live (headless Chromium, real local backend + frontend) that TCS shows the exact same score across all three canonical read surfaces, all reading through the same `get_latest_snapshot()`:
+
+| Surface | Displayed score |
+|---|---|
+| Company page — header tile | **57**/100, Neutral, "LOCAL PREVIEW" |
+| Company page — Overview local-preview panel | **57**/100, Neutral, pillars + effective weights, Current Intelligence labeled "(evidence)" |
+| All Companies listing — Score column | **57**, "PREVIEW" badge |
+| Compare page — AI Analysis tab | **57**, "PREVIEW" badge (newly wired this round) |
+
+Also verified ICICIBANK (Banking pilot) shows a consistent **43** across the header tile, Overview panel, and All Companies listing. The Company Rankings API for Technology correctly shows TCS as `unavailable — publication_locked` (never in `ranked`), matching Banking's own real, current behavior under the same S2 phase lock — confirming rankings never leak a locked score even though the underlying real number exists.
+
 ## 7. Remaining steps to publish
 
 None of the following were done in this pass, per the explicit "keep production publication locked" instruction:

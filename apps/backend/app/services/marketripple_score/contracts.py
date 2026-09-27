@@ -36,7 +36,19 @@ BANKING_METHODOLOGY_VERSION = "BANKING_V1"
 # own reasoning: a different formula (financial_strength_industrial.py),
 # a different peer universe (sector_universe.py), never silently
 # comparable to a BANKING_V1 score just because both are 0-100.
-NONBANK_INDUSTRIAL_METHODOLOGY_VERSION = "NONBANK_INDUSTRIAL_V1"
+#
+# Bumped to V2 the same day (owner instruction, 2026-09-27, after the real
+# full-cohort backfill showed 82% of non-bank companies withheld a
+# headline number purely for thin Current Intelligence evidence): V2
+# scores on Financial Strength/Valuation/Market Behaviour only, with fixed
+# disclosed weights (engine.py's NONBANK_INDUSTRIAL_V2_WEIGHTS), and shows
+# Current Intelligence as separate, real, un-weighted evidence rather than
+# a fourth required pillar. Every already-persisted "NONBANK_INDUSTRIAL_V1"
+# snapshot row keeps that exact tag forever (real history, never rewritten)
+# — get_latest_snapshot() naturally surfaces the newest (V2) row per
+# symbol once recomputed, the same append-only pattern this whole
+# initiative already relies on.
+NONBANK_INDUSTRIAL_METHODOLOGY_VERSION = "NONBANK_INDUSTRIAL_V2"
 
 
 @dataclass

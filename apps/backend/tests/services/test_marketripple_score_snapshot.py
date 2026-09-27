@@ -117,3 +117,60 @@ async def test_get_latest_snapshot_none_when_no_snapshot_exists():
     async with AsyncSessionLocal() as db:
         result = await get_latest_snapshot(db, symbol)
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_latest_snapshot_never_selects_a_superseded_methodology_even_with_a_newer_timestamp():
+    """The real coordination guarantee owner instruction 2026-09-27 asked
+    for: "select only snapshots from the current methodology... old and
+    new calculations cannot be mistaken for each other." A stale-tagged
+    row (e.g. the real, retired NONBANK_INDUSTRIAL_V1) must never be
+    selected as "latest," even in the adversarial case where it happens to
+    carry a NEWER calculated_at than the real current-methodology row --
+    exactly the scenario a delayed batch or clock skew could produce.
+    "Latest by timestamp" alone was not a safe proxy for "current
+    methodology" before this fix."""
+    symbol = f"TESTSNAP{_tag()}"[:20].upper()
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as db:
+        db.add(MarketRippleScoreSnapshot(
+            symbol=symbol, score=60.0, coverage_pct=90.0, methodology_version="NONBANK_INDUSTRIAL_V2",
+            peer_universe=[], peer_universe_count=33, calculated_at=now - timedelta(hours=1),
+            publishable=False,
+        ))
+        # Adversarial case: a real, superseded methodology tag with a
+        # LATER timestamp than the current-methodology row above.
+        db.add(MarketRippleScoreSnapshot(
+            symbol=symbol, score=45.0, coverage_pct=70.0, methodology_version="NONBANK_INDUSTRIAL_V1",
+            peer_universe=[], peer_universe_count=33, calculated_at=now,
+            publishable=False,
+        ))
+        await db.commit()
+
+    try:
+        async with AsyncSessionLocal() as db:
+            latest = await get_latest_snapshot(db, symbol)
+        assert latest is not None
+        assert latest.methodology_version == "NONBANK_INDUSTRIAL_V2"
+        assert latest.score == 60.0  # the current-methodology row, despite being older
+    finally:
+        await _cleanup_snapshots(symbol)
+
+
+@pytest.mark.asyncio
+async def test_get_latest_snapshot_returns_none_when_only_superseded_methodology_rows_exist():
+    symbol = f"TESTSNAP{_tag()}"[:20].upper()
+    async with AsyncSessionLocal() as db:
+        db.add(MarketRippleScoreSnapshot(
+            symbol=symbol, score=45.0, coverage_pct=70.0, methodology_version="NONBANK_INDUSTRIAL_V1",
+            peer_universe=[], peer_universe_count=33, calculated_at=datetime.now(timezone.utc),
+            publishable=False,
+        ))
+        await db.commit()
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await get_latest_snapshot(db, symbol)
+        assert result is None
+    finally:
+        await _cleanup_snapshots(symbol)

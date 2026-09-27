@@ -8,7 +8,8 @@ import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Shield, ClipboardList, BarChart2, X } from "lucide-react";
 import { API_BASE_URL as API } from "@/lib/api";
-import type { MarketRippleScoreData } from "@/app/companies/[symbol]/CompanyPageClient";
+import { marketRippleScoreDisplayInt } from "@/lib/scoring";
+import type { LocalPreviewData, MarketRippleScoreData } from "@/app/companies/[symbol]/CompanyPageClient";
 
 // Recharts split into its own lazy chunk (2026-08 performance audit) — see
 // CompareLineChart.tsx's own header comment for why.
@@ -258,8 +259,9 @@ function ScoreRing({ score, label, col }: { score: number; label: string; col: s
 // hiding it or substituting a fabricated number — and deliberately never
 // highlights or ranks the compared tiles against each other (no declared
 // winner), even when every company shown is fully eligible.
-function MrScoreTile({ data, label, col }: {
-  data: MarketRippleScoreData | null | undefined; label: string; col: string;
+function MrScoreTile({ data, localPreview, label, col }: {
+  data: MarketRippleScoreData | null | undefined; localPreview?: LocalPreviewData | null | undefined;
+  label: string; col: string;
 }) {
   if (data === undefined) {
     return (
@@ -282,6 +284,23 @@ function MrScoreTile({ data, label, col }: {
   }
   const eligible = !!data?.resolved && !!data?.snapshot && data?.eligible === true && data.score != null;
   if (!eligible) {
+    // Dev-only fallback (2026-09-27) — same NODE_ENV gate as the Company
+    // page's own local-preview panel, so this branch is dead code in any
+    // real build. Lets the same real score be verified consistently on
+    // Compare too, without ever touching the public trust boundary above:
+    // this only renders when the public `data` genuinely has nothing to
+    // show (locked/ineligible/no snapshot).
+    const isDev = process.env.NODE_ENV === "development";
+    if (isDev && localPreview?.eligible && localPreview.score != null) {
+      return (
+        <div className="flex flex-col items-center gap-1">
+          <ScoreRing score={marketRippleScoreDisplayInt(localPreview.score)!} label={label} col={col} />
+          <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-amber-500" title="Local unpublished preview — never shown in production">
+            preview
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center gap-1">
         <div className="flex h-[76px] w-[76px] items-center justify-center text-center">
@@ -291,7 +310,7 @@ function MrScoreTile({ data, label, col }: {
       </div>
     );
   }
-  return <ScoreRing score={Math.round(data.score!)} label={label} col={col} />;
+  return <ScoreRing score={marketRippleScoreDisplayInt(data.score!)!} label={label} col={col} />;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -326,6 +345,12 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
   // the Company page itself reads (GET /api/companies/{symbol}/
   // marketripple-score). undefined = loading, null = fetch failed.
   const [mrScores, setMrScores]     = useState<Record<string, MarketRippleScoreData | null | undefined>>({});
+  // Dev-only local-preview fallback (2026-09-27) — same real snapshot,
+  // read regardless of `publishable`, mirroring the Company page's own
+  // local-preview endpoint/gate exactly (NODE_ENV==="development" here,
+  // settings.is_production on the backend — either alone already keeps
+  // this out of any real deployment).
+  const [mrLocalPreviews, setMrLocalPreviews] = useState<Record<string, LocalPreviewData | null | undefined>>({});
   const searchRef = useRef<HTMLDivElement>(null);
 
   function meta(sym: string) {
@@ -370,6 +395,19 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
         .then(r => r.ok ? r.json() : null)
         .then(d => setMrScores(prev => ({ ...prev, [sym]: d })))
         .catch(() => setMrScores(prev => ({ ...prev, [sym]: null })));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    selected.forEach(sym => {
+      if (sym in mrLocalPreviews) return;
+      setMrLocalPreviews(prev => ({ ...prev, [sym]: undefined }));
+      fetch(`${API}/api/companies/${sym}/marketripple-score/local-preview`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => setMrLocalPreviews(prev => ({ ...prev, [sym]: d })))
+        .catch(() => setMrLocalPreviews(prev => ({ ...prev, [sym]: null })));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
@@ -968,7 +1006,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           <CardTitle>MarketRipple Score</CardTitle>
           <div className="flex flex-wrap justify-around gap-4 pt-2">
             {companies.map((c, i) => (
-              <MrScoreTile key={c.symbol} data={mrScores[c.symbol]} label={c.symbol} col={color(i)} />
+              <MrScoreTile key={c.symbol} data={mrScores[c.symbol]} localPreview={mrLocalPreviews[c.symbol]} label={c.symbol} col={color(i)} />
             ))}
           </div>
           <p className="mt-4 text-[10px] text-text-muted text-center">
@@ -1225,7 +1263,7 @@ function ComparePageInner({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
                     {(c.recommendation || "hold").replace(/_/g, " ").toUpperCase()}
                   </span>
                 </div>
-                <MrScoreTile data={mrScores[c.symbol]} label="MarketRipple Score" col={color(i)} />
+                <MrScoreTile data={mrScores[c.symbol]} localPreview={mrLocalPreviews[c.symbol]} label="MarketRipple Score" col={color(i)} />
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div>
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Strengths</p>

@@ -958,7 +958,8 @@ async def get_company_marketripple_score_local_preview(symbol: str, db: AsyncSes
         raise HTTPException(status_code=404, detail="Not found")
 
     from app.services.company_identity.qualification import resolve_entity_by_any_symbol
-    from app.services.marketripple_score.engine import CANDIDATE_WEIGHTS
+    from app.services.marketripple_score.contracts import NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
+    from app.services.marketripple_score.engine import CANDIDATE_WEIGHTS, NONBANK_INDUSTRIAL_V2_WEIGHTS
     from app.services.marketripple_score.snapshot import get_latest_snapshot
 
     entity = await resolve_entity_by_any_symbol(db, symbol)
@@ -976,11 +977,31 @@ async def get_company_marketripple_score_local_preview(symbol: str, db: AsyncSes
         "financial_strength": snap.financial_strength, "valuation": snap.valuation,
         "market_behaviour": snap.market_behaviour, "current_intelligence": snap.current_intelligence,
     }
-    used_weight = sum(CANDIDATE_WEIGHTS[name] for name, score in pillar_scores.items() if score is not None)
-    effective_weights = {
-        name: (round(CANDIDATE_WEIGHTS[name] / used_weight, 4) if score is not None and used_weight else None)
-        for name, score in pillar_scores.items()
-    }
+
+    # Weights must be looked up by the snapshot's OWN real methodology, not
+    # assumed to be Banking's — a real bug this endpoint had until owner
+    # instruction 2026-09-27 introduced NONBANK_INDUSTRIAL_V2: it always
+    # hardcoded CANDIDATE_WEIGHTS (Banking's 4-pillar dynamic-renormalization
+    # rule), which would have wrongly shown current_intelligence as
+    # carrying some effective weight for non-bank companies whenever its
+    # score happened to be present -- V2's real rule never weights
+    # current_intelligence at all, present or not.
+    if snap.methodology_version == NONBANK_INDUSTRIAL_METHODOLOGY_VERSION:
+        # V2: all-3-required-or-none for the headline number -- no partial
+        # renormalized blend ever contributes to `score`, so the fixed
+        # weights apply exactly as declared whenever a real score exists,
+        # and current_intelligence is never assigned an effective weight.
+        effective_weights = {
+            name: (NONBANK_INDUSTRIAL_V2_WEIGHTS.get(name) if snap.score is not None else None)
+            for name in pillar_scores
+        }
+    else:
+        candidate_weights = CANDIDATE_WEIGHTS
+        used_weight = sum(candidate_weights[name] for name, score in pillar_scores.items() if score is not None)
+        effective_weights = {
+            name: (round(candidate_weights[name] / used_weight, 4) if score is not None and used_weight else None)
+            for name, score in pillar_scores.items()
+        }
 
     return {
         "resolved": True, "snapshot": True, "local_dev_preview": True,
@@ -997,7 +1018,10 @@ async def get_company_marketripple_score_local_preview(symbol: str, db: AsyncSes
         "score": snap.score,
         "rating": snap.rating,
         "pillars": pillar_scores,
-        "candidate_weights": CANDIDATE_WEIGHTS,
+        "candidate_weights": (
+            NONBANK_INDUSTRIAL_V2_WEIGHTS if snap.methodology_version == NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
+            else CANDIDATE_WEIGHTS
+        ),
         "effective_weights": effective_weights,
         "evidence_coverage_pct": snap.coverage_pct,
         "financial_coverage_pct": snap.financial_coverage_pct,

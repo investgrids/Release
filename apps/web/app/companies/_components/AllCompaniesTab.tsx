@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { WatchlistButton } from "@/components/WatchlistButton";
+import { marketRippleScoreDisplayInt } from "@/lib/scoring";
 import { CompanySearchInput } from "../_components/SearchInput";
 import { FilterSidebar } from "../_components/FilterSidebar";
 
@@ -114,7 +115,7 @@ function ScoreCell({ co }: { co: ListResponse["companies"][number] }) {
   if (pub?.publishable && pub.score != null) {
     return (
       <span className="font-mono text-[12px] font-bold tabular-nums text-emerald-500">
-        {Math.round(pub.score)}
+        {marketRippleScoreDisplayInt(pub.score)}
       </span>
     );
   }
@@ -123,7 +124,7 @@ function ScoreCell({ co }: { co: ListResponse["companies"][number] }) {
   if (isDev && preview?.eligible && preview.score != null) {
     return (
       <span className="inline-flex items-center gap-1">
-        <span className="font-mono text-[12px] font-bold tabular-nums text-amber-500">{Math.round(preview.score)}</span>
+        <span className="font-mono text-[12px] font-bold tabular-nums text-amber-500">{marketRippleScoreDisplayInt(preview.score)}</span>
         <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-amber-500" title="Local unpublished preview — never shown in production">
           preview
         </span>

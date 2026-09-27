@@ -84,8 +84,9 @@ async def compute_and_persist_snapshot(
     backfill share one sector's prefetched peer/benchmark data across many
     persisted snapshots instead of each one re-fetching independently."""
     from app.services.company_identity.qualification import resolve_entity_by_any_symbol
+    from app.services.marketripple_score.contracts import NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
     from app.services.marketripple_score.eligibility import (
-        BANKING_V1_P1, NONBANK_INDUSTRIAL_V1_P1, evaluate_eligibility,
+        BANKING_V1_P1, NONBANK_INDUSTRIAL_V2_P1, evaluate_eligibility,
     )
     from app.services.marketripple_score.financial_strength import REAL_BANKING_METRICS_TOTAL
     from app.services.marketripple_score.financial_strength_industrial import REAL_INDUSTRIAL_METRICS_TOTAL
@@ -106,7 +107,7 @@ async def compute_and_persist_snapshot(
     # instruction, 2026-09-27) adds the equivalent for the Non-Banking
     # Industrial methodology, never mixing the two policies/metric totals.
     is_banking = result.methodology_version == "BANKING_V1"
-    is_industrial = result.methodology_version == "NONBANK_INDUSTRIAL_V1"
+    is_industrial = result.methodology_version == NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
 
     if is_banking:
         financial_data_as_of = await _real_financial_data_as_of(db, symbol)
@@ -141,9 +142,9 @@ async def compute_and_persist_snapshot(
             financial_metrics_total=REAL_INDUSTRIAL_METRICS_TOTAL,
             overall_coverage_pct=result.overall_coverage_pct,
             financial_data_as_of=financial_data_as_of,
-            policy=NONBANK_INDUSTRIAL_V1_P1,
+            policy=NONBANK_INDUSTRIAL_V2_P1,
         )
-        publication_policy_version = NONBANK_INDUSTRIAL_V1_P1.name
+        publication_policy_version = NONBANK_INDUSTRIAL_V2_P1.name
         publication_block_reasons = eligibility.reasons
 
     snapshot = MarketRippleScoreSnapshot(
@@ -184,12 +185,32 @@ async def compute_and_persist_snapshot(
 
 
 async def get_latest_snapshot(db: AsyncSession, symbol: str) -> MarketRippleScoreSnapshot | None:
-    """The one real read path a Company page should use — no live
-    computation, no external network calls."""
+    """The one real read path a Company page (and Compare, and Rankings —
+    all three read through this same function) should use — no live
+    computation, no external network calls.
+
+    Filtered to CURRENT_METHODOLOGY_VERSIONS only (owner instruction,
+    2026-09-27, after NONBANK_INDUSTRIAL_V1 was superseded by V2 same day):
+    "latest by calculated_at" alone is not a safe proxy for "current
+    methodology" — a stale-tagged row could otherwise still be selected if
+    it ever happened to carry a newer timestamp than expected (a delayed
+    batch, clock skew, a partially-completed recompute). Real superseded
+    history (e.g. NONBANK_INDUSTRIAL_V1 rows) is never deleted and stays
+    queryable directly, it simply can never be chosen as "the" current
+    result again — old and new methodology calculations can't be mistaken
+    for each other by construction, not by convention."""
+    from app.services.marketripple_score.contracts import (
+        BANKING_METHODOLOGY_VERSION, NONBANK_INDUSTRIAL_METHODOLOGY_VERSION,
+    )
+
     symbol = symbol.upper()
+    current_versions = (BANKING_METHODOLOGY_VERSION, NONBANK_INDUSTRIAL_METHODOLOGY_VERSION)
     return (await db.execute(
         select(MarketRippleScoreSnapshot)
-        .where(MarketRippleScoreSnapshot.symbol == symbol)
+        .where(
+            MarketRippleScoreSnapshot.symbol == symbol,
+            MarketRippleScoreSnapshot.methodology_version.in_(current_versions),
+        )
         .order_by(MarketRippleScoreSnapshot.calculated_at.desc())
         .limit(1)
     )).scalar_one_or_none()
