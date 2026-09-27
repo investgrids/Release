@@ -1578,12 +1578,12 @@ function LocalUnpublishedScorePreview({ symbol }: { symbol: string }) {
     : null;
 
   return (
-    <div className="mt-3 rounded-2xl border-2 border-dashed border-amber-500/50 bg-amber-500/[0.06] p-4">
-      <div className="flex items-center gap-2">
-        <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+    <div className="mt-3 min-w-0 rounded-2xl border-2 border-dashed border-amber-500/50 bg-amber-500/[0.06] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="shrink-0 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
           Local Unpublished Preview
         </span>
-        <span className="text-[10px] text-text-muted">Dev-only — never shown in production, publication lock unaffected</span>
+        <span className="min-w-0 text-[10px] text-text-muted">Dev-only — never shown in production, publication lock unaffected</span>
       </div>
 
       {data.eligible ? (
@@ -1600,15 +1600,17 @@ function LocalUnpublishedScorePreview({ symbol }: { symbol: string }) {
             {pillars.map(p => {
               const value = data.pillars?.[p.key];
               const weight = data.effective_weights?.[p.key];
-              // NONBANK_INDUSTRIAL_V2 (2026-09-27): Current Intelligence is
-              // real, computed evidence about the company, deliberately
-              // never part of this version's weighted score (see
-              // engine.py's own NONBANK_INDUSTRIAL_V2_WEIGHTS docstring) —
-              // labeled distinctly from a genuinely-missing contributing
+              // MARKETRIPPLE_SCORE_V1 (2026-09-27 unification): Current
+              // Intelligence is real, computed evidence about the company,
+              // deliberately never part of the shared weighted score for
+              // ANY sector (see engine.py's own HEADLINE_WEIGHTS docstring)
+              // — labeled distinctly from a genuinely-missing contributing
               // pillar (e.g. Valuation with no real PE/PB data), which
-              // still says "not contributing" since that IS an honest gap
-              // for methodologies where it would otherwise count.
-              const isEvidenceOnly = p.key === "current_intelligence" && data.methodology_version === "NONBANK_INDUSTRIAL_V2";
+              // still says "not contributing" since that IS an honest gap.
+              // Was previously gated on methodology_version === "NONBANK_INDUSTRIAL_V2"
+              // (a real bug once that tag was retired in favor of one
+              // shared identifier for every sector, including Banking).
+              const isEvidenceOnly = p.key === "current_intelligence";
               return (
                 <div key={p.label}>
                   <p className="text-[9px] uppercase tracking-wider text-text-muted">

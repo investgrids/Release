@@ -55,12 +55,17 @@ test.describe("Compare page — one-score migration (real hydrated browser)", ()
     // EPS); other ratios show "period unconfirmed" instead.
     await expect(page.getByText(/trailingPE/).first()).toBeVisible();
 
-    // Valuation tab: the real MarketRipple Score card, honestly showing
-    // "Unavailable" for both real companies (confirmed live: no snapshot
-    // exists locally for either symbol) — never the old fabricated ring.
+    // Valuation tab: the real MarketRipple Score card. Both real companies
+    // now have a real, eligible MARKETRIPPLE_SCORE_V1 snapshot locally
+    // (owner instruction 2026-09-27, "one score calculation" unification +
+    // full recompute) — publishable stays False (S2 phase lock, untouched),
+    // so this dev-only build shows the real "Local preview" number instead
+    // of "Unavailable"; a real production build shows "Unavailable" since
+    // the local-preview fallback never renders there. Either way, never
+    // the old fabricated ring/winner banner.
     await page.getByRole("button", { name: "Valuation" }).click();
     await expect(page.getByText("MarketRipple Score", { exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Unavailable").first()).toBeVisible();
+    await expect(page.getByText("preview", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Score Comparison")).not.toBeVisible();
     await expect(page.getByText(/Score derived from ROE, PE/)).not.toBeVisible();
 

@@ -21,14 +21,14 @@ const SITE_URL = "https://www.marketripple.in";
 const PAGE_URL = `${SITE_URL}/methodology/marketripple-score`;
 
 export const metadata: Metadata = {
-  title: "MarketRipple Score Methodology | Banking V1",
+  title: "MarketRipple Score Methodology",
   description:
-    "What the MarketRipple Score means, how the four pillars are weighted, what Banking V1 evaluates, and MarketRipple's real evidence-quality and publication requirements.",
+    "What the MarketRipple Score means, how the three scored pillars are weighted, which sectors it covers, and MarketRipple's real evidence-quality and publication requirements.",
   alternates: { canonical: PAGE_URL },
   openGraph: {
-    title: "MarketRipple Score Methodology | Banking V1",
+    title: "MarketRipple Score Methodology",
     description:
-      "How the MarketRipple Score is built: four weighted pillars, real verified evidence, and honest publication requirements — Banking V1, the first live methodology.",
+      "How the MarketRipple Score is built: one shared formula across every supported sector, real verified evidence, and honest publication requirements.",
     url: PAGE_URL,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MarketRipple — AI-Powered Market Intelligence" }],
   },
@@ -54,21 +54,25 @@ function Section({
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 // Every number on this page was checked directly against the real backend
-// code on 2026-08-29 (app/services/marketripple_score/): pillar weights
-// from engine.py's CANDIDATE_WEIGHTS, rating boundaries from engine.py's
-// _label_for() (test-covered, tests/services/test_marketripple_score.py:80-91),
-// the 7 real Banking V1 metrics and known-unavailable list from
-// financial_strength.py, and the publication policy from eligibility.py's
-// BANKING_V1_P1. Nothing here is aspirational or rounded for effect.
+// code on 2026-09-27 (app/services/marketripple_score/): pillar weights
+// from engine.py's HEADLINE_WEIGHTS (exact fractions 8/15, 4/15, 3/15),
+// rating boundaries from engine.py's _label_for(), the real per-sector
+// Financial Strength metric lists from financial_strength.py (Banking)
+// and financial_strength_industrial.py (every other supported sector),
+// and the publication policies from eligibility.py's BANKING_V1_P1 /
+// NONBANK_INDUSTRIAL_V2_P1. Nothing here is aspirational or rounded for
+// effect. This methodology (MARKETRIPPLE_SCORE_V1) unified what were
+// previously two separate rules — Banking's own 4-pillar composition and
+// a non-bank-only 3-pillar redesign — into the one shared formula
+// described below, used by every supported sector alike.
 
 const PILLARS = [
-  { name: "Financial Strength",   weight: "40%", desc: "Sector-specific financial health and operating performance, built from real, verified regulatory and market data.", icon: <Landmark className="h-5 w-5" />, color: "border-emerald-500/25 bg-emerald-500/10 text-emerald-400" },
-  { name: "Valuation",            weight: "20%", desc: "Valuation relative to the eligible peer universe for that sector, plus the company's own historical valuation range.", icon: <Scale className="h-5 w-5" />, color: "border-sky-500/25 bg-sky-500/10 text-sky-400" },
-  { name: "Market Behaviour",     weight: "15%", desc: "Real, current price behaviour and relative performance.", icon: <Activity className="h-5 w-5" />, color: "border-amber-500/25 bg-amber-500/10 text-amber-400" },
-  { name: "Current Intelligence", weight: "25%", desc: "Current evidence from MarketRipple's event and company-intelligence system — published analysis and tracked opportunity signals.", icon: <Brain className="h-5 w-5" />, color: "border-violet-500/25 bg-violet-500/10 text-violet-400" },
+  { name: "Financial Strength", weight: "8/15", desc: "Sector-specific financial health and operating performance, built from real, verified regulatory and market data — the raw inputs differ by sector, the weight doesn't.", icon: <Landmark className="h-5 w-5" />, color: "border-emerald-500/25 bg-emerald-500/10 text-emerald-400" },
+  { name: "Valuation", weight: "4/15", desc: "Valuation relative to the eligible peer universe for that sector, plus the company's own historical valuation range.", icon: <Scale className="h-5 w-5" />, color: "border-sky-500/25 bg-sky-500/10 text-sky-400" },
+  { name: "Market Behaviour", weight: "3/15", desc: "Real, current price behaviour and relative performance.", icon: <Activity className="h-5 w-5" />, color: "border-amber-500/25 bg-amber-500/10 text-amber-400" },
 ];
 
-const BANKING_V1_METRICS = [
+const BANKING_METRICS = [
   { name: "Gross NPA %", source: "NSE regulatory filing" },
   { name: "Net NPA %", source: "NSE regulatory filing" },
   { name: "CET1 Ratio", source: "NSE regulatory filing" },
@@ -78,8 +82,23 @@ const BANKING_V1_METRICS = [
   { name: "Profit Growth", source: "Market data" },
 ];
 
-const BANKING_V1_UNAVAILABLE = [
+const BANKING_UNAVAILABLE = [
   "CASA Ratio", "Provision Coverage Ratio", "Total CAR", "Deposit Growth", "Advances Growth",
+];
+
+const INDUSTRIAL_METRICS = [
+  { name: "Revenue Growth %", source: "Market data" },
+  { name: "Profit Growth %", source: "Market data" },
+  { name: "ROE", source: "Market data" },
+  { name: "ROCE", source: "Market data" },
+  { name: "Debt-to-Equity", source: "Market data" },
+  { name: "Interest Coverage", source: "Market data" },
+];
+
+const SUPPORTED_INDUSTRIAL_SECTORS = [
+  "Technology", "FMCG", "Automotive", "Pharmaceuticals", "Chemicals", "Consumer", "Metals",
+  "Infrastructure", "Power", "Energy", "Real Estate", "Telecom", "Media", "Cement",
+  "Healthcare", "Textiles", "Electronics", "Retail", "Defence",
 ];
 
 const RATINGS = [
@@ -93,7 +112,7 @@ const FAQS = [
   {
     id: "faq-why-not-every-company",
     q: "Why doesn't every company have a MarketRipple Score?",
-    a: "MarketRipple Score currently uses Banking V1, the first sector-specific methodology. Companies outside Banking don't have an approved methodology yet, so no unified score is published for them — their real evidence still appears on their Company page under Current Intelligence, just not under the MarketRipple Score name.",
+    a: "MarketRipple Score covers Banking and 19 non-bank sectors today. A company in a sector without an approved methodology yet (Finance and Insurance today, due to their fundamentally different balance-sheet structure) shows an honest \"not yet supported\" state — never a fabricated score. Its real evidence still appears on its Company page under Current Intelligence, just not under the MarketRipple Score name.",
   },
   {
     id: "faq-no-score-shown",
@@ -112,7 +131,7 @@ const WEBPAGE_JSONLD = {
   "@type": "WebPage",
   name: "MarketRipple Score Methodology",
   url: PAGE_URL,
-  description: "How the MarketRipple Score is built: four weighted pillars, real verified evidence, and honest publication requirements — Banking V1, the first live methodology.",
+  description: "How the MarketRipple Score is built: one shared formula across every supported sector, real verified evidence, and honest publication requirements.",
   about: { "@type": "Organization", name: "MarketRipple", url: SITE_URL },
 };
 
@@ -138,10 +157,11 @@ export default function MarketRippleScoreMethodologyPage() {
               What Is the MarketRipple Score?
             </h1>
             <p className="mt-4 max-w-2xl text-[15px] leading-7 text-slate-700 dark:text-white">
-              MarketRipple Score is a 0–100 company intelligence score that combines financial strength,
-              valuation, market behaviour and current intelligence into a single assessment. MarketRipple
-              uses sector-specific financial methodologies and verified market and intelligence data — a
-              score is published only once minimum evidence requirements are satisfied.
+              MarketRipple Score is a 0–100 company assessment built from three weighted pillars — Financial
+              Strength, Valuation and Market Behaviour — using the exact same formula and rating scale for
+              every supported sector, bank or non-bank. Current Intelligence, MarketRipple's real event and
+              opportunity evidence, is shown separately on every company page but never enters this weighted
+              number. A score is published only once minimum evidence requirements are satisfied.
             </p>
             <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-4">
               <p className="text-[13px] leading-6 text-text-secondary">
@@ -152,13 +172,13 @@ export default function MarketRippleScoreMethodologyPage() {
           </div>
         </section>
 
-        {/* ── FOUR PILLARS ── */}
+        {/* ── THREE SCORED PILLARS ── */}
         <Section
-          id="pillars-heading" badge="The Four Pillars" badgeColor="text-emerald-400"
+          id="pillars-heading" badge="The Score" badgeColor="text-emerald-400"
           title="What makes up the score?"
-          subtitle="Every MarketRipple Score is a weighted combination of the same four pillars, whatever the sector — only the Financial Strength pillar's own inputs change between sector methodologies."
+          subtitle="Every MarketRipple Score — bank or non-bank — is the same weighted blend of three pillars, using exact fixed weights: 8/15 Financial Strength, 4/15 Valuation, 3/15 Market Behaviour. All three must be available or no headline number is shown at all; MarketRipple never blends a subset of them with adjusted weights."
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             {PILLARS.map((p) => (
               <div key={p.name} className="rounded-xl border border-surface-border/8 bg-surface-card p-5">
                 <div className="flex items-center justify-between">
@@ -170,38 +190,59 @@ export default function MarketRippleScoreMethodologyPage() {
               </div>
             ))}
           </div>
+          <div className="mt-4 flex items-start gap-3 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-500/25 bg-violet-500/10 text-violet-400" aria-hidden="true"><Brain className="h-5 w-5" /></div>
+            <div>
+              <h3 className="text-[14px] font-bold text-text-primary">Current Intelligence — shown separately, never part of the score</h3>
+              <p className="mt-1.5 text-[12.5px] leading-5 text-text-secondary">
+                Real evidence from MarketRipple's event and company-intelligence system — published analysis and
+                tracked opportunity signals — appears in full on every company page, but structurally cannot
+                affect the MarketRipple Score number, present or not. It answers a different question (how much
+                current evidence exists about this company) than the score does (its financial/valuation/market
+                condition).
+              </p>
+            </div>
+          </div>
         </Section>
 
-        {/* ── BANKING V1 ── */}
+        {/* ── SUPPORTED SECTORS / FINANCIAL STRENGTH INPUTS ── */}
         <Section
-          id="banking-v1-heading" badge="Currently Available Methodology" badgeColor="text-sky-400"
-          title="Banking V1"
-          subtitle="MarketRipple Score is live for one sector methodology today: Banking. Other sectors will get their own Financial Strength methodology over time, evaluated on inputs appropriate to that sector — a real estate company is never scored on Net NPA, the same way a bank is never scored on inventory turnover — while keeping the same four-pillar MarketRipple Score framework."
+          id="sectors-heading" badge="One Formula, Sector-Specific Inputs" badgeColor="text-sky-400"
+          title="Which sectors does MarketRipple Score cover?"
+          subtitle="Banking and 19 non-bank sectors share the exact same headline formula, rating bands and missing-pillar rule above — only the Financial Strength pillar's own raw inputs differ, since a bank is never scored on inventory turnover and a real-estate company is never scored on Net NPA."
         >
           <div className="grid gap-6 md:grid-cols-2">
             <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">7 real inputs, this quarter's latest filing</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">Banking — 7 real inputs, this quarter's latest filing</p>
               <ul className="mt-3 space-y-2">
-                {BANKING_V1_METRICS.map((m) => (
+                {BANKING_METRICS.map((m) => (
                   <li key={m.name} className="flex items-center justify-between text-[13px] text-text-secondary">
                     <span className="font-medium text-text-primary">{m.name}</span>
                     <span className="text-[11px] text-text-muted">{m.source}</span>
                   </li>
                 ))}
               </ul>
+              <p className="mt-3 text-[11px] leading-5 text-text-muted">
+                Five real, originally-proposed Banking metrics aren&apos;t yet part of the score — either the
+                source doesn&apos;t carry them at all, or there isn&apos;t enough real history yet for a genuine
+                growth rate: {BANKING_UNAVAILABLE.join(", ")}.
+              </p>
             </div>
             <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">Known gaps, disclosed rather than hidden</p>
-              <p className="mt-2 text-[12.5px] leading-5 text-text-secondary">
-                Five real, originally-proposed Banking metrics are not yet part of the score — either the
-                source doesn&apos;t carry them at all, or there isn&apos;t enough real history yet to compute a
-                genuine growth rate:
-              </p>
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {BANKING_V1_UNAVAILABLE.map((m) => (
-                  <li key={m} className="rounded-md border border-surface-border/10 bg-text-primary/[0.05] px-2.5 py-1 text-[11px] text-text-muted">{m}</li>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-muted">Non-Bank Sectors — 6 real inputs</p>
+              <ul className="mt-3 space-y-2">
+                {INDUSTRIAL_METRICS.map((m) => (
+                  <li key={m.name} className="flex items-center justify-between text-[13px] text-text-secondary">
+                    <span className="font-medium text-text-primary">{m.name}</span>
+                    <span className="text-[11px] text-text-muted">{m.source}</span>
+                  </li>
                 ))}
               </ul>
+              <p className="mt-3 text-[11px] leading-5 text-text-muted">
+                Applies to: {SUPPORTED_INDUSTRIAL_SECTORS.join(", ")}. Finance, Insurance and any other sector
+                not listed here don&apos;t have an approved methodology yet — their companies show an honest
+                &quot;not yet supported&quot; state, never a fabricated score.
+              </p>
             </div>
           </div>
         </Section>
@@ -256,12 +297,12 @@ export default function MarketRippleScoreMethodologyPage() {
         <Section
           id="publication-heading" badge="Publication Requirements" badgeColor="text-emerald-400"
           title="When does MarketRipple publish a score?"
-          subtitle="For Banking V1, a score is published only once a company clears all of the following."
+          subtitle="A score is published only once a company clears all of the following — the same rules for every supported sector, just measured against that sector's own real Financial Strength metric count (7 for Banking, 6 for non-bank sectors)."
         >
           <div className="grid gap-4 sm:grid-cols-2">
             {[
-              { title: "At least 5 of 7 Financial Strength metrics", desc: "A real, verified value for at least five of the seven Banking V1 inputs above." },
-              { title: "At least 65% overall evidence coverage", desc: "Enough real evidence across all four pillars combined, not just Financial Strength." },
+              { title: "Enough real Financial Strength metrics", desc: "At least 5 of 7 for Banking, or 4 of 6 for a non-bank sector — a real, verified value for each." },
+              { title: "At least 65% overall evidence coverage", desc: "Enough real evidence across Financial Strength, Valuation and Market Behaviour combined." },
               { title: "A real, eligible financial reporting period", desc: "At least one recent, verified financial period free of quality issues." },
               { title: "Financial Strength always required", desc: "Every other pillar can tolerate some missing evidence — Financial Strength cannot be absent." },
             ].map((r) => (

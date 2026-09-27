@@ -184,8 +184,12 @@ export async function AllCompaniesTab({
       <div className="min-w-0 flex-1 space-y-3">
         <CompanySearchInput defaultValue={q} sector={sector} cap={cap} sort={sort} />
 
-        <div className="overflow-hidden rounded-xl border border-surface-border/6 bg-surface-card">
-          <div className={`grid ${colGrid} border-b border-surface-border/6 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted`}>
+        <div className="overflow-x-auto rounded-xl border border-surface-border/6 bg-surface-card">
+          {/* min-w keeps every column readable instead of squeezing 9 fixed
+              columns into a narrow viewport (real mobile-overflow fix,
+              owner instruction 2026-09-27) -- horizontal scroll here,
+              never clipped/illegible content. */}
+          <div className={`grid ${colGrid} min-w-[720px] border-b border-surface-border/6 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted`}>
             <span>Company</span><span>Ticker</span><span>Score</span><span>Sector</span><span>Market Cap</span>
             <span>Price</span><span>Change %</span><span>1D Chart</span><span />
           </div>
@@ -210,7 +214,7 @@ export async function AllCompaniesTab({
                   <Link
                     key={co.symbol}
                     href={`/companies/${co.symbol}`}
-                    className={`grid ${colGrid} items-center border-b border-surface-border/4 px-4 py-3 transition last:border-0 hover:bg-text-primary/[0.025] ${i % 2 !== 0 ? "bg-text-primary/[0.01]" : ""}`}
+                    className={`grid ${colGrid} min-w-[720px] items-center border-b border-surface-border/4 px-4 py-3 transition last:border-0 hover:bg-text-primary/[0.025] ${i % 2 !== 0 ? "bg-text-primary/[0.01]" : ""}`}
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[9px] font-bold uppercase text-text-primary ${avatarColor(co.symbol)}`}>
