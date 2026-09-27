@@ -68,13 +68,21 @@ def _industrial_financial_data_as_of(fs) -> str | None:
     return max(dates) if dates else None
 
 
-async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group: list[str] | None = None) -> MarketRippleScoreSnapshot:
+async def compute_and_persist_snapshot(
+    db: AsyncSession, symbol: str, peer_group: list[str] | None = None,
+    industrial_cache: dict | None = None,
+) -> MarketRippleScoreSnapshot:
     """Runs the real, frozen scoring engine and persists its output as a
     new snapshot row (never updates an existing row — history is kept,
     the read path always takes the latest by calculated_at). Real network
     calls happen here (yfinance/NSE), same as any direct
     compute_marketripple_score() call — callers should run this from a
-    scheduled job or a manual script, never from a live request handler."""
+    scheduled job or a manual script, never from a live request handler.
+
+    industrial_cache: forwarded verbatim to compute_marketripple_score's
+    own identical parameter (NS1 round 2, 2026-09-27) — lets a batch
+    backfill share one sector's prefetched peer/benchmark data across many
+    persisted snapshots instead of each one re-fetching independently."""
     from app.services.company_identity.qualification import resolve_entity_by_any_symbol
     from app.services.marketripple_score.eligibility import (
         BANKING_V1_P1, NONBANK_INDUSTRIAL_V1_P1, evaluate_eligibility,
@@ -83,7 +91,7 @@ async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group
     from app.services.marketripple_score.financial_strength_industrial import REAL_INDUSTRIAL_METRICS_TOTAL
 
     symbol = symbol.upper()
-    result = await compute_marketripple_score(db, symbol, peer_group=peer_group)
+    result = await compute_marketripple_score(db, symbol, peer_group=peer_group, industrial_cache=industrial_cache)
     entity = await resolve_entity_by_any_symbol(db, symbol)
     now = _now()
 

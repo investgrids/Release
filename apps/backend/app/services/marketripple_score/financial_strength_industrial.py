@@ -151,26 +151,58 @@ def _fetch_industrial_inputs_sync(symbol: str) -> dict:
     return out
 
 
-async def score_financial_strength_industrial(symbol: str, sector: str, peer_group: list[str] | None = None) -> PillarScore:
+async def prefetch_industrial_inputs(symbols: list[str]) -> dict[str, dict]:
+    """Fetches _fetch_industrial_inputs_sync for every real symbol in
+    `symbols` ONCE (batch-backfill use, NS1 owner instruction 2026-09-27
+    round 2) — the real fix for the found-live inefficiency where scoring
+    every company in a sector independently re-fetched that same sector's
+    entire peer population from scratch. A caller computing N companies in
+    the same sector should call this once with the sector's full real
+    universe, then pass the result to score_financial_strength_industrial's
+    `prefetched` parameter for every one of those N calls — same real
+    yfinance calls, made once instead of N times."""
+    loop = asyncio.get_event_loop()
+    out: dict[str, dict] = {}
+    for s in symbols:
+        out[s] = await loop.run_in_executor(None, _fetch_industrial_inputs_sync, s)
+        await asyncio.sleep(0.4)
+    return out
+
+
+async def score_financial_strength_industrial(
+    symbol: str, sector: str, peer_group: list[str] | None = None,
+    prefetched: dict[str, dict] | None = None,
+) -> PillarScore:
     """The Non-Banking Commercial & Industrial V1 Financial Strength
     pillar — a real, separate metric set and formula from Banking's own
     score_financial_strength(), never mixed with it. `peer_group`
     override exists for the same reason financial_strength.py's own
     parameter does — default is the real, live sector_peer_universe(sector),
-    never a caller-varied population for the same company."""
-    loop = asyncio.get_event_loop()
+    never a caller-varied population for the same company.
+
+    `prefetched`: an already-fetched {symbol: real_inputs} map (see
+    prefetch_industrial_inputs) — when given, this function does ZERO
+    network calls of its own and only computes percentile ranks from that
+    shared data. When None (the default, and the only path any existing
+    single-company caller uses), behavior is completely unchanged from
+    before this parameter existed — a fresh per-call fetch of every real
+    peer in this computation's own peer group."""
     symbol = symbol.upper()
     retrieved_at = datetime.now(timezone.utc).isoformat()
 
     active_peer_group = peer_group if peer_group is not None else sector_peer_universe(sector)
     peer_symbols = list(dict.fromkeys([symbol] + [s for s in active_peer_group if s != symbol]))
 
-    fetched = []
-    for s in peer_symbols:
-        fetched.append(await loop.run_in_executor(None, _fetch_industrial_inputs_sync, s))
-        await asyncio.sleep(0.4)
-    by_symbol = dict(zip(peer_symbols, fetched))
-    own = by_symbol[symbol]
+    if prefetched is not None:
+        by_symbol = {s: prefetched[s] for s in peer_symbols if s in prefetched}
+    else:
+        loop = asyncio.get_event_loop()
+        fetched = []
+        for s in peer_symbols:
+            fetched.append(await loop.run_in_executor(None, _fetch_industrial_inputs_sync, s))
+            await asyncio.sleep(0.4)
+        by_symbol = dict(zip(peer_symbols, fetched))
+    own = by_symbol.get(symbol, {})
 
     metrics_used, metrics_missing = [], []
     sub_scores: dict[str, float] = {}

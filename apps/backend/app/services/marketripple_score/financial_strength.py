@@ -190,6 +190,7 @@ def _fetch_financial_strength_inputs_sync(symbol: str) -> dict:
 
 async def score_financial_strength(
     db: AsyncSession, symbol: str, sector: str | None, peer_group: list[str] | None = None,
+    prefetched: dict[str, dict] | None = None,
 ) -> PillarScore:
     """peer_group: overrides the default peer group — see
     valuation.py::score_valuation's identical parameter for why. The
@@ -198,7 +199,11 @@ async def score_financial_strength(
     own frozen-algorithm requirement stays intact; only the population
     being percentile-ranked against becomes configurable. Default is
     ALL_ELIGIBLE_NSE_BANKS (S4.5 owner decision, 2026-08-29) — the
-    canonical Banking V1 peer universe, not a narrower hand-picked group."""
+    canonical Banking V1 peer universe, not a narrower hand-picked group.
+
+    `prefetched`: forwarded to score_financial_strength_industrial's own
+    identical parameter (NS1 round 2, 2026-09-27) — has no effect on
+    Banking's own branch below, which is completely untouched."""
     loop = asyncio.get_event_loop()
     symbol = symbol.upper()
 
@@ -211,7 +216,7 @@ async def score_financial_strength(
     if sector in NONBANK_INDUSTRIAL_SECTORS:
         from app.services.marketripple_score.financial_strength_industrial import score_financial_strength_industrial
 
-        return await score_financial_strength_industrial(symbol, sector, peer_group=peer_group)
+        return await score_financial_strength_industrial(symbol, sector, peer_group=peer_group, prefetched=prefetched)
 
     if sector != "Banking":
         return PillarScore(

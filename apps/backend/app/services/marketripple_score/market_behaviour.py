@@ -92,14 +92,35 @@ def _fetch_daily_closes_sync(ticker: str) -> list[float]:
     return closes
 
 
-async def score_market_behaviour(symbol: str, sector: str | None) -> PillarScore:
+async def score_market_behaviour(
+    symbol: str, sector: str | None,
+    prefetched_benchmarks: dict[str, list[float]] | None = None,
+) -> PillarScore:
+    """`prefetched_benchmarks`: an already-fetched {ticker: closes} map for
+    _NIFTY_TICKER and/or the real sector ETF ticker (NS1 round 2, 2026-09-27)
+    — NIFTY and a given sector's ETF are the SAME real benchmark for every
+    company in that sector, so a batch computing many companies in one
+    sector should fetch each benchmark once and share it, rather than every
+    company independently re-fetching the identical NIFTY/sector-ETF series.
+    None (default, every existing caller) fetches fresh, unchanged from
+    before this parameter existed. The company's OWN daily closes are
+    always fetched fresh — that part was never redundant across companies."""
     loop = asyncio.get_event_loop()
     sector_ticker = _SECTOR_ETFS.get(_SECTOR_LABEL_TO_ETF_KEY.get(sector, sector)) if sector else None
+    prefetched_benchmarks = prefetched_benchmarks or {}
 
-    tickers = [f"{symbol.upper()}.NS", _NIFTY_TICKER] + ([sector_ticker] if sector_ticker else [])
-    fetched = await asyncio.gather(*[loop.run_in_executor(None, _fetch_daily_closes_sync, t) for t in tickers])
-    own_closes, nifty_closes = fetched[0], fetched[1]
-    sector_closes = fetched[2] if sector_ticker else []
+    to_fetch = [f"{symbol.upper()}.NS"]
+    if _NIFTY_TICKER not in prefetched_benchmarks:
+        to_fetch.append(_NIFTY_TICKER)
+    if sector_ticker and sector_ticker not in prefetched_benchmarks:
+        to_fetch.append(sector_ticker)
+
+    fetched = await asyncio.gather(*[loop.run_in_executor(None, _fetch_daily_closes_sync, t) for t in to_fetch])
+    fetched_by_ticker = dict(zip(to_fetch, fetched))
+
+    own_closes = fetched_by_ticker[f"{symbol.upper()}.NS"]
+    nifty_closes = prefetched_benchmarks.get(_NIFTY_TICKER) or fetched_by_ticker.get(_NIFTY_TICKER, [])
+    sector_closes = (prefetched_benchmarks.get(sector_ticker) or fetched_by_ticker.get(sector_ticker, [])) if sector_ticker else []
 
     if len(own_closes) < 30:
         return PillarScore(

@@ -15,7 +15,8 @@ import pytest
 
 from app.services.marketripple_score.contracts import PillarStatus
 from app.services.marketripple_score.financial_strength_industrial import (
-    REAL_INDUSTRIAL_METRICS_TOTAL, _fetch_industrial_inputs_sync, score_financial_strength_industrial,
+    REAL_INDUSTRIAL_METRICS_TOTAL, _fetch_industrial_inputs_sync,
+    prefetch_industrial_inputs, score_financial_strength_industrial,
 )
 
 
@@ -170,3 +171,40 @@ def test_zero_or_negative_equity_never_divides_by_zero(monkeypatch):
     assert r["debt_to_equity"] is None
     # ROCE doesn't depend on equity and should still compute.
     assert r["roce"] is not None
+
+
+@pytest.mark.asyncio
+async def test_prefetched_path_produces_identical_score_to_independent_fetch(monkeypatch):
+    """The whole point of the shared-fetch optimization (NS1 round 2,
+    2026-09-27, owner instruction to fix repeated per-company peer
+    fetching before a long batch run): using a prefetched cache must be a
+    pure performance change, never a behavior change. Same mocked data,
+    same peer group, scored once the old way (independent fetch) and once
+    via prefetch_industrial_inputs() + the `prefetched` parameter — the
+    two PillarScore results must match on every real field."""
+    tcs = _FakeTicker(
+        financials=_full_financials(1000.0, 900.0, 200.0, 180.0, 250.0, 10.0),
+        balance_sheet=_full_balance_sheet(equity=800.0, total_assets=1500.0, current_liab=400.0, total_debt=50.0),
+    )
+    peer = _FakeTicker(
+        financials=_full_financials(500.0, 480.0, 90.0, 85.0, 110.0, 8.0),
+        balance_sheet=_full_balance_sheet(equity=400.0, total_assets=900.0, current_liab=300.0, total_debt=120.0),
+    )
+    _patch_tickers(monkeypatch, {"TCS": tcs, "PEER1": peer})
+
+    independent = await score_financial_strength_industrial("TCS", "Technology", peer_group=["TCS", "PEER1"])
+
+    cache = await prefetch_industrial_inputs(["TCS", "PEER1"])
+    shared = await score_financial_strength_industrial("TCS", "Technology", peer_group=["TCS", "PEER1"], prefetched=cache)
+
+    def _without_retrieved_at(metrics: dict) -> dict:
+        # retrieved_at is genuinely computed fresh (datetime.now()) inside
+        # each call -- excluded from the comparison since it's expected to
+        # differ by construction, not a sign the two paths disagree.
+        return {code: {k: v for k, v in m.items() if k != "retrieved_at"} for code, m in metrics.items()}
+
+    assert shared.score == independent.score
+    assert shared.coverage_pct == independent.coverage_pct
+    assert shared.status == independent.status
+    assert sorted(shared.metrics_used) == sorted(independent.metrics_used)
+    assert _without_retrieved_at(shared.detail["metrics"]) == _without_retrieved_at(independent.detail["metrics"])

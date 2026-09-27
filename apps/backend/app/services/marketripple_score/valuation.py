@@ -122,13 +122,39 @@ def _percentile_rank(values: dict[str, float], symbol: str, cheaper_is_better: b
     return round((n - 1 - rank) / (n - 1) * 100, 1)
 
 
-async def score_valuation(symbol: str, sector: str | None, peer_group: list[str] | None = None) -> PillarScore:
+async def prefetch_valuation_snapshots(symbols: list[str]) -> dict[str, dict]:
+    """Fetches _fetch_valuation_snapshot_sync for every real symbol in
+    `symbols` ONCE — batch-backfill use (NS1 round 2, 2026-09-27), same
+    real fix as financial_strength_industrial.py's own
+    prefetch_industrial_inputs. Pass the result into score_valuation's
+    `prefetched` parameter for every company in the same sector instead of
+    letting each one independently re-fetch the whole peer population."""
+    loop = asyncio.get_event_loop()
+    out: dict[str, dict] = {}
+    for s in symbols:
+        out[s] = await loop.run_in_executor(None, _fetch_valuation_snapshot_sync, s)
+        await asyncio.sleep(0.4)
+    return out
+
+
+async def score_valuation(
+    symbol: str, sector: str | None, peer_group: list[str] | None = None,
+    prefetched: dict[str, dict] | None = None,
+) -> PillarScore:
     """peer_group: overrides the default peer group — S4.5 (owner decision,
     2026-08-29) made ALL_ELIGIBLE_NSE_BANKS the canonical Banking V1 peer
     universe, replacing the earlier 5-bank default; this parameter still
     exists for callers that genuinely need a different, explicit
     population (e.g. a future narrower "Large Private Bank Rank" analytic),
-    never as a silent way to get a different score for the same bank."""
+    never as a silent way to get a different score for the same bank.
+
+    `prefetched`: an already-fetched {symbol: real_snapshot} map (see
+    prefetch_valuation_snapshots) — skips this function's own peer fetch
+    loop entirely when given. None (default, every existing caller) keeps
+    the original per-call fetch behavior unchanged. Note this only covers
+    the PEER snapshot fetch (pe/pb/roe) — the symbol's own historical EPS/
+    price-history fetch below was never redundant across companies (it's
+    already only fetched once per symbol), so it isn't part of this cache."""
     loop = asyncio.get_event_loop()
     symbol = symbol.upper()
 
@@ -152,13 +178,16 @@ async def score_valuation(symbol: str, sector: str | None, peer_group: list[str]
             sources=[], detail={"note": f"Valuation not yet supported for sector={sector!r} — see sector_universe.py for the current cohort"},
         )
     peer_symbols = list(dict.fromkeys([symbol] + [s for s in active_peer_group if s != symbol]))
-    # Sequential, not asyncio.gather — see financial_strength.py's own
-    # identical comment; same real, confirmed-live reason.
-    snapshots = []
-    for s in peer_symbols:
-        snapshots.append(await loop.run_in_executor(None, _fetch_valuation_snapshot_sync, s))
-        await asyncio.sleep(0.4)
-    by_symbol = dict(zip(peer_symbols, snapshots))
+    if prefetched is not None:
+        by_symbol = {s: prefetched[s] for s in peer_symbols if s in prefetched}
+    else:
+        # Sequential, not asyncio.gather — see financial_strength.py's own
+        # identical comment; same real, confirmed-live reason.
+        snapshots = []
+        for s in peer_symbols:
+            snapshots.append(await loop.run_in_executor(None, _fetch_valuation_snapshot_sync, s))
+            await asyncio.sleep(0.4)
+        by_symbol = dict(zip(peer_symbols, snapshots))
 
     metrics_used, metrics_missing = [], []
     detail: dict = {"peer_group": peer_symbols}
@@ -207,7 +236,7 @@ async def score_valuation(symbol: str, sector: str | None, peer_group: list[str]
         price = _nearest_price(price_history, dt)
         if price is not None:
             historical_pes[dt.strftime("%Y-%m-%d")] = round(price / eps, 1)
-    current_pe = by_symbol[symbol].get("pe")
+    current_pe = by_symbol.get(symbol, {}).get("pe")
     if len(historical_pes) >= 3 and current_pe:
         all_pes = dict(historical_pes)
         all_pes["current"] = current_pe

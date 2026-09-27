@@ -60,6 +60,7 @@ def _label_for(score: float | None) -> str | None:
 
 async def compute_marketripple_score(
     db: AsyncSession, symbol: str, peer_group: list[str] | None = None,
+    industrial_cache: dict | None = None,
 ) -> MarketRippleScore:
     """Composes all 4 pillars into one MarketRippleScore. The single real
     entry point for S2/S3-D/S4 — used directly by the 5-bank comparison in
@@ -70,6 +71,18 @@ async def compute_marketripple_score(
     None (default) preserves the production 5-bank behavior byte-for-byte;
     passing a wider real list only changes which real companies the
     percentile ranking is computed against, never the formula itself.
+
+    industrial_cache (NS1 round 2, 2026-09-27): an optional
+    {"financial_inputs": ..., "valuation_snapshots": ..., "benchmarks": ...}
+    map, each built by the matching prefetch_* helper in
+    financial_strength_industrial.py/valuation.py, forwarded to each
+    pillar's own `prefetched`/`prefetched_benchmarks` parameter. Has NO
+    effect on Banking (its own branches in every pillar never read this).
+    None (default, every existing caller) preserves the original per-call
+    fetch behavior exactly — this parameter exists purely so a batch
+    computing many companies in the same real sector can fetch that
+    sector's shared peer/benchmark data ONCE instead of once per company;
+    see scripts/s11_shared_fetch_sector_backfill.py for the real caller.
 
     S3-D note: financial_strength now also queries the real FinancialFact
     store (for Gross NPA/Net NPA/CET1/ROA), so it and current_intelligence
@@ -82,12 +95,16 @@ async def compute_marketripple_score(
 
     symbol = symbol.upper()
     sector = _sector_for(symbol)
+    industrial_cache = industrial_cache or {}
 
-    fs = await score_financial_strength(db, symbol, sector, peer_group=peer_group)
+    fs = await score_financial_strength(
+        db, symbol, sector, peer_group=peer_group,
+        prefetched=industrial_cache.get("financial_inputs"),
+    )
     ci = await score_current_intelligence(db, symbol)
     val, mkt = await asyncio.gather(
-        score_valuation(symbol, sector, peer_group=peer_group),
-        score_market_behaviour(symbol, sector),
+        score_valuation(symbol, sector, peer_group=peer_group, prefetched=industrial_cache.get("valuation_snapshots")),
+        score_market_behaviour(symbol, sector, prefetched_benchmarks=industrial_cache.get("benchmarks")),
     )
 
     pillars: dict[str, PillarScore] = {

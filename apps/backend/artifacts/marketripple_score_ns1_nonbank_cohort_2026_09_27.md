@@ -116,6 +116,31 @@ New: `tests/services/test_financial_strength_industrial.py` (6 tests, mocked yfi
 - New industrial tests + existing rankings tests together: 20/20 passed.
 - Full backend suite (`tests/`): **2161 passed, 28 failed, 2 skipped, 2 xfailed**. All 28 failures are in files unrelated to this work (`test_macro_rates.py`, `test_quant_leakage.py`, `test_quant_membership.py`, `test_p5_stage*_v3_live.py`, `test_economic_calendar_api.py`, `test_ingest_news_shared_fetch.py`, `test_opportunity_v2_batch_e_consumers.py`, `test_weekend_intelligence_scheduler.py`) — confirmed via grep that none of them import any module touched in this pass; their own naming ("_live") and content point to pre-existing live-network/timing dependencies, not something this change introduced.
 
+## 6b. Round 2 — shared-fetch full-cohort backfill (owner instruction, 2026-09-27)
+
+**Real, found-live performance defect fixed before scaling up:** the initial per-company approach had every company in a sector independently re-fetch that sector's ENTIRE peer population (financial statements + valuation snapshots) — O(N) real network calls per company, O(N²) per sector. A partial 32-company Technology run at that rate averaged ~64s/company (~34 min projected for one sector alone), with real added risk of yfinance throttling across so many redundant calls.
+
+**Fix:** `prefetch_industrial_inputs()` (financial_strength_industrial.py) and `prefetch_valuation_snapshots()` (valuation.py) each fetch a sector's real peer data ONCE; `score_financial_strength_industrial()`/`score_valuation()`/`score_market_behaviour()` each gained an optional `prefetched`/`prefetched_benchmarks` parameter that, when given, does zero network calls of its own. Default (`None`, every pre-existing caller including Banking) is byte-for-byte unchanged — proven by a new test (`test_prefetched_path_produces_identical_score_to_independent_fetch`) confirming the shared-cache path produces an identical score/coverage/status/per-metric-provenance to the old independent-fetch path on the same data, not just a faster one. New batch script: `scripts/s11_shared_fetch_sector_backfill.py`.
+
+**Real result: full backfill of all 7 measured sectors, 214/214 companies, zero errors, zero no-usable-data:**
+
+| Sector | Total | Numeric score | Partial (real data, no headline) |
+|---|---|---|---|
+| Technology | 33 | 7 | 26 |
+| FMCG | 26 | 6 | 20 |
+| Automotive | 39 | 5 | 34 |
+| Pharmaceuticals | 31 | 4 | 27 |
+| Chemicals | 27 | 5 | 22 |
+| Consumer | 40 | 6 | 34 |
+| Metals | 18 | 4 | 14 |
+| **Total** | **214** | **37** | **177** |
+
+The 177 "partial" companies each have a full, real 6/6 Financial Strength metric set and real per-pillar data — they show no headline number solely because Current Intelligence found no real contributing evidence for them at the time of this run, correctly triggering the existing comparability rule (never a fabricated renormalized blend). This is the honest outcome of running the real methodology at scale, not a defect.
+
+**Top-scoring companies across the whole cohort** (live, local, unpublished): BAJAJ-AUTO (62.2, Positive), GLENMARK (60.2, Positive), BOSCHLTD (59.2), INFY (58.6), NAUKRI (58.6), ITC (58.1), COFORGE (56.1), PATANJALI (56.1), TCS (56.0), COROMANDEL (56.0).
+
+Verified live via `GET /api/companies/?sector=Technology`: every company now returns real snapshot-backed data (`eligible: true` for all 33; `marketripple_score_local_preview.score` populated for the 7 numeric ones, `null` for the 26 genuinely-partial ones) — no frontend changes needed, confirming the existing UI wiring (Company page, header tile, All Companies Score column, Company Rankings) is fully generic.
+
 ## 7. Remaining steps to publish
 
 None of the following were done in this pass, per the explicit "keep production publication locked" instruction:
