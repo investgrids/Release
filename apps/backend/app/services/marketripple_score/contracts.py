@@ -31,6 +31,13 @@ METHODOLOGY_VERSION = "s2-2026-08-25"
 # already-computed score, instead of silently reinterpreting old results.
 BANKING_METHODOLOGY_VERSION = "BANKING_V1"
 
+# NS1 (owner instruction, 2026-09-27) — the real, separate Non-Banking
+# Commercial & Industrial methodology tag, matching BANKING_METHODOLOGY_VERSION's
+# own reasoning: a different formula (financial_strength_industrial.py),
+# a different peer universe (sector_universe.py), never silently
+# comparable to a BANKING_V1 score just because both are 0-100.
+NONBANK_INDUSTRIAL_METHODOLOGY_VERSION = "NONBANK_INDUSTRIAL_V1"
+
 
 @dataclass
 class PillarScore:

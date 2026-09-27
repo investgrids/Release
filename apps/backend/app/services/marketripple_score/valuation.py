@@ -132,14 +132,25 @@ async def score_valuation(symbol: str, sector: str | None, peer_group: list[str]
     loop = asyncio.get_event_loop()
     symbol = symbol.upper()
 
-    if sector != "Banking":
+    # NS1 (owner instruction, 2026-09-27) — the peer-PE/PB + ROE-quality-
+    # adjustment + own-historical-PE-range formula below was never
+    # Banking-specific in its own logic (no bank-only field is read
+    # anywhere in this function) — only the peer population was gated.
+    # Extending it to the measured NS1 industrial cohort reuses the exact
+    # same computation; sectors outside both groups still get the same
+    # honest INSUFFICIENT this pillar has always returned for them.
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS, sector_peer_universe
+
+    if sector == "Banking":
+        active_peer_group = peer_group if peer_group is not None else ALL_ELIGIBLE_NSE_BANKS
+    elif sector in NONBANK_INDUSTRIAL_SECTORS:
+        active_peer_group = peer_group if peer_group is not None else sector_peer_universe(sector)
+    else:
         return PillarScore(
             name="valuation", score=None, coverage_pct=0.0, status=PillarStatus.INSUFFICIENT,
-            metrics_used=[], metrics_missing=["banking_reference_implementation_only"],
-            sources=[], detail={"note": "S2 Valuation is Banking-only in this phase, matching S1's reference scope"},
+            metrics_used=[], metrics_missing=["sector_not_yet_supported"],
+            sources=[], detail={"note": f"Valuation not yet supported for sector={sector!r} — see sector_universe.py for the current cohort"},
         )
-
-    active_peer_group = peer_group if peer_group is not None else ALL_ELIGIBLE_NSE_BANKS
     peer_symbols = list(dict.fromkeys([symbol] + [s for s in active_peer_group if s != symbol]))
     # Sequential, not asyncio.gather — see financial_strength.py's own
     # identical comment; same real, confirmed-live reason.

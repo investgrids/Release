@@ -41,6 +41,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.marketripple_score.banking_universe import ALL_ELIGIBLE_NSE_BANKS
 from app.services.marketripple_score.contracts import PillarScore, PillarStatus
+from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
 from app.services.marketripple_score.valuation import _percentile_rank
 
 _PROPOSED_BANKING_METRICS = 12  # asset quality x3, capital x2, profitability x3 (incl. NIM), funding x2, growth x2
@@ -200,6 +201,17 @@ async def score_financial_strength(
     canonical Banking V1 peer universe, not a narrower hand-picked group."""
     loop = asyncio.get_event_loop()
     symbol = symbol.upper()
+
+    # NS1 (owner instruction, 2026-09-27) — dispatch to the real, separate
+    # Non-Banking Commercial & Industrial V1 metric set for the measured
+    # first cohort (see sector_universe.py's own module docstring for why
+    # these 7 sectors and not others). Banking's own path below is
+    # completely untouched — never mixed with the industrial formula, no
+    # NPA/CET1 applied to a non-bank, per explicit instruction.
+    if sector in NONBANK_INDUSTRIAL_SECTORS:
+        from app.services.marketripple_score.financial_strength_industrial import score_financial_strength_industrial
+
+        return await score_financial_strength_industrial(symbol, sector, peer_group=peer_group)
 
     if sector != "Banking":
         return PillarScore(

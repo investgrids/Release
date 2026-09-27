@@ -54,6 +54,20 @@ async def _real_financial_data_as_of(db: AsyncSession, symbol: str) -> str | Non
     return f"FY{fy}Q{fq}"
 
 
+def _industrial_financial_data_as_of(fs) -> str | None:
+    """The newest real statement date actually used across the Non-Banking
+    Industrial Financial Strength pillar's own metrics — mirrors
+    _real_financial_data_as_of's "what scoring actually used" intent, but
+    reads it from the pillar's own metric_provenance (financial_strength_
+    industrial.py) rather than a FinancialFact table, which doesn't exist
+    for non-bank sectors."""
+    if fs is None:
+        return None
+    provenance = (fs.detail or {}).get("metrics", {})
+    dates = [m.get("observation_as_of") for m in provenance.values() if m.get("observation_as_of")]
+    return max(dates) if dates else None
+
+
 async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group: list[str] | None = None) -> MarketRippleScoreSnapshot:
     """Runs the real, frozen scoring engine and persists its output as a
     new snapshot row (never updates an existing row — history is kept,
@@ -62,13 +76,15 @@ async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group
     compute_marketripple_score() call — callers should run this from a
     scheduled job or a manual script, never from a live request handler."""
     from app.services.company_identity.qualification import resolve_entity_by_any_symbol
-    from app.services.marketripple_score.eligibility import BANKING_V1_P1, evaluate_eligibility
+    from app.services.marketripple_score.eligibility import (
+        BANKING_V1_P1, NONBANK_INDUSTRIAL_V1_P1, evaluate_eligibility,
+    )
     from app.services.marketripple_score.financial_strength import REAL_BANKING_METRICS_TOTAL
+    from app.services.marketripple_score.financial_strength_industrial import REAL_INDUSTRIAL_METRICS_TOTAL
 
     symbol = symbol.upper()
     result = await compute_marketripple_score(db, symbol, peer_group=peer_group)
     entity = await resolve_entity_by_any_symbol(db, symbol)
-    financial_data_as_of = await _real_financial_data_as_of(db, symbol)
     now = _now()
 
     fs = result.pillars.get("financial_strength")
@@ -77,11 +93,26 @@ async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group
     ci = result.pillars.get("current_intelligence")
 
     # S5-B — direct, real metric count (never reverse-derived from a
-    # coverage percentage), and the real BANKING_V1_P1 per-bank
-    # eligibility verdict. Banking-only today, matching methodology_version.
+    # coverage percentage), and the real per-methodology eligibility
+    # verdict. Banking's own branch is completely unchanged; NS1 (owner
+    # instruction, 2026-09-27) adds the equivalent for the Non-Banking
+    # Industrial methodology, never mixing the two policies/metric totals.
     is_banking = result.methodology_version == "BANKING_V1"
+    is_industrial = result.methodology_version == "NONBANK_INDUSTRIAL_V1"
+
+    if is_banking:
+        financial_data_as_of = await _real_financial_data_as_of(db, symbol)
+    elif is_industrial:
+        financial_data_as_of = _industrial_financial_data_as_of(fs)
+    else:
+        financial_data_as_of = None
+
     financial_metrics_used_count = len(fs.metrics_used) if fs else None
-    financial_metrics_total_count = REAL_BANKING_METRICS_TOTAL if is_banking else None
+    financial_metrics_total_count = (
+        REAL_BANKING_METRICS_TOTAL if is_banking
+        else REAL_INDUSTRIAL_METRICS_TOTAL if is_industrial
+        else None
+    )
     publication_policy_version = None
     publication_block_reasons = None
     if is_banking:
@@ -94,6 +125,17 @@ async def compute_and_persist_snapshot(db: AsyncSession, symbol: str, peer_group
             policy=BANKING_V1_P1,
         )
         publication_policy_version = BANKING_V1_P1.name
+        publication_block_reasons = eligibility.reasons
+    elif is_industrial:
+        eligibility = evaluate_eligibility(
+            financial_strength_score=fs.score if fs else None,
+            financial_metrics_used=financial_metrics_used_count or 0,
+            financial_metrics_total=REAL_INDUSTRIAL_METRICS_TOTAL,
+            overall_coverage_pct=result.overall_coverage_pct,
+            financial_data_as_of=financial_data_as_of,
+            policy=NONBANK_INDUSTRIAL_V1_P1,
+        )
+        publication_policy_version = NONBANK_INDUSTRIAL_V1_P1.name
         publication_block_reasons = eligibility.reasons
 
     snapshot = MarketRippleScoreSnapshot(

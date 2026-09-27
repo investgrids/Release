@@ -16,10 +16,16 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.marketripple_score.banking_universe import ALL_ELIGIBLE_NSE_BANKS, PEER_UNIVERSE_AS_OF
-from app.services.marketripple_score.contracts import BANKING_METHODOLOGY_VERSION, MarketRippleScore, PillarScore, PillarStatus
+from app.services.marketripple_score.contracts import (
+    BANKING_METHODOLOGY_VERSION, NONBANK_INDUSTRIAL_METHODOLOGY_VERSION,
+    MarketRippleScore, PillarScore, PillarStatus,
+)
 from app.services.marketripple_score.current_intelligence import score_current_intelligence
 from app.services.marketripple_score.financial_strength import score_financial_strength
 from app.services.marketripple_score.market_behaviour import score_market_behaviour
+from app.services.marketripple_score.sector_universe import (
+    NONBANK_INDUSTRIAL_SECTORS, NONBANK_PEER_UNIVERSE_AS_OF, sector_peer_universe,
+)
 from app.services.marketripple_score.valuation import score_valuation
 
 CANDIDATE_WEIGHTS = {
@@ -97,6 +103,13 @@ async def compute_marketripple_score(
         methodology_version = BANKING_METHODOLOGY_VERSION
         actual_peer_universe = peer_group if peer_group is not None else ALL_ELIGIBLE_NSE_BANKS
         peer_universe_as_of = PEER_UNIVERSE_AS_OF
+    elif sector in NONBANK_INDUSTRIAL_SECTORS:
+        # NS1 (owner instruction, 2026-09-27) — a real, separate
+        # methodology tag and peer universe; Banking's own branch above is
+        # completely untouched by this addition.
+        methodology_version = NONBANK_INDUSTRIAL_METHODOLOGY_VERSION
+        actual_peer_universe = peer_group if peer_group is not None else sector_peer_universe(sector)
+        peer_universe_as_of = NONBANK_PEER_UNIVERSE_AS_OF
     else:
         methodology_version = None  # falls back to the dataclass field default
         actual_peer_universe = []

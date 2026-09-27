@@ -27,6 +27,24 @@ _NIFTY_TICKER = "^NSEI"
 # second, competing sector-benchmark list.
 from app.services.market_data import _SECTOR_ETFS  # noqa: E402
 
+# Real, found-live bug (2026-09-27, while extending this pillar to non-
+# bank sectors): _SECTOR_ETFS's own keys are abbreviated display labels
+# ("IT", "Pharma", "Auto", "Metal", "Infra", "Realty") used by several
+# OTHER, unrelated features (market_retriever.py, price_monitor.py,
+# market_data.py's own sector-performance widget) — they do NOT match
+# _NSE_UNIVERSE's real sector strings ("Technology", "Pharmaceuticals",
+# "Automotive", "Metals", "Infrastructure", "Real Estate"), which is what
+# this pillar is actually called with. Before this fix, sector_ticker was
+# silently None for every non-Banking, non-FMCG, non-Energy sector this
+# pillar could ever be asked to score — a real coverage gap, not a
+# fabricated "no sector ETF exists" fact. Fixed with a LOCAL alias map
+# here rather than renaming the shared dict's keys, which would change
+# what those other, unrelated features display.
+_SECTOR_LABEL_TO_ETF_KEY: dict[str, str] = {
+    "Technology": "IT", "Pharmaceuticals": "Pharma", "Automotive": "Auto",
+    "Metals": "Metal", "Infrastructure": "Infra", "Real Estate": "Realty",
+}
+
 
 def _rsi(closes: list[float], period: int = 14) -> float | None:
     if len(closes) < period + 1:
@@ -76,7 +94,7 @@ def _fetch_daily_closes_sync(ticker: str) -> list[float]:
 
 async def score_market_behaviour(symbol: str, sector: str | None) -> PillarScore:
     loop = asyncio.get_event_loop()
-    sector_ticker = _SECTOR_ETFS.get(sector) if sector else None
+    sector_ticker = _SECTOR_ETFS.get(_SECTOR_LABEL_TO_ETF_KEY.get(sector, sector)) if sector else None
 
     tickers = [f"{symbol.upper()}.NS", _NIFTY_TICKER] + ([sector_ticker] if sector_ticker else [])
     fetched = await asyncio.gather(*[loop.run_in_executor(None, _fetch_daily_closes_sync, t) for t in tickers])
