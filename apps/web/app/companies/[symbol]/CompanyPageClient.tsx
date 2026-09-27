@@ -324,6 +324,18 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
   // Overview-tab card (MarketRippleScoreSection), not squeezed in here.
   const hasMrScore = !!mrScore?.resolved && !!mrScore?.snapshot && mrScore.eligible === true && mrScore.score != null;
 
+  // Local unpublished preview, header tile (2026-09-27) — same dev-only
+  // gate and safety story as LocalUnpublishedScorePreview below: only
+  // ever fetched/rendered when hasMrScore is false (never overrides or
+  // competes with the real public number once publishable is true) AND
+  // NODE_ENV==="development" (dead code in any real build). Falls back to
+  // the same honest "Not available yet" the public tile already shows
+  // whenever this data isn't available either.
+  const isDev = process.env.NODE_ENV === "development";
+  const localPreview = useLocalUnpublishedScorePreview(isDev && !hasMrScore ? stock.symbol : "");
+  const hasLocalPreview = isDev && !hasMrScore && !!localPreview?.resolved && !!localPreview?.snapshot
+    && localPreview.eligible === true && localPreview.score != null;
+
   return (
     <motion.div variants={fadeUp} initial="hidden" animate="show"
       className={`${CARD} p-6`}>
@@ -401,7 +413,9 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
                 MarketRippleScoreSection for where that content still
                 lives, under its own "Current Intelligence" name). */}
             <div className={`rounded-2xl border px-4 py-3 text-center min-w-[90px] ${
-              hasMrScore ? "border-emerald-500/20 bg-emerald-500/[0.05]" : "border-surface-border/10 bg-text-primary/[0.03]"
+              hasMrScore ? "border-emerald-500/20 bg-emerald-500/[0.05]"
+              : hasLocalPreview ? "border-amber-500/30 bg-amber-500/[0.06]"
+              : "border-surface-border/10 bg-text-primary/[0.03]"
             }`}>
               <p className="text-[9px] uppercase tracking-widest text-text-muted">MarketRipple Score</p>
               {mrScore === undefined ? (
@@ -412,6 +426,18 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
                   {mrScore!.rating && (
                     <p className={`text-[9px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(mrScore!.rating)}`}>{mrScore!.rating}</p>
                   )}
+                </>
+              ) : hasLocalPreview ? (
+                // Dev-only, gated on NODE_ENV==="development" above (dead
+                // branch in any real build) — the real local calculation,
+                // clearly marked distinct from the public number this tile
+                // otherwise shows. Never rendered once hasMrScore is true.
+                <>
+                  <p className="mt-1 text-[14px] font-black text-amber-500">{marketRippleScoreDisplayInt(localPreview!.score)}/100</p>
+                  {localPreview!.rating && (
+                    <p className={`text-[9px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(localPreview!.rating)}`}>{localPreview!.rating}</p>
+                  )}
+                  <p className="text-[8px] font-bold uppercase tracking-wide text-amber-500/80">Local preview</p>
                 </>
               ) : (
                 <p className="mt-1 text-[11px] font-semibold text-text-muted" title="MarketRipple Score is not yet available for this company.">Not available yet</p>
@@ -1519,7 +1545,7 @@ interface LocalPreviewData {
 function useLocalUnpublishedScorePreview(symbol: string) {
   const [data, setData] = useState<LocalPreviewData | null | undefined>(undefined);
   useEffect(() => {
-    if (process.env.NODE_ENV !== "development") return;
+    if (process.env.NODE_ENV !== "development" || !symbol) return;
     let cancelled = false;
     setData(undefined);
     fetch(`${API}/api/companies/${symbol}/marketripple-score/local-preview`)

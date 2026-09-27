@@ -96,7 +96,41 @@ interface ListResponse {
     symbol: string; name: string; sector: string; industry: string;
     cap: "large" | "mid" | "small";
     price: string | null; pct: number | null; positive: boolean | null;
+    marketripple_score: { eligible: boolean; publishable: boolean; score: number | null; rating: string | null } | null;
+    marketripple_score_local_preview: { eligible: boolean; score: number | null; rating: string | null } | null;
   }[];
+}
+
+// MarketRipple Score column (2026-09-27) — real, public score when
+// publishable (never true today, S2 phase lock); otherwise, in local dev
+// only, the same "local unpublished preview" convention already used on
+// the Company page and its header tile. The backend already omits
+// marketripple_score_local_preview entirely in real production
+// (settings.is_production), so the NODE_ENV check here is a second,
+// independent guard, not the only one — either alone already prevents
+// this from ever showing to a real user.
+function ScoreCell({ co }: { co: ListResponse["companies"][number] }) {
+  const pub = co.marketripple_score;
+  if (pub?.publishable && pub.score != null) {
+    return (
+      <span className="font-mono text-[12px] font-bold tabular-nums text-emerald-500">
+        {Math.round(pub.score)}
+      </span>
+    );
+  }
+  const isDev = process.env.NODE_ENV === "development";
+  const preview = co.marketripple_score_local_preview;
+  if (isDev && preview?.eligible && preview.score != null) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <span className="font-mono text-[12px] font-bold tabular-nums text-amber-500">{Math.round(preview.score)}</span>
+        <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-amber-500" title="Local unpublished preview — never shown in production">
+          preview
+        </span>
+      </span>
+    );
+  }
+  return <span className="text-[12px] text-text-muted">—</span>;
 }
 
 export async function AllCompaniesTab({
@@ -140,7 +174,7 @@ export async function AllCompaniesTab({
   const from     = total > 0 ? (safePage - 1) * PAGE_SIZE + 1 : 0;
   const to       = Math.min(safePage * PAGE_SIZE, total);
   const pageList = buildPageList(safePage, totalPages);
-  const colGrid = "grid-cols-[3fr_1fr_1.5fr_1.2fr_1.2fr_1fr_80px_44px]";
+  const colGrid = "grid-cols-[3fr_1fr_0.9fr_1.5fr_1.2fr_1.2fr_1fr_80px_44px]";
 
   return (
     <div className="flex items-start gap-5">
@@ -151,7 +185,7 @@ export async function AllCompaniesTab({
 
         <div className="overflow-hidden rounded-xl border border-surface-border/6 bg-surface-card">
           <div className={`grid ${colGrid} border-b border-surface-border/6 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted`}>
-            <span>Company</span><span>Ticker</span><span>Sector</span><span>Market Cap</span>
+            <span>Company</span><span>Ticker</span><span>Score</span><span>Sector</span><span>Market Cap</span>
             <span>Price</span><span>Change %</span><span>1D Chart</span><span />
           </div>
 
@@ -187,7 +221,8 @@ export async function AllCompaniesTab({
                       <span className="font-mono text-[11px] font-bold text-text-secondary">{co.symbol}</span>
                       <span className="rounded border border-indigo-500/20 bg-indigo-500/10 px-1 py-0.5 text-[8px] font-bold text-indigo-400">NSE</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <ScoreCell co={co} />
+                    <div className="flex min-w-0 items-center gap-1.5">
                       <div className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} />
                       <span className="truncate text-[11px] text-text-secondary">{co.sector}</span>
                     </div>

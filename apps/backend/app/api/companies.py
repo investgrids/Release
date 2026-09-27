@@ -1119,9 +1119,55 @@ async def list_companies(
         symbols = [co["symbol"] for co in page_items]
         prices = await _fetch_prices(symbols)
 
+    # MarketRipple Score for this page only (2026-09-27) — one batched
+    # query for the page's symbols, never N+1, never a live computation
+    # (same "DB read only" contract as get_latest_snapshot()). Two
+    # separate fields, matching the same trust boundary already
+    # established for the single-company endpoints:
+    #   marketripple_score              — publishable-gated (public/real).
+    #   marketripple_score_local_preview — the real number regardless of
+    #     publishable, but the WHOLE field is omitted (always None) when
+    #     settings.is_production is true, mirroring
+    #     /marketripple-score/local-preview's own settings.is_production
+    #     gate. Never sent to a real production caller either way.
+    mr_scores: dict[str, dict] = {}
+    if page_items:
+        from sqlalchemy import select
+
+        from app.core.config import settings
+        from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
+
+        page_symbols = [co["symbol"] for co in page_items]
+        snap_rows = (await db.execute(
+            select(MarketRippleScoreSnapshot)
+            .where(MarketRippleScoreSnapshot.symbol.in_(page_symbols))
+            .order_by(MarketRippleScoreSnapshot.calculated_at.desc())
+        )).scalars().all()
+        latest_by_symbol: dict[str, MarketRippleScoreSnapshot] = {}
+        for snap in snap_rows:
+            latest_by_symbol.setdefault(snap.symbol, snap)  # first hit per symbol is the newest (query is DESC)
+
+        show_local_preview = not settings.is_production
+        for symbol, snap in latest_by_symbol.items():
+            reasons = snap.publication_block_reasons or []
+            eligible = len(reasons) == 0
+            publishable = bool(snap.publishable)
+            mr_scores[symbol] = {
+                "marketripple_score": {
+                    "eligible": eligible, "publishable": publishable,
+                    "score": snap.score if publishable else None,
+                    "rating": snap.rating if publishable else None,
+                },
+                "marketripple_score_local_preview": (
+                    {"eligible": eligible, "score": snap.score, "rating": snap.rating}
+                    if show_local_preview else None
+                ),
+            }
+
     companies = []
     for co in page_items:
         p = prices.get(co["symbol"], {})
+        mr = mr_scores.get(co["symbol"], {})
         companies.append({
             "symbol":   co["symbol"],
             "name":     co["name"],
@@ -1131,6 +1177,8 @@ async def list_companies(
             "price":    p.get("price"),
             "pct":      p.get("pct"),
             "positive": p.get("positive"),
+            "marketripple_score": mr.get("marketripple_score"),
+            "marketripple_score_local_preview": mr.get("marketripple_score_local_preview"),
         })
 
     return {
