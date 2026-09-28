@@ -213,7 +213,21 @@ _NSE_UNIVERSE: list[dict] = [
 
     # ── Automotive ────────────────────────────────────────────────────────────
     {"symbol":"MARUTI",     "name":"Maruti Suzuki India Ltd",        "sector":"Automotive",     "industry":"Passenger Vehicles",    "cap":"large", "aliases":["maruti suzuki","maruti","suzuki"]},
-    {"symbol":"TATAMOTORS", "name":"Tata Motors Ltd",                "sector":"Automotive",     "industry":"Automobiles",           "cap":"large", "aliases":["tata motors"]},
+    # TATAMOTORS removed here (2026-09-28, real MarketRipple Score
+    # investigation) -- a real NSE rename (2025-10-24) means TATAMOTORS.NS
+    # 404s on yfinance ("Quote not found"); this symbol never scores and
+    # was silently poisoning the Automotive peer universe with a dead
+    # ticker. The live successor, TMPV ("Tata Motors Passenger Vehicles
+    # Ltd"), is already a separate, correct entry below with its own real
+    # industry/cap/aliases -- this codebase already treats TATAMOTORS as
+    # superseded by TMPV everywhere else (see _superseded_symbols(),
+    # derived from a real CompanyAlias row); this just extends that same
+    # decision to the static universe the scoring engine reads directly,
+    # which _superseded_symbols() (an async, DB-backed dedup used only for
+    # directory/search display) never covered. Old-symbol lookups
+    # (/companies/TATAMOTORS, a saved link, etc.) still resolve correctly
+    # to the same real entity via resolve_entity_by_any_symbol(), which is
+    # unaffected by this static array.
     {"symbol":"M&M",        "name":"Mahindra & Mahindra Ltd",        "sector":"Automotive",     "industry":"Automobiles",           "cap":"large", "aliases":["mahindra","m&m"]},
     {"symbol":"BAJAJ-AUTO", "name":"Bajaj Auto Ltd",                 "sector":"Automotive",     "industry":"Two-Wheelers",          "cap":"large", "aliases":["bajaj auto","bajaj"]},
     {"symbol":"HEROMOTOCO", "name":"Hero MotoCorp Ltd",              "sector":"Automotive",     "industry":"Two-Wheelers",          "cap":"large", "aliases":["hero motocorp","hero honda","hero"]},
@@ -286,7 +300,7 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"CANBK",      "name":"Canara Bank",                    "sector":"Banking",        "industry":"PSU Bank",               "cap":"large", "aliases":["canara bank","canara"]},
     {"symbol":"AUBANK",     "name":"AU Small Finance Bank Ltd",      "sector":"Banking",        "industry":"Small Finance Bank",     "cap":"mid",   "aliases":["au small finance bank","au bank"]},
     {"symbol":"STARHEALTH", "name":"Star Health and Allied Insurance Co Ltd", "sector":"Insurance", "industry":"Health Insurance",   "cap":"mid",   "aliases":["star health","star health insurance"]},
-    {"symbol":"ASHOKLEY",   "name":"Ashok Leyland Ltd",              "sector":"Auto",           "industry":"Commercial Vehicles",    "cap":"large", "aliases":["ashok leyland"]},
+    {"symbol":"ASHOKLEY",   "name":"Ashok Leyland Ltd",              "sector":"Automotive",     "industry":"Commercial Vehicles",    "cap":"large", "aliases":["ashok leyland"]},
     {"symbol":"TATACONSUM", "name":"Tata Consumer Products Ltd",     "sector":"FMCG",           "industry":"Beverages & Food",       "cap":"large", "aliases":["tata consumer","tata consumer products"]},
     {"symbol":"VBL",        "name":"Varun Beverages Ltd",            "sector":"FMCG",           "industry":"Beverages",              "cap":"large", "aliases":["varun beverages"]},
     {"symbol":"CROMPTON",   "name":"Crompton Greaves Consumer Electricals Ltd", "sector":"Consumer", "industry":"Consumer Electricals", "cap":"mid", "aliases":["crompton","crompton greaves"]},
@@ -304,8 +318,8 @@ _NSE_UNIVERSE: list[dict] = [
     # hard "quote not found" 404, a stronger signal than the other two
     # removals. No successor symbol found.
     {"symbol":"HINDZINC",   "name":"Hindustan Zinc Ltd",             "sector":"Metals",         "industry":"Zinc & Silver Mining",   "cap":"large", "aliases":["hindustan zinc","hind zinc"]},
-    {"symbol":"GMRAIRPORT", "name":"GMR Airports Infrastructure Ltd","sector":"Infra",          "industry":"Airport Infrastructure", "cap":"large", "aliases":["gmr infrastructure","gmr airports","gmr"]},
-    {"symbol":"IRB",        "name":"IRB Infrastructure Developers Ltd", "sector":"Infra",       "industry":"Road Infrastructure",    "cap":"mid",   "aliases":["irb infrastructure","irb"]},
+    {"symbol":"GMRAIRPORT", "name":"GMR Airports Infrastructure Ltd","sector":"Infrastructure", "industry":"Airport Infrastructure", "cap":"large", "aliases":["gmr infrastructure","gmr airports","gmr"]},
+    {"symbol":"IRB",        "name":"IRB Infrastructure Developers Ltd", "sector":"Infrastructure", "industry":"Road Infrastructure",    "cap":"mid",   "aliases":["irb infrastructure","irb"]},
     {"symbol":"AMBUJACEM",  "name":"Ambuja Cements Ltd",             "sector":"Cement",         "industry":"Cement",                 "cap":"large", "aliases":["ambuja cements","ambuja"]},
     {"symbol":"ACC",        "name":"ACC Ltd",                        "sector":"Cement",         "industry":"Cement",                 "cap":"large", "aliases":["acc limited","acc cement"]},
     {"symbol":"IDEA",       "name":"Vodafone Idea Ltd",              "sector":"Telecom",        "industry":"Telecom Services",       "cap":"mid",   "aliases":["vodafone idea","vi"]},
@@ -363,7 +377,7 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"SONACOMS", "name":"Sona BLW Precision Forgings Ltd", "sector":"Automotive", "industry":"Automobile and Auto Components", "cap":"mid", "aliases":["sona", "sona blw", "sonacoms"]},
     {"symbol":"TENNIND", "name":"Tenneco Clean Air India Ltd", "sector":"Automotive", "industry":"Automobile and Auto Components", "cap":"mid", "aliases":["tenneco", "tenneco air", "tennind"]},
     {"symbol":"TIINDIA", "name":"Tube Investments of India Ltd", "sector":"Automotive", "industry":"Automobile and Auto Components", "cap":"mid", "aliases":["tiindia"]},
-    {"symbol":"TMPV", "name":"Tata Motors Passenger Vehicles Ltd", "sector":"Automotive", "industry":"Automobile and Auto Components", "cap":"mid", "aliases":["tata passenger", "tmpv"]},
+    {"symbol":"TMPV", "name":"Tata Motors Passenger Vehicles Ltd", "sector":"Automotive", "industry":"Automobile and Auto Components", "cap":"mid", "aliases":["tata passenger", "tmpv", "tata motors"]},
     {"symbol":"UNOMINDA", "name":"UNO Minda Ltd", "sector":"Automotive", "industry":"Automobile and Auto Components", "cap":"mid", "aliases":["uno", "uno minda", "minda industries", "unominda"]},
     {"symbol":"ZFCVINDIA", "name":"ZF Commercial Vehicle Control Systems India Ltd", "sector":"Automotive", "industry":"Automobile and Auto Components", "cap":"mid", "aliases":["commercial", "commercial vehicle", "zfcvindia"]},
     # ── Banking (Nifty 500 expansion, 2026-07-26) ─────────────────

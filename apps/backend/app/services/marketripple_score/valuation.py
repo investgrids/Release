@@ -25,25 +25,40 @@ from app.services.marketripple_score.banking_universe import ALL_ELIGIBLE_NSE_BA
 from app.services.marketripple_score.contracts import PillarScore, PillarStatus
 
 
+_RETRY_BACKOFF_S = (1.5, 3.0, 6.0)  # 4 attempts total
+
+
 def _fetch_valuation_snapshot_sync(symbol: str) -> dict:
     """See financial_strength.py::_fetch_financial_strength_inputs_sync's
     docstring — same real, confirmed-live retry rationale (concurrent
     peer-info fetches intermittently return partial data from yfinance;
-    the underlying data itself is real and present on retry)."""
+    the underlying data itself is real and present on retry).
+
+    2026-09-28 incident: the production refresh (424 companies, ~58 min,
+    hundreds of sequential `.info` calls from one Railway IP) hit this far
+    harder than the single 1.5s retry this function used to have was built
+    for — 149 companies came back with valuation=None, including RELIANCE,
+    SBIN, TATASTEEL and other mega-caps. Re-fetching a random sample of 30
+    of those 149 immediately afterward found real pe/pb/EPS data for 28 of
+    them — a transient rate-limit/throttling pattern, not a real data gap.
+    More attempts with real backoff (per-symbol here, plus a sector-level
+    second pass in prefetch_valuation_snapshots below) is the fix; genuinely
+    unavailable data (a real 404 or a company with no PE due to negative
+    earnings) still correctly returns None after exhausting retries."""
     import time
     import yfinance as yf
 
     t = yf.Ticker(f"{symbol.upper()}.NS")
     info = {}
-    for attempt in range(2):
+    for attempt in range(len(_RETRY_BACKOFF_S) + 1):
         try:
             info = t.info or {}
         except Exception:
             info = {}
         if info.get("trailingPE") is not None or info.get("priceToBook") is not None:
             break
-        if attempt == 0:
-            time.sleep(1.5)
+        if attempt < len(_RETRY_BACKOFF_S):
+            time.sleep(_RETRY_BACKOFF_S[attempt])
     return {
         "pe": info.get("trailingPE"),
         "pb": info.get("priceToBook"),
@@ -128,12 +143,28 @@ async def prefetch_valuation_snapshots(symbols: list[str]) -> dict[str, dict]:
     real fix as financial_strength_industrial.py's own
     prefetch_industrial_inputs. Pass the result into score_valuation's
     `prefetched` parameter for every company in the same sector instead of
-    letting each one independently re-fetch the whole peer population."""
+    letting each one independently re-fetch the whole peer population.
+
+    2026-09-28 — second pass over stragglers: a rate-limit window can span
+    an entire sector's first pass (correlated failures across many peers at
+    once, not one flaky symbol), so a symbol's own immediate retries inside
+    _fetch_valuation_snapshot_sync can all land in the same bad window. A
+    second, single-pass retry AFTER the whole sector's first pass has
+    already spent real wall-clock time on other symbols gives Yahoo's
+    transient block a real chance to clear — see _fetch_valuation_snapshot_sync's
+    own docstring for the incident this fixes."""
     loop = asyncio.get_event_loop()
     out: dict[str, dict] = {}
     for s in symbols:
         out[s] = await loop.run_in_executor(None, _fetch_valuation_snapshot_sync, s)
         await asyncio.sleep(0.4)
+
+    stragglers = [s for s, d in out.items() if d.get("pe") is None and d.get("pb") is None]
+    if stragglers:
+        await asyncio.sleep(5.0)
+        for s in stragglers:
+            out[s] = await loop.run_in_executor(None, _fetch_valuation_snapshot_sync, s)
+            await asyncio.sleep(0.4)
     return out
 
 
