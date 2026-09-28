@@ -15,7 +15,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import delete
 
-from app.core.config import Settings, settings
+from app.core.config import Settings
 from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
 from app.db.session import AsyncSessionLocal
 
@@ -35,7 +35,11 @@ def test_is_production_false_locally(monkeypatch):
 @pytest.fixture
 def force_production(monkeypatch):
     def _set(value: bool):
-        monkeypatch.setattr(type(settings), "is_production", property(lambda self: value))
+        # Patch the settings object the app reads *now*: another test reloads
+        # app.core.config, which replaces `settings` (and its class), so the
+        # module-level import above can be a stale copy by the time this runs.
+        import app.core.config as config
+        monkeypatch.setattr(type(config.settings), "is_production", property(lambda self: value))
     return _set
 
 
