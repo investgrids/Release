@@ -17,7 +17,11 @@ is reviewable and tested. Resumable: symbols already present are skipped.
 BSE's scrip list (which would cover more) is blocked by its WAF and is
 deliberately not attempted.
 
-Usage: python scripts/backfill_company_industries.py
+Usage: python scripts/backfill_company_industries.py [--from-api BASE_URL]
+
+--from-api reads the sector-less symbols from a deployed backend's public
+/api/companies listing (e.g. production, whose directory is larger than a
+local dev DB) instead of the local database. Read-only against that API.
 """
 from __future__ import annotations
 
@@ -70,12 +74,30 @@ async def _blank_sector_symbols() -> list[str]:
     return [r["symbol"] for r in directory if not r["sector"]]
 
 
+def _blank_sector_symbols_from_api(base: str) -> list[str]:
+    out: list[str] = []
+    page = 1
+    while True:
+        r = requests.get(f"{base.rstrip('/')}/api/companies/", params={"page_size": 50, "page": page}, timeout=90)
+        r.raise_for_status()
+        d = r.json()
+        rows = d.get("companies") or []
+        out += [c["symbol"] for c in rows if not c.get("sector") or c.get("sector") in ("N/A", "Unknown")]
+        if not rows or page * 50 >= d.get("total", 0):
+            return out
+        page += 1
+
+
 def main() -> None:
     import yfinance as yf
 
     today = date.today().isoformat()
     data = _load()
-    todo = [s for s in asyncio.run(_blank_sector_symbols()) if s not in data]
+    if "--from-api" in sys.argv:
+        blank = _blank_sector_symbols_from_api(sys.argv[sys.argv.index("--from-api") + 1])
+    else:
+        blank = asyncio.run(_blank_sector_symbols())
+    todo = [s for s in blank if s not in data]
     print(f"{len(todo)} symbols need a source label ({len(data)} already collected)")
 
     nse = _nse_industries()

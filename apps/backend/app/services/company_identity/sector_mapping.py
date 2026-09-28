@@ -117,11 +117,13 @@ _YAHOO_INDUSTRY: dict[str, str | None] = {
     "Communication Equipment": "Technology", "Electronic Components": "Technology",  # DIXON/KAYNES
     "Scientific & Technical Instruments": "Technology",
     "Computer Hardware": "Technology", "Consumer Electronics": "Technology",
-    "Semiconductors": "Technology", "Electronics & Computer Distribution": "Technology",
+    "Semiconductors": "Technology", "Semiconductor Equipment & Materials": "Technology",
+    "Electronics & Computer Distribution": "Technology",
     "Solar": "Infrastructure",                            # WAAREEENER/PREMIERENE precedent
     # Real estate
     "Real Estate - Development": "Real Estate", "Real Estate Services": "Real Estate",
     "Real Estate - Diversified": "Real Estate",
+    "Food Distribution": "FMCG",
     # Deliberately unmapped — no site sector fits without guessing:
     "Packaging & Containers": None, "Conglomerates": None, "Specialty Business Services": None,
     "Education & Training Services": None, "Building Materials": None,  # cement AND tiles/pipes
@@ -129,6 +131,7 @@ _YAHOO_INDUSTRY: dict[str, str | None] = {
     "Rental & Leasing Services": None, "Waste Management": None, "Staffing & Employment Services": None,
     "Shell Companies": None, "Utilities - Regulated Water": None, "Industrial Distribution": None,
     "Business Equipment & Supplies": None, "Security & Protection Services": None,
+    "Consulting Services": None, "Pollution & Treatment Controls": None,
 }
 
 
