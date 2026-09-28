@@ -52,7 +52,11 @@ export function CompaniesHubClient({
         }}
       />
       <div className="mb-5">
-        <HubTabBar hub="Companies" tabs={TABS} active={activeTab} pending={showLoading} onChange={(id) => navigate(`/companies?tab=${id}`)} />
+        {/* No `pending` spinner in the tab bar: the overlay below is the one
+            loading indicator (owner: "two loaders, keep one"). The tab-bar
+            spinner also rendered on the OLD tab, since activeTab only
+            changes once navigation completes. */}
+        <HubTabBar hub="Companies" tabs={TABS} active={activeTab} onChange={(id) => navigate(`/companies?tab=${id}`)} />
       </div>
       <div className="relative">
         {showLoading && (

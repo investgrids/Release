@@ -37,7 +37,8 @@ export function RippleHubClient({
         stats={stats}
       />
       <div className="mb-5">
-        <HubTabBar hub="Ripple Intelligence" tabs={TABS} active={activeTab} pending={showLoading}
+        {/* One loader only — the overlay below (same fix as CompaniesHubClient). */}
+        <HubTabBar hub="Ripple Intelligence" tabs={TABS} active={activeTab}
           onChange={(id) => startTransition(() => router.push(`/ripple?tab=${id}`))} />
       </div>
       <div className="relative">
