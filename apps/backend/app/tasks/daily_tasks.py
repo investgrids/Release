@@ -1063,8 +1063,9 @@ async def job_check_ingestion_silence() -> None:
 # hide scores older than 30 days (rankings._STALE_AFTER_DAYS), so published
 # scores must be recomputed regularly or they silently drop off.
 async def job_marketripple_score_refresh() -> None:
-    from app.services.marketripple_score.refresh import refresh_all_scores
+    # Separate process, never in this worker (see refresh.py).
+    from app.services.marketripple_score.refresh import start_refresh_process
     try:
-        await refresh_all_scores()
+        log.info("job.marketripple_score_refresh.start", **start_refresh_process())
     except Exception as exc:
         log.error("job.marketripple_score_refresh.failed", error=str(exc))
