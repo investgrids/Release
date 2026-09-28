@@ -21,7 +21,10 @@ import { cn } from "@/lib/utils";
 // silently fell back to the OS system font (verified via computed styles —
 // every text node resolved to ui-sans-serif). Geist is a single variable
 // font file, self-hosted by next/font; Tailwind's `font-sans` points at it.
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
+// "latin-ext" is required, not optional: ₹ (U+20B9) lives in that subset.
+// Without it preloaded, every price re-rendered when the late file arrived
+// (measured CLS 0.16 on /companies, all from ₹ price rows).
+const geist = Geist({ subsets: ["latin", "latin-ext"], variable: "--font-geist", display: "swap" });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
