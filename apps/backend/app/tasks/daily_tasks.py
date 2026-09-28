@@ -1057,3 +1057,14 @@ async def job_check_ingestion_silence() -> None:
         )
     else:
         log.info("ingestion.silence_check_ok", gap_minutes=round(gap_minutes, 1))
+
+
+# MarketRipple Score weekly refresh (owner decision 2026-09-28). Rankings
+# hide scores older than 30 days (rankings._STALE_AFTER_DAYS), so published
+# scores must be recomputed regularly or they silently drop off.
+async def job_marketripple_score_refresh() -> None:
+    from app.services.marketripple_score.refresh import refresh_all_scores
+    try:
+        await refresh_all_scores()
+    except Exception as exc:
+        log.error("job.marketripple_score_refresh.failed", error=str(exc))

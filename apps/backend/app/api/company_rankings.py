@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.services.marketripple_score.rankings import (
     get_all_companies_rankings, get_banking_rankings, get_industrial_sector_rankings,
-    get_top_local_preview_scores, get_unsupported_sector_response,
+    get_top_local_preview_scores, get_top_published_scores, get_unsupported_sector_response,
 )
 from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
 
@@ -52,6 +52,13 @@ async def get_all_company_rankings(
         for row in result["companies"]:
             row["local_preview"] = None
     return result
+
+
+@router.get("/top")
+async def get_top_published(limit: int = Query(5, ge=1, le=20), db: AsyncSession = Depends(get_db)):
+    """Public: the highest published MarketRipple Scores across all
+    supported sectors. Registered before the /{sector} catch-all."""
+    return {"companies": await get_top_published_scores(db, limit=limit)}
 
 
 @router.get("/local-preview/top")

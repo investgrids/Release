@@ -175,3 +175,75 @@ async def test_get_latest_snapshot_returns_none_when_only_superseded_methodology
         assert result is None
     finally:
         await _cleanup_snapshots(symbol)
+
+
+# ── Publication rule (owner decision 2026-09-28) ─────────────────────────────
+def _headline_result(publishable: bool):
+    from app.services.marketripple_score.contracts import MarketRippleScore, PillarScore, PillarStatus
+
+    def p(score):
+        return PillarScore(name="t", score=score, coverage_pct=100.0, status=PillarStatus.COMPLETE,
+                           metrics_used=["a", "b", "c", "d", "e", "f"], metrics_missing=[], sources=["t"],
+                           as_of=datetime.now(timezone.utc))
+    return MarketRippleScore(
+        symbol="X", score=62.0 if publishable else None, label="Positive" if publishable else None,
+        publishable=publishable, publish_reason=None if publishable else "missing pillar",
+        pillars={"financial_strength": p(70.0), "valuation": p(55.0), "market_behaviour": p(50.0), "current_intelligence": p(40.0)},
+        weights={}, overall_coverage_pct=100.0,
+    )
+
+
+async def _persist_with(monkeypatch, symbol, *, sector, publishable, reasons):
+    import app.services.aipe.company_score_engine as cse
+    import app.services.company_identity.qualification as qual
+    import app.services.marketripple_score.eligibility as elig
+    from app.services.marketripple_score import snapshot as snap_mod
+
+    async def _compute(*a, **k): return _headline_result(publishable)
+    async def _entity(*a, **k): return None
+
+    class _Verdict:
+        def __init__(self, r): self.reasons = r
+
+    monkeypatch.setattr(snap_mod, "compute_marketripple_score", _compute)
+    monkeypatch.setattr(qual, "resolve_entity_by_any_symbol", _entity)
+    monkeypatch.setattr(cse, "_sector_for", lambda s: sector)
+    monkeypatch.setattr(elig, "evaluate_eligibility", lambda **k: _Verdict(reasons))
+    async with AsyncSessionLocal() as db:
+        return await snap_mod.compute_and_persist_snapshot(db, symbol)
+
+
+@pytest.mark.asyncio
+async def test_eligible_headline_score_is_persisted_publishable(monkeypatch):
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
+    symbol = f"PUB{_tag()}".upper()
+    try:
+        snap = await _persist_with(monkeypatch, symbol, sector=NONBANK_INDUSTRIAL_SECTORS[0], publishable=True, reasons=[])
+        assert snap.publishable is True
+        assert snap.publication_block_reason is None
+    finally:
+        await _cleanup_snapshots(symbol)
+
+
+@pytest.mark.asyncio
+async def test_ineligible_headline_score_is_withheld(monkeypatch):
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
+    symbol = f"INE{_tag()}".upper()
+    try:
+        snap = await _persist_with(monkeypatch, symbol, sector=NONBANK_INDUSTRIAL_SECTORS[0], publishable=True,
+                                   reasons=["INSUFFICIENT_FINANCIAL_METRICS"])
+        assert snap.publishable is False
+        assert "INSUFFICIENT_FINANCIAL_METRICS" in snap.publication_block_reason
+    finally:
+        await _cleanup_snapshots(symbol)
+
+
+@pytest.mark.asyncio
+async def test_sector_without_eligibility_policy_is_never_publishable(monkeypatch):
+    symbol = f"NOP{_tag()}".upper()
+    try:
+        # Even if the engine said publishable, no policy ran -> fail closed.
+        snap = await _persist_with(monkeypatch, symbol, sector="Insurance", publishable=True, reasons=[])
+        assert snap.publishable is False
+    finally:
+        await _cleanup_snapshots(symbol)

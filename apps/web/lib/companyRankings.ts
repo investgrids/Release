@@ -183,6 +183,15 @@ export async function getTopLocalPreviewScores(limit: number): Promise<TopLocalP
   return d.companies.map(c => ({ symbol: c.symbol, companyName: c.company_name, score: c.score, rating: c.rating }));
 }
 
+// Public: highest published scores across every supported sector.
+export async function getTopPublishedScores(limit: number): Promise<TopLocalPreviewRow[]> {
+  const d = await safeJson<{ companies: { symbol: string; company_name: string; score: number; rating: string | null }[] }>(
+    `${API}/api/company-rankings/top?limit=${encodeURIComponent(String(limit))}`,
+  );
+  if (!d) return [];
+  return d.companies.map(c => ({ symbol: c.symbol, companyName: c.company_name, score: c.score, rating: c.rating }));
+}
+
 export async function getAllCompaniesRankings(page: number, pageSize: number): Promise<AllCompanyRankingsPage> {
   const d = await safeJson<ApiAllCompanyRankingsPage>(
     `${API}/api/company-rankings/?page=${encodeURIComponent(String(page))}&page_size=${encodeURIComponent(String(pageSize))}`,

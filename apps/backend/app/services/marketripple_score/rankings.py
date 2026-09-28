@@ -316,7 +316,7 @@ async def get_all_companies_rankings(db: AsyncSession, page: int = 1, page_size:
     }
 
 
-async def get_top_local_preview_scores(db: AsyncSession, limit: int = 5) -> list[dict[str, Any]]:
+async def get_top_local_preview_scores(db: AsyncSession, limit: int = 5, publishable_only: bool = False) -> list[dict[str, Any]]:
     """LOCAL-DEV-ONLY (2026-09-27) — the real top-N companies by unified
     MarketRipple Score, REGARDLESS of `publishable`, mirroring
     companies.py's own /marketripple-score/local-preview per-symbol
@@ -348,7 +348,7 @@ async def get_top_local_preview_scores(db: AsyncSession, limit: int = 5) -> list
         .group_by(MarketRippleScoreSnapshot.symbol)
         .subquery()
     )
-    rows = (await db.execute(
+    stmt = (
         select(MarketRippleScoreSnapshot)
         .join(
             latest_per_symbol,
@@ -356,9 +356,10 @@ async def get_top_local_preview_scores(db: AsyncSession, limit: int = 5) -> list
             & (MarketRippleScoreSnapshot.calculated_at == latest_per_symbol.c.max_calculated_at),
         )
         .where(MarketRippleScoreSnapshot.score.is_not(None))
-        .order_by(MarketRippleScoreSnapshot.score.desc())
-        .limit(limit)
-    )).scalars().all()
+    )
+    if publishable_only:  # the public leaderboard (get_top_published_scores)
+        stmt = stmt.where(MarketRippleScoreSnapshot.publishable.is_(True))
+    rows = (await db.execute(stmt.order_by(MarketRippleScoreSnapshot.score.desc()).limit(limit))).scalars().all()
 
     return [
         {
@@ -367,6 +368,12 @@ async def get_top_local_preview_scores(db: AsyncSession, limit: int = 5) -> list
         }
         for row in rows
     ]
+
+
+async def get_top_published_scores(db: AsyncSession, limit: int = 5) -> list[dict[str, Any]]:
+    """The public top-N leaderboard across every supported sector: only
+    snapshots that are publishable (real headline + passed eligibility)."""
+    return await get_top_local_preview_scores(db, limit=limit, publishable_only=True)
 
 
 def get_unsupported_sector_response(sector: str) -> dict[str, Any]:

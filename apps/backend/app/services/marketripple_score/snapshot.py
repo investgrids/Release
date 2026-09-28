@@ -180,8 +180,15 @@ async def compute_and_persist_snapshot(
         financial_data_as_of=financial_data_as_of,
         market_data_as_of=now,
         intelligence_as_of=now,
-        publishable=result.publishable,
-        publication_block_reason=result.publish_reason,
+        # Public only when the engine produced a headline AND an eligibility
+        # policy actually ran AND every one of its checks passed (fail-closed:
+        # a sector with no policy is never public).
+        publishable=bool(result.publishable and publication_policy_version is not None and not publication_block_reasons),
+        publication_block_reason=(
+            result.publish_reason if not result.publishable
+            else ("Not eligible: " + ", ".join(publication_block_reasons)) if publication_block_reasons
+            else None
+        ),
         pillar_coverage_status=result.pillar_coverage_status,
         pillar_coverage_message=result.pillar_coverage_message,
     )

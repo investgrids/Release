@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Flame, Sparkles, Newspaper, ArrowRight } from "lucide-react";
 import { fetchAPI } from "@/lib/api";
-import { getSectorRankings, getTopLocalPreviewScores, type RankedCompanyRow, type TopLocalPreviewRow } from "@/lib/companyRankings";
+import { getTopLocalPreviewScores, getTopPublishedScores, type TopLocalPreviewRow } from "@/lib/companyRankings";
 import { marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scoring";
 
 // Real data only, every section — no fabricated numbers. Confirmed live
@@ -90,10 +90,10 @@ function SectionCard({
 
 export async function OverviewTab() {
   const isDev = process.env.NODE_ENV === "development";
-  const [scores, articles, bankingRankings, topLocalPreview] = await Promise.all([
+  const [scores, articles, topPublished, topLocalPreview] = await Promise.all([
     getCompanyScores(),
     getLatestCompanyArticles(),
-    getSectorRankings("Banking"),
+    getTopPublishedScores(5),
     isDev ? getTopLocalPreviewScores(5) : Promise.resolve([] as TopLocalPreviewRow[]),
   ]);
 
@@ -121,7 +121,8 @@ export async function OverviewTab() {
   // card had been missed). topLocalPreview is real, cross-sector (not
   // Banking-only), the same unified MARKETRIPPLE_SCORE_V1 data, gated
   // server-side to 404 in real production.
-  const topPicks: RankedCompanyRow[] = bankingRankings.ranked.slice(0, 5);
+  // Highest published scores across every supported sector (was Banking-only).
+  const topPicks: TopLocalPreviewRow[] = topPublished;
   const showLocalPreview = topPicks.length === 0 && topLocalPreview.length > 0;
 
   // Real live price for each symbol actually shown in these two widgets --

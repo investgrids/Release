@@ -61,19 +61,58 @@ def _pillar(score, coverage=100.0, status=PillarStatus.COMPLETE) -> PillarScore:
     )
 
 
-def test_marketripple_score_is_never_publishable_in_s2_phase():
-    """The explicit S2 phase lock — this is a deliberate policy assertion,
-    not a coverage-threshold computation. See engine.py's own docstring."""
-    from app.services.marketripple_score.engine import _PUBLISH_LOCK_REASON
+def _stub_engine(monkeypatch, *, sector, fs=80.0, val=60.0, mkt=50.0):
+    """Stub the network-dependent pillar scorers so compute_marketripple_score
+    runs its real headline + publication logic offline."""
+    from app.services.marketripple_score import engine
+    import app.services.aipe.company_score_engine as cse
 
-    score = MarketRippleScore(
-        symbol="TEST", score=72.0, label="Positive", publishable=False,
-        publish_reason=_PUBLISH_LOCK_REASON,
-        pillars={"financial_strength": _pillar(80.0)}, weights={"financial_strength": 1.0},
-        overall_coverage_pct=100.0,
-    )
-    assert score.publishable is False
-    assert "S2" in score.publish_reason
+    async def _fs(*a, **k): return _pillar(fs) if fs is not None else None
+    async def _ci(*a, **k): return _pillar(40.0)
+    async def _val(*a, **k): return _pillar(val) if val is not None else None
+    async def _mkt(*a, **k): return _pillar(mkt) if mkt is not None else None
+    monkeypatch.setattr(engine, "score_financial_strength", _fs)
+    monkeypatch.setattr(engine, "score_current_intelligence", _ci)
+    monkeypatch.setattr(engine, "score_valuation", _val)
+    monkeypatch.setattr(engine, "score_market_behaviour", _mkt)
+    monkeypatch.setattr(engine, "sector_peer_universe", lambda s: ["AAA", "BBB"])
+    monkeypatch.setattr(cse, "_sector_for", lambda sym: sector)
+
+
+@pytest.mark.asyncio
+async def test_real_headline_score_is_publishable(monkeypatch):
+    """Owner decision 2026-09-28 lifted the S2 phase lock: a real headline
+    number is publishable (snapshot.py still applies eligibility on top)."""
+    from app.services.marketripple_score.engine import compute_marketripple_score
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
+
+    _stub_engine(monkeypatch, sector=NONBANK_INDUSTRIAL_SECTORS[0])
+    result = await compute_marketripple_score(None, "TEST")
+    assert result.score is not None
+    assert result.publishable is True
+    assert result.publish_reason is None
+
+
+@pytest.mark.asyncio
+async def test_missing_required_pillar_is_never_publishable(monkeypatch):
+    from app.services.marketripple_score.engine import compute_marketripple_score
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
+
+    _stub_engine(monkeypatch, sector=NONBANK_INDUSTRIAL_SECTORS[0], val=None)
+    result = await compute_marketripple_score(None, "TEST")
+    assert result.score is None
+    assert result.publishable is False
+    assert result.publish_reason
+
+
+@pytest.mark.asyncio
+async def test_unsupported_sector_is_never_publishable(monkeypatch):
+    from app.services.marketripple_score.engine import compute_marketripple_score
+
+    _stub_engine(monkeypatch, sector="Insurance")
+    result = await compute_marketripple_score(None, "TEST")
+    assert result.score is None
+    assert result.publishable is False
 
 
 def test_label_thresholds():

@@ -35,12 +35,12 @@ MARKETRIPPLE_SCORE_METHODOLOGY_VERSION in contracts.py for why that's
 tagged as a genuinely new methodology, not a silent reinterpretation of
 BANKING_V1's old rows.
 
-publishable is hardcoded False for the whole S2 phase per owner decision
-("S2 may calculate. S2 may test. S2 may not replace the Company-page score
-yet.") — not a computed gate on coverage today, a deliberate phase lock.
-Left as an explicit field (not just a docstring rule) so activating it
-later is a one-line change with a real, traceable reason, not a silent
-behavior flip.
+Publication (owner decision 2026-09-28, lifting the 2026-08-25 S2 phase
+lock): the engine marks a score publishable whenever it produced a real
+headline number. snapshot.py then withholds it again unless the company
+also passes every publication-eligibility check, so a partial or
+ineligible score is never public. Unsupported sectors are never
+publishable.
 """
 from __future__ import annotations
 
@@ -87,11 +87,7 @@ HEADLINE_WEIGHTS: dict[str, float] = {
 HEADLINE_REASON_MISSING_PILLAR = "MISSING_REQUIRED_PILLAR"
 HEADLINE_REASON_INVALID_SCORE_RANGE = "INVALID_PILLAR_SCORE_RANGE"
 
-_PUBLISH_LOCK_REASON = (
-    "S2 phase lock (owner decision, 2026-08-25): the score is computed and "
-    "inspectable but never publishable until a deliberate decision reopens "
-    "S2's phase lock — see this module's own docstring."
-)
+_NO_HEADLINE_REASON = "No headline score: a required pillar is missing or invalid."
 
 
 @dataclass
@@ -279,7 +275,8 @@ async def compute_marketripple_score(
     headline = compute_headline(pillars)
     return MarketRippleScore(
         symbol=symbol, score=headline.score, label=headline.label,
-        publishable=False, publish_reason=_PUBLISH_LOCK_REASON,
+        publishable=headline.score is not None,
+        publish_reason=None if headline.score is not None else (headline.message or _NO_HEADLINE_REASON),
         pillars=pillars, weights=HEADLINE_WEIGHTS,
         overall_coverage_pct=headline.coverage_pct if headline.coverage_pct is not None else 0.0,
         peer_universe=actual_peer_universe, peer_universe_count=len(actual_peer_universe),

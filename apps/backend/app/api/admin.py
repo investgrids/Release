@@ -466,3 +466,28 @@ async def opportunity_v2_editorial_clear(
         "editorial_reason": row.editorial_reason, "editorial_updated_at": row.editorial_updated_at,
         "effective_title": _effective_title(row), "effective_summary": _effective_summary(row),
     }
+
+
+# ── MarketRipple Score production refresh (owner decision 2026-09-28) ─────────
+_background_tasks: set = set()
+# Starts one full compute of every supported company's score in the
+# background (it takes ~20+ minutes, far longer than an HTTP request) and
+# returns immediately; poll the status endpoint for progress and the final
+# summary. The weekly scheduler job runs the same function.
+@router.post("/marketripple-score/refresh", dependencies=[Depends(require_admin_key)])
+async def marketripple_score_refresh(include_banks: bool = True):
+    import asyncio
+    from app.services.marketripple_score.refresh import refresh_all_scores, refresh_status
+
+    if refresh_status()["running"]:
+        return {"started": False, "reason": "a refresh is already running", **refresh_status()}
+    task = asyncio.create_task(refresh_all_scores(include_banks=include_banks))
+    _background_tasks.add(task)  # hold a reference so the task isn't garbage-collected mid-run
+    task.add_done_callback(_background_tasks.discard)
+    return {"started": True}
+
+
+@router.get("/marketripple-score/refresh/status", dependencies=[Depends(require_admin_key)])
+async def marketripple_score_refresh_status():
+    from app.services.marketripple_score.refresh import refresh_status
+    return refresh_status()

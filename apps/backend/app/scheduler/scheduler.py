@@ -41,6 +41,7 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         job_daily_precompute,
         job_daily_opportunities,
         job_opportunity_v2_shadow_pass,
+        job_marketripple_score_refresh,
         job_seed_opportunities,
         job_warm_premarket,
         job_evaluate_predictions,
@@ -146,6 +147,17 @@ def register_jobs(scheduler: AsyncIOScheduler) -> None:
         max_instances=1,
         coalesce=True,
         misfire_grace_time=1800,
+    )
+
+    # ── MarketRipple Score refresh — Sundays 3:00 AM IST ─────────────────────
+    # Market closed and traffic lowest; ~20-40 min of paced yfinance calls.
+    scheduler.add_job(
+        job_marketripple_score_refresh,
+        CronTrigger(day_of_week="sun", hour=3, minute=0, timezone=_IST),
+        id="marketripple_score_refresh",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
     )
 
     # ── Pre-market cache warm — 8:00 AM IST ──────────────────────────────────
