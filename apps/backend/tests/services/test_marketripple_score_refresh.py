@@ -18,7 +18,7 @@ def tmp_reports(tmp_path, monkeypatch):
 
 
 def test_status_idle_with_no_files(tmp_reports):
-    assert refresh.refresh_status() == {"running": False, "pid": None, "progress": None, "last_run": None}
+    assert refresh.refresh_status() == {"running": False, "pid": None, "progress": None, "last_run": None, "last_exit": None}
 
 
 def test_status_reads_last_run_from_disk(tmp_reports):

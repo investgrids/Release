@@ -56,7 +56,10 @@ _proc: subprocess.Popen | None = None  # the child this worker started, reaped v
 
 def _pid_alive(pid: int) -> bool:
     if _proc is not None and _proc.pid == pid:
-        return _proc.poll() is None  # also reaps a finished child (no zombie)
+        code = _proc.poll()  # also reaps a finished child (no zombie)
+        if code is not None:
+            _write_json("last_exit.json", {"pid": pid, "exit_code": code, "at": datetime.now(timezone.utc).isoformat()})
+        return code is None
     if os.name == "nt":
         return True  # os.kill(pid, 0) terminates on Windows; trust the lock file
     try:
@@ -95,6 +98,7 @@ def refresh_status() -> dict[str, Any]:
         "pid": pid,
         "progress": _read_json("progress.json") if pid else None,
         "last_run": _read_json("last_run.json"),
+        "last_exit": _read_json("last_exit.json"),
     }
 
 
@@ -103,13 +107,17 @@ def start_refresh_process(include_banks: bool = True) -> dict[str, Any]:
     pid = _running_pid()
     if pid:
         return {"started": False, "reason": "a refresh is already running", "pid": pid}
-    cmd = [sys.executable, "scripts/run_marketripple_score_refresh.py"]
+    cmd = [sys.executable, "-u", "scripts/run_marketripple_score_refresh.py"]
     if not include_banks:
         cmd.append("--no-banks")
     log_file = open(_report_dir() / "last_run.log", "w", encoding="utf-8")  # noqa: SIM115 — owned by the child
-    kwargs: dict[str, Any] = {"cwd": str(_BACKEND_ROOT), "stdout": log_file, "stderr": subprocess.STDOUT}
-    if hasattr(os, "nice"):
-        kwargs["preexec_fn"] = lambda: os.nice(10)  # web workers keep CPU priority
+    # Own session: signals aimed at the web worker's process group never reach
+    # it. (Priority is lowered inside the script; preexec_fn is unsafe in a
+    # threaded parent like a uvicorn worker.)
+    kwargs: dict[str, Any] = {"cwd": str(_BACKEND_ROOT), "stdout": log_file, "stderr": subprocess.STDOUT,
+                              "stdin": subprocess.DEVNULL}
+    if os.name != "nt":
+        kwargs["start_new_session"] = True
     global _proc
     proc = _proc = subprocess.Popen(cmd, **kwargs)
     log_file.close()

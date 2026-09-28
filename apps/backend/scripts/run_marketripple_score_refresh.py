@@ -18,6 +18,9 @@ from app.services.marketripple_score.refresh import _lock_path, refresh_all_scor
 
 
 def main() -> None:
+    print(f"refresh process {os.getpid()} starting", flush=True)
+    if hasattr(os, "nice"):
+        os.nice(10)  # web workers keep CPU priority
     lock = _lock_path()
     lock.write_text(str(os.getpid()))  # also covers a manual CLI run
     try:
