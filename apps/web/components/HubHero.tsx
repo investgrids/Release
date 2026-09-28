@@ -41,7 +41,10 @@ export function HubHero({
       <p className="mt-1.5 max-w-2xl text-[14px] text-text-secondary">{pitch}</p>
 
       {stats && stats.length > 0 && (
-        <div className="mt-5 flex flex-wrap gap-x-8 gap-y-3">
+        // Fixed 2-column grid on phones: as a wrapping flex row the number of
+        // lines depended on text width, so the fallback->web-font swap changed
+        // it and shifted everything below (measured CLS 0.16 at 412px).
+        <div className="mt-5 grid grid-cols-2 gap-x-8 gap-y-3 sm:flex sm:flex-wrap">
           {stats.map(s => (
             <div key={s.label}>
               <p className="text-[20px] font-black text-text-primary tabular-nums">{s.value}</p>
