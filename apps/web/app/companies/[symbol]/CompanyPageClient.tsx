@@ -13,7 +13,7 @@ import { SmartCTA } from "@/components/SmartCTA";
 import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSection";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
-import { scoreToColor, impactToStyle, marketRippleScoreDisplayInt } from "@/lib/scoring";
+import { scoreToColor, impactToStyle, marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scoring";
 import {
   Star, Check, Sparkles, TrendingUp,
   BarChart2, TrendingDown, Landmark, Briefcase, Clock,
@@ -305,12 +305,6 @@ function useMarketRippleScore(symbol: string) {
   return data;
 }
 
-function _marketRippleRatingColor(rating: string | null | undefined): string {
-  if (rating === "Strong" || rating === "Positive") return "text-emerald-500";
-  if (rating === "Cautious") return "text-rose-500";
-  return "text-amber-500"; // Neutral / unknown
-}
-
 function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRenderedH1 }: {
   stock: StockDetail; symbol: string; watchlisted: boolean; setWatchlisted: (v: boolean) => void; serverRenderedH1: boolean;
 }) {
@@ -422,9 +416,9 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
                 <p className="mt-1 text-[14px] font-black text-text-muted">···</p>
               ) : hasMrScore ? (
                 <>
-                  <p className="mt-1 text-[14px] font-black text-emerald-500">{marketRippleScoreDisplayInt(mrScore!.score)}/100</p>
+                  <p className={`mt-1 text-[14px] font-black ${marketRippleRatingColor(mrScore!.rating)}`}>{marketRippleScoreDisplayInt(mrScore!.score)}/100</p>
                   {mrScore!.rating && (
-                    <p className={`text-[9px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(mrScore!.rating)}`}>{mrScore!.rating}</p>
+                    <p className={`text-[9px] font-bold uppercase tracking-wide ${marketRippleRatingColor(mrScore!.rating)}`}>{mrScore!.rating}</p>
                   )}
                 </>
               ) : hasLocalPreview ? (
@@ -433,9 +427,9 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
                 // clearly marked distinct from the public number this tile
                 // otherwise shows. Never rendered once hasMrScore is true.
                 <>
-                  <p className="mt-1 text-[14px] font-black text-amber-500">{marketRippleScoreDisplayInt(localPreview!.score)}/100</p>
+                  <p className={`mt-1 text-[14px] font-black ${marketRippleRatingColor(localPreview!.rating)}`}>{marketRippleScoreDisplayInt(localPreview!.score)}/100</p>
                   {localPreview!.rating && (
-                    <p className={`text-[9px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(localPreview!.rating)}`}>{localPreview!.rating}</p>
+                    <p className={`text-[9px] font-bold uppercase tracking-wide ${marketRippleRatingColor(localPreview!.rating)}`}>{localPreview!.rating}</p>
                   )}
                   <p className="text-[8px] font-bold uppercase tracking-wide text-amber-500/80">Local preview</p>
                 </>
@@ -1475,10 +1469,10 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
         </div>
 
         <div className="mt-3 flex items-baseline gap-3">
-          <span className="text-[36px] font-black leading-none text-text-primary">{marketRippleScoreDisplayInt(localPreview.score)}</span>
+          <span className={`text-[36px] font-black leading-none ${marketRippleRatingColor(localPreview.rating)}`}>{marketRippleScoreDisplayInt(localPreview.score)}</span>
           <span className="text-[13px] text-text-muted">/ 100</span>
           {localPreview.rating && (
-            <span className={`text-[11px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(localPreview.rating)}`}>{localPreview.rating}</span>
+            <span className={`text-[11px] font-bold uppercase tracking-wide ${marketRippleRatingColor(localPreview.rating)}`}>{localPreview.rating}</span>
           )}
         </div>
 
@@ -1539,10 +1533,10 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
         A combined view of financial strength, valuation, market behaviour and current market intelligence.
       </p>
       <div className="mt-3 flex items-baseline gap-3">
-        <span className="text-[36px] font-black leading-none text-text-primary">{marketRippleScoreDisplayInt(data.score)}</span>
+        <span className={`text-[36px] font-black leading-none ${marketRippleRatingColor(data.rating)}`}>{marketRippleScoreDisplayInt(data.score)}</span>
         <span className="text-[13px] text-text-muted">/ 100</span>
         {data.rating && (
-          <span className={`text-[11px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(data.rating)}`}>{data.rating}</span>
+          <span className={`text-[11px] font-bold uppercase tracking-wide ${marketRippleRatingColor(data.rating)}`}>{data.rating}</span>
         )}
       </div>
 

@@ -291,9 +291,17 @@ class Settings(BaseSettings):
         """True on Railway prod (JSON_LOGS=true is already the existing
         prod/dev signal, set in .env.example and used by main.py's startup
         log). Reused here to gate anything that must never run against real
-        users: placeholder/demo data endpoints and destructive or
-        fabricated-content seed operations."""
-        return self.json_logs
+        users: placeholder/demo data endpoints, destructive or
+        fabricated-content seed operations, and every MarketRipple Score
+        local-preview payload (unpublished scores).
+
+        Also true whenever Railway's own RAILWAY_ENVIRONMENT is set (the
+        same signal the Config class above already trusts for disabling
+        .env), so these gates don't hinge on one manually-set variable: if
+        JSON_LOGS were ever unset on a deployed server, unpublished scores
+        would otherwise be served by the raw API. This can only turn
+        dev-only behaviour OFF on a deployed server, never on."""
+        return self.json_logs or bool(os.environ.get("RAILWAY_ENVIRONMENT"))
 
 
 settings = Settings()

@@ -4,20 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import type { SectorRankings } from "@/lib/companyRankings";
-import { marketRippleScoreDisplayInt } from "@/lib/scoring";
+import { marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scoring";
 
 const RANK_BADGE = [
   "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30",
   "bg-slate-400/15 text-slate-600 dark:text-slate-300 border-slate-400/30",
   "bg-orange-600/15 text-orange-700 dark:text-orange-300 border-orange-600/30",
 ];
-
-const RATING_COLOR: Record<string, string> = {
-  Strong: "text-emerald-600 dark:text-emerald-300",
-  Positive: "text-emerald-500 dark:text-emerald-400",
-  Neutral: "text-amber-500 dark:text-amber-400",
-  Cautious: "text-rose-600 dark:text-rose-300",
-};
 
 function relativeTime(iso: string | null): string {
   if (!iso) return "";
@@ -95,8 +88,8 @@ export function CompanyRankingsView({ data }: { data: SectorRankings }) {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className="font-black tabular-nums text-text-primary">{marketRippleScoreDisplayInt(c.score)}</span>
-                    {c.rating && <p className={`text-[10.5px] font-semibold ${RATING_COLOR[c.rating] ?? "text-text-muted"}`}>{c.rating}</p>}
+                    <span className={`font-black tabular-nums ${marketRippleRatingColor(c.rating)}`}>{marketRippleScoreDisplayInt(c.score)}</span>
+                    {c.rating && <p className={`text-[10.5px] font-semibold ${marketRippleRatingColor(c.rating)}`}>{c.rating}</p>}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-text-secondary">
                     {c.coveragePct != null ? `${Math.round(c.coveragePct)}%` : "—"}

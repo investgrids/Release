@@ -160,3 +160,17 @@ export function marketRippleScoreDisplayInt(score: number | null | undefined): n
   if (score === null || score === undefined) return null;
   return Math.floor(score);
 }
+
+/**
+ * The one shared text color for a MarketRipple Score and its rating label,
+ * keyed off the published rating (engine.py::_label_for), never the raw
+ * number — so the color can't disagree with the label beside it.
+ * Strong/Positive green, Neutral amber, Cautious red.
+ */
+export function marketRippleRatingColor(rating: string | null | undefined): string {
+  if (rating === "Strong") return "text-emerald-600 dark:text-emerald-300";
+  if (rating === "Positive") return "text-emerald-500 dark:text-emerald-400";
+  if (rating === "Cautious") return "text-rose-600 dark:text-rose-300";
+  if (rating === "Neutral") return "text-amber-500 dark:text-amber-400";
+  return "text-text-primary";
+}

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { API_BASE_URL as API } from "@/lib/api";
 import { safeJsonLd } from "@/lib/text";
 import { AskAICta } from "@/components/AskAICta";
-import { marketRippleScoreDisplayInt } from "@/lib/scoring";
+import { marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scoring";
 
 /**
  * Sector landing page (SEO Phase 2, §2.1 — the single largest programmatic-
@@ -140,16 +140,16 @@ async function fetchSectorArticles(sectorName: string): Promise<RelatedArticle[]
 // at all rather than a fallback to the retired engine — stocks keep their
 // original relative order with price/change only, the same honest path
 // this page already used for any stock with no signal.
-async function fetchSectorScores(sectorName: string): Promise<Map<string, { score: number; reason: string | null }>> {
+async function fetchSectorScores(sectorName: string): Promise<Map<string, { score: number; rating: string | null; reason: string | null }>> {
   if (sectorName.toLowerCase() !== "banking") return new Map();
   try {
     const res = await fetch(`${API}/api/company-rankings/Banking`, { next: { revalidate: 900 } });
     if (!res.ok) return new Map();
     const data = await res.json();
     const ranked: { symbol: string; score: number; rating: string | null }[] = Array.isArray(data.ranked) ? data.ranked : [];
-    const map = new Map<string, { score: number; reason: string | null }>();
+    const map = new Map<string, { score: number; rating: string | null; reason: string | null }>();
     for (const c of ranked) {
-      map.set(c.symbol, { score: c.score, reason: c.rating ? `MarketRipple Score: ${c.rating}` : null });
+      map.set(c.symbol, { score: c.score, rating: c.rating, reason: c.rating ? `MarketRipple Score: ${c.rating}` : null });
     }
     return map;
   } catch {
@@ -274,7 +274,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sector:
                     </div>
                     <div className="flex items-center gap-2">
                       {ranked && (
-                        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
+                        <span className={`rounded-full border border-surface-border/15 bg-text-primary/[0.04] px-2 py-0.5 text-[10px] font-bold ${marketRippleRatingColor(ranked.rating)}`}>
                           {marketRippleScoreDisplayInt(ranked.score)}
                         </span>
                       )}

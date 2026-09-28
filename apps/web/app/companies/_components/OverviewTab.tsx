@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Flame, Sparkles, Newspaper, ArrowRight } from "lucide-react";
 import { fetchAPI } from "@/lib/api";
 import { getSectorRankings, getTopLocalPreviewScores, type RankedCompanyRow, type TopLocalPreviewRow } from "@/lib/companyRankings";
-import { marketRippleScoreDisplayInt } from "@/lib/scoring";
+import { marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scoring";
 
 // Real data only, every section — no fabricated numbers. Confirmed live
 // before building this: /api/company-scores/ has no score-history field
@@ -174,7 +174,7 @@ export async function OverviewTab() {
                     <span className="block text-[12.5px] font-semibold text-text-primary">{c.companyName}</span>
                     <PriceTag quote={quotes.get(c.symbol)} />
                   </span>
-                  <span className="text-[12px] font-bold text-emerald-400 tabular-nums">{marketRippleScoreDisplayInt(c.score)}</span>
+                  <span className={`text-[12px] font-bold tabular-nums ${marketRippleRatingColor(c.rating)}`}>{marketRippleScoreDisplayInt(c.score)}</span>
                 </Link>
               </li>
             ))}
@@ -189,7 +189,7 @@ export async function OverviewTab() {
                     <PriceTag quote={quotes.get(c.symbol)} />
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="text-[12px] font-bold text-amber-500 tabular-nums">{marketRippleScoreDisplayInt(c.score)}</span>
+                    <span className={`text-[12px] font-bold tabular-nums ${marketRippleRatingColor(c.rating)}`}>{marketRippleScoreDisplayInt(c.score)}</span>
                     <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-amber-500" title="Local unpublished preview — never shown in production">
                       preview
                     </span>
