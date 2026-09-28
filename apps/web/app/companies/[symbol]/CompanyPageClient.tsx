@@ -1390,7 +1390,7 @@ function KeyDataGrid({ stock }: { stock: StockDetail }) {
 // fact. block_headline/block_message are the real, structural,
 // server-computed reason (see public_projection.py's priority-ordered
 // reason-code mapping) — never re-derived or guessed here.
-export function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScoreData; stock: StockDetail }) {
+export function MarketRippleScoreCard({ data, stock, localPreview }: { data: MarketRippleScoreData; stock: StockDetail; localPreview?: LocalPreviewData | null }) {
   const methodologyLink = (
     <Link href="/methodology/marketripple-score" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">How this score works →</Link>
   );
@@ -1438,6 +1438,89 @@ export function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScore
 
   const eligible = data.eligible === true && data.score != null;
 
+  // Unified redesign (2026-09-27, owner instruction: "why we showing score
+  // unavailable and below we are showing the score... build good ui").
+  // Before this, an ineligible/unpublished company rendered TWO stacked,
+  // visually contradictory cards: a public "Unavailable" headline
+  // immediately followed by a separate dashed-amber box showing the real
+  // computed number underneath it. Real information (the score IS
+  // computed, just not yet approved for public display) was true in both
+  // states at once, but presented as if they disagreed. Below, a
+  // dev-only real preview -- when one exists -- REPLACES the contradictory
+  // "Unavailable" headline with a single, honest "Preview" state instead
+  // of sitting beside it; the true "Unavailable" card only ever renders
+  // when there is really nothing to show, in preview or otherwise.
+  const isDevPreview = process.env.NODE_ENV === "development";
+  const previewEligible = isDevPreview && !eligible
+    && !!localPreview?.resolved && !!localPreview?.snapshot
+    && localPreview?.eligible === true && localPreview?.score != null;
+
+  if (!eligible && previewEligible && localPreview) {
+    const previewUpdated = localPreview.calculated_at
+      ? new Date(localPreview.calculated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+      : null;
+    const previewPillars: { label: string; key: keyof NonNullable<LocalPreviewData["pillars"]> }[] = [
+      { label: "Financial Strength", key: "financial_strength" },
+      { label: "Valuation", key: "valuation" },
+      { label: "Market Behaviour", key: "market_behaviour" },
+      { label: "Current Intelligence", key: "current_intelligence" },
+    ];
+    return (
+      <SectionCard title="MarketRipple Score" action={methodologyLink}>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <span className="shrink-0 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+            Preview — not yet published
+          </span>
+          <span className="text-[11px] text-text-muted">Computed and eligible; awaiting approval before it appears publicly</span>
+        </div>
+
+        <div className="mt-3 flex items-baseline gap-3">
+          <span className="text-[36px] font-black leading-none text-text-primary">{marketRippleScoreDisplayInt(localPreview.score)}</span>
+          <span className="text-[13px] text-text-muted">/ 100</span>
+          {localPreview.rating && (
+            <span className={`text-[11px] font-bold uppercase tracking-wide ${_marketRippleRatingColor(localPreview.rating)}`}>{localPreview.rating}</span>
+          )}
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+          {previewPillars.map(p => {
+            const isEvidenceOnly = p.key === "current_intelligence";
+            const value = localPreview.pillars?.[p.key];
+            const weight = localPreview.effective_weights?.[p.key];
+            return (
+              <div key={p.label}>
+                <p className="text-[9px] uppercase tracking-wider text-text-muted">
+                  {p.label}{isEvidenceOnly && <span className="ml-1 lowercase text-amber-500/80">(evidence)</span>}
+                </p>
+                <p className="mt-0.5 text-[16px] font-bold text-text-primary">{value != null ? Math.round(value) : "—"}</p>
+                <p className="text-[9px] text-text-muted">
+                  {isEvidenceOnly
+                    ? "shown separately — not part of this score"
+                    : weight != null ? `effective weight ${Math.round(weight * 100)}%` : "not contributing"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-surface-border/10 pt-3 text-[11px] text-text-muted">
+          <span>Financial metrics {localPreview.financial_metrics_used_count ?? "—"}/{localPreview.financial_metrics_total_count ?? "—"}</span>
+          <span title="Percentage of available evidence used across the MarketRipple Score pillars. Missing or invalid evidence is not estimated.">
+            Evidence coverage {Math.round(localPreview.evidence_coverage_pct ?? 0)}%
+          </span>
+          <span>Financial data as of {localPreview.financial_data_as_of ?? "—"}</span>
+          {previewUpdated && <span>Calculated {previewUpdated}</span>}
+        </div>
+
+        <p className="mt-3 rounded-lg bg-amber-500/[0.06] px-3 py-2 text-[10px] leading-4 text-amber-700 dark:text-amber-400">
+          Dev-only preview — a real, already-computed score, shown here only for local verification. It will never
+          render like this in production; there, this company shows the same public "Unavailable" state as any
+          other company still pending approval.
+        </p>
+      </SectionCard>
+    );
+  }
+
   if (!eligible) {
     return (
       <SectionCard title="MarketRipple Score" action={methodologyLink}>
@@ -1482,44 +1565,42 @@ export function MarketRippleScoreCard({ data, stock }: { data: MarketRippleScore
   );
 }
 
-// One-score migration (2026-09-26, owner instruction): this Overview-tab
-// slot always renders the one canonical MarketRippleScoreCard now, in
-// whichever real state the projection is actually in — complete
-// (eligible, scored, 4-of-4 pillars), partial (eligible but withheld
-// pending full coverage), or unavailable (no methodology for this sector
-// yet, no snapshot computed yet, blocked, or stale). It never falls back
-// to the older single-engine score/verdict as a substitute company
-// rating — MarketRippleScoreCard's own "Unavailable" branch already
-// handles every one of those cases honestly (data.eligible is falsy for
-// all of them), so no separate fallback component is needed. The older
+// One-score migration (2026-09-26, owner instruction), unified UI redesign
+// (2026-09-27): this Overview-tab slot always renders the one canonical
+// MarketRippleScoreCard, in whichever real state the projection is
+// actually in — complete (eligible, scored), partial (eligible but
+// withheld pending full pillar coverage), a dev-only real preview (see
+// below), or unavailable (no methodology for this sector yet, no snapshot
+// computed yet, blocked, or stale). It never falls back to the older
+// single-engine score/verdict as a substitute company rating — the older
 // engine's real evidence keeps its own, separately-labeled home on the
 // Intelligence tab (CompanyScoreContributors, "Recent Intelligence
 // Evidence") — never as a second, competing headline number here.
 function MarketRippleScoreSection({ stock }: { stock: StockDetail }) {
   const data = useMarketRippleScore(stock.symbol);
+  const eligible = !!data?.resolved && !!data?.snapshot && data.eligible === true && data.score != null;
+  const isDev = process.env.NODE_ENV === "development";
+  const localPreview = useLocalUnpublishedScorePreview(isDev && !eligible ? stock.symbol : "");
   if (data === undefined) return null; // still loading
-  return (
-    <>
-      <MarketRippleScoreCard data={data ?? { resolved: false }} stock={stock} />
-      <LocalUnpublishedScorePreview symbol={stock.symbol} />
-    </>
-  );
+  return <MarketRippleScoreCard data={data ?? { resolved: false }} stock={stock} localPreview={localPreview} />;
 }
 
-// ── Local unpublished score preview (2026-09-27) ────────────────────────────
-// Dev-only: shows the real, already-computed MarketRippleScoreSnapshot
-// number regardless of the S2 phase lock (`publishable`, hardcoded False in
-// engine.py — untouched by this component), so the actual calculated score
-// is visible while developing locally. Double-gated for safety: this
-// component is a no-op unless NODE_ENV==="development" (Next.js's own
+// ── Local unpublished score preview (2026-09-27, folded into
+// MarketRippleScoreCard's own "preview" branch the same day per owner
+// instruction — see that branch for the real UI this data now renders
+// into) ──────────────────────────────────────────────────────────────
+// Dev-only: the real, already-computed MarketRippleScoreSnapshot number
+// regardless of the S2 phase lock (`publishable`, hardcoded False in
+// engine.py — untouched by this hook), so the actual calculated score is
+// visible while developing locally. Double-gated for safety: this hook's
+// fetch is a no-op unless NODE_ENV==="development" (Next.js's own
 // build-time constant — a real `next build` for production sets this to
 // "production", so this branch is dead code in any real deployment, not
 // just visually hidden), AND its backing endpoint
 // (/marketripple-score/local-preview) independently 404s whenever
 // settings.is_production is true on the backend. Neither gate depends on
 // the other — either one alone already prevents this from ever reaching a
-// real user. MarketRippleScoreCard above (the real, public-facing card)
-// is completely unmodified by this addition.
+// real user.
 export interface LocalPreviewData {
   resolved: boolean;
   snapshot?: boolean;
@@ -1556,94 +1637,6 @@ function useLocalUnpublishedScorePreview(symbol: string) {
     return () => { cancelled = true; };
   }, [symbol]);
   return data;
-}
-
-function LocalUnpublishedScorePreview({ symbol }: { symbol: string }) {
-  if (process.env.NODE_ENV !== "development") return null;
-  // eslint-disable-next-line react-hooks/rules-of-hooks -- NODE_ENV is a
-  // build-time constant, identical across every render/instance, not a
-  // runtime prop/state value — this early return can never change between
-  // renders of the same build, so it doesn't violate hook-order rules.
-  const data = useLocalUnpublishedScorePreview(symbol);
-  if (!data || !data.resolved || !data.snapshot) return null;
-
-  const pillars: { label: string; key: keyof NonNullable<LocalPreviewData["pillars"]> }[] = [
-    { label: "Financial Strength", key: "financial_strength" },
-    { label: "Valuation", key: "valuation" },
-    { label: "Market Behaviour", key: "market_behaviour" },
-    { label: "Current Intelligence", key: "current_intelligence" },
-  ];
-  const updated = data.calculated_at
-    ? new Date(data.calculated_at).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
-    : null;
-
-  return (
-    <div className="mt-3 min-w-0 rounded-2xl border-2 border-dashed border-amber-500/50 bg-amber-500/[0.06] p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="shrink-0 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-          Local Unpublished Preview
-        </span>
-        <span className="min-w-0 text-[10px] text-text-muted">Dev-only — never shown in production, publication lock unaffected</span>
-      </div>
-
-      {data.eligible ? (
-        <>
-          <div className="mt-3 flex items-baseline gap-3">
-            <span className="text-[28px] font-black leading-none text-text-primary">
-              {data.score != null ? marketRippleScoreDisplayInt(data.score) : "—"}
-            </span>
-            <span className="text-[12px] text-text-muted">/ 100</span>
-            {data.rating && <span className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">{data.rating}</span>}
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-            {pillars.map(p => {
-              const value = data.pillars?.[p.key];
-              const weight = data.effective_weights?.[p.key];
-              // MARKETRIPPLE_SCORE_V1 (2026-09-27 unification): Current
-              // Intelligence is real, computed evidence about the company,
-              // deliberately never part of the shared weighted score for
-              // ANY sector (see engine.py's own HEADLINE_WEIGHTS docstring)
-              // — labeled distinctly from a genuinely-missing contributing
-              // pillar (e.g. Valuation with no real PE/PB data), which
-              // still says "not contributing" since that IS an honest gap.
-              // Was previously gated on methodology_version === "NONBANK_INDUSTRIAL_V2"
-              // (a real bug once that tag was retired in favor of one
-              // shared identifier for every sector, including Banking).
-              const isEvidenceOnly = p.key === "current_intelligence";
-              return (
-                <div key={p.label}>
-                  <p className="text-[9px] uppercase tracking-wider text-text-muted">
-                    {p.label}{isEvidenceOnly && <span className="ml-1 lowercase text-amber-500/80">(evidence)</span>}
-                  </p>
-                  <p className="mt-0.5 text-[14px] font-bold text-text-primary">{value != null ? Math.round(value) : "—"}</p>
-                  <p className="text-[9px] text-text-muted">
-                    {isEvidenceOnly
-                      ? "shown separately — not part of this score"
-                      : weight != null ? `effective weight ${Math.round(weight * 100)}%` : "not contributing"}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-amber-500/20 pt-2 text-[10px] text-text-muted">
-            <span>Financial metrics {data.financial_metrics_used_count ?? "—"}/{data.financial_metrics_total_count ?? "—"}</span>
-            <span>Evidence coverage {data.evidence_coverage_pct != null ? Math.round(data.evidence_coverage_pct) : "—"}%</span>
-            <span>Financial data as of {data.financial_data_as_of ?? "—"}</span>
-            {updated && <span>Calculated {updated}</span>}
-          </div>
-        </>
-      ) : (
-        <div className="mt-3">
-          <p className="text-[12px] font-semibold text-text-secondary">Not eligible — actual reason(s):</p>
-          <ul className="mt-1 list-inside list-disc text-[11px] text-text-muted">
-            {(data.block_reason_codes ?? []).map(code => <li key={code}>{code}</li>)}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // Latest Developments — the most recent real news headline and material

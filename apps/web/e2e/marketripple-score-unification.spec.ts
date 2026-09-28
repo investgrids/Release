@@ -23,12 +23,18 @@ import { test, expect, type Page } from "@playwright/test";
  * decision, unaffected by this unification) — so the real, published
  * Rankings page correctly shows every company as "Publication pending"
  * today. That is NOT a cross-surface inconsistency: Company/Compare/All
- * Companies additionally show a dev-only "Local Unpublished Preview" for
- * inspection, which Rankings deliberately does not (it only ever shows
- * approved public data). The tests below verify the LOCAL PREVIEW numbers
- * agree with each other everywhere they appear, and that Rankings' honest
- * "not yet published" state is real and consistent, not a fabricated
- * number.
+ * Companies additionally show a dev-only "Preview — not yet published"
+ * state for inspection, which Rankings deliberately does not (it only
+ * ever shows approved public data). The tests below verify the LOCAL
+ * PREVIEW numbers agree with each other everywhere they appear, and that
+ * Rankings' honest "not yet published" state is real and consistent, not
+ * a fabricated number.
+ *
+ * UI redesign (2026-09-27, owner instruction: a public "Unavailable"
+ * card and a separate dev-only preview box used to render stacked,
+ * contradicting each other -- MarketRippleScoreCard now renders ONE card
+ * that shows the preview INSTEAD of "Unavailable" whenever a real preview
+ * exists, so "Unavailable" and a real number never appear together.
  */
 
 function collectConsoleErrors(page: Page): string[] {
@@ -44,7 +50,7 @@ test.describe("MarketRipple Score unification — real cross-surface + honest-N/
   test("Company page: a real bank (ICICIBANK) shows the unified local-preview score/rating, no console errors", async ({ page }) => {
     const errors = collectConsoleErrors(page);
     await page.goto("/companies/ICICIBANK");
-    const preview = page.getByText("Local Unpublished Preview").first();
+    const preview = page.getByText("Preview — not yet published").first();
     await expect(preview).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("37", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Cautious", { exact: true }).first()).toBeVisible();
@@ -53,12 +59,12 @@ test.describe("MarketRipple Score unification — real cross-surface + honest-N/
 
   test("Company page: two real non-banks (TCS, HEROMOTOCO) show their own real unified scores", async ({ page }) => {
     await page.goto("/companies/TCS");
-    await expect(page.getByText("Local Unpublished Preview").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Preview — not yet published").first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("57", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Neutral", { exact: true }).first()).toBeVisible();
 
     await page.goto("/companies/HEROMOTOCO");
-    await expect(page.getByText("Local Unpublished Preview").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Preview — not yet published").first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("70", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Positive", { exact: true }).first()).toBeVisible();
   });
@@ -71,18 +77,18 @@ test.describe("MarketRipple Score unification — real cross-surface + honest-N/
     // incorrect "effective weight" for current_intelligence on every
     // company, Banking included.
     await page.goto("/companies/ICICIBANK");
-    await expect(page.getByText("Local Unpublished Preview").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Preview — not yet published").first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("(evidence)")).toBeVisible();
     await expect(page.getByText("shown separately — not part of this score")).toBeVisible();
   });
 
   test("Company page: a real Finance-sector company (BAJFINANCE) shows no MarketRipple Score at all", async ({ page }) => {
     await page.goto("/companies/BAJFINANCE");
-    await expect(page.getByText("Local Unpublished Preview")).not.toBeVisible({ timeout: 10_000 }).catch(() => {});
+    await expect(page.getByText("Preview — not yet published")).not.toBeVisible({ timeout: 10_000 }).catch(() => {});
     // No approved methodology exists for Finance -- no snapshot was ever
     // computed, so the preview panel must never render for this symbol.
     await page.waitForTimeout(1500);
-    await expect(page.getByText("Local Unpublished Preview")).toHaveCount(0);
+    await expect(page.getByText("Preview — not yet published")).toHaveCount(0);
   });
 
   test("Company page: the renamed symbol (TATAMOTORS) still resolves, but shows no real score; TMPV shows the real score", async ({ page }) => {
@@ -95,7 +101,7 @@ test.describe("MarketRipple Score unification — real cross-surface + honest-N/
     await expect(scoreLine).toHaveCount(0);
 
     await page.goto("/companies/TMPV");
-    await expect(page.getByText("Local Unpublished Preview").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Preview — not yet published").first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("48", { exact: true }).first()).toBeVisible();
   });
 
@@ -121,8 +127,13 @@ test.describe("MarketRipple Score unification — real cross-surface + honest-N/
     await expect(page.getByText("Every Company — MarketRipple Score")).toBeVisible({ timeout: 15_000 });
 
     // Every real company is unpublished today (S2 phase lock) -- Rankings
-    // must show the honest reason, never a fabricated number.
-    await expect(page.getByText("Publication pending").first()).toBeVisible();
+    // never shows a fabricated number. In this dev build, an eligible-
+    // but-locked company shows the real, clearly-labeled amber "preview"
+    // badge (added later this same session) instead of the plain
+    // "Publication pending" text, since both describe the identical real
+    // state (a real score exists, not yet approved) -- a genuinely
+    // unsupported/no-data company still shows the honest "N/A".
+    await expect(page.getByText("preview").first()).toBeVisible();
     await expect(page.getByText("N/A").first()).toBeVisible();
 
     // TATAMOTORS (legacy alias) must never appear as a row; the real
@@ -163,7 +174,7 @@ test.describe("MarketRipple Score unification — real cross-surface + honest-N/
     expect(rankingsContainerRight, "Rankings table's scroll container overflows the 375px viewport").toBeLessThanOrEqual(375 + 1);
 
     await page.goto("/companies/ICICIBANK");
-    const panel = page.locator("text=Local Unpublished Preview").first().locator("xpath=ancestor::div[contains(@class,'rounded-2xl')][1]");
+    const panel = page.locator("text=Preview — not yet published").first().locator("xpath=ancestor::div[contains(@class,'rounded-[28px]')][1]");
     await expect(panel).toBeVisible({ timeout: 15_000 });
     const panelRight = await panel.evaluate(el => el.getBoundingClientRect().right);
     expect(panelRight, "Score preview panel overflows the 375px viewport").toBeLessThanOrEqual(375 + 1);
