@@ -54,15 +54,15 @@ export function Footer() {
               <Image
                 src="/marketripple-logo.png"
                 alt="MarketRipple"
-                width={2583}
-                height={780}
+                width={106}
+                height={32}
                 className="theme-light-only h-8 w-auto"
               />
               <Image
                 src="/marketripple-logo-dark.png"
                 alt="MarketRipple"
-                width={2583}
-                height={780}
+                width={106}
+                height={32}
                 className="theme-dark-only h-8 w-auto"
               />
             </Link>

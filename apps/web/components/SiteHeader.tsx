@@ -159,8 +159,8 @@ export function SiteHeader() {
             <Image
               src="/marketripple-mark.png"
               alt="MarketRipple"
-              width={480}
-              height={480}
+              width={32}
+              height={32}
               className="h-8 w-auto sm:hidden"
               priority
             />
@@ -174,16 +174,16 @@ export function SiteHeader() {
               <Image
                 src="/marketripple-logo.png"
                 alt="MarketRipple"
-                width={2583}
-                height={780}
+                width={106}
+                height={32}
                 className="theme-light-only h-8 w-auto"
                 priority
               />
               <Image
                 src="/marketripple-logo-dark.png"
                 alt="MarketRipple"
-                width={2583}
-                height={780}
+                width={106}
+                height={32}
                 className="theme-dark-only h-8 w-auto"
                 priority
               />
