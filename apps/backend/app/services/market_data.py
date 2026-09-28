@@ -533,8 +533,12 @@ async def get_stock_financials(symbol: str) -> dict:
 
 
 def _pct_str(v) -> str:
+    # Missing from the provider is "—", never "0.0%": a fabricated zero reads as
+    # a real ROE/margin and defeats every downstream "unavailable" check.
+    if v is None or v == "":
+        return "—"
     try:
-        return f"{round(float(v or 0) * 100, 1)}%"
+        return f"{round(float(v) * 100, 1)}%"
     except Exception:
         return "—"
 
