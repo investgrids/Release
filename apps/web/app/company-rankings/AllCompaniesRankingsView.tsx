@@ -18,6 +18,7 @@ const STATUS_LABEL: Record<string, string> = {
   ineligible: "Insufficient data",
   stale: "Needs refresh",
   unsupported_sector: "Sector not yet supported",
+  not_yet_scored: "Not yet scored",
 };
 
 function relativeTime(iso: string | null): string {

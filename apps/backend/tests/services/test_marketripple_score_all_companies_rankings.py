@@ -27,7 +27,7 @@ async def test_every_row_has_a_symbol_and_an_honest_status():
         assert row["symbol"]
         assert row["status"] in {
             "ranked", "partial_coverage", "no_snapshot_computed_yet",
-            "publication_locked", "ineligible", "stale", "unsupported_sector",
+            "publication_locked", "ineligible", "stale", "unsupported_sector", "not_yet_scored",
         }
         if row["status"] != "ranked":
             assert row["score"] is None, f"{row['symbol']} is not ranked but shows a score"

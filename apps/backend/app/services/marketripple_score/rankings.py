@@ -280,15 +280,28 @@ async def get_all_companies_rankings(db: AsyncSession, page: int = 1, page_size:
     start = (page - 1) * page_size
     page_items = directory[start: start + page_size]
 
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
+    supported_sectors = {"Banking", *NONBANK_INDUSTRIAL_SECTORS}
+
     rows = []
     for co in page_items:
         info = lookup.get(co["symbol"])
         if info is None:
+            # Not in any scored peer universe. Only say "sector not
+            # supported" when that's actually true — a company in a
+            # supported sector that simply isn't in the scored universe yet
+            # (e.g. an extended-directory company) gets its own honest status.
+            in_supported_sector = co["sector"] in supported_sectors
             rows.append({
                 "symbol": co["symbol"], "company_name": co["name"], "sector": co["sector"],
-                "status": "unsupported_sector", "score": None, "rating": None, "coverage_pct": None,
+                "status": "not_yet_scored" if in_supported_sector else "unsupported_sector",
+                "score": None, "rating": None, "coverage_pct": None,
                 "rank": None, "total_ranked_in_sector": None, "calculated_at": None,
-                "message": "MarketRipple Score does not yet support this sector.", "local_preview": None,
+                "message": (
+                    "MarketRipple Score hasn't been computed for this company yet."
+                    if in_supported_sector else "MarketRipple Score does not yet support this sector."
+                ),
+                "local_preview": None,
             })
         else:
             rows.append({

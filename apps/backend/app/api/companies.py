@@ -853,10 +853,18 @@ async def _get_qualified_master_entries(db: AsyncSession) -> list[dict]:
     except Exception:
         tier_a = []
 
+    # Sector/industry from real, source-attributed labels (NSE's own
+    # index-constituent classification first, Yahoo Finance otherwise —
+    # see services/company_identity/sector_mapping.py). Left blank when no
+    # source has a label or the label has no clear site-sector precedent.
+    from app.services.company_identity.sector_mapping import site_sector_for, source_industry_for
+
     static_symbols = {co["symbol"] for co in _NSE_UNIVERSE}
     entries = [
         {
-            "symbol": r.symbol, "name": r.company_name, "sector": "", "industry": "", "cap": "",
+            "symbol": r.symbol, "name": r.company_name,
+            "sector": site_sector_for(r.symbol) or "", "industry": source_industry_for(r.symbol) or "",
+            "cap": "",
             "aliases": [], "_sym_l": r.symbol.lower(), "_name_l": r.company_name.lower(), "_alias_l": [],
         }
         for r in tier_a if r.symbol not in static_symbols

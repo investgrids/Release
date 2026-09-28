@@ -108,7 +108,7 @@ export const SUPPORTED_RANKING_SECTORS = ["Banking"] as const;
 // fabricated number and never a rank.
 export type AllCompanyRankingStatus =
   | "ranked" | "partial_coverage" | "no_snapshot_computed_yet"
-  | "publication_locked" | "ineligible" | "stale" | "unsupported_sector";
+  | "publication_locked" | "ineligible" | "stale" | "unsupported_sector" | "not_yet_scored";
 
 export interface AllCompanyLocalPreview {
   score: number;
