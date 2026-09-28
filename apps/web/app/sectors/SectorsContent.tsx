@@ -6,6 +6,10 @@ interface SectorRow {
   name: string;
   value: string;
   positive: boolean;
+  index_name?: string;
+  last?: number;
+  previous_close?: number;
+  fetched_at?: string;
 }
 
 async function getSectors() {
@@ -30,14 +34,14 @@ export async function SectorsContent({ headingLevel = "h1" }: { headingLevel?: "
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400">Market Overview</p>
           <Heading className="mt-2 text-3xl font-black tracking-tight text-text-primary">Sector Performance</Heading>
-          {/* Content-integrity repair (2026-09-22): no longer claims
-              "live" performance unconditionally — sectors[] is honestly
-              empty until a real, provenance-tracked sector index feed
-              exists (see api/sectors.py's list_sectors() docstring). */}
+          {/* Real NSE sectoral index day change (api/sectors.py,
+              2026-09-28) — each card is the official index vs its own
+              previous close, not a sector ETF proxy and not a comparison
+              against the wider market. */}
           <p className="mt-1 text-sm text-text-secondary">
             {sectors.length > 0
-              ? "Live performance across NSE sectoral indices."
-              : "NSE sectoral index performance — not yet available."}
+              ? "Day change of each official NSE sectoral index against its previous close."
+              : "NSE sectoral index performance is temporarily unavailable."}
           </p>
         </div>
         <Link href="/market-intelligence"
@@ -67,8 +71,8 @@ export async function SectorsContent({ headingLevel = "h1" }: { headingLevel?: "
             <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" />
             <line x1="6" y1="20" x2="6" y2="14" /><line x1="2" y1="20" x2="22" y2="20" />
           </svg>
-          <p className="text-base font-semibold text-text-primary">No sector data available</p>
-          <p className="mt-1 text-sm text-text-muted">Connect the NSE sectoral index API to see live data.</p>
+          <p className="text-base font-semibold text-text-primary">Sector index data is temporarily unavailable</p>
+          <p className="mt-1 text-sm text-text-muted">We couldn&apos;t reach the NSE index feed just now. Please check back in a few minutes.</p>
         </div>
       )}
 
@@ -85,8 +89,15 @@ export async function SectorsContent({ headingLevel = "h1" }: { headingLevel?: "
                 className="group block rounded-[20px] border border-surface-border/8 bg-surface-card p-5 transition hover:-translate-y-0.5 hover:border-surface-border/15 hover:shadow-lg">
                 {/* Header */}
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[15px] font-bold text-text-primary">{s.name}</p>
-                  <span className={`rounded-full px-2.5 py-1 text-[12px] font-black tabular-nums ${isPositive ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/15 text-rose-600 dark:text-rose-300"}`}>
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-bold text-text-primary">{s.name}</p>
+                    {s.index_name && (
+                      <p className="truncate text-[11px] text-text-muted">
+                        {s.index_name}{s.last != null && ` · ${s.last.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
+                      </p>
+                    )}
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-black tabular-nums ${isPositive ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" : "bg-rose-500/15 text-rose-600 dark:text-rose-300"}`}>
                     {isPositive ? "+" : ""}{s.value}
                   </span>
                 </div>
@@ -102,7 +113,7 @@ export async function SectorsContent({ headingLevel = "h1" }: { headingLevel?: "
                 {/* CTA */}
                 <div className="mt-5 flex items-center justify-between">
                   <span className={`text-[11px] font-medium ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
-                    {isPositive ? "↑ Outperforming" : "↓ Underperforming"}
+                    {isPositive ? "↑ Advancing" : "↓ Declining"}
                   </span>
                   <span className="text-[11px] font-semibold text-violet-400 opacity-0 transition group-hover:opacity-100">
                     View Sector →

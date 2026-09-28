@@ -65,21 +65,94 @@ def _norm(sid: str) -> str:
     return s
 
 
+# Real NSE sectoral indices (2026-09-28) — the official index itself, not
+# a sector ETF proxy. Only indices whose sector already has a real page
+# (a key in _SECTOR_STOCKS) are listed, so every card links somewhere real.
+# NIFTY Financial Services is deliberately NOT mapped to "finance": that
+# page is NBFC-only, while the index is bank-dominated — a different
+# population under the same label would mislead.
+_SECTOR_INDICES: dict[str, tuple[str, str]] = {
+    "banking":        ("NIFTY Bank",           "^NSEBANK"),
+    "it":             ("NIFTY IT",             "^CNXIT"),
+    "pharma":         ("NIFTY Pharma",         "^CNXPHARMA"),
+    "auto":           ("NIFTY Auto",           "^CNXAUTO"),
+    "fmcg":           ("NIFTY FMCG",           "^CNXFMCG"),
+    "metals":         ("NIFTY Metal",          "^CNXMETAL"),
+    "realty":         ("NIFTY Realty",         "^CNXREALTY"),
+    "energy":         ("NIFTY Energy",         "^CNXENERGY"),
+    "infrastructure": ("NIFTY Infrastructure", "^CNXINFRA"),
+}
+_SECTOR_INDEX_TTL = 300
+# A failed/empty fetch (e.g. Yahoo rate-limiting) waits this long before
+# retrying, so page loads don't hit upstream on every request.
+_SECTOR_INDEX_FAILURE_TTL = 60
+# During an outage, the last real result is served only while it's this
+# fresh — never presented as current day change indefinitely.
+_SECTOR_INDEX_MAX_STALE = 1800
+_sector_index_cache: dict = {"checked_at": 0.0, "success_at": 0.0, "data": None}
+
+
+def _fetch_sector_indices_sync() -> list[dict]:
+    """last_price/previous_close from yfinance fast_info. history() only
+    returns a single row for most CNX indices, so a day change can't be
+    derived from it; fast_info's previous_close is the exchange's real
+    prior close (verified to match history() for ^NSEBANK/^CNXIT/
+    ^CNXPHARMA, where both are available). An index with either value
+    missing is omitted, never estimated."""
+    import math
+    from datetime import datetime, timedelta, timezone
+
+    import yfinance as yf
+
+    ist = timezone(timedelta(hours=5, minutes=30))
+    rows: list[dict] = []
+    for key, (index_name, ticker) in _SECTOR_INDICES.items():
+        try:
+            fi = yf.Ticker(ticker).fast_info
+            last, prev = fi.last_price, fi.previous_close
+        except Exception:
+            continue
+        if not last or not prev or any(math.isnan(v) or math.isinf(v) for v in (last, prev)):
+            continue
+        pct = (last / prev - 1) * 100
+        rows.append({
+            "id": key,
+            "name": _SECTOR_NAMES[key],
+            "value": f"{pct:.2f}%",
+            "positive": pct >= 0,
+            "index_name": index_name,
+            "ticker": ticker,
+            "last": round(float(last), 2),
+            "previous_close": round(float(prev), 2),
+            "fetched_at": datetime.now(ist).isoformat(),
+        })
+    rows.sort(key=lambda r: float(r["value"].rstrip("%")), reverse=True)
+    return rows
+
+
 @router.get("/", response_model=list[dict])
 async def list_sectors():
-    """Content-integrity repair (2026-09-22): this used to list the
-    `SectorData` table's 12 rows, whose only non-identity column
-    (`value`, a percentage) was hand-typed once at seed time
-    (2026-07-22) and never updated by any job since — presented to users
-    as live sector momentum it never was. No replacement momentum source
-    is substituted here (ThemeScoringWorker measures theme momentum, a
-    different taxonomy, not sector performance — see this repair's own
-    audit). Returns [] unconditionally until a real, provenance-tracked
-    sector index feed exists (Data Foundation phase); every real
-    consumer of this endpoint already has an honest empty state for
-    exactly this response (see SectorsContent.tsx and OverviewTab.tsx on
-    the frontend)."""
-    return []
+    """Real day change for each NSE sectoral index (see _SECTOR_INDICES).
+    Replaces the 2026-09-22 content-integrity repair's unconditional []
+    (which removed the fabricated, never-updated `SectorData` percentages)
+    now that a real, provenance-tracked feed exists — every row carries
+    its index name, ticker, last value and previous close. Cached 5 min;
+    returns [] if the upstream fetch fails, and the frontend's empty
+    state still handles that honestly."""
+    now = time.time()
+    c = _sector_index_cache
+    last_good = c["data"] if c["data"] and now - c["success_at"] < _SECTOR_INDEX_MAX_STALE else []
+    if c["data"] and now - c["success_at"] < _SECTOR_INDEX_TTL:
+        return c["data"]
+    if now - c["checked_at"] < _SECTOR_INDEX_FAILURE_TTL:
+        return last_good  # a fetch just failed; don't retry yet
+
+    c["checked_at"] = now
+    rows = await asyncio.get_event_loop().run_in_executor(None, _fetch_sector_indices_sync)
+    if rows:
+        c.update(success_at=now, data=rows)
+        return rows
+    return last_good
 
 
 @router.get("/{sector_id}/stocks")
