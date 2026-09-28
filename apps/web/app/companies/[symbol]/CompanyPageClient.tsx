@@ -13,6 +13,7 @@ import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSect
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
 import { scoreToColor, impactToStyle, marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scoring";
+import { labelTone, metricTone, parseMetric } from "@/lib/metricTone";
 import {
   Star, Check, Sparkles, TrendingUp,
   BarChart2, TrendingDown, Landmark, Briefcase, Clock,
@@ -107,15 +108,15 @@ function ratioFieldColor(key: string, value: number | null): string {
   const n = value;
   switch (key) {
     case "net_profit_margin":
-      return n > 15 ? "text-emerald-400" : n >= 5 ? "text-text-primary" : n >= 0 ? "text-amber-400" : "text-rose-400";
+      return n > 15 ? "text-emerald-600 dark:text-emerald-400" : n >= 5 ? "text-text-primary" : n >= 0 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400";
     case "operating_margin":
-      return n > 20 ? "text-emerald-400" : n >= 10 ? "text-text-primary" : n >= 0 ? "text-amber-400" : "text-rose-400";
+      return n > 20 ? "text-emerald-600 dark:text-emerald-400" : n >= 10 ? "text-text-primary" : n >= 0 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400";
     case "roe":
-      return n > 20 ? "text-emerald-400" : n >= 10 ? "text-text-primary" : n >= 0 ? "text-amber-400" : "text-rose-400";
+      return n > 20 ? "text-emerald-600 dark:text-emerald-400" : n >= 10 ? "text-text-primary" : n >= 0 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400";
     case "roa":
-      return n > 10 ? "text-emerald-400" : n >= 5 ? "text-text-primary" : n >= 0 ? "text-amber-400" : "text-rose-400";
+      return n > 10 ? "text-emerald-600 dark:text-emerald-400" : n >= 5 ? "text-text-primary" : n >= 0 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400";
     case "debt_to_equity":
-      return n < 0.3 ? "text-emerald-400" : n < 1 ? "text-text-primary" : n < 2 ? "text-amber-400" : "text-rose-400";
+      return n < 0.3 ? "text-emerald-600 dark:text-emerald-400" : n < 1 ? "text-text-primary" : n < 2 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400";
     default:
       return "text-text-primary";
   }
@@ -190,11 +191,11 @@ function ScoreCircle({ score, size = 52 }: { score: number; size?: number }) {
   );
 }
 
-function KvRow({ label, value }: { label: string; value: string; colored?: boolean }) {
+function KvRow({ label, value, colored = false }: { label: string; value: string; colored?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-2 py-2 border-b border-surface-border/4 last:border-0">
       <span className="text-[12px] text-text-muted shrink-0">{label}</span>
-      <span className="text-[13px] font-medium tabular-nums text-right text-text-primary">{value || "—"}</span>
+      <span className={`text-[13px] font-medium tabular-nums text-right ${colored ? labelTone(label, value) : "text-text-primary"}`}>{value || "—"}</span>
     </div>
   );
 }
@@ -364,7 +365,7 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
             {stats.map(k => (
               <div key={k.label} className="bg-surface-card px-4 py-3">
                 <dt className="text-[12px] text-text-muted">{k.label}</dt>
-                <dd className="mt-1 text-[16px] font-semibold tracking-[-0.01em] tabular-nums text-text-primary">{k.value || "—"}</dd>
+                <dd className={`mt-1 text-[16px] font-semibold tracking-[-0.01em] tabular-nums ${labelTone(k.label, k.value)}`}>{k.value || "—"}</dd>
               </div>
             ))}
             {/* The one primary MarketRipple Score (MARKETRIPPLE_SCORE_V1). The
@@ -540,11 +541,11 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
   const latestQuarterlyRevenue = stock.quarterly_revenue.slice(-1)[0]?.value ?? null;
   const latestQuarterlyProfit = stock.quarterly_net_income.slice(-1)[0]?.value ?? null;
   const kpis: { label: string; value: number | null; suffix: string; color: string }[] = [
-    { label: "Revenue",   value: latestQuarterlyRevenue, suffix: curUnit ? ` ${curUnit}` : "", color: "text-sky-400" },
-    { label: "Net Profit",value: latestQuarterlyProfit,  suffix: curUnit ? ` ${curUnit}` : "", color: "text-emerald-400" },
-    { label: "ROE",       value: n2(stock.roe),  suffix: "%",   color: "text-violet-400" },
-    { label: "ROCE",      value: n2(stock.roce), suffix: "%",   color: "text-amber-400" },
-    { label: "EPS",       value: n2(stock.eps),  suffix: "",    color: "text-teal-400" },
+    { label: "Revenue",   value: latestQuarterlyRevenue, suffix: curUnit ? ` ${curUnit}` : "", color: "text-text-primary" },
+    { label: "Net Profit",value: latestQuarterlyProfit,  suffix: curUnit ? ` ${curUnit}` : "", color: latestQuarterlyProfit != null && latestQuarterlyProfit < 0 ? "text-rose-600 dark:text-rose-400" : "text-text-primary" },
+    { label: "ROE",       value: parseMetric(stock.roe),  suffix: "%",   color: metricTone("roe", stock.roe) },
+    { label: "ROCE",      value: parseMetric(stock.roce), suffix: "%",   color: metricTone("roce", stock.roce) },
+    { label: "EPS",       value: parseMetric(stock.eps),  suffix: "",    color: "text-text-primary" },
   ];
   return (
     <SectionCard title="Financial highlights">
@@ -599,7 +600,7 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
               <tr>
                 <td className="py-2 text-text-secondary">ROE (%, period unconfirmed)</td>
                 {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-text-primary">{i === stock.annual_financials.length - 1 ? stock.roe : "—"}</td>)}
-                <td className="py-2 text-right text-violet-600 dark:text-violet-300">{stock.roe}</td>
+                <td className={`py-2 text-right font-semibold ${metricTone("roe", stock.roe)}`}>{stock.roe}</td>
               </tr>
               <tr>
                 <td className="py-2 text-text-secondary">EPS{curPrefix ? ` (${curPrefix}, TTM)` : ""}</td>
@@ -609,7 +610,7 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
               <tr>
                 <td className="py-2 text-text-secondary">Debt/Equity</td>
                 {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-text-primary">{i === stock.annual_financials.length - 1 ? stock.debt_to_equity : "—"}</td>)}
-                <td className="py-2 text-right text-violet-600 dark:text-violet-300">{stock.debt_to_equity}</td>
+                <td className={`py-2 text-right font-semibold ${metricTone("de_pct", stock.debt_to_equity)}`}>{stock.debt_to_equity}</td>
               </tr>
             </tbody>
           </table>
@@ -1078,8 +1079,8 @@ function PeerComparison({ stock }: { stock: StockDetail }) {
                   </div>
                 </td>
                 <td className="py-3 text-right font-semibold text-text-primary">{loading && !r.isSelf ? <div className="ml-auto h-3 w-12 animate-pulse rounded bg-text-primary/[0.06]"/> : r.price}</td>
-                <td className="py-3 text-right font-semibold text-text-primary">{r.pe || "—"}</td>
-                <td className="py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{r.roe || "—"}</td>
+                <td className={`py-3 text-right font-semibold tabular-nums ${metricTone("pe", r.pe)}`}>{r.pe || "—"}</td>
+                <td className={`py-3 text-right font-semibold tabular-nums ${metricTone("roe", r.roe)}`}>{r.roe || "—"}</td>
                 <td className="py-3 text-right">
                   {!r.isSelf && <Link href={`/companies/${r.symbol}`} className="text-[10px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View →</Link>}
                 </td>
@@ -1321,10 +1322,10 @@ function KeyDataGrid({ stock }: { stock: StockDetail }) {
         <div><p className="text-[12px] text-text-muted">Day range</p><p className="mt-0.5 font-semibold text-text-primary">₹{stock.day_low}–₹{stock.day_high}</p></div>
         <div><p className="text-[12px] text-text-muted">52-week range</p><p className="mt-0.5 font-semibold text-text-primary">₹{stock.week52_low}–₹{stock.week52_high}</p></div>
         <div><p className="text-[12px] text-text-muted">Volume</p><p className="mt-0.5 font-semibold text-text-primary">{stock.volume || "—"}</p></div>
-        <div><p className="text-[12px] text-text-muted">P/E</p><p className="mt-0.5 font-semibold tabular-nums text-text-primary">{stock.pe || "—"}</p></div>
-        <div><p className="text-[12px] text-text-muted">ROE</p><p className="mt-0.5 font-semibold tabular-nums text-text-primary">{stock.roe || "—"}</p></div>
-        <div><p className="text-[12px] text-text-muted">D/E</p><p className="mt-0.5 font-semibold tabular-nums text-text-primary">{stock.debt_to_equity || "—"}</p></div>
-        <div><p className="text-[12px] text-text-muted">Margin</p><p className="mt-0.5 font-semibold text-text-primary">{stock.net_margins || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">P/E</p><p className={`mt-0.5 font-semibold tabular-nums ${metricTone("pe", stock.pe)}`}>{stock.pe || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">ROE</p><p className={`mt-0.5 font-semibold tabular-nums ${metricTone("roe", stock.roe)}`}>{stock.roe || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">D/E</p><p className={`mt-0.5 font-semibold tabular-nums ${metricTone("de_pct", stock.debt_to_equity)}`}>{stock.debt_to_equity || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">Margin</p><p className={`mt-0.5 font-semibold tabular-nums ${metricTone("net_margin", stock.net_margins)}`}>{stock.net_margins || "—"}</p></div>
       </div>
     </SectionCard>
   );
@@ -1692,7 +1693,7 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
           <KvRow label="P/B"          value={stock.pb}           colored/>
           <KvRow label="ROE"               value={stock.roe}          colored/>
           <KvRow label="ROCE"              value={stock.roce}         colored/>
-          <KvRow label="Dividend yield"    value={stock.dividend_yield}/>
+          <KvRow label="Dividend yield"    value={stock.dividend_yield} colored/>
           <KvRow label="52-week high"          value={`₹${stock.week52_high}`}/>
           <KvRow label="52-week low"           value={`₹${stock.week52_low}`}/>
         </div>
