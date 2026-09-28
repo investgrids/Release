@@ -44,7 +44,7 @@ describe("CompanyScoreContributors — Recent Intelligence Evidence (2026-09-26 
 
     render(<CompanyScoreContributors stock={stock} />);
 
-    await waitFor(() => expect(screen.getByText("Recent Intelligence Evidence")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Recent intelligence evidence")).toBeInTheDocument());
 
     // --- REMOVED: no standalone numeric score, rating, verdict, or colour gauge ---
     expect(screen.queryByText("AI Company Score")).not.toBeInTheDocument();
@@ -80,7 +80,7 @@ describe("CompanyScoreContributors — Recent Intelligence Evidence (2026-09-26 
 
     render(<CompanyScoreContributors stock={stock} />);
 
-    await waitFor(() => expect(screen.getByText("Recent Intelligence Evidence")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Recent intelligence evidence")).toBeInTheDocument());
     expect(screen.getByText(/No intelligence evidence tracked for Test Company Ltd yet/)).toBeInTheDocument();
     expect(screen.queryByText("AI Company Score")).not.toBeInTheDocument();
   });

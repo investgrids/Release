@@ -4,7 +4,6 @@ import { use, useEffect, useState, useCallback, useMemo, useRef, useId, Suspense
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { TrackPageVisit } from "@/components/TrackPageVisit";
 import { PatternIntelligenceCard } from "@/components/intelligence";
 import { useIntelligence } from "@/hooks/useIntelligence";
@@ -68,7 +67,7 @@ interface PageProps { params: Promise<{ symbol: string }> }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 // 2026-08-25 — no box shadows, flat card treatment per owner request.
-const CARD = "rounded-[28px] border border-surface-border/10 bg-text-primary/[0.04] transition-colors duration-300 hover:border-sky-400/20";
+const CARD = "rounded-2xl border border-surface-border/10 bg-surface-card shadow-[0_1px_2px_rgb(15_23_42/0.04)]";
 const PERIODS = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y", "Max"];
 
 const ANALYST_ICONS: React.ReactNode[] = [
@@ -79,10 +78,6 @@ const ANALYST_ICONS: React.ReactNode[] = [
   <Briefcase className="h-3 w-3" />,
 ];
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  show: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.35, delay: i * 0.06, ease: "easeOut" } }),
-};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const n2 = (v?: string | number) => parseFloat(String(v || "0").replace(/[^0-9.-]/g, "")) || 0;
@@ -100,17 +95,7 @@ function formatEventDate(raw: string): string {
 const scoreColor = scoreToColor;
 const impactColor = impactToStyle;
 
-function metricColor(label: string, value: string) {
-  const n = n2(value);
-  if (label === "PE Ratio (TTM)") return n < 15 ? "text-emerald-400" : n < 30 ? "text-text-primary" : n < 50 ? "text-amber-400" : "text-rose-400";
-  if (label === "PB Ratio")       return n < 1   ? "text-emerald-400" : n < 3  ? "text-text-primary" : "text-amber-400";
-  if (label === "ROE" || label === "ROCE") return n > 20 ? "text-emerald-400" : n > 10 ? "text-text-primary" : "text-amber-400";
-  if (label === "Beta")           return n < 0.8 ? "text-emerald-400" : n < 1.3 ? "text-text-primary" : "text-rose-400";
-  if (label === "D/E Ratio")      return n < 0.3 ? "text-emerald-400" : n < 1   ? "text-text-primary" : "text-rose-400";
-  return "text-text-primary";
-}
-
-// Same good/neutral/weak/poor convention as metricColor above, but keyed
+// Good/neutral/weak/poor colouring keyed
 // on the real numeric field (not a formatted display string) — used by
 // the Ratios sub-tab under Financials, whose fields are computed period-
 // by-period rather than the single latest-value snapshot metricColor was
@@ -165,16 +150,15 @@ function SectionCard({ title, action, children, className = "", noPad = false }:
   title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string; noPad?: boolean;
 }) {
   return (
-    <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.1 }}
-      className={`${CARD} ${noPad ? "" : "p-6"} ${className}`}>
+    <section className={`${CARD} ${noPad ? "" : "p-6"} ${className}`}>
       {(title || action) && (
-        <div className={`flex items-center justify-between ${noPad ? "px-6 pt-6 pb-0" : "mb-5"}`}>
-          {title && <h2 className="text-[15px] font-bold text-text-primary">{title}</h2>}
+        <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 ${noPad ? "px-6 pt-6 pb-0" : "mb-4"}`}>
+          {title && <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-text-primary">{title}</h2>}
           {action}
         </div>
       )}
       {children}
-    </motion.div>
+    </section>
   );
 }
 
@@ -201,16 +185,16 @@ function ScoreCircle({ score, size = 52 }: { score: number; size?: number }) {
           strokeLinecap="round" strokeDasharray={`${dash} ${circ}`}
           style={{ filter: `drop-shadow(0 0 4px ${col}80)` }}/>
       </svg>
-      <span className="absolute text-[11px] font-black leading-none" style={{ color: col }}>{score > 0 ? score : score}</span>
+      <span className="absolute text-[11px] font-semibold leading-none" style={{ color: col }}>{score > 0 ? score : score}</span>
     </div>
   );
 }
 
-function KvRow({ label, value, colored = false }: { label: string; value: string; colored?: boolean }) {
+function KvRow({ label, value }: { label: string; value: string; colored?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-2 py-2 border-b border-surface-border/4 last:border-0">
       <span className="text-[12px] text-text-muted shrink-0">{label}</span>
-      <span className={`text-[13px] font-semibold text-right ${colored ? metricColor(label, value) : "text-text-primary"}`}>{value || "—"}</span>
+      <span className="text-[13px] font-medium tabular-nums text-right text-text-primary">{value || "—"}</span>
     </div>
   );
 }
@@ -330,133 +314,99 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
   const hasLocalPreview = isDev && !hasMrScore && !!localPreview?.resolved && !!localPreview?.snapshot
     && localPreview.eligible === true && localPreview.score != null;
 
-  return (
-    <motion.div variants={fadeUp} initial="hidden" animate="show"
-      className={`${CARD} p-6`}>
-      {/* Breadcrumb */}
-      <div className="mb-4 flex items-center gap-2 text-[11px] text-text-muted">
-        <Link href="/companies" className="hover:text-text-secondary transition">Companies</Link>
-        <span>›</span>
-        <span className="text-text-secondary">{stock.name}</span>
-      </div>
+  const NAME = "text-[26px] font-semibold leading-tight tracking-[-0.02em] text-text-primary md:text-[30px]";
+  const BTN_SECONDARY = "inline-flex h-9 items-center gap-1.5 rounded-lg border border-surface-border/12 bg-surface-card px-3.5 text-[13px] font-medium text-text-secondary transition hover:border-surface-border/25 hover:text-text-primary active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-violet/40";
+  const stats: { label: string; value: string | undefined }[] = [
+    { label: "Market cap", value: stock.market_cap },
+    { label: "P/E (TTM)", value: stock.pe },
+    { label: "Dividend yield", value: stock.dividend_yield },
+  ];
+  const sector = stock.sector && stock.sector !== "N/A" ? stock.sector : null;
+  const industry = stock.industry && stock.industry !== "N/A" && stock.industry !== stock.sector ? stock.industry : null;
+  const score = hasMrScore ? mrScore! : hasLocalPreview ? localPreview! : null;
 
-      <div className="flex flex-wrap items-start justify-between gap-6">
-        {/* Left: identity + price */}
-        <div>
-          {/* Company avatar + name */}
-          <div className="flex items-center gap-4 mb-3">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/30 to-violet-500/20 border border-surface-border/10 text-[18px] font-black text-text-primary">
-              {symbol.slice(0, 2)}
+  return (
+    <section className={`${CARD} p-6 md:p-7`}>
+      <div className="flex flex-col gap-7 xl:flex-row xl:items-start xl:justify-between">
+        {/* Identity + price */}
+        <div className="min-w-0">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-surface-border/10 bg-text-primary/[0.04] text-[14px] font-semibold tracking-tight text-text-secondary" aria-hidden>
+              {symbol.slice(0, 2).toUpperCase()}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                {/* The server wrapper (page.tsx) renders the real <h1>
-                    when it found the stock server-side (the common case) —
-                    falls back to rendering it here too if that fetch ever
-                    came back empty, so the page is never left with zero
-                    <h1>s. */}
-                {serverRenderedH1 ? (
-                  <p className="text-[26px] font-black tracking-tight text-text-primary leading-none">{stock.name}</p>
-                ) : (
-                  <h1 className="text-[26px] font-black tracking-tight text-text-primary leading-none">{stock.name}</h1>
-                )}
-                <button onClick={() => setWatchlisted(!watchlisted)}
-                  className="transition">
-                  {watchlisted ? <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> : <Star className="h-3.5 w-3.5 text-text-secondary" />}
-                </button>
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <Pill><span className="font-bold text-sky-600 dark:text-sky-300">{symbol.toUpperCase()}</span></Pill>
-                <Pill color="green"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/>NSE</Pill>
-                {stock.sector && stock.sector !== "N/A" && <Pill>{stock.sector}</Pill>}
-                {stock.industry && stock.industry !== "N/A" && stock.industry !== stock.sector && <Pill>{stock.industry}</Pill>}
-              </div>
+            <div className="min-w-0">
+              {/* page.tsx renders the real <h1> when the stock was found
+                  server-side; this falls back to an <h1> only when it wasn't. */}
+              {serverRenderedH1 ? <p className={NAME}>{stock.name}</p> : <h1 className={NAME}>{stock.name}</h1>}
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-text-muted">
+                <span className="font-semibold text-text-secondary">{symbol.toUpperCase()}</span>
+                <span aria-hidden>·</span><span>NSE</span>
+                {sector && <><span aria-hidden>·</span><span>{sector}</span></>}
+                {industry && <><span aria-hidden>·</span><span>{industry}</span></>}
+              </p>
             </div>
           </div>
 
-          {/* Price */}
-          <div className="flex flex-wrap items-baseline gap-3">
-            <span className="text-[40px] font-black text-text-primary leading-none">₹{stock.price}</span>
-            <span className={`text-[18px] font-bold ${isPos ? "text-emerald-400" : "text-rose-400"}`}>
-              {sign}{stock.change_abs} ({sign}{stock.pct_change.toFixed(2)}%) {isPos ? "▲" : "▼"}
+          <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
+            <span className="text-[34px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-text-primary md:text-[38px]">₹{stock.price}</span>
+            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[13px] font-medium tabular-nums ${isPos ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/10 text-rose-700 dark:text-rose-400"}`}>
+              {stock.change_abs} ({sign}{stock.pct_change.toFixed(2)}%)
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-text-muted">
-            {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })} ·
-            <span className="ml-1 text-text-secondary">NSE</span>
-          </p>
+          {/* No quote timestamp exists on StockDetail — say what the number is
+              rather than stamping today's date on a possibly older close. */}
+          <p className="mt-2 text-[12px] text-text-muted">Last traded price · NSE</p>
         </div>
 
-        {/* Right: KPI cards + actions */}
-        <div className="flex flex-col gap-4 items-end">
-          <div className="grid grid-cols-4 gap-3">
-            {[
-              { label: "Market Cap",   value: stock.market_cap },
-              { label: "PE Ratio",     value: stock.pe },
-              { label: "Dividend",     value: stock.dividend_yield },
-            ].map(k => (
-              <div key={k.label} className="rounded-2xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-3 text-center min-w-[90px]">
-                <p className="text-[9px] uppercase tracking-widest text-text-muted">{k.label}</p>
-                <p className="mt-1 text-[14px] font-black text-text-primary">{k.value || "—"}</p>
+        {/* Key stats + actions */}
+        <div className="flex w-full flex-col gap-4 xl:w-auto xl:items-end">
+          <dl className="grid w-full grid-cols-2 gap-px overflow-hidden rounded-xl border border-surface-border/10 bg-surface-border/10 sm:grid-cols-4 xl:w-[560px]">
+            {stats.map(k => (
+              <div key={k.label} className="bg-surface-card px-4 py-3">
+                <dt className="text-[12px] text-text-muted">{k.label}</dt>
+                <dd className="mt-1 text-[16px] font-semibold tracking-[-0.01em] tabular-nums text-text-primary">{k.value || "—"}</dd>
               </div>
             ))}
-            {/* The one real, primary MarketRipple Score for this company —
-                the unified four-pillar BANKING_V1 methodology (S5-C,
-                2026-08-29). Reserved name: this tile no longer shows the
-                older single-engine evidence score (see
-                MarketRippleScoreSection for where that content still
-                lives, under its own "Current Intelligence" name). */}
-            <div className={`rounded-2xl border px-4 py-3 text-center min-w-[90px] ${
-              hasMrScore ? "border-emerald-500/20 bg-emerald-500/[0.05]"
-              : hasLocalPreview ? "border-amber-500/30 bg-amber-500/[0.06]"
-              : "border-surface-border/10 bg-text-primary/[0.03]"
-            }`}>
-              <p className="text-[9px] uppercase tracking-widest text-text-muted">MarketRipple Score</p>
+            {/* The one primary MarketRipple Score (MARKETRIPPLE_SCORE_V1). The
+                dev-only preview (NODE_ENV-gated above; dead code in a real
+                build) is marked with its own badge, never passed off as public. */}
+            <div className="bg-surface-card px-4 py-3">
+              <dt className="whitespace-nowrap text-[12px] text-text-muted">MarketRipple Score</dt>
               {mrScore === undefined ? (
-                <p className="mt-1 text-[14px] font-black text-text-muted">···</p>
-              ) : hasMrScore ? (
-                <>
-                  <p className={`mt-1 text-[14px] font-black ${marketRippleRatingColor(mrScore!.rating)}`}>{marketRippleScoreDisplayInt(mrScore!.score)}/100</p>
-                  {mrScore!.rating && (
-                    <p className={`text-[9px] font-bold uppercase tracking-wide ${marketRippleRatingColor(mrScore!.rating)}`}>{mrScore!.rating}</p>
-                  )}
-                </>
-              ) : hasLocalPreview ? (
-                // Dev-only, gated on NODE_ENV==="development" above (dead
-                // branch in any real build) — the real local calculation,
-                // clearly marked distinct from the public number this tile
-                // otherwise shows. Never rendered once hasMrScore is true.
-                <>
-                  <p className={`mt-1 text-[14px] font-black ${marketRippleRatingColor(localPreview!.rating)}`}>{marketRippleScoreDisplayInt(localPreview!.score)}/100</p>
-                  {localPreview!.rating && (
-                    <p className={`text-[9px] font-bold uppercase tracking-wide ${marketRippleRatingColor(localPreview!.rating)}`}>{localPreview!.rating}</p>
-                  )}
-                  <p className="text-[8px] font-bold uppercase tracking-wide text-amber-500/80">Local preview</p>
-                </>
-              ) : (
-                <p className="mt-1 text-[11px] font-semibold text-text-muted" title="MarketRipple Score is not yet available for this company.">Not available yet</p>
+                <dd className="mt-1 h-5 w-14 animate-pulse rounded bg-text-primary/[0.06]" aria-label="Loading" />
+              ) : score ? (
+                <dd className="mt-1 flex items-baseline gap-1.5">
+                  <span className={`text-[16px] font-semibold tabular-nums ${marketRippleRatingColor(score.rating)}`}>{marketRippleScoreDisplayInt(score.score)}</span>
+                  <span className="text-[12px] text-text-muted">/100</span>
+                  {score.rating && <span className={`text-[12px] font-medium ${marketRippleRatingColor(score.rating)}`}>{score.rating}</span>}
+                </dd>
+              ) : null}
+              {score && hasLocalPreview && (
+                <dd className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-400" title="Local unpublished preview — never shown in production">Unpublished preview</dd>
+              )}
+              {mrScore !== undefined && !score && (
+                <dd className="mt-1 text-[13px] font-medium text-text-muted" title="MarketRipple Score is not yet available for this company.">Not available yet</dd>
               )}
             </div>
-          </div>
-          <div className="flex gap-2">
+          </dl>
+
+          <div className="flex flex-wrap gap-2">
             <button onClick={() => setWatchlisted(!watchlisted)}
-              className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-[12px] font-medium transition ${
-                watchlisted ? "border-sky-500/40 bg-sky-500/15 text-sky-600 dark:text-sky-300" : "border-surface-border/10 bg-text-primary/[0.03] text-text-secondary hover:border-surface-border/20"
+              className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-[13px] font-medium transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-violet/40 ${
+                watchlisted
+                  ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "bg-text-primary text-bg hover:opacity-90"
               }`}>
-              {watchlisted ? <><Check className="h-3.5 w-3.5" />Watchlisted</> : "+ Add to Watchlist"}
+              {watchlisted ? <><Check className="h-3.5 w-3.5" />In watchlist</> : <><Star className="h-3.5 w-3.5" />Add to watchlist</>}
             </button>
-            <Link href={`/companies?tab=compare&a=${symbol}`}
-              className="rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-[12px] font-medium text-text-secondary hover:border-sky-500/30 hover:text-sky-600 dark:text-sky-300 transition">
-              ↔ Compare
-            </Link>
-            <Link href={`/ai-search?q=${encodeURIComponent(`Should I buy ${stock.name} (${symbol}) right now? Analyse its current valuation, recent events, and outlook vs sector peers.`)}`}
-              className="flex items-center gap-1.5 rounded-xl border border-surface-border/10 bg-text-primary/[0.03] px-4 py-2 text-[12px] font-medium text-violet-600 dark:text-violet-300 hover:border-violet-500/30 hover:bg-violet-500/[0.06] transition">
-              <Sparkles className="h-3.5 w-3.5 text-violet-400" /> Ask AI
+            <Link href={`/companies?tab=compare&a=${symbol}`} className={BTN_SECONDARY}>Compare</Link>
+            <Link href={`/ai-search?q=${encodeURIComponent(`Analyse ${stock.name} (${symbol}): current valuation, recent events, and outlook versus sector peers.`)}`} className={BTN_SECONDARY}>
+              <Sparkles className="h-3.5 w-3.5 text-accent-violet" /> Ask AI
             </Link>
           </div>
         </div>
       </div>
-    </motion.div>
+    </section>
   );
 }
 
@@ -468,7 +418,7 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
   const isPos = stock.pct_change >= 0;
   const chartColor = isPos ? "#22c55e" : "#f43f5e";
   return (
-    <SectionCard title="Price Chart" action={
+    <SectionCard title="Price chart" action={
       <div className="flex gap-0.5 bg-text-primary/[0.03] rounded-xl p-0.5">
         {PERIODS.map(p => (
           <button key={p} onClick={() => setPeriod(p)}
@@ -481,8 +431,10 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
     }>
       <div className="h-[260px] mt-4">
         {loadingChart ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-surface-border/20 border-t-sky-400"/>
+          <div className="flex h-full items-end gap-1.5 animate-pulse" aria-label="Loading price chart">
+            {[38, 52, 45, 60, 55, 70, 64, 78, 72, 85, 80, 90].map((h, i) => (
+              <div key={i} className="flex-1 rounded-t bg-text-primary/[0.06]" style={{ height: `${h}%` }} />
+            ))}
           </div>
         ) : chartData.length > 0 ? (
           <PriceAreaChart chartData={chartData} chartColor={chartColor} />
@@ -504,7 +456,7 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
           ["52W Low",  `₹${stock.week52_low}`],
         ].map(([l, v]) => (
           <div key={l} className="text-center">
-            <p className="text-[9px] text-text-muted uppercase tracking-wide">{l}</p>
+            <p className="text-[11px] text-text-muted">{l}</p>
             <p className="mt-0.5 text-[12px] font-bold text-text-primary">{v}</p>
           </div>
         ))}
@@ -533,18 +485,18 @@ function StockDNA({ stock }: { stock: StockDetail }) {
     }>
       <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-5">
         {entries.map(([k, v], i) => (
-          <motion.div key={k} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
-            className="group flex flex-col items-center gap-2 rounded-3xl border border-surface-border/6 bg-surface-card p-4 text-center hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
+          <div key={k}
+            className="group flex flex-col items-center gap-2 rounded-xl border border-surface-border/6 bg-surface-card p-4 text-center hover:border-sky-400/20 hover:-translate-y-0.5 transition-all">
             <div className="relative h-12 w-12">
               <svg className="h-12 w-12" style={{ transform: "rotate(-90deg)" }}>
                 <circle cx="24" cy="24" r="19" stroke="rgb(var(--text-primary) / 0.08)" strokeWidth={4} fill="none"/>
                 <circle cx="24" cy="24" r="19" stroke={scoreColor(v)} strokeWidth={4} fill="none"
                   strokeLinecap="round" strokeDasharray={`${(v / 100) * 2 * Math.PI * 19} ${2 * Math.PI * 19}`}/>
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[11px] font-black" style={{ color: scoreColor(v) }}>{v}</span>
+              <span className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold" style={{ color: scoreColor(v) }}>{v}</span>
             </div>
             <p className="text-[10px] text-text-secondary leading-tight">{k}</p>
-          </motion.div>
+          </div>
         ))}
       </div>
       {/* Radar mini */}
@@ -595,7 +547,7 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
     { label: "EPS",       value: n2(stock.eps),  suffix: "",    color: "text-teal-400" },
   ];
   return (
-    <SectionCard title="Financial Highlights">
+    <SectionCard title="Financial highlights">
       {/* Batch E (Company Simplification spec, §5) — was a 5-card KPI
           grid (individually bordered, hover-lift, per-card sparkline) —
           exactly the "giant KPI card" pattern the spec calls out to
@@ -607,7 +559,7 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
       <div className="mt-4 grid grid-cols-2 gap-3 border-b border-surface-border/5 pb-4 sm:grid-cols-5">
         {kpis.map(k => (
           <div key={k.label} className="text-center">
-            <p className="text-[9px] uppercase tracking-wide text-text-muted">{k.label}</p>
+            <p className="text-[11px] text-text-muted">{k.label}</p>
             <p className={`mt-0.5 text-[16px] font-bold leading-none ${k.color}`}>
               {k.value == null ? "—" : `${k.value.toLocaleString("en-IN")}${k.suffix}`}
             </p>
@@ -687,7 +639,7 @@ function KeyRatios({ stock }: { stock: StockDetail }) {
     ["Current Ratio",   stock.current_ratio],
   ];
   return (
-    <SectionCard title="Key Ratios">
+    <SectionCard title="Key ratios">
       <div className="mt-3 grid grid-cols-2 gap-x-8 divide-x divide-surface-border/4">
         <div>{rows.slice(0, 5).map(([l, v]) => <KvRow key={l} label={l} value={v} colored/>)}</div>
         <div className="pl-8">{rows.slice(5).map(([l, v]) => <KvRow key={l} label={l} value={v} colored/>)}</div>
@@ -733,9 +685,9 @@ function EventTimeline({ stock, symbol, companyEvents }: { stock: StockDetail; s
           return href ? (
             <Link key={i} href={href} className={className}>{body}</Link>
           ) : (
-            <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} className={className}>
+            <div key={i} className={className}>
               {body}
-            </motion.div>
+            </div>
           );
         })}
       </div>
@@ -846,7 +798,7 @@ export function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
   if (!data || data.signal_count === 0) return null;
 
   return (
-    <SectionCard title="Recent Intelligence Evidence">
+    <SectionCard title="Recent intelligence evidence">
       <p className="mt-1 text-[11px] leading-5 text-text-muted">
         Based on {data.contributing_signal_count} contributing signal{data.contributing_signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking — this evidence feeds the MarketRipple Score's Current Intelligence pillar; it is not itself a company rating.
       </p>
@@ -859,7 +811,7 @@ export function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
             const inner = (
               <>
                 <div className="flex items-center justify-between">
-                  <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-text-muted">
+                  <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[11px] text-text-muted">
                     {c.source_type === "opportunity" ? "Opportunity Radar" : "Published Analysis"}
                   </span>
                   <span className={`text-[11px] font-bold ${c.signed_magnitude >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
@@ -874,13 +826,13 @@ export function OpportunityRadarSection({ stock }: { stock: StockDetail }) {
             );
             const className = "flex flex-col gap-2 rounded-2xl border border-surface-border/6 bg-gradient-to-b from-text-primary/[0.03] to-transparent p-4";
             return c.href ? (
-              <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}>
+              <div key={i}>
                 <Link href={c.href as any} className={`${className} transition hover:border-emerald-500/25`}>{inner}</Link>
-              </motion.div>
+              </div>
             ) : (
-              <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} className={className}>
+              <div key={i} className={className}>
                 {inner}
-              </motion.div>
+              </div>
             );
           })}
         </div>
@@ -899,7 +851,7 @@ function NewsImpact({ stock, relatedNews }: { stock: StockDetail; relatedNews: a
   const articles = relatedNews.length ? relatedNews : stock.news;
   if (!articles.length) return null;
   return (
-    <SectionCard title="News Impact Analysis" action={
+    <SectionCard title="News impact analysis" action={
       <Link href="/news" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All News →</Link>
     }>
       <div className="mt-4 space-y-3">
@@ -915,7 +867,7 @@ function NewsImpact({ stock, relatedNews }: { stock: StockDetail; relatedNews: a
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                  {hasScore && <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${ic.text} border-current/20`}>{ic.label}</span>}
+                  {hasScore && <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${ic.text} border-current/20`}>{ic.label}</span>}
                   <span className="text-[10px] text-text-muted">{a.source || "Source"}</span>
                   <span className="text-[10px] text-text-muted">{a.published_at?.slice(0, 10) || ""}</span>
                 </div>
@@ -967,7 +919,7 @@ function CompanyNewsTabBody({ stock, relatedNews }: { stock: StockDetail; relate
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                  {hasScore && <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${ic.text} border-current/20`}>{ic.label}</span>}
+                  {hasScore && <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${ic.text} border-current/20`}>{ic.label}</span>}
                   <span className="text-[10px] text-text-muted">{a.source || "Source"}</span>
                   <span className="text-[10px] text-text-muted">{a.published_at?.slice(0, 10) || ""}</span>
                 </div>
@@ -998,7 +950,7 @@ function AISentiment({ stock }: { stock: StockDetail }) {
   const total = stock.buy_count + stock.hold_count + stock.sell_count;
   if (!total) {
     return (
-      <SectionCard title="Analyst Consensus">
+      <SectionCard title="Analyst consensus">
         <p className="mt-4 text-[12px] text-text-muted">No analyst coverage data available for this stock.</p>
       </SectionCard>
     );
@@ -1008,7 +960,7 @@ function AISentiment({ stock }: { stock: StockDetail }) {
   const neutPct = 100 - bullPct - bearPct;
 
   return (
-    <SectionCard title="Analyst Consensus">
+    <SectionCard title="Analyst consensus">
       <div className="mt-4 flex items-center gap-3">
         <div className="relative h-24 w-24">
           <svg className="h-24 w-24" style={{ transform: "rotate(-90deg)" }} viewBox="0 0 80 80">
@@ -1017,7 +969,7 @@ function AISentiment({ stock }: { stock: StockDetail }) {
               strokeLinecap="round" strokeDasharray={`${(bullPct / 100) * 2 * Math.PI * 32} ${2 * Math.PI * 32}`}/>
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[18px] font-black text-emerald-400">{bullPct}%</span>
+            <span className="text-[18px] font-semibold text-emerald-400">{bullPct}%</span>
             <span className="text-[8px] text-text-muted">Bullish</span>
           </div>
         </div>
@@ -1037,13 +989,13 @@ function Shareholding({ stock }: { stock: StockDetail }) {
   const data = useMemo(() => deriveShareholding(stock), [stock.held_insiders, stock.held_institutions]);
   if (!data) {
     return (
-      <SectionCard title="Shareholding Pattern">
+      <SectionCard title="Shareholding pattern">
         <p className="mt-4 text-[12px] text-text-muted">Shareholding data unavailable for this stock.</p>
       </SectionCard>
     );
   }
   return (
-    <SectionCard title="Shareholding Pattern">
+    <SectionCard title="Shareholding pattern">
       <div className="mt-4 grid grid-cols-2 gap-5">
         <div className="h-[180px]">
           <ShareholdingDonut data={data} />
@@ -1098,7 +1050,7 @@ function PeerComparison({ stock }: { stock: StockDetail }) {
   ];
 
   return (
-    <SectionCard title="Peer Comparison" action={
+    <SectionCard title="Peer comparison" action={
       <Link href="/companies?tab=compare" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All Peers →</Link>
     }>
       <div className="mt-4 overflow-x-auto">
@@ -1192,7 +1144,7 @@ function HistoricalPerformance({ stock }: { stock: StockDetail }) {
   const data = stock.annual_financials;
   if (!data.length) return null;
   return (
-    <SectionCard title="Historical Performance">
+    <SectionCard title="Historical performance">
       <div className="mt-4 flex gap-2 mb-4">
         {[["revenue", "Revenue"], ["profit", "Net Profit"]].map(([k, l]) => (
           <button key={k} onClick={() => setActiveMetric(k as any)}
@@ -1224,7 +1176,10 @@ const ARTICLE_TYPE_TAG: Record<string, string> = {
   policy_intelligence: "Policy", question_intelligence: "Q&A", market_wrap: "Market Wrap",
   morning_intelligence: "Morning Brief", breaking_intelligence: "Breaking",
   historical_intelligence: "Historical", educational_intelligence: "Guide",
+  comparison_intelligence: "Comparison", ripple_intelligence: "Ripple",
 };
+const articleTypeTag = (t: string) =>
+  ARTICLE_TYPE_TAG[t] ?? (t.replace(/_intelligence$/, "").replace(/_/g, " ").replace(/^./, c => c.toUpperCase()));
 
 function RelatedStories({ stock }: { stock: StockDetail }) {
   const [articles, setArticles] = useState<CompanyInsightArticle[]>([]);
@@ -1257,7 +1212,7 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
   if (loaded && articles.length === 0 && historical.length === 0) return null;
 
   return (
-    <SectionCard title="Latest Intelligence" action={<Link href="/newsroom" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>}>
+    <SectionCard title="Latest intelligence" action={<Link href="/newsroom" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View All →</Link>}>
       {!loaded ? (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[1, 2, 3].map(i => <div key={i} className="h-24 animate-pulse rounded-2xl bg-text-primary/[0.03]" />)}
@@ -1273,19 +1228,19 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {articles.map(a => (
                 <Link key={a.slug} href={`/newsroom/article/${a.slug}` as any}
-                  className="group flex flex-col justify-between rounded-2xl border border-surface-border/6 bg-text-primary/[0.02] p-4 hover:-translate-y-0.5 hover:border-sky-400/20 transition-all">
+                  className="group flex flex-col justify-between rounded-xl border border-surface-border/10 p-4 transition hover:border-surface-border/25 hover:bg-text-primary/[0.02]">
                   <div>
-                    <span className="text-[9px] uppercase tracking-widest text-text-muted">{ARTICLE_TYPE_TAG[a.article_type] ?? a.article_type}</span>
-                    <p className="mt-1 text-[13px] font-bold leading-snug text-text-primary line-clamp-2 group-hover:text-sky-700 dark:text-sky-200 transition">{a.headline}</p>
+                    <span className="text-[11px] text-text-mutedst text-text-muted">{articleTypeTag(a.article_type)}</span>
+                    <p className="mt-1.5 text-[14px] font-semibold leading-snug tracking-[-0.01em] text-text-primary line-clamp-2">{a.headline}</p>
                   </div>
-                  {a.key_takeaway && <p className="mt-2 text-[11px] text-text-muted line-clamp-2">{a.key_takeaway}</p>}
+                  {a.key_takeaway && <p className="mt-2 text-[12px] leading-5 text-text-muted line-clamp-2">{a.key_takeaway}</p>}
                 </Link>
               ))}
             </div>
           )}
           {historical.length > 0 && (
             <div className="mt-4 border-t border-surface-border/5 pt-4">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">Historical Coverage</p>
+              <p className="mb-2 text-[13px] font-medium text-text-secondary">Historical coverage</p>
               <div className="space-y-1.5">
                 {historical.slice(0, 4).map((h, i) => (
                   <div key={i} className="flex items-center justify-between text-[11px]">
@@ -1313,7 +1268,7 @@ function RelatedStories({ stock }: { stock: StockDetail }) {
 function OverviewCell({ label, children, href }: { label: string; children: React.ReactNode; href?: string | null }) {
   const inner = (
     <>
-      <p className="text-[10px] uppercase tracking-wider text-text-muted">{label}</p>
+      <p className="text-[12px] text-text-muted">{label}</p>
       <div className="mt-1.5">{children}</div>
     </>
   );
@@ -1344,7 +1299,13 @@ function OverviewCell({ label, children, href }: { label: string; children: Reac
 // both gone rather than carried forward here.
 function AboutSection({ stock }: { stock: StockDetail }) {
   if (!stock.description) return null;
-  const sentences = stock.description.split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, 3);
+  let sentences = stock.description.split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, 3);
+  // The backend caps descriptions at 600 chars, which can cut mid-word —
+  // drop a truncated trailing fragment rather than print "software prod".
+  const last = sentences[sentences.length - 1];
+  if (last && !/[.!?]["')\]]?$/.test(last)) {
+    sentences = sentences.length > 1 ? sentences.slice(0, -1) : [last.replace(/\s+\S*$/, "") + "…"];
+  }
   return (
     <SectionCard title="About">
       <p className="mt-2 text-[13px] leading-6 text-text-secondary">{sentences.join(" ")}</p>
@@ -1355,15 +1316,15 @@ function AboutSection({ stock }: { stock: StockDetail }) {
 // Key Data — compact, real market + financial facts only.
 function KeyDataGrid({ stock }: { stock: StockDetail }) {
   return (
-    <SectionCard title="Key Data">
+    <SectionCard title="Key data">
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
-        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">Day Range</p><p className="mt-0.5 font-semibold text-text-primary">₹{stock.day_low}–₹{stock.day_high}</p></div>
-        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">52W Range</p><p className="mt-0.5 font-semibold text-text-primary">₹{stock.week52_low}–₹{stock.week52_high}</p></div>
-        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">Volume</p><p className="mt-0.5 font-semibold text-text-primary">{stock.volume || "—"}</p></div>
-        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">P/E</p><p className={`mt-0.5 font-semibold ${metricColor("PE Ratio (TTM)", stock.pe)}`}>{stock.pe || "—"}</p></div>
-        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">ROE</p><p className={`mt-0.5 font-semibold ${metricColor("ROE", stock.roe)}`}>{stock.roe || "—"}</p></div>
-        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">D/E</p><p className={`mt-0.5 font-semibold ${metricColor("D/E Ratio", stock.debt_to_equity)}`}>{stock.debt_to_equity || "—"}</p></div>
-        <div><p className="text-[10px] uppercase tracking-wider text-text-muted">Margin</p><p className="mt-0.5 font-semibold text-text-primary">{stock.net_margins || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">Day range</p><p className="mt-0.5 font-semibold text-text-primary">₹{stock.day_low}–₹{stock.day_high}</p></div>
+        <div><p className="text-[12px] text-text-muted">52-week range</p><p className="mt-0.5 font-semibold text-text-primary">₹{stock.week52_low}–₹{stock.week52_high}</p></div>
+        <div><p className="text-[12px] text-text-muted">Volume</p><p className="mt-0.5 font-semibold text-text-primary">{stock.volume || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">P/E</p><p className="mt-0.5 font-semibold tabular-nums text-text-primary">{stock.pe || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">ROE</p><p className="mt-0.5 font-semibold tabular-nums text-text-primary">{stock.roe || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">D/E</p><p className="mt-0.5 font-semibold tabular-nums text-text-primary">{stock.debt_to_equity || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">Margin</p><p className="mt-0.5 font-semibold text-text-primary">{stock.net_margins || "—"}</p></div>
       </div>
     </SectionCard>
   );
@@ -1390,10 +1351,10 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
   );
 
   const pillars: { label: string; value: number | null | undefined }[] = [
-    { label: "Financial Strength",    value: data.pillars?.financial_strength },
+    { label: "Financial strength",    value: data.pillars?.financial_strength },
     { label: "Valuation",             value: data.pillars?.valuation },
-    { label: "Market Behaviour",      value: data.pillars?.market_behaviour },
-    { label: "Current Intelligence",  value: data.pillars?.current_intelligence },
+    { label: "Market behaviour",      value: data.pillars?.market_behaviour },
+    { label: "Current intelligence",  value: data.pillars?.current_intelligence },
   ];
   const updated = data.calculated_at
     ? new Date(data.calculated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
@@ -1420,8 +1381,8 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
         <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
           {pillars.map(p => (
             <div key={p.label}>
-              <p className="text-[9px] uppercase tracking-wider text-text-muted">{p.label}</p>
-              <p className="mt-0.5 text-[16px] font-bold text-text-primary">{p.value != null ? Math.round(p.value) : "—"}</p>
+              <p className="text-[11px] text-text-mutedr text-text-muted">{p.label}</p>
+              <p className="mt-1 text-[18px] font-semibold tabular-nums text-text-primary">{p.value != null ? Math.round(p.value) : "—"}</p>
             </div>
           ))}
         </div>
@@ -1454,25 +1415,25 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
       ? new Date(localPreview.calculated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
       : null;
     const previewPillars: { label: string; key: keyof NonNullable<LocalPreviewData["pillars"]> }[] = [
-      { label: "Financial Strength", key: "financial_strength" },
+      { label: "Financial strength", key: "financial_strength" },
       { label: "Valuation", key: "valuation" },
-      { label: "Market Behaviour", key: "market_behaviour" },
-      { label: "Current Intelligence", key: "current_intelligence" },
+      { label: "Market behaviour", key: "market_behaviour" },
+      { label: "Current intelligence", key: "current_intelligence" },
     ];
     return (
       <SectionCard title="MarketRipple Score" action={methodologyLink}>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <span className="shrink-0 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+          <span className="shrink-0 rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
             Preview — not yet published
           </span>
-          <span className="text-[11px] text-text-muted">Computed and eligible; awaiting approval before it appears publicly</span>
+          <span className="text-[12px] text-text-muted">Computed and eligible; awaiting approval before it appears publicly</span>
         </div>
 
         <div className="mt-3 flex items-baseline gap-3">
-          <span className={`text-[36px] font-black leading-none ${marketRippleRatingColor(localPreview.rating)}`}>{marketRippleScoreDisplayInt(localPreview.score)}</span>
+          <span className={`text-[36px] font-semibold leading-none ${marketRippleRatingColor(localPreview.rating)}`}>{marketRippleScoreDisplayInt(localPreview.score)}</span>
           <span className="text-[13px] text-text-muted">/ 100</span>
           {localPreview.rating && (
-            <span className={`text-[11px] font-bold uppercase tracking-wide ${marketRippleRatingColor(localPreview.rating)}`}>{localPreview.rating}</span>
+            <span className={`text-[13px] font-medium ${marketRippleRatingColor(localPreview.rating)}`}>{localPreview.rating}</span>
           )}
         </div>
 
@@ -1483,11 +1444,11 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
             const weight = localPreview.effective_weights?.[p.key];
             return (
               <div key={p.label}>
-                <p className="text-[9px] uppercase tracking-wider text-text-muted">
-                  {p.label}{isEvidenceOnly && <span className="ml-1 lowercase text-amber-500/80">(evidence)</span>}
+                <p className="text-[11px] text-text-mutedr text-text-muted">
+                  {p.label}{isEvidenceOnly && <span className="ml-1 text-text-muted/70">(evidence)</span>}
                 </p>
-                <p className="mt-0.5 text-[16px] font-bold text-text-primary">{value != null ? Math.round(value) : "—"}</p>
-                <p className="text-[9px] text-text-muted">
+                <p className="mt-1 text-[18px] font-semibold tabular-nums text-text-primary">{value != null ? Math.round(value) : "—"}</p>
+                <p className="text-[11px] text-text-muted">
                   {isEvidenceOnly
                     ? "shown separately — not part of this score"
                     : weight != null ? `effective weight ${Math.round(weight * 100)}%` : "not contributing"}
@@ -1533,18 +1494,18 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
         A combined view of financial strength, valuation, market behaviour and current market intelligence.
       </p>
       <div className="mt-3 flex items-baseline gap-3">
-        <span className={`text-[36px] font-black leading-none ${marketRippleRatingColor(data.rating)}`}>{marketRippleScoreDisplayInt(data.score)}</span>
+        <span className={`text-[36px] font-semibold leading-none ${marketRippleRatingColor(data.rating)}`}>{marketRippleScoreDisplayInt(data.score)}</span>
         <span className="text-[13px] text-text-muted">/ 100</span>
         {data.rating && (
-          <span className={`text-[11px] font-bold uppercase tracking-wide ${marketRippleRatingColor(data.rating)}`}>{data.rating}</span>
+          <span className={`text-[13px] font-medium ${marketRippleRatingColor(data.rating)}`}>{data.rating}</span>
         )}
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
         {pillars.map(p => (
           <div key={p.label}>
-            <p className="text-[9px] uppercase tracking-wider text-text-muted">{p.label}</p>
-            <p className="mt-0.5 text-[16px] font-bold text-text-primary">{p.value != null ? Math.round(p.value) : "—"}</p>
+            <p className="text-[11px] text-text-mutedr text-text-muted">{p.label}</p>
+            <p className="mt-1 text-[18px] font-semibold tabular-nums text-text-primary">{p.value != null ? Math.round(p.value) : "—"}</p>
           </div>
         ))}
       </div>
@@ -1640,7 +1601,7 @@ function LatestDevelopmentsList({ stock, relatedNews }: { stock: StockDetail; re
   const latestEvent = stock.events?.[0];
   if (!latestNews && !latestEvent) return null;
   return (
-    <SectionCard title="Latest Developments" action={
+    <SectionCard title="Latest developments" action={
       <Link href="/events" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">View all →</Link>
     }>
       <div className="mt-3 space-y-2.5">
@@ -1681,14 +1642,14 @@ function FaqSection({ faqs }: { faqs: { question: string; answer: string }[] }) 
   if (!faqs.length) return null;
   return (
     <SectionCard>
-      <h2 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-text-muted">Frequently Asked Questions</h2>
+      <h2 className="mb-4 text-[15px] font-semibold tracking-[-0.01em] text-text-primary">Frequently asked questions</h2>
       <div className="space-y-1.5">
         {faqs.map(f => (
-          <details key={f.question} className="group rounded-lg border border-surface-border/6 bg-text-primary/[0.015] px-3 py-2">
-            <summary className="cursor-pointer list-none text-[12.5px] font-medium text-text-secondary marker:content-none">
+          <details key={f.question} className="group rounded-xl border border-surface-border/10 px-4 py-3 transition hover:border-surface-border/20">
+            <summary className="cursor-pointer list-none text-[13px] font-medium text-text-primary marker:content-none">
               {f.question}
             </summary>
-            <p className="mt-1.5 text-[12px] leading-5 text-text-muted">{f.answer}</p>
+            <p className="mt-2 max-w-[68ch] text-[13px] leading-6 text-text-secondary">{f.answer}</p>
           </details>
         ))}
       </div>
@@ -1721,26 +1682,26 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
   return (
     <div className="space-y-5">
 
-      {/* Quick Stats */}
+      {/* Key statistics */}
       <div className={`${CARD} p-5`}>
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Quick Stats</h3>
+        <h3 className="mb-2 text-[15px] font-semibold tracking-[-0.01em] text-text-primary">Key statistics</h3>
         <div className="space-y-0">
-          <KvRow label="Market Cap"        value={stock.market_cap}/>
-          <KvRow label="Enterprise Value"  value={stock.enterprise_value}/>
-          <KvRow label="PE Ratio (TTM)"    value={stock.pe}           colored/>
-          <KvRow label="PB Ratio"          value={stock.pb}           colored/>
+          <KvRow label="Market cap"        value={stock.market_cap}/>
+          <KvRow label="Enterprise value"  value={stock.enterprise_value}/>
+          <KvRow label="P/E (TTM)"    value={stock.pe}           colored/>
+          <KvRow label="P/B"          value={stock.pb}           colored/>
           <KvRow label="ROE"               value={stock.roe}          colored/>
           <KvRow label="ROCE"              value={stock.roce}         colored/>
-          <KvRow label="Dividend Yield"    value={stock.dividend_yield}/>
-          <KvRow label="52W High"          value={`₹${stock.week52_high}`}/>
-          <KvRow label="52W Low"           value={`₹${stock.week52_low}`}/>
+          <KvRow label="Dividend yield"    value={stock.dividend_yield}/>
+          <KvRow label="52-week high"          value={`₹${stock.week52_high}`}/>
+          <KvRow label="52-week low"           value={`₹${stock.week52_low}`}/>
         </div>
       </div>
 
-      {/* Event Alerts */}
+      {/* Recent events */}
       {stock.events.length > 0 && (
         <div className={`${CARD} p-5`}>
-          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wider text-text-muted">Event Alerts</h3>
+          <h3 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-text-primary">Recent events</h3>
           <div className="space-y-2">
             {stock.events.slice(0, 3).map((e, i) => {
               const href = e.slug || e.id ? `/events/${e.slug || e.id}` : null;
@@ -1749,7 +1710,7 @@ function IntelligencePanel({ stock }: { stock: StockDetail }) {
                   <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400"/>
                   <div className="min-w-0">
                     <p className="text-[11px] font-medium text-text-primary line-clamp-2">{e.title}</p>
-                    <p className="text-[9px] text-text-muted mt-0.5">{e.date}</p>
+                    <p className="mt-0.5 text-[11px] text-text-muted">{e.date}</p>
                   </div>
                 </>
               );
@@ -1794,7 +1755,7 @@ function ContributorRow({ c, tone }: { c: CompanyScoreContributor; tone: "positi
   const inner = (
     <>
       <div className="flex items-center justify-between gap-2">
-        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+        <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${
           positive
             ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
             : "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300"
@@ -1835,7 +1796,7 @@ export function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
 
   if (data.signal_count === 0) {
     return (
-      <SectionCard title="Recent Intelligence Evidence">
+      <SectionCard title="Recent intelligence evidence">
         <p className="text-sm text-text-secondary">No intelligence evidence tracked for {stock.name} yet — built only from real published analysis and opportunity tracking, never estimated.</p>
       </SectionCard>
     );
@@ -1845,14 +1806,14 @@ export function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
   const negatives = data.risk_factors?.filter(r => r.reason) ?? [];
 
   return (
-    <SectionCard title="Recent Intelligence Evidence">
+    <SectionCard title="Recent intelligence evidence">
       <p className="mt-1 text-[11px] leading-5 text-text-muted">
         Based on {data.contributing_signal_count} contributing signal{data.contributing_signal_count === 1 ? "" : "s"} from published analysis and opportunity tracking — this evidence feeds the MarketRipple Score's Current Intelligence pillar; it is not itself a company rating.
       </p>
 
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div>
-          <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-500">Real Supporting Evidence</p>
+          <p className="mb-2.5 text-[13px] font-medium text-emerald-700 dark:text-emerald-400">Supporting evidence</p>
           {positives.length > 0 ? (
             <div className="space-y-2.5">
               {positives.map((c, i) => <ContributorRow key={i} c={c} tone="positive"/>)}
@@ -1862,7 +1823,7 @@ export function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
           )}
         </div>
         <div>
-          <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-rose-500">Real Counter-Signals</p>
+          <p className="mb-2.5 text-[13px] font-medium text-rose-700 dark:text-rose-400">Counter-signals</p>
           {negatives.length > 0 ? (
             <div className="space-y-2.5">
               {negatives.map((c, i) => <ContributorRow key={i} c={c} tone="negative"/>)}
@@ -1899,7 +1860,7 @@ export function CompanyScoreContributors({ stock }: { stock: StockDetail }) {
 function WhatToWatchCard({ points }: { points: string[] }) {
   if (!points.length) return null;
   return (
-    <SectionCard title="What to Watch">
+    <SectionCard title="What to watch">
       <ul className="mt-3 space-y-1.5">
         {points.map((pt, i) => (
           <li key={i} className="flex items-start gap-2 text-[12px] leading-5 text-text-secondary">
@@ -2195,7 +2156,7 @@ function CapitalStructureCard({ data, statementCurrencyPrefix = "₹", statement
 }) {
   if (!data || (data.shares_outstanding == null && data.market_cap == null && data.total_debt == null)) {
     return (
-      <SectionCard title="Capital Structure">
+      <SectionCard title="Capital structure">
         <p className="text-sm text-text-secondary">No real capital structure data available for this company yet.</p>
       </SectionCard>
     );
@@ -2210,7 +2171,7 @@ function CapitalStructureCard({ data, statementCurrencyPrefix = "₹", statement
     ["Debt to Equity", data.debt_to_equity != null ? String(data.debt_to_equity) : "—", ratioFieldColor("debt_to_equity", data.debt_to_equity)],
   ];
   return (
-    <SectionCard title="Capital Structure" action={
+    <SectionCard title="Capital structure" action={
       data.as_of_period ? <span className="text-[10px] text-text-muted">as of {data.as_of_period}</span> : null
     }>
       <div className="mt-3 divide-y divide-surface-border/3">
@@ -2358,23 +2319,6 @@ function EventsTabBody({ stock, symbol, relatedNews }: { stock: StockDetail; sym
       <EventTimeline stock={stock} symbol={symbol} companyEvents={companyEvents}/>
       <NewsImpact stock={stock} relatedNews={relatedNews}/>
     </>
-  );
-}
-
-// ── Top Loading Bar ───────────────────────────────────────────────────────────
-function TopLoader({ active }: { active: boolean }) {
-  return (
-    <AnimatePresence>
-      {active && (
-        <motion.div key="tl" initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.5 } }}
-          className="pointer-events-none fixed left-0 right-0 top-0 z-[100] h-[2px] overflow-hidden">
-          <motion.div
-            className="h-full bg-gradient-to-r from-sky-500 via-violet-500 to-sky-400"
-            animate={{ x: ["-100%", "0%", "100%"] }}
-            transition={{ repeat: Infinity, duration: 1.3, ease: "easeInOut" }}/>
-        </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
 
@@ -2526,10 +2470,10 @@ function RippleConnectionRow({ edge, node, companyNodeId }: { edge: RippleGraphE
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-text-muted">
+          <span className="rounded-full border border-surface-border/10 bg-text-primary/5 px-2 py-0.5 text-[11px] text-text-muted">
             {RIPPLE_NODE_TYPE_LABEL[node.node_type] ?? node.node_type}
           </span>
-          <span className="text-[9px] uppercase tracking-wide text-sky-500">{edge.edge_type.replace(/_/g, " ")}</span>
+          <span className="text-[11px] text-text-muted text-sky-500">{edge.edge_type.replace(/_/g, " ")}</span>
         </div>
         <p className="mt-1 text-[13px] font-medium leading-5 text-text-primary line-clamp-2">{node.label}</p>
         {edge.description && <p className="mt-0.5 text-[11px] text-text-muted line-clamp-2">{edge.description}</p>}
@@ -2571,21 +2515,21 @@ function RippleTabBody({ stock }: { stock: StockDetail }) {
   }, [stock.symbol]);
 
   if (failed) {
-    return <RippleEmptyState title="Company Ripple"
+    return <RippleEmptyState title="Company ripple"
       body="Ripple relationship data is temporarily unavailable. Please try again shortly." />;
   }
   if (!data) return null;
 
   if (data.status === "no_entity") {
-    return <RippleEmptyState title="Company Ripple"
+    return <RippleEmptyState title="Company ripple"
       body="Ripple relationship data is unavailable for this company." />;
   }
   if (data.status === "no_node") {
-    return <RippleEmptyState title="Company Ripple"
+    return <RippleEmptyState title="Company ripple"
       body={`No verified Ripple relationships yet. MarketRipple has not accumulated enough evidence-backed relationships for ${stock.name} yet. This section will expand as new events and evidence are processed.`} />;
   }
   if (data.status === "no_edges") {
-    return <RippleEmptyState title="Company Ripple"
+    return <RippleEmptyState title="Company ripple"
       body={`${stock.name} is tracked in the Intelligence Graph, but no verified relationships have been recorded for it yet.`} />;
   }
 
@@ -2602,10 +2546,10 @@ function RippleTabBody({ stock }: { stock: StockDetail }) {
     .slice(0, 8);
 
   return (
-    <SectionCard title="Company Ripple" action={
+    <SectionCard title="Company ripple" action={
       <Link href="/graph" className="text-[11px] text-sky-400 hover:text-sky-600 dark:text-sky-300 transition">Explore full graph →</Link>
     }>
-      <p className="mb-4 text-[11px] uppercase tracking-wider text-text-muted">
+      <p className="mb-4 text-[12px] text-text-muted">
         {data.edges.length} verified relationship{data.edges.length === 1 ? "" : "s"}
       </p>
       <div className="space-y-2.5">
@@ -2694,7 +2638,6 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
 
   if (loadingInfo) return (
     <main className="min-w-0 pb-10">
-      <TopLoader active/>
       <PageSkeleton/>
     </main>
   );
@@ -2711,19 +2654,13 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
   return (
     <main className="min-w-0 pb-16">
       <TrackPageVisit type="company" id={symbol.toUpperCase()} title={stock.name ?? symbol.toUpperCase()} subtitle={`${stock.price} · ${stock.sector}`} href={`/companies/${symbol.toUpperCase()}`} />
-      {/* Top loader while chart is still fetching */}
-      <TopLoader active={loadingChart}/>
 
       {/* ── Persistent header — stays fixed across every tab ─────────── */}
       <CompanyHero stock={stock} symbol={symbol} watchlisted={watchlisted} setWatchlisted={setWatchlisted} serverRenderedH1={!!initialStock}/>
 
       <CompanyTabNav active={activeTab} onChange={setTab}/>
 
-      <motion.div
-        key={activeTab}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}>
+      <div key={activeTab}>
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_320px]">
 
           {/* ── LEFT: the active tab's research body ────────────────── */}
@@ -2863,7 +2800,7 @@ function StockPageInner({ params, initialStock, initialRelated, faqs }: PageProp
           </aside>
 
         </div>
-      </motion.div>
+      </div>
     </main>
   );
 }
@@ -2872,8 +2809,7 @@ export default function StockPage(props: PageProps & { initialStock?: StockDetai
   return (
     <Suspense fallback={
       <main className="min-w-0 pb-10">
-        <TopLoader active/>
-        <PageSkeleton/>
+          <PageSkeleton/>
       </main>
     }>
       <StockPageInner {...props} />

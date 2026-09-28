@@ -174,7 +174,7 @@ test.describe("MarketRipple Score unification — real cross-surface + honest-N/
     expect(rankingsContainerRight, "Rankings table's scroll container overflows the 375px viewport").toBeLessThanOrEqual(375 + 1);
 
     await page.goto("/companies/ICICIBANK");
-    const panel = page.locator("text=Preview — not yet published").first().locator("xpath=ancestor::div[contains(@class,'rounded-[28px]')][1]");
+    const panel = page.locator("text=Preview — not yet published").first().locator("xpath=ancestor::section[1]");
     await expect(panel).toBeVisible({ timeout: 15_000 });
     const panelRight = await panel.evaluate(el => el.getBoundingClientRect().right);
     expect(panelRight, "Score preview panel overflows the 375px viewport").toBeLessThanOrEqual(375 + 1);

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 
 import { SiteHeader }        from "@/components/SiteHeader";
@@ -15,19 +15,13 @@ import { PageContainer } from "@/components/PageContainer";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-
-// next/font downloads Inter at build time, self-hosts it, and injects an
-// optimised <link rel="preload"> — no external roundtrip, no FOUT.
-const inter = Inter({
-  subsets: ["latin"],
-  // Only load weights we actually use — cuts ~40 kB from the font bundle.
-  weight: ["400", "500", "600", "700", "800", "900"],
-  display: "swap",
-  variable: "--font-inter",
-  preload: true,
-});
+// The one site font (2026-09-28). Previously both Inter (6 weights,
+// preloaded) and Geist were loaded, but neither was ever applied: <body>
+// asked for var(--font-inter), which no element defined, so every page
+// silently fell back to the OS system font (verified via computed styles —
+// every text node resolved to ui-sans-serif). Geist is a single variable
+// font file, self-hosted by next/font; Tailwind's `font-sans` points at it.
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.marketripple.in";
 
@@ -108,7 +102,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="min-h-screen bg-bg text-text-primary font-[family-name:var(--font-inter)]">
+      <body className="min-h-screen bg-bg font-sans text-text-primary antialiased">
         {/* Google Analytics — prod only, so local `next dev` traffic never
             pollutes real analytics. For Indian users (DPDP, 2023), explicit
             consent is not legally required; privacy policy disclosure suffices.

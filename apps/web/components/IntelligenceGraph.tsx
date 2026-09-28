@@ -1202,7 +1202,7 @@ function GraphInner({initialGraph}:{initialGraph:GData|null}){
   };
 
   return(
-    <div style={{height:"calc(100vh - 68px)",display:"flex",flexDirection:"column",background:"#050a18",overflow:"hidden",fontFamily:"Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
+    <div style={{height:"calc(100vh - 68px)",display:"flex",flexDirection:"column",background:"#050a18",overflow:"hidden",fontFamily:"inherit"}}>
 
       {/* Header */}
       <div style={{flexShrink:0,padding:"10px 20px 0",background:"rgba(3,6,16,.98)"}}>

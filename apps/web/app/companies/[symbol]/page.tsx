@@ -58,6 +58,12 @@ function fmtCrore(v?: string) {
   return v;
 }
 
+// market_cap already arrives formatted with its own "₹" (e.g. "₹7.53T");
+// prefixing another produced "₹₹7.53T" in the intro and FAQ answer.
+function withRupee(v: string): string {
+  return v.trim().startsWith("₹") ? v.trim() : `₹${v.trim()}`;
+}
+
 // Real, honest FAQ candidates — every question only appears when the
 // backing field actually has a real (non-placeholder) value; nothing is
 // invented to fill out a fixed list. AEO-shaped (direct-answer, plain
@@ -73,7 +79,7 @@ function buildFaqs(stock: StockDetail, upper: string): { question: string; answe
   if (fmtCrore(stock.market_cap)) {
     faqs.push({
       question: `What is ${stock.name}'s market capitalization?`,
-      answer: `${stock.name}'s market capitalization is ₹${stock.market_cap}.`,
+      answer: `${stock.name}'s market capitalization is ${withRupee(stock.market_cap)}.`,
     });
   }
 
@@ -215,29 +221,21 @@ export default async function CompanyPage({ params }: { params: Promise<{ symbol
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }} />
       )}
       {stock && (
-        <section className="mb-4 border-b border-surface-border/6 pb-4">
-          {/* The single real <h1> for this page — CompanyHero inside the
-              client component renders the same name as a styled <p>, not
-              a second <h1>, to avoid a duplicate heading. Genuinely
-              visible (not sr-only/hidden) — real page context for users
-              on first paint, not a cloaked SEO-only block. */}
-          <h1 className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">
-            {stock.name} ({upper}) Share Price &amp; AI Investment Analysis
+        <section className="mb-5">
+          {/* The single real <h1> for this page (CompanyHero renders the
+              company name as a styled <p>). Visible page context, not a
+              cloaked SEO block. The company description itself lives once,
+              in the Overview tab's About card — repeating it here doubled
+              the same paragraph on every page. */}
+          <h1 className="text-[13px] font-medium text-text-muted">
+            {stock.name} ({upper}) share price &amp; AI investment analysis
           </h1>
-          {/* No max-width cap — the old max-w-3xl (768px) capped this well
-              short of the page's real container width, wasting the space
-              beside it on wide screens and forcing 6 lines where 3 would
-              do; letting it fill the section naturally fixes both. */}
-          <p className="mt-1.5 text-[13px] leading-relaxed text-text-secondary">
-            {withPeriod(
-              stock.description
-                ? stock.description
-                : `${stock.name} (${upper}) trades on the NSE${stock.sector && stock.sector !== "N/A" ? ` in the ${stock.sector} sector` : ""}${stock.industry && stock.industry !== stock.sector ? ` (${stock.industry})` : ""}`
-            )}
-            {" "}Track {stock.name}&apos;s live NSE:{upper} share price ₹{stock.price}{stock.change ? ` (${stock.change})` : ""}
-            {fmtCrore(stock.market_cap) ? `, market cap ₹${stock.market_cap}` : ""}
-            {fmtCrore(stock.pe) ? `, P/E ${stock.pe}` : ""}. MarketRipple's AI analysis covers the investment thesis, ripple-chain impact, and
-            {stock.sector && stock.sector !== "N/A" ? ` ${stock.sector} sector ` : " "}outlook for {upper} — real-time NSE India stock intelligence.
+          <p className="mt-1 max-w-[75ch] text-[13px] leading-relaxed text-text-muted">
+            Live NSE:{upper} share price ₹{stock.price}{stock.change ? ` (${stock.change})` : ""}
+            {fmtCrore(stock.market_cap) ? `, market cap ${withRupee(stock.market_cap)}` : ""}
+            {fmtCrore(stock.pe) ? `, P/E ${stock.pe}` : ""}
+            {stock.sector && stock.sector !== "N/A" ? ` · ${stock.sector} sector` : ""}. MarketRipple covers the
+            investment thesis, ripple-chain impact and sector outlook for {upper}.
           </p>
         </section>
       )}

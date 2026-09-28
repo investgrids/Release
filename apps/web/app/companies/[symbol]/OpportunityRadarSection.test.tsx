@@ -43,7 +43,7 @@ describe("OpportunityRadarSection — Recent Intelligence Evidence (2026-09-26 s
 
     render(<OpportunityRadarSection stock={stock} />);
 
-    await waitFor(() => expect(screen.getByText("Recent Intelligence Evidence")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Recent intelligence evidence")).toBeInTheDocument());
 
     // --- REMOVED: no standalone numeric score, AI-powered badge, or evidence-quality gauge ---
     expect(screen.queryByText("AI Company Intelligence Score")).not.toBeInTheDocument();

@@ -17,6 +17,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        // Geist, self-hosted via next/font (app/layout.tsx); system fonts only as fallback.
+        sans: ["var(--font-geist)", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+      },
       colors: {
         // Design tokens (redesign) — resolve through the CSS custom
         // properties in globals.css, which flip per data-theme="dark".
