@@ -162,6 +162,7 @@ def test_material_regulatory_deferral_gain_fails_closed_with_a_specific_reason()
     fm = fmc.compute("T", cur, prior, 3000.0, today=date(2026, 10, 3))
     assert fm.flags["regulatory_movement_cr"] == 924.0 + 2.0 - 2.0  # (8666-7744) - (0-2) - 2 would be 924 only if credit rose; here (8666-7744) - (0-2) = 924
     assert fm.status == "REGULATORY_DEFERRAL_REVIEW"
+    assert fm.metrics["roce"] is None and fm.reasons["roce"] == "REGULATORY_DEFERRAL_UNVERIFIED" and fm.metrics["debt_to_equity"] is not None
 
 
 def test_regulatory_balances_without_a_prior_year_filing_cannot_be_isolated():
@@ -175,16 +176,23 @@ def test_immaterial_or_negative_regulatory_movement_does_not_fail_closed():
     assert fmc.compute("T", cur, prior, 3000.0, today=date(2026, 10, 3)).status == "ok"
     prior2 = _with_reg(_ex(BASE, pe=date(2025, 3, 31)), 1200.0, 0.0)        # -200: a material reversal
     fm = fmc.compute("T", cur, prior2, 3000.0, today=date(2026, 10, 3))
-    assert fm.status == "ok" and fm.reasons["roe"] == "REGULATORY_DEFERRAL_MATERIAL" and fm.valuation["pe"] is None
+    assert fm.status == "ok" and fm.valuation["pe"] is None
+    assert all(fm.reasons[m] in ("REGULATORY_DEFERRAL_MATERIAL", "REGULATORY_DEFERRAL_UNVERIFIED") for m in ("roe",)) and fm.metrics["roce"] is None
+    assert fm.reasons["roce"] == "REGULATORY_DEFERRAL_UNVERIFIED" and fm.metrics["debt_to_equity"] is not None
 
 
-def test_profit_that_exists_only_because_of_other_income_is_withheld():
+def test_profit_resting_on_other_income_makes_earnings_metrics_unavailable_but_is_not_a_company_gate():
     ex = _ex({**BASE, "ProfitBeforeExceptionalItemsAndTax": 5.41, "ProfitBeforeTax": 5.41, "OtherIncome": 6.10})
-    fm = fmc.compute("T", ex, None, 3000.0, today=date(2026, 10, 3))
-    assert fm.status == "NON_CORE_PROFIT_REVIEW" and fm.flags["non_core_profit"] is True and fm.flags["core_pretax_cr"] == -0.69
-    ok = _ex({**BASE, "OtherIncome": 30})   # core profit 70 > 0: not gated
-    f2 = fmc.compute("T", ok, None, 3000.0, today=date(2026, 10, 3))
-    assert f2.status == "ok" and f2.flags["non_core_profit"] is False
+    prior = _ex({**BASE, "RevenueFromOperations": 800}, pe=date(2025, 3, 31))
+    fm = fmc.compute("T", ex, prior, 3000.0, today=date(2026, 10, 3))
+    assert fm.status == "ok" and fm.flags["non_core_profit"] is True and fm.flags["core_pretax_cr"] == -0.69
+    for m in ("profit_growth", "roe", "roce", "interest_coverage"):
+        assert fm.metrics[m] is None and fm.reasons[m] == "NON_CORE_INCOME_BASIS"
+    assert fm.valuation["pe"] is None and fm.valuation["pe_reason"] == "NON_CORE_INCOME_BASIS"
+    assert fm.metrics["revenue_growth"] is not None and fm.metrics["debt_to_equity"] is not None   # metrics not built on that income stay valid
+    ok = _ex({**BASE, "OtherIncome": 30})   # core profit 70 > 0
+    f2 = fmc.compute("T", ok, prior, 3000.0, today=date(2026, 10, 3))
+    assert f2.status == "ok" and f2.flags["non_core_profit"] is False and f2.metrics["roce"] is not None
 
 
 def test_soft_flags_are_recorded_without_changing_the_status():

@@ -19,9 +19,10 @@ SCORING_VERSION = "NSE_FILING_SCORE_V2"
 HIGHER_IS_BETTER = {"revenue_growth": True, "profit_growth": True, "roe": True, "roce": True, "debt_to_equity": False, "interest_coverage": True}
 MIN_METRICS = 4
 MIN_COVERAGE = 65.0
-# Only companies whose filing passed every gate set the peer benchmark: an earnings-quality review (exceptional gain, regulatory deferral,
-# non-core profit) means that company's ratios are not acceptable score inputs, so they must not rank other companies either.
-USABLE_STATUS = ("ok",)
+# Peer comparison is per metric. A company whose filing yields a valid value for a metric contributes that value to the benchmark whatever its
+# overall status (exceptional-gain and regulatory review, etc.), and a metric the contract marked unavailable (None) is simply absent from its own
+# comparison. Companies with no filing facts have no metric values, so they never enter any pool.
+USABLE_STATUS = None  # None = every company with a filing record; a tuple restricts the pool (used only to measure the effect)
 
 
 def band(score: float) -> str:
@@ -44,7 +45,7 @@ def percentile_rank(values: dict, symbol: str, cheaper_is_better: bool = False) 
 def score_group(members: list[str], fm: dict, mb: dict, pool_statuses: tuple = USABLE_STATUS) -> dict:
     """fm: symbol -> FilingMetrics dict (status, metrics, valuation); mb: symbol -> stored market-behaviour pillar (or None).
     Returns symbol -> result with state 'scored' or 'withheld' and the exact reason."""
-    usable = {s: f for s, f in fm.items() if s in members and f and f["status"] in pool_statuses}
+    usable = {s: f for s, f in fm.items() if s in members and f and (pool_statuses is None or f["status"] in pool_statuses)}
     pct: dict[str, dict] = {}
     for m, hib in HIGHER_IS_BETTER.items():
         vals = {s: f["metrics"].get(m) for s, f in usable.items() if f["metrics"].get(m) is not None}

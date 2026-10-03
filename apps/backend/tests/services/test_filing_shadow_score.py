@@ -67,12 +67,18 @@ def test_group_scoring_is_peer_only_needs_both_components_and_is_order_independe
     assert fss.SCORING_VERSION == "NSE_FILING_SCORE_V2"
 
 
-def test_companies_under_earnings_quality_review_do_not_set_the_peer_benchmark():
+def test_peer_pools_are_per_metric_a_company_under_review_keeps_its_valid_metrics_in_the_benchmark():
     mk = lambda i: {"revenue_growth": 5 + i, "profit_growth": 3 + i, "roe": 10 + i, "roce": 8 + i, "debt_to_equity": 1.0 - i / 20, "interest_coverage": 3 + i}
     fm = {f"S{i}": _fm(mk(i), pe=10 + i, pb=1 + i / 10) for i in range(5)}
-    fm["DISTORTED"] = _fm({k: v * 100 for k, v in mk(9).items()}, pe=1.0, pb=0.1, status="NON_CORE_PROFIT_REVIEW")
+    # under review: earnings metrics unavailable (None) but revenue growth and debt/equity are valid and stay in the pools
+    bad = {"revenue_growth": 50, "profit_growth": None, "roe": None, "roce": None, "debt_to_equity": 0.01, "interest_coverage": None}
+    fm["REVIEW"] = _fm(bad, pe=None, pb=0.2, status="REGULATORY_DEFERRAL_REVIEW")
     mb = {s: 50.0 for s in fm}
     a = fss.score_group(list(fm), fm, mb)
-    assert a["DISTORTED"]["reason"] == "NON_CORE_PROFIT_REVIEW"
-    with_pool = fss.score_group(list(fm), fm, mb, pool_statuses=("ok", "NON_CORE_PROFIT_REVIEW"))
-    assert a["S4"]["fs"] != with_pool["S4"]["fs"] or a["S4"]["val"] != with_pool["S4"]["val"]   # including the distorted company would change a peer's score
+    assert a["REVIEW"]["state"] == "withheld" and a["REVIEW"]["reason"] == "REGULATORY_DEFERRAL_REVIEW"
+    # its valid revenue growth (the best in the group) pushes the others down on that metric; its absent earnings metrics change nothing for them
+    alone = fss.score_group([m for m in fm if m != "REVIEW"], {k: v for k, v in fm.items() if k != "REVIEW"}, mb)
+    assert a["S4"]["fs"] != alone["S4"]["fs"] or a["S0"]["fs"] != alone["S0"]["fs"]
+    # restricting the pool to passing companies (the previous behaviour) reproduces the "alone" result
+    restricted = fss.score_group(list(fm), fm, mb, pool_statuses=("ok",))
+    assert restricted["S4"]["fs"] == alone["S4"]["fs"] and restricted["S0"]["fs"] == alone["S0"]["fs"]

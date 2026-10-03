@@ -30,15 +30,17 @@ VALUATION         P/B = market cap / owners equity (equity > 0); P/E = market ca
 MISSING DATA      every unavailable metric carries one reason code (REASONS below); nothing is inferred or defaulted.
 PROVENANCE        per score: contract version, filing seq_Id, file id, URL, retrieved_at, sha256, scope, audited, type_sub,
                   period end, concept names and values (crore), growth basis, market-cap source.
-INCOME QUALITY    income that sits OUTSIDE the "exceptional" line can still distort the ratios. Two gates (fail closed, specific reason) and two flags:
-                    REGULATORY DEFERRAL  movement = change in (debit - credit) regulatory-deferral balances between this filing and the prior-year filing
-                      (filers net the P&L effect into expenses or revenue, so no P&L tag exposes it: CESC +924 Cr on a pre-tax profit of 2,119 Cr).
-                      Material (same test as exceptional items) positive movement -> REGULATORY_DEFERRAL_REVIEW; material negative -> ROE and P/E unavailable;
-                      balances present but no prior-year filing -> REGULATORY_MOVEMENT_UNKNOWN.
-                    NON-CORE PROFIT      core = pre-exceptional profit - other income - positive regulatory movement. A positive pre-exceptional profit with
-                      core <= 0 exists only because of non-core income -> NON_CORE_PROFIT_REVIEW.
-                    Flags only (recorded, no gate): other income above 50% of pre-exceptional profit; associates' share above 50% of owners' profit.
-                  A company that fails an earnings-quality gate is also excluded from peer pools: its ratios are not acceptable score inputs.
+INCOME QUALITY    income outside the "exceptional" line can still distort earnings ratios, but its label alone does not make it one-off or unsuitable.
+                  So these are REVIEW FLAGS that make only the affected earnings metrics unavailable (profit growth, ROE, ROCE, interest coverage, P/E, because all
+                  of them are built on profit that includes that income); the existing metric and pillar gates then decide whether a headline remains.
+                    NON-CORE INCOME BASIS  core = pre-exceptional profit - other income - positive regulatory movement. Positive pre-exceptional profit with core <= 0
+                      means the profit rests on other income: flag non_core_profit and mark the earnings metrics unavailable (NON_CORE_INCOME_BASIS). No company-level gate.
+                    REGULATORY DEFERRAL   a material change in the regulatory-deferral balances between this filing and the prior-year filing is a WARNING to investigate,
+                      not a verified profit-and-loss adjustment (filers net the P&L effect into expenses or revenue, so no P&L tag exposes it). Material movement (same
+                      test as exceptional items) or balances with no prior-year filing mark the earnings metrics unavailable (REGULATORY_DEFERRAL_UNVERIFIED); a material
+                      POSITIVE movement, or an unknown one, also keeps the company under review (REGULATORY_DEFERRAL_REVIEW / REGULATORY_MOVEMENT_UNKNOWN).
+                    Flags only: other income above 50% of pre-exceptional profit; associates' share above 50% of owners' profit.
+                  Peer comparison is per metric: an invalid metric is left out of its own comparison; the company's valid metrics still count.
 UNRESOLVED CASES  KNRCON, VEDL, TRANSWORLD, PRINCEPIPE are forced to UNRESOLVED_REVIEW (no scored values) in shadow runs.
 """
 from __future__ import annotations
@@ -168,8 +170,6 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
         fm.status = "REGULATORY_DEFERRAL_REVIEW"
     elif reg_state == "unknown":
         fm.status = "REGULATORY_MOVEMENT_UNKNOWN"
-    elif non_core_profit:
-        fm.status = "NON_CORE_PROFIT_REVIEW"
 
     def na(metric, reason):
         fm.metrics[metric] = None
@@ -245,4 +245,15 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
             pe = round(market_cap_cr / owners, 2)
         fm.valuation = {"pe": pe, "pb": pb, "pe_reason": pe_reason, "pb_reason": None if pb is not None else "NEGATIVE_EQUITY" if eq is not None else "CONCEPT_MISSING",
                         "market_cap_cr": market_cap_cr}
+    # ---- earnings-quality invalidation: affected earnings metrics become unavailable, never the whole company
+    inv = "REGULATORY_DEFERRAL_UNVERIFIED" if reg_state in ("material_gain", "material_loss", "unknown") else ("NON_CORE_INCOME_BASIS" if non_core_profit else None)
+    if inv:
+        for m in ("profit_growth", "roe", "roce", "interest_coverage"):
+            if fm.metrics.get(m) is not None and not (m == "roe" and fm.reasons.get("roe") == "NEGATIVE_EQUITY"):
+                fm.metrics[m] = None
+                fm.reasons[m] = inv
+        if fm.valuation.get("pe") is not None:
+            fm.valuation["pe"] = None
+            fm.valuation["pe_reason"] = inv
+    fm.flags["earnings_basis_invalid_reason"] = inv
     return fm
