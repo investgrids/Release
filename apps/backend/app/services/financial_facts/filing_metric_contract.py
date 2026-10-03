@@ -47,7 +47,7 @@ FRESH_DAYS = 456
 UNRESOLVED_CASES = {"KNRCON", "VEDL", "TRANSWORLD", "PRINCEPIPE"}
 REASONS = (
     "UNVERIFIED_UNAUDITED", "NO_FILING", "EXCEPTIONAL_GAIN_REVIEW", "EXCEPTIONAL_MATERIAL", "COMPARATIVE_MAY_BE_RESTATED",
-    "NO_COMPARABLE_PRIOR", "CONCEPT_MISSING", "CAPITAL_EMPLOYED_NOT_POSITIVE", "NO_FINANCE_COSTS", "OWNERS_PROFIT_UNRELIABLE",
+    "NO_COMPARABLE_PRIOR", "CONCEPT_MISSING", "CAPITAL_EMPLOYED_NOT_POSITIVE", "NO_FINANCE_COSTS", "OWNERS_PROFIT_SOURCE_GAP",
     "NEGATIVE_EQUITY", "NO_MARKET_CAP", "PROFIT_NOT_POSITIVE", "UNRESOLVED_REVIEW",
 )
 SCORED = ("revenue_growth", "profit_growth", "roe", "roce", "debt_to_equity", "interest_coverage")
@@ -160,7 +160,7 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
     elif material:
         na("roe", "EXCEPTIONAL_MATERIAL")
     elif owners is None:
-        na("roe", "OWNERS_PROFIT_UNRELIABLE")
+        na("roe", "OWNERS_PROFIT_SOURCE_GAP")
     else:
         fm.metrics["roe"] = round(owners / eq * 100, 2)
     # ROCE and interest coverage on EBIT before exceptional items
@@ -192,7 +192,7 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
         pb = round(market_cap_cr / eq, 3) if eq and eq > 0 else None
         pe, pe_reason = None, None
         if owners is None:
-            pe_reason = "OWNERS_PROFIT_UNRELIABLE"
+            pe_reason = "OWNERS_PROFIT_SOURCE_GAP"
         elif material:
             pe_reason = "EXCEPTIONAL_MATERIAL"
         elif owners <= 0 or pbet is None or pbet <= 0:
