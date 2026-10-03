@@ -80,5 +80,8 @@ def score_group(members: list[str], fm: dict, mb: dict, pool_statuses: tuple = U
                 score = round(float(Fraction(fs).limit_denominator(10**6) * Fraction(8, 15) + Fraction(val).limit_denominator(10**6) * Fraction(4, 15)
                                     + Fraction(mb[s]).limit_denominator(10**6) * Fraction(3, 15)), 1)
                 r.update(state="scored", score=score, rating=band(score), coverage=round(cov, 1))
+                if (f.get("flags") or {}).get("adjusted_label"):
+                    r["metadata_flags"] = [f["flags"]["adjusted_label"]]
+                    r["rule_tags"] = list(f["flags"].get("rule_tags") or [])
         out[s] = r
     return out

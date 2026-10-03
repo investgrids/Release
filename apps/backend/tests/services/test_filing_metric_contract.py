@@ -238,3 +238,38 @@ def test_missing_fullyear_statement_is_unverified_whatever_the_listing_says(tmp_
     for flag in ("Un-Audited", "Audited"):
         ex = nif.extract(_ref(flag), raw_dir=d)
         assert ex.annual_status == "unverified_unaudited" and ex.audit_source == "missing_statement"
+
+
+# ---- V2-Rule-4A (exceptional loss bypass) and V2-Rule-4B (windfall review) ----
+def _exc(exc, tax=10, owners=40, **over):
+    f = dict(BASE, ExceptionalItemsBeforeTax=exc, ProfitBeforeTax=100 + exc, TaxExpense=tax, ProfitLossForPeriod=owners, ProfitOrLossAttributableToOwnersOfParent=owners)
+    f.update(over)
+    return fmc.compute("T", _ex(f), None, 1000.0, today=date(2026, 10, 3))
+
+
+def test_rule_4a_exceptional_loss_adds_back_net_of_effective_tax_and_is_labelled():
+    fm = _exc(-50)                       # loss 50 of PBET 100 = material; PBT 50, tax 10 -> rate 20%
+    assert fm.status == "ok" and fm.values["exceptional_loss_tax_rate"] == 0.2
+    assert fm.values["owners_profit_pre_exceptional"] == 80.0       # 40 + 50 x 0.8
+    assert fm.metrics["roe"] == 16.0 and fm.valuation["pe"] == 12.5  # 80/500; 1000/80
+    assert fm.flags["adjusted_label"] == fmc.ADJUSTED_LABEL and fm.flags["rule_tags"] == [fmc.RULE_4A]
+
+
+def test_rule_4a_tax_rate_is_capped_at_30_percent():
+    fm = _exc(-50, tax=45)               # 45/50 = 90% -> capped
+    assert fm.values["exceptional_loss_tax_rate"] == 0.3 and fm.values["owners_profit_pre_exceptional"] == 75.0
+
+
+def test_rule_4a_needs_owners_profit_and_ignores_immaterial_items():
+    f = dict(BASE, ExceptionalItemsBeforeTax=-50, ProfitBeforeTax=50)
+    f.pop("ProfitOrLossAttributableToOwnersOfParent"); f.pop("EquityAttributableToOwnersOfParent")
+    fm = fmc.compute("T", _ex(f, scope="Standalone"), None, 1000.0, today=date(2026, 10, 3))
+    assert fm.flags["rule_4a_exceptional_loss_bypass"] is True      # standalone: total profit is owners' profit
+    fm2 = _exc(-2)                                                  # immaterial: ordinary rule, no label
+    assert fm2.flags["adjusted_label"] is None and fm2.metrics["roe"] == round(40 / 500 * 100, 2)
+
+
+def test_rule_4b_material_gain_stays_under_review_and_unscored():
+    fm = _exc(60, ProfitBeforeTax=160)
+    assert fm.status == "EXCEPTIONAL_GAIN_REVIEW" and fm.flags["rule_tags"] == [fmc.RULE_4B] and fm.flags["adjusted_label"] is None
+    assert fm.metrics["roe"] is None and fm.valuation["pe"] is None

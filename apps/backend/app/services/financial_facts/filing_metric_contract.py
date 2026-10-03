@@ -54,6 +54,12 @@ CONTRACT_VERSION = "NSE_FILING_METRICS_V1"
 CR_UNIT = 1.0e7
 EXCEPTIONAL_MATERIAL_PCT = 10.0
 EXCEPTIONAL_REVENUE_FLOOR_PCT = 0.5   # a near-zero profit base never makes a tiny item material
+# V2-Rule-4A: a material exceptional LOSS no longer blocks ROE / P/E; they are computed on owners' profit with the loss added back net of tax
+# at the company's effective tax rate (hard-capped). V2-Rule-4B: a material exceptional GAIN stays under review and out of scoring.
+RULE_4A = "V2-Rule-4A-ExceptionalLossBypass"
+RULE_4B = "V2-Rule-4B-WindfallReview"
+EXCEPTIONAL_LOSS_TAX_CAP = 0.30
+ADJUSTED_LABEL = "[Core Earnings / Pre-Exceptional Adjusted]"
 FRESH_DAYS = 456
 UNRESOLVED_CASES = {"KNRCON", "VEDL", "TRANSWORLD", "PRINCEPIPE"}
 REASONS = (
@@ -145,6 +151,14 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
                  "pre_exceptional_pretax": pbet, "exceptional_items": exc, "profit_before_tax": pbt, "finance_costs": fin, "assets": assets,
                  "current_liabilities": cl, "owners_equity": eq, "borrowings": debt_total, "borrowings_basis": debt_basis if debt_total is not None else None}
     material, gain, mat_rule = exceptional_materiality(exc, pbt, pbet, rev)
+    # Rule 4A: adjusted owners' profit = owners' profit + exceptional loss x (1 - effective tax rate), rate = tax / PBT clamped to [0, cap]
+    loss_bypass = bool(material and not gain and exc is not None and exc < 0 and owners is not None)
+    tax_rate, adj_owners = 0.0, None
+    if loss_bypass:
+        tax = _c(ex, "TaxExpense")
+        if pbt is not None and pbt > 0 and tax is not None:
+            tax_rate = max(0.0, min(tax / pbt, EXCEPTIONAL_LOSS_TAX_CAP))
+        adj_owners = round(owners - exc * (1 - tax_rate), 2)
     # ---- income quality outside the exceptional line
     oi = _c(ex, "OtherIncome") or 0.0
     assoc = _c(ex, "ShareOfProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod") or 0.0
@@ -209,14 +223,14 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
         na("roe", "CONCEPT_MISSING")
     elif eq <= 0:
         fm.metrics["roe"] = WORST["roe"]; fm.reasons["roe"] = "NEGATIVE_EQUITY"
-    elif material:
+    elif material and not loss_bypass:
         na("roe", "EXCEPTIONAL_MATERIAL")
     elif reg_state == "material_loss":
         na("roe", "REGULATORY_DEFERRAL_MATERIAL")
     elif owners is None:
         na("roe", "OWNERS_PROFIT_SOURCE_GAP")
     else:
-        fm.metrics["roe"] = round(owners / eq * 100, 2)
+        fm.metrics["roe"] = round((adj_owners if loss_bypass else owners) / eq * 100, 2)
     # ROCE and interest coverage on EBIT before exceptional items
     ebit = None if pbet is None or fin is None else pbet + fin
     if ebit is None or assets is None or cl is None:
@@ -247,14 +261,14 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
         pe, pe_reason = None, None
         if owners is None:
             pe_reason = "OWNERS_PROFIT_SOURCE_GAP"
-        elif material:
+        elif material and not loss_bypass:
             pe_reason = "EXCEPTIONAL_MATERIAL"
         elif reg_state == "material_loss":
             pe_reason = "REGULATORY_DEFERRAL_MATERIAL"
-        elif owners <= 0 or pbet is None or pbet <= 0:
+        elif (adj_owners if loss_bypass else owners) <= 0 or pbet is None or pbet <= 0:
             pe_reason = "PROFIT_NOT_POSITIVE"
         else:
-            pe = round(market_cap_cr / owners, 2)
+            pe = round(market_cap_cr / (adj_owners if loss_bypass else owners), 2)
         fm.valuation = {"pe": pe, "pb": pb, "pe_reason": pe_reason, "pb_reason": None if pb is not None else "NEGATIVE_EQUITY" if eq is not None else "CONCEPT_MISSING",
                         "market_cap_cr": market_cap_cr}
     # ---- earnings-quality invalidation: affected earnings metrics become unavailable, never the whole company
@@ -268,4 +282,11 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
             fm.valuation["pe"] = None
             fm.valuation["pe_reason"] = inv
     fm.flags["earnings_basis_invalid_reason"] = inv
+    used_4a = loss_bypass and (fm.metrics.get("roe") is not None or fm.valuation.get("pe") is not None)
+    fm.flags.update({"rule_4a_exceptional_loss_bypass": bool(used_4a), "rule_4b_windfall_review": bool(gain),
+                     "adjusted_label": ADJUSTED_LABEL if used_4a else None,
+                     "rule_tags": ([RULE_4A] if used_4a else []) + ([RULE_4B] if gain else [])})
+    if used_4a:
+        fm.values["owners_profit_pre_exceptional"] = adj_owners
+        fm.values["exceptional_loss_tax_rate"] = round(tax_rate, 4)
     return fm
