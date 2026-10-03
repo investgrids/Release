@@ -46,8 +46,9 @@ FLOW_CONCEPTS = (
     "ProfitBeforeExceptionalItemsAndTax", "ExceptionalItemsBeforeTax", "ProfitBeforeTax", "TaxExpense",
     "ShareOfProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod",
     "ProfitLossForPeriod", "ProfitLossForPeriodFromContinuingOperations",
+    "ProfitOrLossAttributableToOwnersOfParent", "ProfitOrLossAttributableToNonControllingInterests",
     "ComprehensiveIncomeForThePeriod", "ComprehensiveIncomeForThePeriodAttributableToOwnersOfParent",
-)  # NB: the filing has no profit-attributable-to-owners concept; only total profit and comprehensive income splits
+)  # owners' profit is a non-dimensional in-capmkt concept, populated only by some filings (not e.g. SYRMA's)
 INSTANT_CONCEPTS = (
     "Assets", "Equity", "EquityAttributableToOwnersOfParent", "CurrentLiabilities",
     "BorrowingsCurrent", "BorrowingsNoncurrent", "EquityAndLiabilities",
@@ -112,6 +113,7 @@ class FilingExtract:
     facts: dict[str, ExtractedFact] = field(default_factory=dict)       # current fiscal year / period end
     prior: dict[str, ExtractedFact] = field(default_factory=dict)       # prior fiscal year comparatives
     missing: list[str] = field(default_factory=list)
+    annual_status: str = ""  # "audited" | "unverified_unaudited": a year-end filing is not treated as audited unless it is
 
 
 def list_filings(symbol: str, session: requests.Session | None = None) -> list[dict]:
@@ -226,6 +228,7 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
             elif end == prior_end:
                 ex.prior.setdefault(name, fact)
     ex.missing = [c for c in CORE_CONCEPTS if c not in ex.facts]
+    ex.annual_status = "audited" if ref.audited == "Audited" else "unverified_unaudited"
     return ex
 
 
