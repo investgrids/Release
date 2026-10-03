@@ -101,17 +101,17 @@ async def _get_sector_rankings(db: AsyncSession, sector: str, universe: list[str
             })
             continue
 
-        if not proj.get("publishable"):
-            unavailable.append({
-                "symbol": symbol, "company_name": company_name, "reason": "publication_locked",
-                "message": "This score exists but has not been approved for publication yet.",
-            })
-            continue
-
         if not proj.get("eligible"):
             unavailable.append({
                 "symbol": symbol, "company_name": company_name, "reason": "ineligible",
                 "message": proj.get("block_message") or "This company does not yet meet the publication bar.",
+            })
+            continue
+
+        if not proj.get("publishable"):
+            unavailable.append({
+                "symbol": symbol, "company_name": company_name, "reason": "publication_locked",
+                "message": "This score exists but has not been approved for publication yet.",
             })
             continue
 

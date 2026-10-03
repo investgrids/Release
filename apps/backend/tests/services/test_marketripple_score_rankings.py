@@ -231,3 +231,25 @@ async def test_ranked_row_matches_the_same_symbol_s_company_page_projection_exac
         assert row["calculated_at"] == company_page_projection["calculated_at"]
     finally:
         await _cleanup([tag])
+
+
+@pytest.mark.asyncio
+async def test_thin_market_history_reports_its_own_reason_not_publication_locked():
+    """HEG (2026-10-03): a published snapshot hidden by the market-behaviour
+    floor must say why, not "not approved for publication"."""
+    tag = "ICICIBANK"  # a real symbol in ALL_ELIGIBLE_NSE_BANKS
+    snap = _snapshot(tag, score=59.7, publishable=True, block_reasons=[])
+    snap.market_behaviour_coverage_pct = 25.0
+    async with AsyncSessionLocal() as db:
+        await _seed_entity(db, tag)
+        db.add(snap)
+        await db.commit()
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await get_banking_rankings(db)
+        assert tag not in {r["symbol"] for r in result["ranked"]}
+        row = next(r for r in result["unavailable"] if r["symbol"] == tag)
+        assert row["reason"] == "ineligible"
+        assert "price history" in row["message"]
+    finally:
+        await _cleanup([tag])
