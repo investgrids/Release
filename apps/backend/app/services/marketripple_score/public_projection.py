@@ -93,6 +93,24 @@ def is_publicly_published(snap) -> bool:
     )
 
 
+def public_block_reasons(snap) -> list[str]:
+    """Stored block reasons plus the shared public gates (data quality, market
+    history, corporate-action hold) — exactly what the Company page applies,
+    so Rankings can never disagree with it."""
+    from app.services.marketripple_score.corporate_action_holds import REASON_CORPORATE_ACTION_HOLD, score_hold_for
+    from app.services.marketripple_score.data_quality import snapshot_data_quality_reasons
+    from app.services.marketripple_score.market_behaviour import snapshot_lacks_market_history
+
+    reasons = list(snap.publication_block_reasons or [])
+    if snap.publishable:
+        reasons += [r for r in snapshot_data_quality_reasons(snap) if r not in reasons]
+        if snapshot_lacks_market_history(snap) and REASON_INSUFFICIENT_MARKET_HISTORY not in reasons:
+            reasons.append(REASON_INSUFFICIENT_MARKET_HISTORY)
+    if score_hold_for(getattr(snap, "symbol", None)) is not None and REASON_CORPORATE_ACTION_HOLD not in reasons:
+        reasons.append(REASON_CORPORATE_ACTION_HOLD)
+    return reasons
+
+
 def _public_block_message(reasons: list[str]) -> tuple[str, str] | None:
     for code in _REASON_PRIORITY:
         if code in reasons:
@@ -109,9 +127,12 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
     from app.services.company_identity.qualification import resolve_entity_by_any_symbol
     from app.services.marketripple_score.snapshot import get_latest_snapshot
 
+    from app.services.marketripple_score.coverage import coverage_fields, score_sector_for
+
     entity = await resolve_entity_by_any_symbol(db, raw_symbol)
     if entity is None:
-        return {"resolved": False, "symbol": raw_symbol.upper()}
+        return {"resolved": False, "symbol": raw_symbol.upper(), **coverage_fields(score_sector_for(raw_symbol), None)}
+    sector = score_sector_for(entity.symbol)
 
     # Always the real, canonical, current symbol — an alias/historical
     # request lands on the exact same record a current-symbol request
@@ -121,11 +142,14 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
     hold = score_hold_for(entity.symbol)
     snap = await get_latest_snapshot(db, entity.symbol)
     if snap is None:
-        base = {"resolved": True, "symbol": entity.symbol, "entity_id": entity.entity_id, "snapshot": False}
+        base = {"resolved": True, "symbol": entity.symbol, "entity_id": entity.entity_id, "snapshot": False,
+                **coverage_fields(sector, None)}
         if hold is not None:
             return {**base, "publishable": False, "eligible": False, "score": None, "rating": None,
                     "block_reason_codes": [REASON_CORPORATE_ACTION_HOLD],
-                    "block_headline": hold.headline, "block_message": hold.message}
+                    "block_headline": hold.headline, "block_message": hold.message,
+                    "coverage_state": "insufficient_data", "coverage_label": "Insufficient data",
+                    "coverage_message": hold.message}
         return base
 
     from app.services.marketripple_score.market_behaviour import snapshot_lacks_market_history
@@ -200,4 +224,5 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
         "block_reason_codes": reasons,
         "block_headline": block[0] if block else None,
         "block_message": block[1] if block else None,
+        **coverage_fields(sector, snap),
     }

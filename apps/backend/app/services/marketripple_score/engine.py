@@ -215,10 +215,10 @@ async def compute_marketripple_score(
     multiple coroutines. valuation/market_behaviour are pure yfinance and
     stay concurrent with each other."""
     import asyncio
-    from app.services.aipe.company_score_engine import _sector_for
+    from app.services.marketripple_score.coverage import score_sector_for
 
     symbol = symbol.upper()
-    sector = _sector_for(symbol)
+    sector = score_sector_for(symbol)  # curated sector, else source-labelled directory sector
     industrial_cache = industrial_cache or {}
 
     fs = await score_financial_strength(

@@ -4,7 +4,7 @@ Entry point for one MarketRipple Score refresh, run as its own process
 the admin endpoint and the weekly scheduler job). See refresh.py for why this
 must never run inside a web worker.
 
-Usage: python scripts/run_marketripple_score_refresh.py [--no-banks]
+Usage: python scripts/run_marketripple_score_refresh.py [--no-banks] [--sectors Technology,FMCG]
 """
 from __future__ import annotations
 
@@ -24,7 +24,8 @@ def main() -> None:
     lock = _lock_path()
     lock.write_text(str(os.getpid()))  # also covers a manual CLI run
     try:
-        asyncio.run(refresh_all_scores(include_banks="--no-banks" not in sys.argv))
+        sectors = sys.argv[sys.argv.index("--sectors") + 1].split(",") if "--sectors" in sys.argv else None
+        asyncio.run(refresh_all_scores(include_banks="--no-banks" not in sys.argv, sectors=sectors))
     finally:
         try:
             if lock.read_text().strip() == str(os.getpid()):

@@ -25,9 +25,9 @@ async def test_every_row_has_a_symbol_and_an_honest_status():
     assert len(result["companies"]) <= 50
     for row in result["companies"]:
         assert row["symbol"]
+        # 2026-10-03: one public state vocabulary (coverage.py).
         assert row["status"] in {
-            "ranked", "partial_coverage", "no_snapshot_computed_yet",
-            "publication_locked", "ineligible", "stale", "unsupported_sector", "not_yet_scored",
+            "ranked", "not_processed", "needs_refresh", "insufficient_data", "unsupported",
         }
         if row["status"] != "ranked":
             assert row["score"] is None, f"{row['symbol']} is not ranked but shows a score"
@@ -55,7 +55,7 @@ async def test_a_finance_or_insurance_company_reports_unsupported_sector_not_dro
             if found:
                 break
     assert found is not None, "expected at least one real Finance/Insurance company in the directory"
-    assert found["status"] == "unsupported_sector"
+    assert found["status"] == "unsupported"
     assert found["score"] is None
     assert found["rank"] is None
     assert found["message"]

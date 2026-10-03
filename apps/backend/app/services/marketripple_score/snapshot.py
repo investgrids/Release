@@ -72,6 +72,20 @@ async def compute_and_persist_snapshot(
     db: AsyncSession, symbol: str, peer_group: list[str] | None = None,
     industrial_cache: dict | None = None,
 ) -> MarketRippleScoreSnapshot:
+    """build_snapshot() + commit, one company at a time. The production refresh
+    uses build_snapshot() directly and commits a whole sector in ONE
+    transaction instead (see refresh.py)."""
+    snapshot = await build_snapshot(db, symbol, peer_group=peer_group, industrial_cache=industrial_cache)
+    db.add(snapshot)
+    await db.commit()
+    await db.refresh(snapshot)
+    return snapshot
+
+
+async def build_snapshot(
+    db: AsyncSession, symbol: str, peer_group: list[str] | None = None,
+    industrial_cache: dict | None = None,
+) -> MarketRippleScoreSnapshot:
     """Runs the real, frozen scoring engine and persists its output as a
     new snapshot row (never updates an existing row — history is kept,
     the read path always takes the latest by calculated_at). Real network
@@ -111,8 +125,8 @@ async def compute_and_persist_snapshot(
     # sector, not a leftover from the old two-methodology split. Peer
     # universe membership is the real, authoritative way to tell them
     # apart (methodology_version is now identical for both).
-    from app.services.aipe.company_score_engine import _sector_for
-    sector = _sector_for(symbol)
+    from app.services.marketripple_score.coverage import score_sector_for
+    sector = score_sector_for(symbol)
     is_banking = sector == "Banking"
     is_industrial = sector in NONBANK_INDUSTRIAL_SECTORS
 
@@ -218,10 +232,7 @@ async def compute_and_persist_snapshot(
         pillar_coverage_message=result.pillar_coverage_message,
         market_behaviour_inputs=(mkt.detail or {}).get("input_provenance") if mkt else None,
     )
-    db.add(snapshot)
-    await db.commit()
-    await db.refresh(snapshot)
-    return snapshot
+    return snapshot  # unsaved; the caller adds and commits
 
 
 async def get_latest_snapshot(db: AsyncSession, symbol: str) -> MarketRippleScoreSnapshot | None:

@@ -1,10 +1,13 @@
 """
 Production MarketRipple Score refresh (owner decision 2026-09-28: compute
-and publish). Computes and persists a fresh snapshot for every company the
-methodology supports — each NONBANK_INDUSTRIAL_SECTORS sector with the same
-shared-fetch pattern as scripts/s11_shared_fetch_sector_backfill.py (the
-sector's peer/benchmark data fetched once, not once per company), then every
-eligible NSE bank one by one (Banking's pillars take no shared cache).
+and publish). Candidates are every company in the real Companies directory
+whose sector the method supports (coverage.sector_candidates), not just the
+curated `_NSE_UNIVERSE` list. Each sector is computed with the shared-fetch
+pattern (its peer/benchmark data fetched once), every candidate is scored
+against the same full directory peer set, and the whole sector is committed
+in ONE transaction — readers never see a sector with mixed old/new peer
+sets, and a run that dies mid-sector writes nothing for it. Banks follow,
+against their own universe (Banking's pillars take no shared cache).
 
 Runs ONLY in its own OS process (scripts/run_marketripple_score_refresh.py),
 started by start_refresh_process(). The first production run executed inside
@@ -16,8 +19,8 @@ has its own interpreter and event loop, so the web workers stay responsive.
 Writes only new MarketRippleScoreSnapshot rows (insert-only, history kept);
 publishable is decided per row by engine.py + snapshot.py, never here.
 Per-company failures are recorded and never abort the run. A lock file keeps
-it to one run at a time; progress and the final summary are files on the
-persistent volume, so status survives worker restarts.
+it to one run at a time; progress and the final summary (with per-sector
+runtime, coverage and score movement) are files on the persistent volume.
 """
 from __future__ import annotations
 
@@ -102,14 +105,17 @@ def refresh_status() -> dict[str, Any]:
     }
 
 
-def start_refresh_process(include_banks: bool = True) -> dict[str, Any]:
-    """Start one refresh in a separate, low-priority process. Returns at once."""
+def start_refresh_process(include_banks: bool = True, sectors: list[str] | None = None) -> dict[str, Any]:
+    """Start one refresh in a separate, low-priority process. Returns at once.
+    `sectors` limits the run (e.g. a two-sector pilot); None = everything."""
     pid = _running_pid()
     if pid:
         return {"started": False, "reason": "a refresh is already running", "pid": pid}
     cmd = [sys.executable, "-u", "scripts/run_marketripple_score_refresh.py"]
     if not include_banks:
         cmd.append("--no-banks")
+    if sectors:
+        cmd += ["--sectors", ",".join(sectors)]
     log_file = open(_report_dir() / "last_run.log", "w", encoding="utf-8")  # noqa: SIM115 — owned by the child
     # Own session: signals aimed at the web worker's process group never reach
     # it. (Priority is lowered inside the script; preexec_fn is unsafe in a
@@ -122,8 +128,8 @@ def start_refresh_process(include_banks: bool = True) -> dict[str, Any]:
     proc = _proc = subprocess.Popen(cmd, **kwargs)
     log_file.close()
     _lock_path().write_text(str(proc.pid))
-    log.info("marketripple_score.refresh.process_started", pid=proc.pid)
-    return {"started": True, "pid": proc.pid}
+    log.info("marketripple_score.refresh.process_started", pid=proc.pid, sectors=sectors)
+    return {"started": True, "pid": proc.pid, "sectors": sectors}
 
 
 def _bucket(snap) -> str:
@@ -134,22 +140,13 @@ def _bucket(snap) -> str:
     return "unusable"
 
 
-async def _persist(symbol: str, industrial_cache: dict | None, tally: dict) -> None:
-    from app.db.session import AsyncSessionLocal
-    from app.services.marketripple_score.snapshot import compute_and_persist_snapshot
-
-    try:
-        async with AsyncSessionLocal() as db:
-            snap = await compute_and_persist_snapshot(db, symbol, industrial_cache=industrial_cache)
-    except Exception as exc:  # one company never aborts the run
-        tally["errors"].append({"symbol": symbol, "error": f"{type(exc).__name__}: {exc}"[:300]})
-        return
+def _tally_snapshot(snap, tally: dict) -> None:
     tally[_bucket(snap)] += 1
     for reason in snap.publication_block_reasons or []:
         tally["block_reasons"][reason] = tally["block_reasons"].get(reason, 0) + 1
-    missing = [p for p in ("financial_strength", "valuation", "market_behaviour") if getattr(snap, p) is None]
-    for p in missing:
-        tally["missing_pillars"][p] = tally["missing_pillars"].get(p, 0) + 1
+    for p in ("financial_strength", "valuation", "market_behaviour"):
+        if getattr(snap, p) is None:
+            tally["missing_pillars"][p] = tally["missing_pillars"].get(p, 0) + 1
     if snap.publishable:
         tally["published"] += 1
         tally["ratings"][snap.rating or "?"] = tally["ratings"].get(snap.rating or "?", 0) + 1
@@ -163,27 +160,130 @@ def _progress(sector: str, symbol: str, tally: dict) -> None:
     })
 
 
-async def _refresh_sector(sector: str, tally: dict, market_cutoff_date: date | None = None) -> None:
+async def _previous_published(symbols: list[str]) -> dict[str, tuple[float, str | None]]:
+    """symbol -> (score, rating) of each company's current public score,
+    read before its sector is recomputed, to measure score movement."""
+    from app.db.session import AsyncSessionLocal
+    from app.services.marketripple_score.public_projection import is_publicly_published
+    from app.services.marketripple_score.snapshot import get_latest_snapshot
+
+    out: dict[str, tuple[float, str | None]] = {}
+    async with AsyncSessionLocal() as db:
+        for s in symbols:
+            snap = await get_latest_snapshot(db, s)
+            if snap is not None and is_publicly_published(snap) and snap.score is not None:
+                out[s] = (snap.score, snap.rating)
+    return out
+
+
+def _movement(before: dict[str, tuple[float, str | None]], built: list) -> dict[str, Any]:
+    """How previously-public scores moved: value, rating band, and position in
+    the sector's ranking (adding peers shifts ranks even when a score barely moves)."""
+    from app.services.marketripple_score.public_projection import is_publicly_published
+
+    after = {s.symbol: s for s in built if is_publicly_published(s) and s.score is not None}
+    order_before = sorted(before, key=lambda k: -before[k][0])
+    order_after = sorted(after, key=lambda k: -after[k].score)
+    rank_before = {k: i + 1 for i, k in enumerate(order_before)}
+    rank_after = {k: i + 1 for i, k in enumerate(order_after)}
+    deltas: list[float] = []
+    pct_shift: list[float] = []
+    rating_changes = 0
+    lost = [k for k in before if k in {s.symbol for s in built} and k not in after]
+    for sym, (score, rating) in before.items():
+        snap = after.get(sym)
+        if snap is None:
+            continue
+        deltas.append(abs(snap.score - score))
+        rating_changes += int(snap.rating != rating)
+        pct_shift.append(abs(rank_after[sym] / len(after) - rank_before[sym] / len(before)) * 100)
+    deltas.sort()
+    return {
+        "previously_public": len(before), "public_after": len(after),
+        "compared": len(deltas), "lost_public_score": len(lost), "lost_symbols": lost[:20],
+        "mean_abs_change": round(sum(deltas) / len(deltas), 2) if deltas else None,
+        "median_abs_change": round(deltas[len(deltas) // 2], 2) if deltas else None,
+        "max_abs_change": round(deltas[-1], 1) if deltas else None,
+        "rating_band_changes": rating_changes,
+        "mean_rank_position_shift_pct": round(sum(pct_shift) / len(pct_shift), 1) if pct_shift else None,
+        "max_rank_position_shift_pct": round(max(pct_shift), 1) if pct_shift else None,
+    }
+
+
+async def _build_and_commit(sector: str, symbols: list[str], peer_group: list[str] | None,
+                            cache: dict | None, tally: dict) -> dict[str, Any]:
+    """Build every company's snapshot, then commit the whole sector in ONE
+    transaction: readers see either the previous complete sector or the new
+    complete one, never a mix of peer sets. A crash mid-sector writes nothing."""
+    from app.db.session import AsyncSessionLocal
+    from app.services.marketripple_score.snapshot import build_snapshot
+
+    t0 = time.perf_counter()
+    before = await _previous_published(symbols)
+    built: list = []
+    errors = 0
+    async with AsyncSessionLocal() as db:
+        for symbol in symbols:
+            _progress(sector, symbol, tally)
+            tally["attempted"] += 1
+            try:
+                built.append(await build_snapshot(db, symbol, peer_group=peer_group, industrial_cache=cache))
+            except Exception as exc:  # one company never aborts the sector
+                errors += 1
+                tally["errors"].append({"symbol": symbol, "error": f"{type(exc).__name__}: {exc}"[:300]})
+            await asyncio.sleep(PAUSE_BETWEEN_COMPANIES_S)
+        db.add_all(built)
+        await db.commit()
+    for snap in built:
+        _tally_snapshot(snap, tally)
+    from collections import Counter
+
+    from app.services.marketripple_score.data_quality import snapshot_data_quality_reasons
+    from app.services.marketripple_score.public_projection import is_publicly_published
+
+    na: Counter = Counter()
+    for b in built:
+        if is_publicly_published(b):
+            continue
+        reasons = list(b.publication_block_reasons or []) + [r for r in snapshot_data_quality_reasons(b) if r not in (b.publication_block_reasons or [])]
+        if b.score is None and not reasons:
+            reasons = ["NO_HEADLINE_SCORE (a required pillar is missing)"]
+        for r in (reasons or ["NOT_PUBLISHABLE"]):
+            na[r] += 1
+    return {
+        "candidates": len(symbols),
+        "numeric": sum(1 for b in built if b.score is not None),
+        "published": sum(1 for b in built if is_publicly_published(b)),
+        "na_reasons": dict(na.most_common()),
+        "errors": errors,
+        "elapsed_s": round(time.perf_counter() - t0, 1),
+        "score_movement": _movement(before, built),
+    }
+
+
+async def _refresh_sector(
+    sector: str, universe: list[str], tally: dict, market_cutoff_date: date | None = None,
+) -> dict[str, Any] | None:
     from app.services.marketripple_score.financial_strength_industrial import prefetch_industrial_inputs
     from app.services.marketripple_score.market_behaviour import (
-        _NIFTY_TICKER, _SECTOR_ETFS, _SECTOR_LABEL_TO_ETF_KEY, _fetch_daily_close_observations_sync,
-        completed_session_cutoff_date,
+        _NIFTY_TICKER, _SECTOR_ETFS, _SECTOR_LABEL_TO_ETF_KEY,
     )
-    from app.services.marketripple_score.sector_universe import sector_peer_universe
+    from app.services.marketripple_score.market_behaviour import (
+        _fetch_daily_close_observations_sync, completed_session_cutoff_date,
+    )
     from app.services.marketripple_score.valuation import prefetch_valuation_snapshots
 
-    universe = sector_peer_universe(sector)
     if not universe:
-        return
+        return None
+    market_cutoff_date = market_cutoff_date or completed_session_cutoff_date()
+    t0 = time.perf_counter()
     _progress(sector, "(prefetching sector data)", tally)
     loop = asyncio.get_running_loop()
     sector_ticker = _SECTOR_ETFS.get(_SECTOR_LABEL_TO_ETF_KEY.get(sector, sector))
     tickers = [_NIFTY_TICKER] + ([sector_ticker] if sector_ticker else [])
-    # One cutoff and one benchmark retrieval time for the whole sector: every company in it
-    # is scored against the same completed sessions (today's candle is excluded until 16:00 IST).
-    market_cutoff_date = market_cutoff_date or completed_session_cutoff_date()
     observations = await asyncio.gather(*[
-        loop.run_in_executor(None, _fetch_daily_close_observations_sync, t) for t in tickers
+        loop.run_in_executor(None, _fetch_daily_close_observations_sync, ticker)
+        for ticker in tickers
     ])
     benchmarks_fetched_at = datetime.now(timezone.utc).isoformat()
     cache = {
@@ -193,43 +293,56 @@ async def _refresh_sector(sector: str, tally: dict, market_cutoff_date: date | N
         "market_cutoff_date": market_cutoff_date.isoformat(),
         "benchmarks_fetched_at": benchmarks_fetched_at,
     }
-    for symbol in universe:
-        _progress(sector, symbol, tally)
-        tally["attempted"] += 1
-        await _persist(symbol, cache, tally)
-        await asyncio.sleep(PAUSE_BETWEEN_COMPANIES_S)
+    prefetch_s = round(time.perf_counter() - t0, 1)
+    # Every candidate is scored against the same full directory peer set.
+    stats = await _build_and_commit(sector, universe, universe, cache, tally)
+    stats["prefetch_s"] = prefetch_s
+    stats["elapsed_s"] = round(time.perf_counter() - t0, 1)
+    return stats
 
 
-async def refresh_all_scores(include_banks: bool = True) -> dict[str, Any]:
-    """Run one full refresh in the CURRENT process. Call only from
-    scripts/run_marketripple_score_refresh.py (never from a web worker)."""
+async def refresh_all_scores(include_banks: bool = True, sectors: list[str] | None = None) -> dict[str, Any]:
+    """Run one refresh in the CURRENT process. Call only from
+    scripts/run_marketripple_score_refresh.py (never from a web worker).
+    `sectors` limits the run (e.g. a two-sector pilot); None = all."""
+    from app.db.session import AsyncSessionLocal
     from app.services.marketripple_score.banking_universe import ALL_ELIGIBLE_NSE_BANKS
-    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
-
-    started = datetime.now(timezone.utc)
+    from app.services.marketripple_score.coverage import sector_candidates
     from app.services.marketripple_score.market_behaviour import completed_session_cutoff_date
 
-    market_cutoff_date = completed_session_cutoff_date(started)  # one cutoff for the whole run
+    started = datetime.now(timezone.utc)
+    market_cutoff_date = completed_session_cutoff_date(started)
     t0 = time.perf_counter()
     tally: dict[str, Any] = {
         "attempted": 0, "numeric": 0, "partial": 0, "unusable": 0, "published": 0,
         "ratings": {}, "block_reasons": {}, "missing_pillars": {}, "errors": [], "sector_failures": [],
-        "market_cutoff_date": market_cutoff_date.isoformat(),
+        "sectors": {}, "requested_sectors": sectors,
     }
-    log.info("marketripple_score.refresh.start", sectors=len(NONBANK_INDUSTRIAL_SECTORS),
+    async with AsyncSessionLocal() as db:
+        candidates = await sector_candidates(db)
+    if sectors:
+        candidates = {s: v for s, v in candidates.items() if s in sectors}
+        include_banks = include_banks and "Banking" in sectors
+    log.info("marketripple_score.refresh.start", sectors=list(candidates),
+             candidates=sum(len(v) for v in candidates.values()),
              banks=len(ALL_ELIGIBLE_NSE_BANKS) if include_banks else 0)
     try:
-        for sector in NONBANK_INDUSTRIAL_SECTORS:
+        for sector, universe in candidates.items():
             try:
-                await _refresh_sector(sector, tally, market_cutoff_date)
+                stats = await _refresh_sector(sector, universe, tally, market_cutoff_date)
+                if stats:
+                    tally["sectors"][sector] = stats
             except Exception as exc:
                 tally["sector_failures"].append({"sector": sector, "error": f"{type(exc).__name__}: {exc}"[:300]})
         if include_banks:
-            for symbol in ALL_ELIGIBLE_NSE_BANKS:
-                _progress("Banking", symbol, tally)
-                tally["attempted"] += 1
-                await _persist(symbol, None, tally)
-                await asyncio.sleep(PAUSE_BETWEEN_COMPANIES_S)
+            # Banking's pillars take no shared cache; its peer group is its own universe.
+            banking_cache = {
+                "market_cutoff_date": market_cutoff_date.isoformat(),
+                "benchmarks_fetched_at": datetime.now(timezone.utc).isoformat(),
+            }
+            tally["sectors"]["Banking"] = await _build_and_commit(
+                "Banking", list(ALL_ELIGIBLE_NSE_BANKS), None, banking_cache, tally,
+            )
     finally:
         summary = {
             **tally,

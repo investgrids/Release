@@ -51,21 +51,17 @@ def test_stale_lock_does_not_block_a_new_run(tmp_reports, monkeypatch):
     calls = []
     monkeypatch.setattr(refresh.subprocess, "Popen", lambda cmd, **k: calls.append(cmd) or _FakeProc())
     result = refresh.start_refresh_process(include_banks=False)
-    assert result == {"started": True, "pid": 4242}
+    assert result == {"started": True, "pid": 4242, "sectors": None}
     assert calls[0][-2:] == ["scripts/run_marketripple_score_refresh.py", "--no-banks"]
     assert (tmp_reports / "running.lock").read_text() == "4242"
 
 
 @pytest.mark.asyncio
-async def test_sector_refresh_shares_dated_benchmarks_and_one_fixed_cutoff(tmp_reports, monkeypatch):
-    """Every company in a sector is scored against the same completed
-    sessions: benchmarks are fetched once, as dated closes, with one retrieval
-    time and the run's single cutoff date."""
+async def test_sector_refresh_shares_dated_benchmarks_and_fixed_cutoff(tmp_reports, monkeypatch):
     from datetime import date
 
     import app.services.marketripple_score.financial_strength_industrial as industrial
     import app.services.marketripple_score.market_behaviour as market_behaviour
-    import app.services.marketripple_score.sector_universe as sector_universe
     import app.services.marketripple_score.valuation as valuation
 
     async def _prefetch(_symbols):
@@ -79,24 +75,24 @@ async def test_sector_refresh_shares_dated_benchmarks_and_one_fixed_cutoff(tmp_r
 
     captured = {}
 
-    async def _persist(symbol, cache, _tally):
+    async def _build_and_commit(_sector, _symbols, _peer_group, cache, _tally):
         captured.update(cache)
+        return {"candidates": len(_symbols)}
 
     monkeypatch.setattr(industrial, "prefetch_industrial_inputs", _prefetch)
     monkeypatch.setattr(valuation, "prefetch_valuation_snapshots", _prefetch)
     monkeypatch.setattr(market_behaviour, "_fetch_daily_close_observations_sync", _fetch_observations)
-    monkeypatch.setattr(sector_universe, "sector_peer_universe", lambda _sector: ["TEST"])
-    monkeypatch.setattr(refresh, "_persist", _persist)
+    monkeypatch.setattr(refresh, "_build_and_commit", _build_and_commit)
 
-    async def _no_sleep(_):
-        return None
-    monkeypatch.setattr(refresh.asyncio, "sleep", _no_sleep)
-
-    await refresh._refresh_sector(
-        "Technology", {"attempted": 0, "published": 0, "errors": []}, market_cutoff_date=date(2026, 9, 29),
+    stats = await refresh._refresh_sector(
+        "Technology", ["TEST"], {"attempted": 0, "published": 0, "errors": []},
+        market_cutoff_date=date(2026, 9, 29),
     )
 
-    assert "^NSEI" in fetched
+    assert stats["candidates"] == 1
+    assert stats["prefetch_s"] >= 0.0
+    assert stats["elapsed_s"] >= stats["prefetch_s"]
+    assert fetched and "^NSEI" in fetched
     assert captured["benchmarks"]["^NSEI"] == [("2026-09-29", 123.45)]
     assert captured["market_cutoff_date"] == "2026-09-29"
     assert captured["benchmarks_fetched_at"]

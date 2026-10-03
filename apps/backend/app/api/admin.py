@@ -473,9 +473,18 @@ async def opportunity_v2_editorial_clear(
 # low-priority process (see refresh.py for why it must never run inside a
 # web worker) and returns immediately; poll the status endpoint.
 @router.post("/marketripple-score/refresh", dependencies=[Depends(require_admin_key)])
-async def marketripple_score_refresh(include_banks: bool = True):
+async def marketripple_score_refresh(include_banks: bool = True, sectors: str | None = None):
+    """sectors: optional comma list (e.g. a two-sector pilot); omitted = the whole cohort."""
+    from fastapi import HTTPException
+
     from app.services.marketripple_score.refresh import start_refresh_process
-    return start_refresh_process(include_banks=include_banks)
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
+
+    wanted = [s.strip() for s in sectors.split(",") if s.strip()] if sectors else None
+    unknown = [s for s in (wanted or []) if s not in NONBANK_INDUSTRIAL_SECTORS and s != "Banking"]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"unknown sector(s): {unknown}")
+    return start_refresh_process(include_banks=include_banks, sectors=wanted)
 
 
 @router.get("/marketripple-score/refresh/status", dependencies=[Depends(require_admin_key)])
