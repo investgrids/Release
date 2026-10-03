@@ -27,7 +27,7 @@ from functools import lru_cache
 from pathlib import Path
 
 GROUPED_SECTORS = {"Infrastructure"}
-REVIEW_SECTORS: set[str] = {"Infrastructure"}  # withheld until released by a deliberate change
+REVIEW_SECTORS: set[str] = set()  # Infrastructure released 2026-10-03 after the before/after review; add a sector here to withhold it
 
 _DATA = Path(__file__).resolve().parents[2] / "data" / "infrastructure_peer_groups.json"
 
