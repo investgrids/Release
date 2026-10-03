@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import delete
 
+from tests.services.data_quality_fixtures import FRESH_AS_OF, verified_inputs
 from app.db.models.company_entity import CompanyAlias, CompanyEntity
 from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
 from app.db.session import AsyncSessionLocal
@@ -25,7 +26,8 @@ def test_both_symbols_are_held_and_lookup_is_case_and_suffix_tolerant():
 
 
 def _snap(symbol, **kw):
-    base = dict(symbol=symbol, publishable=True, score=70.0, publication_block_reasons=[], market_behaviour_coverage_pct=100.0)
+    base = dict(symbol=symbol, publishable=True, score=70.0, publication_block_reasons=[], market_behaviour_coverage_pct=100.0,
+                financial_data_as_of=FRESH_AS_OF, market_behaviour_inputs=verified_inputs(symbol))
     base.update(kw)
     return SimpleNamespace(**base)
 

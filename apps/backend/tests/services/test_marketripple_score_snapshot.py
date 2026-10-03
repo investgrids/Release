@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import delete
 
+from tests.services.data_quality_fixtures import verified_inputs
 from app.db.models.financial_fact import FinancialFact
 from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
 from app.db.session import AsyncSessionLocal
@@ -199,7 +200,11 @@ async def _persist_with(monkeypatch, symbol, *, sector, publishable, reasons):
     import app.services.marketripple_score.eligibility as elig
     from app.services.marketripple_score import snapshot as snap_mod
 
-    async def _compute(*a, **k): return _headline_result(publishable)
+    async def _compute(*a, **k):
+        result = _headline_result(publishable)
+        # recorded, completed-session inputs for this symbol (what the data-quality gate checks)
+        result.pillars["market_behaviour"].detail = {"input_provenance": verified_inputs(symbol)}
+        return result
     async def _entity(*a, **k): return None
 
     class _Verdict:

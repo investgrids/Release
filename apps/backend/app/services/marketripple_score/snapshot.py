@@ -163,7 +163,18 @@ async def compute_and_persist_snapshot(
         if not pillar_has_sufficient_market_history(mkt):
             publication_block_reasons = [*(publication_block_reasons or []), REASON_INSUFFICIENT_MARKET_HISTORY]
 
+    from types import SimpleNamespace
+
     from app.services.marketripple_score.corporate_action_holds import REASON_CORPORATE_ACTION_HOLD, score_hold_for
+    from app.services.marketripple_score.data_quality import snapshot_data_quality_reasons
+
+    # Data-quality gate (see data_quality.py): stale financials / unverifiable inputs are never publishable.
+    if publication_policy_version is not None:
+        quality = snapshot_data_quality_reasons(SimpleNamespace(
+            symbol=symbol, financial_data_as_of=financial_data_as_of,
+            market_behaviour_inputs=(mkt.detail or {}).get("input_provenance") if mkt else None,
+        ))
+        publication_block_reasons = [*(publication_block_reasons or []), *[r for r in quality if r not in (publication_block_reasons or [])]]
 
     if score_hold_for(symbol) is not None:
         publication_block_reasons = [*(publication_block_reasons or []), REASON_CORPORATE_ACTION_HOLD]

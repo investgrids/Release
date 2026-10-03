@@ -16,6 +16,7 @@ from datetime import date, datetime, timezone
 import pytest
 from sqlalchemy import delete
 
+from tests.services.data_quality_fixtures import FRESH_AS_OF, verified_inputs
 from app.db.models.company_entity import CompanyAlias, CompanyEntity
 from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
 from app.db.session import AsyncSessionLocal
@@ -70,6 +71,7 @@ def _snapshot(symbol, entity_id, *, score, financial_strength, coverage_pct, fin
         publication_policy_version="BANKING_V1_P1", publication_block_reasons=block_reasons,
         pillar_coverage_status=pillar_coverage_status, pillar_coverage_message=pillar_coverage_message,
         market_behaviour_coverage_pct=market_behaviour_coverage_pct,
+        market_behaviour_inputs=verified_inputs(symbol),
     )
 
 
@@ -82,7 +84,7 @@ async def test_complete_eligible_bank_renders_real_score():
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=60.2, financial_strength=68.7, coverage_pct=83.3,
-                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          fin_metrics_used=7, financial_data_as_of=FRESH_AS_OF, block_reasons=[],
                           publishable=True))
         await db.commit()
 
@@ -107,7 +109,7 @@ async def test_partial_but_eligible_bank_renders_real_score():
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=57.7, financial_strength=71.8, coverage_pct=80.0,
-                          fin_metrics_used=6, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          fin_metrics_used=6, financial_data_as_of=FRESH_AS_OF, block_reasons=[],
                           publishable=True))
         await db.commit()
 
@@ -136,7 +138,7 @@ async def test_eligible_but_not_publishable_hides_real_score():
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=59.7, financial_strength=68.7, coverage_pct=83.3,
-                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          fin_metrics_used=7, financial_data_as_of=FRESH_AS_OF, block_reasons=[],
                           publishable=False))
         await db.commit()
 
@@ -190,7 +192,7 @@ async def test_evidence_thinness_block_shows_building_message():
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=50.8, financial_strength=64.0, coverage_pct=57.5,
-                          fin_metrics_used=6, financial_data_as_of="FY2025Q3",
+                          fin_metrics_used=6, financial_data_as_of=FRESH_AS_OF,
                           block_reasons=["INSUFFICIENT_OVERALL_COVERAGE"]))
         await db.commit()
 
@@ -213,7 +215,7 @@ async def test_alias_resolves_to_the_same_canonical_snapshot():
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, current_symbol, entity_id, old_symbol=old_symbol)
         db.add(_snapshot(current_symbol, entity_id, score=61.0, financial_strength=61.0, coverage_pct=77.8,
-                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          fin_metrics_used=7, financial_data_as_of=FRESH_AS_OF, block_reasons=[],
                           publishable=True))
         await db.commit()
 
@@ -234,7 +236,7 @@ async def test_partial_coverage_status_surfaces_when_publishable():
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=None, financial_strength=68.7, coverage_pct=60.0,
-                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          fin_metrics_used=7, financial_data_as_of=FRESH_AS_OF, block_reasons=[],
                           publishable=True, pillar_coverage_status="partial",
                           pillar_coverage_message="Partial coverage — 2 of 3 required pillars"))
         await db.commit()
@@ -257,7 +259,7 @@ async def test_pillar_coverage_status_hidden_when_not_publishable():
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=None, financial_strength=68.7, coverage_pct=60.0,
-                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          fin_metrics_used=7, financial_data_as_of=FRESH_AS_OF, block_reasons=[],
                           publishable=False, pillar_coverage_status="partial",
                           pillar_coverage_message="Partial coverage — 2 of 3 required pillars"))
         await db.commit()
@@ -304,7 +306,7 @@ async def test_published_snapshot_with_thin_market_history_is_hidden_heg():
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=59.7, financial_strength=47.7, coverage_pct=85.0,
-                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          fin_metrics_used=7, financial_data_as_of=FRESH_AS_OF, block_reasons=[],
                           publishable=True, market_behaviour_coverage_pct=25.0))
         await db.commit()
     try:
@@ -328,7 +330,7 @@ async def test_published_snapshot_with_three_of_four_market_components_stays_pub
     async with AsyncSessionLocal() as db:
         await _seed_entity(db, symbol, entity_id)
         db.add(_snapshot(symbol, entity_id, score=57.7, financial_strength=59.4, coverage_pct=100.0,
-                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          fin_metrics_used=7, financial_data_as_of=FRESH_AS_OF, block_reasons=[],
                           publishable=True, market_behaviour_coverage_pct=75.0))
         await db.commit()
     try:

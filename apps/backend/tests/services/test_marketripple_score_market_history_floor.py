@@ -6,6 +6,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+from tests.services.data_quality_fixtures import FRESH_AS_OF, verified_inputs
 from app.services.marketripple_score.contracts import PillarScore, PillarStatus
 from app.services.marketripple_score.market_behaviour import (
     pillar_has_sufficient_market_history, snapshot_lacks_market_history,
@@ -40,7 +41,8 @@ def test_missing_pillar_fails():
 
 
 def _snap(**kw):
-    base = dict(publishable=True, score=60.0, publication_block_reasons=[], market_behaviour_coverage_pct=100.0)
+    base = dict(publishable=True, score=60.0, publication_block_reasons=[], market_behaviour_coverage_pct=100.0,
+                symbol="X", financial_data_as_of=FRESH_AS_OF, market_behaviour_inputs=verified_inputs("X"))
     base.update(kw)
     return SimpleNamespace(**base)
 

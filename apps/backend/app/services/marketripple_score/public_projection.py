@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.marketripple_score.eligibility import (
     REASON_INSUFFICIENT_FINANCIAL_METRICS, REASON_INSUFFICIENT_OVERALL_COVERAGE,
-    REASON_INSUFFICIENT_MARKET_HISTORY, REASON_MISSING_REQUIRED_PILLAR,
+    REASON_INSUFFICIENT_MARKET_HISTORY, REASON_MARKET_INPUTS_UNVERIFIED, REASON_MISSING_REQUIRED_PILLAR,
     REASON_NO_ELIGIBLE_FINANCIAL_PERIOD, REASON_STALE_FINANCIAL_DATA,
 )
 
@@ -40,6 +40,7 @@ _REASON_PRIORITY: list[str] = [
     REASON_NO_ELIGIBLE_FINANCIAL_PERIOD,
     REASON_INSUFFICIENT_FINANCIAL_METRICS,
     REASON_STALE_FINANCIAL_DATA,
+    REASON_MARKET_INPUTS_UNVERIFIED,
     REASON_INSUFFICIENT_MARKET_HISTORY,
     REASON_INSUFFICIENT_OVERALL_COVERAGE,
 ]
@@ -63,7 +64,11 @@ _REASON_COPY: dict[str, tuple[str, str]] = {
     ),
     REASON_STALE_FINANCIAL_DATA: (
         "Financial data awaiting update",
-        "MarketRipple's financial data for this company is due for a refresh.",
+        "The latest financial statements MarketRipple has for this company are more than 15 months old, so its score is on hold until they are refreshed.",
+    ),
+    REASON_MARKET_INPUTS_UNVERIFIED: (
+        "Score being refreshed",
+        "MarketRipple is recalculating this score from the last completed trading session. It will reappear once the new calculation passes the publication checks.",
     ),
     REASON_INSUFFICIENT_OVERALL_COVERAGE: (
         "Evidence still building",
@@ -77,12 +82,14 @@ def is_publicly_published(snap) -> bool:
     the stored publishable flag AND the market-behaviour floor (which also
     hides snapshots published before that floor existed)."""
     from app.services.marketripple_score.corporate_action_holds import score_hold_for
+    from app.services.marketripple_score.data_quality import snapshot_data_quality_reasons
     from app.services.marketripple_score.market_behaviour import snapshot_lacks_market_history
 
     return (
         bool(snap.publishable)
         and not snapshot_lacks_market_history(snap)
         and score_hold_for(getattr(snap, "symbol", None)) is None
+        and not snapshot_data_quality_reasons(snap)
     )
 
 
@@ -128,6 +135,10 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
     # unpublished for another reason keeps that reason's own message.
     if snap.publishable and snapshot_lacks_market_history(snap) and REASON_INSUFFICIENT_MARKET_HISTORY not in reasons:
         reasons.append(REASON_INSUFFICIENT_MARKET_HISTORY)
+    if snap.publishable:
+        from app.services.marketripple_score.data_quality import snapshot_data_quality_reasons
+
+        reasons += [r for r in snapshot_data_quality_reasons(snap) if r not in reasons]
     if hold is not None and REASON_CORPORATE_ACTION_HOLD not in reasons:
         reasons.append(REASON_CORPORATE_ACTION_HOLD)
     eligible = len(reasons) == 0
