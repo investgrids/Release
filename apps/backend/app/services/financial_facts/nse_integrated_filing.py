@@ -268,15 +268,11 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
             elif end == prior_end:
                 ex.prior.setdefault(name, fact)
     ex.missing = [c for c in REQUIRED_CONCEPTS if c not in ex.facts]
-    # The listing's audited flag describes the filing's reporting quarter (Q4), not the year. The filing's own full-year context states the
-    # year's status; it governs when present. A missing statement falls back to the listing flag; a conflict is never treated as audited.
-    fy = (ex.xbrl_fullyear_audit or "").lower()
-    if fy:
-        ex.annual_status = "audited" if fy == "audited" and ref.audited in ("Audited", "Un-Audited", None, "") else "unverified_unaudited"
-        ex.audit_source = "xbrl_fullyear"
-    else:
-        ex.annual_status = "audited" if ref.audited == "Audited" else "unverified_unaudited"
-        ex.audit_source = "listing"
+    # The listing's audited flag describes the filing's reporting quarter, not the year, and has disagreed with the filing in the unsafe
+    # direction (listing Audited, full-year Unaudited). Only the filing's own full-year statement can make a year-end filing audited; a missing,
+    # Unaudited or conflicting statement means audit status is unverified. The listing flag is never used as a fallback.
+    ex.annual_status = "audited" if (ex.xbrl_fullyear_audit or "").lower() == "audited" else "unverified_unaudited"
+    ex.audit_source = "xbrl_fullyear" if ex.xbrl_fullyear_audit else "missing_statement"
     return ex
 
 

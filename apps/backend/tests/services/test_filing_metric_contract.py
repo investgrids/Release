@@ -233,7 +233,8 @@ def test_conflicting_fullyear_statements_fail_closed(tmp_path):
     assert ex.annual_status == "unverified_unaudited" and ex.xbrl_fullyear_audit == "AMBIGUOUS"
 
 
-def test_missing_fullyear_statement_falls_back_to_listing_flag(tmp_path):
+def test_missing_fullyear_statement_is_unverified_whatever_the_listing_says(tmp_path):
     d = _xbrl(tmp_path, "Unaudited", None)
-    assert nif.extract(_ref("Un-Audited"), raw_dir=d).annual_status == "unverified_unaudited"
-    assert nif.extract(_ref("Audited"), raw_dir=d).annual_status == "audited"
+    for flag in ("Un-Audited", "Audited"):
+        ex = nif.extract(_ref(flag), raw_dir=d)
+        assert ex.annual_status == "unverified_unaudited" and ex.audit_source == "missing_statement"
