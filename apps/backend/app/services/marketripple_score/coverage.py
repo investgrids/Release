@@ -72,10 +72,12 @@ async def sector_candidates(db: AsyncSession) -> dict[str, list[str]]:
     from app.api.companies import get_full_company_directory
     from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
 
+    from app.services.marketripple_score.peer_groups import GROUPED_SECTORS, unmatched_reason
+
     out: dict[str, set[str]] = {s: set() for s in NONBANK_INDUSTRIAL_SECTORS}
     for row in await get_full_company_directory(db):
         sector = score_sector_for(row["symbol"])
-        if sector in out:
+        if sector in out and not (sector in GROUPED_SECTORS and unmatched_reason(row["symbol"]) is not None):
             out[sector].add(row["symbol"])
     return {s: sorted(v) for s, v in out.items()}
 
@@ -93,7 +95,7 @@ def _date_label(dt: datetime | None) -> str:
     return dt.strftime("%d %b %Y") if dt else "an earlier date"
 
 
-def coverage_state(sector: str | None, snap: Any | None) -> tuple[str, str | None]:
+def coverage_state(sector: str | None, snap: Any | None, symbol: str | None = None) -> tuple[str, str | None]:
     """(state, public message) for one company from its latest snapshot."""
     from app.services.marketripple_score.public_projection import _public_block_message
 
@@ -103,6 +105,11 @@ def coverage_state(sector: str | None, snap: Any | None) -> tuple[str, str | Non
         return STATE_UNSUPPORTED, _NO_SECTOR_MESSAGE
     if not is_supported_sector(sector):
         return STATE_UNSUPPORTED, f"MarketRipple Score doesn't support the {sector} sector yet."
+    from app.services.marketripple_score.peer_groups import GROUPED_SECTORS, unmatched_reason
+
+    sym = symbol or getattr(snap, "symbol", None)
+    if sector in GROUPED_SECTORS and unmatched_reason(sym) is not None:
+        return STATE_UNSUPPORTED, f"No matching peer group: {unmatched_reason(sym)}"
     if snap is None:
         return STATE_NOT_PROCESSED, _NOT_PROCESSED_MESSAGE
     if is_stale(snap.calculated_at):
@@ -132,9 +139,9 @@ def coverage_state(sector: str | None, snap: Any | None) -> tuple[str, str | Non
     return state, block[1] if block else _MISSING_PILLAR_MESSAGE
 
 
-def coverage_fields(sector: str | None, snap: Any | None) -> dict[str, Any]:
+def coverage_fields(sector: str | None, snap: Any | None, symbol: str | None = None) -> dict[str, Any]:
     """The public coverage block every score response carries."""
-    state, message = coverage_state(sector, snap)
+    state, message = coverage_state(sector, snap, symbol)
     return {
         "coverage_state": state,
         "coverage_label": STATE_LABELS[state],
@@ -143,4 +150,5 @@ def coverage_fields(sector: str | None, snap: Any | None) -> dict[str, Any]:
         # The peer group the score was ranked against (percentile scores move when it changes).
         "peer_count": getattr(snap, "peer_universe_count", None) if snap is not None else None,
         "sector": sector,
+        "peer_group": getattr(snap, "peer_group", None) if snap is not None else None,
     }

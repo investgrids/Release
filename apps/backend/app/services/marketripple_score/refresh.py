@@ -210,28 +210,34 @@ def _movement(before: dict[str, tuple[float, str | None]], built: list) -> dict[
     }
 
 
-async def _build_and_commit(sector: str, symbols: list[str], peer_group: list[str] | None,
-                            cache: dict | None, tally: dict) -> dict[str, Any]:
-    """Build every company's snapshot, then commit the whole sector in ONE
-    transaction: readers see either the previous complete sector or the new
-    complete one, never a mix of peer sets. A crash mid-sector writes nothing."""
+async def _build_and_commit(sector: str, groups: list[tuple[str | None, list[str], list[str] | None, dict | None]],
+                            tally: dict) -> dict[str, Any]:
+    """Build every company's snapshot, each against its own peer group, then
+    commit the WHOLE sector (all groups) in ONE transaction: readers see either
+    the previous complete sector or the new complete one, never a mix of peer
+    definitions. A crash or any failed company writes nothing.
+
+    groups: (peer group name or None, members, peer list for the percentiles, shared fetch cache)."""
     from app.db.session import AsyncSessionLocal
     from app.services.marketripple_score.snapshot import build_snapshot
 
     t0 = time.perf_counter()
+    symbols = [m for _, members, _, _ in groups for m in members]
     before = await _previous_published(symbols)
     built: list = []
     errors = 0
     async with AsyncSessionLocal() as db:
-        for symbol in symbols:
-            _progress(sector, symbol, tally)
-            tally["attempted"] += 1
-            try:
-                built.append(await build_snapshot(db, symbol, peer_group=peer_group, industrial_cache=cache))
-            except Exception as exc:  # one company never aborts the sector
-                errors += 1
-                tally["errors"].append({"symbol": symbol, "error": f"{type(exc).__name__}: {exc}"[:300]})
-            await asyncio.sleep(PAUSE_BETWEEN_COMPANIES_S)
+        for group_name, members, peer_list, cache in groups:
+            for symbol in members:
+                _progress(sector if group_name is None else f"{sector} / {group_name}", symbol, tally)
+                tally["attempted"] += 1
+                try:
+                    built.append(await build_snapshot(db, symbol, peer_group=peer_list, industrial_cache=cache,
+                                                      peer_group_name=group_name))
+                except Exception as exc:  # one company never aborts the sector
+                    errors += 1
+                    tally["errors"].append({"symbol": symbol, "error": f"{type(exc).__name__}: {exc}"[:300]})
+                await asyncio.sleep(PAUSE_BETWEEN_COMPANIES_S)
         if errors:
             # All-or-nothing: a sector with ANY failed company is not switched, so
             # Rankings never mixes companies scored against different peer sets.
@@ -248,8 +254,14 @@ async def _build_and_commit(sector: str, symbols: list[str], peer_group: list[st
     from app.services.marketripple_score.public_projection import is_publicly_published
 
     na: Counter = Counter()
+    by_group: dict[str, dict[str, int]] = {}
     for b in built:
-        if is_publicly_published(b):
+        pub = is_publicly_published(b)
+        g = by_group.setdefault(b.peer_group or sector, {"candidates": 0, "numeric": 0, "published": 0})
+        g["candidates"] += 1
+        g["numeric"] += int(b.score is not None)
+        g["published"] += int(pub)
+        if pub:
             continue
         reasons = list(b.publication_block_reasons or []) + [r for r in snapshot_data_quality_reasons(b) if r not in (b.publication_block_reasons or [])]
         if b.score is None and not reasons:
@@ -261,6 +273,7 @@ async def _build_and_commit(sector: str, symbols: list[str], peer_group: list[st
         "committed": errors == 0,  # False = sector left untouched (see the all-or-nothing rule above)
         "numeric": sum(1 for b in built if b.score is not None),
         "published": sum(1 for b in built if is_publicly_published(b)),
+        "peer_groups": by_group,
         "na_reasons": dict(na.most_common()),
         "errors": errors,
         "elapsed_s": round(time.perf_counter() - t0, 1),
@@ -278,6 +291,7 @@ async def _refresh_sector(
     from app.services.marketripple_score.market_behaviour import (
         _fetch_daily_close_observations_sync, completed_session_cutoff_date,
     )
+    from app.services.marketripple_score.peer_groups import GROUPED_SECTORS, split_into_peer_groups
     from app.services.marketripple_score.valuation import prefetch_valuation_snapshots
 
     if not universe:
@@ -293,16 +307,20 @@ async def _refresh_sector(
         for ticker in tickers
     ])
     benchmarks_fetched_at = datetime.now(timezone.utc).isoformat()
-    cache = {
-        "financial_inputs": await prefetch_industrial_inputs(universe),
-        "valuation_snapshots": await prefetch_valuation_snapshots(universe),
-        "benchmarks": dict(zip(tickers, observations)),
-        "market_cutoff_date": market_cutoff_date.isoformat(),
-        "benchmarks_fetched_at": benchmarks_fetched_at,
-    }
+    # An ungrouped sector is one peer group; a grouped one (Infrastructure) is
+    # calculated group by group but committed together below.
+    groups = []
+    for name, members in split_into_peer_groups(sector, universe).items():
+        cache = {
+            "financial_inputs": await prefetch_industrial_inputs(members),
+            "valuation_snapshots": await prefetch_valuation_snapshots(members),
+            "benchmarks": dict(zip(tickers, observations)),
+            "market_cutoff_date": market_cutoff_date.isoformat(),
+            "benchmarks_fetched_at": benchmarks_fetched_at,
+        }
+        groups.append((name if sector in GROUPED_SECTORS else None, members, members, cache))
     prefetch_s = round(time.perf_counter() - t0, 1)
-    # Every candidate is scored against the same full directory peer set.
-    stats = await _build_and_commit(sector, universe, universe, cache, tally)
+    stats = await _build_and_commit(sector, groups, tally)
     stats["prefetch_s"] = prefetch_s
     stats["elapsed_s"] = round(time.perf_counter() - t0, 1)
     return stats
@@ -348,7 +366,7 @@ async def refresh_all_scores(include_banks: bool = True, sectors: list[str] | No
                 "benchmarks_fetched_at": datetime.now(timezone.utc).isoformat(),
             }
             tally["sectors"]["Banking"] = await _build_and_commit(
-                "Banking", list(ALL_ELIGIBLE_NSE_BANKS), None, banking_cache, tally,
+                "Banking", [(None, list(ALL_ELIGIBLE_NSE_BANKS), None, banking_cache)], tally,
             )
     finally:
         summary = {

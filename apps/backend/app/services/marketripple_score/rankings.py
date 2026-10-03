@@ -150,11 +150,27 @@ async def _get_sector_rankings(db: AsyncSession, sector: str, universe: list[str
             "symbol": symbol, "company_name": company_name,
             "score": snap.score, "rating": snap.rating,
             "coverage_pct": snap.coverage_pct, "calculated_at": calculated_at,
+            "peer_group": snap.peer_group,
         })
 
-    ranked.sort(key=lambda r: r["score"], reverse=True)
-    for i, row in enumerate(ranked):
-        row["rank"] = i + 1
+    from app.services.marketripple_score.peer_groups import GROUPED_SECTORS, peer_group_names
+
+    if sector in GROUPED_SECTORS:
+        # Ranked within the company's own peer group, never against the whole display sector.
+        order = peer_group_names()
+        ranked.sort(key=lambda r: (order.index(r["peer_group"]) if r["peer_group"] in order else len(order), -r["score"]))
+        totals: dict[str, int] = {}
+        for row in ranked:
+            totals[row["peer_group"]] = totals.get(row["peer_group"], 0) + 1
+        seen: dict[str, int] = {}
+        for row in ranked:
+            seen[row["peer_group"]] = seen.get(row["peer_group"], 0) + 1
+            row["rank"] = seen[row["peer_group"]]
+            row["group_total"] = totals[row["peer_group"]]
+    else:
+        ranked.sort(key=lambda r: r["score"], reverse=True)
+        for i, row in enumerate(ranked):
+            row["rank"] = i + 1
 
     local_preview_candidates.sort(key=lambda r: r["score"], reverse=True)
     local_preview_by_symbol = {
@@ -238,7 +254,8 @@ async def _build_all_companies_lookup(db: AsyncSession) -> dict[str, dict[str, A
             lookup[row["symbol"]] = {
                 "status": "ranked", "score": row["score"], "rating": row["rating"],
                 "coverage_pct": row["coverage_pct"], "calculated_at": row["calculated_at"],
-                "rank": row["rank"], "total_ranked_in_sector": total_ranked,
+                "rank": row["rank"], "total_ranked_in_sector": row.get("group_total", total_ranked),
+                "peer_group": row.get("peer_group"),
                 "message": None,
             }
         for row in result["partial_coverage"]:

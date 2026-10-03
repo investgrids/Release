@@ -91,7 +91,7 @@ function RankBadgeCell({ row }: { row: AllCompanyRankingRow }) {
   if (row.status === "ranked" && row.rank != null) {
     return (
       <span className="inline-flex items-center rounded-full border border-surface-border/10 bg-text-primary/[0.04] px-2 py-0.5 text-[11px] font-bold tabular-nums text-text-secondary">
-        #{row.rank}{row.totalRankedInSector ? ` of ${row.totalRankedInSector}` : ""}
+        #{row.rank}{row.totalRankedInSector ? ` of ${row.totalRankedInSector}` : ""}{row.peerGroup ? ` · ${row.peerGroup}` : ""}
       </span>
     );
   }

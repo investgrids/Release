@@ -67,6 +67,11 @@ class MarketRippleScoreSnapshot(Base):
     # by Market Behaviour; existing snapshots remain NULL.
     market_behaviour_inputs = Column(JSON, nullable=True)
 
+    # The peer group this score was ranked against inside a grouped display sector
+    # (peer_groups.py). NULL for ungrouped sectors and for snapshots computed before
+    # peer groups existed; those are never public in a grouped sector.
+    peer_group = Column(String(48), nullable=True)
+
     # S5-B (owner decision, 2026-08-25) — the real, direct count of the 7
     # currently-scoreable Financial Strength metrics actually used, read
     # straight from PillarScore.metrics_used at persist time. NOT derived

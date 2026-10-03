@@ -282,6 +282,7 @@ export interface MarketRippleScoreData {
   last_calculated_at?: string | null;
   peer_count?: number | null;
   sector?: string | null;
+  peer_group?: string | null;
 }
 
 function useMarketRippleScore(symbol: string) {
@@ -1528,7 +1529,7 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
         {updated && <span>Calculated {updated}</span>}
       </div>
       <p className="mt-2 text-[11px] leading-5 text-text-muted" data-testid="score-peer-note">
-        {data.peer_count && data.sector ? <>Ranked against {data.peer_count} {data.sector} companies. </> : null}
+        {data.peer_count && (data.peer_group || data.sector) ? <>Ranked against {data.peer_count} {data.peer_group ?? data.sector} companies. </> : null}
         Scores are relative to a sector&apos;s peers, so they can change when companies are added.{" "}
         <Link href="/methodology/marketripple-score#peer-groups-heading" className="text-sky-400 hover:text-sky-600 dark:text-sky-300">Why?</Link>
       </p>

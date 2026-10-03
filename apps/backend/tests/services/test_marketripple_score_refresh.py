@@ -75,9 +75,9 @@ async def test_sector_refresh_shares_dated_benchmarks_and_fixed_cutoff(tmp_repor
 
     captured = {}
 
-    async def _build_and_commit(_sector, _symbols, _peer_group, cache, _tally):
-        captured.update(cache)
-        return {"candidates": len(_symbols)}
+    async def _build_and_commit(_sector, groups, _tally):
+        captured.update(groups[0][3])
+        return {"candidates": len(groups[0][1])}
 
     monkeypatch.setattr(industrial, "prefetch_industrial_inputs", _prefetch)
     monkeypatch.setattr(valuation, "prefetch_valuation_snapshots", _prefetch)
@@ -110,7 +110,7 @@ async def test_sector_with_any_failed_company_commits_nothing(tmp_reports, monke
     from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
     from app.db.session import AsyncSessionLocal
 
-    async def _build(db, symbol, peer_group=None, industrial_cache=None):
+    async def _build(db, symbol, peer_group=None, industrial_cache=None, peer_group_name=None):
         if symbol == "ZBOOM":
             raise TypeError("'<' not supported between instances of 'str' and 'float'")
         return MarketRippleScoreSnapshot(
@@ -129,7 +129,7 @@ async def test_sector_with_any_failed_company_commits_nothing(tmp_reports, monke
 
     tally = {"attempted": 0, "published": 0, "errors": [], "numeric": 0, "partial": 0, "unusable": 0,
              "ratings": {}, "block_reasons": {}, "missing_pillars": {}}
-    stats = await refresh._build_and_commit("Metals", ["ZOK1", "ZBOOM", "ZOK2"], None, None, tally)
+    stats = await refresh._build_and_commit("Metals", [(None, ["ZOK1", "ZBOOM", "ZOK2"], None, None)], tally)
     assert stats["committed"] is False and stats["errors"] == 1
     async with AsyncSessionLocal() as db:
         rows = (await db.execute(select(MarketRippleScoreSnapshot).where(MarketRippleScoreSnapshot.symbol.in_(["ZOK1", "ZOK2", "ZBOOM"])))).scalars().all()

@@ -70,12 +70,13 @@ def _industrial_financial_data_as_of(fs) -> str | None:
 
 async def compute_and_persist_snapshot(
     db: AsyncSession, symbol: str, peer_group: list[str] | None = None,
-    industrial_cache: dict | None = None,
+    industrial_cache: dict | None = None, peer_group_name: str | None = None,
 ) -> MarketRippleScoreSnapshot:
     """build_snapshot() + commit, one company at a time. The production refresh
     uses build_snapshot() directly and commits a whole sector in ONE
     transaction instead (see refresh.py)."""
-    snapshot = await build_snapshot(db, symbol, peer_group=peer_group, industrial_cache=industrial_cache)
+    snapshot = await build_snapshot(db, symbol, peer_group=peer_group, industrial_cache=industrial_cache,
+                                    peer_group_name=peer_group_name)
     db.add(snapshot)
     await db.commit()
     await db.refresh(snapshot)
@@ -84,7 +85,7 @@ async def compute_and_persist_snapshot(
 
 async def build_snapshot(
     db: AsyncSession, symbol: str, peer_group: list[str] | None = None,
-    industrial_cache: dict | None = None,
+    industrial_cache: dict | None = None, peer_group_name: str | None = None,
 ) -> MarketRippleScoreSnapshot:
     """Runs the real, frozen scoring engine and persists its output as a
     new snapshot row (never updates an existing row — history is kept,
@@ -185,7 +186,7 @@ async def build_snapshot(
     # Data-quality gate (see data_quality.py): stale financials / unverifiable inputs are never publishable.
     if publication_policy_version is not None:
         quality = snapshot_data_quality_reasons(SimpleNamespace(
-            symbol=symbol, financial_data_as_of=financial_data_as_of,
+            symbol=symbol, financial_data_as_of=financial_data_as_of, peer_group=peer_group_name,
             market_behaviour_inputs=(mkt.detail or {}).get("input_provenance") if mkt else None,
         ))
         publication_block_reasons = [*(publication_block_reasons or []), *[r for r in quality if r not in (publication_block_reasons or [])]]
@@ -231,6 +232,7 @@ async def build_snapshot(
         pillar_coverage_status=result.pillar_coverage_status,
         pillar_coverage_message=result.pillar_coverage_message,
         market_behaviour_inputs=(mkt.detail or {}).get("input_provenance") if mkt else None,
+        peer_group=peer_group_name,
     )
     return snapshot  # unsaved; the caller adds and commits
 

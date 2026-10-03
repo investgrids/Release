@@ -132,6 +132,7 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     ("marketripple_score_snapshots", "pillar_coverage_status", "VARCHAR(16)"),
     ("marketripple_score_snapshots", "pillar_coverage_message", "TEXT"),
     ("marketripple_score_snapshots", "market_behaviour_inputs", "JSON"),
+    ("marketripple_score_snapshots", "peer_group", "VARCHAR(48)"),
 ]
 
 

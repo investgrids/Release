@@ -1,0 +1,1533 @@
+{
+ "_note": "Infrastructure peer groups (owner decision 2026-10-03). Each company assigned from its actual business; see peer_groups.py. Reconciles to 390 = assigned + unmatched.",
+ "groups": {
+  "Construction & Infrastructure": "Builders, EPC contractors and operators of roads, ports, airports, railways, water and urban infrastructure",
+  "Capital Goods": "Manufacturers of machinery, electrical and industrial equipment, cables, tools, building products and solar modules",
+  "Logistics & Transport": "Freight, logistics, shipping and transport operators"
+ },
+ "assignments": {
+  "A2ZINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "AARON": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "AARTECH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "ABB": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: power and automation products manufacturer"
+  },
+  "ABINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "ACCURACY": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "ACE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "ADANIPORTS": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: port developer and operator"
+  },
+  "ADOR": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "ADVAIT": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "AEPL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "AEQUS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "AFCONS": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "AFFORDABLE": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: automation and automated-parking equipment"
+  },
+  "AGL": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "AHLUCONT": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "AIAENG": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "AJAXENGG": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Farm & Heavy Construction Machinery'; business description consistent"
+  },
+  "AKASH": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "ALICON": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "ALLCARGO": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "ANUP": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "APARINDS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "APOLLO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "APOLLOPIPE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "ARDEE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "ARIS": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "AROGRANITE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "ASHOKA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "ASIANTILES": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "ASTRAL": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures pipes, fittings, tanks, adhesives"
+  },
+  "ASTRAMICRO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "ATALREAL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "ATAM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "ATL": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "ATLANTAA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Infrastructure Operations'; business description consistent"
+  },
+  "ATLANTAELE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "AVALON": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "AVG": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "AZAD": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "BALUFORGE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "BBL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "BCPL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Infrastructure Operations'; business description consistent"
+  },
+  "BEARDSELL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "BFUTILITIE": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Infrastructure Operations'; business description consistent"
+  },
+  "BGRENERGY": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "BHEL": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: power-plant equipment manufacturer"
+  },
+  "BIGBLOC": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "BIRLANU": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "BLKASHYAP": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "BORORENEW": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "BRNL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Infrastructure Operations'; business description consistent"
+  },
+  "CAPACITE": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "CARBORUNIV": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "CCCL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "CEIGALL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "CEINSYS": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "CEMPRO": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "CGPOWER": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: electrical equipment manufacturer"
+  },
+  "CMICABLES": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "CONCOR": {
+   "group": "Logistics & Transport",
+   "basis": "reviewed individually: container rail transport, handling and warehousing"
+  },
+  "CORDELIA": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Marine Shipping'; business description consistent"
+  },
+  "CORDSCABLE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "CPL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Farm & Heavy Construction Machinery'; business description consistent"
+  },
+  "CPPLUS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "CUMMINSIND": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: engines and generator sets manufacturer"
+  },
+  "DBEIL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "DBL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "DCM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "DEEDEV": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "DELHIVERY": {
+   "group": "Logistics & Transport",
+   "basis": "reviewed individually: express parcel and supply-chain logistics"
+  },
+  "DENORA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "DENTA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "DHRUV": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "DIACABS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "DIFFNKG": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "DPWIRES": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "DREDGECORP": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "DUCON": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: EPC contractor for flue-gas and pollution-control plants"
+  },
+  "DYCL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "DYNAMATECH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "EKC": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "ELECON": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "ELECTCAST": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "ELGIEQUIP": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "ELIN": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "EMMVEE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "EMSLIMITED": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "ENGINERSIN": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "ENRIN": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "EPACKPEB": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures prefabricated building solutions"
+  },
+  "EPL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "ESABINDIA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Tools & Accessories'; business description consistent"
+  },
+  "ESSARSHPNG": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Marine Shipping'; business description consistent"
+  },
+  "EUROBOND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "EVERESTIND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "EXICOM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "EXXARO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "FINCABLES": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "FINPIPE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "GALAPREC": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "GALLANTT": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "GANDHITUBE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "GANGAFORGE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "GARUDA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "GATEWAY": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "GAYAHWS": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Infrastructure Operations'; business description consistent"
+  },
+  "GEEKAYWIRE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "GENCON": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "GENUSPOWER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "GESHIP": {
+   "group": "Logistics & Transport",
+   "basis": "reviewed individually: ocean shipping (crude, product, dry bulk) plus offshore"
+  },
+  "GICL": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "GLOBALVECT": {
+   "group": "Logistics & Transport",
+   "basis": "reviewed individually: helicopter transport services"
+  },
+  "GLOBECIVIL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "GLOTTIS": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "GMMPFAUDLR": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "GMRAIRPORT": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: airport developer and operator"
+  },
+  "GPIL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "GPTINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "GRAPHITE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "GREAVESCOT": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "GRINDWELL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "GRINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "GRWRHITECH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "GUJAPOLLO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "GVPIL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "GVT&D": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "HAPPYFORGE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "HARDWYN": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "HARSHA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Tools & Accessories'; business description consistent"
+  },
+  "HBLENGINE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "HCC": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "HECPROJECT": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "HEGAM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "HGINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "HILINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Infrastructure Operations'; business description consistent"
+  },
+  "HILTON": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "HIRECT": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "HLEGLAS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "HMT": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Farm & Heavy Construction Machinery'; business description consistent"
+  },
+  "HONDAPOWER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "HPL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "ICEMAKE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "INA": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures solar modules"
+  },
+  "INDOFARM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Farm & Heavy Construction Machinery'; business description consistent"
+  },
+  "INDOMIM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "INDOTECH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "INOXWIND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "INTERARCH": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "INTLCONV": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "IRB": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: road BOT/toll developer"
+  },
+  "ISGEC": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "JASH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "JAYNECOIND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "JETFREIGHT": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "JINDALSAW": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "JITFINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: urban and water infrastructure projects"
+  },
+  "JKIL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "JNKINDIA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "JSWINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: port operator"
+  },
+  "JWL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "JYOTICNC": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "JYOTISTRUC": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures transmission towers and structures"
+  },
+  "KABRAEXTRU": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "KAUSHALYA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "KEC": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "KECL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "KEI": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: wires and cables manufacturer"
+  },
+  "KIRLOSBROS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "KIRLOSENG": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "KIRLOSIND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "KIRLPNU": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "KMEW": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Marine Shipping'; business description consistent"
+  },
+  "KNRCON": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "KPEL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "KPIL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "KRISHNADEF": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "KRITI": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "KRN": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "KSB": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "KSHINTL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "LASERPOWER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "LATTEYS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "LCL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "LEAPIND": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "LEXUS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "LLOYDSENGG": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "LMW": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "LOKESHMACH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "LT": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: EPC and infrastructure projects"
+  },
+  "MACPOWER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "MADHAV": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "MADHUCON": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "MAHESHWARI": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "MAHLOG": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "MAHSEAMLES": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "MAMATA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "MANAKCOAT": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "MANAKSIA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "MANINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "MANUGRAPH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "MARINE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "MARKOLINES": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Infrastructure Operations'; business description consistent"
+  },
+  "MARSONS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "MAZDA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "MBEL": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: designs and manufactures pre-engineered metal buildings"
+  },
+  "MBLINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "MEIL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "MIDHANI": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "MITCON": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "MMFL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "MODISONLTD": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "MTARTECH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "MVELECTRO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "NBCC": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: project management and EPC for government projects"
+  },
+  "NCC": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "NECCLTD": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Trucking'; business description consistent"
+  },
+  "NIBL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Tools & Accessories'; business description consistent"
+  },
+  "NIPPOBATRY": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "NIRAJ": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "NITCO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "NOIDATOLL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Infrastructure Operations'; business description consistent"
+  },
+  "OBCL": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Trucking'; business description consistent"
+  },
+  "OMFREIGHT": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "OMINFRAL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "OMNI": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "OMPOWER": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "ORIENTALTL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "ORIENTBELL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "OSWALPUMPS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "PARAS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "PATELENG": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "PATINTLOG": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "PENIND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "PIGL": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: electrical contracting works"
+  },
+  "PITTIENG": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "PLAZACABLE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "PNCINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "POKARNA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "POLYCAB": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: wires and cables manufacturer"
+  },
+  "POWERICA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "POWERINDIA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "POWERMECH": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "PPL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "PRAJIND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "PRECWIRE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "PREMIER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "PREMIERENE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "PRINCEPIPE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "PRITIKAUTO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "PROSTARM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "PSPPROJECT": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "PTCIL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "QPOWER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "QUADFUTURE": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: train control and signalling equipment"
+  },
+  "RAJOOENG": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "RAMCOIND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "RAMKY": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "RAMRAT": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "RATNAMANI": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "RAYMOND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "REGENCERAM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "RELTD": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: solar pump supply and solar power-plant projects"
+  },
+  "RHIM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "RITCO": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "RITES": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: engineering consultancy and projects for railways, highways, airports, ports"
+  },
+  "RKEC": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "RMC": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "RMDRIP": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures micro-irrigation equipment"
+  },
+  "ROLEXRINGS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "ROTO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "RPPINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "RRKABEL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "RVTH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Farm & Heavy Construction Machinery'; business description consistent"
+  },
+  "S&SPOWER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "SAATVIKGL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "SADBHAV": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "SADBHIN": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "SALZERELEC": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "SBCL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "SCHNEIDER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "SCI": {
+   "group": "Logistics & Transport",
+   "basis": "reviewed individually: liner and bulk shipping"
+  },
+  "SEAMECLTD": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Marine Shipping'; business description consistent"
+  },
+  "SEJALLTD": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "SEMAC": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "SEPC": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "SERVOTECH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "SETL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "SGIL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "SHADOWFAX": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "SHAKTIPUMP": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "SHANTIGEAR": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "SHILCTECH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "SHREEJISPG": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Marine Shipping'; business description consistent"
+  },
+  "SHYAMMETL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "SICALLOG": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "SIEMENS": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: industrial/energy equipment and systems manufacturer"
+  },
+  "SIMPLEXINF": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "SKFINDUS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "SKIL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "SKIPPER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "SMLMAH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "SMLT": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "SNOWMAN": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "SOLARWORLD": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: solar EPC and operations and maintenance"
+  },
+  "SOLEX": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures solar PV modules"
+  },
+  "SOMANYCERA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "SOMICONVEY": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "SPECTRUM": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "SPMLINFRA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "SRM": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "STERTOOLS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Tools & Accessories'; business description consistent"
+  },
+  "SUBROS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "SUPREMEIND": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: plastic piping and products manufacturer"
+  },
+  "SUPREMEINF": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "SURANASOL": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures solar panels"
+  },
+  "SURYAROSNI": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "SVLL": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Trucking'; business description consistent"
+  },
+  "SWELECTES": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures solar mounting structures and inverters"
+  },
+  "SWSOLAR": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "TARAPUR": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "TARIL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "TARMAT": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "TCI": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "TCIEXP": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "TDPOWERSYS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "TECHNOCRAF": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Infrastructure Operations'; business description consistent"
+  },
+  "TECHNOE": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "TEGA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "TEMBO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "TEXMOPIPES": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "TEXRAIL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "THEJO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "THERMAX": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: boilers and industrial equipment manufacturer"
+  },
+  "TICL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "TIGERLOGS": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "TIIL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Tools & Accessories'; business description consistent"
+  },
+  "TIJARIA": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "TIMETECHNO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "TIMKEN": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "TIRUPATIFL": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Metal Fabrication'; business description consistent"
+  },
+  "TITAGARH": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "TMCV": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "TOTAL": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "TPHQ": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "TRANSRAILL": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: describes itself as an EPC company (transmission and distribution)"
+  },
+  "TRANSWORLD": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Marine Shipping'; business description consistent"
+  },
+  "TRF": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "TRITURBINE": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "UNIPARTS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Farm & Heavy Construction Machinery'; business description consistent"
+  },
+  "UNIVASTU": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "URJA": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: design, integration, installation and commissioning of solar plants"
+  },
+  "USHAMART": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "USK": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "UTLSOLAR": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "VASCONEQ": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "VETO": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "VIDYAWIRES": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Electrical Equipment & Parts'; business description consistent"
+  },
+  "VIKRAMSOLR": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures solar PV modules"
+  },
+  "VIKRAN": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "VINDHYATEL": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: cable manufacturer"
+  },
+  "VISAKAIND": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Building Products & Equipment'; business description consistent"
+  },
+  "VIVIANA": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "VPRPL": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "VRLLOG": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Trucking'; business description consistent"
+  },
+  "VSTTILLERS": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Farm & Heavy Construction Machinery'; business description consistent"
+  },
+  "WAAREEENER": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "WAAREEINDO": {
+   "group": "Capital Goods",
+   "basis": "reviewed individually: manufactures solar PV modules"
+  },
+  "WAAREERTL": {
+   "group": "Construction & Infrastructure",
+   "basis": "reviewed individually: solar EPC and power-plant projects"
+  },
+  "WCIL": {
+   "group": "Logistics & Transport",
+   "basis": "industry label 'Integrated Freight & Logistics'; business description consistent"
+  },
+  "WEBELSOLAR": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "WELCORP": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Capital Goods'; business description consistent"
+  },
+  "WELENT": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Construction'; business description consistent"
+  },
+  "WENDT": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Tools & Accessories'; business description consistent"
+  },
+  "WINDMACHIN": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  },
+  "WSI": {
+   "group": "Construction & Infrastructure",
+   "basis": "industry label 'Engineering & Construction'; business description consistent"
+  },
+  "YUKEN": {
+   "group": "Capital Goods",
+   "basis": "industry label 'Specialty Industrial Machinery'; business description consistent"
+  }
+ },
+ "unmatched": {
+  "3MINDIA": "diversified manufacturer (industrial, healthcare, consumer products)",
+  "ADANIENT": "diversified conglomerate (energy, airports, roads, mining, data centres)",
+  "AXISCADES": "engineering-design services; not a manufacturer, builder or transport operator",
+  "DCMSHRIRAM": "diversified group (agri-rural, chemicals, vinyl)",
+  "DREAMFOLKS": "airport-lounge benefit platform and services; not infrastructure or transport",
+  "ECLERX": "business-process and analytics services",
+  "FSL": "business-process services",
+  "GODREJIND": "diversified group (chemicals, agriculture, real estate, finance, hospitality)",
+  "IGIL": "gemstone certification and grading services",
+  "MMTC": "commodity trading company",
+  "MOLDTECH": "civil and mechanical design-engineering services; not a manufacturer, builder or transport operator",
+  "REDINGTON": "IT and mobility products distribution",
+  "UEL": "mainly solar power generation, an electricity-generation business"
+ }
+}

@@ -133,6 +133,8 @@ export interface AllCompanyRankingRow {
   totalRankedInSector: number | null;
   calculatedAt: string | null;
   message: string | null;
+  // The peer group a ranked score was calculated against (grouped sectors, e.g. Infrastructure).
+  peerGroup?: string | null;
   // LOCAL-DEV-ONLY (2026-09-27) — a real score/rating/rank regardless of
   // `publishable`, always null in real production (backend strips it).
   localPreview: AllCompanyLocalPreview | null;
@@ -154,7 +156,7 @@ interface ApiAllCompanyRow {
   symbol: string; company_name: string; sector: string; status: AllCompanyRankingStatus;
   score: number | null; rating: string | null; coverage_pct: number | null;
   rank: number | null; total_ranked_in_sector: number | null;
-  calculated_at: string | null; message: string | null;
+  calculated_at: string | null; message: string | null; peer_group?: string | null;
   local_preview: ApiAllCompanyLocalPreview | null;
 }
 interface ApiAllCompanyRankingsPage {
@@ -208,7 +210,7 @@ export async function getAllCompaniesRankings(page: number, pageSize: number): P
       symbol: r.symbol, companyName: r.company_name, sector: r.sector, status: r.status,
       score: r.score, rating: r.rating, coveragePct: r.coverage_pct,
       rank: r.rank, totalRankedInSector: r.total_ranked_in_sector,
-      calculatedAt: r.calculated_at, message: r.message,
+      calculatedAt: r.calculated_at, message: r.message, peerGroup: r.peer_group ?? null,
       localPreview: r.local_preview ? {
         score: r.local_preview.score, rating: r.local_preview.rating,
         rank: r.local_preview.rank, totalRankedInSector: r.local_preview.total_ranked_in_sector,

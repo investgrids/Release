@@ -19,7 +19,7 @@ from app.core.config import Settings
 from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
 from app.db.session import AsyncSessionLocal
 
-SYMBOL = "3MINDIA"  # real Infrastructure company, early in the alphabetical directory
+SYMBOL = "ABB"  # real Infrastructure company (Capital Goods peer group), early in the alphabetical directory
 
 
 def test_is_production_true_on_any_railway_deployment_even_without_json_logs(monkeypatch):

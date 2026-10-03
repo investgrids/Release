@@ -21,7 +21,9 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.services.marketripple_score.eligibility import REASON_MARKET_INPUTS_UNVERIFIED, REASON_STALE_FINANCIAL_DATA
+from app.services.marketripple_score.eligibility import (
+    REASON_MARKET_INPUTS_UNVERIFIED, REASON_NO_MATCHING_PEER_GROUP, REASON_PEER_GROUP_UNDER_REVIEW, REASON_STALE_FINANCIAL_DATA,
+)
 
 STALE_FINANCIAL_AFTER_DAYS = 456  # ~15 months: a late filer still passes, a missed filing cycle doesn't
 _NIFTY = "^NSEI"
@@ -73,10 +75,28 @@ def market_inputs_unverified_reason(inputs, symbol: str) -> str | None:
     return None
 
 
+def peer_group_reasons(snap) -> list[str]:
+    """Grouped sectors only (peer_groups.py). No company is public unless it was
+    calculated against its own peer group AND the sector has been released."""
+    from app.services.marketripple_score.coverage import score_sector_for
+    from app.services.marketripple_score.peer_groups import GROUPED_SECTORS, REVIEW_SECTORS, peer_group_for, unmatched_reason
+
+    symbol = str(getattr(snap, "symbol", ""))
+    sector = score_sector_for(symbol)
+    if sector not in GROUPED_SECTORS:
+        return []
+    if unmatched_reason(symbol) is not None or peer_group_for(symbol) is None:
+        return [REASON_NO_MATCHING_PEER_GROUP]
+    if sector in REVIEW_SECTORS or not getattr(snap, "peer_group", None):
+        return [REASON_PEER_GROUP_UNDER_REVIEW]
+    return []
+
+
 def snapshot_data_quality_reasons(snap, today: date | None = None) -> list[str]:
     reasons = []
     if financial_data_is_stale(getattr(snap, "financial_data_as_of", None), today):
         reasons.append(REASON_STALE_FINANCIAL_DATA)
     if market_inputs_unverified_reason(getattr(snap, "market_behaviour_inputs", None), str(getattr(snap, "symbol", ""))):
         reasons.append(REASON_MARKET_INPUTS_UNVERIFIED)
+    reasons += peer_group_reasons(snap)
     return reasons

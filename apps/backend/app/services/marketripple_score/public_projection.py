@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.marketripple_score.eligibility import (
     REASON_INSUFFICIENT_FINANCIAL_METRICS, REASON_INSUFFICIENT_OVERALL_COVERAGE,
     REASON_INSUFFICIENT_MARKET_HISTORY, REASON_MARKET_INPUTS_UNVERIFIED, REASON_MISSING_REQUIRED_PILLAR,
+    REASON_NO_MATCHING_PEER_GROUP, REASON_PEER_GROUP_UNDER_REVIEW,
     REASON_NO_ELIGIBLE_FINANCIAL_PERIOD, REASON_STALE_FINANCIAL_DATA,
 )
 
@@ -39,6 +40,8 @@ _REASON_PRIORITY: list[str] = [
     REASON_MISSING_REQUIRED_PILLAR,
     REASON_NO_ELIGIBLE_FINANCIAL_PERIOD,
     REASON_INSUFFICIENT_FINANCIAL_METRICS,
+    REASON_NO_MATCHING_PEER_GROUP,
+    REASON_PEER_GROUP_UNDER_REVIEW,
     REASON_STALE_FINANCIAL_DATA,
     REASON_MARKET_INPUTS_UNVERIFIED,
     REASON_INSUFFICIENT_MARKET_HISTORY,
@@ -65,6 +68,14 @@ _REASON_COPY: dict[str, tuple[str, str]] = {
     REASON_STALE_FINANCIAL_DATA: (
         "Financial data awaiting update",
         "The latest financial statements MarketRipple has for this company are more than 15 months old, so its score is on hold until they are refreshed.",
+    ),
+    REASON_PEER_GROUP_UNDER_REVIEW: (
+        "Peer group under review",
+        "MarketRipple is correcting the peer group this company is ranked against. Its score will return once the corrected group has been calculated and reviewed.",
+    ),
+    REASON_NO_MATCHING_PEER_GROUP: (
+        "No matching peer group",
+        "MarketRipple has no comparable peer group for this company's business, so it isn't scored rather than compared with the wrong companies.",
     ),
     REASON_MARKET_INPUTS_UNVERIFIED: (
         "Score being refreshed",
@@ -131,7 +142,7 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
 
     entity = await resolve_entity_by_any_symbol(db, raw_symbol)
     if entity is None:
-        return {"resolved": False, "symbol": raw_symbol.upper(), **coverage_fields(score_sector_for(raw_symbol), None)}
+        return {"resolved": False, "symbol": raw_symbol.upper(), **coverage_fields(score_sector_for(raw_symbol), None, raw_symbol)}
     sector = score_sector_for(entity.symbol)
 
     # Always the real, canonical, current symbol — an alias/historical
@@ -143,7 +154,7 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
     snap = await get_latest_snapshot(db, entity.symbol)
     if snap is None:
         base = {"resolved": True, "symbol": entity.symbol, "entity_id": entity.entity_id, "snapshot": False,
-                **coverage_fields(sector, None)}
+                **coverage_fields(sector, None, entity.symbol)}
         if hold is not None:
             return {**base, "publishable": False, "eligible": False, "score": None, "rating": None,
                     "block_reason_codes": [REASON_CORPORATE_ACTION_HOLD],
@@ -224,5 +235,5 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
         "block_reason_codes": reasons,
         "block_headline": block[0] if block else None,
         "block_message": block[1] if block else None,
-        **coverage_fields(sector, snap),
+        **coverage_fields(sector, snap, entity.symbol),
     }

@@ -128,12 +128,13 @@ async def test_market_behaviour_inputs_is_added_to_existing_snapshot_table():
                 await conn.execute(text(
                     "ALTER TABLE marketripple_score_snapshots DROP COLUMN market_behaviour_inputs"
                 ))
+                await conn.execute(text("ALTER TABLE marketripple_score_snapshots DROP COLUMN peer_group"))
 
             async with engine.begin() as conn:
                 await apply_schema_patches(conn)
                 result = await conn.execute(text("PRAGMA table_info(marketripple_score_snapshots)"))
                 columns = {row[1] for row in result.fetchall()}
-                assert "market_behaviour_inputs" in columns
+                assert "market_behaviour_inputs" in columns and "peer_group" in columns
                 await apply_schema_patches(conn)
         finally:
             await engine.dispose()
