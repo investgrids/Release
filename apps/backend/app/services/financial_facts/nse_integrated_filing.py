@@ -56,7 +56,8 @@ INSTANT_CONCEPTS = (
 REQUIRED_CONCEPTS = FLOW_CONCEPTS + INSTANT_CONCEPTS
 # Read when present (disposal / discontinued-operations disclosures); their absence is not "missing".
 OPTIONAL_FLOW = ("ProfitLossFromDiscontinuedOperationsAfterTax",)
-OPTIONAL_INSTANT = ("AssetsClassifiedAsHeldForSale", "NoncurrentAssetsOrDisposalGroupsClassifiedAsHeldForSale",
+OPTIONAL_INSTANT = ("Borrowings", "DebtSecurities", "SubordinatedLiabilities", "LongTermBorrowings", "ShortTermBorrowings", "ShareholdersFunds",
+                    "AssetsClassifiedAsHeldForSale", "NoncurrentAssetsOrDisposalGroupsClassifiedAsHeldForSale",
                     "LiabilitiesDirectlyAssociatedWithAssetsInDisposalGroupClassifiedAsHeldForSale")
 CORE_CONCEPTS = FLOW_CONCEPTS + INSTANT_CONCEPTS + OPTIONAL_FLOW + OPTIONAL_INSTANT
 _REG_BAL = re.compile(r"^RegulatoryDeferralAccount(Debit|Credit)Balances")

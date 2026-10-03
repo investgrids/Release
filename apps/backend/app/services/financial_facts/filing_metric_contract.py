@@ -127,11 +127,23 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
     rev, pbet, exc, pbt = _c(ex, "RevenueFromOperations"), _c(ex, "ProfitBeforeExceptionalItemsAndTax"), _c(ex, "ExceptionalItemsBeforeTax"), _c(ex, "ProfitBeforeTax")
     fin, assets, cl = _c(ex, "FinanceCosts"), _c(ex, "Assets"), _c(ex, "CurrentLiabilities")
     eq = _c(ex, "EquityAttributableToOwnersOfParent") if ref.scope == "Consolidated" and _c(ex, "EquityAttributableToOwnersOfParent") is not None else _c(ex, "Equity")
+    if eq is None:
+        eq = _c(ex, "ShareholdersFunds")  # older/MSME-format filers tag total equity only as shareholders' funds
     owners, basis = nif.owners_profit(ex)
     bc, bn = _c(ex, "BorrowingsCurrent"), _c(ex, "BorrowingsNoncurrent")
+    debt_total, debt_basis = (None if bc is None and bn is None else (bc or 0.0) + (bn or 0.0)), "current + non-current borrowings"
+    if debt_total is None:
+        # filers without a current/non-current split: Ind AS financial-sector split (borrowings + debt securities + subordinated liabilities),
+        # or the separate long-term / short-term borrowings tags
+        fin_parts = [_c(ex, k) for k in ("Borrowings", "DebtSecurities", "SubordinatedLiabilities")]
+        lt_st = [_c(ex, k) for k in ("LongTermBorrowings", "ShortTermBorrowings")]
+        if fin_parts[0] is not None:
+            debt_total, debt_basis = sum(x or 0.0 for x in fin_parts), "borrowings + debt securities + subordinated liabilities"
+        elif any(x is not None for x in lt_st):
+            debt_total, debt_basis = sum(x or 0.0 for x in lt_st), "long-term + short-term borrowings"
     fm.values = {"revenue_from_operations": rev, "reported_profit": _c(ex, "ProfitLossForPeriod"), "owners_profit": owners, "owners_profit_basis": basis,
                  "pre_exceptional_pretax": pbet, "exceptional_items": exc, "profit_before_tax": pbt, "finance_costs": fin, "assets": assets,
-                 "current_liabilities": cl, "owners_equity": eq, "borrowings": None if bc is None and bn is None else (bc or 0.0) + (bn or 0.0)}
+                 "current_liabilities": cl, "owners_equity": eq, "borrowings": debt_total, "borrowings_basis": debt_basis if debt_total is not None else None}
     material, gain, mat_rule = exceptional_materiality(exc, pbt, pbet, rev)
     # ---- income quality outside the exceptional line
     oi = _c(ex, "OtherIncome") or 0.0
