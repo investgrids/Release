@@ -59,6 +59,7 @@ OPTIONAL_FLOW = ("ProfitLossFromDiscontinuedOperationsAfterTax",)
 OPTIONAL_INSTANT = ("AssetsClassifiedAsHeldForSale", "NoncurrentAssetsOrDisposalGroupsClassifiedAsHeldForSale",
                     "LiabilitiesDirectlyAssociatedWithAssetsInDisposalGroupClassifiedAsHeldForSale")
 CORE_CONCEPTS = FLOW_CONCEPTS + INSTANT_CONCEPTS + OPTIONAL_FLOW + OPTIONAL_INSTANT
+_REG_BAL = re.compile(r"^RegulatoryDeferralAccount(Debit|Credit)Balances")
 _DISPOSAL_NAME = re.compile(r"HeldForSale|DisposalGroup|DiscontinuedOperations")
 _MONTHS = {m: i for i, m in enumerate(["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"], 1)}
 
@@ -121,6 +122,7 @@ class FilingExtract:
     missing: list[str] = field(default_factory=list)
     annual_status: str = ""  # "audited" | "unverified_unaudited": a year-end filing is not treated as audited unless it is
     disposal_facts: dict = field(default_factory=dict)  # concept -> crore, any non-dimensional held-for-sale / disposal-group / discontinued-operations fact
+    regulatory: dict = field(default_factory=dict)      # {"debit": crore, "credit": crore} regulatory-deferral account balances at the period end
 
 
 def list_filings(symbol: str, session: requests.Session | None = None) -> list[dict]:
@@ -226,6 +228,14 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
             if cd and not cd[3] and (cd[2] == ref.period_end):
                 try:
                     ex.disposal_facts.setdefault(name, round(float((el.text or "").strip()) / 1e7, 2))
+                except ValueError:
+                    pass
+        if _REG_BAL.match(name):
+            cd = ctx.get(el.get("contextRef"))
+            if cd and not cd[3] and cd[0] == "instant" and cd[2] == ref.period_end:
+                try:
+                    k = "debit" if "Debit" in name else "credit"
+                    ex.regulatory[k] = round(ex.regulatory.get(k, 0.0) + float((el.text or "").strip()) / 1e7, 2)
                 except ValueError:
                     pass
         if name not in CORE_CONCEPTS:

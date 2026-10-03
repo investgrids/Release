@@ -30,6 +30,15 @@ VALUATION         P/B = market cap / owners equity (equity > 0); P/E = market ca
 MISSING DATA      every unavailable metric carries one reason code (REASONS below); nothing is inferred or defaulted.
 PROVENANCE        per score: contract version, filing seq_Id, file id, URL, retrieved_at, sha256, scope, audited, type_sub,
                   period end, concept names and values (crore), growth basis, market-cap source.
+INCOME QUALITY    income that sits OUTSIDE the "exceptional" line can still distort the ratios. Two gates (fail closed, specific reason) and two flags:
+                    REGULATORY DEFERRAL  movement = change in (debit - credit) regulatory-deferral balances between this filing and the prior-year filing
+                      (filers net the P&L effect into expenses or revenue, so no P&L tag exposes it: CESC +924 Cr on a pre-tax profit of 2,119 Cr).
+                      Material (same test as exceptional items) positive movement -> REGULATORY_DEFERRAL_REVIEW; material negative -> ROE and P/E unavailable;
+                      balances present but no prior-year filing -> REGULATORY_MOVEMENT_UNKNOWN.
+                    NON-CORE PROFIT      core = pre-exceptional profit - other income - positive regulatory movement. A positive pre-exceptional profit with
+                      core <= 0 exists only because of non-core income -> NON_CORE_PROFIT_REVIEW.
+                    Flags only (recorded, no gate): other income above 50% of pre-exceptional profit; associates' share above 50% of owners' profit.
+                  A company that fails an earnings-quality gate is also excluded from peer pools: its ratios are not acceptable score inputs.
 UNRESOLVED CASES  KNRCON, VEDL, TRANSWORLD, PRINCEPIPE are forced to UNRESOLVED_REVIEW (no scored values) in shadow runs.
 """
 from __future__ import annotations
@@ -48,7 +57,7 @@ UNRESOLVED_CASES = {"KNRCON", "VEDL", "TRANSWORLD", "PRINCEPIPE"}
 REASONS = (
     "UNVERIFIED_UNAUDITED", "NO_FILING", "EXCEPTIONAL_GAIN_REVIEW", "EXCEPTIONAL_MATERIAL", "COMPARATIVE_MAY_BE_RESTATED",
     "NO_COMPARABLE_PRIOR", "CONCEPT_MISSING", "CAPITAL_EMPLOYED_NOT_POSITIVE", "NO_FINANCE_COSTS", "OWNERS_PROFIT_SOURCE_GAP",
-    "NEGATIVE_EQUITY", "NO_MARKET_CAP", "PROFIT_NOT_POSITIVE", "UNRESOLVED_REVIEW",
+    "NEGATIVE_EQUITY", "NO_MARKET_CAP", "PROFIT_NOT_POSITIVE", "UNRESOLVED_REVIEW", "REGULATORY_DEFERRAL_MATERIAL",
 )
 SCORED = ("revenue_growth", "profit_growth", "roe", "roce", "debt_to_equity", "interest_coverage")
 WORST = {"roe": -1.0e9, "debt_to_equity": 1.0e9}  # negative equity ranks worst on these two
@@ -122,6 +131,22 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
                  "pre_exceptional_pretax": pbet, "exceptional_items": exc, "profit_before_tax": pbt, "finance_costs": fin, "assets": assets,
                  "current_liabilities": cl, "owners_equity": eq, "borrowings": None if bc is None and bn is None else (bc or 0.0) + (bn or 0.0)}
     material, gain, mat_rule = exceptional_materiality(exc, pbt, pbet, rev)
+    # ---- income quality outside the exceptional line
+    oi = _c(ex, "OtherIncome") or 0.0
+    assoc = _c(ex, "ShareOfProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod") or 0.0
+    reg_cur = ex.regulatory or {}
+    reg_present = abs(reg_cur.get("debit", 0.0)) + abs(reg_cur.get("credit", 0.0)) > 0.005
+    reg_move, reg_state = 0.0, "none"
+    if reg_present:
+        reg_prior = (prior.regulatory if prior is not None else None)
+        if prior is None or reg_prior is None:
+            reg_state = "unknown"
+        else:
+            reg_move = round((reg_cur.get("debit", 0.0) - reg_prior.get("debit", 0.0)) - (reg_cur.get("credit", 0.0) - reg_prior.get("credit", 0.0)), 2)
+            thr = max(EXCEPTIONAL_MATERIAL_PCT / 100 * max(abs(pbt or 0.0), abs(pbet or 0.0)), EXCEPTIONAL_REVENUE_FLOOR_PCT / 100 * (rev or 0.0))
+            reg_state = "material_gain" if (reg_move > 0 and (thr == 0 or reg_move > thr)) else "material_loss" if (reg_move < 0 and (thr == 0 or -reg_move > thr)) else "immaterial"
+    core_pretax = None if pbet is None else round(pbet - oi - max(reg_move, 0.0), 2)
+    non_core_profit = pbet is not None and pbet > 0 and core_pretax is not None and core_pretax <= 0
     # A disposal / discontinued-operations disclosure counts only when its VALUE is non-zero (most filings carry these concepts as 0).
     # Matched by concept-name pattern (HeldForSale | DisposalGroup | DiscontinuedOperations), not a fixed list: e.g. SKYGOLD tags
     # NoncurrentAssetsClassifiedAsHeldForSale, which a fixed list missed.
@@ -133,8 +158,18 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
     disposal = any(abs(v) > 0.005 for v in dfacts.values())
     fm.flags = {"exceptional_material": bool(material), "exceptional_gain_material": bool(gain), "disposal_or_discontinued": bool(disposal),
                 "negative_equity": eq is not None and eq <= 0, "scope": ref.scope, "exceptional_rule": mat_rule}
+    fm.flags.update({"regulatory_balances_present": reg_present, "regulatory_movement_cr": reg_move if reg_state not in ("none", "unknown") else None, "regulatory_state": reg_state,
+                     "core_pretax_cr": core_pretax, "non_core_profit": bool(non_core_profit),
+                     "other_income_over_half_of_pbet": bool(pbet and pbet > 0 and oi / pbet > 0.5),
+                     "associates_over_half_of_owners_profit": bool(owners and owners > 0 and assoc / owners > 0.5)})
     if gain:
         fm.status = "EXCEPTIONAL_GAIN_REVIEW"
+    elif reg_state == "material_gain":
+        fm.status = "REGULATORY_DEFERRAL_REVIEW"
+    elif reg_state == "unknown":
+        fm.status = "REGULATORY_MOVEMENT_UNKNOWN"
+    elif non_core_profit:
+        fm.status = "NON_CORE_PROFIT_REVIEW"
 
     def na(metric, reason):
         fm.metrics[metric] = None
@@ -164,6 +199,8 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
         fm.metrics["roe"] = WORST["roe"]; fm.reasons["roe"] = "NEGATIVE_EQUITY"
     elif material:
         na("roe", "EXCEPTIONAL_MATERIAL")
+    elif reg_state == "material_loss":
+        na("roe", "REGULATORY_DEFERRAL_MATERIAL")
     elif owners is None:
         na("roe", "OWNERS_PROFIT_SOURCE_GAP")
     else:
@@ -200,6 +237,8 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
             pe_reason = "OWNERS_PROFIT_SOURCE_GAP"
         elif material:
             pe_reason = "EXCEPTIONAL_MATERIAL"
+        elif reg_state == "material_loss":
+            pe_reason = "REGULATORY_DEFERRAL_MATERIAL"
         elif owners <= 0 or pbet is None or pbet <= 0:
             pe_reason = "PROFIT_NOT_POSITIVE"
         else:

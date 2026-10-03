@@ -65,3 +65,14 @@ def test_group_scoring_is_peer_only_needs_both_components_and_is_order_independe
     r = a["S2"]
     assert abs(r["score"] - (r["fs"] * 8 / 15 + r["val"] * 4 / 15 + 50.0 * 3 / 15)) < 0.06
     assert fss.SCORING_VERSION == "NSE_FILING_SCORE_V2"
+
+
+def test_companies_under_earnings_quality_review_do_not_set_the_peer_benchmark():
+    mk = lambda i: {"revenue_growth": 5 + i, "profit_growth": 3 + i, "roe": 10 + i, "roce": 8 + i, "debt_to_equity": 1.0 - i / 20, "interest_coverage": 3 + i}
+    fm = {f"S{i}": _fm(mk(i), pe=10 + i, pb=1 + i / 10) for i in range(5)}
+    fm["DISTORTED"] = _fm({k: v * 100 for k, v in mk(9).items()}, pe=1.0, pb=0.1, status="NON_CORE_PROFIT_REVIEW")
+    mb = {s: 50.0 for s in fm}
+    a = fss.score_group(list(fm), fm, mb)
+    assert a["DISTORTED"]["reason"] == "NON_CORE_PROFIT_REVIEW"
+    with_pool = fss.score_group(list(fm), fm, mb, pool_statuses=("ok", "NON_CORE_PROFIT_REVIEW"))
+    assert a["S4"]["fs"] != with_pool["S4"]["fs"] or a["S4"]["val"] != with_pool["S4"]["val"]   # including the distorted company would change a peer's score

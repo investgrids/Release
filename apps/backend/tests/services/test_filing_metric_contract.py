@@ -148,3 +148,46 @@ def test_disposal_is_detected_by_concept_name_pattern_with_a_nonzero_value():
     assert fm.flags["disposal_or_discontinued"] is True and fm.reasons["revenue_growth"] == "COMPARATIVE_MAY_BE_RESTATED"
     ex.disposal_facts = {"NoncurrentAssetsClassifiedAsHeldForSale": 0.0}
     assert fmc.compute("T", ex, prior, 3000.0, today=date(2026, 10, 3)).flags["disposal_or_discontinued"] is False
+
+
+# ---- income quality outside the exceptional line ----
+def _with_reg(ex, debit, credit):
+    ex.regulatory = {"debit": debit, "credit": credit}
+    return ex
+
+
+def test_material_regulatory_deferral_gain_fails_closed_with_a_specific_reason():
+    cur = _with_reg(_ex({**BASE, "ProfitBeforeExceptionalItemsAndTax": 100, "ProfitBeforeTax": 100, "OtherIncome": 5}), 8666.0, 0.0)
+    prior = _with_reg(_ex({**BASE, "RevenueFromOperations": 800}, pe=date(2025, 3, 31)), 7744.0, 2.0)
+    fm = fmc.compute("T", cur, prior, 3000.0, today=date(2026, 10, 3))
+    assert fm.flags["regulatory_movement_cr"] == 924.0 + 2.0 - 2.0  # (8666-7744) - (0-2) - 2 would be 924 only if credit rose; here (8666-7744) - (0-2) = 924
+    assert fm.status == "REGULATORY_DEFERRAL_REVIEW"
+
+
+def test_regulatory_balances_without_a_prior_year_filing_cannot_be_isolated():
+    cur = _with_reg(_ex(BASE), 50.0, 0.0)
+    assert fmc.compute("T", cur, None, 3000.0, today=date(2026, 10, 3)).status == "REGULATORY_MOVEMENT_UNKNOWN"
+
+
+def test_immaterial_or_negative_regulatory_movement_does_not_fail_closed():
+    cur = _with_reg(_ex(BASE), 1000.0, 0.0)
+    prior = _with_reg(_ex(BASE, pe=date(2025, 3, 31)), 995.0, 0.0)          # +5 on a pre-tax profit of 100: 5% < 10%
+    assert fmc.compute("T", cur, prior, 3000.0, today=date(2026, 10, 3)).status == "ok"
+    prior2 = _with_reg(_ex(BASE, pe=date(2025, 3, 31)), 1200.0, 0.0)        # -200: a material reversal
+    fm = fmc.compute("T", cur, prior2, 3000.0, today=date(2026, 10, 3))
+    assert fm.status == "ok" and fm.reasons["roe"] == "REGULATORY_DEFERRAL_MATERIAL" and fm.valuation["pe"] is None
+
+
+def test_profit_that_exists_only_because_of_other_income_is_withheld():
+    ex = _ex({**BASE, "ProfitBeforeExceptionalItemsAndTax": 5.41, "ProfitBeforeTax": 5.41, "OtherIncome": 6.10})
+    fm = fmc.compute("T", ex, None, 3000.0, today=date(2026, 10, 3))
+    assert fm.status == "NON_CORE_PROFIT_REVIEW" and fm.flags["non_core_profit"] is True and fm.flags["core_pretax_cr"] == -0.69
+    ok = _ex({**BASE, "OtherIncome": 30})   # core profit 70 > 0: not gated
+    f2 = fmc.compute("T", ok, None, 3000.0, today=date(2026, 10, 3))
+    assert f2.status == "ok" and f2.flags["non_core_profit"] is False
+
+
+def test_soft_flags_are_recorded_without_changing_the_status():
+    ex = _ex({**BASE, "OtherIncome": 60, "ShareOfProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod": 50})
+    fm = fmc.compute("T", ex, None, 3000.0, today=date(2026, 10, 3))
+    assert fm.status == "ok" and fm.flags["other_income_over_half_of_pbet"] is True and fm.flags["associates_over_half_of_owners_profit"] is True
