@@ -304,3 +304,26 @@ def test_rule_4c_not_checkable_without_a_reference():
 def test_rule_4c_ignores_non_numeric_and_infinite_reference_values():
     assert _val({"pb": "Infinity", "pe": "Infinity"}).status == "ok"
     assert _val({"pb": None, "pe": "n/a"}).flags["plausibility_checked"] is False
+
+
+def test_rule_4c_pe_arm_is_satisfied_by_the_filings_own_eps_and_skipped_for_rule_4a():
+    # filing P/E 13.33; live 50 would trip, but price / filed EPS = 13.0 reproduces the filing P/E: period/basis difference, not an error
+    assert _val({"pb": None, "pe": 50.0, "pe_eps": 13.0}).status == "ok"
+    assert _val({"pb": None, "pe": 50.0, "pe_eps": 40.0}).status == fmc.DISCREPANCY_STATUS
+    fm = _exc(-50, tax=10)                                              # Rule 4A company (adjusted P/E 12.5)
+    fm2 = fmc.compute("T", _ex(dict(BASE, ExceptionalItemsBeforeTax=-50, ProfitBeforeTax=50, TaxExpense=10, ProfitLossForPeriod=40, ProfitOrLossAttributableToOwnersOfParent=40)),
+                      None, 1000.0, today=date(2026, 10, 3), reference={"pb": None, "pe": 80.0})
+    assert fm.flags["rule_4a_exceptional_loss_bypass"] and fm2.status == "ok"
+
+
+def test_rule_4c_market_cap_arm_uses_the_precomputed_inconsistency():
+    fm = _val({"pb": 2.0, "pe": 13.0, "mc_inconsistent": {"stored": 1000.0, "price_x_filing_shares": 100.0, "ratio": 10.0}})
+    assert fm.status == fmc.DISCREPANCY_STATUS and fm.flags["rule_4c_discrepancy"]["multiple"] == "market_cap"
+
+
+def test_rule_4d_owners_plus_nci_must_reconcile_to_total_profit():
+    ex = _ex(dict(BASE, ProfitLossForPeriod=12782.03, ProfitOrLossAttributableToOwnersOfParent=914.83, ProfitOrLossAttributableToNonControllingInterests=322.51))
+    owners, basis = nif.owners_profit(ex)
+    assert owners is None and "does not reconcile" in basis
+    ok = _ex(dict(BASE, ProfitLossForPeriod=135.89, ProfitOrLossAttributableToOwnersOfParent=42.52, ProfitOrLossAttributableToNonControllingInterests=93.37))
+    assert nif.owners_profit(ok)[0] == 42.52

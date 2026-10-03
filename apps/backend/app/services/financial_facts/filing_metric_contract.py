@@ -108,23 +108,36 @@ def exceptional_materiality(exc, pbt, pbet, revenue) -> tuple[bool, bool, str]:
     return material, material and exc > 0, f"|exceptional| {'>' if material else '<='} {threshold:.2f} (max of 10% of base {base:.2f}, 0.5% of revenue)"
 
 
-def plausibility_check(valuation: dict, reference: dict | None) -> dict | None:
-    """Rule 4C. reference = {"pb": live P/B or None, "pe": live P/E or None}. Returns the failing comparison, or None when plausible or not checkable.
-    A multiple is compared only when both the filing-backed value and the reference are positive."""
+def plausibility_check(valuation: dict, reference: dict | None, pe_basis_adjusted: bool = False) -> dict | None:
+    """Rule 4C. reference = {"pb": live P/B, "pe": live P/E, "pe_eps": price / filed annual EPS, "mc_inconsistent": {...} or None}; every key optional.
+    Returns the failing comparison, or None when plausible or not checkable.
+      P/B arm      filing P/B vs live P/B, factor 3 either way.
+      P/E arm      filing P/E vs live P/E, factor 3 either way. Skipped when Rule 4A adjusted the earnings basis (the basis differs by design) and when
+                   the filing's own reported EPS reproduces the filing P/E within 1.5x (then the difference is the period or profit basis of the
+                   live trailing figure, not a unit or share-count error).
+      market cap   precomputed by the reference collector: the stored market cap differs from price x the filing's own share count by more than 1.5x
+                   AND live P/B x filed equity agrees with the filing-share figure rather than with the stored one (Yahoo share count wrong)."""
     if not reference:
         return None
+
     def num(x):
         try:
             v = float(x)
         except (TypeError, ValueError):
             return None
         return v if v == v and abs(v) != float("inf") else None  # Yahoo sends strings such as "Infinity" for undefined multiples
+    pe_eps = num(reference.get("pe_eps"))
     for k in ("pb", "pe"):
         mine, ref = num((valuation or {}).get(k)), num(reference.get(k))
+        if k == "pe" and (pe_basis_adjusted or (mine and pe_eps and pe_eps > 0 and 1 / 1.5 <= mine / pe_eps <= 1.5)):
+            continue
         if mine and ref and mine > 0 and ref > 0:
             ratio = mine / ref
             if ratio > PLAUSIBILITY_FACTOR or ratio < 1 / PLAUSIBILITY_FACTOR:
                 return {"multiple": k, "filing": mine, "reference": ref, "ratio": round(ratio, 2)}
+    mci = reference.get("mc_inconsistent")
+    if mci:
+        return {"multiple": "market_cap", **mci}
     return None
 
 
@@ -311,7 +324,7 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
     # Rule 4C runs on the final multiples (after the earnings-quality invalidation) and, on failure, clears every scored metric so the
     # suspect inputs also stay out of the peer pools.
     fm.flags["plausibility_checked"] = bool(reference and any(isinstance(reference.get(k), (int, float)) and reference[k] > 0 and reference[k] != float("inf") and (fm.valuation.get(k) or 0) > 0 for k in ("pb", "pe")))
-    bad = plausibility_check(fm.valuation, reference)
+    bad = plausibility_check(fm.valuation, reference, pe_basis_adjusted=bool(loss_bypass and (fm.metrics.get("roe") is not None or fm.valuation.get("pe") is not None)))
     if bad:
         fm.status = DISCREPANCY_STATUS
         fm.reasons = {m: DISCREPANCY_STATUS for m in SCORED}

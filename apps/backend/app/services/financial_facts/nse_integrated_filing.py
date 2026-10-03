@@ -325,6 +325,10 @@ def owners_profit(ex: "FilingExtract") -> tuple[float | None, str]:
     owners = crore(ex.facts.get("ProfitOrLossAttributableToOwnersOfParent"))
     nci = crore(ex.facts.get("ProfitOrLossAttributableToNonControllingInterests"))
     if owners is not None and not (owners == 0 and total not in (None, 0)):
+        # V2-Rule-4D: owners' profit + non-controlling profit must reconcile to total profit (statement identity). A reported owners' figure that
+        # misses it by more than max(1 crore, 5% of total) is a tagging or scaling error in the filing and is not used.
+        if total is not None and abs(owners + (nci or 0.0) - total) > max(1.0, 0.05 * abs(total)):
+            return None, "owners + non-controlling profit does not reconcile to total profit: unreliable"
         return owners, "owners (filing)"
     if owners is not None:
         return None, "owners reported as 0 while total profit is not 0: unreliable"
