@@ -120,7 +120,8 @@ async def _get_sector_rankings(db: AsyncSession, sector: str, universe: list[str
             block = _public_block_message(reasons)
             unavailable.append({
                 "symbol": symbol, "company_name": company_name, "reason": "ineligible",
-                "state": "needs_refresh" if reasons == [REASON_MARKET_INPUTS_UNVERIFIED] else "insufficient_data",
+                "state": ("needs_refresh" if reasons == [REASON_MARKET_INPUTS_UNVERIFIED]
+                          else "peer_group_review" if "PEER_GROUP_UNDER_REVIEW" in reasons else "insufficient_data"),
                 "message": hold.message if hold else (block[1] if block else "This company does not yet meet the publication bar."),
                 "calculated_at": calculated_at,
             })
@@ -239,7 +240,8 @@ async def _build_all_companies_lookup(db: AsyncSession) -> dict[str, dict[str, A
         return _ALL_COMPANIES_LOOKUP_CACHE["data"]
 
     from app.services.marketripple_score.contracts import MARKETRIPPLE_SCORE_METHODOLOGY_VERSION
-    from app.services.marketripple_score.coverage import STALE_AFTER_DAYS, _UNSUPPORTED_MESSAGES, sector_candidates
+    from app.services.marketripple_score.coverage import STALE_AFTER_DAYS, _UNSUPPORTED_MESSAGES, coverage_state, sector_candidates
+    from app.services.marketripple_score.peer_groups import REVIEW_SECTORS
 
     candidates = await sector_candidates(db)
     sector_results = [await get_banking_rankings(db)]
@@ -267,6 +269,8 @@ async def _build_all_companies_lookup(db: AsyncSession) -> dict[str, dict[str, A
         for row in result["unavailable"]:
             state = row.get("state") or _REASON_TO_STATE.get(row["reason"], "insufficient_data")
             message = row["message"]
+            if state == "not_processed" and result["sector"] in REVIEW_SECTORS:
+                state, message = coverage_state(result["sector"], None)
             if is_banking and state in ("not_processed", "insufficient_data"):
                 # Banks mostly lack the disclosure data their method needs.
                 state, message = "unsupported", _UNSUPPORTED_MESSAGES["Banking"]
@@ -319,7 +323,7 @@ async def get_all_companies_rankings(db: AsyncSession, page: int = 1, page_size:
         if info is None:
             # Not a candidate in any scored sector: unsupported business type
             # or no reliable sector classification.
-            state, message = coverage_state(score_sector_for(co["symbol"]), None)
+            state, message = coverage_state(score_sector_for(co["symbol"]), None, co["symbol"])
             rows.append({
                 "symbol": co["symbol"], "company_name": co["name"], "sector": co["sector"],
                 "status": state, "score": None, "rating": None, "coverage_pct": None,

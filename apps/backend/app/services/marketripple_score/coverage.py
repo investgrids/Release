@@ -29,6 +29,8 @@ STATE_NOT_PROCESSED = "not_processed"
 STATE_NEEDS_REFRESH = "needs_refresh"
 STATE_INSUFFICIENT_DATA = "insufficient_data"
 STATE_UNSUPPORTED = "unsupported"
+STATE_PEER_REVIEW = "peer_group_review"
+STATE_NO_PEER_GROUP = "no_peer_group"
 
 STATE_LABELS = {
     STATE_SCORED: "Scored",
@@ -36,6 +38,8 @@ STATE_LABELS = {
     STATE_NEEDS_REFRESH: "Score needs refresh",
     STATE_INSUFFICIENT_DATA: "Insufficient data",
     STATE_UNSUPPORTED: "Not supported yet",
+    STATE_PEER_REVIEW: "Peer group under review",
+    STATE_NO_PEER_GROUP: "No matching peer group",
 }
 
 # Rankings hides scores older than this; the Company page and Rankings both
@@ -109,7 +113,13 @@ def coverage_state(sector: str | None, snap: Any | None, symbol: str | None = No
 
     sym = symbol or getattr(snap, "symbol", None)
     if sector in GROUPED_SECTORS and unmatched_reason(sym) is not None:
-        return STATE_UNSUPPORTED, f"No matching peer group: {unmatched_reason(sym)}"
+        return STATE_NO_PEER_GROUP, f"No matching peer group: {unmatched_reason(sym)}"
+    from app.services.marketripple_score.peer_groups import REVIEW_SECTORS
+
+    if sector in REVIEW_SECTORS:
+        from app.services.marketripple_score.eligibility import REASON_PEER_GROUP_UNDER_REVIEW
+
+        return STATE_PEER_REVIEW, _public_block_message([REASON_PEER_GROUP_UNDER_REVIEW])[1]
     if snap is None:
         return STATE_NOT_PROCESSED, _NOT_PROCESSED_MESSAGE
     if is_stale(snap.calculated_at):
@@ -135,6 +145,10 @@ def coverage_state(sector: str | None, snap: Any | None, symbol: str | None = No
     if snap.publishable and snapshot_lacks_market_history(snap) and REASON_INSUFFICIENT_MARKET_HISTORY not in reasons:
         reasons.append(REASON_INSUFFICIENT_MARKET_HISTORY)
     block = _public_block_message(reasons)
+    from app.services.marketripple_score.eligibility import REASON_PEER_GROUP_UNDER_REVIEW
+
+    if REASON_PEER_GROUP_UNDER_REVIEW in reasons:  # released sector, but this snapshot predates its peer group
+        return STATE_PEER_REVIEW, block[1] if block else _MISSING_PILLAR_MESSAGE
     state = STATE_NEEDS_REFRESH if reasons == [REASON_MARKET_INPUTS_UNVERIFIED] else STATE_INSUFFICIENT_DATA
     return state, block[1] if block else _MISSING_PILLAR_MESSAGE
 

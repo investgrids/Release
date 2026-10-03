@@ -28,6 +28,7 @@ async def test_every_row_has_a_symbol_and_an_honest_status():
         # 2026-10-03: one public state vocabulary (coverage.py).
         assert row["status"] in {
             "ranked", "not_processed", "needs_refresh", "insufficient_data", "unsupported",
+            "peer_group_review", "no_peer_group",
         }
         if row["status"] != "ranked":
             assert row["score"] is None, f"{row['symbol']} is not ranked but shows a score"

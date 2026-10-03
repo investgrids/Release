@@ -109,7 +109,7 @@ export const SUPPORTED_RANKING_SECTORS = ["Banking"] as const;
 export type AllCompanyRankingStatus =
   | "ranked"
   // 2026-09-28 public coverage states (backend coverage.py)
-  | "not_processed" | "needs_refresh" | "insufficient_data" | "unsupported"
+  | "not_processed" | "needs_refresh" | "insufficient_data" | "unsupported" | "peer_group_review" | "no_peer_group"
   // legacy names, still accepted from an older backend
   | "partial_coverage" | "no_snapshot_computed_yet"
   | "publication_locked" | "ineligible" | "stale" | "unsupported_sector" | "not_yet_scored";

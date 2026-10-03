@@ -41,3 +41,18 @@ def test_gate_withholds_review_unmatched_and_legacy_snapshots(monkeypatch):
     assert peer_group_reasons(SimpleNamespace(symbol="LT", peer_group=None)) == [REASON_PEER_GROUP_UNDER_REVIEW]  # old mixed-peer snapshot
     assert peer_group_reasons(SimpleNamespace(symbol="ADANIENT", peer_group=None)) == [REASON_NO_MATCHING_PEER_GROUP]
     assert peer_group_reasons(SimpleNamespace(symbol="TCS", peer_group=None)) == [] or score_sector_for("TCS") != "Infrastructure"
+
+
+def test_coverage_state_says_review_and_no_peer_group_consistently(monkeypatch):
+    from app.services.marketripple_score.coverage import STATE_LABELS, coverage_fields, coverage_state
+
+    old = SimpleNamespace(symbol="LT", peer_group=None, calculated_at=None)
+    # sector under review: even with no snapshot, and for an old mixed-peer snapshot
+    assert coverage_state("Infrastructure", None, "LT")[0] == "peer_group_review"
+    assert coverage_fields("Infrastructure", None, "LT")["coverage_label"] == "Peer group under review"
+    # unmatched is its own label, never "Insufficient data"
+    f = coverage_fields("Infrastructure", None, "ADANIENT")
+    assert f["coverage_state"] == "no_peer_group" and f["coverage_label"] == "No matching peer group"
+    assert STATE_LABELS["peer_group_review"] != STATE_LABELS["insufficient_data"]
+    # an ungrouped sector is untouched
+    assert coverage_state("Metals", None, "TATASTEEL")[0] == "not_processed"
