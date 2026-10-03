@@ -59,6 +59,7 @@ OPTIONAL_FLOW = ("ProfitLossFromDiscontinuedOperationsAfterTax",)
 OPTIONAL_INSTANT = ("AssetsClassifiedAsHeldForSale", "NoncurrentAssetsOrDisposalGroupsClassifiedAsHeldForSale",
                     "LiabilitiesDirectlyAssociatedWithAssetsInDisposalGroupClassifiedAsHeldForSale")
 CORE_CONCEPTS = FLOW_CONCEPTS + INSTANT_CONCEPTS + OPTIONAL_FLOW + OPTIONAL_INSTANT
+_DISPOSAL_NAME = re.compile(r"HeldForSale|DisposalGroup|DiscontinuedOperations")
 _MONTHS = {m: i for i, m in enumerate(["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"], 1)}
 
 
@@ -119,6 +120,7 @@ class FilingExtract:
     prior: dict[str, ExtractedFact] = field(default_factory=dict)       # prior fiscal year comparatives
     missing: list[str] = field(default_factory=list)
     annual_status: str = ""  # "audited" | "unverified_unaudited": a year-end filing is not treated as audited unless it is
+    disposal_facts: dict = field(default_factory=dict)  # concept -> crore, any non-dimensional held-for-sale / disposal-group / discontinued-operations fact
 
 
 def list_filings(symbol: str, session: requests.Session | None = None) -> list[dict]:
@@ -219,6 +221,13 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
             ex.currency = el.text.strip()
         elif name == "LevelOfRounding" and el.text:
             ex.level_of_rounding = el.text.strip()
+        if _DISPOSAL_NAME.search(name) and "PerShare" not in name:
+            cd = ctx.get(el.get("contextRef"))
+            if cd and not cd[3] and (cd[2] == ref.period_end):
+                try:
+                    ex.disposal_facts.setdefault(name, round(float((el.text or "").strip()) / 1e7, 2))
+                except ValueError:
+                    pass
         if name not in CORE_CONCEPTS:
             continue
         c = ctx.get(el.get("contextRef"))

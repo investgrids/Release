@@ -122,10 +122,15 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
                  "pre_exceptional_pretax": pbet, "exceptional_items": exc, "profit_before_tax": pbt, "finance_costs": fin, "assets": assets,
                  "current_liabilities": cl, "owners_equity": eq, "borrowings": None if bc is None and bn is None else (bc or 0.0) + (bn or 0.0)}
     material, gain, mat_rule = exceptional_materiality(exc, pbt, pbet, rev)
-    # A disposal / discontinued-operations disclosure counts only when its VALUE is non-zero: most filings carry these concepts as 0.
-    disposal = any((ex.facts.get(k) is not None and abs(ex.facts[k].value_inr) > 0.005 * CR_UNIT) for k in (
-        "ProfitLossFromDiscontinuedOperationsAfterTax", "AssetsClassifiedAsHeldForSale", "NoncurrentAssetsOrDisposalGroupsClassifiedAsHeldForSale",
-        "LiabilitiesDirectlyAssociatedWithAssetsInDisposalGroupClassifiedAsHeldForSale"))
+    # A disposal / discontinued-operations disclosure counts only when its VALUE is non-zero (most filings carry these concepts as 0).
+    # Matched by concept-name pattern (HeldForSale | DisposalGroup | DiscontinuedOperations), not a fixed list: e.g. SKYGOLD tags
+    # NoncurrentAssetsClassifiedAsHeldForSale, which a fixed list missed.
+    dfacts = dict(ex.disposal_facts)
+    for k in ("ProfitLossFromDiscontinuedOperationsAfterTax", "AssetsClassifiedAsHeldForSale", "NoncurrentAssetsOrDisposalGroupsClassifiedAsHeldForSale",
+              "LiabilitiesDirectlyAssociatedWithAssetsInDisposalGroupClassifiedAsHeldForSale"):
+        if ex.facts.get(k) is not None:
+            dfacts[k] = ex.facts[k].value_inr / CR_UNIT
+    disposal = any(abs(v) > 0.005 for v in dfacts.values())
     fm.flags = {"exceptional_material": bool(material), "exceptional_gain_material": bool(gain), "disposal_or_discontinued": bool(disposal),
                 "negative_equity": eq is not None and eq <= 0, "scope": ref.scope, "exceptional_rule": mat_rule}
     if gain:

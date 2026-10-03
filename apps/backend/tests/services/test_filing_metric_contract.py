@@ -138,3 +138,13 @@ def test_owners_profit_uses_equity_evidence_for_no_minority_only():
     minority = _ex({**{k: v for k, v in BASE.items() if k != "ProfitOrLossAttributableToOwnersOfParent"}, "Equity": 560})
     v2, basis2 = nif.owners_profit(minority)
     assert v2 is None and "not populated" in basis2
+
+
+def test_disposal_is_detected_by_concept_name_pattern_with_a_nonzero_value():
+    ex = _ex(BASE)
+    ex.disposal_facts = {"NoncurrentAssetsClassifiedAsHeldForSale": 110.14, "BasicEarningsLossPerShareFromDiscontinuedOperations": 0.0}
+    prior = _ex({**BASE, "RevenueFromOperations": 800}, pe=date(2025, 3, 31))
+    fm = fmc.compute("T", ex, prior, 3000.0, today=date(2026, 10, 3))
+    assert fm.flags["disposal_or_discontinued"] is True and fm.reasons["revenue_growth"] == "COMPARATIVE_MAY_BE_RESTATED"
+    ex.disposal_facts = {"NoncurrentAssetsClassifiedAsHeldForSale": 0.0}
+    assert fmc.compute("T", ex, prior, 3000.0, today=date(2026, 10, 3)).flags["disposal_or_discontinued"] is False
