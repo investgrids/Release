@@ -193,14 +193,22 @@ def _is_year(start: date, end: date) -> bool:
 
 
 def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: str | None = None) -> FilingExtract:
-    s = session or _session()
-    resp = s.get(ref.xbrl_url, headers=_HEADERS, timeout=60)
-    resp.raise_for_status()
-    body = resp.content
+    body = None
+    if raw_dir:  # reuse a previously saved copy of this exact filing (same symbol + file id); verified by its hash in provenance
+        import glob
+        hits = sorted(glob.glob(f"{raw_dir}/{ref.symbol}_{ref.filing_file_id}_*.xml"))
+        if hits:
+            with open(hits[0], "rb") as fh:
+                body = fh.read()
+    if body is None:
+        s = session or _session()
+        resp = s.get(ref.xbrl_url, headers=_HEADERS, timeout=60)
+        resp.raise_for_status()
+        body = resp.content
+        if raw_dir:
+            with open(f"{raw_dir}/{ref.symbol}_{ref.filing_file_id}_{hashlib.sha256(body).hexdigest()[:12]}.xml", "wb") as fh:
+                fh.write(body)
     sha = hashlib.sha256(body).hexdigest()
-    if raw_dir:
-        with open(f"{raw_dir}/{ref.symbol}_{ref.filing_file_id}_{sha[:12]}.xml", "wb") as fh:
-            fh.write(body)
     root = ET.fromstring(body)
     ctx = _contexts(root)
     ex = FilingExtract(ref=ref, retrieved_at=datetime.now(timezone.utc).isoformat(), sha256=sha, nbytes=len(body), currency=None, level_of_rounding=None)
@@ -275,6 +283,41 @@ def owners_profit(ex: "FilingExtract") -> tuple[float | None, str]:
         return None, "owners reported as 0 while total profit is not 0: unreliable"
     if ex.ref.scope == "Standalone":
         return total, "total profit (standalone, no minority)"
+    eq_total, eq_owners = crore(ex.facts.get("Equity")), crore(ex.facts.get("EquityAttributableToOwnersOfParent"))
+    if eq_total is not None and eq_owners is not None and abs(eq_total - eq_owners) < 0.01 and total is not None:
+        # balance-sheet evidence of no minority: total equity equals equity attributable to owners, so total profit is owners' profit
+        return total, "total profit (no minority: equity attributable to owners equals total equity)"
     if nci is not None and total is not None:
         return round(total - nci, 2), "total less non-controlling interest (filing)"
     return None, "owners' profit not populated in a consolidated filing"
+
+
+def select_annual(rows: list[dict], scope_preference=("Consolidated", "Standalone"), session: requests.Session | None = None,
+                  raw_dir: str | None = None, max_periods: int = 6) -> tuple["FilingExtract | None", dict]:
+    """Contract rule: choose an eligible AUDITED annual filing first, then apply the scope preference among audited ones
+    (so an un-audited consolidated filing can never displace an audited standalone one for the same year).
+    info["newer_unaudited_year_end"] is True when an un-audited filing exists for the year after the chosen audited one.
+    When no audited annual filing exists at all, falls back to the newest un-audited year-end filing (flagged unaudited)."""
+    info: dict = {"notes": [], "newer_unaudited_year_end": False, "fallback_unaudited": False}
+    indas = [r for r in rows if "INDAS" in (r.get("xbrl") or "") and _parse_qe(r.get("qe_Date"))]
+    aud_ends = sorted({_parse_qe(r["qe_Date"]) for r in indas if r.get("audited") == "Audited"}, reverse=True)
+    for pe in aud_ends[:max_periods]:
+        scopes = sorted({r.get("consolidated") for r in indas if _parse_qe(r["qe_Date"]) == pe and r.get("audited") == "Audited" and r.get("consolidated")})
+        for scope in [sc for sc in scope_preference if sc in scopes]:
+            ref = select_filing(rows, pe, scope)
+            if ref is None or ref.audited != "Audited":
+                continue
+            try:
+                ex = extract(ref, session, raw_dir)
+            except requests.HTTPError as exc:  # the row's own link is dead: try the next audited scope, record the gap
+                info["notes"].append(f"{pe} {scope}: XBRL_LINK_{exc.response.status_code if exc.response is not None else 'ERROR'} (seq {ref.seq_id})")
+                continue
+            if "RevenueFromOperations" in ex.facts or "ProfitBeforeTax" in ex.facts:
+                nxt = date(pe.year + 1, pe.month, pe.day) if not (pe.month == 2 and pe.day == 29) else date(pe.year + 1, 2, 28)
+                info["newer_unaudited_year_end"] = any(_parse_qe(r["qe_Date"]) == nxt and r.get("audited") != "Audited" for r in indas)
+                return ex, info
+            info["notes"].append(f"{pe} {scope}: audited filing without a full-year context (interim)")
+    ex, notes = latest_annual(rows, scope_preference, session, raw_dir, max_periods)
+    info["notes"] += notes
+    info["fallback_unaudited"] = ex is not None
+    return ex, info
