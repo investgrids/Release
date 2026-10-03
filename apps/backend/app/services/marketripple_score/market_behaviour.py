@@ -311,10 +311,33 @@ async def score_market_behaviour(
     sector_observations = _dated_observations(
         prefetched_benchmarks.get(sector_ticker) or fetched_by_ticker.get(sector_ticker, []), cutoff_date,
     ) if sector_ticker else []
+    from app.services.marketripple_score.data_quality import UNTRADED_SHARE, last_price_break, untraded_share
+
+    # A one-day break beyond the NSE circuit limits is an unadjusted corporate
+    # action or a vendor glitch: score only from the closes after it.
+    price_break = last_price_break([c for _, c in own_observations])
+    break_info = None
+    if price_break is not None:
+        break_info = {"break_date": own_observations[price_break][0],
+                      "ratio": round(own_observations[price_break][1] / own_observations[price_break - 1][1], 3),
+                      "closes_excluded": price_break}
+        own_observations = own_observations[price_break:]
     own_closes = [close for _, close in own_observations]
     nifty_closes = [close for _, close in nifty_observations]
     sector_closes = [close for _, close in sector_observations]
 
+    if own_closes and untraded_share(own_closes) >= UNTRADED_SHARE:
+        provenance = _input_provenance(
+            symbol_ticker=symbol_ticker, own=own_observations, nifty=nifty_observations,
+            sector_ticker=sector_ticker, sector=sector_observations, cutoff_date=cutoff_date,
+            own_fetched_at=own_fetched_at, benchmark_fetched_at=benchmark_fetched_at, inputs={},
+        )
+        return PillarScore(
+            name="market_behaviour", score=None, coverage_pct=0.0, status=PillarStatus.INSUFFICIENT,
+            metrics_used=[], metrics_missing=["daily_price_history (untraded: close unchanged on at least half of recent sessions)"],
+            sources=[f"yfinance live daily ({symbol}.NS)"],
+            detail={"real_daily_rows": len(own_closes), "input_provenance": provenance, "untraded": True},
+        )
     if len(own_closes) < 30:
         provenance = _input_provenance(
             symbol_ticker=symbol_ticker, own=own_observations, nifty=nifty_observations,
@@ -332,6 +355,8 @@ async def score_market_behaviour(
     sub_scores: dict[str, float] = {}
     metrics_used, metrics_missing = [], []
     detail: dict = {"real_daily_rows": len(own_closes)}
+    if break_info:
+        detail["price_break_excluded"] = break_info
 
     # 200-DMA position
     position_pct = None

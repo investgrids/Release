@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.marketripple_score.eligibility import (
     REASON_INSUFFICIENT_FINANCIAL_METRICS, REASON_INSUFFICIENT_OVERALL_COVERAGE,
     REASON_INSUFFICIENT_MARKET_HISTORY, REASON_MARKET_INPUTS_UNVERIFIED, REASON_MISSING_REQUIRED_PILLAR,
-    REASON_NO_MATCHING_PEER_GROUP, REASON_PEER_GROUP_UNDER_REVIEW,
+    REASON_MARKET_SERIES_INVALID, REASON_NO_MATCHING_PEER_GROUP, REASON_PEER_GROUP_UNDER_REVIEW,
     REASON_NO_ELIGIBLE_FINANCIAL_PERIOD, REASON_STALE_FINANCIAL_DATA,
 )
 
@@ -42,6 +42,7 @@ _REASON_PRIORITY: list[str] = [
     REASON_INSUFFICIENT_FINANCIAL_METRICS,
     REASON_NO_MATCHING_PEER_GROUP,
     REASON_PEER_GROUP_UNDER_REVIEW,
+    REASON_MARKET_SERIES_INVALID,
     REASON_STALE_FINANCIAL_DATA,
     REASON_MARKET_INPUTS_UNVERIFIED,
     REASON_INSUFFICIENT_MARKET_HISTORY,
@@ -68,6 +69,10 @@ _REASON_COPY: dict[str, tuple[str, str]] = {
     REASON_STALE_FINANCIAL_DATA: (
         "Financial data awaiting update",
         "The latest financial statements MarketRipple has for this company are more than 15 months old, so its score is on hold until they are refreshed.",
+    ),
+    REASON_MARKET_SERIES_INVALID: (
+        "Price history under review",
+        "This company's recent price history has a break or hasn't traded normally, so its market-behaviour inputs can't be trusted. The score returns once the price data is verified.",
     ),
     REASON_PEER_GROUP_UNDER_REVIEW: (
         "Peer group under review",

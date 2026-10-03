@@ -61,3 +61,19 @@ def test_coverage_state_says_review_and_no_peer_group_consistently(monkeypatch):
         publication_block_reasons=[], publishable=True, score=50.0), "LT")[0] != "scored"
     # an ungrouped sector is untouched
     assert coverage_state("Metals", None, "TATASTEEL")[0] == "not_processed"
+
+
+def test_price_break_and_untraded_series_are_flagged_from_stored_inputs():
+    from app.services.marketripple_score.data_quality import last_price_break, market_series_invalid_reason, untraded_share
+
+    def inputs(closes, sym="ZZ"):
+        return {"series": {f"{sym}.NS": {"observations": [{"date": f"2026-01-{i + 1:02d}", "close": c} for i, c in enumerate(closes)]}}}
+
+    ok = [100 + i * 0.5 for i in range(60)]
+    assert market_series_invalid_reason(inputs(ok), "ZZ") is None
+    split = ok[:30] + [c / 10 for c in ok[30:]]
+    assert last_price_break(split) == 30 and "price break" in market_series_invalid_reason(inputs(split), "ZZ")
+    assert last_price_break([c * 1.19 for c in (1, 1)] + [1.4]) is None  # a +19% day is within circuit limits
+    frozen = [50.0] * 60
+    assert untraded_share(frozen) == 1.0 and "unchanged" in market_series_invalid_reason(inputs(frozen), "ZZ")
+    assert market_series_invalid_reason({"series": {}}, "ZZ") is None

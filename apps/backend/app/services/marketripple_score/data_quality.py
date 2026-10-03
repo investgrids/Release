@@ -22,7 +22,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.services.marketripple_score.eligibility import (
-    REASON_MARKET_INPUTS_UNVERIFIED, REASON_NO_MATCHING_PEER_GROUP, REASON_PEER_GROUP_UNDER_REVIEW, REASON_STALE_FINANCIAL_DATA,
+    REASON_MARKET_INPUTS_UNVERIFIED, REASON_MARKET_SERIES_INVALID, REASON_NO_MATCHING_PEER_GROUP, REASON_PEER_GROUP_UNDER_REVIEW, REASON_STALE_FINANCIAL_DATA,
 )
 
 STALE_FINANCIAL_AFTER_DAYS = 456  # ~15 months: a late filer still passes, a missed filing cycle doesn't
@@ -51,6 +51,46 @@ def financial_period_end(value) -> date | None:
 def financial_data_is_stale(value, today: date | None = None) -> bool:
     end = financial_period_end(value)
     return end is not None and ((today or date.today()) - end).days > STALE_FINANCIAL_AFTER_DAYS
+
+
+# Price-series integrity (audit of the 1,630 public scores, 2026-10-03).
+# NSE circuit limits cap a normal day at ±20%, so a one-day move beyond these
+# ratios is an unadjusted split/bonus/demerger or a vendor glitch, not trading.
+PRICE_BREAK_UP = 1.6
+PRICE_BREAK_DOWN = 0.4
+UNTRADED_WINDOW = 63
+UNTRADED_SHARE = 0.5  # half the recent sessions with an unchanged close = suspended/illiquid, not a price signal
+
+
+def last_price_break(closes: list[float]) -> int | None:
+    """Index of the last close that follows a one-day break, or None."""
+    for i in range(len(closes) - 1, 0, -1):
+        if closes[i - 1] > 0 and not (PRICE_BREAK_DOWN <= closes[i] / closes[i - 1] <= PRICE_BREAK_UP):
+            return i
+    return None
+
+
+def untraded_share(closes: list[float], window: int = UNTRADED_WINDOW) -> float:
+    tail = closes[-(window + 1):]
+    if len(tail) < 2:
+        return 0.0
+    return sum(1 for i in range(1, len(tail)) if tail[i] == tail[i - 1]) / (len(tail) - 1)
+
+
+def market_series_invalid_reason(inputs, symbol: str) -> str | None:
+    """From the stored closes: None when the company's own series is usable."""
+    try:
+        obs = inputs["series"][f"{symbol.upper()}.NS"]["observations"]
+        closes = [float(o["close"]) for o in obs]
+    except Exception:
+        return None  # unreadable provenance is MARKET_INPUTS_UNVERIFIED's job
+    brk = last_price_break(closes)
+    if brk is not None:
+        return f"one-day price break ({closes[brk - 1]:.2f} -> {closes[brk]:.2f}) on {obs[brk]['date']} inside the scoring window"
+    share = untraded_share(closes)
+    if share >= UNTRADED_SHARE:
+        return f"close unchanged on {share:.0%} of the last {UNTRADED_WINDOW} sessions (untraded or suspended)"
+    return None
 
 
 def market_inputs_unverified_reason(inputs, symbol: str) -> str | None:
@@ -98,5 +138,7 @@ def snapshot_data_quality_reasons(snap, today: date | None = None) -> list[str]:
         reasons.append(REASON_STALE_FINANCIAL_DATA)
     if market_inputs_unverified_reason(getattr(snap, "market_behaviour_inputs", None), str(getattr(snap, "symbol", ""))):
         reasons.append(REASON_MARKET_INPUTS_UNVERIFIED)
+    elif market_series_invalid_reason(getattr(snap, "market_behaviour_inputs", None), str(getattr(snap, "symbol", ""))):
+        reasons.append(REASON_MARKET_SERIES_INVALID)
     reasons += peer_group_reasons(snap)
     return reasons
