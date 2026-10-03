@@ -77,3 +77,13 @@ def test_price_break_and_untraded_series_are_flagged_from_stored_inputs():
     frozen = [50.0] * 60
     assert untraded_share(frozen) == 1.0 and "unchanged" in market_series_invalid_reason(inputs(frozen), "ZZ")
     assert market_series_invalid_reason({"series": {}}, "ZZ") is None
+
+
+def test_own_series_after_the_markets_last_session_is_unverified():
+    from app.services.marketripple_score.data_quality import market_inputs_unverified_reason
+
+    def inp(own_end, nifty_end="2026-10-01"):
+        return {"cutoff_date": "2026-10-02", "series": {"ZZ.NS": {"observation_end": own_end}, "^NSEI": {"observation_end": nifty_end}}}
+
+    assert market_inputs_unverified_reason(inp("2026-10-01"), "ZZ") is None
+    assert "non-session" in market_inputs_unverified_reason(inp("2026-10-02"), "ZZ")

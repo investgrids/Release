@@ -112,6 +112,8 @@ def market_inputs_unverified_reason(inputs, symbol: str) -> str | None:
         return "own or market series missing"
     if own_end < market_end:
         return f"own price series ends {own_end}, before the market's last session {market_end}"
+    if own_end > market_end:
+        return f"own price series ends {own_end}, after the market's last session {market_end} (a non-session row)"
     return None
 
 

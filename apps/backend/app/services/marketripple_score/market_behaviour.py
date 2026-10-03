@@ -313,6 +313,16 @@ async def score_market_behaviour(
     ) if sector_ticker else []
     from app.services.marketripple_score.data_quality import UNTRADED_SHARE, last_price_break, untraded_share
 
+    # Yahoo repeats the previous close on NSE holidays (e.g. 2026-09-14, 2026-10-02) for most
+    # stocks. Those are not sessions: keep only the dates the NIFTY 50 actually traded, so the
+    # own and benchmark windows cover the same sessions.
+    non_session_dropped = 0
+    if len(nifty_observations) >= 30:
+        session_dates = {d for d, _ in nifty_observations}
+        aligned = [(d, c) for d, c in own_observations if d in session_dates]
+        non_session_dropped = len(own_observations) - len(aligned)
+        own_observations = aligned
+
     # A one-day break beyond the NSE circuit limits is an unadjusted corporate
     # action or a vendor glitch: score only from the closes after it.
     price_break = last_price_break([c for _, c in own_observations])
@@ -357,6 +367,8 @@ async def score_market_behaviour(
     detail: dict = {"real_daily_rows": len(own_closes)}
     if break_info:
         detail["price_break_excluded"] = break_info
+    if non_session_dropped:
+        detail["non_session_rows_dropped"] = non_session_dropped
 
     # 200-DMA position
     position_pct = None
