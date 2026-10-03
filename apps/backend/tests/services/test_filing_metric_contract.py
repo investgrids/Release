@@ -199,3 +199,41 @@ def test_soft_flags_are_recorded_without_changing_the_status():
     ex = _ex({**BASE, "OtherIncome": 60, "ShareOfProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod": 50})
     fm = fmc.compute("T", ex, None, 3000.0, today=date(2026, 10, 3))
     assert fm.status == "ok" and fm.flags["other_income_over_half_of_pbet"] is True and fm.flags["associates_over_half_of_owners_profit"] is True
+
+
+# ---- audit status comes from the filing's own full-year statement, not the listing's Q4 flag ----
+def _xbrl(tmp_path, q4, fy, extra_fy=None):
+    def ctx(i, s, e):
+        return f'<xbrli:context id="{i}"><xbrli:entity><xbrli:identifier scheme="x">T</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>{s}</xbrli:startDate><xbrli:endDate>{e}</xbrli:endDate></xbrli:period></xbrli:context>'
+    vals = "".join(f'<in-capmkt:WhetherResultsAreAuditedOrUnaudited contextRef="{c}">{v}</in-capmkt:WhetherResultsAreAuditedOrUnaudited>'
+                   for c, v in (("q", q4), ("fy", fy), ("fy", extra_fy)) if v)
+    xml = ('<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:in-capmkt="http://www.sebi.gov.in/xbrl/in-capmkt">'
+           + ctx("q", "2026-01-01", "2026-03-31") + ctx("fy", "2025-04-01", "2026-03-31") + vals
+           + '<in-capmkt:RevenueFromOperations contextRef="fy" decimals="0">1000000000</in-capmkt:RevenueFromOperations></xbrli:xbrl>')
+    (tmp_path / "T_1_abc.xml").write_text(xml)
+    return str(tmp_path)
+
+
+def _ref(audited):
+    return nif.FilingRef(symbol="T", period_end=date(2026, 3, 31), scope="Consolidated", audited=audited, type_sub="Original", seq_id="1",
+                         broadcast=None, revised=None, xbrl_url="https://x", filing_file_id="1")
+
+
+def test_fullyear_audited_overrides_a_quarter_level_unaudited_listing_flag(tmp_path):
+    ex = nif.extract(_ref("Un-Audited"), raw_dir=_xbrl(tmp_path, "Unaudited", "Audited"))
+    assert ex.annual_status == "audited" and ex.audit_source == "xbrl_fullyear"
+
+
+def test_fullyear_unaudited_or_ambiguous_is_never_audited_even_if_listing_says_audited(tmp_path):
+    assert nif.extract(_ref("Audited"), raw_dir=_xbrl(tmp_path, "Unaudited", "Unaudited")).annual_status == "unverified_unaudited"
+
+
+def test_conflicting_fullyear_statements_fail_closed(tmp_path):
+    ex = nif.extract(_ref("Un-Audited"), raw_dir=_xbrl(tmp_path, "Unaudited", "Audited", "Unaudited"))
+    assert ex.annual_status == "unverified_unaudited" and ex.xbrl_fullyear_audit == "AMBIGUOUS"
+
+
+def test_missing_fullyear_statement_falls_back_to_listing_flag(tmp_path):
+    d = _xbrl(tmp_path, "Unaudited", None)
+    assert nif.extract(_ref("Un-Audited"), raw_dir=d).annual_status == "unverified_unaudited"
+    assert nif.extract(_ref("Audited"), raw_dir=d).annual_status == "audited"

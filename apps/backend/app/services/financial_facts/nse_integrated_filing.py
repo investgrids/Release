@@ -121,6 +121,8 @@ class FilingExtract:
     prior: dict[str, ExtractedFact] = field(default_factory=dict)       # prior fiscal year comparatives
     missing: list[str] = field(default_factory=list)
     annual_status: str = ""  # "audited" | "unverified_unaudited": a year-end filing is not treated as audited unless it is
+    xbrl_fullyear_audit: str = ""  # value of WhetherResultsAreAuditedOrUnaudited on the full-year context ("Audited" / "Unaudited" / "")
+    audit_source: str = ""         # "xbrl_fullyear" | "listing": which source decided annual_status
     disposal_facts: dict = field(default_factory=dict)  # concept -> crore, any non-dimensional held-for-sale / disposal-group / discontinued-operations fact
     regulatory: dict = field(default_factory=dict)      # {"debit": crore, "credit": crore} regulatory-deferral account balances at the period end
 
@@ -223,6 +225,12 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
             ex.currency = el.text.strip()
         elif name == "LevelOfRounding" and el.text:
             ex.level_of_rounding = el.text.strip()
+        if name == "WhetherResultsAreAuditedOrUnaudited" and el.text:
+            cd = ctx.get(el.get("contextRef"))
+            if cd and cd[0] == "duration" and not cd[3] and _is_year(cd[1], cd[2]) and cd[2] == ref.period_end:
+                v = el.text.strip()
+                # two different statements for the same full-year context are ambiguous: never treated as audited
+                ex.xbrl_fullyear_audit = v if ex.xbrl_fullyear_audit in ("", v) else "AMBIGUOUS"
         if _DISPOSAL_NAME.search(name) and "PerShare" not in name:
             cd = ctx.get(el.get("contextRef"))
             if cd and not cd[3] and (cd[2] == ref.period_end):
@@ -260,7 +268,15 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
             elif end == prior_end:
                 ex.prior.setdefault(name, fact)
     ex.missing = [c for c in REQUIRED_CONCEPTS if c not in ex.facts]
-    ex.annual_status = "audited" if ref.audited == "Audited" else "unverified_unaudited"
+    # The listing's audited flag describes the filing's reporting quarter (Q4), not the year. The filing's own full-year context states the
+    # year's status; it governs when present. A missing statement falls back to the listing flag; a conflict is never treated as audited.
+    fy = (ex.xbrl_fullyear_audit or "").lower()
+    if fy:
+        ex.annual_status = "audited" if fy == "audited" and ref.audited in ("Audited", "Un-Audited", None, "") else "unverified_unaudited"
+        ex.audit_source = "xbrl_fullyear"
+    else:
+        ex.annual_status = "audited" if ref.audited == "Audited" else "unverified_unaudited"
+        ex.audit_source = "listing"
     return ex
 
 
@@ -313,29 +329,36 @@ def owners_profit(ex: "FilingExtract") -> tuple[float | None, str]:
 
 def select_annual(rows: list[dict], scope_preference=("Consolidated", "Standalone"), session: requests.Session | None = None,
                   raw_dir: str | None = None, max_periods: int = 6) -> tuple["FilingExtract | None", dict]:
-    """Contract rule: choose an eligible AUDITED annual filing first, then apply the scope preference among audited ones
-    (so an un-audited consolidated filing can never displace an audited standalone one for the same year).
-    info["newer_unaudited_year_end"] is True when an un-audited filing exists for the year after the chosen audited one.
-    When no audited annual filing exists at all, falls back to the newest un-audited year-end filing (flagged unaudited)."""
+    """Contract rule: choose an eligible year-end filing whose full-year context is AUDITED (the filing's own statement, see extract), then
+    apply the scope preference among those (an unverified consolidated filing can never displace an audited standalone one for the same year).
+    Year-end periods are those sharing a month with any listing row flagged Audited (the listing flags audited rows only at year end).
+    info["newer_unaudited_year_end"] is True when a newer year-end filing exists whose full-year status is not Audited.
+    When no audited annual filing exists at all, falls back to the newest year-end filing (flagged unaudited)."""
     info: dict = {"notes": [], "newer_unaudited_year_end": False, "fallback_unaudited": False}
     indas = [r for r in rows if "INDAS" in (r.get("xbrl") or "") and _parse_qe(r.get("qe_Date"))]
-    aud_ends = sorted({_parse_qe(r["qe_Date"]) for r in indas if r.get("audited") == "Audited"}, reverse=True)
-    for pe in aud_ends[:max_periods]:
-        scopes = sorted({r.get("consolidated") for r in indas if _parse_qe(r["qe_Date"]) == pe and r.get("audited") == "Audited" and r.get("consolidated")})
+    fy_months = {_parse_qe(r["qe_Date"]).month for r in indas if r.get("audited") == "Audited"}
+    ends = sorted({_parse_qe(r["qe_Date"]) for r in indas if _parse_qe(r["qe_Date"]).month in fy_months}, reverse=True)
+    unverified_ends: list[date] = []
+    for pe in ends[:max_periods]:
+        scopes = sorted({r.get("consolidated") for r in indas if _parse_qe(r["qe_Date"]) == pe and r.get("consolidated")})
         for scope in [sc for sc in scope_preference if sc in scopes]:
             ref = select_filing(rows, pe, scope)
-            if ref is None or ref.audited != "Audited":
+            if ref is None:
                 continue
             try:
                 ex = extract(ref, session, raw_dir)
-            except requests.HTTPError as exc:  # the row's own link is dead: try the next audited scope, record the gap
+            except requests.HTTPError as exc:  # the row's own link is dead: try the next scope, record the gap
                 info["notes"].append(f"{pe} {scope}: XBRL_LINK_{exc.response.status_code if exc.response is not None else 'ERROR'} (seq {ref.seq_id})")
                 continue
-            if "RevenueFromOperations" in ex.facts or "ProfitBeforeTax" in ex.facts:
-                nxt = date(pe.year + 1, pe.month, pe.day) if not (pe.month == 2 and pe.day == 29) else date(pe.year + 1, 2, 28)
-                info["newer_unaudited_year_end"] = any(_parse_qe(r["qe_Date"]) == nxt and r.get("audited") != "Audited" for r in indas)
-                return ex, info
-            info["notes"].append(f"{pe} {scope}: audited filing without a full-year context (interim)")
+            if "RevenueFromOperations" not in ex.facts and "ProfitBeforeTax" not in ex.facts:
+                info["notes"].append(f"{pe} {scope}: no full-year context (interim)")
+                continue
+            if ex.annual_status != "audited":
+                info["notes"].append(f"{pe} {scope}: full-year status not Audited ({ex.xbrl_fullyear_audit or ref.audited})")
+                unverified_ends.append(pe)
+                continue
+            info["newer_unaudited_year_end"] = any(u > pe for u in unverified_ends)
+            return ex, info
     ex, notes = latest_annual(rows, scope_preference, session, raw_dir, max_periods)
     info["notes"] += notes
     info["fallback_unaudited"] = ex is not None

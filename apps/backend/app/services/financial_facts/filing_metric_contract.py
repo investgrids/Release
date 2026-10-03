@@ -114,7 +114,7 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
         return fm
     ref = ex.ref
     fm.provenance = {"seq_Id": ref.seq_id, "file_id": ref.filing_file_id, "url": ref.xbrl_url, "retrieved_at": ex.retrieved_at, "sha256": ex.sha256,
-                     "scope": ref.scope, "audited": ref.audited, "type_sub": ref.type_sub, "period_end": str(ref.period_end),
+                     "scope": ref.scope, "audited": ref.audited, "audit_source": ex.audit_source, "fullyear_audit_statement": ex.xbrl_fullyear_audit, "type_sub": ref.type_sub, "period_end": str(ref.period_end),
                      "currency": ex.currency, "level_of_rounding": ex.level_of_rounding, "market_cap_source": "Yahoo Finance (interim)"}
     stale = (today - ref.period_end).days > FRESH_DAYS
     if ex.annual_status != "audited" or stale:
