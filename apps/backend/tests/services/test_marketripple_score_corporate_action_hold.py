@@ -78,3 +78,10 @@ async def test_projection_of_a_held_company_says_why_and_shows_no_number(with_sn
         assert "CORPORATE_ACTION_HOLD" in result["block_reason_codes"]
     finally:
         await _cleanup(symbol, entity_id)
+
+
+def test_kohinoor_is_held_pending_rescore_and_other_companies_are_not():
+    hold = score_hold_for("KOHINOOR")
+    assert hold is not None and hold.headline == "Score on hold" and "one-off" in hold.message
+    assert score_hold_for("kohinoor.ns") is hold
+    assert score_hold_for("KOHINOORX") is None

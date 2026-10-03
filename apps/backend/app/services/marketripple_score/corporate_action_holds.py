@@ -39,7 +39,20 @@ _HEG = ScoreHold(
     ),
 )
 
-SCORE_HOLDS: dict[str, ScoreHold] = {"HEG": _HEG, "HEGAM": _HEG}
+# KOHINOOR (Kohinoor Foods, added 2026-10-03): the published 82.1 rested on a P/E of 1.3 from a one-off
+# gain (operating income -7.6 Cr, net income 80.7 Cr), a negative P/B (book value -94 Cr) ranked "cheapest",
+# and an EBIT-based ROCE/interest coverage that included the same gain. Held until it is re-scored under
+# corrected rules; removing the hold is a deliberate decision, never expiry.
+_KOHINOOR = ScoreHold(
+    event_date=date(2026, 10, 3),
+    headline="Score on hold",
+    message=(
+        "MarketRipple is reviewing this company's score. Its reported profit comes from a one-off gain "
+        "rather than operations and its book value is negative, so the inputs aren't comparable with peers yet."
+    ),
+)
+
+SCORE_HOLDS: dict[str, ScoreHold] = {"HEG": _HEG, "HEGAM": _HEG, "KOHINOOR": _KOHINOOR}
 
 REASON_CORPORATE_ACTION_HOLD = "CORPORATE_ACTION_HOLD"
 
