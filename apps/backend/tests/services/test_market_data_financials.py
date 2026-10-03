@@ -229,3 +229,13 @@ class TestFmtLargeCurrencyAware:
 
     def test_currency_matching_is_case_insensitive(self):
         assert _fmt_large(5_000_000_000, "usd") == "$5.0B"
+
+
+def test_negative_enterprise_value_is_shown_and_ratio_fallback_used():
+    from app.services.market_data import _format_enterprise_value, _pct_str_with_fallback
+
+    assert _format_enterprise_value(-5390742528) == "-₹5B"
+    assert _format_enterprise_value(None) == "—" and _format_enterprise_value(2.5e12) == "₹2.50T"
+    assert _pct_str_with_fallback(None, 86.54) == "86.5%"
+    assert _pct_str_with_fallback(0.12, 99.0) == "12.0%"
+    assert _pct_str_with_fallback(None, None) == "—"

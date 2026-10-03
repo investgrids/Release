@@ -180,6 +180,7 @@ _INCOME_STATEMENT_ROWS: list[tuple[str, list[str], str]] = [
 ]
 _BALANCE_SHEET_ROWS: list[tuple[str, list[str], str]] = [
     ("total_assets",         ["Total Assets"],                                            "currency"),
+    ("current_liabilities",  ["Current Liabilities"],                                     "currency"),
     ("cash_and_equivalents", ["Cash And Cash Equivalents", "Cash Financial"],              "currency"),
     ("receivables",          ["Accounts Receivable", "Receivables"],                       "currency"),
     ("inventory",            ["Inventory"],                                                "currency"),
@@ -386,6 +387,15 @@ def _compute_ratios(income_periods: list[dict], balance_periods: list[dict]) -> 
         equity = bal.get("shareholders_equity") if bal else None
         assets = bal.get("total_assets") if bal else None
         debt = bal.get("total_debt") if bal else None
+        current_liabilities = bal.get("current_liabilities") if bal else None
+
+        capital_employed = (
+            assets - current_liabilities
+            if assets is not None and current_liabilities is not None
+            else None
+        )
+        if capital_employed is not None and capital_employed <= 0:
+            capital_employed = None
 
         def _ratio(num, den, as_pct=True):
             if num is None or den is None or den == 0:
@@ -397,6 +407,7 @@ def _compute_ratios(income_periods: list[dict], balance_periods: list[dict]) -> 
             "period": inc["period"],
             "net_profit_margin": _ratio(net_profit, revenue),
             "operating_margin": _ratio(operating_profit, revenue),
+            "roce": _ratio(operating_profit, capital_employed),
             "roe": _ratio(net_profit, equity),
             "roa": _ratio(net_profit, assets),
             "debt_to_equity": _ratio(debt, equity, as_pct=False),
@@ -429,6 +440,42 @@ def _compute_capital_structure(info: dict, balance_annual: list[dict]) -> dict:
         "shareholders_equity": equity,
         "debt_to_equity": round(total_debt / equity, 2) if total_debt is not None and equity else None,
     }
+
+
+def _latest_statement_ratios(income_statement, balance_sheet) -> dict:
+    """Latest annual ROE/ROCE computed from the real statements (dimensionless,
+    so no currency scaling). Used only when Yahoo's own ratio field is missing."""
+    try:
+        income_rows = _extract_statement_rows(income_statement, _INCOME_STATEMENT_ROWS, _annual_label, currency_scale=1.0)
+        balance_rows = _extract_statement_rows(balance_sheet, _BALANCE_SHEET_ROWS, _annual_label, currency_scale=1.0)
+        matched = _compute_ratios(income_rows, balance_rows)
+    except Exception:
+        return {}
+    return matched[0] if matched else {}
+
+
+def _pct_str_with_fallback(provider_value, statement_percent) -> str:
+    """Yahoo's ratio when it has one, else the statement-derived percent, else "—"."""
+    if _is_real_number(provider_value):
+        return _pct_str(provider_value)
+    if _is_real_number(statement_percent):
+        return f"{round(float(statement_percent), 1)}%"
+    return "—"
+
+
+def _format_enterprise_value(ev_raw) -> str:
+    """Negative EV is real (cash above market cap) and is shown, not hidden."""
+    if not _is_real_number(ev_raw):
+        return "—"
+    ev = float(ev_raw)
+    sign, mag = ("-", abs(ev)) if ev < 0 else ("", ev)
+    if mag >= 1e12:
+        return f"{sign}₹{mag / 1e12:.2f}T"
+    if mag >= 1e9:
+        return f"{sign}₹{mag / 1e9:.0f}B"
+    if mag >= 1e7:
+        return f"{sign}₹{mag / 1e7:.0f}Cr"
+    return "—"
 
 
 async def get_stock_financials(symbol: str) -> dict:
@@ -741,19 +788,15 @@ async def get_stock_detail(symbol: str) -> Optional[dict]:
             day_low    = info.get("dayLow")   or price * 0.995
 
             # ── Enterprise value ────────────────────────────────────────
-            ev_raw = info.get("enterpriseValue") or 0
-            if ev_raw >= 1e12:
-                enterprise_value = f"₹{ev_raw / 1e12:.2f}T"
-            elif ev_raw >= 1e9:
-                enterprise_value = f"₹{ev_raw / 1e9:.0f}B"
-            elif ev_raw >= 1e7:
-                enterprise_value = f"₹{ev_raw / 1e7:.0f}Cr"
-            else:
-                enterprise_value = "—"
+            enterprise_value = _format_enterprise_value(info.get("enterpriseValue"))
 
-            # ── ROCE ────────────────────────────────────────────────────
+            # ── ROE / ROCE: Yahoo's field, else the real annual statements ──
             roce_raw = info.get("returnOnCapitalEmployed")
-            roce = _pct_str(roce_raw) if roce_raw else "—"
+            try:
+                statement_ratios = _latest_statement_ratios(t.financials, t.balance_sheet)
+            except Exception:
+                statement_ratios = {}
+            roce = _pct_str_with_fallback(roce_raw, statement_ratios.get("roce"))
 
             # ── Annual financials (4 most-recent fiscal years) ──────────
             annual_financials: list = []
@@ -876,7 +919,7 @@ async def get_stock_detail(symbol: str) -> Optional[dict]:
                 "forward_pe":        _num_str(info.get("forwardPE")),
                 "pb":                _num_str(info.get("priceToBook")),
                 "eps":               _num_str(info.get("trailingEps"), 2),
-                "roe":               _pct_str(info.get("returnOnEquity")),
+                "roe":               _pct_str_with_fallback(info.get("returnOnEquity"), statement_ratios.get("roe")),
                 "roa":               _pct_str(info.get("returnOnAssets")),
                 "beta":              _num_str(info.get("beta"), 2),
                 "dividend_yield":    (lambda v: f"{float(v):.2f}%" if v and float(v) > 0.25 else _pct_str(v))(info.get("dividendYield")),
