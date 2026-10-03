@@ -482,3 +482,23 @@ async def marketripple_score_refresh(include_banks: bool = True):
 async def marketripple_score_refresh_status():
     from app.services.marketripple_score.refresh import refresh_status
     return refresh_status()
+
+
+# ── Company Master rename repair (2026-10-03, HEG -> HEGAM) ──────────────────
+# Applies NSE symbol renames to entities still under their old symbol, only
+# when NSE's equity master lists the new symbol with the SAME ISIN (see
+# services/company_identity/renames.py). Dry-run unless apply=true; the
+# response lists every candidate and why it was renamed or skipped.
+# symbols=OLD1,OLD2 limits what is applied; the plan still shows the rest.
+@router.post("/company-identity/apply-verified-renames", dependencies=[Depends(require_admin_key)])
+async def company_identity_apply_verified_renames(apply: bool = False, symbols: str | None = None, db: AsyncSession = Depends(get_db)):
+    from app.services.company_identity.importer import parse_nse_eq_csv, parse_nse_symbolchange_csv
+    from app.services.company_identity.live_source import fetch_nse_eq_csv, fetch_nse_symbolchange_csv
+    from app.services.company_identity.renames import apply_verified_renames
+
+    eq_rows = parse_nse_eq_csv(await fetch_nse_eq_csv())
+    change_rows = parse_nse_symbolchange_csv(await fetch_nse_symbolchange_csv())
+    only = {s.strip().upper() for s in symbols.split(",") if s.strip()} if symbols else None
+    result = await apply_verified_renames(db, eq_rows, change_rows, apply=apply, only=only)
+    log.info("company_identity.verified_renames", apply=apply, renames=result["renames"], skipped=result["skipped"])
+    return result

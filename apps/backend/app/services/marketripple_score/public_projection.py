@@ -76,9 +76,14 @@ def is_publicly_published(snap) -> bool:
     """The one check every public surface uses before showing a number:
     the stored publishable flag AND the market-behaviour floor (which also
     hides snapshots published before that floor existed)."""
+    from app.services.marketripple_score.corporate_action_holds import score_hold_for
     from app.services.marketripple_score.market_behaviour import snapshot_lacks_market_history
 
-    return bool(snap.publishable) and not snapshot_lacks_market_history(snap)
+    return (
+        bool(snap.publishable)
+        and not snapshot_lacks_market_history(snap)
+        and score_hold_for(getattr(snap, "symbol", None)) is None
+    )
 
 
 def _public_block_message(reasons: list[str]) -> tuple[str, str] | None:
@@ -104,9 +109,17 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
     # Always the real, canonical, current symbol — an alias/historical
     # request lands on the exact same record a current-symbol request
     # would, never a second score identity for the same real company.
+    from app.services.marketripple_score.corporate_action_holds import REASON_CORPORATE_ACTION_HOLD, score_hold_for
+
+    hold = score_hold_for(entity.symbol)
     snap = await get_latest_snapshot(db, entity.symbol)
     if snap is None:
-        return {"resolved": True, "symbol": entity.symbol, "entity_id": entity.entity_id, "snapshot": False}
+        base = {"resolved": True, "symbol": entity.symbol, "entity_id": entity.entity_id, "snapshot": False}
+        if hold is not None:
+            return {**base, "publishable": False, "eligible": False, "score": None, "rating": None,
+                    "block_reason_codes": [REASON_CORPORATE_ACTION_HOLD],
+                    "block_headline": hold.headline, "block_message": hold.message}
+        return base
 
     from app.services.marketripple_score.market_behaviour import snapshot_lacks_market_history
 
@@ -115,8 +128,10 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
     # unpublished for another reason keeps that reason's own message.
     if snap.publishable and snapshot_lacks_market_history(snap) and REASON_INSUFFICIENT_MARKET_HISTORY not in reasons:
         reasons.append(REASON_INSUFFICIENT_MARKET_HISTORY)
+    if hold is not None and REASON_CORPORATE_ACTION_HOLD not in reasons:
+        reasons.append(REASON_CORPORATE_ACTION_HOLD)
     eligible = len(reasons) == 0
-    block = _public_block_message(reasons) if not eligible else None
+    block = (hold.headline, hold.message) if hold is not None else (_public_block_message(reasons) if not eligible else None)
 
     # Publication safety fix — Company Page release audit, 2026-08-31.
     # `publishable` was previously returned "for transparency/debugging"

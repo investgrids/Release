@@ -550,7 +550,10 @@ _NSE_UNIVERSE: list[dict] = [
     {"symbol":"GRAPHITE", "name":"Graphite India Ltd", "sector":"Infrastructure", "industry":"Capital Goods", "cap":"mid", "aliases":["graphite"]},
     {"symbol":"GVT&D", "name":"GE Vernova T&D India Ltd", "sector":"Infrastructure", "industry":"Capital Goods", "cap":"mid", "aliases":["gvt&d", "vernova"]},
     {"symbol":"HBLENGINE", "name":"HBL Engineering Ltd", "sector":"Infrastructure", "industry":"Capital Goods", "cap":"mid", "aliases":["hbl", "hblengine"]},
-    {"symbol":"HEG", "name":"H.E.G. Ltd", "sector":"Infrastructure", "industry":"Capital Goods", "cap":"mid", "aliases":["heg"]},
+    # Renamed HEG -> HEGAM on NSE (effective 2026-09-22, same ISIN INE545A01024; verified against NSE's
+    # EQUITY_L.csv + symbolchange.csv). "HEG" stays an alias; the Company Master entity is renamed by
+    # services/company_identity/renames.py. Score on hold: see corporate_action_holds.py.
+    {"symbol":"HEGAM", "name":"HEG Advanced Materials Ltd", "sector":"Infrastructure", "industry":"Capital Goods", "cap":"mid", "aliases":["heg", "hegam", "heg advanced materials"]},
     {"symbol":"IGIL", "name":"International Gemological Institute Ltd", "sector":"Infrastructure", "industry":"Services", "cap":"mid", "aliases":["gemological", "gemological institute", "igil"]},
     {"symbol":"INOXWIND", "name":"Inox Wind Ltd", "sector":"Infrastructure", "industry":"Capital Goods", "cap":"mid", "aliases":["inoxwind"]},
     {"symbol":"JINDALSAW", "name":"Jindal Saw Ltd", "sector":"Infrastructure", "industry":"Capital Goods", "cap":"mid", "aliases":["jindal saw", "jindalsaw"]},

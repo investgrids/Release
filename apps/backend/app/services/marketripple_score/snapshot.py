@@ -163,6 +163,11 @@ async def compute_and_persist_snapshot(
         if not pillar_has_sufficient_market_history(mkt):
             publication_block_reasons = [*(publication_block_reasons or []), REASON_INSUFFICIENT_MARKET_HISTORY]
 
+    from app.services.marketripple_score.corporate_action_holds import REASON_CORPORATE_ACTION_HOLD, score_hold_for
+
+    if score_hold_for(symbol) is not None:
+        publication_block_reasons = [*(publication_block_reasons or []), REASON_CORPORATE_ACTION_HOLD]
+
     snapshot = MarketRippleScoreSnapshot(
         entity_id=entity.entity_id if entity else None,
         symbol=symbol,

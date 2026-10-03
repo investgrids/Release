@@ -247,3 +247,17 @@ async def test_sector_without_eligibility_policy_is_never_publishable(monkeypatc
         assert snap.publishable is False
     finally:
         await _cleanup_snapshots(symbol)
+
+
+@pytest.mark.asyncio
+async def test_held_company_snapshot_is_never_publishable_even_with_full_data(monkeypatch):
+    """HEGAM: demerger hold — a snapshot with every pillar and a clean
+    eligibility verdict is still not publishable."""
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
+    symbol = "HEGAM"
+    try:
+        snap = await _persist_with(monkeypatch, symbol, sector=NONBANK_INDUSTRIAL_SECTORS[0], publishable=True, reasons=[])
+        assert snap.publishable is False
+        assert "CORPORATE_ACTION_HOLD" in (snap.publication_block_reasons or [])
+    finally:
+        await _cleanup_snapshots(symbol)

@@ -70,3 +70,13 @@ def test_tatamotors_stale_ticker_is_gone_tmpv_is_the_live_successor():
 def test_tmpv_still_resolves_a_tata_motors_search():
     row = next(r for r in _NSE_UNIVERSE if r["symbol"] == "TMPV")
     assert "tata motors" in row["aliases"]
+
+
+def test_heg_is_listed_under_its_current_nse_symbol_hegam():
+    """NSE renamed HEG -> HEGAM (effective 2026-09-22, same ISIN). The old
+    symbol must not remain a second candidate for the same company."""
+    symbols = {r["symbol"] for r in _NSE_UNIVERSE}
+    assert "HEGAM" in symbols
+    assert "HEG" not in symbols
+    row = next(r for r in _NSE_UNIVERSE if r["symbol"] == "HEGAM")
+    assert "heg" in row["aliases"]
