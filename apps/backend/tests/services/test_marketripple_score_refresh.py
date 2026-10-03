@@ -96,3 +96,41 @@ async def test_sector_refresh_shares_dated_benchmarks_and_fixed_cutoff(tmp_repor
     assert captured["benchmarks"]["^NSEI"] == [("2026-09-29", 123.45)]
     assert captured["market_cutoff_date"] == "2026-09-29"
     assert captured["benchmarks_fetched_at"]
+
+
+@pytest.mark.asyncio
+async def test_sector_with_any_failed_company_commits_nothing(tmp_reports, monkeypatch):
+    """All-or-nothing (2026-10-03 pilot): one failed company must leave the whole
+    sector untouched, so Rankings never mixes old and new peer sets."""
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    import app.services.marketripple_score.snapshot as snapshot_mod
+    from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot
+    from app.db.session import AsyncSessionLocal
+
+    async def _build(db, symbol, peer_group=None, industrial_cache=None):
+        if symbol == "ZBOOM":
+            raise TypeError("'<' not supported between instances of 'str' and 'float'")
+        return MarketRippleScoreSnapshot(
+            symbol=symbol, score=50.0, rating="Neutral", coverage_pct=100.0, methodology_version="MARKETRIPPLE_SCORE_V1",
+            peer_universe=[], calculated_at=datetime.now(timezone.utc), publishable=False, publication_block_reasons=["X"])
+
+    async def _none(_symbols):
+        return {}
+
+    monkeypatch.setattr(snapshot_mod, "build_snapshot", _build)
+    monkeypatch.setattr(refresh, "_previous_published", _none)
+
+    async def _no_sleep(_):
+        return None
+    monkeypatch.setattr(refresh.asyncio, "sleep", _no_sleep)
+
+    tally = {"attempted": 0, "published": 0, "errors": [], "numeric": 0, "partial": 0, "unusable": 0,
+             "ratings": {}, "block_reasons": {}, "missing_pillars": {}}
+    stats = await refresh._build_and_commit("Metals", ["ZOK1", "ZBOOM", "ZOK2"], None, None, tally)
+    assert stats["committed"] is False and stats["errors"] == 1
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(select(MarketRippleScoreSnapshot).where(MarketRippleScoreSnapshot.symbol.in_(["ZOK1", "ZOK2", "ZBOOM"])))).scalars().all()
+    assert rows == []  # the two that built fine were NOT committed either

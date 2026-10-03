@@ -232,8 +232,14 @@ async def _build_and_commit(sector: str, symbols: list[str], peer_group: list[st
                 errors += 1
                 tally["errors"].append({"symbol": symbol, "error": f"{type(exc).__name__}: {exc}"[:300]})
             await asyncio.sleep(PAUSE_BETWEEN_COMPANIES_S)
-        db.add_all(built)
-        await db.commit()
+        if errors:
+            # All-or-nothing: a sector with ANY failed company is not switched, so
+            # Rankings never mixes companies scored against different peer sets.
+            await db.rollback()
+            built = []
+        else:
+            db.add_all(built)
+            await db.commit()
     for snap in built:
         _tally_snapshot(snap, tally)
     from collections import Counter
@@ -252,6 +258,7 @@ async def _build_and_commit(sector: str, symbols: list[str], peer_group: list[st
             na[r] += 1
     return {
         "candidates": len(symbols),
+        "committed": errors == 0,  # False = sector left untouched (see the all-or-nothing rule above)
         "numeric": sum(1 for b in built if b.score is not None),
         "published": sum(1 for b in built if is_publicly_published(b)),
         "na_reasons": dict(na.most_common()),

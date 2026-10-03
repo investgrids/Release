@@ -19,6 +19,7 @@ explicitly unvalidated — see engine.py's 5-bank comparison.
 from __future__ import annotations
 
 import asyncio
+import math
 from datetime import datetime, timezone
 
 from app.services.marketripple_score.banking_universe import ALL_ELIGIBLE_NSE_BANKS
@@ -26,6 +27,18 @@ from app.services.marketripple_score.contracts import PillarScore, PillarStatus
 
 
 _RETRY_BACKOFF_S = (1.5, 3.0, 6.0)  # 4 attempts total
+
+
+def _finite(value) -> float | None:
+    """A real, finite number or None. Yahoo returns the STRING 'Infinity' for a
+    trailing P/E on near-zero earnings (found 2026-10-03: VAISHALI), which broke
+    the percentile sort — and with it every company in the sector — with
+    "'<' not supported between 'str' and 'float'"."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
 
 
 def _fetch_valuation_snapshot_sync(symbol: str) -> dict:
@@ -60,9 +73,9 @@ def _fetch_valuation_snapshot_sync(symbol: str) -> dict:
         if attempt < len(_RETRY_BACKOFF_S):
             time.sleep(_RETRY_BACKOFF_S[attempt])
     return {
-        "pe": info.get("trailingPE"),
-        "pb": info.get("priceToBook"),
-        "roe": info.get("returnOnEquity"),
+        "pe": _finite(info.get("trailingPE")),
+        "pb": _finite(info.get("priceToBook")),
+        "roe": _finite(info.get("returnOnEquity")),
     }
 
 
@@ -129,6 +142,7 @@ def _percentile_rank(values: dict[str, float], symbol: str, cheaper_is_better: b
     """0-100, 100 = best (cheapest when cheaper_is_better). Real rank among
     real values only — a peer with no real value for this metric is
     excluded from the ranking, not treated as a data point."""
+    values = {k: v for k, v in values.items() if isinstance(v, (int, float)) and math.isfinite(v)}
     if symbol not in values or len(values) < 2:
         return None
     ordered = sorted(values.items(), key=lambda kv: kv[1], reverse=not cheaper_is_better)

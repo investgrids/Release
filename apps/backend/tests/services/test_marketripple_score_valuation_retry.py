@@ -106,3 +106,25 @@ async def test_prefetch_no_second_pass_when_nothing_is_missing(monkeypatch):
 
     await v.prefetch_valuation_snapshots(["A", "B"])
     assert calls == {"A": 1, "B": 1}
+
+
+# ── 2026-10-03 pilot: Yahoo's string 'Infinity' P/E broke a whole sector ─────
+def test_finite_coerces_yahoo_strings_and_infinities_to_none():
+    assert v._finite("Infinity") is None
+    assert v._finite(float("inf")) is None and v._finite(float("nan")) is None
+    assert v._finite(None) is None and v._finite("n/a") is None
+    assert v._finite("12.5") == 12.5 and v._finite(7) == 7.0
+
+
+def test_snapshot_fetch_never_returns_a_non_numeric_pe(monkeypatch):
+    fake = _FakeTicker(fail_times=0, real={"trailingPE": "Infinity", "priceToBook": 2.1, "returnOnEquity": 0.12})
+    monkeypatch.setattr(yf, "Ticker", lambda t: fake)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    assert v._fetch_valuation_snapshot_sync("VAISHALI") == {"pe": None, "pb": 2.1, "roe": 0.12}
+
+
+def test_percentile_rank_ignores_non_numeric_peers_instead_of_crashing():
+    values = {"A": 10.0, "B": 20.0, "C": 30.0, "BAD": "Infinity", "WORSE": float("inf")}
+    assert v._percentile_rank(values, "A") == 100.0
+    assert v._percentile_rank(values, "C") == 0.0
+    assert v._percentile_rank(values, "BAD") is None  # the bad peer itself has no rank, nobody else is affected
