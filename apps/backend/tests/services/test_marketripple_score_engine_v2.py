@@ -41,7 +41,7 @@ def _patch_pillars(monkeypatch, *, fs, val, mkt, ci):
     async def fake_val(symbol, sector, peer_group=None, prefetched=None):
         return val
 
-    async def fake_mkt(symbol, sector, prefetched_benchmarks=None):
+    async def fake_mkt(symbol, sector, prefetched_benchmarks=None, cutoff_date=None, benchmark_fetched_at=None):
         return mkt
 
     async def fake_ci(db, symbol):

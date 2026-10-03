@@ -131,6 +131,7 @@ _COLUMN_PATCHES: list[tuple[str, str, str]] = [
     # audit) before these columns did.
     ("marketripple_score_snapshots", "pillar_coverage_status", "VARCHAR(16)"),
     ("marketripple_score_snapshots", "pillar_coverage_message", "TEXT"),
+    ("marketripple_score_snapshots", "market_behaviour_inputs", "JSON"),
 ]
 
 

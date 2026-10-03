@@ -9,12 +9,16 @@ data that changes daily).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from app.services.marketripple_score.contracts import MarketRippleScore, PillarScore, PillarStatus
-from app.services.marketripple_score.market_behaviour import _pct_return, _rsi
+from app.services.marketripple_score import market_behaviour
+from app.services.marketripple_score.market_behaviour import (
+    _pct_return, _rsi, completed_session_cutoff_date, market_behaviour_coverage_meets_minimum,
+)
 from app.services.marketripple_score.valuation import _percentile_rank
 
 
@@ -51,6 +55,72 @@ def test_rsi_all_gains_is_100_all_losses_is_0():
     falling = [100.0 - i for i in range(20)]
     assert _rsi(falling) == 0.0
     assert _rsi([100.0, 101.0]) is None  # fewer than period+1 points -- must not fabricate
+
+
+def test_completed_session_cutoff_excludes_the_session_until_vendor_finalization():
+    local_before_finalization = datetime(2026, 9, 30, 15, 59, tzinfo=ZoneInfo("Asia/Kolkata"))
+    local_after_finalization = datetime(2026, 9, 30, 16, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
+
+    assert completed_session_cutoff_date(local_before_finalization) == date(2026, 9, 29)
+    assert completed_session_cutoff_date(local_after_finalization) == date(2026, 9, 30)
+
+
+def test_candidate_market_behaviour_minimum_is_two_of_four_components():
+    assert market_behaviour_coverage_meets_minimum(25.0, 52, ["rsi_14"]) is False
+    assert market_behaviour_coverage_meets_minimum(
+        50.0, 64, ["rsi_14", "relative_return_vs_nifty50"],
+    ) is True
+    assert market_behaviour_coverage_meets_minimum(
+        50.0, 200, ["200_dma_position", "rsi_14"],
+    ) is False
+    assert market_behaviour_coverage_meets_minimum(
+        50.0, 63, ["rsi_14", "relative_return_vs_nifty50"],
+    ) is False
+    assert market_behaviour_coverage_meets_minimum(
+        50.0, 64, ["rsi_14", "relative_return_vs_sector_etf (HEALTHY)"]
+    ) is True
+    assert market_behaviour_coverage_meets_minimum(None, 64, []) is False
+
+
+@pytest.mark.asyncio
+async def test_market_behaviour_uses_only_completed_dated_observations(monkeypatch):
+    first_day = date(2025, 1, 1)
+    own = [((first_day + timedelta(days=index)).isoformat(), 100.0 + index) for index in range(220)]
+    nifty = [((first_day + timedelta(days=index)).isoformat(), 200.0 + index * 0.25) for index in range(220)]
+    cutoff_date = date.fromisoformat(own[-2][0])
+    monkeypatch.setattr(market_behaviour, "_fetch_daily_close_observations_sync", lambda _ticker: own)
+
+    result = await market_behaviour.score_market_behaviour(
+        "TEST", None, prefetched_benchmarks={"^NSEI": nifty}, cutoff_date=cutoff_date.isoformat(),
+    )
+
+    provenance = result.detail["input_provenance"]
+    assert result.score is not None
+    assert provenance["cutoff_date"] == cutoff_date.isoformat()
+    assert provenance["series"]["TEST.NS"]["observation_end"] == cutoff_date.isoformat()
+    assert provenance["series"]["^NSEI"]["observation_end"] == cutoff_date.isoformat()
+    assert len(provenance["series"]["TEST.NS"]["observations"]) == 200
+    assert len(provenance["series"]["^NSEI"]["observations"]) == 64
+    dma_input = provenance["inputs"]["price_vs_200dma_pct"]
+    assert dma_input["value"] == result.detail["price_vs_200dma_pct"]
+    assert dma_input["source"] == "Yahoo Finance via yfinance"
+    assert dma_input["observation_windows"]["TEST.NS"]["requested_observations"] == 200
+
+
+@pytest.mark.asyncio
+async def test_rsi_only_pillar_is_measured_but_candidate_minimum_is_not_enforced(monkeypatch):
+    first_day = date(2026, 7, 1)
+    own = [((first_day + timedelta(days=index)).isoformat(), 100.0 + index) for index in range(52)]
+    monkeypatch.setattr(market_behaviour, "_fetch_daily_close_observations_sync", lambda _ticker: own)
+
+    result = await market_behaviour.score_market_behaviour("HEG", None, cutoff_date=own[-1][0])
+
+    assert result.score is not None
+    assert result.coverage_pct == 25.0
+    assert result.metrics_used == ["rsi_14"]
+    assert market_behaviour_coverage_meets_minimum(
+        result.coverage_pct, len(own), result.metrics_used,
+    ) is False
 
 
 def _pillar(score, coverage=100.0, status=PillarStatus.COMPLETE) -> PillarScore:

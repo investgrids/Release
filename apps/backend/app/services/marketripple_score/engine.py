@@ -228,7 +228,12 @@ async def compute_marketripple_score(
     ci = await score_current_intelligence(db, symbol)
     val, mkt = await asyncio.gather(
         score_valuation(symbol, sector, peer_group=peer_group, prefetched=industrial_cache.get("valuation_snapshots")),
-        score_market_behaviour(symbol, sector, prefetched_benchmarks=industrial_cache.get("benchmarks")),
+        score_market_behaviour(
+            symbol, sector,
+            prefetched_benchmarks=industrial_cache.get("benchmarks"),
+            cutoff_date=industrial_cache.get("market_cutoff_date"),
+            benchmark_fetched_at=industrial_cache.get("benchmarks_fetched_at"),
+        ),
     )
 
     pillars: dict[str, PillarScore] = {

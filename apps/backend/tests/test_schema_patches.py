@@ -27,6 +27,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.db.base import Base
+from app.db.models.marketripple_score_snapshot import MarketRippleScoreSnapshot  # noqa: F401
 from app.db.schema_patches import apply_schema_patches
 
 
@@ -112,5 +113,27 @@ async def test_apply_schema_patches_is_a_no_op_on_a_fresh_database():
                 result = await conn.execute(text("PRAGMA table_info(intelligence_articles)"))
                 cols = {row[1] for row in result.fetchall()}
                 assert "key_facts" in cols
+        finally:
+            await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_market_behaviour_inputs_is_added_to_existing_snapshot_table():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "pre_market_inputs.db"
+        engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+                await conn.execute(text(
+                    "ALTER TABLE marketripple_score_snapshots DROP COLUMN market_behaviour_inputs"
+                ))
+
+            async with engine.begin() as conn:
+                await apply_schema_patches(conn)
+                result = await conn.execute(text("PRAGMA table_info(marketripple_score_snapshots)"))
+                columns = {row[1] for row in result.fetchall()}
+                assert "market_behaviour_inputs" in columns
+                await apply_schema_patches(conn)
         finally:
             await engine.dispose()

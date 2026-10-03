@@ -261,3 +261,36 @@ async def test_held_company_snapshot_is_never_publishable_even_with_full_data(mo
         assert "CORPORATE_ACTION_HOLD" in (snap.publication_block_reasons or [])
     finally:
         await _cleanup_snapshots(symbol)
+
+
+@pytest.mark.asyncio
+async def test_market_behaviour_input_provenance_is_persisted_with_the_snapshot(monkeypatch):
+    """The dated closes and derived inputs the pillar used travel with the
+    snapshot, so a published number can be audited later."""
+    import app.services.aipe.company_score_engine as cse
+    import app.services.company_identity.qualification as qual
+    import app.services.marketripple_score.eligibility as elig
+    from app.services.marketripple_score import snapshot as snap_mod
+    from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
+
+    provenance = {"cutoff_date": "2026-09-29", "series": {"X.NS": {"observation_count": 200}}, "inputs": {}}
+    result = _headline_result(True)
+    result.pillars["market_behaviour"].detail = {"input_provenance": provenance}
+
+    async def _compute(*a, **k): return result
+    async def _entity(*a, **k): return None
+
+    class _Verdict:
+        reasons: list = []
+
+    monkeypatch.setattr(snap_mod, "compute_marketripple_score", _compute)
+    monkeypatch.setattr(qual, "resolve_entity_by_any_symbol", _entity)
+    monkeypatch.setattr(cse, "_sector_for", lambda s: NONBANK_INDUSTRIAL_SECTORS[0])
+    monkeypatch.setattr(elig, "evaluate_eligibility", lambda **k: _Verdict())
+    symbol = f"PRV{_tag()}".upper()
+    try:
+        async with AsyncSessionLocal() as db:
+            snap = await snap_mod.compute_and_persist_snapshot(db, symbol)
+        assert snap.market_behaviour_inputs == provenance
+    finally:
+        await _cleanup_snapshots(symbol)

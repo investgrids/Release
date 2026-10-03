@@ -205,6 +205,7 @@ async def compute_and_persist_snapshot(
         ),
         pillar_coverage_status=result.pillar_coverage_status,
         pillar_coverage_message=result.pillar_coverage_message,
+        market_behaviour_inputs=(mkt.detail or {}).get("input_provenance") if mkt else None,
     )
     db.add(snapshot)
     await db.commit()

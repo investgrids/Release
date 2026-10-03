@@ -27,7 +27,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -163,10 +163,11 @@ def _progress(sector: str, symbol: str, tally: dict) -> None:
     })
 
 
-async def _refresh_sector(sector: str, tally: dict) -> None:
+async def _refresh_sector(sector: str, tally: dict, market_cutoff_date: date | None = None) -> None:
     from app.services.marketripple_score.financial_strength_industrial import prefetch_industrial_inputs
     from app.services.marketripple_score.market_behaviour import (
-        _NIFTY_TICKER, _SECTOR_ETFS, _SECTOR_LABEL_TO_ETF_KEY, _fetch_daily_closes_sync,
+        _NIFTY_TICKER, _SECTOR_ETFS, _SECTOR_LABEL_TO_ETF_KEY, _fetch_daily_close_observations_sync,
+        completed_session_cutoff_date,
     )
     from app.services.marketripple_score.sector_universe import sector_peer_universe
     from app.services.marketripple_score.valuation import prefetch_valuation_snapshots
@@ -178,11 +179,19 @@ async def _refresh_sector(sector: str, tally: dict) -> None:
     loop = asyncio.get_running_loop()
     sector_ticker = _SECTOR_ETFS.get(_SECTOR_LABEL_TO_ETF_KEY.get(sector, sector))
     tickers = [_NIFTY_TICKER] + ([sector_ticker] if sector_ticker else [])
-    closes = await asyncio.gather(*[loop.run_in_executor(None, _fetch_daily_closes_sync, t) for t in tickers])
+    # One cutoff and one benchmark retrieval time for the whole sector: every company in it
+    # is scored against the same completed sessions (today's candle is excluded until 16:00 IST).
+    market_cutoff_date = market_cutoff_date or completed_session_cutoff_date()
+    observations = await asyncio.gather(*[
+        loop.run_in_executor(None, _fetch_daily_close_observations_sync, t) for t in tickers
+    ])
+    benchmarks_fetched_at = datetime.now(timezone.utc).isoformat()
     cache = {
         "financial_inputs": await prefetch_industrial_inputs(universe),
         "valuation_snapshots": await prefetch_valuation_snapshots(universe),
-        "benchmarks": dict(zip(tickers, closes)),
+        "benchmarks": dict(zip(tickers, observations)),
+        "market_cutoff_date": market_cutoff_date.isoformat(),
+        "benchmarks_fetched_at": benchmarks_fetched_at,
     }
     for symbol in universe:
         _progress(sector, symbol, tally)
@@ -198,17 +207,21 @@ async def refresh_all_scores(include_banks: bool = True) -> dict[str, Any]:
     from app.services.marketripple_score.sector_universe import NONBANK_INDUSTRIAL_SECTORS
 
     started = datetime.now(timezone.utc)
+    from app.services.marketripple_score.market_behaviour import completed_session_cutoff_date
+
+    market_cutoff_date = completed_session_cutoff_date(started)  # one cutoff for the whole run
     t0 = time.perf_counter()
     tally: dict[str, Any] = {
         "attempted": 0, "numeric": 0, "partial": 0, "unusable": 0, "published": 0,
         "ratings": {}, "block_reasons": {}, "missing_pillars": {}, "errors": [], "sector_failures": [],
+        "market_cutoff_date": market_cutoff_date.isoformat(),
     }
     log.info("marketripple_score.refresh.start", sectors=len(NONBANK_INDUSTRIAL_SECTORS),
              banks=len(ALL_ELIGIBLE_NSE_BANKS) if include_banks else 0)
     try:
         for sector in NONBANK_INDUSTRIAL_SECTORS:
             try:
-                await _refresh_sector(sector, tally)
+                await _refresh_sector(sector, tally, market_cutoff_date)
             except Exception as exc:
                 tally["sector_failures"].append({"sector": sector, "error": f"{type(exc).__name__}: {exc}"[:300]})
         if include_banks:

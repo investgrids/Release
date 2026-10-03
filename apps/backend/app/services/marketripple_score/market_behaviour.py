@@ -17,18 +17,104 @@ inputs, combined with explicitly candidate (unvalidated) weights:
 from __future__ import annotations
 
 import asyncio
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from app.services.marketripple_score.contracts import PillarScore, PillarStatus
 
 _NIFTY_TICKER = "^NSEI"
+_NSE_TIMEZONE = ZoneInfo("Asia/Kolkata")
+_SESSION_FINALIZED_AT = time(16, 0)  # 30 minutes after the 15:30 IST close
 
-# Publication floor for this pillar (owner decision 2026-10-03, after HEG was
-# published at 59.7 from 1 of 4 components): at least 50% coverage, at least
-# 64 completed own daily closes, and a real NIFTY- or sector-relative
-# comparison. Both relative returns use a 63-session window (_pct_return needs
-# > 63 closes), so either one being present proves the 64-close floor.
+# Candidate completeness bar only. It is not enforced by score_market_behaviour
+# or the publication gate pending review of the measured 1/422-score impact.
 MIN_MARKET_BEHAVIOUR_COVERAGE_PCT = 50.0
-MIN_MARKET_BEHAVIOUR_OWN_OBSERVATIONS = 64  # implied by any relative return
+MIN_MARKET_BEHAVIOUR_OWN_OBSERVATIONS = 64
+
+
+def market_behaviour_snapshot_is_sufficient(snapshot, *, allow_legacy_inference: bool = True) -> bool:
+    """Check the publication candidate against stored or scorer provenance.
+
+    Legacy snapshots have no `market_behaviour_inputs`; under the current
+    four-component formula, 75% or 100% proves at least one relative return
+    was computed, and a 63-session return proves at least 64 own closes.
+    Lower legacy coverage is not enough evidence and fails closed.
+    """
+    coverage_pct = getattr(snapshot, "market_behaviour_coverage_pct", None)
+    provenance = getattr(snapshot, "market_behaviour_inputs", None)
+    if not isinstance(provenance, dict):
+        return bool(allow_legacy_inference and coverage_pct is not None and coverage_pct >= 75.0)
+
+    symbol = str(getattr(snapshot, "symbol", "")).upper()
+    own_series = provenance.get("series", {}).get(f"{symbol}.NS", {})
+    own_observation_count = own_series.get("observation_count", 0)
+    inputs = provenance.get("inputs", {})
+    metrics_used = []
+    if inputs.get("relative_return_vs_nifty50_pct", {}).get("value") is not None:
+        metrics_used.append("relative_return_vs_nifty50")
+    if inputs.get("relative_return_vs_sector_etf_pct", {}).get("value") is not None:
+        metrics_used.append("relative_return_vs_sector_etf (recorded benchmark)")
+    return market_behaviour_coverage_meets_minimum(
+        coverage_pct, own_observation_count, metrics_used,
+    )
+
+
+def _rsi(closes: list[float], period: int = 14) -> float | None:
+    if len(closes) < period + 1:
+        return None
+    gains, losses = [], []
+    for i in range(1, len(closes)):
+        change = closes[i] - closes[i - 1]
+        gains.append(max(change, 0.0))
+        losses.append(max(-change, 0.0))
+    avg_gain = sum(gains[-period:]) / period
+    avg_loss = sum(losses[-period:]) / period
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return round(100 - (100 / (1 + rs)), 1)
+
+
+def _pct_return(closes: list[float], lookback: int) -> float | None:
+    if len(closes) <= lookback:
+        return None
+    return round((closes[-1] - closes[-1 - lookback]) / closes[-1 - lookback] * 100, 2)
+
+
+def completed_session_cutoff_date(now: datetime | None = None) -> date:
+    """Return the latest NSE session date safe to include in daily indicators.
+
+    The current day's daily candle is excluded until 16:00 IST, allowing a
+    30-minute vendor-finalization buffer after the 15:30 close.
+    """
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    nse_now = now.astimezone(_NSE_TIMEZONE)
+    if nse_now.time() < _SESSION_FINALIZED_AT:
+        return nse_now.date() - timedelta(days=1)
+    return nse_now.date()
+
+
+def market_behaviour_coverage_meets_minimum(
+    coverage_pct: float | None, own_observation_count: int, metrics_used: list[str],
+) -> bool:
+    """Candidate floor; informational until the publication impact is approved.
+
+    Requires at least two components, enough completed closes for the
+    63-session return window, and a real market/sector-relative comparison.
+    """
+    has_relative_comparison = any(
+        metric.startswith("relative_return_vs_nifty50")
+        or metric.startswith("relative_return_vs_sector_etf")
+        for metric in metrics_used
+    )
+    return (
+        coverage_pct is not None
+        and coverage_pct >= MIN_MARKET_BEHAVIOUR_COVERAGE_PCT
+        and own_observation_count >= MIN_MARKET_BEHAVIOUR_OWN_OBSERVATIONS
+        and has_relative_comparison
+    )
 
 
 def pillar_has_sufficient_market_history(pillar: PillarScore | None) -> bool:
@@ -79,29 +165,7 @@ _SECTOR_LABEL_TO_ETF_KEY: dict[str, str] = {
 }
 
 
-def _rsi(closes: list[float], period: int = 14) -> float | None:
-    if len(closes) < period + 1:
-        return None
-    gains, losses = [], []
-    for i in range(1, len(closes)):
-        change = closes[i] - closes[i - 1]
-        gains.append(max(change, 0.0))
-        losses.append(max(-change, 0.0))
-    avg_gain = sum(gains[-period:]) / period
-    avg_loss = sum(losses[-period:]) / period
-    if avg_loss == 0:
-        return 100.0
-    rs = avg_gain / avg_loss
-    return round(100 - (100 / (1 + rs)), 1)
-
-
-def _pct_return(closes: list[float], lookback: int) -> float | None:
-    if len(closes) <= lookback:
-        return None
-    return round((closes[-1] - closes[-1 - lookback]) / closes[-1 - lookback] * 100, 2)
-
-
-def _fetch_daily_closes_sync(ticker: str) -> list[float]:
+def _fetch_daily_close_observations_sync(ticker: str) -> list[tuple[str, float]]:
     import math
     import yfinance as yf
 
@@ -111,25 +175,108 @@ def _fetch_daily_closes_sync(ticker: str) -> list[float]:
         return []
     if hist is None or hist.empty:
         return []
-    closes = []
-    for _, row in hist.iterrows():
+    observations = []
+    for index, row in hist.iterrows():
         try:
-            c = row["Close"]
-            if hasattr(c, "iloc"):
-                c = c.iloc[0]
-            v = float(c)
-            if not math.isnan(v) and not math.isinf(v):
-                closes.append(v)
+            close = row["Close"]
+            if hasattr(close, "iloc"):
+                close = close.iloc[0]
+            value = float(close)
+            if math.isfinite(value):
+                observed = index.to_pydatetime() if hasattr(index, "to_pydatetime") else index
+                observations.append((observed.date().isoformat(), value))
         except Exception:
             continue
-    return closes
+    return observations
+
+
+def _fetch_daily_closes_sync(ticker: str) -> list[float]:
+    return [close for _, close in _fetch_daily_close_observations_sync(ticker)]
+
+
+def _dated_observations(rows: list, cutoff_date: date) -> list[tuple[str, float]]:
+    observations = []
+    for row in rows:
+        if not isinstance(row, (tuple, list)) or len(row) != 2:
+            continue
+        observed, close = row
+        try:
+            observed_date = observed.date() if isinstance(observed, datetime) else observed
+            observed_date = observed_date if isinstance(observed_date, date) else date.fromisoformat(str(observed)[:10])
+            value = float(close)
+        except (TypeError, ValueError):
+            continue
+        if observed_date <= cutoff_date and value == value and abs(value) != float("inf"):
+            observations.append((observed_date.isoformat(), value))
+    return observations
+
+
+def _window(observations: list[tuple[str, float]], size: int) -> dict:
+    values = observations[-size:]
+    return {
+        "observation_start": values[0][0] if values else None,
+        "observation_end": values[-1][0] if values else None,
+        "observation_count": len(values),
+        "requested_observations": size,
+    }
+
+
+def _input_provenance(
+    *, symbol_ticker: str, own: list[tuple[str, float]], nifty: list[tuple[str, float]],
+    sector_ticker: str | None, sector: list[tuple[str, float]], cutoff_date: date,
+    own_fetched_at: str, benchmark_fetched_at: str | None,
+    inputs: dict[str, tuple[float | None, str, dict[str, int]]],
+) -> dict:
+    observations_by_ticker = {symbol_ticker: own, _NIFTY_TICKER: nifty}
+    if sector_ticker:
+        observations_by_ticker[sector_ticker] = sector
+    fetch_times = {symbol_ticker: own_fetched_at, _NIFTY_TICKER: benchmark_fetched_at or own_fetched_at}
+    if sector_ticker:
+        fetch_times[sector_ticker] = benchmark_fetched_at or own_fetched_at
+
+    series = {}
+    for ticker, observations in observations_by_ticker.items():
+        limit = 200 if ticker == symbol_ticker else 64
+        captured = observations[-limit:]
+        series[ticker] = {
+            "source": "Yahoo Finance via yfinance",
+            "interval": "1d",
+            "auto_adjust": True,
+            "fetched_at": fetch_times[ticker],
+            **_window(observations, limit),
+            "observations": [{"date": day, "close": close} for day, close in captured],
+        }
+
+    input_values = {}
+    for name, (value, unit, windows) in inputs.items():
+        input_values[name] = {
+            "value": value,
+            "unit": unit,
+            "source": "Yahoo Finance via yfinance",
+            "observation_windows": {
+                ticker: _window(observations_by_ticker.get(ticker, []), size)
+                for ticker, size in windows.items()
+            },
+        }
+    return {
+        "version": 1,
+        "provider": "Yahoo Finance via yfinance",
+        "interval": "1d",
+        "auto_adjust": True,
+        "cutoff_date": cutoff_date.isoformat(),
+        "collected_at": own_fetched_at,
+        "series": series,
+        "inputs": input_values,
+    }
 
 
 async def score_market_behaviour(
     symbol: str, sector: str | None,
-    prefetched_benchmarks: dict[str, list[float]] | None = None,
+    prefetched_benchmarks: dict[str, list[tuple[str, float]]] | None = None,
+    cutoff_date: date | str | None = None,
+    benchmark_fetched_at: str | None = None,
 ) -> PillarScore:
-    """`prefetched_benchmarks`: an already-fetched {ticker: closes} map for
+    """`prefetched_benchmarks`: an already-fetched {ticker: dated closes} map for
     _NIFTY_TICKER and/or the real sector ETF ticker (NS1 round 2, 2026-09-27)
     — NIFTY and a given sector's ETF are the SAME real benchmark for every
     company in that sector, so a batch computing many companies in one
@@ -139,29 +286,47 @@ async def score_market_behaviour(
     before this parameter existed. The company's OWN daily closes are
     always fetched fresh — that part was never redundant across companies."""
     loop = asyncio.get_event_loop()
+    if cutoff_date is None:
+        cutoff_date = completed_session_cutoff_date()
+    elif isinstance(cutoff_date, str):
+        cutoff_date = date.fromisoformat(cutoff_date)
     sector_ticker = _SECTOR_ETFS.get(_SECTOR_LABEL_TO_ETF_KEY.get(sector, sector)) if sector else None
     prefetched_benchmarks = prefetched_benchmarks or {}
+    symbol_ticker = f"{symbol.upper()}.NS"
 
-    to_fetch = [f"{symbol.upper()}.NS"]
-    if _NIFTY_TICKER not in prefetched_benchmarks:
+    to_fetch = [symbol_ticker]
+    if not prefetched_benchmarks.get(_NIFTY_TICKER):
         to_fetch.append(_NIFTY_TICKER)
-    if sector_ticker and sector_ticker not in prefetched_benchmarks:
+    if sector_ticker and not prefetched_benchmarks.get(sector_ticker):
         to_fetch.append(sector_ticker)
 
-    fetched = await asyncio.gather(*[loop.run_in_executor(None, _fetch_daily_closes_sync, t) for t in to_fetch])
+    fetched = await asyncio.gather(*[loop.run_in_executor(None, _fetch_daily_close_observations_sync, t) for t in to_fetch])
     fetched_by_ticker = dict(zip(to_fetch, fetched))
 
-    own_closes = fetched_by_ticker[f"{symbol.upper()}.NS"]
-    nifty_closes = prefetched_benchmarks.get(_NIFTY_TICKER) or fetched_by_ticker.get(_NIFTY_TICKER, [])
-    sector_closes = (prefetched_benchmarks.get(sector_ticker) or fetched_by_ticker.get(sector_ticker, [])) if sector_ticker else []
+    own_fetched_at = datetime.now(timezone.utc).isoformat()
+    own_observations = _dated_observations(fetched_by_ticker[symbol_ticker], cutoff_date)
+    nifty_observations = _dated_observations(
+        prefetched_benchmarks.get(_NIFTY_TICKER) or fetched_by_ticker.get(_NIFTY_TICKER, []), cutoff_date,
+    )
+    sector_observations = _dated_observations(
+        prefetched_benchmarks.get(sector_ticker) or fetched_by_ticker.get(sector_ticker, []), cutoff_date,
+    ) if sector_ticker else []
+    own_closes = [close for _, close in own_observations]
+    nifty_closes = [close for _, close in nifty_observations]
+    sector_closes = [close for _, close in sector_observations]
 
     if len(own_closes) < 30:
+        provenance = _input_provenance(
+            symbol_ticker=symbol_ticker, own=own_observations, nifty=nifty_observations,
+            sector_ticker=sector_ticker, sector=sector_observations, cutoff_date=cutoff_date,
+            own_fetched_at=own_fetched_at, benchmark_fetched_at=benchmark_fetched_at, inputs={},
+        )
         return PillarScore(
             name="market_behaviour", score=None, coverage_pct=0.0,
             status=PillarStatus.INSUFFICIENT,
             metrics_used=[], metrics_missing=["daily_price_history"],
             sources=[f"yfinance live daily ({symbol}.NS)"],
-            detail={"real_daily_rows": len(own_closes)},
+            detail={"real_daily_rows": len(own_closes), "input_provenance": provenance},
         )
 
     sub_scores: dict[str, float] = {}
@@ -169,6 +334,7 @@ async def score_market_behaviour(
     detail: dict = {"real_daily_rows": len(own_closes)}
 
     # 200-DMA position
+    position_pct = None
     if len(own_closes) >= 200:
         sma200 = sum(own_closes[-200:]) / 200
         position_pct = round((own_closes[-1] - sma200) / sma200 * 100, 2)
@@ -211,6 +377,29 @@ async def score_market_behaviour(
         detail["rsi_14"] = rsi
     else:
         metrics_missing.append("rsi_14")
+
+    input_windows: dict[str, tuple[float | None, str, dict[str, int]]] = {
+        "price_vs_200dma_pct": (position_pct, "percent", {symbol_ticker: 200}),
+        "own_3m_return_pct": (own_3m, "percent", {symbol_ticker: 64}),
+        "nifty_3m_return_pct": (nifty_3m, "percent", {_NIFTY_TICKER: 64}),
+        "relative_return_vs_nifty50_pct": (
+            round(own_3m - nifty_3m, 2) if own_3m is not None and nifty_3m is not None else None,
+            "percentage_points", {symbol_ticker: 64, _NIFTY_TICKER: 64},
+        ),
+        "rsi_14": (rsi, "index_points", {symbol_ticker: 15}),
+    }
+    if sector_ticker:
+        input_windows["sector_3m_return_pct"] = (sector_3m, "percent", {sector_ticker: 64})
+        input_windows["relative_return_vs_sector_etf_pct"] = (
+            round(own_3m - sector_3m, 2) if own_3m is not None and sector_3m is not None else None,
+            "percentage_points", {symbol_ticker: 64, sector_ticker: 64},
+        )
+    detail["input_provenance"] = _input_provenance(
+        symbol_ticker=symbol_ticker, own=own_observations, nifty=nifty_observations,
+        sector_ticker=sector_ticker, sector=sector_observations, cutoff_date=cutoff_date,
+        own_fetched_at=own_fetched_at, benchmark_fetched_at=benchmark_fetched_at,
+        inputs=input_windows,
+    )
 
     if not sub_scores:
         return PillarScore(

@@ -12,13 +12,11 @@ via app.services.company_identity.qualification.resolve_entity_by_any_symbol
 at write time, the same real resolver the rest of the Company Identity
 work (C1-C5) already uses — never a second, ad hoc symbol->entity lookup.
 
-market_data_as_of / intelligence_as_of are deliberately set equal to
-calculated_at, not a more granular per-metric timestamp: Market Behaviour
-is a live yfinance read at compute time (no other real "as of" exists to
-report), and Current Intelligence's compute_company_score() doesn't
-currently expose its most recent contributing signal's own timestamp.
-Reporting a fabricated finer-grained time would be false precision — the
-honest answer is "as of when this snapshot was computed."
+market_data_as_of / intelligence_as_of remain the aggregate snapshot time.
+Market Behaviour's per-input daily source windows and retrieval time are
+stored separately in market_behaviour_inputs; Current Intelligence's
+compute_company_score() still does not expose its latest contributing
+signal timestamp.
 """
 from __future__ import annotations
 
@@ -65,6 +63,9 @@ class MarketRippleScoreSnapshot(Base):
     valuation_coverage_pct = Column(Float, nullable=True)
     market_behaviour_coverage_pct = Column(Float, nullable=True)
     current_intelligence_coverage_pct = Column(Float, nullable=True)
+    # Bounded price/benchmark observations and the exact derived inputs used
+    # by Market Behaviour; existing snapshots remain NULL.
+    market_behaviour_inputs = Column(JSON, nullable=True)
 
     # S5-B (owner decision, 2026-08-25) — the real, direct count of the 7
     # currently-scoreable Financial Strength metrics actually used, read
