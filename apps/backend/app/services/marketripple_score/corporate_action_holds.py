@@ -52,7 +52,21 @@ _KOHINOOR = ScoreHold(
     ),
 )
 
-SCORE_HOLDS: dict[str, ScoreHold] = {"HEG": _HEG, "HEGAM": _HEG, "KOHINOOR": _KOHINOOR}
+# KIRIINDUS (Kiri Industries, added 2026-10-03): the published 89.6 rested on FY26 reported net income of
+# 5,566 Cr that is almost entirely a 5,801 Cr unusual-items gain (operating income -83.9 Cr, normalized income
+# -18.7 Cr): ROE ~86%, profit growth ~+2,000%, an EBIT-based ROCE/coverage, and a P/E of 0.58. Held until the
+# earnings-quality rules are reviewed and it is re-scored; a corrected dry run still read 76.9 Strong, so it is
+# not republished yet.
+_KIRIINDUS = ScoreHold(
+    event_date=date(2026, 10, 3),
+    headline="Score on hold",
+    message=(
+        "MarketRipple is reviewing this company's score. Its latest reported profit comes mainly from a one-off "
+        "gain while its operations made a loss, so the inputs aren't comparable with peers yet."
+    ),
+)
+
+SCORE_HOLDS: dict[str, ScoreHold] = {"HEG": _HEG, "HEGAM": _HEG, "KOHINOOR": _KOHINOOR, "KIRIINDUS": _KIRIINDUS}
 
 REASON_CORPORATE_ACTION_HOLD = "CORPORATE_ACTION_HOLD"
 

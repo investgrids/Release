@@ -275,7 +275,7 @@ export interface MarketRippleScoreData {
   block_headline?: string | null;
   block_message?: string | null;
   // 2026-09-28 — why a company has no public number (coverage.py):
-  // "scored" | "not_processed" | "needs_refresh" | "insufficient_data" | "unsupported" | "peer_group_review" | "no_peer_group".
+  // "scored" | "not_processed" | "needs_refresh" | "insufficient_data" | "unsupported" | "peer_group_review" | "no_peer_group" | "score_hold".
   coverage_state?: string;
   coverage_label?: string;
   coverage_message?: string | null;

@@ -17,6 +17,7 @@ const STATUS_LABEL: Record<string, string> = {
   insufficient_data: "Insufficient data",
   unsupported: "Not supported yet",
   peer_group_review: "Peer group under review",
+  score_hold: "Score on hold",
   no_peer_group: "No matching peer group",
   partial_coverage: "Building evidence",
   no_snapshot_computed_yet: "Not yet computed",

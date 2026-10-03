@@ -164,7 +164,7 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
             return {**base, "publishable": False, "eligible": False, "score": None, "rating": None,
                     "block_reason_codes": [REASON_CORPORATE_ACTION_HOLD],
                     "block_headline": hold.headline, "block_message": hold.message,
-                    "coverage_state": "insufficient_data", "coverage_label": "Insufficient data",
+                    "coverage_state": "score_hold", "coverage_label": "Score on hold",
                     "coverage_message": hold.message}
         return base
 

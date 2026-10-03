@@ -85,3 +85,20 @@ def test_kohinoor_is_held_pending_rescore_and_other_companies_are_not():
     assert hold is not None and hold.headline == "Score on hold" and "one-off" in hold.message
     assert score_hold_for("kohinoor.ns") is hold
     assert score_hold_for("KOHINOORX") is None
+
+
+def test_held_company_says_score_on_hold_not_insufficient_data():
+    from types import SimpleNamespace
+
+    from app.services.marketripple_score.coverage import coverage_fields
+
+    snap = SimpleNamespace(symbol="KOHINOOR", calculated_at=None)
+    f = coverage_fields("FMCG", snap, "KOHINOOR")
+    assert f["coverage_state"] == "score_hold" and f["coverage_label"] == "Score on hold"
+    assert "one-off" in f["coverage_message"]
+
+
+def test_kiriindus_is_held_pending_review():
+    hold = score_hold_for("KIRIINDUS")
+    assert hold is not None and hold.headline == "Score on hold" and "one-off" in hold.message
+    assert score_hold_for("kiriindus.ns") is hold and score_hold_for("KIRI") is None

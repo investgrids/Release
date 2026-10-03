@@ -29,6 +29,7 @@ STATE_NOT_PROCESSED = "not_processed"
 STATE_NEEDS_REFRESH = "needs_refresh"
 STATE_INSUFFICIENT_DATA = "insufficient_data"
 STATE_UNSUPPORTED = "unsupported"
+STATE_ON_HOLD = "score_hold"
 STATE_PEER_REVIEW = "peer_group_review"
 STATE_NO_PEER_GROUP = "no_peer_group"
 
@@ -38,6 +39,7 @@ STATE_LABELS = {
     STATE_NEEDS_REFRESH: "Score needs refresh",
     STATE_INSUFFICIENT_DATA: "Insufficient data",
     STATE_UNSUPPORTED: "Not supported yet",
+    STATE_ON_HOLD: "Score on hold",
     STATE_PEER_REVIEW: "Peer group under review",
     STATE_NO_PEER_GROUP: "No matching peer group",
 }
@@ -137,7 +139,7 @@ def coverage_state(sector: str | None, snap: Any | None, symbol: str | None = No
 
     hold = score_hold_for(getattr(snap, "symbol", None))
     if hold is not None:
-        return STATE_INSUFFICIENT_DATA, hold.message
+        return STATE_ON_HOLD, hold.message
     if is_publicly_published(snap) and snap.score is not None:
         return STATE_SCORED, None
     reasons = list(snap.publication_block_reasons or [])

@@ -121,7 +121,7 @@ async def _get_sector_rankings(db: AsyncSession, sector: str, universe: list[str
             unavailable.append({
                 "symbol": symbol, "company_name": company_name, "reason": "ineligible",
                 "state": ("needs_refresh" if reasons == [REASON_MARKET_INPUTS_UNVERIFIED]
-                          else "peer_group_review" if "PEER_GROUP_UNDER_REVIEW" in reasons else "insufficient_data"),
+                          else "score_hold" if hold else "peer_group_review" if "PEER_GROUP_UNDER_REVIEW" in reasons else "insufficient_data"),
                 "message": hold.message if hold else (block[1] if block else "This company does not yet meet the publication bar."),
                 "calculated_at": calculated_at,
             })
