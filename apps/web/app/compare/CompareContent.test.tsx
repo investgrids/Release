@@ -146,6 +146,61 @@ describe("CompareContent — one-score migration (2026-09-26 sweep)", () => {
     expect(screen.getByText("Unavailable")).toBeInTheDocument();
   });
 
+  it("shows the specific reason a company has no score, with its message on hover, instead of a generic 'Unavailable'", async () => {
+    searchParamValues = { a: "ELIGCO", b: "STALEBANK" };
+    mockFetch({
+      "/api/stocks/ELIGCO": stockPayload({ name: "Eligible Co" }),
+      "/api/stocks/STALEBANK": stockPayload({ name: "Stale Bank" }),
+      "/api/companies/ELIGCO/marketripple-score": mrScorePayload({ score: 61, rating: "Neutral" }),
+      "/api/companies/STALEBANK/marketripple-score": {
+        resolved: true, snapshot: true, eligible: false, score: null,
+        block_headline: "Financial data awaiting update", coverage_state: "insufficient_data", coverage_label: "Insufficient data",
+        coverage_message: "The latest financial statements MarketRipple has for this company are more than 15 months old.",
+      },
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+    await waitFor(() => expect(screen.getAllByText("Eligible Co").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByText("AI Analysis"));
+    await waitFor(() => expect(screen.getByText("61")).toBeInTheDocument());
+
+    const tile = screen.getByTestId("compare-score-state");
+    expect(tile).toHaveTextContent("Insufficient data");
+    expect(tile).toHaveTextContent("Financial data awaiting update");
+    expect(tile).toHaveAttribute("title", expect.stringContaining("more than 15 months old"));
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+  });
+
+  it("uses the shared projection to hide a legacy RSI-only HEG snapshot in Compare", async () => {
+    searchParamValues = { a: "HEG", b: "RITES" };
+    mockFetch({
+      "/api/stocks/HEG": stockPayload({ name: "HEG Limited" }),
+      "/api/stocks/RITES": stockPayload({ name: "RITES Limited" }),
+      "/api/companies/HEG/marketripple-score": {
+        resolved: true, snapshot: true, publishable: false, eligible: false,
+        score: null, rating: null, pillars: null,
+        block_reason_codes: ["INSUFFICIENT_MARKET_HISTORY"],
+        block_headline: "Score unavailable — insufficient market history",
+        block_message: "Market Behaviour has RSI only (25% coverage).",
+      },
+      "/api/companies/RITES/marketripple-score": mrScorePayload({ score: 63.2, rating: "Positive" }),
+    });
+
+    const { CompareContent } = await import("./CompareContent");
+    render(<CompareContent />);
+
+    await waitFor(() => expect(screen.getAllByText("HEG Limited").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByText("Valuation"));
+    await waitFor(() => expect(screen.getByText("MarketRipple Score")).toBeInTheDocument());
+    expect(screen.getByText("Unavailable")).toBeInTheDocument();
+    expect(screen.getByText("63")).toBeInTheDocument();
+    expect(screen.queryByText("59.7")).not.toBeInTheDocument();
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(
+      (call: any[]) => call[0].includes("/api/companies/HEG/marketripple-score"),
+    )).toBe(true);
+  });
+
   it("searches the real company directory instead of a hardcoded list, and adds a company found there", async () => {
     searchParamValues = { a: "ELIGCO", b: "PARTCO" };
     mockFetch({

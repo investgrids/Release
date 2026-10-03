@@ -12,6 +12,10 @@ import { marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scor
 // cross-sector position.
 
 const STATUS_LABEL: Record<string, string> = {
+  not_processed: "Not processed yet",
+  needs_refresh: "Score needs refresh",
+  insufficient_data: "Insufficient data",
+  unsupported: "Not supported yet",
   partial_coverage: "Building evidence",
   no_snapshot_computed_yet: "Not yet computed",
   publication_locked: "Publication pending",
@@ -116,6 +120,11 @@ export function AllCompaniesRankingsView({ data }: { data: AllCompanyRankingsPag
 
   return (
     <div>
+      <p className="mb-3 text-[12px] leading-5 text-text-muted" data-testid="rankings-peer-note">
+        Each score is ranked against the companies in its own sector, so it can change when companies are added to that sector.
+        A company without a score shows why.{" "}
+        <Link href="/methodology/marketripple-score#peer-groups-heading" className="text-sky-400 hover:text-sky-600 dark:text-sky-300">How scores work</Link>
+      </p>
       <div className="mb-4">
         <h2 className="text-[18px] font-black text-text-primary">Every Company — MarketRipple Score</h2>
         <p className="mt-0.5 text-[12.5px] text-text-secondary">

@@ -27,6 +27,7 @@ const UNAVAILABLE_REASON_LABEL: Record<string, string> = {
   no_snapshot_computed_yet: "Not yet computed",
   publication_locked: "Publication pending",
   ineligible: "Insufficient data",
+  INSUFFICIENT_MARKET_HISTORY: "Insufficient market history",
   stale: "Needs refresh",
 };
 

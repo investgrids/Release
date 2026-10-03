@@ -274,6 +274,14 @@ export interface MarketRippleScoreData {
   calculated_at?: string | null;
   block_headline?: string | null;
   block_message?: string | null;
+  // 2026-09-28 — why a company has no public number (coverage.py):
+  // "scored" | "not_processed" | "needs_refresh" | "insufficient_data" | "unsupported".
+  coverage_state?: string;
+  coverage_label?: string;
+  coverage_message?: string | null;
+  last_calculated_at?: string | null;
+  peer_count?: number | null;
+  sector?: string | null;
 }
 
 function useMarketRippleScore(symbol: string) {
@@ -301,7 +309,8 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
   // "no methodology for this sector" and "blocked by evidence quality",
   // the same honest tone either way; the full reason lives in the larger
   // Overview-tab card (MarketRippleScoreSection), not squeezed in here.
-  const hasMrScore = !!mrScore?.resolved && !!mrScore?.snapshot && mrScore.eligible === true && mrScore.score != null;
+  const hasMrScore = !!mrScore?.resolved && !!mrScore?.snapshot && mrScore.eligible === true && mrScore.score != null
+    && (mrScore.coverage_state ?? "scored") === "scored";
 
   // Local unpublished preview, header tile (2026-09-27) — same dev-only
   // gate and safety story as LocalUnpublishedScorePreview below: only
@@ -386,7 +395,9 @@ function CompanyHero({ stock, symbol, watchlisted, setWatchlisted, serverRendere
                 <dd className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-400" title="Local unpublished preview — never shown in production">Unpublished preview</dd>
               )}
               {mrScore !== undefined && !score && (
-                <dd className="mt-1 text-[13px] font-medium text-text-muted" title="MarketRipple Score is not yet available for this company.">Not available yet</dd>
+                <dd className="mt-1 text-[13px] font-medium text-text-muted" title={mrScore?.coverage_message ?? "MarketRipple Score is not yet available for this company."}>
+                  {mrScore?.coverage_label ?? "Not available yet"}
+                </dd>
               )}
             </div>
           </dl>
@@ -1382,7 +1393,7 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
         <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
           {pillars.map(p => (
             <div key={p.label}>
-              <p className="text-[11px] text-text-mutedr text-text-muted">{p.label}</p>
+              <p className="text-[11px] text-text-muted">{p.label}</p>
               <p className="mt-1 text-[18px] font-semibold tabular-nums text-text-primary">{p.value != null ? Math.round(p.value) : "—"}</p>
             </div>
           ))}
@@ -1392,7 +1403,7 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
     );
   }
 
-  const eligible = data.eligible === true && data.score != null;
+  const eligible = data.eligible === true && data.score != null && (data.coverage_state ?? "scored") === "scored";
 
   // Unified redesign (2026-09-27, owner instruction: "why we showing score
   // unavailable and below we are showing the score... build good ui").
@@ -1445,7 +1456,7 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
             const weight = localPreview.effective_weights?.[p.key];
             return (
               <div key={p.label}>
-                <p className="text-[11px] text-text-mutedr text-text-muted">
+                <p className="text-[11px] text-text-muted">
                   {p.label}{isEvidenceOnly && <span className="ml-1 text-text-muted/70">(evidence)</span>}
                 </p>
                 <p className="mt-1 text-[18px] font-semibold tabular-nums text-text-primary">{value != null ? Math.round(value) : "—"}</p>
@@ -1480,11 +1491,10 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
   if (!eligible) {
     return (
       <SectionCard title="MarketRipple Score" action={methodologyLink}>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-[15px] font-bold text-text-primary">Unavailable</span>
-        </div>
-        <p className="mt-2 text-[13px] font-semibold text-text-secondary">{data.block_headline ?? "Not available yet"}</p>
-        {data.block_message && <p className="mt-1 text-[12px] leading-5 text-text-muted">{data.block_message}</p>}
+        <p className="mt-2 text-[15px] font-semibold text-text-primary">{data.coverage_label ?? data.block_headline ?? "Not available yet"}</p>
+        {(data.coverage_message ?? data.block_message) && (
+          <p className="mt-1 max-w-[68ch] text-[13px] leading-6 text-text-muted">{data.coverage_message ?? data.block_message}</p>
+        )}
       </SectionCard>
     );
   }
@@ -1505,7 +1515,7 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
       <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
         {pillars.map(p => (
           <div key={p.label}>
-            <p className="text-[11px] text-text-mutedr text-text-muted">{p.label}</p>
+            <p className="text-[11px] text-text-muted">{p.label}</p>
             <p className="mt-1 text-[18px] font-semibold tabular-nums text-text-primary">{p.value != null ? Math.round(p.value) : "—"}</p>
           </div>
         ))}
@@ -1515,8 +1525,13 @@ export function MarketRippleScoreCard({ data, stock, localPreview }: { data: Mar
         <span title="Percentage of available evidence used across the MarketRipple Score pillars. Missing or invalid evidence is not estimated.">
           Evidence coverage {Math.round(data.evidence_coverage_pct ?? 0)}%
         </span>
-        {updated && <span>Updated {updated}</span>}
+        {updated && <span>Calculated {updated}</span>}
       </div>
+      <p className="mt-2 text-[11px] leading-5 text-text-muted" data-testid="score-peer-note">
+        {data.peer_count && data.sector ? <>Ranked against {data.peer_count} {data.sector} companies. </> : null}
+        Scores are relative to a sector&apos;s peers, so they can change when companies are added.{" "}
+        <Link href="/methodology/marketripple-score#peer-groups-heading" className="text-sky-400 hover:text-sky-600 dark:text-sky-300">Why?</Link>
+      </p>
     </SectionCard>
   );
 }

@@ -42,15 +42,29 @@ describe("MarketRippleScoreCard — comparability interim rule (2026-09-26)", ()
     expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
   });
 
-  it("shows the generic Unavailable state with the real block reason when not eligible", () => {
+  it("shows the real block headline and message when the company is not eligible", () => {
     const data: MarketRippleScoreData = {
       resolved: true, snapshot: true, eligible: false, score: null,
       block_headline: "Insufficient verified financial data",
       block_message: "Some financial evidence could not be verified, so MarketRipple is not publishing a score for this company yet.",
     };
     render(<MarketRippleScoreCard data={data} stock={stock} />);
-    expect(screen.getByText("Unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
     expect(screen.getByText("Insufficient verified financial data")).toBeInTheDocument();
+    expect(screen.getByText("Some financial evidence could not be verified, so MarketRipple is not publishing a score for this company yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Partial coverage")).not.toBeInTheDocument();
+  });
+
+  it("shows the insufficient-market-history block on the Company page for a blocked HEG-like snapshot", () => {
+    const data: MarketRippleScoreData = {
+      resolved: true, snapshot: true, eligible: false, score: null,
+      block_headline: "Score unavailable — insufficient market history",
+      block_message: "Score unavailable — insufficient market history. MarketRipple requires at least 64 completed price observations and one market or sector comparison.",
+    };
+    render(<MarketRippleScoreCard data={data} stock={stock} />);
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+    expect(screen.getByText("Score unavailable — insufficient market history")).toBeInTheDocument();
+    expect(screen.getByText("Score unavailable — insufficient market history. MarketRipple requires at least 64 completed price observations and one market or sector comparison.")).toBeInTheDocument();
     expect(screen.queryByText("Partial coverage")).not.toBeInTheDocument();
   });
 
@@ -78,10 +92,10 @@ describe("MarketRippleScoreCard — comparability interim rule (2026-09-26)", ()
   // and that nothing here depends on `stock` in a way that could suppress
   // or corrupt unrelated company data elsewhere on the page.
   describe("one-score migration — no snapshot at all never falls back to the old score", () => {
-    it("renders the honest Unavailable state, not the old score/verdict, when no snapshot has ever been computed", () => {
+    it("renders the honest public fallback when no snapshot has ever been computed", () => {
       const data: MarketRippleScoreData = { resolved: true, snapshot: false };
       render(<MarketRippleScoreCard data={data} stock={stock} />);
-      expect(screen.getByText("Unavailable")).toBeInTheDocument();
+      expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
       expect(screen.getByText("Not available yet")).toBeInTheDocument();
       // The old engine's own card title/labels must never appear here —
       // that component no longer exists in this file at all.
@@ -91,15 +105,58 @@ describe("MarketRippleScoreCard — comparability interim rule (2026-09-26)", ()
       expect(screen.queryByText("/ 100")).not.toBeInTheDocument();
     });
 
-    it("renders the same honest Unavailable state for the raw fetch-failure fallback shape used by MarketRippleScoreSection", () => {
+    it("renders the same public fallback for the raw fetch-failure fallback shape used by MarketRippleScoreSection", () => {
       // Mirrors MarketRippleScoreSection's `data ?? { resolved: false }` —
       // the shape passed when the fetch itself failed, not just when the
       // company has no snapshot.
       const data: MarketRippleScoreData = { resolved: false };
       render(<MarketRippleScoreCard data={data} stock={stock} />);
-      expect(screen.getByText("Unavailable")).toBeInTheDocument();
+      expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+      expect(screen.getByText("Not available yet")).toBeInTheDocument();
       expect(screen.queryByText("Current Intelligence")).not.toBeInTheDocument();
       expect(screen.queryByText(/[0-9]{2,3}\/100/)).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("MarketRippleScoreCard — calculation date, peer group and 'why no score' states (2026-10-03)", () => {
+  it("shows when the score was calculated, how many peers it was ranked against, and the peer-change note", () => {
+    const data: MarketRippleScoreData = {
+      resolved: true, snapshot: true, eligible: true, score: 55.2, rating: "Neutral",
+      pillars: { financial_strength: 50, valuation: 60, market_behaviour: 55, current_intelligence: 40 },
+      evidence_coverage_pct: 100, calculated_at: "2026-10-03T04:40:00", peer_count: 98, sector: "Metals",
+      coverage_state: "scored", coverage_label: "Scored",
+    };
+    render(<MarketRippleScoreCard data={data} stock={stock} />);
+    expect(screen.getByText(/Calculated 03 Oct 2026/)).toBeInTheDocument();
+    expect(screen.getByTestId("score-peer-note")).toHaveTextContent("Ranked against 98 Metals companies");
+    expect(screen.getByTestId("score-peer-note")).toHaveTextContent("can change when companies are added");
+    expect(screen.getByRole("link", { name: "Why?" })).toHaveAttribute("href", "/methodology/marketripple-score#peer-groups-heading");
+  });
+
+  it.each([
+    ["not_processed", "Not processed yet", "This company is supported, but its score hasn't been calculated yet."],
+    ["needs_refresh", "Score needs refresh", "Last calculated on 01 Jul 2026. This score is out of date."],
+    ["insufficient_data", "Insufficient data", "MarketRipple doesn't have enough completed price history."],
+    ["unsupported", "Not supported yet", "Bank scores need filed disclosure data."],
+  ])("shows its own state and reason for %s, never the generic 'Not available yet'", (state, label, message) => {
+    const data: MarketRippleScoreData = {
+      resolved: true, snapshot: false, eligible: false, score: null,
+      coverage_state: state, coverage_label: label, coverage_message: message,
+    };
+    render(<MarketRippleScoreCard data={data} stock={stock} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByText("Not available yet")).not.toBeInTheDocument();
+  });
+
+  it("a score marked anything but 'scored' is never shown as a number", () => {
+    const data: MarketRippleScoreData = {
+      resolved: true, snapshot: true, eligible: true, score: 61.0, rating: "Positive",
+      coverage_state: "insufficient_data", coverage_label: "Insufficient data", coverage_message: "held back",
+    };
+    render(<MarketRippleScoreCard data={data} stock={stock} />);
+    expect(screen.queryByText("61")).not.toBeInTheDocument();
+    expect(screen.getByText("Insufficient data")).toBeInTheDocument();
   });
 });

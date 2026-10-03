@@ -140,4 +140,7 @@ def coverage_fields(sector: str | None, snap: Any | None) -> dict[str, Any]:
         "coverage_label": STATE_LABELS[state],
         "coverage_message": message,
         "last_calculated_at": snap.calculated_at.isoformat() if snap is not None and snap.calculated_at else None,
+        # The peer group the score was ranked against (percentile scores move when it changes).
+        "peer_count": getattr(snap, "peer_universe_count", None) if snap is not None else None,
+        "sector": sector,
     }

@@ -82,3 +82,10 @@ def test_score_movement_measures_previously_published_companies():
     assert m["previously_public"] == 3 and m["public_after"] == 3
     # A was #2 of 3 (60 of 60/50/70), is now #1 of 3 (63 of 63/55/44): position moved
     assert m["max_rank_position_shift_pct"] is not None and m["max_rank_position_shift_pct"] > 0
+
+
+def test_coverage_fields_carry_the_peer_group_the_score_was_ranked_against():
+    f = c.coverage_fields("Metals", _snap(peer_universe_count=98))
+    assert f["peer_count"] == 98 and f["sector"] == "Metals"
+    none = c.coverage_fields("Banking", None)
+    assert none["peer_count"] is None and none["sector"] == "Banking"

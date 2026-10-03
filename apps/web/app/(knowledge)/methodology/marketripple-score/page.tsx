@@ -247,6 +247,25 @@ export default function MarketRippleScoreMethodologyPage() {
           </div>
         </Section>
 
+        {/* ── PEER GROUPS ── */}
+        <Section
+          id="peer-groups-heading" badge="Peer Groups" badgeColor="text-amber-400"
+          title="Why can a score change when a sector grows?"
+          subtitle="Valuation and Financial Strength are measured against the other companies in the same sector, as a percentile. The score describes where a company stands among its peers, not an absolute grade."
+        >
+          <div className="rounded-xl border border-surface-border/8 bg-surface-card p-5 text-[13px] leading-6 text-text-secondary">
+            <p>
+              When MarketRipple adds companies to a sector, every company in it is re-ranked against the larger group. A company
+              whose own financials did not change can therefore move up or down, and can cross a rating band. Each company page shows the
+              date the score was calculated and how many peers it was ranked against.
+            </p>
+            <p className="mt-3">
+              A company that has no score shows the specific reason: not calculated yet, financial data awaiting an update,
+              insufficient price history or coverage, or a business type MarketRipple does not score yet. Nothing is estimated to fill the gap.
+            </p>
+          </div>
+        </Section>
+
         {/* ── EVIDENCE QUALITY ── */}
         <Section
           id="evidence-quality-heading" badge="Evidence Quality" badgeColor="text-rose-400"

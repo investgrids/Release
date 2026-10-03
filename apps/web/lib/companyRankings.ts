@@ -31,7 +31,7 @@ export interface PartialCoverageRow {
 export interface UnavailableRow {
   symbol: string;
   companyName: string;
-  reason: "no_snapshot_computed_yet" | "publication_locked" | "ineligible" | "stale";
+  reason: "no_snapshot_computed_yet" | "publication_locked" | "ineligible" | "stale" | "INSUFFICIENT_MARKET_HISTORY";
   message: string;
   calculatedAt: string | null;
 }
@@ -107,7 +107,11 @@ export const SUPPORTED_RANKING_SECTORS = ["Banking"] as const;
 // everything else is an explicit N/A with its own real reason, never a
 // fabricated number and never a rank.
 export type AllCompanyRankingStatus =
-  | "ranked" | "partial_coverage" | "no_snapshot_computed_yet"
+  | "ranked"
+  // 2026-09-28 public coverage states (backend coverage.py)
+  | "not_processed" | "needs_refresh" | "insufficient_data" | "unsupported"
+  // legacy names, still accepted from an older backend
+  | "partial_coverage" | "no_snapshot_computed_yet"
   | "publication_locked" | "ineligible" | "stale" | "unsupported_sector" | "not_yet_scored";
 
 export interface AllCompanyLocalPreview {

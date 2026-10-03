@@ -303,14 +303,23 @@ function MrScoreTile({ data, localPreview, label, col }: {
     }
     return (
       <div className="flex flex-col items-center gap-1">
-        <div className="flex h-[76px] w-[76px] items-center justify-center text-center">
-          <span className="text-[12px] font-bold text-text-muted">Unavailable</span>
+        <div className="flex h-[76px] w-[76px] flex-col items-center justify-center gap-0.5 text-center"
+          title={data?.coverage_message ?? data?.block_message ?? undefined} data-testid="compare-score-state">
+          <span className="text-[11px] font-bold leading-tight text-text-muted">{data?.coverage_label ?? "Unavailable"}</span>
+          {data?.block_headline && data.block_headline !== data?.coverage_label && (
+            <span className="text-[9px] leading-tight text-text-muted">{data.block_headline}</span>
+          )}
         </div>
         <span className="text-[10px] text-text-secondary text-center leading-tight">{label}</span>
       </div>
     );
   }
-  return <ScoreRing score={marketRippleScoreDisplayInt(data.score!)!} label={label} col={col} />;
+  const calculated = data.calculated_at ? new Date(data.calculated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : null;
+  return (
+    <div title={[calculated && `Calculated ${calculated}`, data.peer_count && data.sector && `ranked against ${data.peer_count} ${data.sector} companies`].filter(Boolean).join(" · ") || undefined}>
+      <ScoreRing score={marketRippleScoreDisplayInt(data.score!)!} label={label} col={col} />
+    </div>
+  );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
