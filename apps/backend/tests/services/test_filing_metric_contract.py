@@ -273,3 +273,34 @@ def test_rule_4b_material_gain_stays_under_review_and_unscored():
     fm = _exc(60, ProfitBeforeTax=160)
     assert fm.status == "EXCEPTIONAL_GAIN_REVIEW" and fm.flags["rule_tags"] == [fmc.RULE_4B] and fm.flags["adjusted_label"] is None
     assert fm.metrics["roe"] is None and fm.valuation["pe"] is None
+
+
+# ---- V2-Rule-4C plausibility guard ----
+def _val(reference):
+    return fmc.compute("T", _ex(BASE), None, 1000.0, today=date(2026, 10, 3), reference=reference)
+
+
+def test_rule_4c_plausible_multiples_pass_and_are_marked_checked():
+    fm = _val({"pb": 2.1, "pe": 14.0})         # filing: pb 2.0, pe 13.33
+    assert fm.status == "ok" and fm.flags["plausibility_checked"] is True and fm.metrics["roe"] is not None
+
+
+def test_rule_4c_pb_off_by_more_than_3x_withholds_and_clears_metrics():
+    fm = _val({"pb": 0.2, "pe": None})         # filing pb 2.0 is 10x the live reference
+    assert fm.status == fmc.DISCREPANCY_STATUS and fm.flags["na_label"] == fmc.DISCREPANCY_LABEL and fm.flags["rule_tags"] == [fmc.RULE_4C]
+    assert all(v is None for v in fm.metrics.values()) and fm.valuation["pb"] is None and fm.flags["rule_4c_discrepancy"]["multiple"] == "pb"
+
+
+def test_rule_4c_pe_off_by_more_than_3x_below_also_trips_and_boundary_passes():
+    assert _val({"pb": None, "pe": 50.0}).status == fmc.DISCREPANCY_STATUS     # filing pe 13.3 is below 1/3 of 50
+    assert _val({"pb": 6.0, "pe": None}).status == "ok"                        # exactly 3x is allowed
+
+
+def test_rule_4c_not_checkable_without_a_reference():
+    fm = _val(None)
+    assert fm.status == "ok" and fm.flags["plausibility_checked"] is False
+
+
+def test_rule_4c_ignores_non_numeric_and_infinite_reference_values():
+    assert _val({"pb": "Infinity", "pe": "Infinity"}).status == "ok"
+    assert _val({"pb": None, "pe": "n/a"}).flags["plausibility_checked"] is False

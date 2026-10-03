@@ -60,10 +60,16 @@ RULE_4A = "V2-Rule-4A-ExceptionalLossBypass"
 RULE_4B = "V2-Rule-4B-WindfallReview"
 EXCEPTIONAL_LOSS_TAX_CAP = 0.30
 ADJUSTED_LABEL = "[Core Earnings / Pre-Exceptional Adjusted]"
+# V2-Rule-4C: a filing-backed P/B or P/E that differs from the live reference multiple by more than this factor (either direction) means a unit,
+# scale or share-count error somewhere in the inputs; the company is withheld with its own status rather than scored on suspect numbers.
+RULE_4C = "V2-Rule-4C-PlausibilityGuard"
+PLAUSIBILITY_FACTOR = 3.0
+DISCREPANCY_STATUS = "VALUATION_DATA_DISCREPANCY"
+DISCREPANCY_LABEL = "N/A - Valuation Data Discrepancy"
 FRESH_DAYS = 456
 UNRESOLVED_CASES = {"KNRCON", "VEDL", "TRANSWORLD", "PRINCEPIPE"}
 REASONS = (
-    "UNVERIFIED_UNAUDITED", "NO_FILING", "EXCEPTIONAL_GAIN_REVIEW", "EXCEPTIONAL_MATERIAL", "COMPARATIVE_MAY_BE_RESTATED",
+    "UNVERIFIED_UNAUDITED", "NO_FILING", "VALUATION_DATA_DISCREPANCY", "EXCEPTIONAL_GAIN_REVIEW", "EXCEPTIONAL_MATERIAL", "COMPARATIVE_MAY_BE_RESTATED",
     "NO_COMPARABLE_PRIOR", "CONCEPT_MISSING", "CAPITAL_EMPLOYED_NOT_POSITIVE", "NO_FINANCE_COSTS", "OWNERS_PROFIT_SOURCE_GAP",
     "NEGATIVE_EQUITY", "NO_MARKET_CAP", "PROFIT_NOT_POSITIVE", "UNRESOLVED_REVIEW", "REGULATORY_DEFERRAL_MATERIAL",
 )
@@ -102,12 +108,32 @@ def exceptional_materiality(exc, pbt, pbet, revenue) -> tuple[bool, bool, str]:
     return material, material and exc > 0, f"|exceptional| {'>' if material else '<='} {threshold:.2f} (max of 10% of base {base:.2f}, 0.5% of revenue)"
 
 
+def plausibility_check(valuation: dict, reference: dict | None) -> dict | None:
+    """Rule 4C. reference = {"pb": live P/B or None, "pe": live P/E or None}. Returns the failing comparison, or None when plausible or not checkable.
+    A multiple is compared only when both the filing-backed value and the reference are positive."""
+    if not reference:
+        return None
+    def num(x):
+        try:
+            v = float(x)
+        except (TypeError, ValueError):
+            return None
+        return v if v == v and abs(v) != float("inf") else None  # Yahoo sends strings such as "Infinity" for undefined multiples
+    for k in ("pb", "pe"):
+        mine, ref = num((valuation or {}).get(k)), num(reference.get(k))
+        if mine and ref and mine > 0 and ref > 0:
+            ratio = mine / ref
+            if ratio > PLAUSIBILITY_FACTOR or ratio < 1 / PLAUSIBILITY_FACTOR:
+                return {"multiple": k, "filing": mine, "reference": ref, "ratio": round(ratio, 2)}
+    return None
+
+
 def _c(ex: "nif.FilingExtract | None", name: str):
     return nif.crore(ex.facts.get(name)) if ex else None
 
 
 def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtract | None", market_cap_cr: float | None,
-            today: date | None = None, newer_unaudited_year_end: bool = False) -> FilingMetrics:
+            today: date | None = None, newer_unaudited_year_end: bool = False, reference: dict | None = None) -> FilingMetrics:
     today = today or date.today()
     fm = FilingMetrics(symbol=symbol)
     if symbol.upper() in UNRESOLVED_CASES:
@@ -282,6 +308,17 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
             fm.valuation["pe"] = None
             fm.valuation["pe_reason"] = inv
     fm.flags["earnings_basis_invalid_reason"] = inv
+    # Rule 4C runs on the final multiples (after the earnings-quality invalidation) and, on failure, clears every scored metric so the
+    # suspect inputs also stay out of the peer pools.
+    fm.flags["plausibility_checked"] = bool(reference and any(isinstance(reference.get(k), (int, float)) and reference[k] > 0 and reference[k] != float("inf") and (fm.valuation.get(k) or 0) > 0 for k in ("pb", "pe")))
+    bad = plausibility_check(fm.valuation, reference)
+    if bad:
+        fm.status = DISCREPANCY_STATUS
+        fm.reasons = {m: DISCREPANCY_STATUS for m in SCORED}
+        fm.metrics = {m: None for m in SCORED}
+        fm.valuation = {"pe": None, "pb": None, "reason": DISCREPANCY_STATUS, "discrepancy": bad, "market_cap_cr": market_cap_cr}
+        fm.flags.update({"rule_4c_discrepancy": bad, "rule_tags": [RULE_4C], "na_label": DISCREPANCY_LABEL})
+        return fm
     used_4a = loss_bypass and (fm.metrics.get("roe") is not None or fm.valuation.get("pe") is not None)
     fm.flags.update({"rule_4a_exceptional_loss_bypass": bool(used_4a), "rule_4b_windfall_review": bool(gain),
                      "adjusted_label": ADJUSTED_LABEL if used_4a else None,

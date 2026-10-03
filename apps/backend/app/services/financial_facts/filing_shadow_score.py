@@ -58,7 +58,10 @@ def score_group(members: list[str], fm: dict, mb: dict, pool_statuses: tuple = U
         if f is None:
             out[s] = {"state": "withheld", "reason": "NO_FILING_RECORD"}; continue
         if f["status"] != "ok":
-            out[s] = {"state": "withheld", "reason": f["status"]}; continue
+            out[s] = {"state": "withheld", "reason": f["status"]}
+            if (f.get("flags") or {}).get("na_label"):
+                out[s]["label"] = f["flags"]["na_label"]; out[s]["rule_tags"] = list(f["flags"].get("rule_tags") or [])
+            continue
         used = [m for m in HIGHER_IS_BETTER if pct[m].get(s) is not None]
         fs = round(sum(pct[m][s] for m in used) / len(used), 1) if used else None
         pe_p = percentile_rank(pes, s, True) if s in pes else None
