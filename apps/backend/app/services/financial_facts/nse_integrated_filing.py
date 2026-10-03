@@ -53,7 +53,12 @@ INSTANT_CONCEPTS = (
     "Assets", "Equity", "EquityAttributableToOwnersOfParent", "CurrentLiabilities",
     "BorrowingsCurrent", "BorrowingsNoncurrent", "EquityAndLiabilities",
 )
-CORE_CONCEPTS = FLOW_CONCEPTS + INSTANT_CONCEPTS
+REQUIRED_CONCEPTS = FLOW_CONCEPTS + INSTANT_CONCEPTS
+# Read when present (disposal / discontinued-operations disclosures); their absence is not "missing".
+OPTIONAL_FLOW = ("ProfitLossFromDiscontinuedOperationsAfterTax",)
+OPTIONAL_INSTANT = ("AssetsClassifiedAsHeldForSale", "NoncurrentAssetsOrDisposalGroupsClassifiedAsHeldForSale",
+                    "LiabilitiesDirectlyAssociatedWithAssetsInDisposalGroupClassifiedAsHeldForSale")
+CORE_CONCEPTS = FLOW_CONCEPTS + INSTANT_CONCEPTS + OPTIONAL_FLOW + OPTIONAL_INSTANT
 _MONTHS = {m: i for i, m in enumerate(["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"], 1)}
 
 
@@ -217,20 +222,59 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
         except ValueError:
             continue
         fact = ExtractedFact(concept=name, value_inr=val, period=f"{start}..{end}" if kind == "duration" else f"@{end}", decimals=el.get("decimals"), raw_text=(el.text or "").strip())
-        if name in FLOW_CONCEPTS and kind == "duration" and _is_year(start, end):
+        if name in FLOW_CONCEPTS + OPTIONAL_FLOW and kind == "duration" and _is_year(start, end):
             if end == ref.period_end:
                 ex.facts.setdefault(name, fact)
             elif end == prior_end:
                 ex.prior.setdefault(name, fact)
-        elif name in INSTANT_CONCEPTS and kind == "instant":
+        elif name in INSTANT_CONCEPTS + OPTIONAL_INSTANT and kind == "instant":
             if end == ref.period_end:
                 ex.facts.setdefault(name, fact)
             elif end == prior_end:
                 ex.prior.setdefault(name, fact)
-    ex.missing = [c for c in CORE_CONCEPTS if c not in ex.facts]
+    ex.missing = [c for c in REQUIRED_CONCEPTS if c not in ex.facts]
     ex.annual_status = "audited" if ref.audited == "Audited" else "unverified_unaudited"
     return ex
 
 
 def crore(fact: ExtractedFact | None) -> float | None:
     return None if fact is None else round(fact.value_inr / 1e7, 2)
+
+
+def latest_annual(rows: list[dict], scope_preference=("Consolidated", "Standalone"), session: requests.Session | None = None,
+                  raw_dir: str | None = None, max_periods: int = 6) -> tuple["FilingExtract | None", list[str]]:
+    """The newest Ind-AS filing that actually contains a full-year (about 12 months) revenue fact, for any fiscal-year end.
+    Walks period ends newest first; interim periods (no 12-month context) are skipped and listed in the notes."""
+    notes: list[str] = []
+    ends = sorted({_parse_qe(r.get("qe_Date")) for r in rows if "INDAS" in (r.get("xbrl") or "") and _parse_qe(r.get("qe_Date"))}, reverse=True)
+    for pe in ends[:max_periods]:
+        scopes = available_scopes(rows, pe)
+        scope = next((sc for sc in scope_preference if sc in scopes), None)
+        if scope is None:
+            continue
+        ref = select_filing(rows, pe, scope)
+        if ref is None:
+            continue
+        ex = extract(ref, session, raw_dir)
+        if "RevenueFromOperations" in ex.facts or "ProfitBeforeTax" in ex.facts:
+            return ex, notes
+        notes.append(f"{pe} {scope}: no full-year context (interim)")
+    return None, notes
+
+
+def owners_profit(ex: "FilingExtract") -> tuple[float | None, str]:
+    """Profit attributable to owners of the parent, in INR crore, with the basis it was taken on.
+    Consolidated filings may leave the field unpopulated, or populate it as 0 while total profit is not 0 (seen:
+    NESTLEIND FY2026); neither is trusted. Falls back to total profit ONLY when the entity has no minority."""
+    total = crore(ex.facts.get("ProfitLossForPeriod"))
+    owners = crore(ex.facts.get("ProfitOrLossAttributableToOwnersOfParent"))
+    nci = crore(ex.facts.get("ProfitOrLossAttributableToNonControllingInterests"))
+    if owners is not None and not (owners == 0 and total not in (None, 0)):
+        return owners, "owners (filing)"
+    if owners is not None:
+        return None, "owners reported as 0 while total profit is not 0: unreliable"
+    if ex.ref.scope == "Standalone":
+        return total, "total profit (standalone, no minority)"
+    if nci is not None and total is not None:
+        return round(total - nci, 2), "total less non-controlling interest (filing)"
+    return None, "owners' profit not populated in a consolidated filing"
