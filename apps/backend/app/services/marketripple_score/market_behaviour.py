@@ -22,6 +22,39 @@ from app.services.marketripple_score.contracts import PillarScore, PillarStatus
 
 _NIFTY_TICKER = "^NSEI"
 
+# Publication floor for this pillar (owner decision 2026-10-03, after HEG was
+# published at 59.7 from 1 of 4 components): at least 50% coverage, at least
+# 64 completed own daily closes, and a real NIFTY- or sector-relative
+# comparison. Both relative returns use a 63-session window (_pct_return needs
+# > 63 closes), so either one being present proves the 64-close floor.
+MIN_MARKET_BEHAVIOUR_COVERAGE_PCT = 50.0
+MIN_MARKET_BEHAVIOUR_OWN_OBSERVATIONS = 64  # implied by any relative return
+
+
+def pillar_has_sufficient_market_history(pillar: PillarScore | None) -> bool:
+    """The floor, checked on a freshly computed pillar."""
+    if pillar is None or pillar.score is None or pillar.coverage_pct is None:
+        return False
+    has_relative = any(m.startswith("relative_return_vs_") for m in pillar.metrics_used)
+    return pillar.coverage_pct >= MIN_MARKET_BEHAVIOUR_COVERAGE_PCT and has_relative
+
+
+def snapshot_lacks_market_history(snap) -> bool:
+    """The floor, checked on a stored snapshot (the public projection).
+
+    Snapshots computed after this rule carry INSUFFICIENT_MARKET_HISTORY in
+    their block reasons when they fail it. Older snapshots store only the
+    pillar's coverage: below 50% fails outright. (At exactly 50% an old
+    snapshot can't prove a relative comparison; none was published in
+    production when this shipped, and the weekly refresh re-judges every
+    company with the full rule.)"""
+    from app.services.marketripple_score.eligibility import REASON_INSUFFICIENT_MARKET_HISTORY
+
+    if REASON_INSUFFICIENT_MARKET_HISTORY in (snap.publication_block_reasons or []):
+        return True
+    coverage = getattr(snap, "market_behaviour_coverage_pct", None)
+    return coverage is None or coverage < MIN_MARKET_BEHAVIOUR_COVERAGE_PCT
+
 # Reused verbatim from market_data.py — the same real, already-fixed
 # sector ETF map (Warehouse sector-metrics work, 2026-08-25), not a
 # second, competing sector-benchmark list.

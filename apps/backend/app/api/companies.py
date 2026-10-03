@@ -1200,11 +1200,13 @@ async def _fetch_mr_scores(db: AsyncSession, symbols: list[str]) -> dict[str, di
     for snap in snap_rows:
         latest_by_symbol.setdefault(snap.symbol, snap)  # first hit per symbol is the newest (query is DESC)
 
+    from app.services.marketripple_score.public_projection import is_publicly_published
+
     show_local_preview = not settings.is_production
     for symbol, snap in latest_by_symbol.items():
         reasons = snap.publication_block_reasons or []
         eligible = len(reasons) == 0
-        publishable = bool(snap.publishable)
+        publishable = is_publicly_published(snap)
         mr_scores[symbol] = {
             "marketripple_score": {
                 "eligible": eligible, "publishable": publishable,

@@ -28,7 +28,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.marketripple_score.eligibility import (
     REASON_INSUFFICIENT_FINANCIAL_METRICS, REASON_INSUFFICIENT_OVERALL_COVERAGE,
-    REASON_MISSING_REQUIRED_PILLAR, REASON_NO_ELIGIBLE_FINANCIAL_PERIOD, REASON_STALE_FINANCIAL_DATA,
+    REASON_INSUFFICIENT_MARKET_HISTORY, REASON_MISSING_REQUIRED_PILLAR,
+    REASON_NO_ELIGIBLE_FINANCIAL_PERIOD, REASON_STALE_FINANCIAL_DATA,
 )
 
 # Priority order (most severe/fundamental first) + the exact public copy
@@ -39,6 +40,7 @@ _REASON_PRIORITY: list[str] = [
     REASON_NO_ELIGIBLE_FINANCIAL_PERIOD,
     REASON_INSUFFICIENT_FINANCIAL_METRICS,
     REASON_STALE_FINANCIAL_DATA,
+    REASON_INSUFFICIENT_MARKET_HISTORY,
     REASON_INSUFFICIENT_OVERALL_COVERAGE,
 ]
 
@@ -55,6 +57,10 @@ _REASON_COPY: dict[str, tuple[str, str]] = {
         "Insufficient verified financial data",
         "Some financial evidence could not be verified, so MarketRipple is not publishing a score for this company yet.",
     ),
+    REASON_INSUFFICIENT_MARKET_HISTORY: (
+        "Insufficient data",
+        "MarketRipple doesn't have enough completed price history and market comparison data to publish a score for this company yet.",
+    ),
     REASON_STALE_FINANCIAL_DATA: (
         "Financial data awaiting update",
         "MarketRipple's financial data for this company is due for a refresh.",
@@ -64,6 +70,15 @@ _REASON_COPY: dict[str, tuple[str, str]] = {
         "MarketRipple does not yet have enough current evidence to publish a reliable overall score for this company.",
     ),
 }
+
+
+def is_publicly_published(snap) -> bool:
+    """The one check every public surface uses before showing a number:
+    the stored publishable flag AND the market-behaviour floor (which also
+    hides snapshots published before that floor existed)."""
+    from app.services.marketripple_score.market_behaviour import snapshot_lacks_market_history
+
+    return bool(snap.publishable) and not snapshot_lacks_market_history(snap)
 
 
 def _public_block_message(reasons: list[str]) -> tuple[str, str] | None:
@@ -93,7 +108,13 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
     if snap is None:
         return {"resolved": True, "symbol": entity.symbol, "entity_id": entity.entity_id, "snapshot": False}
 
-    reasons = snap.publication_block_reasons or []
+    from app.services.marketripple_score.market_behaviour import snapshot_lacks_market_history
+
+    reasons = list(snap.publication_block_reasons or [])
+    # Only when the floor is what blocks a published score — a snapshot already
+    # unpublished for another reason keeps that reason's own message.
+    if snap.publishable and snapshot_lacks_market_history(snap) and REASON_INSUFFICIENT_MARKET_HISTORY not in reasons:
+        reasons.append(REASON_INSUFFICIENT_MARKET_HISTORY)
     eligible = len(reasons) == 0
     block = _public_block_message(reasons) if not eligible else None
 
@@ -122,7 +143,7 @@ async def get_marketripple_score_projection(db: AsyncSession, raw_symbol: str) -
     # null, so no frontend change is required for this fix to take
     # effect — an eligible-but-locked bank now correctly shows the same
     # honest empty state a genuinely-ineligible bank already did.
-    publishable = bool(snap.publishable)
+    publishable = is_publicly_published(snap)
 
     return {
         "resolved": True,

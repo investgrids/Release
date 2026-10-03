@@ -53,7 +53,7 @@ def _snapshot(symbol, *, score, publishable, block_reasons, methodology_version=
     return MarketRippleScoreSnapshot(
         symbol=symbol, score=score, rating="Positive" if score else None,
         financial_strength=score, valuation=score, market_behaviour=score, current_intelligence=score,
-        coverage_pct=80.0, methodology_version=methodology_version, peer_universe=[], peer_universe_count=33,
+        coverage_pct=80.0, market_behaviour_coverage_pct=100.0, methodology_version=methodology_version, peer_universe=[], peer_universe_count=33,
         calculated_at=datetime.now(timezone.utc), publishable=publishable,
         publication_block_reason=None if publishable else "S2 phase lock",
         publication_policy_version="NONBANK_INDUSTRIAL_V2_P1", publication_block_reasons=block_reasons,

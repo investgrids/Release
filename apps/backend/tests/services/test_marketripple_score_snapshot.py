@@ -183,7 +183,7 @@ def _headline_result(publishable: bool):
 
     def p(score):
         return PillarScore(name="t", score=score, coverage_pct=100.0, status=PillarStatus.COMPLETE,
-                           metrics_used=["a", "b", "c", "d", "e", "f"], metrics_missing=[], sources=["t"],
+                           metrics_used=["a", "b", "c", "d", "e", "relative_return_vs_nifty50"], metrics_missing=[], sources=["t"],
                            as_of=datetime.now(timezone.utc))
     return MarketRippleScore(
         symbol="X", score=62.0 if publishable else None, label="Positive" if publishable else None,

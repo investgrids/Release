@@ -154,6 +154,15 @@ async def compute_and_persist_snapshot(
         publication_policy_version = NONBANK_INDUSTRIAL_V2_P1.name
         publication_block_reasons = eligibility.reasons
 
+    # Market-behaviour publication floor (see market_behaviour.py): applies to
+    # every supported sector, on top of the sector's own eligibility policy.
+    if publication_policy_version is not None:
+        from app.services.marketripple_score.eligibility import REASON_INSUFFICIENT_MARKET_HISTORY
+        from app.services.marketripple_score.market_behaviour import pillar_has_sufficient_market_history
+
+        if not pillar_has_sufficient_market_history(mkt):
+            publication_block_reasons = [*(publication_block_reasons or []), REASON_INSUFFICIENT_MARKET_HISTORY]
+
     snapshot = MarketRippleScoreSnapshot(
         entity_id=entity.entity_id if entity else None,
         symbol=symbol,

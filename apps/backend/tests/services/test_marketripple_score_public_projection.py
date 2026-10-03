@@ -57,7 +57,8 @@ async def _seed_entity(db, symbol: str, entity_id: str, old_symbol: str | None =
 
 def _snapshot(symbol, entity_id, *, score, financial_strength, coverage_pct, fin_metrics_used,
               financial_data_as_of, block_reasons, publishable=False,
-              pillar_coverage_status="complete", pillar_coverage_message="Complete coverage — 3 of 3 required pillars"):
+              pillar_coverage_status="complete", pillar_coverage_message="Complete coverage — 3 of 3 required pillars",
+              market_behaviour_coverage_pct=100.0):
     now = datetime.now(timezone.utc)
     return MarketRippleScoreSnapshot(
         entity_id=entity_id, symbol=symbol, score=score, rating="Positive",
@@ -68,6 +69,7 @@ def _snapshot(symbol, entity_id, *, score, financial_strength, coverage_pct, fin
         publishable=publishable, publication_block_reason=None if publishable else "S2 phase lock",
         publication_policy_version="BANKING_V1_P1", publication_block_reasons=block_reasons,
         pillar_coverage_status=pillar_coverage_status, pillar_coverage_message=pillar_coverage_message,
+        market_behaviour_coverage_pct=market_behaviour_coverage_pct,
     )
 
 
@@ -288,5 +290,51 @@ async def test_real_company_with_no_snapshot_yet():
             result = await get_marketripple_score_projection(db, symbol)
         assert result["resolved"] is True
         assert result["snapshot"] is False
+    finally:
+        await _cleanup([symbol], [entity_id])
+
+
+# ── Market-behaviour publication floor (2026-10-03, HEG) ─────────────────────
+@pytest.mark.asyncio
+async def test_published_snapshot_with_thin_market_history_is_hidden_heg():
+    """HEG's real production profile: published at 59.7 with market behaviour
+    from 1 of 4 components (25%). It must be hidden immediately, without a
+    recompute, and say "Insufficient data"."""
+    symbol, entity_id = f"T{_tag()}", _entity_id()
+    async with AsyncSessionLocal() as db:
+        await _seed_entity(db, symbol, entity_id)
+        db.add(_snapshot(symbol, entity_id, score=59.7, financial_strength=47.7, coverage_pct=85.0,
+                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          publishable=True, market_behaviour_coverage_pct=25.0))
+        await db.commit()
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await get_marketripple_score_projection(db, symbol)
+        assert result["publishable"] is False
+        assert result["eligible"] is False
+        assert result["score"] is None and result["rating"] is None
+        assert result["pillars"]["market_behaviour"] is None
+        assert result["block_headline"] == "Insufficient data"
+        assert "price history" in result["block_message"]
+    finally:
+        await _cleanup([symbol], [entity_id])
+
+
+@pytest.mark.asyncio
+async def test_published_snapshot_with_three_of_four_market_components_stays_public():
+    """TCS-shaped: 75% market behaviour (proves a relative comparison and 64+
+    closes) keeps its public score."""
+    symbol, entity_id = f"T{_tag()}", _entity_id()
+    async with AsyncSessionLocal() as db:
+        await _seed_entity(db, symbol, entity_id)
+        db.add(_snapshot(symbol, entity_id, score=57.7, financial_strength=59.4, coverage_pct=100.0,
+                          fin_metrics_used=7, financial_data_as_of="FY2025Q3", block_reasons=[],
+                          publishable=True, market_behaviour_coverage_pct=75.0))
+        await db.commit()
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await get_marketripple_score_projection(db, symbol)
+        assert result["publishable"] is True
+        assert result["score"] == 57.7
     finally:
         await _cleanup([symbol], [entity_id])

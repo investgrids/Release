@@ -359,7 +359,15 @@ async def get_top_local_preview_scores(db: AsyncSession, limit: int = 5, publish
     )
     if publishable_only:  # the public leaderboard (get_top_published_scores)
         stmt = stmt.where(MarketRippleScoreSnapshot.publishable.is_(True))
-    rows = (await db.execute(stmt.order_by(MarketRippleScoreSnapshot.score.desc()).limit(limit))).scalars().all()
+    if publishable_only:
+        # Same public check as the Company page; over-fetch so the filter
+        # can't leave the leaderboard short.
+        from app.services.marketripple_score.public_projection import is_publicly_published
+
+        rows = (await db.execute(stmt.order_by(MarketRippleScoreSnapshot.score.desc()).limit(limit * 3))).scalars().all()
+        rows = [r for r in rows if is_publicly_published(r)][:limit]
+    else:
+        rows = (await db.execute(stmt.order_by(MarketRippleScoreSnapshot.score.desc()).limit(limit))).scalars().all()
 
     return [
         {
