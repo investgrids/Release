@@ -218,6 +218,21 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
     sha = hashlib.sha256(body).hexdigest()
     root = ET.fromstring(body)
     ctx = _contexts(root)
+    # Legacy (in-bse-fin) annual files define their contexts with quarter dates and state the real period of each context in the
+    # DateOfStart/EndOfReportingPeriod facts; where a context has both, those facts are the period.
+    _starts, _ends = {}, {}
+    for _el in root.iter():
+        _n = _el.tag.split("}")[-1]
+        if _n == "DateOfStartOfReportingPeriod" and _el.text:
+            _starts[_el.get("contextRef")] = _el.text.strip()
+        elif _n == "DateOfEndOfReportingPeriod" and _el.text:
+            _ends[_el.get("contextRef")] = _el.text.strip()
+    for _cid in set(_starts) & set(_ends):
+        try:
+            if _cid in ctx and ctx[_cid][0] == "duration":
+                ctx[_cid] = ("duration", date.fromisoformat(_starts[_cid]), date.fromisoformat(_ends[_cid]), ctx[_cid][3])
+        except ValueError:
+            pass
     ex = FilingExtract(ref=ref, retrieved_at=datetime.now(timezone.utc).isoformat(), sha256=sha, nbytes=len(body), currency=None, level_of_rounding=None)
     prior_end = date(ref.period_end.year - 1, ref.period_end.month, min(ref.period_end.day, 28)) if ref.period_end.month == 2 else date(ref.period_end.year - 1, ref.period_end.month, ref.period_end.day)
     for el in root.iter():
