@@ -31,3 +31,10 @@ def test_dividends_yield_scale_and_history():
     d = dividends_block(s, {"dividendYield": 1.23, "dividendRate": 27.0}, "₹")
     assert d["yield"] == "1.23%" and d["rate"] == "₹27.00" and d["history"][0] == {"date": "2026-06-01", "amount": "₹27.00"}
     assert dividends_block(s, {"dividendYield": 0.0123}, "₹")["yield"] == "1.23%"
+
+
+def test_debt_to_equity_is_shown_as_a_multiple():
+    from app.services.market_data import _debt_to_equity_str
+    assert _debt_to_equity_str(10.2, 0.11) == "0.11"      # statement ratio wins (same unit as the Financials tab)
+    assert _debt_to_equity_str(10.2, None) == "0.10"      # Yahoo's value is a percentage
+    assert _debt_to_equity_str(None, None) == "—"

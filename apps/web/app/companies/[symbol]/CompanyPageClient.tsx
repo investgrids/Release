@@ -200,7 +200,7 @@ function KvRow({ label, value, colored = false }: { label: string; value: string
   return (
     <div className="flex items-center justify-between gap-2 py-2 border-b border-surface-border/4 last:border-0">
       <span className="text-[12px] text-text-muted shrink-0">{label}</span>
-      <span className={`text-[13px] font-medium tabular-nums text-right ${colored ? labelTone(label, value) : "text-text-primary"}`}>{value || "—"}</span>
+      <span className={`text-[13px] font-medium tabular-nums text-right ${value === "Not applicable" ? "text-text-muted font-normal" : colored ? labelTone(label, value) : "text-text-primary"}`}>{value || "—"}</span>
     </div>
   );
 }
@@ -650,7 +650,7 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
               <tr>
                 <td className="py-2 text-text-secondary">Debt/Equity</td>
                 {stock.annual_financials.map((f, i) => <td key={f.year} className="py-2 text-right text-text-primary">{i === stock.annual_financials.length - 1 ? stock.debt_to_equity : "—"}</td>)}
-                <td className={`py-2 text-right font-semibold ${metricTone("de_pct", stock.debt_to_equity)}`}>{stock.debt_to_equity}</td>
+                <td className={`py-2 text-right font-semibold ${metricTone("de", stock.debt_to_equity)}`}>{stock.debt_to_equity}</td>
               </tr>
             </tbody>
           </table>
@@ -666,7 +666,14 @@ function FinancialHighlights({ stock }: { stock: StockDetail }) {
 // anywhere in this section (a dead third array column existed but was
 // never read by the JSX below) — the label was purely aspirational text
 // with zero backing data. See artifacts/company_redesign_audit_spec.md §C.
+// ROCE, debt/equity and the current ratio have no standard meaning for a bank (deposits are its raw material, interest is its operating cost), so they read
+// "Not applicable" instead of looking like missing data. Banks are judged on ROE, ROA, NIM and NPAs.
+export const isBank = (industry?: string | null) => /^banks?(\s|-|$)/i.test((industry ?? "").trim());
+const BANK_NA = new Set(["ROCE", "D/E Ratio", "Current Ratio"]);
+
 function KeyRatios({ stock }: { stock: StockDetail }) {
+  const bank = isBank(stock.industry);
+  const na = (l: string, v: string) => (bank && BANK_NA.has(l) ? "Not applicable" : v);
   const rows = [
     ["PE Ratio (TTM)",  stock.pe],
     ["Forward PE",      stock.forward_pe],
@@ -682,8 +689,8 @@ function KeyRatios({ stock }: { stock: StockDetail }) {
   return (
     <SectionCard title="Key ratios">
       <div className="mt-3 grid grid-cols-2 gap-x-8 divide-x divide-surface-border/4">
-        <div>{rows.slice(0, 5).map(([l, v]) => <KvRow key={l} label={l} value={v} colored/>)}</div>
-        <div className="pl-8">{rows.slice(5).map(([l, v]) => <KvRow key={l} label={l} value={v} colored/>)}</div>
+        <div>{rows.slice(0, 5).map(([l, v]) => <KvRow key={l} label={l} value={na(l, v)} colored/>)}</div>
+        <div className="pl-8">{rows.slice(5).map(([l, v]) => <KvRow key={l} label={l} value={na(l, v)} colored/>)}</div>
       </div>
     </SectionCard>
   );
@@ -1362,7 +1369,7 @@ function KeyDataGrid({ stock }: { stock: StockDetail }) {
         <div><p className="text-[12px] text-text-muted">Volume</p><p className="mt-0.5 font-semibold text-text-primary">{stock.volume || "—"}</p></div>
         <div><p className="text-[12px] text-text-muted">P/E</p><p className={`mt-0.5 font-semibold tabular-nums ${metricTone("pe", stock.pe)}`}>{stock.pe || "—"}</p></div>
         <div><p className="text-[12px] text-text-muted">ROE</p><p className={`mt-0.5 font-semibold tabular-nums ${metricTone("roe", stock.roe)}`}>{stock.roe || "—"}</p></div>
-        <div><p className="text-[12px] text-text-muted">D/E</p><p className={`mt-0.5 font-semibold tabular-nums ${metricTone("de_pct", stock.debt_to_equity)}`}>{stock.debt_to_equity || "—"}</p></div>
+        <div><p className="text-[12px] text-text-muted">D/E</p><p className={`mt-0.5 font-semibold tabular-nums ${metricTone("de", stock.debt_to_equity)}`}>{stock.debt_to_equity || "—"}</p></div>
         <div><p className="text-[12px] text-text-muted">Margin</p><p className={`mt-0.5 font-semibold tabular-nums ${metricTone("net_margin", stock.net_margins)}`}>{stock.net_margins || "—"}</p></div>
       </div>
     </SectionCard>

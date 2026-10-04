@@ -465,6 +465,16 @@ def _pct_str_with_fallback(provider_value, statement_percent) -> str:
     return "—"
 
 
+def _debt_to_equity_str(yahoo_pct, statement_ratio) -> str:
+    """Debt / equity as a multiple ("0.11"), the same unit as the Financials tab. Prefers the statement-derived ratio; Yahoo's debtToEquity is a PERCENTAGE
+    (TCS 10.2 means 0.10x), so it is divided by 100 when it is the only source. Never shows the raw percentage under a ratio label."""
+    if _is_real_number(statement_ratio):
+        return f"{float(statement_ratio):.2f}"
+    if _is_real_number(yahoo_pct):
+        return f"{float(yahoo_pct) / 100:.2f}"
+    return "—"
+
+
 def _format_enterprise_value(ev_raw) -> str:
     """Negative EV is real (cash above market cap) and is shown, not hidden."""
     if not _is_real_number(ev_raw):
@@ -929,7 +939,7 @@ async def get_stock_detail(symbol: str) -> Optional[dict]:
                 "gross_margins":     _pct_str(info.get("grossMargins")),
                 "operating_margins": _pct_str(info.get("operatingMargins")),
                 "net_margins":       _pct_str(info.get("profitMargins")),
-                "debt_to_equity":    _num_str(info.get("debtToEquity")),
+                "debt_to_equity":    _debt_to_equity_str(info.get("debtToEquity"), statement_ratios.get("debt_to_equity")),
                 "current_ratio":     _num_str(info.get("currentRatio"), 2),
                 "free_cashflow":     _fmt_large(info.get("freeCashflow"), financial_currency),
                 "recommendation":    (info.get("recommendationKey") or "hold").lower(),

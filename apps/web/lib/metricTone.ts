@@ -4,7 +4,7 @@
 // Bands are broad rules of thumb for Indian listed companies, not sector-
 // adjusted; a missing or unparseable value ("—") always stays neutral.
 
-export type MetricKey = "pe" | "pb" | "de_pct" | "roe" | "roce" | "net_margin" | "dividend_yield";
+export type MetricKey = "pe" | "pb" | "de" | "roe" | "roce" | "net_margin" | "dividend_yield";
 
 const GOOD = "text-emerald-600 dark:text-emerald-400";
 const MID = "text-amber-600 dark:text-amber-400";
@@ -15,8 +15,8 @@ export const NEUTRAL = "text-text-primary";
 const BANDS: Record<MetricKey, [number, number, boolean]> = {
   pe: [20, 40, false],
   pb: [3, 6, false],
-  // Yahoo reports debtToEquity as a percentage (10.2 = 0.10x).
-  de_pct: [50, 150, false],
+  // Debt / equity as a multiple (the API converts Yahoo's percentage).
+  de: [0.5, 1.5, false],
   roe: [15, 8, true],
   roce: [15, 8, true],
   net_margin: [15, 5, true],
@@ -46,7 +46,7 @@ export const LABEL_METRIC: Record<string, MetricKey> = {
   "P/E (TTM)": "pe", "PE Ratio (TTM)": "pe", "Forward PE": "pe", "P/E": "pe",
   "P/B": "pb", "PB Ratio": "pb",
   "ROE": "roe", "ROCE": "roce",
-  "D/E Ratio": "de_pct", "D/E": "de_pct", "Debt/Equity": "de_pct",
+  "D/E Ratio": "de", "D/E": "de", "Debt/Equity": "de",
   "Margin": "net_margin", "Net margin": "net_margin",
   "Dividend yield": "dividend_yield", "Dividend Yield": "dividend_yield",
 };

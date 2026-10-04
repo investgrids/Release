@@ -10,8 +10,8 @@ describe("metricTone", () => {
     expect(metricTone("pe", "65.4")).toMatch(RED);
     expect(metricTone("pb", "6.9")).toMatch(RED);
     expect(metricTone("pb", "2.1")).toMatch(GREEN);
-    expect(metricTone("de_pct", "10.2")).toMatch(GREEN); // 0.10x
-    expect(metricTone("de_pct", "180")).toMatch(RED);
+    expect(metricTone("de", "0.10")).toMatch(GREEN);
+    expect(metricTone("de", "1.80")).toMatch(RED);
   });
 
   it("higher-is-better metrics: ROE, margin, yield", () => {
