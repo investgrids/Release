@@ -333,8 +333,9 @@ function useMarketRippleScore(symbol: string) {
     fetch(`${API}/api/companies/${symbol}/marketripple-score`)
       .then(r => r.ok ? r.json() : null)
       .then(async (d: MarketRippleScoreData | null) => {
-        // Banks only: ask for the filing-backed score. The endpoint answers 404 for anything not released, in which case the live answer stands unchanged.
-        if (d && d.sector === "Banking" && !(d.eligible === true && d.score != null)) {
+        // No live score: ask for the filing-backed score. Only banks are released, so the endpoint answers 404 for everything else and the live answer stands.
+        // Not keyed on sector: eight banks are filed under "Finance" in the company master.
+        if (d && !(d.eligible === true && d.score != null)) {
           try {
             const r = await fetch(`${API}/api/filing-score/${symbol}`);
             if (r.ok) d = bankFilingOverlay(d, (await r.json()) as FilingScoreResponse);
