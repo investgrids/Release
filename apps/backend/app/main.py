@@ -364,7 +364,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, company_rankings, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media, tools, coverage, daily_brief_intelligence, facts, sources, macro, weekend_intelligence, economic_calendar  # noqa: E402
+from app.api import dashboard, events, news, stories, radar, calendar, stocks, sectors, indices, ai_search, ai_search_feedback, ai_search_refine, ai_search_followup, ai_search_session, ai_search_watch, homepage_intelligence, live_intelligence, company_intelligence, market, commodities, ipo, alerts, ripple, market_data, multi_horizon, thesis, checklist, scenario, pattern, related, companies, company_scores, company_rankings, stream, intelligence_market, mie, historical_memory, graph, predictions, intelligence_pages, announcements, publishing, insights, feedback, scores, admin, media, tools, coverage, daily_brief_intelligence, facts, sources, macro, weekend_intelligence, economic_calendar, filing_score  # noqa: E402
 
 app.include_router(dashboard.router,    prefix="/api/dashboard",    tags=["dashboard"])
 app.include_router(events.router,       prefix="/api/events",       tags=["events"])
@@ -460,6 +460,7 @@ app.include_router(feedback.router, prefix="/api/feedback", tags=["feedback"])
 app.include_router(media.router, prefix="/api/media", tags=["media"])
 # ── Admin — protected infra/db status, not for end users ────────────────────
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(filing_score.router, prefix="/api/filing-score", tags=["filing-score"])
 
 
 @app.get("/health")

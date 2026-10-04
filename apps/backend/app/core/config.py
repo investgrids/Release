@@ -207,6 +207,9 @@ class Settings(BaseSettings):
     # to "v2" is the actual cutover decision and is explicitly NOT done by
     # this settings default — a human decides when, after the observation
     # window the owner specified.
+    # Filing-backed MarketRipple Score (NSE_FILING_SCORE_V3): readable through /api/filing-score only when this is True. Default False: the endpoint answers 404 for every
+    # symbol, no page links to it, and the live scorer is unchanged either way. Turning it on is a release decision (replaces the live score), not a deploy detail.
+    filing_score_public: bool = False
     opportunity_read_source: str = "v1"  # "v1" | "v2"
 
     # Article V2 Production Integration, Phase P5 (owner design,
