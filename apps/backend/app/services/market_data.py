@@ -150,11 +150,13 @@ async def get_index_chart(name: str, ticker: str) -> list[dict]:
 _PERIOD_MAP: dict = {
     "1D":  ("1d",  "5m"),
     "1W":  ("5d",  "60m"),
+    "5D":  ("5d",  "60m"),   # the company page sends 5D and 3M; before these keys existed both silently returned the 6M weekly series
     "1M":  ("1mo", "1d"),
-    "6M":  ("6mo", "1wk"),
-    "1Y":  ("1y",  "1wk"),
-    "3Y":  ("3y",  "1mo"),
-    "5Y":  ("5y",  "1mo"),
+    "3M":  ("3mo", "1d"),
+    "6M":  ("6mo", "1d"),    # daily bars (was weekly) so candles are real daily candles
+    "1Y":  ("1y",  "1d"),
+    "3Y":  ("3y",  "1wk"),
+    "5Y":  ("5y",  "1wk"),
     "Max": ("max", "1mo"),
 }
 
@@ -1008,42 +1010,70 @@ async def get_index_chart(symbol: str, period: str = "6M") -> list:
     return await loop.run_in_executor(None, _fetch)
 
 
+_CHART_CACHE: dict = {}   # (SYMBOL, period) -> (monotonic time, rows): 60 s for intraday bars, 5 min otherwise
+_CHART_TTL_INTRADAY = 60.0
+_CHART_TTL = 300.0
+
+
+def _chart_rows(hist, interval: str) -> list:
+    """Rows for charting from a yfinance frame: {label, value (close, kept for the existing line chart), time, open, high, low, close, volume}.
+    `time` is what a candlestick chart needs: epoch seconds (UTC) for intraday bars, 'YYYY-MM-DD' otherwise. A bar with any non-finite OHLC value is skipped."""
+    import math
+
+    def cell(row, key):
+        v = row[key]
+        if hasattr(v, "iloc"):
+            v = v.iloc[0]
+        return float(v)
+
+    rows = []
+    for idx, row in hist.iterrows():
+        try:
+            o, h, l, c = cell(row, "Open"), cell(row, "High"), cell(row, "Low"), cell(row, "Close")
+            if any(math.isnan(x) or math.isinf(x) for x in (o, h, l, c)):
+                continue
+            try:
+                vol = cell(row, "Volume")
+                vol = 0 if (math.isnan(vol) or math.isinf(vol)) else int(vol)
+            except Exception:
+                vol = 0
+            intraday = interval in ("5m", "60m")
+            if intraday:
+                label = idx.strftime("%H:%M") if hasattr(idx, "strftime") else str(idx)
+                t = int(idx.timestamp()) if hasattr(idx, "timestamp") else None
+            else:
+                label = idx.strftime("%b %d") if hasattr(idx, "strftime") else str(idx)[:10]
+                t = idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx)[:10]
+            rows.append({"label": label, "value": round(c, 2), "time": t, "open": round(o, 2), "high": round(max(h, o, c), 2), "low": round(min(l, o, c), 2),
+                         "close": round(c, 2), "volume": vol})
+        except Exception:
+            continue
+    return rows
+
+
 async def get_stock_chart(symbol: str, period: str = "6M") -> list:
-    """Return OHLCV close history for charting — [{"label": "YYYY-MM-DD", "value": float}]."""
+    """Price history for charting: one row per bar with label/value (close) for the line chart and time/open/high/low/close/volume for candles."""
+    import time as _time
+    key = (symbol.upper(), period)
+    yf_period, interval = _PERIOD_MAP.get(period, ("6mo", "1d"))
+    hit = _CHART_CACHE.get(key)
+    ttl = _CHART_TTL_INTRADAY if interval in ("5m", "60m") else _CHART_TTL
+    if hit and _time.monotonic() - hit[0] < ttl:
+        return hit[1]
     loop = asyncio.get_event_loop()
     ns_ticker = f"{symbol.upper()}.NS"
-    yf_period, interval = _PERIOD_MAP.get(period, ("6mo", "1wk"))
 
     def _fetch():
-        import math
         try:
-            hist = yf.download(
-                ns_ticker, period=yf_period, interval=interval,
-                progress=False, auto_adjust=True, timeout=10,
-            )
-            if hist.empty:
-                return []
-            result = []
-            for idx, row in hist.iterrows():
-                try:
-                    close = row["Close"]
-                    if hasattr(close, "iloc"):
-                        close = close.iloc[0]
-                    v = float(close)
-                    if math.isnan(v) or math.isinf(v):
-                        continue
-                    if interval in ("5m", "60m"):
-                        label = idx.strftime("%H:%M") if hasattr(idx, "strftime") else str(idx)
-                    else:
-                        label = idx.strftime("%b %d") if hasattr(idx, "strftime") else str(idx)[:10]
-                    result.append({"label": label, "value": round(v, 2)})
-                except Exception:
-                    continue
-            return result
+            hist = yf.download(ns_ticker, period=yf_period, interval=interval, progress=False, auto_adjust=True, timeout=10)
+            return [] if hist.empty else _chart_rows(hist, interval)
         except Exception:
             return []
 
-    return await loop.run_in_executor(None, _fetch)
+    rows = await loop.run_in_executor(None, _fetch)
+    if rows:   # never cache an empty answer (a transient Yahoo failure must not stick for minutes)
+        _CHART_CACHE[key] = (_time.monotonic(), rows)
+    return rows
 
 
 _indices_cache: dict = {"ts": 0.0, "data": None}

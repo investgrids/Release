@@ -12,6 +12,7 @@ import { SmartCTA } from "@/components/SmartCTA";
 import { CompanyIntelligenceSection } from "@/components/CompanyIntelligenceSection";
 import { RelatedContent, type RelatedItem } from "@/components/RelatedContent";
 import { API_BASE_URL as API } from "@/lib/api";
+import { hasCandles } from "@/lib/candles";
 import { scoreToColor, impactToStyle, marketRippleRatingColor, marketRippleScoreDisplayInt } from "@/lib/scoring";
 import { labelTone, metricTone, parseMetric } from "@/lib/metricTone";
 import {
@@ -27,6 +28,7 @@ import {
 // weekly-trend sections that were their only callers. See
 // artifacts/company_redesign_audit_spec.md §C.
 const PriceAreaChart              = dynamic(() => import("./CompanyCharts").then(m => m.PriceAreaChart),              { ssr: false });
+const CandleChart                 = dynamic(() => import("./CandleChart").then(m => m.CandleChart),                    { ssr: false });
 const DnaRadarChart               = dynamic(() => import("./CompanyCharts").then(m => m.DnaRadarChart),               { ssr: false });
 const ShareholdingDonut           = dynamic(() => import("./CompanyCharts").then(m => m.ShareholdingDonut),           { ssr: false });
 const HistoricalPerformanceBarChart = dynamic(() => import("./CompanyCharts").then(m => m.HistoricalPerformanceBarChart), { ssr: false });
@@ -430,16 +432,38 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
 }) {
   const isPos = stock.pct_change >= 0;
   const chartColor = isPos ? "#22c55e" : "#f43f5e";
+  // Line (default) or Candle; the choice is remembered per browser. Storage can be blocked, so every access is guarded.
+  const [kind, setKind] = useState<"line" | "candle">("line");
+  useEffect(() => {
+    try { if (localStorage.getItem("mr_price_chart_kind") === "candle") setKind("candle"); } catch { /* storage unavailable */ }
+  }, []);
+  const chooseKind = (k: "line" | "candle") => {
+    setKind(k);
+    try { localStorage.setItem("mr_price_chart_kind", k); } catch { /* storage unavailable */ }
+  };
+  const showCandles = kind === "candle" && hasCandles(chartData);
+  const intraday = typeof chartData[0]?.time === "number";
   return (
     <SectionCard title="Price chart" action={
-      <div className="flex gap-0.5 bg-text-primary/[0.03] rounded-xl p-0.5">
-        {PERIODS.map(p => (
-          <button key={p} onClick={() => setPeriod(p)}
-            className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${
-              period === p ? "bg-text-primary/10 text-text-primary" : "text-text-muted hover:text-text-secondary"}`}>
-            {p}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex gap-0.5 bg-text-primary/[0.03] rounded-xl p-0.5" role="group" aria-label="Chart type">
+          {(["line", "candle"] as const).map(k => (
+            <button key={k} onClick={() => chooseKind(k)} aria-pressed={kind === k}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${
+                kind === k ? "bg-text-primary/10 text-text-primary" : "text-text-muted hover:text-text-secondary"}`}>
+              {k === "line" ? "Line" : "Candle"}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-0.5 bg-text-primary/[0.03] rounded-xl p-0.5">
+          {PERIODS.map(p => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${
+                period === p ? "bg-text-primary/10 text-text-primary" : "text-text-muted hover:text-text-secondary"}`}>
+              {p}
+            </button>
+          ))}
+        </div>
       </div>
     }>
       <div className="h-[260px] mt-4">
@@ -450,7 +474,9 @@ function PriceChart({ symbol, chartData, loadingChart, period, setPeriod, stock 
             ))}
           </div>
         ) : chartData.length > 0 ? (
-          <PriceAreaChart chartData={chartData} chartColor={chartColor} />
+          showCandles
+            ? <CandleChart chartData={chartData} intraday={intraday} />
+            : <PriceAreaChart chartData={chartData} chartColor={chartColor} />
         ) : (
           <div className="flex h-full items-center justify-center">
             <p className="text-sm text-text-muted">No chart data for this period</p>
