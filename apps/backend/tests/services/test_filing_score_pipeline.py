@@ -108,3 +108,26 @@ async def test_universe_is_the_production_directory_with_sector_blank_meaning_no
     async with AsyncSessionLocal() as db:
         uni = {c.symbol: c for c in await runner.load_universe(db)}
     assert set(uni) == {"TCS", "HDFCBANK", "NEWCO"} and uni["TCS"].sector == "Technology" and uni["NEWCO"].sector is None
+
+
+def test_market_data_falls_back_to_the_bse_ticker_for_shares_when_the_nse_ticker_has_none(monkeypatch):
+    import yfinance
+    from app.services.filing_score import live_collector as lc
+
+    class T:
+        def __init__(self, ticker):
+            self.info = {"CMPDI.NS": {"currentPrice": 205.0, "priceToBook": None},                                  # price only: no shares, no market cap
+                         "CMPDI.BO": {"currentPrice": 204.5, "sharesOutstanding": 714_000_000, "marketCap": 146e9, "priceToBook": 6.4, "trailingPE": 23.0}}.get(ticker, {})
+
+    monkeypatch.setattr(yfinance, "Ticker", T)
+    y = lc._yahoo("CMPDI")
+    assert y["market_cap_cr"] == round(205.0 * 714_000_000 / 1e7, 2) and y["price"] == 205.0 and "BSE" in y["source"]
+    assert y["pb"] == 6.4                                                           # reference multiples also fall back
+
+    class Full:
+        def __init__(self, ticker):
+            self.info = {"currentPrice": 100.0, "sharesOutstanding": 10_000_000, "priceToBook": 2.0, "trailingPE": 10.0} if ticker.endswith(".NS") else {"currentPrice": 1.0}
+
+    monkeypatch.setattr(yfinance, "Ticker", Full)
+    y2 = lc._yahoo("TCS")
+    assert y2["market_cap_cr"] == 100.0 and "NSE" in y2["source"]                    # the BSE ticker is not consulted when NSE has the data

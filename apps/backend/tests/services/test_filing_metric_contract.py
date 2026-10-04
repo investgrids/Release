@@ -375,3 +375,36 @@ def test_worst_rank_enters_the_peer_comparison_as_the_most_expensive_value():
     fms = {"A": mk(10.0, 1.0), "B": mk(20.0, 2.0), "L": mk(None, 1.5, worst=True)}
     out = fss.score_group(["A", "B", "L"], fms, {"A": 50.0, "B": 50.0, "L": 50.0})
     assert out["L"]["val"] is not None and out["L"]["val"] < out["A"]["val"]     # the loss-maker's valuation percentile is the worst on the P/E side
+
+
+# ---- legacy (in-bse-fin) annual results as the prior year ----
+LEGACY_ROW = {"toDate": "31-Dec-2024", "consolidated": "Non-Consolidated", "audited": "Audited", "broadCastDate": "12-Feb-2025 12:07:42",
+              "xbrl": "https://nsearchives.nseindia.com/corporate/xbrl/INDAS_120445_1383384_14022025120742.xml"}
+
+
+def test_legacy_prior_ref_matches_scope_year_and_ignores_other_rows():
+    rows = [LEGACY_ROW, dict(LEGACY_ROW, consolidated="Consolidated", xbrl="https://x/INDAS_1_2_3.xml", toDate="31-Dec-2023"),
+            dict(LEGACY_ROW, xbrl=None), dict(LEGACY_ROW, toDate="not a date")]
+    ref = nif.legacy_prior_ref(rows, "sanofi", date(2024, 12, 31), "Standalone")
+    assert ref is not None and ref.scope == "Standalone" and ref.seq_id == "120445" and ref.filing_file_id == "1383384" and ref.symbol == "SANOFI"
+    assert nif.legacy_prior_ref(rows, "SANOFI", date(2024, 12, 31), "Consolidated") is None      # no consolidated result for that year
+    assert nif.legacy_prior_ref(rows, "SANOFI", date(2023, 12, 31), "Standalone") is None        # wrong year
+    assert nif.legacy_prior_ref([], "SANOFI", date(2024, 12, 31), "Standalone") is None
+
+
+def test_legacy_file_reads_the_annual_period_from_the_reporting_period_facts(tmp_path):
+    # contexts carry QUARTER dates; the true period of each context is stated in the DateOf* facts (OneD = Q4, FourD = the year)
+    xml = ('<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:in-bse-fin="http://www.bseindia.com/xbrl/fin/2020-03-31/in-bse-fin">'
+           '<xbrli:context id="OneD"><xbrli:entity><xbrli:identifier scheme="x">S</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2024-10-01</xbrli:startDate><xbrli:endDate>2024-12-31</xbrli:endDate></xbrli:period></xbrli:context>'
+           '<xbrli:context id="FourD"><xbrli:entity><xbrli:identifier scheme="x">S</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2024-10-01</xbrli:startDate><xbrli:endDate>2024-12-31</xbrli:endDate></xbrli:period></xbrli:context>'
+           '<in-bse-fin:DateOfStartOfReportingPeriod contextRef="FourD">2024-01-01</in-bse-fin:DateOfStartOfReportingPeriod>'
+           '<in-bse-fin:DateOfEndOfReportingPeriod contextRef="FourD">2024-12-31</in-bse-fin:DateOfEndOfReportingPeriod>'
+           '<in-bse-fin:WhetherResultsAreAuditedOrUnaudited contextRef="OneD">Unaudited</in-bse-fin:WhetherResultsAreAuditedOrUnaudited>'
+           '<in-bse-fin:WhetherResultsAreAuditedOrUnaudited contextRef="FourD">Audited</in-bse-fin:WhetherResultsAreAuditedOrUnaudited>'
+           '<in-bse-fin:RevenueFromOperations contextRef="OneD" decimals="-6">5149000000.00</in-bse-fin:RevenueFromOperations>'
+           '<in-bse-fin:RevenueFromOperations contextRef="FourD" decimals="-6">20132000000.00</in-bse-fin:RevenueFromOperations></xbrli:xbrl>')
+    (tmp_path / "SANOFI_1383384_abc.xml").write_text(xml)
+    ref = nif.legacy_prior_ref([LEGACY_ROW], "SANOFI", date(2024, 12, 31), "Standalone")
+    ex = nif.extract(ref, raw_dir=str(tmp_path))
+    assert nif.crore(ex.facts["RevenueFromOperations"]) == 2013.2                # the year, not the quarter (514.9)
+    assert ex.annual_status == "audited" and ex.audit_source == "xbrl_fullyear"
