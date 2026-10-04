@@ -96,3 +96,15 @@ def test_lock_file_blocks_a_second_refresh_and_stale_locks_are_recovered(tmp_pat
     os.utime(tmp_path / "running.lock", (0, 0))                              # very old lock: recovered even if the pid looks alive
     assert runner.acquire_lock() is True
     runner.release_lock()
+
+
+async def test_universe_is_the_production_directory_with_sector_blank_meaning_not_assigned(monkeypatch):
+    from app.api import companies
+
+    async def fake_directory(db):
+        return [{"symbol": "TCS", "name": "Tata", "sector": "Technology"}, {"symbol": "HDFCBANK", "name": "HDFC", "sector": "Banking"},
+                {"symbol": "NEWCO", "name": "New Co", "sector": ""}, {"symbol": "TCS", "name": "dup", "sector": "Technology"}]
+    monkeypatch.setattr(companies, "get_full_company_directory", fake_directory)
+    async with AsyncSessionLocal() as db:
+        uni = {c.symbol: c for c in await runner.load_universe(db)}
+    assert set(uni) == {"TCS", "HDFCBANK", "NEWCO"} and uni["TCS"].sector == "Technology" and uni["NEWCO"].sector is None

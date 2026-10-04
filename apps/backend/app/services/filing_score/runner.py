@@ -9,10 +9,8 @@ import os
 import time
 from pathlib import Path
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.company_entity import CompanyEntity
 from app.services.filing_score import store
 from app.services.filing_score.pipeline import CONTRACTS, METHOD_VERSION, Collector, Company, score_universe
 
@@ -20,17 +18,16 @@ MIN_RATIO_OF_ACTIVE = 0.90   # a new run must score at least 90% as many compani
 
 
 async def load_universe(db: AsyncSession) -> list[Company]:
-    """Every active NSE company in the company master. Sector is exactly what the master holds (never inferred); inside a grouped sector the company's
-    peer group comes from the explicit assignment file."""
+    """The production company universe exactly as the Companies directory builds it (get_full_company_directory: the static NSE universe plus the qualified
+    company-master entries, with the site sector each company is shown under). A company with no sector gets an explicit NO_SECTOR_ASSIGNED row, never a guess.
+    Inside a grouped sector the peer group comes from the explicit assignment file. CompanyEntity.sector is not used: it is empty in production."""
+    from app.api.companies import get_full_company_directory
     from app.services.marketripple_score.peer_groups import GROUPED_SECTORS, peer_group_for
-    rows = (await db.execute(select(CompanyEntity).where(CompanyEntity.exchange == "NSE", CompanyEntity.listing_status == "active"))).scalars().all()
-    seen, out = set(), []
-    for r in rows:
-        if r.symbol in seen:
-            continue
-        seen.add(r.symbol)
-        out.append(Company(symbol=r.symbol, sector=r.sector, peer_group=peer_group_for(r.symbol) if r.sector in GROUPED_SECTORS else None))
-    return sorted(out, key=lambda c: c.symbol)
+    out: dict[str, Company] = {}
+    for row in await get_full_company_directory(db):
+        sym, sec = row["symbol"], (row.get("sector") or None)
+        out[sym] = Company(symbol=sym, sector=sec, peer_group=peer_group_for(sym) if sec in GROUPED_SECTORS else None)
+    return sorted(out.values(), key=lambda c: c.symbol)
 
 
 async def run_refresh(db: AsyncSession, collector: Collector, *, trigger: str = "manual", universe: list[Company] | None = None,
