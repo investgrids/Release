@@ -52,6 +52,10 @@ def score_group(members: list[str], fm: dict, mb: dict, pool_statuses: tuple = U
         pct[m] = {s: percentile_rank(vals, s, cheaper_is_better=not hib) for s in vals}
     pes = {s: f["valuation"].get("pe") for s, f in usable.items() if f["valuation"].get("pe") is not None}
     pbs = {s: f["valuation"].get("pb") for s, f in usable.items() if f["valuation"].get("pb") is not None}
+    for s_, f_ in usable.items():   # Rule 4F: a verified loss / negative equity is ranked worst (cheaper_is_better -> highest value)
+        v_ = f_["valuation"]
+        if v_.get("pe") is None and v_.get("pe_rank_worst"): pes[s_] = 1.0e9
+        if v_.get("pb") is None and v_.get("pb_rank_worst"): pbs[s_] = 1.0e9
     out = {}
     for s in members:
         f = fm.get(s)
@@ -83,8 +87,10 @@ def score_group(members: list[str], fm: dict, mb: dict, pool_statuses: tuple = U
                 score = round(float(Fraction(fs).limit_denominator(10**6) * Fraction(8, 15) + Fraction(val).limit_denominator(10**6) * Fraction(4, 15)
                                     + Fraction(mb[s]).limit_denominator(10**6) * Fraction(3, 15)), 1)
                 r.update(state="scored", score=score, rating=band(score), coverage=round(cov, 1))
-                if (f.get("flags") or {}).get("adjusted_label"):
-                    r["metadata_flags"] = [f["flags"]["adjusted_label"]]
-                    r["rule_tags"] = list(f["flags"].get("rule_tags") or [])
+                labels = ([f["flags"]["adjusted_label"]] if (f.get("flags") or {}).get("adjusted_label") else []) + list((f.get("flags") or {}).get("valuation_labels") or [])
+                if labels:
+                    r["metadata_flags"] = labels
+                if (f.get("flags") or {}).get("rule_tags"):
+                    r["rule_tags"] = list(f["flags"]["rule_tags"])
         out[s] = r
     return out

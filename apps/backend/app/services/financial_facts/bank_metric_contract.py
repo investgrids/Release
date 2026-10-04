@@ -27,7 +27,7 @@ import requests
 
 from app.services.financial_facts import nse_integrated_filing as nif
 from app.services.financial_facts.filing_metric_contract import (
-    ADJUSTED_LABEL, DISCREPANCY_LABEL, DISCREPANCY_STATUS, EXCEPTIONAL_LOSS_TAX_CAP, FRESH_DAYS, RULE_4A, RULE_4C, exceptional_materiality, plausibility_check,
+    ADJUSTED_LABEL, EPS_PE_LABEL, LOSS_LABEL, RULE_4E, RULE_4F, apply_eps_and_loss_rules, DISCREPANCY_LABEL, DISCREPANCY_STATUS, EXCEPTIONAL_LOSS_TAX_CAP, FRESH_DAYS, RULE_4A, RULE_4C, exceptional_materiality, plausibility_check,
 )
 
 BANK_CONTRACT_VERSION = "NSE_FILING_BANK_V1"
@@ -180,7 +180,7 @@ class BankMetrics:
 
 
 def compute_bank(symbol: str, bf: "BankFiling | None", prior: "BankFiling | None", market_cap_cr: float | None, today: date | None = None,
-                 newer_unaudited_year_end: bool = False, reference: dict | None = None, ratio_source: "BankFiling | None" = None) -> BankMetrics:
+                 newer_unaudited_year_end: bool = False, reference: dict | None = None, ratio_source: "BankFiling | None" = None, price: float | None = None) -> BankMetrics:
     today = today or date.today()
     fm = BankMetrics(symbol=symbol)
     scored = tuple(BANK_HIGHER_IS_BETTER)
@@ -274,9 +274,12 @@ def compute_bank(symbol: str, bf: "BankFiling | None", prior: "BankFiling | None
         else:
             pe = round(market_cap_cr / prof, 2)
         fm.valuation = {"pe": pe, "pb": pb, "pe_reason": why, "pb_reason": None if pb is not None else "NEGATIVE_EQUITY" if equity is not None else "CONCEPT_MISSING", "market_cap_cr": market_cap_cr}
+    apply_eps_and_loss_rules(fm.valuation, owners, bf.eps, price, equity, fm.flags)
     used_4a = loss_bypass and (fm.metrics.get("roe") is not None or fm.valuation.get("pe") is not None)
+    used_4e, used_4f = bool(fm.flags.get("rule_4e_filed_eps_pe") and fm.valuation.get("pe") is not None), bool(fm.flags.get("rule_4f_loss_ranked_worst"))
     fm.flags.update({"rule_4a_exceptional_loss_bypass": bool(used_4a), "adjusted_label": ADJUSTED_LABEL if used_4a else None,
-                     "rule_tags": ([RULE_4A] if used_4a else [])})
+                     "rule_tags": ([RULE_4A] if used_4a else []) + ([RULE_4E] if used_4e else []) + ([RULE_4F] if used_4f else []),
+                     "valuation_labels": ([EPS_PE_LABEL] if used_4e else []) + ([LOSS_LABEL] if used_4f else [])})
     # Rule 4C plausibility guard (same rule as the industrial contract)
     bad = plausibility_check(fm.valuation, reference, pe_basis_adjusted=bool(used_4a))
     fm.flags["plausibility_checked"] = bool(reference)
@@ -304,6 +307,10 @@ def score_bank_group(members: list[str], fm: dict, mb: dict, directions: dict | 
         pct[m] = {s: fss.percentile_rank(vals, s, cheaper_is_better=not hib) for s in vals}
     pes = {s: f["valuation"].get("pe") for s, f in usable.items() if f["valuation"].get("pe") is not None}
     pbs = {s: f["valuation"].get("pb") for s, f in usable.items() if f["valuation"].get("pb") is not None}
+    for s_, f_ in usable.items():   # Rule 4F: a verified loss / negative equity is ranked worst (cheaper_is_better -> highest value)
+        v_ = f_["valuation"]
+        if v_.get("pe") is None and v_.get("pe_rank_worst"): pes[s_] = 1.0e9
+        if v_.get("pb") is None and v_.get("pb_rank_worst"): pbs[s_] = 1.0e9
     out = {}
     for s in members:
         f = fm.get(s)
@@ -334,7 +341,10 @@ def score_bank_group(members: list[str], fm: dict, mb: dict, directions: dict | 
                 score = round(float(Fraction(fs).limit_denominator(10**6) * Fraction(8, 15) + Fraction(val).limit_denominator(10**6) * Fraction(4, 15)
                                     + Fraction(mb[s]).limit_denominator(10**6) * Fraction(3, 15)), 1)
                 r.update(state="scored", score=score, rating=fss.band(score), coverage=round(cov, 1))
-                if (f.get("flags") or {}).get("adjusted_label"):
-                    r["metadata_flags"] = [f["flags"]["adjusted_label"]]
+                labels = ([f["flags"]["adjusted_label"]] if (f.get("flags") or {}).get("adjusted_label") else []) + list((f.get("flags") or {}).get("valuation_labels") or [])
+                if labels:
+                    r["metadata_flags"] = labels
+                if (f.get("flags") or {}).get("rule_tags"):
+                    r["rule_tags"] = list(f["flags"]["rule_tags"])
         out[s] = r
     return out

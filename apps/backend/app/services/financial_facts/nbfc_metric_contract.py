@@ -20,7 +20,7 @@ from datetime import date
 
 from app.services.financial_facts import bank_metric_contract as bmc
 from app.services.financial_facts.filing_metric_contract import (
-    ADJUSTED_LABEL, DISCREPANCY_LABEL, DISCREPANCY_STATUS, EXCEPTIONAL_LOSS_TAX_CAP, FRESH_DAYS, RULE_4A, RULE_4C, exceptional_materiality, plausibility_check,
+    ADJUSTED_LABEL, EPS_PE_LABEL, LOSS_LABEL, RULE_4E, RULE_4F, apply_eps_and_loss_rules, DISCREPANCY_LABEL, DISCREPANCY_STATUS, EXCEPTIONAL_LOSS_TAX_CAP, FRESH_DAYS, RULE_4A, RULE_4C, exceptional_materiality, plausibility_check,
 )
 
 FIN_CONTRACT_VERSION = "NSE_FILING_FIN_V1"
@@ -56,7 +56,7 @@ class FinMetrics:
 
 
 def compute_fin(symbol: str, bf, prior, market_cap_cr: float | None, today: date | None = None, newer_unaudited_year_end: bool = False,
-                reference: dict | None = None) -> FinMetrics:
+                reference: dict | None = None, price: float | None = None) -> FinMetrics:
     today = today or date.today()
     fm = FinMetrics(symbol=symbol)
     if bf is None:
@@ -170,8 +170,12 @@ def compute_fin(symbol: str, bf, prior, market_cap_cr: float | None, today: date
         else:
             pe = round(market_cap_cr / prof, 2)
         fm.valuation = {"pe": pe, "pb": pb, "pe_reason": why, "pb_reason": None if pb is not None else "NEGATIVE_EQUITY" if equity is not None else "CONCEPT_MISSING", "market_cap_cr": market_cap_cr}
+    apply_eps_and_loss_rules(fm.valuation, owners, bf.eps, price, equity, fm.flags)
     used_4a = loss_bypass and (fm.metrics.get("roe") is not None or fm.valuation.get("pe") is not None)
-    fm.flags.update({"rule_4a_exceptional_loss_bypass": bool(used_4a), "adjusted_label": ADJUSTED_LABEL if used_4a else None, "rule_tags": ([RULE_4A] if used_4a else [])})
+    used_4e, used_4f = bool(fm.flags.get("rule_4e_filed_eps_pe") and fm.valuation.get("pe") is not None), bool(fm.flags.get("rule_4f_loss_ranked_worst"))
+    fm.flags.update({"rule_4a_exceptional_loss_bypass": bool(used_4a), "adjusted_label": ADJUSTED_LABEL if used_4a else None,
+                     "rule_tags": ([RULE_4A] if used_4a else []) + ([RULE_4E] if used_4e else []) + ([RULE_4F] if used_4f else []),
+                     "valuation_labels": ([EPS_PE_LABEL] if used_4e else []) + ([LOSS_LABEL] if used_4f else [])})
     bad = plausibility_check(fm.valuation, reference, pe_basis_adjusted=bool(used_4a))
     fm.flags["plausibility_checked"] = bool(reference)
     if bad:

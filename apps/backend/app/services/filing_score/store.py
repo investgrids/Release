@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.filing_score import FilingScoreRun, FilingScoreSnapshot
@@ -61,7 +61,8 @@ async def activate_run(db: AsyncSession, run_id: str) -> FilingScoreRun:
     if run is None or run.status != "complete":
         raise ValueError("only a complete run can be activated")
     await db.execute(update(FilingScoreRun).where(FilingScoreRun.method_version == run.method_version, FilingScoreRun.is_active.is_(True)).values(is_active=False))
-    run.is_active, run.activated_at = True, _now()
+    top = (await db.execute(select(func.max(FilingScoreRun.activation_seq)).where(FilingScoreRun.method_version == run.method_version))).scalar() or 0
+    run.is_active, run.activated_at, run.activation_seq = True, _now(), top + 1
     await db.flush()
     return run
 
@@ -74,8 +75,8 @@ async def rollback_active(db: AsyncSession, method_version: str) -> FilingScoreR
     if cur is not None:
         prev = (await db.execute(
             select(FilingScoreRun).where(FilingScoreRun.method_version == method_version, FilingScoreRun.status == "complete", FilingScoreRun.id != cur.id,
-                                         FilingScoreRun.activated_at.is_not(None), FilingScoreRun.activated_at < cur.activated_at)
-            .order_by(FilingScoreRun.activated_at.desc()))).scalars().first()
+                                         FilingScoreRun.activation_seq.is_not(None), FilingScoreRun.activation_seq < cur.activation_seq)
+            .order_by(FilingScoreRun.activation_seq.desc()))).scalars().first()
         cur.is_active, cur.status = False, "rolled_back"   # a rolled-back run is never restored automatically (no flip-flopping); re-enable by computing a new run
         if prev is not None:
             prev.is_active, prev.activated_at = True, _now()

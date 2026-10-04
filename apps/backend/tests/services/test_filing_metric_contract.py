@@ -327,3 +327,51 @@ def test_rule_4d_owners_plus_nci_must_reconcile_to_total_profit():
     assert owners is None and "does not reconcile" in basis
     ok = _ex(dict(BASE, ProfitLossForPeriod=135.89, ProfitOrLossAttributableToOwnersOfParent=42.52, ProfitOrLossAttributableToNonControllingInterests=93.37))
     assert nif.owners_profit(ok)[0] == 42.52
+
+
+# ---- V2-Rule-4E (P/E from filed EPS) and V2-Rule-4F (verified loss / negative equity shown, ranked worst) ----
+def _gap_ex(eps, **over):
+    f = dict(BASE, **over)
+    f.pop("ProfitOrLossAttributableToOwnersOfParent", None); f.pop("EquityAttributableToOwnersOfParent", None)
+    f["ProfitOrLossAttributableToNonControllingInterests"] = None
+    ex = _ex({k: v for k, v in f.items() if v is not None}, scope="Consolidated")
+    ex.eps = eps
+    ex.facts["Equity"] = nif.ExtractedFact("Equity", 500 * CR, "p", None, "x")
+    ex.facts["EquityAttributableToOwnersOfParent"] = nif.ExtractedFact("EquityAttributableToOwnersOfParent", 450 * CR, "p", None, "x")   # minority exists: owners' profit unusable
+    return ex
+
+
+def test_rule_4e_pe_from_positive_filed_eps_when_owners_profit_is_a_source_gap():
+    fm = fmc.compute("T", _gap_ex(5.0), None, 1000.0, today=date(2026, 10, 3), price=100.0)
+    assert fm.valuation["pe"] == 20.0 and fm.valuation["pe_basis"] == "price / filed EPS"
+    assert fm.flags["rule_tags"] == [fmc.RULE_4E] and fm.flags["valuation_labels"] == [fmc.EPS_PE_LABEL]
+
+
+def test_rule_4f_negative_filed_eps_is_a_verified_loss_shown_and_ranked_worst():
+    fm = fmc.compute("T", _gap_ex(-4.0), None, 1000.0, today=date(2026, 10, 3), price=100.0)
+    v = fm.valuation
+    assert v["pe"] is None and v["pe_rank_worst"] is True and v["pe_display"] == -25.0 and fm.flags["rule_tags"] == [fmc.RULE_4F]
+
+
+def test_rule_4e_4f_never_treat_a_missing_eps_or_missing_price_as_a_loss_or_a_profit():
+    for eps, price in ((None, 100.0), (5.0, None)):
+        v = fmc.compute("T", _gap_ex(eps), None, 1000.0, today=date(2026, 10, 3), price=price).valuation
+        assert v["pe"] is None and not v.get("pe_rank_worst") and v["pe_reason"] == "OWNERS_PROFIT_SOURCE_GAP"
+
+
+def test_rule_4f_loss_making_owners_and_negative_equity_are_displayed_and_scored_worst():
+    loss = fmc.compute("T", _ex(dict(BASE, ProfitLossForPeriod=-30, ProfitOrLossAttributableToOwnersOfParent=-30, ProfitBeforeExceptionalItemsAndTax=-20, ProfitBeforeTax=-20)),
+                       None, 1000.0, today=date(2026, 10, 3))
+    assert loss.valuation["pe_display"] == round(1000 / -30, 2) and loss.valuation["pe_rank_worst"]
+    neg = fmc.compute("T", _ex(dict(BASE, Equity=-50, EquityAttributableToOwnersOfParent=-50)), None, 1000.0, today=date(2026, 10, 3))
+    assert neg.valuation["pb_display"] == -20.0 and neg.valuation["pb_rank_worst"]
+
+
+def test_worst_rank_enters_the_peer_comparison_as_the_most_expensive_value():
+    from app.services.financial_facts import filing_shadow_score as fss
+    def mk(pe, pb, worst=False):
+        return {"status": "ok", "metrics": {"revenue_growth": 5, "profit_growth": 5, "roe": 10, "roce": 10, "debt_to_equity": 1.0, "interest_coverage": 3.0},
+                "valuation": {"pe": pe, "pb": pb, "pe_rank_worst": worst}, "flags": {}}
+    fms = {"A": mk(10.0, 1.0), "B": mk(20.0, 2.0), "L": mk(None, 1.5, worst=True)}
+    out = fss.score_group(["A", "B", "L"], fms, {"A": 50.0, "B": 50.0, "L": 50.0})
+    assert out["L"]["val"] is not None and out["L"]["val"] < out["A"]["val"]     # the loss-maker's valuation percentile is the worst on the P/E side

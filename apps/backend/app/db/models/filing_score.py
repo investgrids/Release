@@ -33,6 +33,7 @@ class FilingScoreRun(Base):
     started_at = Column(DateTime(timezone=True), nullable=False, default=_now)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     activated_at = Column(DateTime(timezone=True), nullable=True)
+    activation_seq = Column(Integer, nullable=True)                       # monotonic per method_version: orders activations without relying on clock resolution
     trigger = Column(String(32), nullable=True)                           # "manual" | "scheduled"
     counts = Column(JSON, nullable=True)                                  # scored / withheld per segment, reasons
     contracts = Column(JSON, nullable=True)                               # contract versions used (industrial / bank / fin / scorer)

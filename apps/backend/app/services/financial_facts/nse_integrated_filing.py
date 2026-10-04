@@ -122,6 +122,7 @@ class FilingExtract:
     prior: dict[str, ExtractedFact] = field(default_factory=dict)       # prior fiscal year comparatives
     missing: list[str] = field(default_factory=list)
     annual_status: str = ""  # "audited" | "unverified_unaudited": a year-end filing is not treated as audited unless it is
+    eps: float | None = None       # filed annual basic EPS (continuing + discontinued operations) on the full-year context
     xbrl_fullyear_audit: str = ""  # value of WhetherResultsAreAuditedOrUnaudited on the full-year context ("Audited" / "Unaudited" / "")
     audit_source: str = ""         # "xbrl_fullyear" | "listing": which source decided annual_status
     disposal_facts: dict = field(default_factory=dict)  # concept -> crore, any non-dimensional held-for-sale / disposal-group / discontinued-operations fact
@@ -247,6 +248,13 @@ def extract(ref: FilingRef, session: requests.Session | None = None, raw_dir: st
                 v = el.text.strip()
                 # two different statements for the same full-year context are ambiguous: never treated as audited
                 ex.xbrl_fullyear_audit = v if ex.xbrl_fullyear_audit in ("", v) else "AMBIGUOUS"
+        if name == "BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations" and el.text:
+            cd = ctx.get(el.get("contextRef"))
+            if cd and cd[0] == "duration" and not cd[3] and _is_year(cd[1], cd[2]) and cd[2] == ref.period_end:
+                try:
+                    ex.eps = float(el.text.strip())
+                except ValueError:
+                    pass
         if _DISPOSAL_NAME.search(name) and "PerShare" not in name:
             cd = ctx.get(el.get("contextRef"))
             if cd and not cd[3] and (cd[2] == ref.period_end):

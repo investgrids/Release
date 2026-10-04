@@ -66,6 +66,13 @@ RULE_4C = "V2-Rule-4C-PlausibilityGuard"
 PLAUSIBILITY_FACTOR = 3.0
 DISCREPANCY_STATUS = "VALUATION_DATA_DISCREPANCY"
 DISCREPANCY_LABEL = "N/A - Valuation Data Discrepancy"
+# V2-Rule-4E: where owners' profit is not usable (source gap) but the filing reports a positive annual basic EPS, P/E = price / filed EPS (labelled).
+# V2-Rule-4F: a verified loss (owners' profit or filed EPS negative) or negative equity is SHOWN (negative P/E, negative P/B) and ranked worst in the peer
+# comparison (pe_rank_worst / pb_rank_worst); a missing figure is never treated as a loss.
+RULE_4E = "V2-Rule-4E-FiledEpsPE"
+RULE_4F = "V2-Rule-4F-LossRankedWorst"
+EPS_PE_LABEL = "[P/E from filed EPS]"
+LOSS_LABEL = "[Loss-making: valuation ranked worst]"
 FRESH_DAYS = 456
 UNRESOLVED_CASES = {"KNRCON", "VEDL", "TRANSWORLD", "PRINCEPIPE"}
 REASONS = (
@@ -141,12 +148,34 @@ def plausibility_check(valuation: dict, reference: dict | None, pe_basis_adjuste
     return None
 
 
+def apply_eps_and_loss_rules(v: dict, owners: float | None, eps: float | None, price: float | None, equity: float | None, flags: dict) -> None:
+    """Rules 4E / 4F on a valuation dict, in place. Only fills a P/E that is blocked by a source gap (4E) or by a verified loss (4F), and a P/B blocked by
+    negative equity (4F); never touches a figure that is merely missing for another reason."""
+    if not v.get("market_cap_cr") or v.get("reason"):
+        return
+    if v.get("pe") is not None:
+        pass
+    elif v.get("pe_reason") == "OWNERS_PROFIT_SOURCE_GAP" and eps is not None and price:
+        if eps > 0:
+            v["pe"], v["pe_reason"], v["pe_basis"] = round(price / eps, 2), None, "price / filed EPS"
+            flags["rule_4e_filed_eps_pe"] = True
+        elif eps < 0:
+            v["pe_display"], v["pe_rank_worst"], v["pe_reason"] = round(price / eps, 2), True, "LOSS_RANKED_WORST"
+            flags["rule_4f_loss_ranked_worst"] = True
+    elif v.get("pe_reason") == "PROFIT_NOT_POSITIVE" and owners is not None and owners < 0:
+        v["pe_display"], v["pe_rank_worst"], v["pe_reason"] = round(v["market_cap_cr"] / owners, 2), True, "LOSS_RANKED_WORST"
+        flags["rule_4f_loss_ranked_worst"] = True
+    if v.get("pb") is None and v.get("pb_reason") == "NEGATIVE_EQUITY" and equity:
+        v["pb_display"], v["pb_rank_worst"] = round(v["market_cap_cr"] / equity, 2), True
+        flags["rule_4f_loss_ranked_worst"] = True
+
+
 def _c(ex: "nif.FilingExtract | None", name: str):
     return nif.crore(ex.facts.get(name)) if ex else None
 
 
 def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtract | None", market_cap_cr: float | None,
-            today: date | None = None, newer_unaudited_year_end: bool = False, reference: dict | None = None) -> FilingMetrics:
+            today: date | None = None, newer_unaudited_year_end: bool = False, reference: dict | None = None, price: float | None = None) -> FilingMetrics:
     today = today or date.today()
     fm = FilingMetrics(symbol=symbol)
     if symbol.upper() in UNRESOLVED_CASES:
@@ -310,6 +339,8 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
             pe = round(market_cap_cr / (adj_owners if loss_bypass else owners), 2)
         fm.valuation = {"pe": pe, "pb": pb, "pe_reason": pe_reason, "pb_reason": None if pb is not None else "NEGATIVE_EQUITY" if eq is not None else "CONCEPT_MISSING",
                         "market_cap_cr": market_cap_cr}
+    # ---- Rules 4E / 4F (valuation only; fail-closed gates above are unchanged)
+    apply_eps_and_loss_rules(fm.valuation, owners, getattr(ex, "eps", None), price, eq, fm.flags)
     # ---- earnings-quality invalidation: affected earnings metrics become unavailable, never the whole company
     inv = "REGULATORY_DEFERRAL_UNVERIFIED" if reg_state in ("material_gain", "material_loss", "unknown") else ("NON_CORE_INCOME_BASIS" if non_core_profit else None)
     if inv:
@@ -317,8 +348,9 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
             if fm.metrics.get(m) is not None and not (m == "roe" and fm.reasons.get("roe") == "NEGATIVE_EQUITY"):
                 fm.metrics[m] = None
                 fm.reasons[m] = inv
-        if fm.valuation.get("pe") is not None:
+        if fm.valuation.get("pe") is not None or fm.valuation.get("pe_rank_worst"):
             fm.valuation["pe"] = None
+            fm.valuation["pe_rank_worst"] = False
             fm.valuation["pe_reason"] = inv
     fm.flags["earnings_basis_invalid_reason"] = inv
     # Rule 4C runs on the final multiples (after the earnings-quality invalidation) and, on failure, clears every scored metric so the
@@ -333,9 +365,11 @@ def compute(symbol: str, ex: "nif.FilingExtract | None", prior: "nif.FilingExtra
         fm.flags.update({"rule_4c_discrepancy": bad, "rule_tags": [RULE_4C], "na_label": DISCREPANCY_LABEL})
         return fm
     used_4a = loss_bypass and (fm.metrics.get("roe") is not None or fm.valuation.get("pe") is not None)
+    used_4e, used_4f = bool(fm.flags.get("rule_4e_filed_eps_pe") and fm.valuation.get("pe") is not None), bool(fm.flags.get("rule_4f_loss_ranked_worst"))
     fm.flags.update({"rule_4a_exceptional_loss_bypass": bool(used_4a), "rule_4b_windfall_review": bool(gain),
                      "adjusted_label": ADJUSTED_LABEL if used_4a else None,
-                     "rule_tags": ([RULE_4A] if used_4a else []) + ([RULE_4B] if gain else [])})
+                     "rule_tags": ([RULE_4A] if used_4a else []) + ([RULE_4B] if gain else []) + ([RULE_4E] if used_4e else []) + ([RULE_4F] if used_4f else []),
+                     "valuation_labels": ([EPS_PE_LABEL] if used_4e else []) + ([LOSS_LABEL] if used_4f else [])})
     if used_4a:
         fm.values["owners_profit_pre_exceptional"] = adj_owners
         fm.values["exceptional_loss_tax_rate"] = round(tax_rate, 4)
